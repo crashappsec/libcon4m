@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export LIBRARY_PATH=${HOME}/.local/c0/libs/
+
 OS=$(uname -o 2>/dev/null)
 if [[ $? -ne 0 ]] ; then
     # Older macOS/OSX versions of uname don't support -o
