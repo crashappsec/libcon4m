@@ -14,18 +14,25 @@ else
   using_glibc = false
 endif
 
-c_args        = ['-Wextra', '-Ofast', '-g', '-Wno-unused-parameter',
-                 '-Wno-cast-function-type', '-Wno-unused-value',
-                 '-Wno-builtin-declaration-mismatch']
+c_args        = ['-Wextra',
+                 '-Ofast',
+                 '-g',
+                 '-Wno-unused-parameter',
+                 '-Wno-cast-function-type',
+                 '-Wno-unused-value']
 
 if (host_machine.system() == 'darwin')
   using_osx  = true
-  link_args  = ['-target', 'arm64-apple-macos14', '-object_path_lto',
+  link_args  = ['-target', 'arm64-apple-macos14',
                 '-framework', 'Security']
 else
   using_osx = false
   link_args = []
-  c_args    = c_args + ['-D_POSIX_SOURCE', '-D_GNU_SOURCE']
+  c_args    = c_args + ['-D_POSIX_SOURCE',
+                        '-D_GNU_SOURCE',
+                        '-Wno-builtin-declaration-mismatch'
+                       ]
+  
 endif
 
 exe_link_args = link_args + ['-flto', '-w']
@@ -121,8 +128,7 @@ libc4m   = library('con4m', lib_src,
                    include_directories : incdir,
                    dependencies : all_deps,
                    c_args : c_args,
-                   link_args: link_args,
-                   version : '0.1.0')
+                   link_args: link_args)
 
 executable('c4test', test_src,
            include_directories : incdir,
@@ -134,6 +140,6 @@ executable('c4test', test_src,
 executable('hash', hash_test_src + hat_primary,
            include_directories : incdir,
            dependencies : all_deps,
-           link_args : exe_link_args,           
+           link_args : exe_link_args,
            c_args : exe_c_args)
 
