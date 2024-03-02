@@ -129,7 +129,7 @@ typedef enum {
 extern int utf8proc_iterate(const uint8_t *str, ssize_t len, int32_t *cp);
 extern bool utf8proc_codepoint_valid(int32_t cp);
 extern int utf8proc_encode_char(int32_t cp, uint8_t *dst);
-extern const cp_category_t utf8proc_category(int32_t cp);
+extern cp_category_t utf8proc_category(int32_t cp);
 extern int utf8proc_charwidth(int32_t cp);
 extern int32_t utf8proc_tolower(int32_t cp);
 extern int32_t utf8proc_toupper(int32_t cp);

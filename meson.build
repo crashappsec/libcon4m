@@ -1,16 +1,35 @@
-project('libcon4m', 'c', default_options: ['c_std=c21'])
+project('libcon4m', 'c', default_options: ['c_std=c2x'])
 
-exe_link_args = '-flto -w'
-cc = meson.get_compiler('c')
+cc        = meson.get_compiler('c')
+incdir    = include_directories('include')
+using_osx = false
 
+glibc_check = '''#ifndef __GLIBC__
+#error NO GLIBC   
+'''
+
+if cc.compiles(glibc_check)
+  using_glibc = true
+else
+  using_glibc = false
+endif
+
+c_args        = ['-Wextra', '-Ofast', '-g', '-Wno-unused-parameter',
+                 '-Wno-cast-function-type', '-Wno-unused-value',
+                 '-Wno-builtin-declaration-mismatch']
 
 if (host_machine.system() == 'darwin')
+  using_osx  = true
   link_args  = ['-target', 'arm64-apple-macos14', '-object_path_lto',
                 '-framework', 'Security']
 else
-  link_args  = ''
+  using_osx = false
+  link_args = []
+  c_args    = c_args + ['-D_POSIX_SOURCE', '-D_GNU_SOURCE']
 endif
 
+exe_link_args = link_args + ['-flto', '-w']
+exe_c_args    = c_args + ['-DHATRACK_REFERENCE_ALGORITHMS']
 
 fpty_code = '''#include <pty.h>
 
@@ -70,44 +89,51 @@ hash_test_src = hat_hashref + [
                  'src/tests/hash/rand.c',
                  'src/tests/hash/testhat.c']
 
+if not using_osx and not using_glibc
+  target      = build_machine.cpu_family()
+  quark_files = ['src/quark/quark.c', 'src/quark' / target + '.s']
+  hat_primary = hat_primary + quark_files
+endif
+
 lib_src = c4m_src + hat_primary
 
 test_src = ['src/tests/test.c']
             
-incdir   = include_directories('include')
 threads  = dependency('threads')
-
-math   = cc.find_library('m', required : false)
-atomic = cc.find_library('atomic', required: false)
-
-cmake    = import('cmake')
-
+math     = cc.find_library('m', required : false)
+ffi      = cc.find_library('ffi')
+crypto   = cc.find_library('crypto')
+ssl      = cc.find_library('ssl')
 
 unibreak = dependency('libunibreak')
 utf8proc = dependency('libutf8proc')
 cmark    = dependency('libcmark-gfm')
-gumbo    = dependency('gumbo')
-ffi      = dependency('libffi')
-openssl  = dependency('openssl')
 
-
-deps     = [unibreak, utf8proc, threads, cmark, gumbo, ffi, openssl]
-opts     = [math, atomic]
+deps     = [unibreak, utf8proc, threads, cmark, ffi, ssl, crypto]
+opts     = [math]
 all_deps = deps + opts
+
+if using_glibc
+  opts   = opts + [cc.find_library('atomic')]
+endif
 
 libc4m   = library('con4m', lib_src,
                    include_directories : incdir,
                    dependencies : all_deps,
+                   c_args : c_args,
                    link_args: link_args,
                    version : '0.1.0')
 
 executable('c4test', test_src,
            include_directories : incdir,
            dependencies : all_deps,
+           c_args : c_args,
+           link_args : exe_link_args,
            link_with : libc4m)
 
 executable('hash', hash_test_src + hat_primary,
            include_directories : incdir,
            dependencies : all_deps,
-           c_args : '-DHATRACK_REFERENCE_ALGORITHMS')
+           link_args : exe_link_args,           
+           c_args : exe_c_args)
 

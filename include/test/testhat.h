@@ -252,12 +252,12 @@ static inline void
 test_put(testhat_t *self, uint32_t key, uint32_t value)
 {
     test_item item;
-    
+
     item.s.key   = key;
     item.s.value = value;
-    
+
     testhat_put(self, precomputed_hashes[key], (void *)item.i, NULL);
-    
+
     return;
 }
 
@@ -265,12 +265,12 @@ static inline void
 test_replace(testhat_t *self, uint32_t key, uint32_t value)
 {
     test_item item;
-    
+
     item.s.key   = key;
     item.s.value = value;
-    
+
     testhat_replace(self, precomputed_hashes[key], (void *)item.i, NULL);
-    
+
     return;
 }
 
@@ -278,10 +278,10 @@ static inline bool
 test_add(testhat_t *self, uint32_t key, uint32_t value)
 {
     test_item item;
-    
+
     item.s.key   = key;
     item.s.value = value;
-    
+
     return testhat_add(self, precomputed_hashes[key], (void *)item.i);
 }
 
@@ -316,7 +316,7 @@ test_put64(testhat_t *self, uint32_t key, uint32_t value)
 
     n = value << 3;
     testhat_put64(self, &precomputed_hashes[key], (void *)n);
-    
+
     return;
 }
 
@@ -326,9 +326,9 @@ test_replace64(testhat_t *self, uint32_t key, uint32_t value)
     uint64_t n;
 
     n = value << 3;
-    
+
     testhat_replace64(self, &precomputed_hashes[key], (void *)n);
-    
+
     return;
 }
 
@@ -338,7 +338,7 @@ test_add64(testhat_t *self, uint32_t key, uint32_t value)
     uint64_t n;
 
     n = value << 3;
-    
+
     return testhat_add64(self, &precomputed_hashes[key], (void *)n);
 }
 

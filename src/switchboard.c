@@ -2,6 +2,8 @@
  * Currently, we're using select() here, not epoll(), etc.
  */
 #include <con4m_switchboard.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #if defined(SB_DEBUG) || defined(SB_TEST)
 #include <stdio.h>

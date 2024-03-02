@@ -38,7 +38,7 @@ add_offset(char **optr, uint64_t start_offset, uint64_t offset_len,
     char buf[offset_len];
 
 
-    for (int i = 0; i < offset_len; i++) {
+    for (uint64_t i = 0; i < offset_len; i++) {
 	buf[i] = '0';
     }
 
@@ -158,7 +158,7 @@ chexl(void *ptr, unsigned int len, uint64_t start_offset,
 	num_lines -= 1;
     }
 
-    for (int i = 0; i < num_lines; i++) {
+    for (uint64_t i = 0; i < num_lines; i++) {
 	add_offset(&outptr, start_offset, offset_len, i, chars_per_line);
 
 	// The inner loop is for quads.
@@ -184,7 +184,7 @@ chexl(void *ptr, unsigned int len, uint64_t start_offset,
 	}
 	// Now for any ASCII-printable stuff, we emit it, or a '.' if not.
 	// lineptr is pointing at the first char we need to show.
-	for (int j = 0; j < chars_per_line; j++) {
+	for (uint64_t j = 0; j < chars_per_line; j++) {
 	    ASCIICHAR();
 	}
 
@@ -203,7 +203,7 @@ chexl(void *ptr, unsigned int len, uint64_t start_offset,
 	char *stopptr = outptr + (chars_per_line/4)*13;
 
 	// Now, print any full groups of 4.
-	for (int i = 0; i < remainder / 4; i++) {
+	for (uint64_t i = 0; i < remainder / 4; i++) {
             c         = *inptr++;
             *outptr++ = hex_map[(c >> 4)];
             *outptr++ = hex_map[c & 0x0f];
@@ -223,7 +223,7 @@ chexl(void *ptr, unsigned int len, uint64_t start_offset,
 	    *outptr++ = ' ';
 	}
 	// Now, print any leftover chars.
-	for (int i = 0; i < remainder % 4; i++) {
+	for (uint64_t i = 0; i < remainder % 4; i++) {
             c         = *inptr++;
             *outptr++ = hex_map[(c >> 4)];
             *outptr++ = hex_map[c & 0x0f];
@@ -234,11 +234,11 @@ chexl(void *ptr, unsigned int len, uint64_t start_offset,
 	while (outptr < stopptr) {
 	    *outptr++ = ' ';
 	}
-	for (int i = 0; i < remainder; i++) {
+	for (uint64_t i = 0; i < remainder; i++) {
 	    ASCIICHAR();
 	}
 	// Now, pad the rest of the line w/ spaces;
-	for (int i = remainder; i < chars_per_line; i++) {
+	for (uint64_t i = remainder; i < chars_per_line; i++) {
 	    *outptr++ = ' ';
 	}
 	*outptr = '\n';

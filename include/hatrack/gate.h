@@ -53,7 +53,7 @@ typedef mach_timespec_t duration_t;
     clock_get_time(clock_service, (x))
 #else
 typedef struct timespec duration_t;
-#define get_timestamp(x) clock_gettime(CLOCK_REALTIME, (x))
+#define get_timestamp(x) clock_gettime(CLOCK_MONOTONIC, (x))
 #endif
 
 

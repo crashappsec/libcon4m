@@ -123,7 +123,7 @@ test2() {
     ansi_render(dump1, stderr);
     ansi_render(dump2, stderr);
 
-    to_wrap = c4str_u8_to_u32(to_wrap, CALLER);
+    printf("real->codepoints = %lld\n", real->codepoints);
     ansi_render_to_width(to_wrap, 50, 0, stdout);
 }
 

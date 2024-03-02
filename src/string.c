@@ -198,21 +198,17 @@ c4str_concat(str_t *p1, str_t *p2, ownership_t ownership)
 	                            c4str_new(newlen);
     real_str_t *r           = to_internal(result);
     uint64_t    num_entries = style_num_entries(s1) + style_num_entries(s2);
-    uint64_t    st1_sz      = style_size(style_num_entries(s1));
-    uint64_t    st2_sz      = style_size(style_num_entries(s2));
-
 
     assert(internal_is_u32(s1) == internal_is_u32(s2));
 
     alloc_styles(r, num_entries);
 
     if (style_num_entries(s1)) {
-	memcpy(r->styling->styles, s1->styling->styles, st1_sz);
+        copy_styles(r->styling, s1->styling, 0);
     }
 
     if (style_num_entries(s2)) {
-	memcpy(&(r->styling->styles[style_num_entries(s1)]),
-	       s2->styling->styles, st2_sz);
+        copy_styles(r->styling, s2->styling, style_num_entries(s1));
 
 	// We loop through after the copy to adjust the offsets.
 	for (uint64_t i = style_num_entries(s1); i < num_entries; i++) {

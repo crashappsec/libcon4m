@@ -57,7 +57,8 @@ add_break(break_info_t **listp, int32_t br)
     break_info_t *breaks = *listp;
 
     if (breaks->num_slots == breaks->num_breaks) {
-	*listp = grow_break_structure(breaks);
+	breaks = grow_break_structure(breaks);
+        *listp = breaks;
     }
 
     breaks->breaks[breaks->num_breaks++] = br;
