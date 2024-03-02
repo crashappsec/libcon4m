@@ -17,6 +17,9 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
+#ifdef HAVE_MUSL
+#include <bits/limits.h>
+#endif
 
 #ifdef HAVE_PTY_H
 #include <pty.h>

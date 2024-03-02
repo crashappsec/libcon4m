@@ -1,5 +1,5 @@
-#include <con4m_ansi.h>
-#include <con4m_hex.h>
+#include <con4m/ansi.h>
+#include <con4m/hex.h>
 
 void
 test1() {
@@ -107,15 +107,13 @@ test2() {
     real_str_t *real = to_internal(to_wrap);
 
     str_t *dump1 = hex_dump(real->styling,
-			    sizeof(style_info_t) +
-			    real->styling->num_entries *
-			    sizeof(style_entry_t),
+                            alloc_style_len(real),
 			    (uint64_t)real->styling,
 			    80,
 			    "Style dump\n");
 
-    str_t *dump2 = hex_dump(to_wrap,
-			    str_header_size + real->byte_len,
+    str_t *dump2 = hex_dump(real,
+			    real_alloc_len(real),
 			    (uint64_t)real,
 			    80,
 			    "String Dump\n");
@@ -123,8 +121,10 @@ test2() {
     ansi_render(dump1, stderr);
     ansi_render(dump2, stderr);
 
-    to_wrap = c4str_u8_to_u32(to_wrap, CALLER);
     ansi_render_to_width(to_wrap, 50, 0, stdout);
+    c4str_free(dump1);
+    c4str_free(dump2);
+    c4str_free(to_wrap);
 }
 
 

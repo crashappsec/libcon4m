@@ -21,6 +21,9 @@
 
 #pragma once
 
+#include <limits.h>
+#include <sys/wait.h>
+
 #include <hatrack/gate.h>
 // Currently pulls in Crown.
 #include <hatrack/dict.h>

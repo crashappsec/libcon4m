@@ -1,8 +1,8 @@
 #pragma once
 
-#include <con4m_style.h>
-#include <unibreak.h>
-#include <utf8proc.h>
+#include <con4m/style.h>
+#include <vendor/unibreak.h>
+#include <vendor/utf8proc.h>
 
 /**
  ** For UTF-32, we actually store in the codepoints field the bitwise
@@ -17,6 +17,19 @@ typedef struct {
 } real_str_t;
 
 extern const int str_header_size;
+
+static inline size_t
+get_real_alloc_len(int rawbytes)
+{
+    return sizeof(real_str_t) + 4 + rawbytes;
+}
+
+static inline size_t
+real_alloc_len(real_str_t *r)
+{
+    return get_real_alloc_len(r->byte_len);
+}
+
 
 typedef char str_t;
 
@@ -39,6 +52,13 @@ style_num_entries(real_str_t *s)
 	return 0;
     }
     return s->styling->num_entries;
+}
+
+static inline size_t
+alloc_style_len(real_str_t *s)
+{
+    return sizeof(style_info_t) +
+        s->styling->num_entries * sizeof(style_entry_t);
 }
 
 static inline void

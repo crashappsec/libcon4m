@@ -2,8 +2,6 @@
 
 #include <quark.h>
 
-#if defined(USE_QUARK)
-
 __int128_t __atomic_load_16(__int128_t *address)
 {
     // My understanding on the x86 is that we can do a direct load,
@@ -41,5 +39,3 @@ __int128_t __atomic_fetch_or_16(__int128_t *address, __int128_t operand) {
 
     return retval;
 }
-
-#endif

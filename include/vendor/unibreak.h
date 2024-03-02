@@ -1,6 +1,6 @@
 #pragma once
 
-#include "con4m_base.h"
+#include <con4m/base.h>
 
 extern void set_linebreaks_utf32(const int32_t *s, size_t len,
 				 const char *lang, char *brks);

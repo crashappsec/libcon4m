@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m_str.h>
+#include <con4m/str.h>
 
 // TODO, should use a streaming interface for long dumps.
 

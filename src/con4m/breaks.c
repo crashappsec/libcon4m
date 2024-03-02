@@ -1,4 +1,4 @@
-#include <con4m_breaks.h>
+#include <con4m.h>
 
 // Assume a possible break every 2^n codepoints when allocating, but
 // be prepared to alloc extra if needed.
@@ -133,11 +133,12 @@ get_all_line_break_ops(str_t *instr)
     char         *br_raw;
 
     if (internal_is_u32(s)) {
-	br_raw = (char *)malloc(l * 2);
-	set_linebreaks_utf32((int32_t *)s->data, s->byte_len, "en", br_raw);
+	br_raw = (char *)zalloc(l);
+        assert (s != NULL);
+	set_linebreaks_utf32((int32_t *)s->data, l, "en", br_raw);
     }
     else {
-	br_raw = (char *)malloc(s->byte_len * 2);
+	br_raw = (char *)zalloc(s->byte_len);
 	set_linebreaks_utf8_per_code_point((int8_t *)s->data, s->byte_len,
 					   "en", br_raw);
     }
@@ -148,7 +149,9 @@ get_all_line_break_ops(str_t *instr)
 	}
     }
 
-    free(br_raw);
+    if (br_raw != NULL) {
+        free(br_raw);
+    }
 
     return res;
 }

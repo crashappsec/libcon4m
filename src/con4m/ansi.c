@@ -1,4 +1,4 @@
-#include <con4m_ansi.h>
+#include <con4m.h>
 
 static inline bool
 ignore_for_printing(int32_t cp)
@@ -175,15 +175,16 @@ ansi_render_u8(real_str_t *s, FILE *outstream)
     style_t        default_style = get_default_style();
     style_t        current_style = default_style;
     uint64_t       casing        = current_style & TITLE_CASE;
-    int            cp_ix         = 0;
-    int            cp_stop       = 0;
-    int            style_ix      = 0;
+    uint32_t       cp_ix         = 0;
+    uint32_t       cp_stop       = 0;
+    uint32_t       style_ix      = 0;
     u8_state_t     style_state   = U8_STATE_START_DEFAULT;
     uint8_t       *p             = (uint8_t *)s->data;
     uint8_t       *end           = p + s->codepoints;
     style_entry_t *entry         = NULL;
+    bool           case_up       = true;
     int32_t        codepoint;
-    bool           case_up;
+
 
     style_state = U8_STATE_START_DEFAULT;
 

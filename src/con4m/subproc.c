@@ -2,10 +2,9 @@
  * Currently, we're using select() here, not epoll(), etc.
  */
 
-#include <con4m_subproc.h>
+#include <con4m.h>
 
 #if defined(SB_DEBUG) || defined(SB_TEST)
-#include <hex.h>
 #endif
 
 /*

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "con4m_base.h"
+#include <con4m/base.h>
 // Temporary.
 #define use_truecolor() (1)
 

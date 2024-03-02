@@ -1,8 +1,6 @@
 #pragma once
 
-#include <con4m_base.h>
-#include <con4m_str.h>
-#include <con4m_colors.h>
+#include <con4m/colors.h>
 
 // Flags in the style `info` bitfield.
 #define BOLD_ON         0x0001000000000000
@@ -44,7 +42,15 @@ typedef struct {
 static inline size_t
 style_size(uint64_t num_entries)
 {
-    return sizeof(style_info_t) + sizeof(style_entry_t) * num_entries;
+    return sizeof(style_info_t) + (sizeof(style_entry_t) * num_entries);
+}
+
+static inline void
+copy_styles(style_info_t *dst, style_info_t *src, int start)
+{
+    for (unsigned int i = 0; i < src->num_entries; i++) {
+        dst->styles[i + start] = src->styles[i];
+    }
 }
 
 extern void set_default_style(style_t s);

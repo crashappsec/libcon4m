@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include <hatrack/config.h>
+#include <hatrack/hatrack_config.h>
 
-#if defined(USE_QUARK)
 extern _Bool __atomic_compare_exchange_16(__int128_t *address,
                                        __int128_t *expected_value,
                                        __int128_t new_value);
@@ -12,5 +11,3 @@ extern _Bool __atomic_compare_exchange_16(__int128_t *address,
 extern __int128_t __atomic_load_16(__int128_t *address);
 extern void __atomic_store_16(__int128_t *address, __int128_t new_value);
 extern __int128_t __atomic_fetch_or_16(__int128_t *address, __int128_t operand);
-
-#endif
