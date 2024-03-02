@@ -1,5 +1,5 @@
-#include <con4m_ansi.h>
-#include <con4m_hex.h>
+#include <con4m/ansi.h>
+#include <con4m/hex.h>
 
 void
 test1() {

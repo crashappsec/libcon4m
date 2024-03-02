@@ -1,4 +1,4 @@
-#include <con4m_colors.h>
+#include <con4m/colors.h>
 
 const color_info_t color_data[] = {
   { "Air Force Blue (Raf)", { 93, 138, 168 } },
