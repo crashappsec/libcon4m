@@ -168,14 +168,17 @@ chexl(void *ptr, unsigned int len, uint64_t start_offset,
             *outptr++ = hex_map[(c >> 4)];
             *outptr++ = hex_map[c & 0x0f];
             *outptr++ = ' ';
+
             c         = *inptr++;
             *outptr++ = hex_map[(c >> 4)];
             *outptr++ = hex_map[c & 0x0f];
             *outptr++ = ' ';
+
             c         = *inptr++;
             *outptr++ = hex_map[(c >> 4)];
             *outptr++ = hex_map[c & 0x0f];
             *outptr++ = ' ';
+
             c         = *inptr++;
             *outptr++ = hex_map[(c >> 4)];
             *outptr++ = hex_map[c & 0x0f];

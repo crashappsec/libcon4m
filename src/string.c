@@ -5,7 +5,7 @@ const int str_header_size = sizeof(int64_t) + sizeof(style_info_t *);
 str_t *
 c4str_new(int64_t len)
 {
-    real_str_t *p = zalloc(len + str_header_size + 1);
+    real_str_t *p = zalloc(get_real_alloc_len(len));
 
     p->byte_len   = len;
     p->codepoints = 0;
@@ -20,10 +20,11 @@ c4str_new(int64_t len)
 str_t *
 c4str_new_u32(int64_t len)
 {
-    real_str_t *p = zalloc(4 * (len + 1) + str_header_size);
-    p->byte_len   = len * 4;
-    p->codepoints = ~(len);
-    p->styling    = NULL;
+    int32_t     byte_len = len << 2;
+    real_str_t *p        = zalloc(get_real_alloc_len(byte_len));
+    p->byte_len          = byte_len;
+    p->codepoints        = ~(len);
+    p->styling           = NULL;
 
     return p->data;
 }
@@ -40,7 +41,7 @@ apply_style_to_real_string(real_str_t *s, style_t style)
 str_t *
 c4str_new_with_style(int64_t len, style_t style)
 {
-    real_str_t *p = zalloc(len + str_header_size + 1);
+    real_str_t *p = zalloc(get_real_alloc_len(len));
 
     p->byte_len   = len;
     p->codepoints = 0;
@@ -52,9 +53,10 @@ c4str_new_with_style(int64_t len, style_t style)
 str_t *
 c4str_new_u32_with_style(int64_t len, style_t style)
 {
-    real_str_t *p = zalloc(4 * (len + 1) + str_header_size);
-    p->byte_len   = len * 4;
-    p->codepoints = ~(len);
+    int32_t     byte_len = len << 2;
+    real_str_t *p        = zalloc(get_real_alloc_len(byte_len));
+    p->byte_len          = byte_len;
+    p->codepoints        = ~(len);
 
     apply_style_to_real_string(p, style);
 
@@ -192,7 +194,7 @@ c4str_concat(str_t *p1, str_t *p2, ownership_t ownership)
     real_str_t *s1          = to_internal(p1);
     real_str_t *s2          = to_internal(p2);
     bool        u32         = internal_is_u32(s1);
-    int64_t     cp_offset   = u32 ? ~(s1->codepoints) : s1->codepoints;
+    int64_t     cp_offset   = internal_num_cp(s1);
     int64_t     newlen      = s1->byte_len + s2->byte_len;
     str_t      *result      = u32 ? c4str_new_u32(newlen >> 2) :
 	                            c4str_new(newlen);
