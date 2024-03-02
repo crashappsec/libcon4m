@@ -1,10 +1,16 @@
-project('libcon4m', 'c', default_options: ['c_std=c2x'])
+project('libcon4m', 'c',
+        default_options: ['c_std=c2x',
+                          'default_library=static'
+                         ],
+        version : '0.1.0',
+        license: 'MIT')
 
-cc        = meson.get_compiler('c')
-incdir    = include_directories('include')
-using_osx = false
 
-glibc_check = '''#ifndef __GLIBC__
+cc              = meson.get_compiler('c')
+incdir          = include_directories('include')
+using_osx       = false
+glibc_check       = '''
+#ifndef __GLIBC__
 #error NO GLIBC   
 '''
 
@@ -124,11 +130,18 @@ if using_glibc
   opts   = opts + [cc.find_library('atomic')]
 endif
 
-libc4m   = library('con4m', lib_src,
-                   include_directories : incdir,
-                   dependencies : all_deps,
-                   c_args : c_args,
-                   link_args: link_args)
+libc4m   = static_library('con4m',
+                          lib_src,
+                          include_directories : incdir,
+                          dependencies : all_deps,
+                          c_args : c_args,
+                          link_args: link_args)
+library('con4m',
+        lib_src,
+        include_directories : incdir,
+        dependencies : all_deps,
+        c_args : c_args,
+        link_args: link_args)
 
 executable('c4test', test_src,
            include_directories : incdir,
