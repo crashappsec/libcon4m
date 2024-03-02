@@ -1,4 +1,4 @@
-#include <con4m/str.h>
+#include <con4m.h>
 
 
 style_t default_style = 0;

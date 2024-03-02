@@ -1,4 +1,4 @@
-#include <con4m/breaks.h>
+#include <con4m.h>
 
 const int str_header_size = sizeof(int64_t) + sizeof(style_info_t *);
 

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <con4m/base.h>
-#include <con4m/str.h>
 #include <con4m/colors.h>
 
 // Flags in the style `info` bitfield.

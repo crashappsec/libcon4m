@@ -1,4 +1,4 @@
-#include <con4m/ansi.h>
+#include <con4m.h>
 
 static inline bool
 ignore_for_printing(int32_t cp)

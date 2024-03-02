@@ -1,6 +1,5 @@
 #pragma once
 
-#include <con4m/str.h>
 #include <con4m/breaks.h>
 
 typedef enum {

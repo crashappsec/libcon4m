@@ -1,8 +1,8 @@
 #pragma once
 
 #include <con4m/style.h>
-#include <unibreak.h>
-#include <utf8proc.h>
+#include <vendor/unibreak.h>
+#include <vendor/utf8proc.h>
 
 /**
  ** For UTF-32, we actually store in the codepoints field the bitwise

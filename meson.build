@@ -47,14 +47,14 @@ if cc.links(fpty_code, name: 'forkpty_check')
   add_project_arguments('-DHAVE_PTY_H')
 endif
 
-c4m_src  = ['src/style.c',
-            'src/colors.c',
-            'src/breaks.c', 
-            'src/string.c',
-            'src/ansi.c',
-            'src/hex.c',
-            'src/switchboard.c',
-            'src/subproc.c'
+c4m_src  = ['src/con4m/style.c',
+            'src/con4m/colors.c',
+            'src/con4m/breaks.c', 
+            'src/con4m/string.c',
+            'src/con4m/ansi.c',
+            'src/con4m/hex.c',
+            'src/con4m/switchboard.c',
+            'src/con4m/subproc.c'
             ]
 
 hat_primary = ['src/hatrack/support/hatrack_common.c',

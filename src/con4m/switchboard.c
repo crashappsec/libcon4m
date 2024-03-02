@@ -1,14 +1,13 @@
 /*
  * Currently, we're using select() here, not epoll(), etc.
  */
-#include <con4m/switchboard.h>
+#include <con4m.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
 #if defined(SB_DEBUG) || defined(SB_TEST)
 #include <stdio.h>
 #include <assert.h>
-#include <con4m/hex.h>
 #endif
 
 /* The way we use the below two IO functions assumes that, while they
