@@ -1,7 +1,4 @@
-#include <con4m/ansi.h>
-#include <con4m/hex.h>
-#include <con4m/random.h>
-
+#include <con4m.h>
 
 void
 test1() {
@@ -73,10 +70,10 @@ test2() {
     style_t style2;
 
     style1 = new_style();
-    style1 = apply_bg_color(style1, COLOR_BLACK);
+    style1 = apply_fg_color(style1, COLOR_BLACK);
     style1 = add_title_case(style1);
     style2 = apply_fg_color(style1, COLOR_JAZZBERRY);
-    style1 = apply_fg_color(style1, COLOR_ATOMIC_LIME);
+    style1 = apply_bg_color(style1, COLOR_ATOMIC_LIME);
     style1 = add_italic(add_underline(style1));
     style2 = add_italic(style2);
     style2 = add_upper_case(style2);
@@ -92,13 +89,18 @@ test2() {
 	"interesting to care about, besides my family. Oh yeah, that's "
 	"what it was, my family! Oh, wait, no, they're either not interesting, "
 	"or I don't care about them.\n");
+    str_t *w5 = c4str_from_cstr("Basically AirTags for Software");
+    str_t *w6 = c4str_from_cstr("\n");
 
     c4str_apply_style(w2, style1);
     c4str_apply_style(w3, style2);
+    c4str_apply_style(w5, style1);
 
     str_t *to_wrap = c4str_concat(w1, w2);
     to_wrap        = c4str_concat(to_wrap, w3);
     to_wrap        = c4str_concat(to_wrap, w4);
+    to_wrap        = c4str_concat(to_wrap, w5);
+    to_wrap        = c4str_concat(to_wrap, w6);
 
     real_str_t *real = to_internal(to_wrap);
 
@@ -117,7 +119,11 @@ test2() {
     ansi_render(dump1, stderr);
     ansi_render(dump2, stderr);
 
-    ansi_render_to_width(to_wrap, 50, 0, stdout);
+    size_t cols;
+    terminal_dimensions(&cols, NULL);
+    printf("%d cols\n", cols);
+
+    ansi_render_to_width(to_wrap, cols, 0, stdout);
 }
 
 void

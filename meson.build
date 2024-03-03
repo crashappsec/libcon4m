@@ -61,7 +61,8 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/hex.c',
             'src/con4m/switchboard.c',
             'src/con4m/subproc.c',
-            'src/con4m/gc.c'
+            'src/con4m/gc.c',
+            'src/con4m/term.c'
             ]
 
 hat_primary = ['src/hatrack/support/hatrack_common.c',

@@ -358,7 +358,6 @@ ansi_render_u32(real_str_t *s, int32_t start_ix, int32_t end_ix,
 	end_ix += len;
     }
 
-
     if (s->styling == NULL) {
 	ansi_render_u32_region(s, start_ix, end_ix, style0, outstream);
 	return;
@@ -371,8 +370,12 @@ ansi_render_u32(real_str_t *s, int32_t start_ix, int32_t end_ix,
 	int32_t ss = s->styling->styles[i].start;
 	int32_t se = s->styling->styles[i].end;
 
+	if (se <= cur) {
+	    continue;
+	}
+
 	if (ss > cur) {
-	    ansi_render_u32_region(s, cur, ss, style0, outstream);
+	    ansi_render_u32_region(s, cur, min(ss, end_ix), style0, outstream);
 	    cur = ss;
 	}
 
@@ -382,6 +385,7 @@ ansi_render_u32(real_str_t *s, int32_t start_ix, int32_t end_ix,
 				   outstream);
 	    cur = stopat;
 	}
+
 	if (cur == end_ix) {
 	    return;
 	}
