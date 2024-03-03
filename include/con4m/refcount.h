@@ -48,7 +48,7 @@ zalloc(size_t len)
 }
 
 #define zalloc_flex(fixed, variable, num_variable) \
-    (fixed *)rc_alloc((sizeof(fixed)) + (sizeof(variable)) * (num_variable))
+    (void *)rc_alloc((sizeof(fixed)) + (sizeof(variable)) * (num_variable))
 
 static inline void
 zfree(void *ptr)

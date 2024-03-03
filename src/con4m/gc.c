@@ -20,15 +20,15 @@ initialize_sentinal()
 
 _Atomic uint64_t num_arenas = 0;
 
-_Thread_local con4m_heap_t *current_heap = NULL;
+thread_local con4m_arena_t *current_heap = NULL;
 
 void
-con4m_new_arena(size_t num_words, con4m_heap_t **current)
+con4m_expand_arena(size_t num_words, con4m_arena_t **current)
 {
 
     // Right now this is just using malloc; we'll change to use mmap()
     // soon; we will try to map to arena_id << 32 using MAP_ANON.
-    con4m_heap_t *new_heap = zalloc_flex(con4m_heap_t, int64_t, num_words);
+    con4m_arena_t *new_heap = zalloc_flex(con4m_arena_t, int64_t, num_words);
 
     new_heap->next_alloc = (con4m_alloc_hdr *)new_heap->data;
     new_heap->previous   = *current;
@@ -37,8 +37,30 @@ con4m_new_arena(size_t num_words, con4m_heap_t **current)
     *current             = new_heap;
 }
 
+con4m_arena_t *
+con4m_new_arena(size_t num_words)
+{
+    con4m_arena_t *result = NULL;
+
+    con4m_expand_arena(num_words, &result);
+
+    return result;
+}
+
 void *
 con4m_gc_alloc(size_t len, uint64_t *ptr_map)
 {
     return con4m_arena_alloc(&current_heap, len, ptr_map);
+}
+
+void
+con4m_delete_arena(con4m_arena_t *arena)
+{
+    con4m_arena_t *prev_active;
+
+    while (arena != NULL) {
+	prev_active = arena->previous;
+	zfree(arena);
+	arena = prev_active;
+    }
 }

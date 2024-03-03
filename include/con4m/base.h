@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -16,6 +17,10 @@
 #include <sys/select.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+
+#if defined(__linux__)
+#include <sys/random.h>
+#endif
 
 #ifdef HAVE_MUSL
 #include <bits/limits.h>

@@ -1,8 +1,8 @@
 #pragma once
-#include <stdint.h>
+
+#include <con4m/base.h>
 
 #if defined(__APPLE__) || defined(BSD)
-#include <stdlib.h>
 
 static inline uint64_t
 con4m_rand64()
@@ -15,7 +15,6 @@ con4m_rand64()
 }
 
 #elif defined(__linux__)
-#include <sys/random.h>
 
 static inline uint64_t
 con4m_rand64()

@@ -117,9 +117,9 @@ typedef struct {
 } con4m_alloc_hdr;
 
 
-#ifndef CON4M_DEFAULT_HEAP_SIZE
+#ifndef CON4M_DEFAULT_ARENA_SIZE
 // 4 Meg
-#define CON4M_DEFAULT_HEAP_SIZE (1 << 19)
+#define CON4M_DEFAULT_ARENA_SIZE (1 << 19)
 #endif
 
 // In the future, we would expect that a writer seeing the
@@ -144,29 +144,37 @@ typedef struct {
 // True when we are freezing everything to marshal memory in toto.
 #define GC_FLAG_GLOBAL_STOP          0x00000020
 
-
-typedef struct con4m_heap_t {
-    con4m_alloc_hdr     *next_alloc;
-    struct con4m_heap_t *previous;
-    uint64_t            *heap_end;
-    uint64_t             arena_id;
-    uint64_t             data[];
-} con4m_heap_t;
-
-extern void con4m_new_arena(size_t num_words, con4m_heap_t **current);
+// Shouldn't be accessed by developer, but allows us to inline.
 extern uint64_t gc_sentinal;
+
+
+
+typedef struct con4m_arena_t {
+    con4m_alloc_hdr      *next_alloc;
+    struct con4m_arena_t *previous;
+    uint64_t             *heap_end;
+    uint64_t              arena_id;
+    uint64_t              data[];
+} con4m_arena_t;
+
+extern con4m_arena_t *con4m_new_arena(size_t);
+extern void           con4m_delete_arena(con4m_arena_t *);
+extern void           con4m_expand_arena(size_t, con4m_arena_t **);
+extern void          *con4m_gc_alloc(size_t, uint64_t *);
+
 
 // This currently assumes ptr_map doesn't need more than 64 entries.
 static inline void *
-con4m_arena_alloc(con4m_heap_t **arena_ptr, size_t len, uint64_t *ptr_map)
+con4m_arena_alloc(con4m_arena_t **arena_ptr, size_t len, uint64_t *ptr_map)
 {
     // Round up to aligned length.
-    size_t        wordlen = (len + 0x7) >> 3;
-    con4m_heap_t *arena   = *arena_ptr;
+    size_t         wordlen = (len + 0x7) >> 3;
+    con4m_arena_t *arena   = *arena_ptr;
 
     if (arena == 0 ||
 	((uint64_t *)arena->next_alloc->data) + wordlen > arena->heap_end) {
-	con4m_new_arena(max(CON4M_DEFAULT_HEAP_SIZE, wordlen * 2), arena_ptr);
+	con4m_expand_arena(max(CON4M_DEFAULT_ARENA_SIZE, wordlen * 2),
+			   arena_ptr);
 	arena = *arena_ptr;
     }
 
@@ -181,8 +189,6 @@ con4m_arena_alloc(con4m_heap_t **arena_ptr, size_t len, uint64_t *ptr_map)
 
     return (void *)(raw->data);
 }
-
-extern void *con4m_gc_alloc(size_t len, uint64_t *ptr_map);
 
 #define gc_flex_alloc(fixed, var, numv, map)	\
     (con4m_gc_alloc((size_t)(sizeof(fixed)) + (sizeof(var)) * (numv), (map)))

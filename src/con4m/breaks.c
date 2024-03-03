@@ -160,7 +160,7 @@ get_all_line_break_ops(str_t *instr)
  ** This is a very simple best-fit algorithm right now.
  **
  ** If there is an actual newline in the contents, it is always
- ** returned, which can lead to short lines. This is done because we
+ ** returned, which canz lead to short lines. This is done because we
  ** expect this to represent a paragraph break.
  **/
 break_info_t *

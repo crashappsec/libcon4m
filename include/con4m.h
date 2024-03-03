@@ -2,6 +2,8 @@
 
 #include <con4m/base.h>
 
+#include <con4m/random.h>
+
 // Basic string handling.
 #include <con4m/colors.h>
 #include <con4m/style.h>
@@ -16,3 +18,4 @@
 // IO primitives.
 #include <con4m/switchboard.h>
 #include <con4m/subproc.h>
+#include <con4m/term.h>
