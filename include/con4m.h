@@ -10,6 +10,9 @@
 #include <con4m/ansi.h>
 #include <con4m/hex.h>
 
+// Our grid abstraction.
+#include <con4m/grid.h>
+
 // IO primitives.
 #include <con4m/switchboard.h>
 #include <con4m/subproc.h>

@@ -2,10 +2,17 @@
 
 const int str_header_size = sizeof(int64_t) + sizeof(style_info_t *);
 
+// 2nd (64-bit) word of the string struction is a pointer to track.
+// first value indicates there's only one 64-bit value in the pmap.
+const uint64_t pmap_str[2] = {
+                              0x0000000000000001,
+                              0x0000000000000002
+                             };
+
 str_t *
 c4str_new(int64_t len)
 {
-    real_str_t *p = zalloc(get_real_alloc_len(len));
+    real_str_t *p = con4m_gc_alloc(get_real_alloc_len(len), PMAP_STR);
 
     p->byte_len   = len;
     p->codepoints = 0;
@@ -21,7 +28,8 @@ str_t *
 c4str_new_u32(int64_t len)
 {
     int32_t     byte_len = len << 2;
-    real_str_t *p        = zalloc(get_real_alloc_len(byte_len));
+    real_str_t *p        = con4m_gc_alloc(get_real_alloc_len(byte_len),
+					  PMAP_STR);
     p->byte_len          = byte_len;
     p->codepoints        = ~(len);
     p->styling           = NULL;
@@ -41,7 +49,7 @@ apply_style_to_real_string(real_str_t *s, style_t style)
 str_t *
 c4str_new_with_style(int64_t len, style_t style)
 {
-    real_str_t *p = zalloc(get_real_alloc_len(len));
+    real_str_t *p = con4m_gc_alloc(get_real_alloc_len(len), PMAP_STR);
 
     p->byte_len   = len;
     p->codepoints = 0;
@@ -54,7 +62,8 @@ str_t *
 c4str_new_u32_with_style(int64_t len, style_t style)
 {
     int32_t     byte_len = len << 2;
-    real_str_t *p        = zalloc(get_real_alloc_len(byte_len));
+    real_str_t *p        = con4m_gc_alloc(get_real_alloc_len(byte_len),
+					  PMAP_STR);
     p->byte_len          = byte_len;
     p->codepoints        = ~(len);
 
@@ -175,20 +184,8 @@ c4str_len(str_t *s)
     }
 }
 
-void
-c4str_free(str_t *s)
-{
-    real_str_t *r = to_internal(s);
-
-    if (r->styling != NULL) {
-	free(r->styling);
-    }
-
-    free(r);
-}
-
 str_t *
-c4str_concat(str_t *p1, str_t *p2, ownership_t ownership)
+c4str_concat(str_t *p1, str_t *p2)
 {
 
     real_str_t *s1          = to_internal(p1);
@@ -228,20 +225,12 @@ c4str_concat(str_t *p1, str_t *p2, ownership_t ownership)
 	r->codepoints = ~r->codepoints;
     }
 
-    if (ownership & CALLEE_P1) {
-	c4str_free(p1);
-    }
-
-    if (ownership & CALLEE_P2) {
-	c4str_free(p2);
-    }
-
     // Null terminator was handled with the `new` operation.
     return result;
 }
 
 str_t *
-c4str_u32_to_u8(str_t *instr, ownership_t ownership)
+c4str_u32_to_u8(str_t *instr)
 {
     real_str_t *inp = to_internal(instr);
 
@@ -269,15 +258,11 @@ c4str_u32_to_u8(str_t *instr, ownership_t ownership)
 
     copy_style_info(inp, r);
 
-    if (ownership) {
-	c4str_free(instr);
-    }
-
     return result;
 }
 
 str_t *
-c4str_u8_to_u32(str_t *instr, ownership_t ownership)
+c4str_u8_to_u32(str_t *instr)
 {
     real_str_t *inraw = to_internal(instr);
 
@@ -295,10 +280,6 @@ c4str_u8_to_u32(str_t *instr, ownership_t ownership)
     }
 
     copy_style_info(inraw, outraw);
-
-    if (ownership) {
-	c4str_free(instr);
-    }
 
     return result;
 }

@@ -133,12 +133,12 @@ get_all_line_break_ops(str_t *instr)
     char         *br_raw;
 
     if (internal_is_u32(s)) {
-	br_raw = (char *)zalloc(l);
+	br_raw = (char *)con4m_gc_alloc(l, PMAP_BREAKS);
         assert (s != NULL);
 	set_linebreaks_utf32((int32_t *)s->data, l, "en", br_raw);
     }
     else {
-	br_raw = (char *)zalloc(s->byte_len);
+	br_raw = (char *)con4m_gc_alloc(s->byte_len, PMAP_BREAKS);
 	set_linebreaks_utf8_per_code_point((int8_t *)s->data, s->byte_len,
 					   "en", br_raw);
     }
@@ -147,10 +147,6 @@ get_all_line_break_ops(str_t *instr)
 	if (br_raw[i] < LB_NOBREAK) {
 	    add_break(&res, i);
 	}
-    }
-
-    if (br_raw != NULL) {
-        free(br_raw);
     }
 
     return res;
@@ -257,9 +253,6 @@ wrap_text(str_t *s, int32_t width, int32_t hang)
 	    hard_wrap_ix = cur_start + hang_width;
 	}
     }
-
-    free(line_breaks);
-    free(break_ops);
 
     if (internal_is_u32(r)) {
 	return res;

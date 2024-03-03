@@ -413,7 +413,7 @@ ansi_render_to_width(str_t *s, int32_t width, int32_t hang, FILE *out)
     int32_t     i;
 
     if (!is_u32) {
-	s    = c4str_u8_to_u32(s, CALLER);
+	s    = c4str_u8_to_u32(s);
 	real = to_internal(s);
     }
 
@@ -432,12 +432,6 @@ ansi_render_to_width(str_t *s, int32_t width, int32_t hang, FILE *out)
 			line_starts->breaks[i],
 			internal_num_cp(real),
 			out);
-    }
-
-    free(line_starts);
-
-    if (!is_u32) {
-	c4str_free(s);
     }
 }
 

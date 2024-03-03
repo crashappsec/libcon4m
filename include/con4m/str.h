@@ -1,8 +1,9 @@
 #pragma once
 
-#include <con4m/style.h>
 #include <vendor/unibreak.h>
 #include <vendor/utf8proc.h>
+#include <con4m/style.h>
+#include <con4m/gc.h>
 
 /**
  ** For UTF-32, we actually store in the codepoints field the bitwise
@@ -15,6 +16,9 @@ typedef struct {
     style_info_t *styling;
     char          data[];
 } real_str_t;
+
+extern const uint64_t pmap_str[2];
+#define PMAP_STR ((uint64_t *)&pmap_str[0])
 
 extern const int str_header_size;
 
@@ -29,7 +33,6 @@ real_alloc_len(real_str_t *r)
 {
     return get_real_alloc_len(r->byte_len);
 }
-
 
 typedef char str_t;
 
@@ -64,12 +67,7 @@ alloc_style_len(real_str_t *s)
 static inline void
 alloc_styles(real_str_t *s, int n)
 {
-    if (s->styling != NULL) {
-	free(s->styling);
-    }
-
-    s->styling = zalloc(sizeof(style_info_t) +
-			n * sizeof(style_entry_t));
+    s->styling = gc_flex_alloc(style_info_t, style_entry_t, n, PMAP_STR);
 
     s->styling->num_entries = n;
 }
@@ -126,7 +124,6 @@ extern str_t   *c4str_from_cstr_styled(char *str, style_t style);
 extern str_t   *c4str_from_file(char *name, int *err);
 extern int64_t  c4str_byte_len(str_t *s);
 extern int64_t  c4str_len(str_t *s);
-extern void     c4str_free(str_t *s);
-extern str_t *  c4str_concat(str_t *p1, str_t *p2, ownership_t ownership);
-extern str_t *  c4str_u32_to_u8(str_t *instr, ownership_t ownership);
-extern str_t *  c4str_u8_to_u32(str_t *instr, ownership_t ownership);
+extern str_t *  c4str_concat(str_t *p1, str_t *p2);
+extern str_t *  c4str_u32_to_u8(str_t *instr);
+extern str_t *  c4str_u8_to_u32(str_t *instr);
