@@ -138,7 +138,7 @@ libc4m   = static_library('con4m',
                           dependencies : all_deps,
                           c_args : c_args,
                           link_args: link_args)
-library('con4m',
+library('con4m-dll',
         lib_src,
         include_directories : incdir,
         dependencies : all_deps,

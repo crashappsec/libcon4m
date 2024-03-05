@@ -170,6 +170,7 @@ int
 main(int argc, char **argv, char **envp)
 {
     test_rand64();
+    // Test basic string and single threaded GC.
     test1();
     test2();
 }
