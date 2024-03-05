@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m/base.h>
+#include <con4m.h>
 
 #if defined(__APPLE__) || defined(BSD)
 

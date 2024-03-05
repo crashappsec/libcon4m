@@ -1,5 +1,7 @@
 #pragma once
 
+#include <con4m.h>
+
 // This header is used for any allocations of non-primitive con4m
 // types, in case we need to do dynamic type checking or dynamic
 // dispatch.

@@ -122,7 +122,7 @@
  * multiple threads if useful, but should be done in a way so as not
  * to interfere with the rendering.
  */
-#include <con4m/ansi.h>
+#include <con4m.h>
 
 
 // Contents must be properly formatted, etc.

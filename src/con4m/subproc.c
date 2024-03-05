@@ -4,9 +4,6 @@
 
 #include <con4m.h>
 
-#if defined(SB_DEBUG) || defined(SB_TEST)
-#endif
-
 /*
  * Initializes a `subprocess` context, setting the process to spawn.
  * By default, it will *not* be run on a pty; call `subproc_use_pty()`
@@ -486,17 +483,6 @@ subproc_spawn_fork(subprocess_t *ctx)
 
         subproc_do_exec(ctx);
     }
-}
-
-void
-termcap_set_raw_mode(struct termios *termcap) {
-    termcap->c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-    //termcap->c_oflag &= ~OPOST;
-    termcap->c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-    termcap->c_cflag &= ~(CSIZE | PARENB);
-    termcap->c_cc[VMIN]  = 0;
-    termcap->c_cc[VTIME] = 0;
-    tcsetattr(1, TCSAFLUSH, termcap);
 }
 
 static void

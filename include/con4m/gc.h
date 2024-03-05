@@ -1,7 +1,6 @@
 #pragma once
 
-#include <con4m/refcount.h>
-#include <hatrack.h>
+#include <con4m.h>
 
 /*
  * This is not necessarily the final algorithm, just initial notes

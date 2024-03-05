@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m/str.h>
+#include <con4m.h>
 
 extern const int minimum_break_slots;
 

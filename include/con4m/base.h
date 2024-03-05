@@ -1,5 +1,7 @@
 #pragma once
 
+// Base includes from the system and any dependencies should go here.
+
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
@@ -13,13 +15,16 @@
 #include <limits.h>
 #include <signal.h>
 #include <termios.h>
+#include <assert.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <sys/wait.h>
 
 #if defined(__linux__)
 #include <sys/random.h>
+#include <threads.h>
 #endif
 
 #ifdef HAVE_MUSL
@@ -37,3 +42,6 @@ forkpty(int *, char *, struct termios *, struct winsize *);
                     _a < _b ? _a : _b; })
 #define max(a,b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); \
                     _a > _b ? _a : _b; })
+
+#include <vendor.h>
+#include <hatrack.h>

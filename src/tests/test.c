@@ -173,4 +173,3 @@ main(int argc, char **argv, char **envp)
     test1();
     test2();
 }
-g

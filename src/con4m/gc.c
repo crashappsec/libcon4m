@@ -1,9 +1,4 @@
-#include <con4m/gc.h>
-#include <con4m/random.h>
-
-#ifdef __linux__
-#include <threads.h>
-#endif
+#include <con4m.h>
 
 // The lock-free dictionary for roots ensures that threads can add
 // roots in parallel. However, we currently make an implicit

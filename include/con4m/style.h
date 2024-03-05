@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m/colors.h>
+#include <con4m.h>
 
 // Flags in the style `info` bitfield.
 #define BOLD_ON         0x0001000000000000

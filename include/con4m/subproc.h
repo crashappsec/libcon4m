@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m/switchboard.h>
+#include <con4m.h>
 
 extern void subproc_init(subprocess_t *, char *, char *[], bool);
 extern bool subproc_set_envp(subprocess_t *, char *[]);

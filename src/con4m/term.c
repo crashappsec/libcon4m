@@ -14,3 +14,14 @@ terminal_dimensions(size_t *cols, size_t *rows)
 	*rows = dims.ws_row;
     }
 }
+
+void
+termcap_set_raw_mode(struct termios *termcap) {
+    termcap->c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    //termcap->c_oflag &= ~OPOST;
+    termcap->c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    termcap->c_cflag &= ~(CSIZE | PARENB);
+    termcap->c_cc[VMIN]  = 0;
+    termcap->c_cc[VTIME] = 0;
+    tcsetattr(1, TCSAFLUSH, termcap);
+}
