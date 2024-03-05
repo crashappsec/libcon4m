@@ -16,6 +16,8 @@
 #include <signal.h>
 #include <termios.h>
 #include <assert.h>
+#include <pthread.h>
+#include <stdarg.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/types.h>

@@ -354,3 +354,47 @@ con4m_gc_register_root(void *ptr, uint64_t num_words)
     gc_trace("registered root at: %p", ptr);
     con4m_arena_register_root(current_heap, ptr, num_words);
 }
+
+__thread int  ro_test_pipe_fds[2] = {0, 0};
+__thread bool ro_test_pipe_inited = false;
+
+_Bool
+is_read_only_memory(volatile void *address)
+{
+    // This works by creating a pipe we can always read from,
+    // reading one byte from memory and writing it to the pipe,
+    // then reading the byte back out of the pipe to write to
+    // the same location.
+    //
+    // If it's read-only memory, the pipe read() will fail because
+    // it cannot store the byte back (EFAULT).
+    //
+    // This is the only way I know how to do this test without risking
+    // crashing the process. However, this is NOT a threadsafe test
+    // when the underlying memory is mutable; when re-writing the byte
+    // we could be in a race with other threads.
+    //
+    // Still, that seems like an OK compromise for me; this is used to
+    // help validate that, when people are using C keyword parameters,
+    // the keyword parameter isn't forgotten (since they must be
+    // static string constants). This test FAILING at all will
+    // indicate a programmer error.
+
+    if (!ro_test_pipe_inited) {
+        pipe(ro_test_pipe_fds);
+        ro_test_pipe_inited = true;
+    }
+
+    if (write(ro_test_pipe_fds[1], address, 1) <= 0) {
+	printf(stderr, "Memory address %p is invalid.\n", address);
+	abort();
+    }
+
+    if (read(ro_test_pipe_fds[0], address, 1) <= 0) {
+        if (errno == EFAULT) {
+            return true;
+        }
+    }
+
+    return false;
+}

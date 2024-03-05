@@ -173,6 +173,7 @@ extern void           con4m_gc_thread_collect();
 extern void           con4m_arena_register_root(con4m_arena_t *, void *,
 						uint64_t);
 extern void           con4m_gc_register_root(void *ptr, uint64_t num_words);
+extern _Bool          is_read_only_memory(volatile void *);
 
 
 #ifdef GC_TRACE
@@ -213,3 +214,6 @@ con4m_arena_alloc(con4m_arena_t **arena_ptr, size_t len, uint64_t *ptr_map)
 
 #define gc_flex_alloc(fixed, var, numv, map)	\
     (con4m_gc_alloc((size_t)(sizeof(fixed)) + (sizeof(var)) * (numv), (map)))
+
+#define gc_alloc(typename, map) \
+    (con4m_gc_alloc(sizeof(typename), (uint64_t *)map))
