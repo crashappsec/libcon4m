@@ -1,6 +1,7 @@
 #pragma once
 
 #include <con4m/refcount.h>
+#include <hatrack.h>
 
 /*
  * This is not necessarily the final algorithm, just initial notes
@@ -67,17 +68,18 @@
  */
 
 typedef struct {
-    // A sentinal value added to every allocation so that cross-heap
+    alignas(8)
+    // A guard value added to every allocation so that cross-heap
     // memory accesses can scan backwards (if needed) to determine if
     // a write should be forwarded to a new location.
     //
     // It also tells us whether the cell has been allocated at all,
     // as it is not set until we allocate.
     //
-    // The sentinal value is picked once per runtime by reading from
+    // The guard value is picked once per runtime by reading from
     // /dev/urandom, to make sure that we do not start adding
     // references in memory to it.
-    uint64_t sentinal;
+    uint64_t guard;
 
     // This is a pointer to the memory arena this allocation is from,
     // so that other threads can register their pointer with the arena
@@ -88,18 +90,21 @@ typedef struct {
     // this pointer points to the next allocation spot. We use this
     // when it's time to mark all of the allocations as 'collecting'.
     //
-    // Once the object is migrated, this field is then used to store
-    // the forwarding address... the name is just as appropriate, but
-    // has a completely different meaning.
     uint64_t *next_addr;
+
+    // Once the object is migrated, this field is then used to store
+    // the forwarding address...
+    uint64_t *fw_addr;
+
+    // Flags associated with the allocation. This is atomic, because
+    // threads attempt to lock accesses any time. This only needs to
+    // be 32-bit aligned, but let's keep it in a slot that is 64-bit
+    // aligned.
+    _Atomic uint32_t flags;
 
     // This stores the allocated length of the data object measured in
     // 64-bit blocks.
     uint32_t alloc_len;
-
-    // Flags associated with the allocation. This is atomic, because
-    // threads attempt to lock accesses any time
-    _Atomic uint32_t flags;
 
     // This is a pointer to a sized bitfield. The first word indicates the
     // number of subsequent words in the bitfield. The bits then
@@ -120,6 +125,7 @@ typedef struct {
 #ifndef CON4M_DEFAULT_ARENA_SIZE
 // 4 Meg
 #define CON4M_DEFAULT_ARENA_SIZE (1 << 19)
+//#define CON4M_DEFAULT_ARENA_SIZE 64
 #endif
 
 // In the future, we would expect that a writer seeing the
@@ -145,12 +151,14 @@ typedef struct {
 #define GC_FLAG_GLOBAL_STOP          0x00000020
 
 // Shouldn't be accessed by developer, but allows us to inline.
-extern uint64_t gc_sentinal;
-
+extern uint64_t gc_guard;
 
 
 typedef struct con4m_arena_t {
+    alignas(8)
     con4m_alloc_hdr      *next_alloc;
+    hatrack_dict_t       *roots;
+    queue_t              *late_mutations;
     struct con4m_arena_t *previous;
     uint64_t             *heap_end;
     uint64_t              arena_id;
@@ -160,8 +168,20 @@ typedef struct con4m_arena_t {
 extern con4m_arena_t *con4m_new_arena(size_t);
 extern void           con4m_delete_arena(con4m_arena_t *);
 extern void           con4m_expand_arena(size_t, con4m_arena_t **);
+extern void           con4m_collect_arena(con4m_arena_t **);
 extern void          *con4m_gc_alloc(size_t, uint64_t *);
+extern void           con4m_gc_thread_collect();
+extern void           con4m_arena_register_root(con4m_arena_t *, void *,
+						uint64_t);
+extern void           con4m_gc_register_root(void *ptr, uint64_t num_words);
 
+
+#ifdef GC_TRACE
+#define gc_trace(...) fprintf(stderr, "gc_trace:%s: ", __func__); \
+    fprintf(stderr, __VA_ARGS__); fputc('\n', stderr)
+#else
+#define gc_trace(...)
+#endif
 
 // This currently assumes ptr_map doesn't need more than 64 entries.
 static inline void *
@@ -181,12 +201,14 @@ con4m_arena_alloc(con4m_arena_t **arena_ptr, size_t len, uint64_t *ptr_map)
     con4m_alloc_hdr *raw = arena->next_alloc;
     arena->next_alloc    = (con4m_alloc_hdr *)&(raw->data[wordlen]);
 
-    raw->sentinal  = gc_sentinal;
+    raw->guard     = gc_guard;
     raw->arena     = arena->arena_id;
     raw->next_addr = (uint64_t *)arena->next_alloc;
     raw->alloc_len = wordlen;
     raw->ptr_map   = ptr_map;
 
+
+    gc_trace("new record of len %u @%p; data @%p", len, raw, raw->data);
     return (void *)(raw->data);
 }
 

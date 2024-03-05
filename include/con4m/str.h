@@ -11,6 +11,7 @@
  ** always be 0 with UTF-8).
  **/
 typedef struct {
+    alignas(8)
     int32_t       codepoints;
     int32_t       byte_len;
     style_info_t *styling;

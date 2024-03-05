@@ -22,7 +22,7 @@ typedef struct {
 } refcount_alloc_t;
 
 static inline void *
-rc_alloc(int32_t len)
+rc_alloc(size_t len)
 {
     refcount_alloc_t *raw;
 
@@ -32,11 +32,31 @@ rc_alloc(int32_t len)
     return (void *)raw->data;
 }
 
+static inline void *
+rc_ref(void *ptr)
+{
+    refcount_alloc_t *raw = ptr - sizeof(refcount_alloc_t);
+    atomic_fetch_add(&(raw->refcount), 1);
+    return ptr;
+}
+
 static inline void
 rc_free(void *ptr)
 {
     refcount_alloc_t *raw = ptr - sizeof(refcount_alloc_t);
     if (atomic_fetch_add(&(raw->refcount), -1) == 0) {
+	free(raw);
+    }
+}
+
+typedef void (*cleanup_fn)(void *);
+
+static inline void
+rc_free_and_cleanup(void *ptr, cleanup_fn callback)
+{
+    refcount_alloc_t *raw = ptr - sizeof(refcount_alloc_t);
+    if (atomic_fetch_add(&(raw->refcount), -1) == 0) {
+	callback(raw);
 	free(raw);
     }
 }

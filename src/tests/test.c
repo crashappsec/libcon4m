@@ -19,6 +19,10 @@ test1() {
     str_t *s2 = c4str_from_cstr(" world!");
     str_t *s3 = c4str_from_cstr(" magic?\n");
 
+    con4m_gc_register_root(&s1, 1);
+    con4m_gc_register_root(&s2, 1);
+    con4m_gc_register_root(&s3, 1);
+
     ansi_render(s1, stdout);
     ansi_render(s2, stdout);
     ansi_render(s3, stdout);
@@ -37,9 +41,12 @@ test1() {
     s         = c4str_concat(s,  s3);
 
     ansi_render(s, stdout);
+    printf("That was at %p\n", s);
 
     break_info_t *g;
 
+    con4m_gc_register_root(&s, 1);
+    con4m_gc_register_root(&g, 1);
 
     g = get_grapheme_breaks(s, 1, 10);
 
@@ -62,6 +69,11 @@ test1() {
     }
 
     printf("\n");
+
+    con4m_gc_thread_collect();
+
+    printf("s is now at: %p\n Let's render s again.\n", s);
+    ansi_render(s, stdout);
 }
 
 void
@@ -92,17 +104,31 @@ test2() {
     str_t *w5 = c4str_from_cstr("Basically AirTags for Software");
     str_t *w6 = c4str_from_cstr("\n");
 
+
+    con4m_gc_register_root(&w1, 1);
+    con4m_gc_register_root(&w2, 1);
+    con4m_gc_register_root(&w3, 1);
+    con4m_gc_register_root(&w4, 1);
+    con4m_gc_register_root(&w5, 1);
+    con4m_gc_register_root(&w6, 1);
+
     c4str_apply_style(w2, style1);
     c4str_apply_style(w3, style2);
     c4str_apply_style(w5, style1);
 
-    str_t *to_wrap = c4str_concat(w1, w2);
+    str_t *to_wrap;
+
+    con4m_gc_register_root(&to_wrap, 1);
+
+    to_wrap        = c4str_concat(w1, w2);
     to_wrap        = c4str_concat(to_wrap, w3);
     to_wrap        = c4str_concat(to_wrap, w4);
     to_wrap        = c4str_concat(to_wrap, w5);
     to_wrap        = c4str_concat(to_wrap, w6);
 
     real_str_t *real = to_internal(to_wrap);
+    con4m_gc_register_root(&real, 1);
+
 
     str_t *dump1 = hex_dump(real->styling,
                             alloc_style_len(real),
@@ -116,14 +142,18 @@ test2() {
 			    80,
 			    "String Dump\n");
 
+    con4m_gc_register_root(&dump1, 1);
+    con4m_gc_register_root(&dump2, 1);
+
     ansi_render(dump1, stderr);
     ansi_render(dump2, stderr);
 
     size_t cols;
     terminal_dimensions(&cols, NULL);
-    printf("%d cols\n", cols);
+    printf("%zu cols\n", cols);
 
     ansi_render_to_width(to_wrap, cols, 0, stdout);
+    con4m_gc_thread_collect();
 }
 
 void
@@ -143,3 +173,4 @@ main(int argc, char **argv, char **envp)
     test1();
     test2();
 }
+g

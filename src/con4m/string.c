@@ -2,11 +2,12 @@
 
 const int str_header_size = sizeof(int64_t) + sizeof(style_info_t *);
 
+// From the start of the GC header, currently the
 // 2nd (64-bit) word of the string struction is a pointer to track.
 // first value indicates there's only one 64-bit value in the pmap.
 const uint64_t pmap_str[2] = {
                               0x0000000000000001,
-                              0x0000000000000002
+                              0x4000000000000000
                              };
 
 str_t *

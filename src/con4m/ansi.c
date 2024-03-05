@@ -274,7 +274,9 @@ ansi_render_u8(real_str_t *s, FILE *outstream)
 	    break;
 	}
 
-	p     += utf8proc_iterate(p, 4, &codepoint);
+	int tmp = utf8proc_iterate(p, 4, &codepoint);
+	assert(tmp > 0);
+	p     += tmp;
 	cp_ix += 1;
 
 	switch (casing) {
