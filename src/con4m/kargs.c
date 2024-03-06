@@ -26,8 +26,8 @@ static uint64_t      kargs_process_base(char *, va_list, va_list);
 static void          kargs_init(void);
 static karg_cache_t *kargs_get_cache(void);
 
-static pthread_once_t  kargs_inited;
-__thread karg_cache_t *karg_cache = NULL;
+__thread bool          kargs_inited = false;
+__thread karg_cache_t *karg_cache   = NULL;
 
 uint64_t
 kargs_process_w_req_param(va_list actuals, ...)
@@ -73,13 +73,17 @@ kargs_process_base(char *first_key, va_list actuals, va_list formals)
     karg_t       *cur    = NULL;
     char         *argname;
     uint64_t      provided = 0;
-    int           argcount;
+    int           argcount = 0;
 
     // Process the list of keyword args.
 
-    pthread_once(&kargs_inited, kargs_init);
+    if (!kargs_inited) {
+	kargs_init();
+	kargs_inited = true;
+    }
 
     argname = (char *)va_arg(formals, char *);
+
     cache   = kargs_get_cache();
     while (argname != KARG_END) {
         if (cache->top) {
@@ -104,9 +108,9 @@ kargs_process_base(char *first_key, va_list actuals, va_list formals)
         argname     = (char *)va_arg(formals, char *);
     }
     argname = first_key;
+
     while (argname != KARG_END) {
         cur      = kwinfo;
-        argcount = 0;
         while (true) {
             if (!cur) {
 		// For now, we'll just print error info and abort,
@@ -119,6 +123,7 @@ kargs_process_base(char *first_key, va_list actuals, va_list formals)
 		    fprintf(stderr, ", ");
 		start_here:
 		    fprintf(stderr, "%s", cur->name);
+		    cur = cur->next;
                 }
                 abort();
             }

@@ -278,7 +278,7 @@ hex_dump(void *ptr, unsigned int len, uint64_t start_offset,
 	 unsigned int width, char *prefix)
 {
     char  *dump = chexl(ptr, len, start_offset, width, prefix);
-    str_t *res  = c4str_from_cstr(dump);
+    str_t *res  = con4m_new(T_STR, "cstring", dump);
 
     return res;
 }

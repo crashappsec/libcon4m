@@ -176,16 +176,27 @@ extern void           con4m_gc_register_root(void *ptr, uint64_t num_words);
 extern _Bool          is_read_only_memory(volatile void *);
 
 
+#define GC_TRACE
+
 #ifdef GC_TRACE
-#define gc_trace(...) fprintf(stderr, "gc_trace:%s: ", __func__); \
-    fprintf(stderr, __VA_ARGS__); fputc('\n', stderr)
+extern int con4m_gc_trace;
+
+
+extern  void trace_on();
+extern  void trace_off();
+
+#define gc_trace(...) { if(con4m_gc_trace)  { fprintf(stderr, "gc_trace:%s: ", __func__);	fprintf(stderr, __VA_ARGS__);	fputc('\n', stderr); } }
+#define trace_on() con4m_gc_trace = 1
+#define trace_off() con4m_gc_trace = 0
+
 #else
 #define gc_trace(...)
 #endif
 
 // This currently assumes ptr_map doesn't need more than 64 entries.
 static inline void *
-con4m_arena_alloc(con4m_arena_t **arena_ptr, size_t len, uint64_t *ptr_map)
+con4m_arena_alloc(con4m_arena_t **arena_ptr, size_t len,
+		  const uint64_t *ptr_map)
 {
     // Round up to aligned length.
     size_t         wordlen = (len + 0x7) >> 3;
@@ -205,10 +216,10 @@ con4m_arena_alloc(con4m_arena_t **arena_ptr, size_t len, uint64_t *ptr_map)
     raw->arena     = arena->arena_id;
     raw->next_addr = (uint64_t *)arena->next_alloc;
     raw->alloc_len = wordlen;
-    raw->ptr_map   = ptr_map;
+    raw->ptr_map   = (uint64_t *)ptr_map;
 
 
-    gc_trace("new record of len %u @%p; data @%p", len, raw, raw->data);
+    gc_trace("new record of len %zu @%p; data @%p", len, raw, raw->data);
     return (void *)(raw->data);
 }
 
@@ -217,3 +228,7 @@ con4m_arena_alloc(con4m_arena_t **arena_ptr, size_t len, uint64_t *ptr_map)
 
 #define gc_alloc(typename, map) \
     (con4m_gc_alloc(sizeof(typename), (uint64_t *)map))
+
+// Used in the DT info struct to call an alloc() function instead of calling
+// the GC directly.
+#define CON4M_CUSTOM_ALLOC 0xffffffffffffffff

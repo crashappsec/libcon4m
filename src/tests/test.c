@@ -15,9 +15,9 @@ test1() {
     style2 = add_upper_case(style2);
 
 
-    str_t *s1 = c4str_from_cstr("\ehello,");
-    str_t *s2 = c4str_from_cstr(" world!");
-    str_t *s3 = c4str_from_cstr(" magic?\n");
+    str_t *s1 = con4m_new(T_STR, "cstring", "\ehello,", "style", style1);
+    str_t *s2 = con4m_new(T_STR, "cstring", " world!");
+    str_t *s3 = con4m_new(T_STR, "cstring", " magic?\n");
 
     con4m_gc_register_root(&s1, 1);
     con4m_gc_register_root(&s2, 1);
@@ -27,7 +27,6 @@ test1() {
     ansi_render(s2, stdout);
     ansi_render(s3, stdout);
 
-    c4str_apply_style(s1, style1);
     s1 = c4str_u8_to_u32(s1);
     c4str_apply_style(s3, style2);
     s2 = c4str_u8_to_u32(s2);
@@ -91,18 +90,18 @@ test2() {
     style2 = add_upper_case(style2);
 
 
-    str_t *w1 = c4str_from_cstr("Once upon a time, there was a ");
-    str_t *w2 = c4str_from_cstr("thing I cared about. But then I ");
-    str_t *w3 = c4str_from_cstr(
+    str_t *w1 = con4m_new(T_STR, "cstring", "Once upon a time, there was a ");
+    str_t *w2 = con4m_new(T_STR, "cstring", "thing I cared about. But then I ");
+    str_t *w3 = con4m_new(T_STR, "cstring",
 	"stopped caring. I don't really remember what it was, though. Do ");
-    str_t *w4 = c4str_from_cstr(
+    str_t *w4 = con4m_new(T_STR, "cstring",
 	"you? No, I didn't think so, because it wasn't really all that "
 	"interesting, to be quite honest. Maybe someday I'll find something "
 	"interesting to care about, besides my family. Oh yeah, that's "
 	"what it was, my family! Oh, wait, no, they're either not interesting, "
 	"or I don't care about them.\n");
-    str_t *w5 = c4str_from_cstr("Basically AirTags for Software");
-    str_t *w6 = c4str_from_cstr("\n");
+    str_t *w5 = con4m_new(T_STR, "cstring", "Basically AirTags for Software");
+    str_t *w6 = con4m_new(T_STR, "cstring", "\n");
 
 
     con4m_gc_register_root(&w1, 1);
@@ -145,8 +144,8 @@ test2() {
     con4m_gc_register_root(&dump1, 1);
     con4m_gc_register_root(&dump2, 1);
 
-    ansi_render(dump1, stderr);
-    ansi_render(dump2, stderr);
+    //ansi_render(dump1, stderr);
+    //ansi_render(dump2, stderr);
 
     size_t cols;
     terminal_dimensions(&cols, NULL);

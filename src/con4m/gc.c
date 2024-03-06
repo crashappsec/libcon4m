@@ -150,7 +150,7 @@ update_internal_allocation_pointers(con4m_alloc_hdr *hdr,
 	     uint64_t **ploc = (uint64_t **)(&hdr->data[offset + clz]);
 	     w              &= ~tomask;
 
-	     gc_trace("addr @%p (%u words past data start %p) points to %p",
+	     gc_trace("addr @%p (%zu words past data start %p) points to %p",
 		      ploc, offset + clz, hdr->data, *ploc);
 
 	     if ((*ploc) >= arena_start && (*ploc) <= arena_end) {
@@ -217,7 +217,7 @@ process_traced_pointer(uint64_t **addr, uint64_t *ptr, uint64_t *start,
     uint32_t found_flags = atomic_load(&hdr->flags);
 
     if (found_flags & GC_FLAG_REACHED) {
-	gc_trace("Previous root reached record @%s", hdr);
+	gc_trace("Previous root reached record @%p", hdr);
 	// We're already moving / moved, so update the root's pointer
 	// to the new heap.
 	//
@@ -380,17 +380,19 @@ is_read_only_memory(volatile void *address)
     // static string constants). This test FAILING at all will
     // indicate a programmer error.
 
+    char c = ((volatile char *)(address))[0];
+
     if (!ro_test_pipe_inited) {
         pipe(ro_test_pipe_fds);
         ro_test_pipe_inited = true;
     }
 
-    if (write(ro_test_pipe_fds[1], address, 1) <= 0) {
-	printf(stderr, "Memory address %p is invalid.\n", address);
+    if (write(ro_test_pipe_fds[1], &c, 1) <= 0) {
+	fprintf(stderr, "Memory address %p is invalid.\n", address);
 	abort();
     }
 
-    if (read(ro_test_pipe_fds[0], address, 1) <= 0) {
+    if (read(ro_test_pipe_fds[0], (void *)address, 1) <= 0) {
         if (errno == EFAULT) {
             return true;
         }
@@ -398,3 +400,9 @@ is_read_only_memory(volatile void *address)
 
     return false;
 }
+
+#ifdef GC_TRACE
+
+int con4m_gc_trace = 0;
+
+#endif

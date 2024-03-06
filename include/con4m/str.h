@@ -113,15 +113,17 @@ internal_is_space(int32_t cp)
     }
 }
 
-extern str_t   *c4str_new(int64_t len);
 extern str_t   *c4str_new_u32(int64_t len);
-extern str_t   *c4str_new_with_style(int64_t len, style_t style);
 extern void     c4str_apply_style(str_t *s, style_t style);
-extern str_t   *c4str_from_cstr(char *s);
-extern str_t   *c4str_from_cstr_styled(char *str, style_t style);
-extern str_t   *c4str_from_file(char *name, int *err);
 extern int64_t  c4str_byte_len(str_t *s);
 extern int64_t  c4str_len(str_t *s);
 extern str_t *  c4str_concat(str_t *p1, str_t *p2);
 extern str_t *  c4str_u32_to_u8(str_t *instr);
 extern str_t *  c4str_u8_to_u32(str_t *instr);
+extern str_t *  c4str_internal_new_u8(va_list args);
+extern str_t   *c4str_from_file(char *name, int *err);
+
+
+extern const uint64_t str_ptr_info[];
+extern const con4m_vtable u8str_vtable;
+extern const con4m_vtable u32str_vtable;
