@@ -1,10 +1,11 @@
 #include <con4m.h>
 
+style_t style1;
+style_t style2;
+
+
 void
 test1() {
-    style_t style1;
-    style_t style2;
-
     style1 = new_style();
     style1 = apply_bg_color(style1, COLOR_BLACK);
     style1 = add_title_case(style1);
@@ -77,9 +78,6 @@ test1() {
 
 void
 test2() {
-    style_t style1;
-    style_t style2;
-
     style1 = new_style();
     style1 = apply_fg_color(style1, COLOR_BLACK);
     style1 = add_title_case(style1);
@@ -144,8 +142,8 @@ test2() {
     con4m_gc_register_root(&dump1, 1);
     con4m_gc_register_root(&dump2, 1);
 
-    //ansi_render(dump1, stderr);
-    //ansi_render(dump2, stderr);
+    ansi_render(dump1, stderr);
+    ansi_render(dump2, stderr);
 
     size_t cols;
     terminal_dimensions(&cols, NULL);
@@ -165,6 +163,55 @@ test_rand64()
     assert(random != 0);
 }
 
+
+void
+test3()
+{
+    str_t *w1 = con4m_new(T_STR, "cstring", "Once upon a time, there was a ");
+    str_t *w2 = con4m_new(T_STR, "cstring", "thing I cared about. But then I ");
+    str_t *w3 = con4m_new(T_STR, "cstring",
+	"stopped caring. I don't really remember what it was, though. Do ");
+    str_t *w4 = con4m_new(T_STR, "cstring",
+	"you? No, I didn't think so, because it wasn't really all that "
+	"interesting, to be quite honest. Maybe someday I'll find something "
+	"interesting to care about, besides my family. Oh yeah, that's "
+	"what it was, my family! Oh, wait, no, they're either not interesting, "
+        "or I don't care about them.\n", "style", style1);
+    str_t *w5 = con4m_new(T_STR, "cstring", "Basically AirTags for Software");
+    str_t *w6 = con4m_new(T_STR, "cstring", "\n");
+
+    con4m_gc_register_root(&w1, 1);
+    con4m_gc_register_root(&w2, 1);
+    con4m_gc_register_root(&w3, 1);
+    con4m_gc_register_root(&w4, 1);
+    con4m_gc_register_root(&w5, 1);
+    con4m_gc_register_root(&w6, 1);
+
+
+    hatrack_dict_t *d = con4m_new(T_DICT, HATRACK_DICT_KEY_TYPE_CSTR);
+
+    con4m_gc_register_root(&d, 1);
+
+    hatrack_dict_put(d, w1, "w1");
+    hatrack_dict_put(d, w2, "w2");
+    hatrack_dict_put(d, w3, "w3");
+    hatrack_dict_put(d, w4, "w4");
+    hatrack_dict_put(d, w4, "w5");
+    hatrack_dict_put(d, w4, "w6");
+
+    uint64_t num;
+
+    hatrack_dict_item_t *view = hatrack_dict_items_sort(d, &num);
+
+    for (uint64_t i = 0; i < num; i++) {
+	ansi_render((str_t *)(view[i].key), stderr);
+    }
+
+    con4m_gc_thread_collect();
+
+
+}
+
 int
 main(int argc, char **argv, char **envp)
 {
@@ -172,4 +219,5 @@ main(int argc, char **argv, char **envp)
     // Test basic string and single threaded GC.
     test1();
     test2();
+    test3();
 }

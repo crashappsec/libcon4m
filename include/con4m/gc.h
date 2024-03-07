@@ -1,7 +1,6 @@
 #pragma once
 
 #include <con4m.h>
-
 /*
  * This is not necessarily the final algorithm, just initial notes
  * that aren't yet fully consistent, since this is a work in progress.
@@ -155,13 +154,13 @@ extern uint64_t gc_guard;
 
 typedef struct con4m_arena_t {
     alignas(8)
-    con4m_alloc_hdr      *next_alloc;
-    hatrack_dict_t       *roots;
-    queue_t              *late_mutations;
-    struct con4m_arena_t *previous;
-    uint64_t             *heap_end;
-    uint64_t              arena_id;
-    uint64_t              data[];
+    con4m_alloc_hdr         *next_alloc;
+    struct hatrack_dict_st  *roots;
+    struct con4m_arena_t    *previous;
+    queue_t                 *late_mutations;
+    uint64_t                *heap_end;
+    uint64_t                 arena_id;
+    uint64_t                 data[];
 } con4m_arena_t;
 
 extern con4m_arena_t *con4m_new_arena(size_t);
@@ -169,15 +168,14 @@ extern void           con4m_delete_arena(con4m_arena_t *);
 extern void           con4m_expand_arena(size_t, con4m_arena_t **);
 extern void           con4m_collect_arena(con4m_arena_t **);
 extern void          *con4m_gc_alloc(size_t, uint64_t *);
+extern void          *con4m_gc_resize(void *ptr, size_t len);
 extern void           con4m_gc_thread_collect();
 extern void           con4m_arena_register_root(con4m_arena_t *, void *,
 						uint64_t);
 extern void           con4m_gc_register_root(void *ptr, uint64_t num_words);
 extern _Bool          is_read_only_memory(volatile void *);
 
-
-#define GC_TRACE
-
+// #define GC_TRACE
 #ifdef GC_TRACE
 extern int con4m_gc_trace;
 
@@ -185,7 +183,13 @@ extern int con4m_gc_trace;
 extern  void trace_on();
 extern  void trace_off();
 
-#define gc_trace(...) { if(con4m_gc_trace)  { fprintf(stderr, "gc_trace:%s: ", __func__);	fprintf(stderr, __VA_ARGS__);	fputc('\n', stderr); } }
+#define gc_trace(...) { if(con4m_gc_trace)  { \
+	    fprintf(stderr, "gc_trace:%s: ", __func__); \
+	fprintf(stderr, __VA_ARGS__); \
+	fputc('\n', stderr); \
+	}		     \
+			}
+
 #define trace_on() con4m_gc_trace = 1
 #define trace_off() con4m_gc_trace = 0
 
@@ -193,24 +197,46 @@ extern  void trace_off();
 #define gc_trace(...)
 #endif
 
+static inline uint64_t
+round_up_to_given_power_of_2(uint64_t power, uint64_t n)
+{
+    uint64_t modulus   = (power - 1);
+    uint64_t remainder = n & modulus;
+
+    if (!remainder) {
+	return n;
+    }
+    else {
+	return (n & ~modulus) + power;
+    }
+}
+
 // This currently assumes ptr_map doesn't need more than 64 entries.
 static inline void *
-con4m_arena_alloc(con4m_arena_t **arena_ptr, size_t len,
+con4m_alloc_from_arena(con4m_arena_t **arena_ptr, size_t len,
 		  const uint64_t *ptr_map)
 {
     // Round up to aligned length.
-    size_t         wordlen = (len + 0x7) >> 3;
+    size_t         wordlen = round_up_to_given_power_of_2(16, len);
     con4m_arena_t *arena   = *arena_ptr;
 
-    if (arena == 0 ||
-	((uint64_t *)arena->next_alloc->data) + wordlen > arena->heap_end) {
+    if (arena == 0) {
+    try_again:
 	con4m_expand_arena(max(CON4M_DEFAULT_ARENA_SIZE, wordlen * 2),
 			   arena_ptr);
 	arena = *arena_ptr;
     }
 
     con4m_alloc_hdr *raw = arena->next_alloc;
-    arena->next_alloc    = (con4m_alloc_hdr *)&(raw->data[wordlen]);
+
+    if (raw->next_addr >= arena->heap_end) {
+	goto try_again;
+    }
+    arena->next_alloc = (con4m_alloc_hdr *)&(raw->data[wordlen]);
+
+    if (arena->next_alloc > (con4m_alloc_hdr *)arena->heap_end) {
+	goto try_again;
+    }
 
     raw->guard     = gc_guard;
     raw->arena     = arena->arena_id;
@@ -219,7 +245,12 @@ con4m_arena_alloc(con4m_arena_t **arena_ptr, size_t len,
     raw->ptr_map   = (uint64_t *)ptr_map;
 
 
-    gc_trace("new record of len %zu @%p; data @%p", len, raw, raw->data);
+    if (arena->heap_end < raw->next_addr) {
+	goto try_again;
+    }
+    gc_trace("new_record:%p-%p:data:%p:len:%zu:arena:%p-%p",
+	     raw, raw->next_addr, raw->data, len, arena, arena->heap_end);
+
     return (void *)(raw->data);
 }
 
@@ -232,3 +263,11 @@ con4m_arena_alloc(con4m_arena_t **arena_ptr, size_t len,
 // Used in the DT info struct to call an alloc() function instead of calling
 // the GC directly.
 #define CON4M_CUSTOM_ALLOC 0xffffffffffffffff
+#define GC_SCAN_ALL        ((uint64_t *)0xffffffffffffffff)
+
+static inline void *
+con4m_gc_malloc(size_t len)
+{
+    void *result = con4m_gc_alloc(len, GC_SCAN_ALL);
+    return result;
+}

@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include <hatrack/hatrack_common.h>
+#include <hatrack.h>
 
 // clang-format off
 

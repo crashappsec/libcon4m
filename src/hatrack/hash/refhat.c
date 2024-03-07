@@ -79,7 +79,8 @@ refhat_init_size(refhat_t *self, char size)
     self->used_count = 0;
     self->item_count = 0;
     self->next_epoch = 1;
-    self->buckets    = (refhat_bucket_t *)calloc(len, sizeof(refhat_bucket_t));
+    self->buckets    = (refhat_bucket_t *)zero_alloc(len,
+						     sizeof(refhat_bucket_t));
 
     return;
 }
@@ -549,7 +550,7 @@ refhat_migrate(refhat_t *self)
     bucket_size   = sizeof(refhat_bucket_t);
     num_buckets   = hatrack_new_size(self->last_slot, self->item_count + 1);
     new_last_slot = num_buckets - 1;
-    new_buckets   = (refhat_bucket_t *)calloc(num_buckets, bucket_size);
+    new_buckets   = (refhat_bucket_t *)zero_alloc(num_buckets, bucket_size);
 
     for (n = 0; n <= self->last_slot; n++) {
         cur = &self->buckets[n];

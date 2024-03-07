@@ -64,7 +64,9 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/gc.c',
             'src/con4m/term.c',
             'src/con4m/kargs.c',
-            'src/con4m/object.c'
+            'src/con4m/object.c',
+            'src/con4m/dict.c',
+            'src/con4m/lists.c'            
             ]
 
 hat_primary = ['src/hatrack/support/hatrack_common.c',
@@ -154,7 +156,7 @@ executable('c4test', test_src,
            link_args : exe_link_args,
            link_with : libc4m)
 
-executable('hash', hash_test_src + hat_primary,
+executable('hash', hash_test_src + lib_src,
            include_directories : incdir,
            dependencies : all_deps,
            link_args : exe_link_args,

@@ -89,6 +89,11 @@ typedef enum : int64_t {
     T_TIME,
     T_URL,
     T_CALLBACK,
+    T_QUEUE,
+    T_RING,
+    T_LOGRING,
+    T_STACK,
+
     CON4M_NUM_BUILTIN_DTS
 } con4m_builtin_t;
 

@@ -21,8 +21,7 @@
 
 #pragma once
 
-#include <hatrack/woolhat.h>
-#include <hatrack/dict.h>
+#include <hatrack.h>
 
 
 typedef struct hatrack_set_st hatrack_set_t;

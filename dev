@@ -59,17 +59,35 @@ function meson_build {
     fi
 
     cd ..
-    exit $CODE
+    if [[ ${1} != "debug" ]]; then
+        exit $CODE
+    fi
+
+    if [[ $CODE -ne 0 ]]; then
+        exit $CODE
+    fi
 }
 
 function libcon4m_dev_usage {
-    echo "Usage: ./dev [build | tests | release | debug | clean]"
+    echo "Usage: ./dev [build | run | release | debug | clean]"
     exit 1
+}
+
+function debug_it {
+    meson_build debug --buildtype=debug
+    DEBUGGER=$(which gdb)
+    DEBUGGER=${DEBUGGER:-$(which lldb)}
+    cd debug
+    log "Running debugger:v${DEBUGGER}"
+    ${DEBUGGER} ./c4test
+    cd ..
+
 }
 
 function libcon4m_run_tests {
     TARGET=$(cat .meson_last)
 
+    mason_build ${TARGET} --buildtype=${TARGET}
     log Running test binary for target: $(color green '[==' $TARGET '==]')
 
     cd $TARGET
@@ -101,11 +119,11 @@ case $1 in
              ;;
     build)   meson_build build
              ;;
-    debug)   meson_build debug --buildtype=debug
+    debug)   debug_it
              ;;
     release) meson_build release --buildtype=release
              ;;
-    tests)   libcon4m_run_tests
+    run)     libcon4m_run_tests
              ;;
     *)
         libcon4m_dev_usage

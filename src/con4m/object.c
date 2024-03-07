@@ -49,9 +49,18 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
       .vtable    = &u32str_vtable
     },
     { .typeid = T_GRID, },
-    { .typeid = T_LIST, },
+    { .typeid    = T_LIST,
+      .alloc_len = sizeof(flexarray_t),
+      .ptr_info  = GC_SCAN_ALL,
+      .vtable    = &list_vtable
+    },
     { .typeid = T_TUPLE, },
-    { .typeid = T_DICT, },
+
+    { .typeid    = T_DICT,
+      .alloc_len = sizeof(hatrack_dict_t),
+      .ptr_info  = GC_SCAN_ALL,
+      .vtable    = &dict_vtable
+    },
     { .typeid = T_TYPESPEC, },
     { .typeid = T_IPV4, },
     { .typeid = T_IPV6, },
@@ -61,7 +70,27 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
     { .typeid = T_DATE, },
     { .typeid = T_TIME, },
     { .typeid = T_URL, },
-    { .typeid = T_CALLBACK, }
+    { .typeid = T_CALLBACK, },
+    { .typeid    = T_QUEUE,
+      .alloc_len = sizeof(queue_t),
+      .ptr_info  = GC_SCAN_ALL,
+      .vtable    = &queue_vtable
+    },
+    { .typeid    = T_RING,
+      .alloc_len = sizeof(hatring_t),
+      .ptr_info  = GC_SCAN_ALL,
+      .vtable    = &ring_vtable
+    },
+    { .typeid    = T_LOGRING,
+      .alloc_len = sizeof(logring_t),
+      .ptr_info  = GC_SCAN_ALL,
+      .vtable    = &logring_vtable
+    },
+    { .typeid    = T_STACK,
+      .alloc_len = sizeof(stack_t),
+      .ptr_info  = GC_SCAN_ALL,
+      .vtable    = &stack_vtable
+    }
 };
 
 void *

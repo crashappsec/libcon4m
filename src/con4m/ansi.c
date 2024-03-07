@@ -188,7 +188,8 @@ ansi_render_u8(real_str_t *s, FILE *outstream)
 
     style_state = U8_STATE_START_DEFAULT;
 
-    if (s->styling != NULL && s->styling->num_entries != 0) {
+    if (s->styling != NULL && ((uint64_t)s->styling != STYLE_INVALID) &&
+	s->styling->num_entries != 0) {
 	entry = &s->styling->styles[0];
 	if (entry->start == 0) {
 	    style_state = U8_STATE_START_STYLE;
@@ -360,7 +361,7 @@ ansi_render_u32(real_str_t *s, int32_t start_ix, int32_t end_ix,
 	end_ix += len;
     }
 
-    if (s->styling == NULL) {
+    if (s->styling == NULL || (uint64_t)s->styling == STYLE_INVALID) {
 	ansi_render_u32_region(s, start_ix, end_ix, style0, outstream);
 	return;
     }

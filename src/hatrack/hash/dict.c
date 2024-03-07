@@ -197,7 +197,7 @@ hatrack_dict_get(hatrack_dict_t *self, void *key, bool *found)
     hatrack_dict_item_t *item;
     crown_store_t    *store;
 
-    
+
     hv = hatrack_dict_get_hash_value(self, key);
 
     mmm_start_basic_op();
@@ -221,9 +221,9 @@ hatrack_dict_get(hatrack_dict_t *self, void *key, bool *found)
     if (self->val_return_hook) {
 	(*self->val_return_hook)(self, item->value);
     }
-    
+
     mmm_end_op();
-    
+
     return item->value;
 }
 
@@ -395,7 +395,7 @@ hatrack_dict_keys_base(hatrack_dict_t *self, uint64_t *num, bool sort)
     else {
 	view = crown_view_fast(&self->crown_instance, num, sort);
     }
-    
+
     alloc_len = sizeof(hatrack_dict_key_t) * *num;
     ret       = (hatrack_dict_key_t *)malloc(alloc_len);
 
@@ -403,9 +403,9 @@ hatrack_dict_keys_base(hatrack_dict_t *self, uint64_t *num, bool sort)
 	for (i = 0; i < *num; i++) {
 	    item   = (hatrack_dict_item_t *)view[i].item;
 	    ret[i] = item->key;
-	    
-	    (*self->key_return_hook)(self, item->key);	
-	}	
+
+	    (*self->key_return_hook)(self, item->key);
+	}
     }
     else {
 	for (i = 0; i < *num; i++) {
@@ -446,8 +446,8 @@ hatrack_dict_values_base(hatrack_dict_t *self, uint64_t *num, bool sort)
 	for (i = 0; i < *num; i++) {
 	    item   = (hatrack_dict_item_t *)view[i].item;
 	    ret[i] = item->value;
-	    
-	    (*self->val_return_hook)(self, item->value);		    
+
+	    (*self->val_return_hook)(self, item->value);
 	}
     } else {
 	for (i = 0; i < *num; i++) {
@@ -457,7 +457,7 @@ hatrack_dict_values_base(hatrack_dict_t *self, uint64_t *num, bool sort)
     }
 
     mmm_end_op();
-    
+
     free(view);
 
     return ret;
@@ -473,7 +473,7 @@ hatrack_dict_items_base(hatrack_dict_t *self, uint64_t *num, bool sort)
     uint32_t             i;
 
     mmm_start_basic_op();
-    
+
     if (self->slow_views) {
 	view = crown_view_slow(&self->crown_instance, num, sort);
     }
@@ -488,7 +488,7 @@ hatrack_dict_items_base(hatrack_dict_t *self, uint64_t *num, bool sort)
 	item         = (hatrack_dict_item_t *)view[i].item;
 	ret[i].key   = item->key;
 	ret[i].value = item->value;
-	
+
 	if (self->key_return_hook) {
 	    (*self->key_return_hook)(self, item->key);
 	}
@@ -498,7 +498,7 @@ hatrack_dict_items_base(hatrack_dict_t *self, uint64_t *num, bool sort)
     }
 
     mmm_end_op();
-    
+
     free(view);
 
     return ret;
@@ -596,7 +596,7 @@ hatrack_dict_get_hash_value(hatrack_dict_t *self, void *key)
     }
 
     loc_to_hash = (uint8_t *)key;
-    
+
     if (self->hash_info.offsets.hash_offset) {
 	loc_to_hash += self->hash_info.offsets.hash_offset;
     }
@@ -632,7 +632,7 @@ hatrack_dict_record_eject(hatrack_dict_item_t *record,
     hatrack_mem_hook_t callback;
 
     callback = dict->free_handler;
-    
+
     (*callback)(dict, record);
 
     return;

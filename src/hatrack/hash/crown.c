@@ -219,7 +219,7 @@ crown_init_size(crown_t *self, char size)
     len              = 1 << size;
     store            = crown_store_new(len);
     self->next_epoch = 1;
-    
+
     atomic_store(&self->store_current, store);
     atomic_store(&self->item_count, 0);
 
@@ -250,10 +250,10 @@ crown_get(crown_t *self, hatrack_hash_t hv, bool *found)
     crown_store_t *store;
 
     mmm_start_basic_op();
-    
+
     store = atomic_read(&self->store_current);
     ret   = crown_store_get(store, hv, found);
-    
+
     mmm_end_op();
 
     return ret;
@@ -265,11 +265,12 @@ crown_put(crown_t *self, hatrack_hash_t hv, void *item, bool *found)
     void           *ret;
     crown_store_t *store;
 
+
     mmm_start_basic_op();
-    
+
     store = atomic_read(&self->store_current);
     ret   = crown_store_put(store, self, hv, item, found, 0);
-    
+
     mmm_end_op();
 
     return ret;
@@ -282,10 +283,10 @@ crown_replace(crown_t *self, hatrack_hash_t hv, void *item, bool *found)
     crown_store_t *store;
 
     mmm_start_basic_op();
-    
+
     store = atomic_read(&self->store_current);
     ret   = crown_store_replace(store, self, hv, item, found, 0);
-    
+
     mmm_end_op();
 
     return ret;
@@ -298,10 +299,10 @@ crown_add(crown_t *self, hatrack_hash_t hv, void *item)
     crown_store_t *store;
 
     mmm_start_basic_op();
-    
-    store = atomic_read(&self->store_current);    
+
+    store = atomic_read(&self->store_current);
     ret   = crown_store_add(store, self, hv, item, 0);
-    
+
     mmm_end_op();
 
     return ret;
@@ -314,10 +315,10 @@ crown_remove(crown_t *self, hatrack_hash_t hv, bool *found)
     crown_store_t *store;
 
     mmm_start_basic_op();
-    
-    store = atomic_read(&self->store_current);    
+
+    store = atomic_read(&self->store_current);
     ret   = crown_store_remove(store, self, hv, found, 0);
-    
+
     mmm_end_op();
 
     return ret;
@@ -333,9 +334,9 @@ hatrack_view_t *
 crown_view(crown_t *self, uint64_t *num, bool sort)
 {
     hatrack_view_t *ret;
-    
+
     mmm_start_basic_op();
-    
+
     ret = crown_view_fast(self, num, sort);
 
     mmm_end_op();
@@ -373,9 +374,9 @@ crown_view_fast(crown_t *self, uint64_t *num, bool sort)
 	    cur++;
 	    continue;
 	}
-	
+
         p->item = record.item;
-	
+
         p++;
         cur++;
     }
@@ -385,7 +386,7 @@ crown_view_fast(crown_t *self, uint64_t *num, bool sort)
 
     if (!num_items) {
         free(view);
-	
+
         return NULL;
     }
 
@@ -448,7 +449,7 @@ crown_view_slow(crown_t *self, uint64_t *num, bool sort)
 	}
 
         p->item = record.item;
-	
+
         p++;
         cur++;
     }
@@ -458,7 +459,7 @@ crown_view_slow(crown_t *self, uint64_t *num, bool sort)
 
     if (!num_items) {
         free(view);
-	
+
         return NULL;
     }
 
@@ -501,7 +502,7 @@ crown_store_get(crown_store_t *self, hatrack_hash_t hv1, bool *found)
     /* Once we get the index of our initial bucket, the first thing
      * we're going to do is load up the "neighborhood map". If there
      * are bits set in this value, they represent buckets where a get
-     * might live.  
+     * might live.
      *
      * Per above, any zero bits to the left of the rightmost one bit
      * represent buckets we don't even need to examime.
@@ -514,8 +515,8 @@ crown_store_get(crown_store_t *self, hatrack_hash_t hv1, bool *found)
     map = atomic_read(&self->buckets[bix].neighbor_map);
     i   = -1;
 
-    /* CLZ stands for "count leading zeros."  
-     * 
+    /* CLZ stands for "count leading zeros."
+     *
      * This function returns the bit position corresponding to the
      * first bucket we should jump to, in order to look for an
      * entry. Any leading zeros constitute buckets that definitely do
@@ -575,7 +576,7 @@ crown_store_get(crown_store_t *self, hatrack_hash_t hv1, bool *found)
      * we will only need to look at one bucket beyond the cache.
      *
      * This caching helps us more and more, the more loaded the hash
-     * table gets. 
+     * table gets.
      *
      * Note that, when we have a pretty empty hash table, the overhead
      * of loading the empty bitfield will be slightly higher than a
@@ -594,23 +595,23 @@ crown_store_get(crown_store_t *self, hatrack_hash_t hv1, bool *found)
     for (; i < self->last_slot; i++) {
         bucket = &self->buckets[bix];
         hv2    = atomic_read(&bucket->hv);
-	
+
         if (hatrack_bucket_unreserved(hv2)) {
             goto not_found;
         }
-	
+
         if (!hatrack_hashes_eq(hv1, hv2)) {
             bix = (bix + 1) & self->last_slot;
             continue;
         }
 
         record = atomic_read(&bucket->record);
-	
+
         if (record.info & CROWN_EPOCH_MASK) {
             if (found) {
                 *found = true;
             }
-	    
+
             return record.item;
         }
         break;
@@ -620,7 +621,7 @@ not_found:
     if (found) {
         *found = false;
     }
- 
+
     return NULL;
 }
 
@@ -632,7 +633,7 @@ not_found:
  *    cache.
  *
  * 2) We need to avoid the race condition discussed at the comment at
- *    the top. 
+ *    the top.
  *
  *  As we mentioned above, there are two ways we could handle the
  *  second issue: a) Forcing linear probing for put (and add)
@@ -671,10 +672,10 @@ crown_store_put(crown_store_t  *self,
     hop_t           map;
     hop_t           new_map;
     hop_t           bit_to_set;
-    
+
 #ifndef HATRACK_FULL_LINEAR_PROBES
     uint64_t        orig_index;
-#endif    
+#endif
 
     bix         = hatrack_bucket_index(hv1, self->last_slot);
     orig_bucket = &self->buckets[bix];
@@ -704,15 +705,15 @@ crown_store_put(crown_store_t  *self,
 
     i++;
     bix = (bix + i) & self->last_slot;
-    
+
 #else
     i = 0;
-#endif    
+#endif
 
     for (; i <= self->last_slot; i++) {
         bucket = &self->buckets[bix];
 	hv2    = atomic_read(&bucket->hv);
-	
+
 	if (hatrack_bucket_unreserved(hv2)) {
 	    if (CAS(&bucket->hv, &hv2, hv1)) {
 		if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
@@ -721,15 +722,15 @@ crown_store_put(crown_store_t  *self,
 
 		map        = atomic_read(&orig_bucket->neighbor_map);
 		bit_to_set = CROWN_HOME_BIT >> i;
-		
+
 		do {
 		    new_map = map | bit_to_set;
 		} while (!CAS(&orig_bucket->neighbor_map, &map, new_map));
-		
+
 		goto found_bucket;
 	    }
 	}
-	
+
 	if (hatrack_hashes_eq(hv1, hv2)) {
 	    goto found_bucket;
 	}
@@ -751,40 +752,40 @@ crown_store_put(crown_store_t  *self,
 	if (hatrack_bucket_index(hv2, self->last_slot) == orig_index) {
 	    map        = atomic_read(&orig_bucket->neighbor_map);
 	    bit_to_set = CROWN_HOME_BIT >> i;
-	    
+
 	    while (!(map & bit_to_set)) {
 		new_map = map | bit_to_set;
 		CAS(&orig_bucket->neighbor_map, &map, new_map);
 	    }
 	}
-#endif	
-	
+#endif
+
 	bix = (bix + 1) & self->last_slot;
 	continue;
     }
-	    
-    // The rest of this operation is identical to Witchhat.    
+
+    // The rest of this operation is identical to Witchhat.
  migrate_and_retry:
     count = count + 1;
     if (crown_help_required(count)) {
 	HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
-	
+
 	atomic_fetch_add(&top->help_needed, 1);
-	
+
 	self     = crown_store_migrate(self, top);
 	old_item = crown_store_put(self, top, hv1, item, found, count);
-	
+
 	atomic_fetch_sub(&top->help_needed, 1);
-	
+
 	return old_item;
     }
-    
+
     self = crown_store_migrate(self, top);
     return crown_store_put(self, top, hv1, item, found, count);
 
  found_bucket:
     record = atomic_read(&bucket->record);
-    
+
     if (record.info & CROWN_F_MOVING) {
 	goto migrate_and_retry;
     }
@@ -793,7 +794,7 @@ crown_store_put(crown_store_t  *self,
 	if (found) {
 	    *found = true;
 	}
-	
+
 	old_item       = record.item;
 	new_item       = false;
 	candidate.info = record.info;
@@ -802,7 +803,7 @@ crown_store_put(crown_store_t  *self,
 	if (found) {
 	    *found = false;
 	}
-	
+
 	old_item       = NULL;
 	new_item       = true;
 	candidate.info = CROWN_F_INITED | top->next_epoch++;
@@ -814,7 +815,7 @@ crown_store_put(crown_store_t  *self,
         if (new_item) {
             atomic_fetch_add(&top->item_count, 1);
         }
-	
+
         return old_item;
     }
 
@@ -846,7 +847,7 @@ crown_store_replace(crown_store_t    *self,
     crown_bucket_t *bucket;
     crown_record_t  record;
     crown_record_t  candidate;
-    hop_t           map;    
+    hop_t           map;
 
     bix = hatrack_bucket_index(hv1, self->last_slot);
     map = atomic_read(&self->buckets[bix].neighbor_map);
@@ -854,7 +855,7 @@ crown_store_replace(crown_store_t    *self,
 
     /* Since replace never acquires a bucket, it is not subject to the
      * potential race condition that the put and add operations must
-     * deal with.  
+     * deal with.
      *
      * Therefore, the algorithm for finding a bucket is basically the
      * same as with the get operation.
@@ -867,25 +868,25 @@ crown_store_replace(crown_store_t    *self,
 	if (hatrack_hashes_eq(hv1, hv2)) {
 	    goto found_bucket;
 	}
-	
+
 	map &= ~(CROWN_HOME_BIT >> i);
     }
 
     i++;
     bix = (bix + i) & self->last_slot;
-    
+
     for (; i <= self->last_slot; i++) {
         bucket = &self->buckets[bix];
 	hv2    = atomic_read(&bucket->hv);
-	
+
 	if (hatrack_bucket_unreserved(hv2)) {
 	    goto not_found;
 	}
-	
+
 	if (hatrack_hashes_eq(hv1, hv2)) {
 	    goto found_bucket;
 	}
-	
+
 	bix = (bix + 1) & self->last_slot;
 	continue;
     }
@@ -898,23 +899,23 @@ crown_store_replace(crown_store_t    *self,
 
  found_bucket:
     record = atomic_read(&bucket->record);
-    
+
     if (record.info & CROWN_F_MOVING) {
     migrate_and_retry:
 	count = count + 1;
-	
+
 	if (crown_help_required(count)) {
 	    HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
-	    
+
 	    atomic_fetch_add(&top->help_needed, 1);
 	    self = crown_store_migrate(self, top);
 	    ret  = crown_store_replace(self, top, hv1, item, found, count);
-	    
+
 	    atomic_fetch_sub(&top->help_needed, 1);
-	    
+
 	    return ret;
 	}
-	
+
 	self = crown_store_migrate(self, top);
 	return crown_store_replace(self, top, hv1, item, found, count);
     }
@@ -930,17 +931,17 @@ crown_store_replace(crown_store_t    *self,
 	if (record.info & CROWN_F_MOVING) {
 	    goto migrate_and_retry;
 	}
-	
+
 	goto not_found;
     }
-    
+
     if (found) {
 	*found = true;
     }
 
     if (atomic_read(&self->used_count) >= self->threshold) {
 	crown_store_migrate(self, top);
-    }    
+    }
 
     return record.item;
 }
@@ -950,7 +951,7 @@ crown_store_replace(crown_store_t    *self,
  * protected against in the put operation.
  *
  * The bucket logic implementation is basically identical. Please
- * see above for exposition. 
+ * see above for exposition.
  */
 bool
 crown_store_add(crown_store_t    *self,
@@ -963,13 +964,13 @@ crown_store_add(crown_store_t    *self,
     uint64_t        i;
     hatrack_hash_t  hv2;
     crown_bucket_t *bucket;
-    crown_bucket_t *orig_bucket;    
+    crown_bucket_t *orig_bucket;
     crown_record_t  record;
     crown_record_t  candidate;
     hop_t           map;
     hop_t           new_map;
     hop_t           bit_to_set;
-    
+
 #ifndef HATRACK_FULL_LINEAR_PROBES
     uint64_t        orig_index;
 #endif
@@ -990,53 +991,53 @@ crown_store_add(crown_store_t    *self,
 	if (hatrack_hashes_eq(hv1, hv2)) {
 	    goto found_bucket;
 	}
-	
+
 	map &= ~(CROWN_HOME_BIT >> i);
     }
 
     i++;
     bix = (bix + i) & self->last_slot;
-    
+
 #else
     i = 0;
 #endif
-    
+
     for (; i <= self->last_slot; i++) {
         bucket = &self->buckets[bix];
 	hv2    = atomic_read(&bucket->hv);
-	
+
 	if (hatrack_bucket_unreserved(hv2)) {
 	    if (CAS(&bucket->hv, &hv2, hv1)) {
 		if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
 		    goto migrate_and_retry;
 		}
-		
+
 		map        = atomic_read(&orig_bucket->neighbor_map);
 		bit_to_set = CROWN_HOME_BIT >> i;
-		
+
 		do {
 		    new_map = map | bit_to_set;
 		} while (!CAS(&orig_bucket->neighbor_map, &map, new_map));
-		
+
 		goto found_bucket;
 	    }
 	}
-	
+
 	if (hatrack_hashes_eq(hv1, hv2)) {
 	    goto found_bucket;
 	}
 
-#ifndef HATRACK_FULL_LINEAR_PROBES	
+#ifndef HATRACK_FULL_LINEAR_PROBES
 	if (hatrack_bucket_index(hv2, self->last_slot) == orig_index) {
 	    map = atomic_read(&orig_bucket->neighbor_map);
 	    bit_to_set = CROWN_HOME_BIT >> i;
-	    
+
 	    while (!(map & bit_to_set)) {
 		new_map = map | bit_to_set;
 		CAS(&orig_bucket->neighbor_map, &map, new_map);
 	    }
 	}
-#endif	
+#endif
 
 	bix = (bix + 1) & self->last_slot;
 	continue;
@@ -1048,17 +1049,17 @@ crown_store_add(crown_store_t    *self,
 	bool ret;
 
 	HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
-	
+
 	atomic_fetch_add(&top->help_needed, 1);
-	
+
 	self = crown_store_migrate(self, top);
 	ret  = crown_store_add(self, top, hv1, item, count);
-	
+
 	atomic_fetch_sub(&top->help_needed, 1);
 
 	return ret;
     }
-    
+
     self = crown_store_migrate(self, top);
     return crown_store_add(self, top, hv1, item, count);
 
@@ -1067,7 +1068,7 @@ found_bucket:
     if (record.info & CROWN_F_MOVING) {
 	goto migrate_and_retry;
     }
-    
+
     if (record.info & CROWN_EPOCH_MASK) {
         return false;
     }
@@ -1079,7 +1080,7 @@ found_bucket:
 	atomic_fetch_add(&top->item_count, 1);
         return true;
     }
-    
+
     if (record.info & CROWN_F_MOVING) {
 	goto migrate_and_retry;
     }
@@ -1120,25 +1121,25 @@ crown_store_remove(crown_store_t *self,
 	if (hatrack_hashes_eq(hv1, hv2)) {
 	    goto found_bucket;
 	}
-	
+
 	map &= ~(CROWN_HOME_BIT >> i);
     }
 
     i++;
     bix = (bix + i) & self->last_slot;
-    
+
     for (; i <= self->last_slot; i++) {
         bucket = &self->buckets[bix];
         hv2    = atomic_read(&bucket->hv);
-	
+
         if (hatrack_bucket_unreserved(hv2)) {
 	    goto not_found;
         }
-	
+
         if (hatrack_hashes_eq(hv1, hv2)) {
 	    goto found_bucket;
         }
-	
+
 	bix = (bix + 1) & self->last_slot;
 	continue;
     }
@@ -1155,7 +1156,7 @@ found_bucket:
     if (record.info & CROWN_F_MOVING) {
     migrate_and_retry:
 	count = count + 1;
-	
+
 	if (crown_help_required(count)) {
 	    HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
 	    atomic_fetch_add(&top->help_needed, 1);
@@ -1164,11 +1165,11 @@ found_bucket:
 	    atomic_fetch_sub(&top->help_needed, 1);
 	    return old_item;
 	}
-	
+
 	self = crown_store_migrate(self, top);
 	return crown_store_remove(self, top, hv1, found, count);
     }
-    
+
     if (!(record.info & CROWN_EPOCH_MASK)) {
 	goto not_found;
     }
@@ -1187,10 +1188,10 @@ found_bucket:
 	if (atomic_read(&self->used_count) >= self->threshold) {
 	    crown_store_migrate(self, top);
 	}
-	
+
         return old_item;
     }
-    
+
     if (record.info & CROWN_F_MOVING) {
 	goto migrate_and_retry;
     }
@@ -1201,7 +1202,7 @@ found_bucket:
 /* Often when we migrate, we are growing the table. This probing
  * technique is less excellent the more sparsely populated the table
  * is.
- * 
+ *
  * So, it stands to reason that linear probing could be better, at
  * least for the early part of the migration.
  *
@@ -1217,7 +1218,7 @@ found_bucket:
  * Note that the migration operation does NOT suffer from the race
  * condition we discuss up at the front. That's because our migrations
  * consists of a deterministic set of operations on the new table,
- * that are all guaranteed to happen in-order.  
+ * that are all guaranteed to happen in-order.
  *
  * ALL threads that write to the new store during migration will be
  * trying to write the exact same things in the exact same order.
@@ -1245,11 +1246,11 @@ crown_store_migrate(crown_store_t *self, crown_t *top)
 
 #ifdef HATRACK_SKIP_ON_MIGRATIONS
     uint64_t        original_bix;
-#endif    
+#endif
 
     new_used  = 0;
     new_store = atomic_read(&top->store_current);
-    
+
     if (new_store != self) {
 	return new_store;
     }
@@ -1260,13 +1261,13 @@ crown_store_migrate(crown_store_t *self, crown_t *top)
         candidate_record.item = record.item;
 
 	if (record.info & CROWN_F_MOVING) {
-	    
+
 	    if (record.info & CROWN_EPOCH_MASK) {
 		new_used++;
 	    }
 	    continue;
 	}
-	    
+
 	OR2X64L(&bucket->record, CROWN_F_MOVING);
 
 	record = atomic_read(&bucket->record);
@@ -1274,7 +1275,7 @@ crown_store_migrate(crown_store_t *self, crown_t *top)
 	if (record.info & CROWN_EPOCH_MASK) {
 	    new_used++;
 	} else {
-	    OR2X64L(&bucket->record, CROWN_F_MOVED); 
+	    OR2X64L(&bucket->record, CROWN_F_MOVED);
 	}
     }
 
@@ -1287,9 +1288,9 @@ crown_store_migrate(crown_store_t *self, crown_t *top)
 	else {
 	    new_size        = hatrack_new_size(self->last_slot, new_used);
 	}
-	
+
         candidate_store = crown_store_new(new_size);
-	
+
         if (!CAS(&self->store_next, &new_store, candidate_store)) {
             mmm_retire_unused(candidate_store);
         }
@@ -1317,7 +1318,7 @@ crown_store_migrate(crown_store_t *self, crown_t *top)
 
 	while (map) {
 	    uint64_t ix;
-	    
+
 	    j           = CLZ(map);
 	    ix          = (original_bix + j) & new_store->last_slot;
 	    new_bucket  = &new_store->buckets[ix];
@@ -1334,32 +1335,32 @@ crown_store_migrate(crown_store_t *self, crown_t *top)
 #else
 	j = 0;
 #endif
-	
+
 	for (; j <= new_store->last_slot; j++) {
             new_bucket     = &new_store->buckets[bix];
 	    expected_hv    = atomic_read(&new_bucket->hv);
-	    
+
 	    if (hatrack_bucket_unreserved(expected_hv)) {
 		if (CAS(&new_bucket->hv, &expected_hv, hv)) {
 		    map        = atomic_read(&map_bucket->neighbor_map);
 		    new_map    = map | (CROWN_HOME_BIT >> j);
 		    CAS(&map_bucket->neighbor_map, &map, new_map);
-		    
+
 		    break;
 		}
 	    }
-	    
+
 	    if (!hatrack_hashes_eq(expected_hv, hv)) {
 		bix = (bix + 1) & new_store->last_slot;
 		continue;
             }
-	    
+
             break;
         }
 
 #ifdef HATRACK_SKIP_ON_MIGRATIONS
     found_bucket:
-#endif	
+#endif
         candidate_record.info = record.info & CROWN_EPOCH_MASK;
         candidate_record.item = record.item;
         expected_record.info  = 0;
@@ -1374,7 +1375,7 @@ crown_store_migrate(crown_store_t *self, crown_t *top)
     }
 
     expected_used = 0;
-    
+
     CAS(&new_store->used_count,
          &expected_used,
          new_used
@@ -1398,7 +1399,7 @@ crown_help_required(uint64_t count)
     if (count == HATRACK_RETRY_THRESHOLD) {
 	return true;
     }
-    
+
     return false;
 }
 

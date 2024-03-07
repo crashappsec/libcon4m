@@ -14,20 +14,19 @@
  * limitations under the License.
  *
  *  Name:           helpmanager.c
- *  Description:    Support for data-structure specific linearization 
+ *  Description:    Support for data-structure specific linearization
  *                  through a wait-free CAPQ (compare-and-pop queue),
- *                  
+ *
  *
  *  Author:         John Viega, john@zork.org
  *
  */
 
 #include <hatrack.h>
-#include <strings.h>
 
 void
 hatrack_help_init(help_manager_t *manager,
-		  void           *parent, 
+		  void           *parent,
 		  helper_func    *vtable,
 		  bool            zero)
 {
@@ -63,7 +62,7 @@ hatrack_perform_wf_op(help_manager_t *manager,
     bool           found;
     helper_func    f;
     help_cell_t    retcell;
-    help_cell_t    foundcell;    
+    help_cell_t    foundcell;
 
     my_record                = &thread_records[mmm_mytid];
     my_record->op            = op;
@@ -82,7 +81,7 @@ hatrack_perform_wf_op(help_manager_t *manager,
 	other_jobid  = qtop.state;
 	other_record = qtop.item;
 	f            = manager->vtable[other_record->op];
-	
+
 	(*f)(manager, other_record, other_jobid);
     } while (other_jobid < my_jobid);
 
@@ -116,7 +115,7 @@ hatrack_complete_help(help_manager_t *manager,
     }
 
     expected = atomic_load(&record->success);
-    
+
     if (expected.jobid < jobid) {
 	candidate.data  = (void *)success;
 	candidate.jobid = jobid;

@@ -1393,6 +1393,7 @@ is_registered_writer(switchboard_t *ctx, party_t *target)
  * Note that this does NOT free the switchboard object,
  * just any internal data structures.
  */
+#undef free
 void
 sb_destroy(switchboard_t *ctx, bool free_parties)
 {

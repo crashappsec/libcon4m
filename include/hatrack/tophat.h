@@ -95,8 +95,7 @@
 
 #pragma once
 
-#include <hatrack/hatrack_common.h>
-#include <hatrack/hatvtable.h>
+#include <hatrack.h>
 
 /* tophat_migration_t
  *

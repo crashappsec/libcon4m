@@ -3,8 +3,9 @@
 // Everything includes this; the ordering here is somewhat important
 // due to interdependencies, though they can always be solved via
 // prototyping.
-
 #include <con4m/base.h>
+
+
 #include <con4m/macros.h>  // Helper macros, mostly 3rd party stuff.
 #include <con4m/kargs.h>   // Keyword arguments.
 #include <con4m/random.h>
@@ -21,6 +22,10 @@
 #include <con4m/breaks.h>
 #include <con4m/ansi.h>
 #include <con4m/hex.h>
+
+// Other core data structures.
+#include <con4m/dict.h>
+#include <con4m/lists.h>
 
 // Our grid abstraction.
 #include <con4m/grid.h>

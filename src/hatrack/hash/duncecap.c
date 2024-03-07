@@ -480,7 +480,7 @@ duncecap_store_new(uint64_t size)
 
     alloc_len      = sizeof(duncecap_store_t);
     alloc_len     += size * sizeof(duncecap_bucket_t);
-    ret            = (duncecap_store_t *)calloc(1, alloc_len);
+    ret            = (duncecap_store_t *)zero_alloc(1, alloc_len);
     ret->last_slot = size - 1;
     ret->threshold = hatrack_compute_table_threshold(size);
 

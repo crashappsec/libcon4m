@@ -21,16 +21,7 @@
  */
 
 #pragma once
-
-#include <hatrack/hatrack_config.h>
-#include <hatrack/debug.h>
-#include <hatrack/counters.h>
-#include <hatrack/hatomic.h>
-
-#include <stdlib.h>
-#include <stdbool.h>
-#include <pthread.h>
-#include <stdalign.h>
+#include <hatrack.h>
 
 /* This type represents a callback to de-allocate sub-objects before
  * the final free for an object allocated via MMM.
@@ -586,7 +577,7 @@ static inline void *
 mmm_alloc(uint64_t size)
 {
     uint64_t      actual_size = sizeof(mmm_header_t) + size;
-    mmm_header_t *item        = (mmm_header_t *)calloc(1, actual_size);
+    mmm_header_t *item        = (mmm_header_t *)zero_alloc(1, actual_size);
 
     HATRACK_MALLOC_CTR();
     DEBUG_MMM_INTERNAL(item->data, "mmm_alloc");
@@ -602,7 +593,7 @@ static inline void *
 mmm_alloc_committed(uint64_t size)
 {
     uint64_t      actual_size = sizeof(mmm_header_t) + size;
-    mmm_header_t *item        = (mmm_header_t *)calloc(1, actual_size);
+    mmm_header_t *item        = (mmm_header_t *)zero_alloc(1, actual_size);
 
     atomic_store(&item->write_epoch, atomic_fetch_add(&mmm_epoch, 1) + 1);
 

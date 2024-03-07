@@ -166,6 +166,10 @@ get_all_line_break_ops(str_t *instr)
 break_info_t *
 wrap_text(str_t *s, int32_t width, int32_t hang)
 {
+    if (width <= 0) {
+	width = max(20, terminal_width());
+    }
+
     break_info_t *line_breaks  = get_line_breaks(s);
     break_info_t *break_ops    = get_all_line_break_ops(s);
     int32_t       n            = 32 - __builtin_clz(width);

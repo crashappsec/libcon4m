@@ -16,6 +16,9 @@ uint64_t                    gc_guard     = 0;
 _Atomic uint64_t            num_arenas   = 0;
 thread_local con4m_arena_t *current_heap = NULL;
 
+static uint64_t page_bytes;
+static uint64_t page_modulus;
+static uint64_t modulus_mask;
 
 __attribute__((constructor)) void
 initialize_gc()
@@ -24,32 +27,64 @@ initialize_gc()
 
     if (!once) {
 	gc_guard     = con4m_rand64();
-	global_roots = zalloc(sizeof(hatrack_dict_t));
+	global_roots = calloc(sizeof(hatrack_dict_t), 1);
 	once         = true;
+	page_bytes   = getpagesize();
+	page_modulus = page_bytes - 1;  // Page size is always a power of 2.
+	modulus_mask = ~page_modulus;
+
+	gc_trace("init:set_guard:%llx", gc_guard);
+	gc_trace("init:global_root_addr:@%p", global_roots);
 
 	hatrack_dict_init(global_roots, HATRACK_DICT_KEY_TYPE_PTR);
-	gc_trace("Global guard set to %llx", gc_guard);
+
     }
+}
+
+static void *
+raw_arena_alloc(uint64_t len)
+{
+    assert (len < 1<<31);
+    void *r = mmap(NULL,
+		   (size_t)len, PROT_READ | PROT_WRITE,
+		   MAP_PRIVATE | MAP_ANON, 0, 0);
+
+    gc_trace("arena:mmap:@%p-@%p:%llu", r, ((char *)r) + len, len);
+
+    return r;
 }
 
 void
 con4m_expand_arena(size_t num_words, con4m_arena_t **cur_ptr)
 {
+    // Convert words to bytes.
+    uint64_t allocation = ((uint64_t)num_words) * 8;
+
+    // We're okay to over-allocate here. We round up to the nearest
+    // power of 2 that is a multiple of the page size.
+
+    if (allocation & page_modulus) {
+	allocation = (allocation & modulus_mask) + page_bytes;
+	num_words  = allocation >> 3;
+    }
+
+    con4m_arena_t *new_arena = raw_arena_alloc(allocation);
+
+    uint64_t arena_id   = atomic_fetch_add(&num_arenas, 1);
     // Really this creates another linked arena. We'll call it
     // a 'sub-arena' for now.
 
-    // Right now this is just using malloc; we'll change to use mmap()
-    // soon; we will try to map to arena_id << 32 using MAP_ANON.
-    con4m_arena_t *new_arena = zalloc_flex(con4m_arena_t, int64_t, num_words);
-    con4m_arena_t *current   = *cur_ptr;
 
+    con4m_arena_t *current   = *cur_ptr;
 
     new_arena->next_alloc     = (con4m_alloc_hdr *)new_arena->data;
     new_arena->previous       = current;
     new_arena->heap_end       = (uint64_t *)(&(new_arena->data[num_words]));
-    new_arena->arena_id       = atomic_fetch_add(&num_arenas, 1);
-    new_arena->late_mutations = queue_new();
+    new_arena->arena_id       = arena_id;
+    new_arena->late_mutations = calloc(sizeof(queue_t), 1);
     *cur_ptr                  = new_arena;
+
+    queue_init(new_arena->late_mutations);
 
     if (current != NULL && current->roots != NULL) {
 	new_arena->roots = rc_ref(current->roots);
@@ -63,7 +98,6 @@ con4m_new_arena(size_t num_words)
 
     con4m_expand_arena(num_words, &result);
 
-    gc_trace("New arena @%p", result);
     return result;
 }
 
@@ -72,7 +106,24 @@ con4m_gc_alloc(size_t len, uint64_t *ptr_map)
 {
     void *result;
 
-    result = con4m_arena_alloc(&current_heap, len, ptr_map);
+    result = con4m_alloc_from_arena(&current_heap, len, ptr_map);
+
+    return result;
+}
+
+void *
+con4m_gc_resize(void *ptr, size_t len)
+{
+    con4m_alloc_hdr *hdr = &((con4m_alloc_hdr *)ptr)[-1];
+
+    assert(hdr->guard = gc_guard);
+
+    void *result = con4m_alloc_from_arena(&current_heap, len, hdr->ptr_map);
+
+    if (len > 0) {
+	size_t bytes = ((size_t)(hdr->next_addr - hdr->data)) * 8;
+	memcpy(result, ptr, min(len, bytes));
+    }
 
     return result;
 }
@@ -82,7 +133,12 @@ con4m_delete_arena(con4m_arena_t *arena)
 {
     // TODO-- allocations need to have an arena pointer or thread id
     // for cross-thread to work.
+    //
+    // TODO-- need to make this use mmap now.
     con4m_arena_t *prev_active;
+
+    gc_trace("arena:skip_unmap");
+    return;
 
     while (arena != NULL) {
 	prev_active = arena->previous;
@@ -123,45 +179,52 @@ update_internal_allocation_pointers(con4m_alloc_hdr *hdr,
 	return;
     }
 
-    gc_trace("fromspace record %p has pointer(s) to migrate", hdr);
+    gc_trace("ptr_update_scan:begin:@%p-@%p:%lu", hdr, hdr->next_addr,
+	     (size_t)(((char *)hdr->next_addr) - (char *)hdr->data));
 
     // Loop through all aligned offsets holding a pointer to see if it
     // points into this heap.
      if (hdr->ptr_map == NULL) {
 	 return;
      }
+     if (hdr->ptr_map == GC_SCAN_ALL) {
+	 uint64_t **p = (uint64_t **)hdr->data;
+
+	 while (p < (uint64_t **)hdr->next_addr) {
+	     process_traced_pointer(p, *p, arena_start, arena_end, new_arena);
+	     p++;
+	 }
+	 return;
+     }
+
      size_t   map_ix  = 0;
      size_t   offset  = 0;
      uint64_t map_len = hdr->ptr_map[map_ix++];
      uint64_t w;
 
-     for(uint64_t i = 0; i < map_len; i++) {
+     for (uint64_t i = 0; i < map_len; i++) {
 	 w = hdr->ptr_map[map_ix++];
-	 //gc_trace("!!ptr_map[%u] = %llx (offset = %u)", map_ix - 1, w,
-         //          offset);
 	 while (w) {
 	     int clz   = __builtin_clzll(w);
 	     uint64_t tomask = 1LLU << (63 - clz);
 
-	     //gc_trace("!!innertop: word hex: %llx; clz = %d; "
-	     //         "pre-mask: %llx; post-mask: %llx",
-	     //         w, clz, tomask, ~tomask);
-
 	     uint64_t **ploc = (uint64_t **)(&hdr->data[offset + clz]);
 	     w              &= ~tomask;
 
-	     gc_trace("addr @%p (%zu words past data start %p) points to %p",
-		      ploc, offset + clz, hdr->data, *ploc);
+	     gc_trace("ptr_update_one:in_heap_test:@%p:->%p:%zu",
+		      ploc, *ploc, offset);
 
 	     if ((*ploc) >= arena_start && (*ploc) <= arena_end) {
-		 gc_trace("@%p points within this arena; processing.", *ploc);
+		 gc_trace("ptr_update_one:in_heap_yes:@%p:->%p:%zu",
+			  ploc, *ploc, offset);
 		 process_traced_pointer(ploc, *ploc, arena_start,
 					arena_end, new_arena);
 	     }
 	 }
 	 offset += 64;
      }
-     gc_trace("finished fromspace migration of pointers in record %p", hdr);
+     gc_trace("ptr_update_scan:end:@%p-@%p:%lu", hdr, hdr->next_addr,
+	     (size_t)(((char *)hdr->next_addr) - (char *)hdr->data));
 }
 
 static inline void
@@ -169,7 +232,7 @@ update_traced_pointer(uint64_t **addr, uint64_t **expected, uint64_t *new)
 {
     // Hmm, the CAS isn't working; alignment issue?
 
-    gc_trace("Changing pointer stored @%p from %p to %p", addr, *addr, new);
+    gc_trace("replace_ptr:@%p:%p->%p", addr, *addr, new);
     *addr = new;
     /* printf("Going to update the pointer at %p from %p to %p\n", */
     /* 	   addr, expected, new); */
@@ -188,9 +251,10 @@ header_scan(uint64_t *ptr, uint64_t *stop_location, uint64_t *offset)
     while (p >= stop_location) {
 	if (*p == gc_guard) {
 	    con4m_alloc_hdr *result = (con4m_alloc_hdr *)p;
-	    gc_trace("record: %p - @%p; user data @%p (%d bytes)",
-		     p, result->next_addr, result->data,
-		     (int)(((char *)result->next_addr) - (char *)result->data));
+	    gc_trace("find_alloc:%p-%p:start:%p:data:%p:len:%d:total:%d",
+		     p, result->next_addr, ptr, result->data,
+		     (int)(((char *)result->next_addr) - (char *)result->data),
+		     (int)(((char *)result->next_addr) - (char *)result));
 	    return result;
 	}
 	p -= 1;
@@ -209,15 +273,15 @@ process_traced_pointer(uint64_t **addr, uint64_t *ptr, uint64_t *start,
 	return;
     }
 
-    gc_trace("Visiting fromspace ptr %p (found at %p)", ptr, addr);
-
     uint64_t offset = 0;
+
+    gc_trace("ptr_check_start:%p:@%p", ptr, addr);
 
     con4m_alloc_hdr *hdr = header_scan(ptr, start, &offset);
     uint32_t found_flags = atomic_load(&hdr->flags);
 
     if (found_flags & GC_FLAG_REACHED) {
-	gc_trace("Previous root reached record @%p", hdr);
+	gc_trace("ptr_check_dupe:%p:@%p:record:%p", ptr, addr, hdr);
 	// We're already moving / moved, so update the root's pointer
 	// to the new heap.
 	//
@@ -233,6 +297,8 @@ process_traced_pointer(uint64_t **addr, uint64_t *ptr, uint64_t *start,
 	return;
     }
 
+    gc_trace("process_pointer:%p:@%p:record:%p", ptr, addr, hdr);
+
     // We haven't moved this allocation, so we try to write-lock the
     // cell and mark it as collecting.
     //
@@ -245,26 +311,27 @@ process_traced_pointer(uint64_t **addr, uint64_t *ptr, uint64_t *start,
 	GC_FLAG_WRITER_LOCK;
 
     if (!CAS(&(hdr->flags), &found_flags, processing_flags)) {
-	gc_trace("Collector busy wait; mution in progress for alloc @%p", hdr);
+	gc_trace("!!!!! busy wait; mution in progress for alloc @%p", hdr);
 	atomic_fetch_xor(&(hdr->flags), GC_FLAG_OWNER_WAITING);
 	do {
 	    found_flags = GC_FLAG_OWNER_WAITING;
 	} while (!CAS(&(hdr->flags), &found_flags, processing_flags));
     }
 
-    gc_trace("Shut off fromspace writes to alloc @%p", hdr);
+    gc_trace("!!!!!! Shut off fromspace writes to alloc @%p", hdr);
 
     uint64_t  len     = sizeof(uint64_t) *
 	                 (uint64_t)(hdr->next_addr - hdr->data);
-    uint64_t *forward = con4m_arena_alloc(&new_arena, len, hdr->ptr_map);
+    uint64_t *forward = con4m_alloc_from_arena(&new_arena, len, hdr->ptr_map);
 
     // Forward before we descend.
     hdr->fw_addr      = forward;
     uint64_t *new_ptr = forward + (ptr - hdr->data);
 
-    gc_trace("Forward record: fromspace @%p tospace @%p", hdr, new_ptr);
-    gc_trace("Copy %llu bytes of user data: fromspace @%p, tospace @%p",
-	     len, hdr->data, forward);
+    gc_trace("needs_fw:ptr:@%p:new_ptr:@%p:record:@%p:@newrecord:@%p"
+	     "tospace:@%p", ptr, new_ptr, hdr,
+	     &(((con4m_alloc_hdr *)forward)[-1]), new_arena);
+
     update_traced_pointer(addr, (uint64_t **)ptr, new_ptr);
 
     update_internal_allocation_pointers(hdr, start, end, new_arena);
@@ -286,7 +353,7 @@ con4m_collect_sub_arena(con4m_arena_t       *old,
     // Currently, we are not registering cross-thread references,
     // or cycling through them.
 
-    gc_trace("Root scan; fromspace: %p tospace: %p", old, new);
+    gc_trace("arena_scan_start:fromspace:@%p:tospace:@%p", old, new);
     uint64_t *start = old->data;
     uint64_t *end   = old->heap_end;
 
@@ -297,9 +364,9 @@ con4m_collect_sub_arena(con4m_arena_t       *old,
 	for (uint64_t j = 0; j < size; j++) {
 	    uint64_t **ptr = root + j;
 
-	    gc_trace("Tracing root @%p", ptr);
+	    gc_trace("root_scan_start:@%p", ptr);
 	    process_traced_pointer(ptr, *ptr, start, end, new);
-	    gc_trace("Done tracing root @%p", ptr);
+	    gc_trace("root_scan_done:@%p", ptr);
 	}
     }
 }
@@ -351,7 +418,7 @@ con4m_gc_thread_collect()
 void
 con4m_gc_register_root(void *ptr, uint64_t num_words)
 {
-    gc_trace("registered root at: %p", ptr);
+    gc_trace("root_register:@%p", ptr);
     con4m_arena_register_root(current_heap, ptr, num_words);
 }
 

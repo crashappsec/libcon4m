@@ -33,16 +33,10 @@
  */
 
 /*
- * xxhash.c instantiates functions defined in xxhash.h
+ * xxhash.c instantiates functions defined in xxhash.h, obtained through
+ *          hatrack.h
  */
-
-#include <hatrack.h>
-
-#ifdef HATRACK_SKIP_XXH_INLINING
 
 #define XXH_STATIC_LINKING_ONLY /* access advanced declarations */
 #define XXH_IMPLEMENTATION      /* access definitions */
-
-#include "xxhash.h"
-
-#endif
+#include <hatrack.h>

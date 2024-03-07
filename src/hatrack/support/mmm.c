@@ -28,7 +28,7 @@ __thread mmm_header_t  *mmm_retire_list  = NULL;
 __thread pthread_once_t mmm_inited       = PTHREAD_ONCE_INIT;
 _Atomic  uint64_t       mmm_epoch        = HATRACK_EPOCH_FIRST;
 _Atomic  uint64_t       mmm_nexttid      = 0;
-__thread int64_t        mmm_mytid        = -1; 
+__thread int64_t        mmm_mytid        = -1;
 __thread uint64_t       mmm_retire_ctr   = 0;
 
          uint64_t       mmm_reservations[HATRACK_THREADS_MAX] = { 0, };
@@ -57,7 +57,7 @@ static _Atomic (mmm_free_tids_t *) mmm_free_tids;
 
 /* This grabs an mmm-specific threadid and stashes it in the
  * thread-local variable mmm_mytid.
- * 
+ *
  * We have a fixed number of TIDS to give out though (controlled by
  * the preprocessor variable, HATRACK_THREADS_MAX).  We give them out
  * sequentially till they're done, and then we give out ones that have
@@ -74,20 +74,20 @@ mmm_register_thread(void)
 	return;
     }
     mmm_mytid = atomic_fetch_add(&mmm_nexttid, 1);
-    
+
     if (mmm_mytid >= HATRACK_THREADS_MAX) {
 	head = atomic_load(&mmm_free_tids);
-	
+
 	do {
 	    if (!head) {
 		abort();
 	    }
 	} while (!CAS(&mmm_free_tids, &head, head->next));
-	
+
 	mmm_mytid = head->tid;
 	mmm_retire(head);
     }
-    
+
     mmm_reservations[mmm_mytid] = HATRACK_EPOCH_UNRESERVED;
 
     return;
@@ -133,13 +133,13 @@ mmm_clean_up_before_exit(void)
     }
 
     mmm_end_op();
-    
+
     while (mmm_retire_list) {
 	mmm_empty();
     }
-    
+
     mmm_tid_giveback();
-    
+
     return;
 }
 
@@ -178,13 +178,13 @@ mmm_retire(void *ptr)
     if (cell->retire_epoch) {
 	DEBUG_MMM_INTERNAL(ptr, "Double free");
 	DEBUG_PTR((void *)atomic_load(&mmm_epoch), "epoch of double free");
-	
+
 	abort();
-	
+
 	return;
     }
-#endif	
-    
+#endif
+
     cell->retire_epoch = atomic_load(&mmm_epoch);
     cell->next         = mmm_retire_list;
     mmm_retire_list    = cell;
@@ -225,7 +225,7 @@ mmm_empty(void)
      * by the time we call this.
      */
     lasttid = atomic_load(&mmm_nexttid);
-    
+
     if (lasttid > HATRACK_THREADS_MAX) {
 	lasttid = HATRACK_THREADS_MAX;
     }
@@ -234,21 +234,21 @@ mmm_empty(void)
      * HATRACK_EPOCH_MAX.  If this value never changes, then it
      * means no epochs were reserved, and we can safely
      * free every record in our stack.
-     */    
+     */
     lowest = HATRACK_EPOCH_MAX;
 
     for (i = 0; i < lasttid; i++) {
 	reservation = mmm_reservations[i];
-	
+
 	if (reservation < lowest) {
 	    lowest = reservation;
 	}
     }
-    
+
     /* The list here is ordered by retire epoch, with most recent on
      * top.  Go down the list until the NEXT cell is the first item we
      * should delete.
-     * 
+     *
      * Then, set the current cell's next pointer to NULL (since
      * it's the new end of the list), and then place the pointer at
      * the top of the list of cells to delete.
@@ -270,14 +270,14 @@ mmm_empty(void)
 	    if (!cell->next) {
 		return;
 	    }
-	    
+
 	    if (cell->next->retire_epoch < lowest) {
 		tmp       = cell;
 		cell      = cell->next;
 		tmp->next = NULL;
 		break;
 	    }
-	    
+
 	    cell = cell->next;
 	}
     }
@@ -293,7 +293,7 @@ mmm_empty(void)
 	if (tmp->cleanup) {
 	    (*tmp->cleanup)(&tmp->data, tmp->cleanup_aux);
 	}
-	
+
 	free(tmp);
     }
 

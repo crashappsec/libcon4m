@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
+#include <sys/mman.h>
 
 #if defined(__linux__)
 #include <sys/random.h>
