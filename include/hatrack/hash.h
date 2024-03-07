@@ -27,11 +27,7 @@
 
 #pragma once
 
-#include <hatrack/hatrack_common.h>
-#include <hatrack/xxhash.h>
-
-#include <string.h>
-
+#include <hatrack.h>
 /*
  * I use this union to help the compiler realize that the 128-bit
  * result that we get from XXH3_128 is identical to the 128 bits of a

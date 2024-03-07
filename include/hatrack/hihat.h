@@ -24,7 +24,7 @@
  */
 
 #pragma once
-#include <hatrack/hatrack_common.h>
+#include <hatrack.h>
 
 /* hihat_record_t
  *

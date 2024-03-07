@@ -188,7 +188,8 @@ ansi_render_u8(real_str_t *s, FILE *outstream)
 
     style_state = U8_STATE_START_DEFAULT;
 
-    if (s->styling != NULL && s->styling->num_entries != 0) {
+    if (s->styling != NULL && ((uint64_t)s->styling != STYLE_INVALID) &&
+	s->styling->num_entries != 0) {
 	entry = &s->styling->styles[0];
 	if (entry->start == 0) {
 	    style_state = U8_STATE_START_STYLE;
@@ -274,7 +275,9 @@ ansi_render_u8(real_str_t *s, FILE *outstream)
 	    break;
 	}
 
-	p     += utf8proc_iterate(p, 4, &codepoint);
+	int tmp = utf8proc_iterate(p, 4, &codepoint);
+	assert(tmp > 0);
+	p     += tmp;
 	cp_ix += 1;
 
 	switch (casing) {
@@ -358,8 +361,7 @@ ansi_render_u32(real_str_t *s, int32_t start_ix, int32_t end_ix,
 	end_ix += len;
     }
 
-
-    if (s->styling == NULL) {
+    if (s->styling == NULL || (uint64_t)s->styling == STYLE_INVALID) {
 	ansi_render_u32_region(s, start_ix, end_ix, style0, outstream);
 	return;
     }
@@ -371,8 +373,12 @@ ansi_render_u32(real_str_t *s, int32_t start_ix, int32_t end_ix,
 	int32_t ss = s->styling->styles[i].start;
 	int32_t se = s->styling->styles[i].end;
 
+	if (se <= cur) {
+	    continue;
+	}
+
 	if (ss > cur) {
-	    ansi_render_u32_region(s, cur, ss, style0, outstream);
+	    ansi_render_u32_region(s, cur, min(ss, end_ix), style0, outstream);
 	    cur = ss;
 	}
 
@@ -382,6 +388,7 @@ ansi_render_u32(real_str_t *s, int32_t start_ix, int32_t end_ix,
 				   outstream);
 	    cur = stopat;
 	}
+
 	if (cur == end_ix) {
 	    return;
 	}
@@ -413,7 +420,7 @@ ansi_render_to_width(str_t *s, int32_t width, int32_t hang, FILE *out)
     int32_t     i;
 
     if (!is_u32) {
-	s    = c4str_u8_to_u32(s, CALLER);
+	s    = c4str_u8_to_u32(s);
 	real = to_internal(s);
     }
 
@@ -432,12 +439,6 @@ ansi_render_to_width(str_t *s, int32_t width, int32_t hang, FILE *out)
 			line_starts->breaks[i],
 			internal_num_cp(real),
 			out);
-    }
-
-    free(line_starts);
-
-    if (!is_u32) {
-	c4str_free(s);
     }
 }
 

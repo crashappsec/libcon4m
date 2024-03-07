@@ -23,10 +23,7 @@
 
 #pragma once
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdatomic.h>
-#include <stdalign.h>
+#include <hatrack.h>
 
 typedef struct llstack_node_t llstack_node_t;
 

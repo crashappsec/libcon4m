@@ -102,6 +102,8 @@ extern "C" {
  */
 #pragma once
 
+#include <hatrack.h>
+
 #if (defined(XXH_INLINE_ALL) || defined(XXH_PRIVATE_API))                      \
     && !defined(XXH_INLINE_ALL_31684351384)
 /* this section should be traversed only once */

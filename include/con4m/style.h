@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m/colors.h>
+#include <con4m.h>
 
 // Flags in the style `info` bitfield.
 #define BOLD_ON         0x0001000000000000
@@ -14,6 +14,7 @@
 #define UPPER_CASE      0x0100000000000000
 #define LOWER_CASE      0x0200000000000000
 #define TITLE_CASE      0x0300000000000000 // (UPPER | LOWER)
+#define STYLE_INVALID   0xffffffffffffffff
 #define FG_COLOR_MASK   0xffffffffff000000
 #define BG_COLOR_MASK   0xffff000000ffffff
 #define OFFSET_BG_RED   40

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m/breaks.h>
+#include <con4m.h>
 
 typedef enum {
     U8_STATE_START_DEFAULT,

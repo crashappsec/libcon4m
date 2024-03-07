@@ -52,11 +52,7 @@
 
 #pragma once
 
-#include <hatrack/hatrack_config.h>
-
-#include <stdint.h>
-#include <stdalign.h>
-#include <stdatomic.h>
+#include <hatrack.h>
 
 #ifdef HATRACK_COUNTERS
 extern _Atomic uint64_t hatrack_counters[];

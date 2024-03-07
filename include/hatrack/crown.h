@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include <hatrack/hatrack_common.h>
+#include <hatrack.h>
 
 #ifdef HATRACK_32_BIT_HOP_TABLE
 

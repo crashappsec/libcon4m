@@ -1,10 +1,10 @@
 #pragma once
 
-#include <con4m/base.h>
+#include <con4m.h>
 // Temporary.
 #define use_truecolor() (1)
 
-typedef struct color_info_t {
+typedef struct {
   const char *name;
   struct {
     unsigned char r;
@@ -13,8 +13,8 @@ typedef struct color_info_t {
   } rgb;
 } color_info_t;
 
-typedef enum color_t {
-  COLOR_AIR_FORCE_BLUE_RAF=0,
+typedef enum {
+  COLOR_AIR_FORCE_BLUE_RAF = 0,
   COLOR_AIR_FORCE_BLUE_USAF,
   COLOR_AIR_SUPERIORITY_BLUE,
   COLOR_ALABAMA_CRIMSON,

@@ -29,10 +29,7 @@
 
 #pragma once
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdatomic.h>
-#include <stdalign.h>
+#include <hatrack.h>
 
 /* "Valid after" means that, in any epoch after the epoch stored in
  * this field, pushers that are assigned that slot are free to try

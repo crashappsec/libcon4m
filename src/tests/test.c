@@ -1,11 +1,11 @@
-#include <con4m/ansi.h>
-#include <con4m/hex.h>
+#include <con4m.h>
+
+style_t style1;
+style_t style2;
+
 
 void
 test1() {
-    style_t style1;
-    style_t style2;
-
     style1 = new_style();
     style1 = apply_bg_color(style1, COLOR_BLACK);
     style1 = add_title_case(style1);
@@ -16,31 +16,37 @@ test1() {
     style2 = add_upper_case(style2);
 
 
-    str_t *s1 = c4str_from_cstr("\ehello,");
-    str_t *s2 = c4str_from_cstr(" world!");
-    str_t *s3 = c4str_from_cstr(" magic?\n");
+    str_t *s1 = con4m_new(T_STR, "cstring", "\ehello,", "style", style1);
+    str_t *s2 = con4m_new(T_STR, "cstring", " world!");
+    str_t *s3 = con4m_new(T_STR, "cstring", " magic?\n");
+
+    con4m_gc_register_root(&s1, 1);
+    con4m_gc_register_root(&s2, 1);
+    con4m_gc_register_root(&s3, 1);
 
     ansi_render(s1, stdout);
     ansi_render(s2, stdout);
     ansi_render(s3, stdout);
 
-    c4str_apply_style(s1, style1);
-    s1 = c4str_u8_to_u32(s1, CALLEE_P1);
+    s1 = c4str_u8_to_u32(s1);
     c4str_apply_style(s3, style2);
-    s2 = c4str_u8_to_u32(s2, CALLEE_P1);
-    s3 = c4str_u8_to_u32(s3, CALLEE_P1);
+    s2 = c4str_u8_to_u32(s2);
+    s3 = c4str_u8_to_u32(s3);
 
     ansi_render(s1, stdout);
     ansi_render(s2, stdout);
     ansi_render(s3, stdout);
 
-    str_t *s  = c4str_concat(s1, s2, CALLEE_P1 | CALLEE_P2);
-    s         = c4str_concat(s,  s3, CALLEE_P1 | CALLEE_P2);
+    str_t *s  = c4str_concat(s1, s2);
+    s         = c4str_concat(s,  s3);
 
     ansi_render(s, stdout);
+    printf("That was at %p\n", s);
 
     break_info_t *g;
 
+    con4m_gc_register_root(&s, 1);
+    con4m_gc_register_root(&g, 1);
 
     g = get_grapheme_breaks(s, 1, 10);
 
@@ -50,15 +56,12 @@ test1() {
 
     printf("\n");
 
-    free(g);
-
     g = get_all_line_break_ops(s);
     for (int i = 0; i < g->num_breaks; i++) {
 	printf("%d ", g->breaks[i]);
     }
 
     printf("\n");
-    free(g);
 
     g = get_line_breaks(s);
     for (int i = 0; i < g->num_breaks; i++) {
@@ -66,45 +69,63 @@ test1() {
     }
 
     printf("\n");
-    free(g);
 
-    c4str_free(s);
+    con4m_gc_thread_collect();
+
+    printf("s is now at: %p\n Let's render s again.\n", s);
+    ansi_render(s, stdout);
 }
 
 void
 test2() {
-    style_t style1;
-    style_t style2;
-
     style1 = new_style();
-    style1 = apply_bg_color(style1, COLOR_BLACK);
+    style1 = apply_fg_color(style1, COLOR_BLACK);
     style1 = add_title_case(style1);
     style2 = apply_fg_color(style1, COLOR_JAZZBERRY);
-    style1 = apply_fg_color(style1, COLOR_ATOMIC_LIME);
+    style1 = apply_bg_color(style1, COLOR_ATOMIC_LIME);
     style1 = add_italic(add_underline(style1));
     style2 = add_italic(style2);
     style2 = add_upper_case(style2);
 
 
-    str_t *w1 = c4str_from_cstr("Once upon a time, there was a ");
-    str_t *w2 = c4str_from_cstr("thing I cared about. But then I ");
-    str_t *w3 = c4str_from_cstr(
+    str_t *w1 = con4m_new(T_STR, "cstring", "Once upon a time, there was a ");
+    str_t *w2 = con4m_new(T_STR, "cstring", "thing I cared about. But then I ");
+    str_t *w3 = con4m_new(T_STR, "cstring",
 	"stopped caring. I don't really remember what it was, though. Do ");
-    str_t *w4 = c4str_from_cstr(
+    str_t *w4 = con4m_new(T_STR, "cstring",
 	"you? No, I didn't think so, because it wasn't really all that "
 	"interesting, to be quite honest. Maybe someday I'll find something "
 	"interesting to care about, besides my family. Oh yeah, that's "
 	"what it was, my family! Oh, wait, no, they're either not interesting, "
 	"or I don't care about them.\n");
+    str_t *w5 = con4m_new(T_STR, "cstring", "Basically AirTags for Software");
+    str_t *w6 = con4m_new(T_STR, "cstring", "\n");
+
+
+    con4m_gc_register_root(&w1, 1);
+    con4m_gc_register_root(&w2, 1);
+    con4m_gc_register_root(&w3, 1);
+    con4m_gc_register_root(&w4, 1);
+    con4m_gc_register_root(&w5, 1);
+    con4m_gc_register_root(&w6, 1);
 
     c4str_apply_style(w2, style1);
     c4str_apply_style(w3, style2);
+    c4str_apply_style(w5, style1);
 
-    str_t *to_wrap = c4str_concat(w1, w2, CALLEE_P1 | CALLEE_P2);
-    to_wrap        = c4str_concat(to_wrap, w3, CALLEE_P1 | CALLEE_P2);
-    to_wrap        = c4str_concat(to_wrap, w4, CALLEE_P1 | CALLEE_P2);
+    str_t *to_wrap;
+
+    con4m_gc_register_root(&to_wrap, 1);
+
+    to_wrap        = c4str_concat(w1, w2);
+    to_wrap        = c4str_concat(to_wrap, w3);
+    to_wrap        = c4str_concat(to_wrap, w4);
+    to_wrap        = c4str_concat(to_wrap, w5);
+    to_wrap        = c4str_concat(to_wrap, w6);
 
     real_str_t *real = to_internal(to_wrap);
+    con4m_gc_register_root(&real, 1);
+
 
     str_t *dump1 = hex_dump(real->styling,
                             alloc_style_len(real),
@@ -118,20 +139,85 @@ test2() {
 			    80,
 			    "String Dump\n");
 
+    con4m_gc_register_root(&dump1, 1);
+    con4m_gc_register_root(&dump2, 1);
+
     ansi_render(dump1, stderr);
     ansi_render(dump2, stderr);
 
-    ansi_render_to_width(to_wrap, 50, 0, stdout);
-    c4str_free(dump1);
-    c4str_free(dump2);
-    c4str_free(to_wrap);
+    size_t cols;
+    terminal_dimensions(&cols, NULL);
+    printf("%zu cols\n", cols);
+
+    ansi_render_to_width(to_wrap, cols, 0, stdout);
+    con4m_gc_thread_collect();
 }
 
+void
+test_rand64()
+{
+    uint64_t random = 0;
+
+    random = con4m_rand64();
+    printf("Random value: %16llx\n", random);
+    assert(random != 0);
+}
+
+
+void
+test3()
+{
+    str_t *w1 = con4m_new(T_STR, "cstring", "Once upon a time, there was a ");
+    str_t *w2 = con4m_new(T_STR, "cstring", "thing I cared about. But then I ");
+    str_t *w3 = con4m_new(T_STR, "cstring",
+	"stopped caring. I don't really remember what it was, though. Do ");
+    str_t *w4 = con4m_new(T_STR, "cstring",
+	"you? No, I didn't think so, because it wasn't really all that "
+	"interesting, to be quite honest. Maybe someday I'll find something "
+	"interesting to care about, besides my family. Oh yeah, that's "
+	"what it was, my family! Oh, wait, no, they're either not interesting, "
+        "or I don't care about them.\n", "style", style1);
+    str_t *w5 = con4m_new(T_STR, "cstring", "Basically AirTags for Software");
+    str_t *w6 = con4m_new(T_STR, "cstring", "\n");
+
+    con4m_gc_register_root(&w1, 1);
+    con4m_gc_register_root(&w2, 1);
+    con4m_gc_register_root(&w3, 1);
+    con4m_gc_register_root(&w4, 1);
+    con4m_gc_register_root(&w5, 1);
+    con4m_gc_register_root(&w6, 1);
+
+
+    hatrack_dict_t *d = con4m_new(T_DICT, HATRACK_DICT_KEY_TYPE_CSTR);
+
+    con4m_gc_register_root(&d, 1);
+
+    hatrack_dict_put(d, w1, "w1");
+    hatrack_dict_put(d, w2, "w2");
+    hatrack_dict_put(d, w3, "w3");
+    hatrack_dict_put(d, w4, "w4");
+    hatrack_dict_put(d, w4, "w5");
+    hatrack_dict_put(d, w4, "w6");
+
+    uint64_t num;
+
+    hatrack_dict_item_t *view = hatrack_dict_items_sort(d, &num);
+
+    for (uint64_t i = 0; i < num; i++) {
+	ansi_render((str_t *)(view[i].key), stderr);
+    }
+
+    con4m_gc_thread_collect();
+
+
+}
 
 int
 main(int argc, char **argv, char **envp)
 {
+    test_rand64();
+    // Test basic string and single threaded GC.
     test1();
     test2();
-
+    test3();
 }

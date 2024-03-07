@@ -34,7 +34,7 @@
 
 #pragma once
 
-#include <hatrack/hatrack_common.h>
+#include <hatrack.h>
 
 typedef struct {
     void    *item;

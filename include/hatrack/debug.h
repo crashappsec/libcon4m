@@ -39,18 +39,9 @@
 
 #pragma once
 
-#include <hatrack/hatrack_config.h>
+#include <hatrack.h>
 
 #ifdef HATRACK_DEBUG
-
-#include <stdatomic.h>
-#include <string.h>
-#include <stdio.h>
-#include <pthread.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <stdalign.h>
 
 /* hatrack_debug_record_t
  *

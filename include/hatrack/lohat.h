@@ -261,7 +261,7 @@
 
 #pragma once
 
-#include <hatrack/lohat_common.h>
+#include <hatrack.h>
 
 /* lohat_history_t
  *

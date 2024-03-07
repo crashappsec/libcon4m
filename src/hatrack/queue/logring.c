@@ -35,7 +35,7 @@ logring_new(uint64_t ring_size, uint64_t entry_size)
 {
     logring_t *ret;
 
-    ret = (logring_t *)calloc(1, sizeof(logring_t));
+    ret = (logring_t *)zero_alloc(1, sizeof(logring_t));
 
     logring_init(ret, ring_size, entry_size);
 
@@ -52,7 +52,7 @@ logring_init(logring_t *self, uint64_t ring_size, uint64_t entry_size)
     if (ring_size < LOGRING_MIN_SIZE) {
 	ring_size = LOGRING_MIN_SIZE;
     }
-    
+
     n = hatrack_round_up_to_power_of_2(ring_size);
 
     if (n > HATRACK_THREADS_MAX) {
@@ -65,11 +65,11 @@ logring_init(logring_t *self, uint64_t ring_size, uint64_t entry_size)
 
     l                = sizeof(logring_entry_t) + entry_size;
     self->ring       = hatring_new(n);
-    self->entries    = (logring_entry_t *)calloc(m, l);
+    self->entries    = (logring_entry_t *)zero_alloc(m, l);
     self->last_entry = m - 1;
     self->entry_ix   = 0;
     self->entry_len  = entry_size;
-    
+
     return;
 }
 
@@ -107,7 +107,7 @@ logring_enqueue(logring_t *self, void *item, uint64_t len)
     }
 
     logring_view_help_if_needed(self);
-	
+
     while (true) {
 	start_epoch = hatring_enqueue_epoch(atomic_read(&self->ring->epochs));
 	ix          = atomic_fetch_add(&self->entry_ix, 1) & self->last_entry;
@@ -117,7 +117,7 @@ logring_enqueue(logring_t *self, void *item, uint64_t len)
 
 	candidate.write_epoch = 0;
 	candidate.state       = LOGRING_RESERVED;
-    
+
 	if (CAS(&cur->info, &expected, candidate)) {
 	    break;
 	}
@@ -132,7 +132,7 @@ logring_enqueue(logring_t *self, void *item, uint64_t len)
     }
 
     memcpy(cur->data, item, len);
-    
+
     candidate.write_epoch = hatring_enqueue(self->ring, (void *)ix);
     candidate.state       = LOGRING_ENQUEUE_DONE;
     cur->len              = len;
@@ -151,10 +151,10 @@ logring_dequeue(logring_t *self, void *output, uint64_t *len)
     bool                 found;
     logring_entry_info_t expected;
     logring_entry_info_t candidate;
-    logring_entry_t     *cur;    
+    logring_entry_t     *cur;
 
     logring_view_help_if_needed(self);
-    
+
     while (true) {
 	ix = (uint64_t)hatring_dequeue_w_epoch(self->ring, &found, &epoch);
 
@@ -185,7 +185,7 @@ logring_dequeue(logring_t *self, void *output, uint64_t *len)
 
     while (true) {
 	candidate.state = logring_set_dequeue_done(candidate.state);
-	
+
 	if (CAS(&cur->info, &expected, candidate)) {
 	    return true;
 	}
@@ -207,21 +207,21 @@ logring_view(logring_t *self, bool lax_view)
     n        = self->ring->size + HATRACK_THREADS_MAX;
     len      = sizeof(logring_view_t) + sizeof(logring_view_entry_t) * n;
     ret      = (logring_view_t *)mmm_alloc_committed(len);
-    
+
     candidate.view = ret;
 
     while (true) {
 	expected = atomic_read(&self->view_state);
 
 	logring_view_help_if_needed(self);
-	
+
 	candidate.last_viewid = expected.last_viewid + 1;
 	ret->start_epoch      = atomic_read(&self->ring->epochs);
-	
+
 	if (CAS(&self->view_state, &expected, candidate)) {
 	    break;
 	}
-    } 
+    }
 
     logring_view_help_if_needed(self);
 
@@ -236,7 +236,7 @@ logring_view(logring_t *self, bool lax_view)
      * that we have gaps in what we return.
      *
      * Without lax views, we find a place to properly linearize
-     * ourselves, based on the data we managed to collect.  
+     * ourselves, based on the data we managed to collect.
      *
      * First, note that our algorithm has enqueuers and dequeuers
      * check whether a view is in progress, helping to complete it,
@@ -279,7 +279,7 @@ logring_view(logring_t *self, bool lax_view)
      *
      * Once we scan a cell where there is no value object associated
      * with it AND cell_skipped is false, then that was a drop, and we
-     * want to linearize ourselves to the right of that slot.  
+     * want to linearize ourselves to the right of that slot.
      *
      * After that, we tweak the start point if we would yield more
      * items than the ring can hold.
@@ -287,7 +287,7 @@ logring_view(logring_t *self, bool lax_view)
      * Finally, we scan up to the new start point, in order to free
      * any values that we're not going to actually present.
      */
-    
+
     i = ret->num_cells;
 
     while (i--) {
@@ -313,7 +313,7 @@ logring_view(logring_t *self, bool lax_view)
 	    free(entry->value);
 	}
     }
-    
+
     return ret;
 }
 
@@ -322,18 +322,18 @@ logring_view_next(logring_view_t *view, uint64_t *len)
 {
     logring_view_entry_t *cur;
     void                 *ret;
-    
+
     while (view->next_ix < view->num_cells) {
 	cur = &view->cells[view->next_ix];
 	view->next_ix++;
-	
+
 	if (!cur->value) {
 	    continue;
 	}
 
 	*len       = cur->len;
 	ret        = cur->value;
-	
+
 	return ret;
     }
 
@@ -346,7 +346,7 @@ logring_view_delete(logring_view_t *view)
     logring_view_entry_t *cur;
 
     // We only free values that have NOT been yielded.
-    
+
     while (view->next_ix < view->num_cells) {
 	cur = &view->cells[view->next_ix];
 	view->next_ix++;
@@ -355,7 +355,7 @@ logring_view_delete(logring_view_t *view)
 	    free(cur->value);
 	}
     }
-    
+
     mmm_start_basic_op();
     mmm_retire(view);
     mmm_end_op();
@@ -385,7 +385,7 @@ logring_view_help_if_needed(logring_t *self)
     logring_entry_info_t  cand_de_info;
     char                 *contents;
     char                 *exp_contents;
-    
+
     mmm_start_basic_op();
     view_info = atomic_read(&self->view_state);
 
@@ -411,7 +411,7 @@ logring_view_help_if_needed(logring_t *self)
 	    rix = rix + 1;
 	    continue;
 	}
-	
+
 	offset_entry_ix = atomic_read(&cur_view_entry->offset_entry_ix);
 
 	if (offset_entry_ix) {
@@ -421,7 +421,7 @@ logring_view_help_if_needed(logring_t *self)
 
 	ringcell   = atomic_read(logring_get_ringcell(self, rix));
 	cell_epoch = hatring_cell_epoch(ringcell.state);
-	
+
 	/* If the cell epoch is lower than we expect, we should try to
 	 * invalidate the slot, and try again if we fail.
 	 *
@@ -430,20 +430,20 @@ logring_view_help_if_needed(logring_t *self)
 	 * finish in time, then the cell will obviously be invalid in the
 	 * view, and we will skip past it.
 	 */
-	
+
 	while (cell_epoch < rix) {
 	    cand_cell.state = HATRING_DEQUEUED | rix;
 	    cand_cell.item  = NULL;
-	    
+
 	    if (CAS(logring_get_ringcell(self, rix), &ringcell, cand_cell)) {
 		cell_epoch = rix;
 		ringcell   = cand_cell;
 		break;
 	    }
-	    
+
 	    cell_epoch = hatring_cell_epoch(ringcell.state);
 	}
-	
+
 	if ((cell_epoch > rix) || !(ringcell.state & HATRING_ENQUEUED)) {
 	    /* The item we're looking for has been overwritten or
 	     * removed.  But the contents might still be in the bigger
@@ -475,7 +475,7 @@ logring_view_help_if_needed(logring_t *self)
 	 */
 	entry_ix = (uint64_t)ringcell.item;
 	atomic_store(&cur_view_entry->offset_entry_ix, entry_ix + 1);
-		     
+
     got_entry_index:
 	/* Okay, phase 1 is complete; we have an index into the bigger
 	 * array, but we still might not be able to read the entry.
@@ -487,7 +487,7 @@ logring_view_help_if_needed(logring_t *self)
 	 * threads will be able to see that, as long as the current
 	 * view is still active.
 	 */
-	
+
 	data_entry  = logring_get_entry(self, entry_ix);
 	exp_de_info = atomic_read(&data_entry->info);
 
@@ -496,9 +496,9 @@ logring_view_help_if_needed(logring_t *self)
 	 * which will be the write epoch we expected to see in the ring.
 	 *
 	 * Also, the view_id will need to match with our view_id
-	 * (otherwise, we are way behind and we should bail entirely, 
+	 * (otherwise, we are way behind and we should bail entirely,
 	 * because the view we were working on is done).
-	 * 
+	 *
 	 * If the view ID is right but VIEW_RESERVE is off, then some
 	 * thread successfully managed to copy this entry, and we can
 	 * move on to the next one.
@@ -515,7 +515,7 @@ logring_view_help_if_needed(logring_t *self)
 		    mmm_end_op();
 		    return;
 		}
-		
+
 		if (exp_de_info.view_id < vid) {
 		    cand_de_info.view_id     = vid;
 		    cand_de_info.write_epoch = exp_de_info.write_epoch;
@@ -543,7 +543,7 @@ logring_view_help_if_needed(logring_t *self)
 	if (CAS(&cur_view_entry->len, &exp_len, data_entry->len)) {
 	    exp_len = data_entry->len;
 	}
-	
+
 	/* Now we can read. If we are slow enough, we might read the
 	 * wrong item (or even a corrupted item, due to a write in
 	 * progress).  However, this wouldn't happen until AFTER a
@@ -552,10 +552,10 @@ logring_view_help_if_needed(logring_t *self)
 
 	contents     = (char *)malloc(data_entry->len);
 	exp_contents = NULL;
-	
+
 	memcpy(contents, data_entry->data, exp_len);
 
-	
+
 	if (!CAS(&cur_view_entry->value,
 		 (void **)&exp_contents,
 		 (void *)contents)) {
@@ -569,7 +569,7 @@ logring_view_help_if_needed(logring_t *self)
 	cand_de_info.state &= ~LOGRING_VIEW_RESERVE;
 
 	CAS(&data_entry->info, &exp_de_info, cand_de_info);
-	    
+
     next_cell:
 	end_ix          = hatring_enqueue_epoch(view->start_epoch);
 	rix             = rix + 1;
@@ -580,13 +580,13 @@ logring_view_help_if_needed(logring_t *self)
     // late.
     exp_len = 0;
     CAS(&view->num_cells, &exp_len, vix);
-	
+
     // Now we 'finish' by swapping out the view_info w/ a null pointer.
     candidate_vi.view        = NULL;
     candidate_vi.last_viewid = view_info.last_viewid;
-    
+
     CAS(&self->view_state, &view_info, candidate_vi);
-    
+
     mmm_end_op();
 
     return;

@@ -47,10 +47,7 @@
 
 #pragma once
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdatomic.h>
-#include <hatrack/hatrack_config.h>
+#include <hatrack.h>
 
 
 // clang-format off

@@ -25,7 +25,7 @@
 #define HATRING_MINIMUM_SIZE 16
 
 /* The overhead for a call to nanosleep should be probably a couple
- * hundred nanoseconds, so this seems like a reasonable starting point. 
+ * hundred nanoseconds, so this seems like a reasonable starting point.
  */
 #define HATRING_STARTING_SLEEP_TIME  100
 
@@ -41,7 +41,7 @@ hatring_new(uint64_t num_buckets)
 {
     hatring_t *ret;
     uint64_t   alloc_len;
-    
+
     num_buckets = hatrack_round_up_to_power_of_2(num_buckets);
 
     if (num_buckets < HATRING_MINIMUM_SIZE) {
@@ -49,13 +49,13 @@ hatring_new(uint64_t num_buckets)
     }
 
     alloc_len = sizeof(hatring_cell_t) * num_buckets;
-    ret       = (hatring_t *)calloc(1,sizeof(hatring_t) + alloc_len);
+    ret       = (hatring_t *)zero_alloc(1,sizeof(hatring_t) + alloc_len);
 
     /* We start the epochs up high so that we can be confident when
      * dequeuing whether the cell was enqueued, when we see an epoch
      * numbered 0.
      */
-    
+
     ret->epochs    = (num_buckets << 32) | num_buckets;
     ret->last_slot = num_buckets - 1;
     ret->size      = num_buckets;
@@ -71,7 +71,7 @@ hatring_init(hatring_t *self, uint64_t num_buckets)
     if (num_buckets < HATRING_MINIMUM_SIZE) {
 	num_buckets = HATRING_MINIMUM_SIZE;
     }
-    
+
     bzero(self, sizeof(hatring_t) + sizeof(hatring_cell_t) * num_buckets);
 
     self->last_slot = num_buckets - 1;
@@ -113,12 +113,12 @@ hatring_enqueue(hatring_t *self, void *item)
     uint64_t       epochs;
     uint32_t       read_epoch;
     uint32_t       write_epoch;
-    uint32_t       cell_epoch;        
+    uint32_t       cell_epoch;
     uint64_t       candidate_epoch;
     uint64_t       ix;
     hatring_item_t expected;
     hatring_item_t candidate;
-    
+
     struct timespec sleep_time = {
 	.tv_sec  = 0,
 	.tv_nsec = HATRING_STARTING_SLEEP_TIME
@@ -149,19 +149,19 @@ hatring_enqueue(hatring_t *self, void *item)
 	while (hatring_is_lagging(read_epoch, write_epoch, self->size)) {
 	    candidate_epoch = hatring_fixed_epoch(write_epoch + 1,
 						  self->size);
-	    
+
 	    if (CAS(&self->epochs, &epochs, candidate_epoch)) {
 		goto try_once;
 	    }
-	    
+
 	    nanosleep(&sleep_time, NULL);
 
 	    sleep_time.tv_nsec <<= 1;
 	    if (sleep_time.tv_nsec > HATRING_MAX_SLEEP_TIME) {
 		sleep_time.tv_nsec = HATRING_MAX_SLEEP_TIME;
 	    }
-	    
-	    epochs      = atomic_read(&self->epochs);	    
+
+	    epochs      = atomic_read(&self->epochs);
 	    read_epoch  = hatring_dequeue_epoch(epochs);
 	    write_epoch = hatring_enqueue_epoch(epochs);
 	}
@@ -174,7 +174,7 @@ hatring_enqueue(hatring_t *self, void *item)
 	read_epoch  = hatring_dequeue_epoch(epochs);
 	write_epoch = hatring_enqueue_epoch(epochs);
 	} while (write_epoch < read_epoch);
-	
+
     try_once:
 	ix          = write_epoch & self->last_slot;
 	expected    = atomic_read(&self->cells[ix]);
@@ -188,7 +188,7 @@ hatring_enqueue(hatring_t *self, void *item)
 		    self->drop_handler) {
 		    (*self->drop_handler)(expected.item);
 		}
-		
+
 		return write_epoch;
 	    }
 
@@ -205,7 +205,7 @@ hatring_dequeue(hatring_t *self, bool *found)
     uint64_t       epochs;
     uint32_t       read_epoch;
     uint32_t       write_epoch;
-    uint32_t       cell_epoch;    
+    uint32_t       cell_epoch;
     uint64_t       ix;
     hatring_item_t expected;
     hatring_item_t candidate;
@@ -221,7 +221,7 @@ hatring_dequeue(hatring_t *self, bool *found)
 	if (read_epoch >= write_epoch) {
 	    return hatrack_not_found(found);
 	}
-	
+
 	epochs          = atomic_fetch_add(&self->epochs, 1);
 	ix              = hatring_dequeue_ix(epochs, self->last_slot);
 	read_epoch      = hatring_dequeue_epoch(epochs);
@@ -288,7 +288,7 @@ hatring_dequeue(hatring_t *self, bool *found)
 		 * writing to the slot (the alternative would be
 		 * because we got lapped).
 		 */
-		cell_epoch = hatring_cell_epoch(expected.state);		
+		cell_epoch = hatring_cell_epoch(expected.state);
 	    }
 	}
 	continue;  	// we got lapped.
@@ -301,7 +301,7 @@ hatring_dequeue_w_epoch(hatring_t *self, bool *found, uint32_t *epoch)
     uint64_t       epochs;
     uint32_t       read_epoch;
     uint32_t       write_epoch;
-    uint32_t       cell_epoch;    
+    uint32_t       cell_epoch;
     uint64_t       ix;
     hatring_item_t expected;
     hatring_item_t candidate;
@@ -317,7 +317,7 @@ hatring_dequeue_w_epoch(hatring_t *self, bool *found, uint32_t *epoch)
 	if (read_epoch >= write_epoch) {
 	    return hatrack_not_found(found);
 	}
-	
+
 	epochs          = atomic_fetch_add(&self->epochs, 1);
 	ix              = hatring_dequeue_ix(epochs, self->last_slot);
 	read_epoch      = hatring_dequeue_epoch(epochs);
@@ -382,7 +382,7 @@ hatring_dequeue_w_epoch(hatring_t *self, bool *found, uint32_t *epoch)
 		 * writing to the slot (the alternative would be
 		 * because we got lapped).
 		 */
-		cell_epoch = hatring_cell_epoch(expected.state);		
+		cell_epoch = hatring_cell_epoch(expected.state);
 	    }
 	}
 	continue;  	// we got lapped.
@@ -392,7 +392,7 @@ hatring_dequeue_w_epoch(hatring_t *self, bool *found, uint32_t *epoch)
 /* This is not a consistent view; items may have dropped, or not been
  * written yet. We could take the approach we use with log buffers if
  * we're willing to pause all new operations while creating a view; I
- * chose not to do that here. 
+ * chose not to do that here.
  */
 hatring_view_t *
 hatring_view(hatring_t *self)
@@ -410,7 +410,7 @@ hatring_view(hatring_t *self)
 
     while ((n < end) && (ret->next_ix < self->size)) {
 	cell = atomic_read(&self->cells[n & self->last_slot]);
-	
+
 	if (hatring_is_enqueued(cell.state) &&
 	    (hatring_cell_epoch(cell.state) == n)) {
 	    ret->cells[ret->num_items++] = cell.item;
@@ -431,7 +431,7 @@ hatring_view_next(hatring_view_t *view, bool *done)
     if (view->next_ix == view->num_items) {
 	return hatrack_not_found(done);
     }
-    
+
     return hatrack_found(done, view->cells[view->next_ix++]);
 }
 

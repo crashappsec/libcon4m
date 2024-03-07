@@ -22,9 +22,9 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+#pragma once
 
-#ifndef MD4C_H
-#define MD4C_H
+#ifdef _MD4C_INLINE_IN_THIS_MODULE
 
 #define MD4C_USE_UTF8
 #undef MD4C_USE_ASCII
@@ -9880,6 +9880,8 @@ entity_lookup(const char* name, size_t name_size)
 }
 
 // John's stuff.
+
+#ifdef LECACY_NIM
 typedef void (*CB_TYPE)(const char *, unsigned int, void*);
 N_LIB_PRIVATE N_CDECL(void, nimu_process_markdown)(NU8* s_p0, unsigned int n_p1, void* p_p2);
 
@@ -9899,4 +9901,6 @@ c_markdown_to_html(char *mdoc, size_t len, void *outobj, size_t flags) {
     }  /* extern "C" { */
 #endif
 
-#endif  /* MD4C_H */
+#endif
+
+#endif

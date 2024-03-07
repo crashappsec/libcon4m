@@ -21,9 +21,7 @@
 
 #pragma once
 
-#include <hatrack/counters.h>
-
-#include <stdatomic.h>
+#include <hatrack.h>
 
 /* While we don't explicitly discuss it much in the comments of the
  * algorithms, most of our reads are agnostic to memory ordering.

@@ -1,0 +1,131 @@
+#!/bin/bash
+
+export LIBRARY_PATH=${HOME}/.local/c0/libs/
+
+function color {
+    case $1 in
+        black)   CODE=0 ;;
+        red)     CODE=1 ;; RED)     CODE=9 ;;
+        green)   CODE=2 ;; GREEN)   CODE=10 ;;
+        yellow)  CODE=3 ;; YELLOW)  CODE=11 ;;
+        blue)    CODE=4 ;; BLUE)    CODE=12 ;;
+        magenta) CODE=5 ;; MAGENTA) CODE=13 ;;
+        cyan)    CODE=6 ;; CYAN)    CODE=14 ;;
+        white)   CODE=7 ;; WHITE)   CODE=15 ;;
+        grey)    CODE=8 ;; *)       CODE=$1 ;;
+    esac
+    shift
+
+    echo -n $(tput setaf ${CODE})$@$(tput op)
+}
+
+OS=$(uname -o 2>/dev/null)
+if [[ $? -ne 0 ]] ; then
+    # Older macOS/OSX versions of uname don't support -o
+    OS=$(uname -s)
+fi
+
+function log {
+    echo $(color blue "[-- libcon4m --]" $@)
+}
+
+function meson_build {
+
+    echo ${1} > .meson_last
+
+
+    if [[ ! -d ${1} ]]; then
+        if [[ -f ${1} ]]; then
+            rm -rf ${1}
+        fi
+        log Creating meson target ${1}
+        meson setup ${@}
+    fi
+    cd ${1}
+
+    log Compiling meson target ${1}
+
+    if [[ ${OS} = "Darwin" ]] ; then
+        meson compile
+    else
+        CC=musl-gcc meson compile
+    fi
+
+    CODE=$?
+    if [[ $CODE -eq 0 ]] ; then
+        log "Done!"
+    else
+        log "Build FAILED"
+    fi
+
+    cd ..
+    if [[ ${1} != "debug" ]]; then
+        exit $CODE
+    fi
+
+    if [[ $CODE -ne 0 ]]; then
+        exit $CODE
+    fi
+}
+
+function libcon4m_dev_usage {
+    echo "Usage: ./dev [build | run | release | debug | clean]"
+    exit 1
+}
+
+function debug_it {
+    meson_build debug --buildtype=debug
+    DEBUGGER=$(which gdb)
+    DEBUGGER=${DEBUGGER:-$(which lldb)}
+    cd debug
+    log "Running debugger:v${DEBUGGER}"
+    ${DEBUGGER} ./c4test
+    cd ..
+
+}
+
+function libcon4m_run_tests {
+    TARGET=$(cat .meson_last)
+
+    mason_build ${TARGET} --buildtype=${TARGET}
+    log Running test binary for target: $(color green '[==' $TARGET '==]')
+
+    cd $TARGET
+    ./c4test
+    cd ..
+}
+
+function libcon4m_dev_clean {
+    for item in build debug release; do
+        if [[ -d ${item} ]]; then
+            log Cleaning ${item}
+            cd ${item}
+            meson compile --clean
+            cd ..
+        fi
+    done
+    log "Done!"
+}
+
+
+if [[ ${#} -eq 0 ]]; then
+    meson_build build
+elif [[ ${#} -ne 1 ]]; then
+    usage
+fi
+
+case $1 in
+    clean)   libcon4m_dev_clean
+             ;;
+    build)   meson_build build
+             ;;
+    debug)   debug_it
+             ;;
+    release) meson_build release --buildtype=release
+             ;;
+    run)     libcon4m_run_tests
+             ;;
+    *)
+        libcon4m_dev_usage
+        ;;
+esac
