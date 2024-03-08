@@ -22,11 +22,18 @@ typedef struct {
     // everything.
     const uint64_t     typeid;
     const uint64_t     alloc_len;  // How much space to allocate.
-    const uint64_t    *ptr_info;   // Shows GC u64 offsets to examine for ptrs.
+    const uint64_t     *ptr_info;  // Shows GC u64 offsets to examine for ptrs.
     const con4m_vtable *vtable;
 } con4m_dt_info;
 
 
+// Below, con4m_obj_t is the *internal* object type.
+//
+// For most uses, we use `object_t`, which is a promise that there's a
+// con4m_obj_t header behind the pointer.  Since generic objects will
+// always get passed around by pointer, we skip the '*' whenever using
+// object_t.
+//
 // This header is used for any allocations of non-primitive con4m
 // types, in case we need to do dynamic type checking or dynamic
 // dispatch.
@@ -42,6 +49,32 @@ struct con4m_obj_t {
     // The exposed object data.
     uint64_t data[];
 };
+
+typedef void *object_t;
+
+static inline con4m_obj_t *
+get_object_header(object_t user_object)
+{
+    return &((con4m_obj_t *)user_object)[-1];
+}
+
+// This produces a proper con4m type that encodes the type info known
+// about the entire contents. For instance, for a dictionary, the
+// value would encode not just the fact that it's a dictionary, but
+// the type of the key and the type of the value as well.
+static inline uint64_t
+get_concrete_type(object_t user_object)
+{
+    con4m_obj_t *obj = get_object_header(user_object);
+    return obj->concrete_type;
+}
+
+static inline uint64_t
+get_base_type(object_t user_object)
+{
+    con4m_obj_t *obj = get_object_header(user_object);
+    return obj->base_data_type->typeid;
+}
 
 // A lot of these are placeholders; most are implemented in the
 // current Nim runtime, but some aren't. Particularly, the destructor
@@ -102,5 +135,5 @@ extern const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS];
 
 #define con4m_new(tid, ...) _con4m_new(tid, KFUNC(__VA_ARGS__))
 
-extern void *_con4m_new(con4m_builtin_t typeid,  ...);
+extern object_t _con4m_new(con4m_builtin_t typeid,  ...);
 extern uint64_t *gc_get_ptr_info(con4m_builtin_t);

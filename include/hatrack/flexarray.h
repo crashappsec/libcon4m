@@ -60,7 +60,7 @@ struct flex_store_t {
     flex_cell_t             cells[];
 };
 
-typedef struct {
+typedef struct flexarray_t {
     flex_callback_t          ret_callback;
     flex_callback_t          eject_callback;
     _Atomic (flex_store_t  *)store;

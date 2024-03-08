@@ -127,3 +127,5 @@ extern str_t   *c4str_from_file(char *name, int *err);
 extern const uint64_t str_ptr_info[];
 extern const con4m_vtable u8str_vtable;
 extern const con4m_vtable u32str_vtable;
+
+#define force_utf8(x) c4str_u32_to_u8(x)

@@ -91,7 +91,7 @@ kargs_process_base(char *first_key, va_list actuals, va_list formals)
             cache->top = cur->next;
         }
         else {
-            cur = (karg_t *)gc_alloc(karg_t, &pmap_karg_t[0]);
+            cur = (karg_t *)gc_alloc_mapped(karg_t, &pmap_karg_t[0]);
         }
         if (!kwinfo) {
             kwinfo = cur;
@@ -199,7 +199,7 @@ kargs_process_base(char *first_key, va_list actuals, va_list formals)
 static void
 kargs_init(void)
 {
-    karg_cache = (karg_cache_t *)gc_alloc(karg_cache_t, &pmap_kcache[0]);
+    karg_cache = (karg_cache_t *)gc_alloc_mapped(karg_cache_t, &pmap_kcache[0]);
 }
 
 static karg_cache_t *
@@ -209,7 +209,8 @@ kargs_get_cache(void)
 
     ret = karg_cache;
     if (!ret) {
-        karg_cache = (karg_cache_t *)gc_alloc(karg_cache_t, &pmap_kcache[0]);
+        karg_cache = (karg_cache_t *)gc_alloc_mapped(karg_cache_t,
+						     &pmap_kcache[0]);
         ret        = karg_cache;
     }
 

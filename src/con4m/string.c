@@ -1,7 +1,6 @@
 #include <con4m.h>
 
 const int str_header_size = sizeof(int64_t) + sizeof(style_info_t *);
-
 // From the start of the GC header, currently the
 // 2nd (64-bit) word of the string struction is a pointer to track.
 // first value indicates there's only one 64-bit value in the pmap.
@@ -308,11 +307,6 @@ c4str_from_file(char *name, int *err)
 	len -= num_read;
     }
 }
-
-const uint64_t str_ptr_info[] = {
-	  0x0000000000000001,
-	  0x4000000000000000
-};
 
 const con4m_vtable u8str_vtable = {
     .num_entries = 1,
