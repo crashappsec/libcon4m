@@ -128,7 +128,6 @@ ssl      = cc.find_library('ssl')
 unibreak = dependency('libunibreak')
 utf8proc = dependency('libutf8proc')
 cmark    = dependency('libcmark-gfm')
-
 deps     = [unibreak, utf8proc, threads, cmark, ffi, ssl, crypto]
 opts     = [math]
 all_deps = deps + opts
@@ -143,23 +142,24 @@ libc4m   = static_library('con4m',
                           dependencies : all_deps,
                           c_args : c_args,
                           link_args: link_args)
-library('con4m-dll',
-        lib_src,
-        include_directories : incdir,
-        dependencies : all_deps,
-        c_args : c_args,
-        link_args: link_args)
+# library('con4m-dll',
+#         lib_src,
+#         include_directories : incdir,
+#         dependencies : all_deps,
+#         c_args : c_args,
+#         link_args: link_args)
 
 executable('c4test', test_src,
-           include_directories : incdir,
-           dependencies : all_deps,
-           c_args : c_args,
-           link_args : exe_link_args,
-           link_with : libc4m)
+                      include_directories : incdir,
+                      dependencies : [all_deps],
+                      c_args : c_args,
+                      link_args : exe_link_args,
+                      link_with : libc4m)
 
-executable('hash', hash_test_src + lib_src,
+executable('hash', hash_test_src,
            include_directories : incdir,
            dependencies : all_deps,
            link_args : exe_link_args,
+           link_with : libc4m,
            c_args : exe_c_args)
 
