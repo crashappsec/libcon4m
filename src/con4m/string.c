@@ -98,6 +98,11 @@ c4str_len(str_t *s)
 }
 
 str_t *
+c4str_slice(str_t *p1, int64_t start, int64_t end)
+{
+}
+
+str_t *
 c4str_concat(str_t *p1, str_t *p2)
 {
 
@@ -139,6 +144,7 @@ c4str_concat(str_t *p1, str_t *p2)
     // Null terminator was handled with the `new` operation.
     return r->data;
 }
+
 
 str_t *
 c4str_u32_to_u8(str_t *instr)

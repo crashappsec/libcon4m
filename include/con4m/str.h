@@ -15,6 +15,29 @@ typedef struct {
     char          data[];
 } real_str_t;
 
+#define STATIC_STR_STRUCT(id, length) struct static_str_ ## id ## _st {        \
+    con4m_dt_info *base_data_type;                                             \
+    uint64_t       concrete_type;                                              \
+    struct {                                                                   \
+	alignas(8)                                                             \
+	int32_t       codepoints;                                              \
+	int32_t       byte_len;                                                \
+	style_info_t *styling;                                                 \
+	char          data[length];                                            \
+    } r;                                                                       \
+}
+
+// This only works with ASCII strings, not arbitrary utf8.
+#define STATIC_ASCII_STR(id, val) STATIC_STR_STRUCT(id, sizeof(val));          \
+const struct static_str_ ## id ## _st _static_ ## id = {		       \
+	.base_data_type = (con4m_dt_info *)&builtin_type_info[T_STR],          \
+	.concrete_type  = T_STR,                                               \
+        .r.byte_len     = sizeof(val),  				       \
+	.r.codepoints   = sizeof(val),					       \
+	.r.styling      = NULL,                                                \
+        .r.data         = val };                                               \
+    const str_t *id = (str_t *)& (_static_ ## id).r.data
+
 extern const uint64_t pmap_str[2];
 #define PMAP_STR ((uint64_t *)&pmap_str[0])
 
