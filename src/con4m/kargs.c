@@ -83,8 +83,8 @@ kargs_process_base(char *first_key, va_list actuals, va_list formals)
     }
 
     argname = (char *)va_arg(formals, char *);
-
     cache   = kargs_get_cache();
+
     while (argname != KARG_END) {
         if (cache->top) {
             cur        = cache->top;
@@ -111,6 +111,7 @@ kargs_process_base(char *first_key, va_list actuals, va_list formals)
 
     while (argname != KARG_END) {
         cur      = kwinfo;
+	argcount = 0;
         while (true) {
             if (!cur) {
 		// For now, we'll just print error info and abort,

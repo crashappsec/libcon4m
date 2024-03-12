@@ -136,3 +136,5 @@ enum : int64_t
     KARG_57, KARG_58, KARG_59, KARG_60, KARG_61, KARG_62, KARG_63, KARG_64
 };
 // clang-format on
+
+#define DECLARE_KARGS(x) x

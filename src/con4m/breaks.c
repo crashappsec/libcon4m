@@ -18,7 +18,7 @@
 const int minimum_break_slots = 16;
 
 break_info_t *
-get_grapheme_breaks(str_t *instr, int32_t start_ix, int32_t end_ix)
+get_grapheme_breaks(const str_t *instr, int32_t start_ix, int32_t end_ix)
 {
     real_str_t   *s     = to_internal(instr);
     break_info_t *res   = alloc_break_structure(s, 1);
@@ -96,7 +96,7 @@ internal_is_line_break(int32_t cp) {
 }
 
 break_info_t *
-get_line_breaks(str_t *instr)
+get_line_breaks(const str_t *instr)
 {
     real_str_t   *s   = to_internal(instr);
     break_info_t *res = alloc_break_structure(s, 6); // 2^6 = 64.
@@ -125,7 +125,7 @@ get_line_breaks(str_t *instr)
 }
 
 break_info_t *
-get_all_line_break_ops(str_t *instr)
+get_all_line_break_ops(const str_t *instr)
 {
     real_str_t   *s      = to_internal(instr);
     int32_t       l      = internal_num_cp(s);
@@ -160,11 +160,14 @@ get_all_line_break_ops(str_t *instr)
  ** This is a very simple best-fit algorithm right now.
  **
  ** If there is an actual newline in the contents, it is always
- ** returned, which canz lead to short lines. This is done because we
+ ** returned, which can lead to short lines. This is done because we
  ** expect this to represent a paragraph break.
+ **
+ ** Also, this currently assumes each codepoint is one character
+ ** wide. We'll improve this shortly.
  **/
 break_info_t *
-wrap_text(str_t *s, int32_t width, int32_t hang)
+wrap_text(const str_t *s, int32_t width, int32_t hang)
 {
     if (width <= 0) {
 	width = max(20, terminal_width());
@@ -246,7 +249,7 @@ wrap_text(str_t *s, int32_t width, int32_t hang)
 	    break;
 	}
 
-	if (last_ok_br != cur_start) {
+	if (last_ok_br > cur_start) {
 	    add_break(&res, last_ok_br);
 	    cur_start    = last_ok_br;
 	    hard_wrap_ix = cur_start + hang_width;

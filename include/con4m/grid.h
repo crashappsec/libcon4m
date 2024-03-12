@@ -130,18 +130,29 @@
 typedef struct grid_t grid_t;
 
 typedef enum : int8_t {
-    ALIGN_UNSPECED      = -1,
-    ALIGN_INHERIT       = 0,
-    ALIGN_TOP_LEFT      = 1,
-    ALIGN_TOP_CENTER    = 2,
-    ALIGN_TOP_RIGHT     = 3,
-    ALIGN_MID_LEFT      = 4,
-    ALIGN_MID_CENTER    = 5,
-    ALIGN_MID_RIGHT     = 6,
-    ALIGN_BOTTOM_LEFT   = 7,
-    ALIGN_BOTTOM_CENTER = 8,
-    ALIGN_BOTTOM_RIGHT  = 9
+    ALIGN_LEFT   = 1,
+    ALIGN_IGNORE = 0,
+    ALIGN_RIGHT  = 2,
+    ALIGN_CENTER = 4,
+    ALIGN_TOP    = 8,
+    ALIGN_BOTTOM = 16,
+    ALIGN_MIDDLE = 32,
+
+    ALIGN_TOP_LEFT      = ALIGN_LEFT   | ALIGN_TOP,
+    ALIGN_TOP_RIGHT     = ALIGN_RIGHT  | ALIGN_TOP,
+    ALIGN_TOP_CENTER    = ALIGN_CENTER | ALIGN_TOP,
+
+    ALIGN_MID_LEFT      = ALIGN_LEFT   | ALIGN_MIDDLE,
+    ALIGN_MID_RIGHT     = ALIGN_RIGHT  | ALIGN_MIDDLE,
+    ALIGN_MID_CENTER    = ALIGN_CENTER | ALIGN_MIDDLE,
+
+    ALIGN_BOTTOM_LEFT   = ALIGN_LEFT   | ALIGN_BOTTOM,
+    ALIGN_BOTTOM_RIGHT  = ALIGN_RIGHT  | ALIGN_BOTTOM,
+    ALIGN_BOTTOM_CENTER = ALIGN_CENTER | ALIGN_BOTTOM,
 } alignment_t;
+
+#define HORIZONTAL_MASK (ALIGN_LEFT | ALIGN_CENTER | ALIGN_RIGHT)
+#define VERTICAL_MASK (ALIGN_TOP | ALIGN_MIDDLE | ALIGN_BOTTOM )
 
 typedef struct {
     int8_t left;
@@ -152,8 +163,8 @@ typedef struct {
 
 typedef enum : uint8_t {
     DIM_AUTO,
-    DIM_PERCENT_ROUND_DOWN,
-    DIM_PERCENT_ROUND_UP,
+    DIM_PERCENT_TRUNCATE,
+    DIM_PERCENT_ROUND,
     DIM_FLEX_UNITS,
     DIM_ABSOLUTE,
     DIM_ABSOLUTE_RANGE,
@@ -165,7 +176,7 @@ typedef struct {
 	float    percent;   // for dim_percent*
 	uint64_t units;     // Used for flex or absolute.
 	int32_t  range[2];  // -1 for unspecified.
-    } diminfo;
+    } dims;
 } dimspec_t;
 
 typedef struct border_style_t {
@@ -231,7 +242,7 @@ typedef uint8_t border_set_t;
 // on subsequent lines.
 
 typedef struct {
-    style_t         color;
+    style_t         style;
     padspec_t       pad;
     alignment_t     alignment;
     dimspec_t       dimensions;
@@ -243,37 +254,99 @@ typedef row_or_col_props_t row_props_t;
 typedef row_or_col_props_t col_props_t;
 
 typedef struct {
+    object_t         raw_item; // Currently, must be a grid_t * or str_t *.
+    style_t          applied_style;
+    style_t          overridable;
+    padspec_t        pad_overrides;
+    int8_t           wrap_override;
+    alignment_t      alignment_overrides;
+    uint16_t         start_col;
+    uint16_t         start_row;
+    // Internal items.
+    uint16_t         end_col;
+    uint16_t         end_row;
+    xlist_t         *render_cache;
+    uint16_t         render_width;
+    uint16_t         render_height;
+    uint16_t         alloc_height;
     row_props_t     *row_props;
     col_props_t     *col_props;
-    object_t        *raw_item; // Currently, must be a grid_t * or str_t *.
-    str_t          **render_cache;
-    uint16_t         start_col;
-    uint16_t         render_width;
-    uint16_t         start_row;
-    uint16_t         render_height;
-    style_t          text_style_override;
 } renderable_t;
 
 struct grid_t {
-    renderable_t     ***cells; // A 2d array of renderable_objects, by ref
+    renderable_t      **cells; // A 2d array of renderable_objects, by ref
     row_props_t        *default_row_properties;
     col_props_t        *default_col_properties;
+    row_props_t       **all_row_props;
+    col_props_t       **all_col_props;
     border_style_t     *border_style;
     style_t             border_color;
     padspec_t           outer_pad;
+    style_t             pad_color;  // Todo... set this.
+    border_set_t        enabled_borders;
     uint16_t            num_rows;
     uint16_t            num_cols;
-    uint16_t            spare_rows;
-    border_set_t        enabled_borders;
+    uint16_t            spare_rows;  // Not used yet.
+    alignment_t         outer_alignment;
+    style_t             cached_render_style;
+
+   // Per-render info, which includes any adding added to perform
+    // alignment of the grid within the dimensions we're given.
+    // Negative widths are possible and will cause us to crop to the
+    // dimensions of the drawing space.
+    int16_t             width;
+    int16_t             height;
 };
+
+#define GRID_TERMINAL_DIM ((int16_t)-1)
+#define GRID_UNBOUNDED_DIM ((int16_t)-2)
+#define GRID_USE_STORED   ((int16_t)-3)
 
 // For some incomprehensible reason this needs fw referencing here.
 // I think it's the build system's fault?
 typedef struct flexarray_t flexarray_t;
 
+static inline renderable_t **
+cell_address(grid_t *g, int row, int col)
+{
+    return &g->cells[g->num_cols * row + col];
+}
+
+
+static inline void
+grid_set_cell_contents(grid_t *g, int i, int j, object_t item)
+{
+    switch (get_base_type(item)) {
+    case T_RENDERABLE:
+	*cell_address(g, i, j) = (renderable_t *)item;
+	break;
+    case T_STR:
+    case T_UTF32:
+    {
+	renderable_t *cell = con4m_new(T_RENDERABLE, "start_col", j,
+				       "start_row", i, "obj", item);
+	*cell_address(g, i, j) = cell;
+	cell->raw_item         = item;
+	break;
+    }
+    default:
+	abort();
+    }
+}
+
 void grid_set_all_contents(grid_t *, flexarray_t *);
+
+void _grid_add_col_span(grid_t *, object_t, int64_t, ...);
+#define grid_add_col_span(g, o, r, ...) \
+    _grid_add_col_span(g, o, r, KFUNC(__VA_ARGS__))
+
+void _grid_add_row_span(grid_t *, object_t, int64_t, ...);
+#define grid_add_row_span(g, o, r, ...) \
+    _grid_add_row_span(g, o, r, KFUNC(__VA_ARGS__))
+
 void _grid_set_outer_pad(grid_t *, ...);
-#define grid_set_outer_pad(g, ...) _grid_set_outer_pad(g, KFUNC(__VAR_ARGS__))
+#define grid_set_outer_pad(g, ...) _grid_set_outer_pad(g, KFUNC(__VA_ARGS__))
+
 bool grid_set_border_style(grid_t *, str_t *);
 
 static inline void
@@ -299,3 +372,35 @@ set_border_color(grid_t *grid, style_t color_info)
 {
     grid->border_color = color_info;
 }
+
+static inline bool
+set_row_props(grid_t *grid, row_props_t *props, uint64_t row_ix)
+{
+    if (row_ix > grid->num_rows) {
+	return false;
+    }
+
+    grid->all_row_props[row_ix] = props;
+    return true;
+}
+
+static inline bool
+set_col_props(grid_t *grid, col_props_t *props, uint64_t col_ix)
+{
+    if (col_ix > grid->num_cols) {
+	return false;
+    }
+
+    grid->all_col_props[col_ix] = props;
+    return true;
+}
+
+xlist_t *_grid_render(grid_t *, ...);
+#define grid_render(g, ...) _grid_render(g, KFUNC(__VA_ARGS__))
+
+str_t *grid_to_str(grid_t *, to_str_use_t);
+
+const con4m_vtable grid_vtable;
+extern const con4m_vtable dimensions_vtable;
+extern const con4m_vtable gridprops_vtable;
+extern const con4m_vtable renderable_vtable;

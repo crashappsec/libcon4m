@@ -258,6 +258,10 @@ con4m_alloc_from_arena(con4m_arena_t **arena_ptr, size_t len,
 #define CON4M_CUSTOM_ALLOC 0xffffffffffffffff
 #define GC_SCAN_ALL        ((uint64_t *)0xffffffffffffffff)
 
+// gc_malloc and gc_alloc_* should only be used for INTERNAL dynamic
+// allocations. Anything that would be exposed to the language user
+// should be allocated via `gc_new()`, because there's an expectation
+// of an `object` header.
 static inline void *
 con4m_gc_malloc(size_t len)
 {
@@ -277,5 +281,3 @@ con4m_gc_malloc(size_t len)
 // Assumes it contains pointers. Call manually if you need otherwise.
 #define gc_array_alloc(typename, n)			\
     con4m_gc_alloc((sizeof(typename) * n), 0)
-
-// Used in the DT info struct to call an alloc() function instead of calling

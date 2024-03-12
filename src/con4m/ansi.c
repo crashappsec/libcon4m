@@ -400,8 +400,12 @@ ansi_render_u32(real_str_t *s, int32_t start_ix, int32_t end_ix,
 }
 
 void
-ansi_render(str_t *s, FILE *out)
+ansi_render(const str_t *s, FILE *out)
 {
+    if (!s) {
+	return;
+    }
+
     real_str_t *real = to_internal(s);
 
     if (internal_is_u32(real)) {
@@ -413,11 +417,19 @@ ansi_render(str_t *s, FILE *out)
 }
 
 void
-ansi_render_to_width(str_t *s, int32_t width, int32_t hang, FILE *out)
+ansi_render_to_width(const str_t *s, int32_t width, int32_t hang, FILE *out)
 {
+    if (!s) {
+	return;
+    }
+
     real_str_t *real   = to_internal(s);
     bool        is_u32 = internal_is_u32(real);
     int32_t     i;
+
+    if (width <= 0) {
+	width = 20;
+    }
 
     if (!is_u32) {
 	s    = c4str_u8_to_u32(s);
@@ -441,7 +453,6 @@ ansi_render_to_width(str_t *s, int32_t width, int32_t hang, FILE *out)
 			out);
     }
 }
-
 
 static size_t
 internal_render_len_u32(real_str_t *s)
@@ -475,8 +486,12 @@ internal_render_len_u8(real_str_t *s)
 }
 
 size_t
-ansi_render_len(str_t *s)
+ansi_render_len(const str_t *s)
 {
+    if (!s) {
+	return 0;
+    }
+
     real_str_t *real = to_internal(s);
 
     if (internal_is_u32(real)) {

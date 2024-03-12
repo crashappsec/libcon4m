@@ -2,7 +2,11 @@
 
 style_t style1;
 style_t style2;
+size_t  term_width;
 
+STATIC_ASCII_STR(str_test, "Welcome to the testing center. First order of "
+		 "business: This is a static string, stored in static memory."
+		 "However, we have not set any styling information on it.\n");
 
 void
 test1() {
@@ -76,7 +80,7 @@ test1() {
     ansi_render(s, stdout);
 }
 
-void
+str_t *
 test2() {
     style1 = new_style();
     style1 = apply_fg_color(style1, COLOR_BLACK);
@@ -145,12 +149,9 @@ test2() {
     ansi_render(dump1, stderr);
     ansi_render(dump2, stderr);
 
-    size_t cols;
-    terminal_dimensions(&cols, NULL);
-    printf("%zu cols\n", cols);
-
-    ansi_render_to_width(to_wrap, cols, 0, stdout);
+    ansi_render_to_width(to_wrap, term_width, 0, stdout);
     con4m_gc_thread_collect();
+    return to_wrap;
 }
 
 void
@@ -163,9 +164,18 @@ test_rand64()
     assert(random != 0);
 }
 
+void
+test3(str_t *to_slice)
+{
+    //ansi_render(c4str_slice(to_slice, 10, 50), stdout);
+    ansi_render_to_width(c4str_slice(to_slice, 10, 50), term_width, 0, stdout);
+    printf("\n");
+    ansi_render_to_width(c4str_slice(to_slice, 40, 100), term_width, 0, stdout);
+    printf("\n");
+}
 
 void
-test3()
+test4()
 {
     str_t *w1 = con4m_new(T_STR, "cstring", "Once upon a time, there was a ");
     str_t *w2 = con4m_new(T_STR, "cstring", "thing I cared about. But then I ");
@@ -176,9 +186,9 @@ test3()
 	"interesting, to be quite honest. Maybe someday I'll find something "
 	"interesting to care about, besides my family. Oh yeah, that's "
 	"what it was, my family! Oh, wait, no, they're either not interesting, "
-        "or I don't care about them.\n", "style", style1);
-    str_t *w5 = con4m_new(T_STR, "cstring", "Basically AirTags for Software");
-    str_t *w6 = con4m_new(T_STR, "cstring", "\n");
+        "or I don't care about them.", "style", style1);
+    str_t *w5 = con4m_new(T_STR, "cstring", "\n");
+    str_t *w6 = con4m_new(T_STR, "cstring", "Basically AirTags for Software\n");
 
     con4m_gc_register_root(&w1, 1);
     con4m_gc_register_root(&w2, 1);
@@ -196,8 +206,8 @@ test3()
     hatrack_dict_put(d, w2, "w2");
     hatrack_dict_put(d, w3, "w3");
     hatrack_dict_put(d, w4, "w4");
-    hatrack_dict_put(d, w4, "w5");
-    hatrack_dict_put(d, w4, "w6");
+    hatrack_dict_put(d, w5, "w5");
+    hatrack_dict_put(d, w6, "w6");
 
     uint64_t num;
 
@@ -208,16 +218,42 @@ test3()
     }
 
     con4m_gc_thread_collect();
+}
 
+void
+table_test()
+{
+    str_t      *test1 = con4m_new(T_STR, "cstring", "Some example??"
+	" Let's make it a fairly long example, so it will be sure to need"
+	" some reynolds' wrap.");
+    str_t      *test2 = con4m_new(T_STR, "cstring", "Some other example.");
+    str_t      *test3 = con4m_new(T_STR, "cstring", "Example 3.");
+    str_t      *test4 = con4m_new(T_STR, "cstring", "Last one.");
+    grid_t     *g    = con4m_new(T_GRID, "rows", 2, "cols", 2);
 
+    grid_set_cell_contents(g, 0, 0, to_internal(test1));
+    grid_set_cell_contents(g, 0, 1, to_internal(test2));
+    grid_set_cell_contents(g, 1, 0, to_internal(test3));
+    grid_set_cell_contents(g, 1, 1, to_internal(test4));
+    c4str_apply_style(test1, style1);
+    ansi_render(con4m_value_obj_repr(g), stdout);
 }
 
 int
 main(int argc, char **argv, char **envp)
 {
+
+    terminal_dimensions(&term_width, NULL);
+    ansi_render_to_width(str_test, term_width, 0, stdout);
     test_rand64();
     // Test basic string and single threaded GC.
     test1();
-    test2();
-    test3();
+    str_t *to_slice = test2();
+    con4m_gc_register_root(&to_slice, 1);
+    test3(to_slice);
+    to_slice = NULL;
+    test4();
+    table_test();
+    STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
+    ansi_render(local_test, stdout);
 }

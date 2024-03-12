@@ -12,7 +12,7 @@ typedef enum {
 extern void ansi_render_u8(real_str_t *s, FILE *outstream);
 extern void ansi_render_u32(real_str_t *s, int32_t start_ix, int32_t end_ix,
 		     FILE *outstream);
-extern void ansi_render(str_t *s, FILE *out);
-extern void ansi_render_to_width(str_t *s, int32_t width, int32_t hang,
+extern void ansi_render(const str_t *s, FILE *out);
+extern void ansi_render_to_width(const str_t *s, int32_t width, int32_t hang,
 				 FILE *out);
-extern size_t ansi_render_len(str_t *s);
+extern size_t ansi_render_len(const str_t *s);

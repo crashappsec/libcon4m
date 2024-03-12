@@ -21,7 +21,6 @@ else
 endif
 
 c_args        = ['-Wextra',
-                 '-Ofast',
                  '-g',
                  '-Wno-unused-parameter',
                  '-Wno-cast-function-type',
@@ -56,7 +55,7 @@ endif
 c4m_src  = ['src/con4m/style.c',
             'src/con4m/colors.c',
             'src/con4m/breaks.c', 
-            'src/con4m/string.c',
+            'src/con4m/c4str.c',
             'src/con4m/ansi.c',
             'src/con4m/hex.c',
             'src/con4m/switchboard.c',
@@ -67,6 +66,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/object.c',
             'src/con4m/dict.c',
             'src/con4m/lists.c',
+            'src/con4m/xlist.c',
             'src/con4m/grid.c'
             ]
 

@@ -1,5 +1,7 @@
 #pragma once
 
+typedef void *object_t;
+
 // Everything includes this; the ordering here is somewhat important
 // due to interdependencies, though they can always be solved via
 // prototyping.
@@ -10,15 +12,21 @@
 #include <con4m/kargs.h>   // Keyword arguments.
 #include <con4m/random.h>
 
+#include <con4m/c4strbase.h>
+
 // Memory management
 #include <con4m/refcount.h>
 #include <con4m/gc.h>
 #include <con4m/object.h>
 
+// Single-threaded data structures for internal use.
+#include <con4m/xlist.h>
+
 // Basic string handling.
+#include <con4m/codepoint.h>
 #include <con4m/colors.h>
 #include <con4m/style.h>
-#include <con4m/str.h>
+#include <con4m/c4str.h>
 #include <con4m/breaks.h>
 #include <con4m/ansi.h>
 #include <con4m/hex.h>
