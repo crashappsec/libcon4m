@@ -3,17 +3,17 @@
 #include <con4m.h>
 
 // Flags in the style `info` bitfield.
-#define BOLD_ON         0x0001000000000000
-#define INV_ON          0x0002000000000000
-#define ST_ON           0x0004000000000000
-#define ITALIC_ON       0x0008000000000000
-#define UL_ON           0x0010000000000000
-#define FG_COLOR_ON     0x0020000000000000
-#define BG_COLOR_ON     0x0040000000000000
+#define FG_COLOR_ON     0x0002000000000000
+#define BG_COLOR_ON     0x0004000000000000
+#define BOLD_ON         0x0008000000000000
+#define ITALIC_ON       0x0010000000000000
+#define ST_ON           0x0020000000000000
+#define UL_ON           0x0040000000000000
 #define UL_DOUBLE       0x0080000000000000
-#define UPPER_CASE      0x0100000000000000
+#define INV_ON          0x0100000000000000
 #define LOWER_CASE      0x0200000000000000
-#define TITLE_CASE      0x0300000000000000 // (UPPER | LOWER)
+#define UPPER_CASE      0x0400000000000000
+#define TITLE_CASE      UPPER_CASE | LOWER_CASE
 #define STYLE_INVALID   0xffffffffffffffff
 #define FG_COLOR_MASK   0xffffffffff000000
 #define BG_COLOR_MASK   0xffff000000ffffff
@@ -24,6 +24,11 @@
 #define OFFSET_FG_RED   16
 #define OFFSET_FG_GREEN 8
 #define OFFSET_FG_BLUE  0
+
+
+#define NEW_UL_ON     1
+#define NEW_UL_DOUBLE 2
+#define NEW_UL_NONE   0
 
 static inline void
 style_debug(char *prefix, const str_t *s) {
@@ -221,8 +226,8 @@ extern style_t add_bg_color(style_t style, uint8_t red, uint8_t green,
 			    uint8_t blue);
 extern style_t add_fg_color(style_t style, uint8_t red, uint8_t green,
 			    uint8_t blue);
-extern style_t apply_bg_color(style_t style, color_t c);
-extern style_t apply_fg_color(style_t style, color_t c);
+extern style_t apply_bg_color(style_t style, char *name);
+extern style_t apply_fg_color(style_t style, char *name);
 extern style_t add_upper_case(style_t style);
 extern style_t add_lower_case(style_t style);
 extern style_t add_title_case(style_t style);

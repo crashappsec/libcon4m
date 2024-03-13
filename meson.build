@@ -67,7 +67,8 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/dict.c',
             'src/con4m/lists.c',
             'src/con4m/xlist.c',
-            'src/con4m/grid.c'
+            'src/con4m/grid.c',
+            'src/con4m/styledb.c'
             ]
 
 hat_primary = ['src/hatrack/support/hatrack_common.c',

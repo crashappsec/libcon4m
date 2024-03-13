@@ -13,6 +13,9 @@
 // Not soon, but should eventually get done: row spans (column spans
 // are there).
 
+// Also not soon, but should consider allowing style info to "resolve"
+// when strings are
+
 #include <con4m.h>
 
 static col_props_t global_cell_defaults = {
@@ -32,7 +35,7 @@ static col_props_t global_cell_defaults = {
     UL_ON | UL_DOUBLE | TITLE_CASE
 };
 
-static const border_theme_t border_ascii = {
+const border_theme_t border_ascii = {
     .name            = "ascii",
     .horizontal_rule = '-',
     .vertical_rule   = '|',
@@ -48,7 +51,7 @@ static const border_theme_t border_ascii = {
     .next_style      = NULL
 };
 
-static const border_theme_t border_asterisk = {
+const border_theme_t border_asterisk = {
     .name            = "asterisk",
     .horizontal_rule = '*',
     .vertical_rule   = '*',
@@ -64,7 +67,7 @@ static const border_theme_t border_asterisk = {
     .next_style      = (border_theme_t *)&border_ascii
 };
 
-static const border_theme_t border_bold_dash2 = {
+const border_theme_t border_bold_dash2 = {
     .name            = "bold_dash2",
     .horizontal_rule = 0x2509,
     .vertical_rule   = 0x250b,
@@ -80,7 +83,7 @@ static const border_theme_t border_bold_dash2 = {
     .next_style      = (border_theme_t *)&border_asterisk
 };
 
-static const border_theme_t border_dash2 = {
+const border_theme_t border_dash2 = {
     .name            = "dash2",
     .horizontal_rule = 0x2508,
     .vertical_rule   = 0x250a,
@@ -97,7 +100,7 @@ static const border_theme_t border_dash2 = {
 };
 
 
-static const border_theme_t border_bold_dash = {
+const border_theme_t border_bold_dash = {
     .name            = "bold_dash",
     .horizontal_rule = 0x2505,
     .vertical_rule   = 0x2507,
@@ -113,7 +116,7 @@ static const border_theme_t border_bold_dash = {
     .next_style      = (border_theme_t *)&border_dash2
 };
 
-static const border_theme_t border_dash =  {
+const border_theme_t border_dash =  {
     .name            = "dash",
     .horizontal_rule = 0x2504,
     .vertical_rule   = 0x2506,
@@ -129,7 +132,7 @@ static const border_theme_t border_dash =  {
     .next_style      = (border_theme_t *)&border_bold_dash
 };
 
-static const border_theme_t border_double = {
+const border_theme_t border_double = {
     .name            = "double",
     .horizontal_rule = 0x2550,
     .vertical_rule   = 0x2551,
@@ -145,7 +148,7 @@ static const border_theme_t border_double = {
     .next_style      = (border_theme_t *)&border_dash
 };
 
-static const border_theme_t border_bold =  {
+const border_theme_t border_bold =  {
     .name            = "bold",
     .horizontal_rule = 0x2501,
     .vertical_rule   = 0x2503,
@@ -161,7 +164,7 @@ static const border_theme_t border_bold =  {
     .next_style      = (border_theme_t *)&border_double
 };
 
-static const border_theme_t border_plain = {
+const border_theme_t border_plain = {
     .name            = "plain",
     .horizontal_rule = 0x2500,
     .vertical_rule   = 0x2502,
@@ -177,7 +180,7 @@ static const border_theme_t border_plain = {
     .next_style      = (border_theme_t *)&border_bold
 };
 
-static border_theme_t *registered_borders = (border_theme_t *)&border_plain;
+const border_theme_t *registered_borders = (border_theme_t *)&border_plain;
 
 static inline void
 alloc_grid_props(grid_t *grid)

@@ -37,6 +37,7 @@ typedef void *object_t;
 
 // Our grid abstraction.
 #include <con4m/grid.h>
+#include <con4m/styledb.h>
 
 // IO primitives.
 #include <con4m/term.h>

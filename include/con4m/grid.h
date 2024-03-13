@@ -130,8 +130,8 @@
 typedef struct grid_t grid_t;
 
 typedef enum : int8_t {
-    ALIGN_LEFT   = 1,
     ALIGN_IGNORE = 0,
+    ALIGN_LEFT   = 1,
     ALIGN_RIGHT  = 2,
     ALIGN_CENTER = 4,
     ALIGN_TOP    = 8,
@@ -168,6 +168,7 @@ typedef enum : uint8_t {
     DIM_FLEX_UNITS,
     DIM_ABSOLUTE,
     DIM_ABSOLUTE_RANGE,
+    DIM_FIT_TO_TEXT
 } dimspec_kind_t;
 
 typedef struct {

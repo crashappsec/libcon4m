@@ -106,17 +106,27 @@ add_fg_color(style_t style, uint8_t red, uint8_t green, uint8_t blue)
 }
 
 style_t
-apply_bg_color(style_t style, color_t c)
+apply_bg_color(style_t style, char *name)
 {
-    color_info_t info = color_data[c];
-    return add_bg_color(style, info.rgb.r, info.rgb.g, info.rgb.b);
+    int64_t color = (int64_t)lookup_color(name);
+
+    if (color & ~0xffffff) {
+	return style;
+    }
+
+    return (style & BG_COLOR_MASK) | (color << 24) | BG_COLOR_ON;
 }
 
 style_t
-apply_fg_color(style_t style, color_t c)
+apply_fg_color(style_t style, char *name)
 {
-    color_info_t info = color_data[c];
-    return add_fg_color(style, info.rgb.r, info.rgb.g, info.rgb.b);
+    int64_t color = (int64_t)lookup_color(name);
+
+    if (color & ~0xffffff) {
+	return style;
+    }
+
+    return (style & FG_COLOR_MASK) | color | FG_COLOR_ON;
 }
 
 style_t

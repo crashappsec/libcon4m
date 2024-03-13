@@ -115,6 +115,11 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
       .ptr_info  = GC_SCAN_ALL,
       .vtable    = &xlist_vtable
      },
+     {.typeid    = T_RENDER_STYLE,
+      .alloc_len = sizeof(render_style_t),
+      .ptr_info  = (uint64_t *)&rs_pmap,
+      .vtable    = &render_style_vtable
+     }
 };
 
 object_t

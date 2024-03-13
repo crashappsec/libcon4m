@@ -10,13 +10,8 @@ STATIC_ASCII_STR(str_test, "Welcome to the testing center. First order of "
 
 void
 test1() {
-    style1 = new_style();
-    style1 = apply_bg_color(style1, COLOR_BLACK);
-    style1 = add_title_case(style1);
-    style2 = apply_fg_color(style1, COLOR_JAZZBERRY);
-    style1 = apply_fg_color(style1, COLOR_ATOMIC_LIME);
-    style1 = add_italic(add_underline(style1));
-    style2 = add_italic(style2);
+    style1 = lookup_text_style("h1");
+    style2 = lookup_text_style("h2");
     style2 = add_upper_case(style2);
 
 
@@ -82,16 +77,6 @@ test1() {
 
 str_t *
 test2() {
-    style1 = new_style();
-    style1 = apply_fg_color(style1, COLOR_BLACK);
-    style1 = add_title_case(style1);
-    style2 = apply_fg_color(style1, COLOR_JAZZBERRY);
-    style1 = apply_bg_color(style1, COLOR_ATOMIC_LIME);
-    style1 = add_italic(add_underline(style1));
-    style2 = add_italic(style2);
-    style2 = add_upper_case(style2);
-
-
     str_t *w1 = con4m_new(T_STR, "cstring", "Once upon a time, there was a ");
     str_t *w2 = con4m_new(T_STR, "cstring", "thing I cared about. But then I ");
     str_t *w3 = con4m_new(T_STR, "cstring",
@@ -284,11 +269,13 @@ int
 main(int argc, char **argv, char **envp)
 {
 
+    install_default_styles();
     terminal_dimensions(&term_width, NULL);
     ansi_render_to_width(str_test, term_width, 0, stdout);
     test_rand64();
     // Test basic string and single threaded GC.
     test1();
+    style1 = apply_bg_color(style1, "alice blue");
     str_t *to_slice = test2();
     con4m_gc_register_root(&to_slice, 1);
     test3(to_slice);
@@ -298,4 +285,6 @@ main(int argc, char **argv, char **envp)
     ordered_list_test();
     STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
     ansi_render(local_test, stdout);
+
+    printf("Sample style: %.16llx\n", style1);
 }

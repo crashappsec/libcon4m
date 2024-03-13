@@ -141,6 +141,7 @@ typedef enum : int64_t {
     T_RENDERABLE,
     T_DIMENSIONS,
     T_XLIST, // single-threaded list.
+    T_RENDER_STYLE,
     CON4M_NUM_BUILTIN_DTS
 } con4m_builtin_t;
 
