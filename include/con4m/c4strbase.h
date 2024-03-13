@@ -30,8 +30,8 @@ const struct static_str_ ## id ## _st _static_ ## id = {		       \
 typedef uint64_t style_t;
 
 typedef struct {
-    uint32_t start;
-    uint32_t end;
+    int32_t  start;
+    int32_t  end;
     style_t  info;  // 16 bits of flags, 24 bits bg color, 24 bits fg color
 } style_entry_t;
 
@@ -90,3 +90,7 @@ internal_num_cp(real_str_t *s)
 	return s->codepoints;
     }
 }
+
+extern int64_t  c4str_byte_len(const str_t *);
+extern int64_t  c4str_len(const str_t *);
+extern int64_t  c4str_render_len(const str_t *);

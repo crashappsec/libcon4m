@@ -57,15 +57,6 @@ c4str_internal_alloc(bool u32, int64_t len)
     }
 }
 
-static inline void
-apply_style_to_real_string(real_str_t *s, style_t style)
-{
-    alloc_styles(s, 1);
-    s->styling->styles[0].start = 0;
-    s->styling->styles[0].end   = s->byte_len;
-    s->styling->styles[0].info  = style;
-}
-
 void
 c4str_apply_style(str_t *s, style_t style)
 {
@@ -119,6 +110,9 @@ c4str_len(const str_t *s)
 str_t *
 c4str_slice(const str_t *instr, int64_t start, int64_t end)
 {
+    if (!instr) {
+	return (str_t *)instr;
+    }
     str_t      *s   = force_utf32(instr);
     real_str_t *r   = to_internal(s);
     int64_t     len = internal_num_cp(r);
@@ -156,18 +150,20 @@ c4str_slice(const str_t *instr, int64_t start, int64_t end)
 
     if (r->styling && r->styling->num_entries) {
 	int64_t first = -1;
-	int64_t last  = -1;
-	int64_t i;
+	int64_t last  = 0;
+	int64_t i     = 0;
 
 	for (i = 0; i < r->styling->num_entries; i++) {
-	    if (r->styling->styles[i].start < start) {
+	    if (r->styling->styles[i].end < start) {
 		continue;
 	    }
 	    if (r->styling->styles[i].start >= end) {
-		goto finish_up;
+		break;
 	    }
-	    first = i;
-	    break;
+	    if (first == -1) {
+		first = i;
+	    }
+	    last = i + 1;
 	}
 
 	if (first == -1) {
@@ -175,7 +171,6 @@ c4str_slice(const str_t *instr, int64_t start, int64_t end)
 	}
 
 	last = i;
-
 	while (true) {
 	    if (r->styling->styles[++last].end >= end) {
 		break;
@@ -188,26 +183,37 @@ c4str_slice(const str_t *instr, int64_t start, int64_t end)
 	    }
 	}
 
+	if (last == -1) {
+	    last = first + 1;
+	}
 	int64_t sliced_style_count = last - first;
-
 	alloc_styles(res, sliced_style_count);
 
 	for (i = 0; i < sliced_style_count; i++) {
 	    int64_t sold = r->styling->styles[i + first].start;
+	    int64_t eold = r->styling->styles[i + first].end;
 	    style_t info = r->styling->styles[i + first].info;
 	    int64_t snew = max(sold - start, 0);
 	    int64_t enew = min(r->styling->styles[i + first].end, end) - start;
+
+	    if (enew > slice_len) {
+		enew = slice_len;
+	    }
+
+	    if (snew >= enew) {
+		res->styling->num_entries = i;
+		break;
+	    }
 
 	    res->styling->styles[i].start = snew;
 	    res->styling->styles[i].end   = enew;
 	    res->styling->styles[i].info  = info;
 	}
+
     }
 
 finish_up:
-
     if (!internal_is_u32(to_internal(instr))) {
-
 	return c4str_u32_to_u8(res->data);
     }
     else {
@@ -261,7 +267,7 @@ c4str_copy(const str_t *s)
     real_str_t *res = c4str_internal_alloc(u32, internal_num_cp(cur));
     res->codepoints = cur->codepoints;
     memcpy(res->data, cur->data, cur->byte_len);
-    copy_styles(res->styling, cur->styling, 0);
+    copy_style_info(cur, res);
 
     return res->data;
 }
@@ -288,12 +294,18 @@ c4str_concat(const str_t *p1, const str_t *p2)
 
     alloc_styles(r, num_entries);
 
-    if (style_num_entries(s1)) {
-        copy_styles(r->styling, s1->styling, 0);
+    int start = style_num_entries(s1);
+    if (start) {
+	for (unsigned int i = 0; i < s1->styling->num_entries; i++) {
+	    r->styling->styles[i] = s1->styling->styles[i];
+	}
     }
 
     if (style_num_entries(s2)) {
-        copy_styles(r->styling, s2->styling, style_num_entries(s1));
+	int start = style_num_entries(s1);
+	for (unsigned int i = 0; i < s2->styling->num_entries; i++) {
+	    r->styling->styles[i + start] = s2->styling->styles[i];
+	}
 
 	// Here, we loop through after the copy to adjust the offsets.
 	for (uint64_t i = style_num_entries(s1); i < num_entries; i++) {
@@ -430,9 +442,9 @@ c4str_u8_to_u32(const str_t *instr)
 	inp += utf8proc_iterate(inp, 4, outp + i);
     }
 
-    copy_style_info(inraw, outraw);
-
     outraw->codepoints = ~len;
+
+    copy_style_info(inraw, outraw);
 
     return outraw->data;
 }
@@ -486,6 +498,30 @@ c4str_internal_base(_Bool u32, va_list args)
     }
 
     return p->data;
+}
+
+str_t *
+c4str_from_int(int64_t n)
+{
+    char  buf[21] = {0, };
+    char *p       = &buf[20];
+    char *end     = p;
+
+    if (!n) {
+	return c4str_repeat_u8('0', 1);
+    }
+
+    int64_t i = n;
+
+    while (i) {
+	*--p = '0' + (i % 10);
+	i /= 10;
+    }
+
+    if (n < 0) {
+	*--p = '-';
+    }
+    return con4m_new(T_STR, "cstring", p);
 }
 
 str_t *
@@ -543,7 +579,6 @@ c4str_repeat(codepoint_t cp, int64_t num)
 
     return res->data;
 }
-
 
 int64_t
 c4str_render_len(const str_t *s)
@@ -630,7 +665,7 @@ _c4str_truncate(const str_t *s, int64_t len, ...)
 			real_str_t *res   = c4str_internal_alloc_u8(blen);
 
 			memcpy(res->data, start, blen);
-			copy_styles(res->styling, r->styling, 0);
+			copy_style_info(res, r);
 
 			if (res->styling != NULL) {
 			    for (int i = 0; i < res->styling->num_entries; i++)
@@ -656,7 +691,6 @@ _c4str_truncate(const str_t *s, int64_t len, ...)
 	}
     }
 }
-
 
 str_t *
 c4str_from_file(const char *name, int *err)

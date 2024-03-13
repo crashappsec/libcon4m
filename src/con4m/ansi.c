@@ -175,8 +175,8 @@ ansi_render_u8(real_str_t *s, FILE *outstream)
     style_t        default_style = get_default_style();
     style_t        current_style = default_style;
     uint64_t       casing        = current_style & TITLE_CASE;
-    uint32_t       cp_ix         = 0;
-    uint32_t       cp_stop       = 0;
+    int32_t        cp_ix         = 0;
+    int32_t        cp_stop       = 0;
     uint32_t       style_ix      = 0;
     u8_state_t     style_state   = U8_STATE_START_DEFAULT;
     uint8_t       *p             = (uint8_t *)s->data;
@@ -351,6 +351,9 @@ void
 ansi_render_u32(real_str_t *s, int32_t start_ix, int32_t end_ix,
 		FILE *outstream)
 {
+    // This is temporary, while I figure out why some null styles
+    // are staying in here.
+
     int32_t len = internal_num_cp(s);
     style_t style0 = get_default_style();
 

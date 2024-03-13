@@ -179,7 +179,7 @@ typedef struct {
     } dims;
 } dimspec_t;
 
-typedef struct border_style_t {
+typedef struct border_theme_t {
     char                  *name;
     int32_t                horizontal_rule;
     int32_t                vertical_rule;
@@ -192,8 +192,8 @@ typedef struct border_style_t {
     int32_t                bottom_t;
     int32_t                left_t;
     int32_t                right_t;
-    struct border_style_t *next_style;
-} border_style_t;
+    struct border_theme_t *next_style;
+} border_theme_t;
 
 #define BORDER_TOP          0x01
 #define BORDER_BOTTOM       0x02
@@ -279,7 +279,7 @@ struct grid_t {
     col_props_t        *default_col_properties;
     row_props_t       **all_row_props;
     col_props_t       **all_col_props;
-    border_style_t     *border_style;
+    border_theme_t     *border_theme;
     style_t             border_color;
     padspec_t           outer_pad;
     style_t             pad_color;  // Todo... set this.
@@ -314,19 +314,19 @@ cell_address(grid_t *g, int row, int col)
 
 
 static inline void
-grid_set_cell_contents(grid_t *g, int i, int j, object_t item)
+grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
 {
     switch (get_base_type(item)) {
     case T_RENDERABLE:
-	*cell_address(g, i, j) = (renderable_t *)item;
+	*cell_address(g, row, col) = (renderable_t *)item;
 	break;
     case T_STR:
     case T_UTF32:
     {
-	renderable_t *cell = con4m_new(T_RENDERABLE, "start_col", j,
-				       "start_row", i, "obj", item);
-	*cell_address(g, i, j) = cell;
-	cell->raw_item         = item;
+	renderable_t *cell = con4m_new(T_RENDERABLE, "start_col", col,
+				       "start_row", row, "obj", item);
+	*cell_address(g, row, col) = cell;
+	cell->raw_item             = item;
 	break;
     }
     default:
@@ -347,7 +347,7 @@ void _grid_add_row_span(grid_t *, object_t, int64_t, ...);
 void _grid_set_outer_pad(grid_t *, ...);
 #define grid_set_outer_pad(g, ...) _grid_set_outer_pad(g, KFUNC(__VA_ARGS__))
 
-bool grid_set_border_style(grid_t *, str_t *);
+bool grid_set_border_theme(grid_t *, str_t *);
 
 static inline void
 grid_set_row_defaults(grid_t *grid, row_props_t *defaults)
@@ -399,6 +399,9 @@ xlist_t *_grid_render(grid_t *, ...);
 #define grid_render(g, ...) _grid_render(g, KFUNC(__VA_ARGS__))
 
 str_t *grid_to_str(grid_t *, to_str_use_t);
+extern grid_t *ordered_list(flexarray_t *);
+extern grid_t *_unordered_list(flexarray_t *, ...);
+#define unordered_list(l, ...) _unordered_list(l, KFUNC(__VA_ARGS__))
 
 const con4m_vtable grid_vtable;
 extern const con4m_vtable dimensions_vtable;

@@ -23,9 +23,6 @@ internal_is_space(codepoint_t cp)
 
 extern str_t   *c4str_new_u32(int64_t);
 extern void     c4str_apply_style(str_t *, style_t);
-extern int64_t  c4str_byte_len(const str_t *);
-extern int64_t  c4str_len(const str_t *);
-extern int64_t  c4str_render_len(const str_t *);
 extern str_t   *c4str_copy(const str_t *s);
 extern str_t   *c4str_concat(const str_t *, const str_t *);
 extern str_t   *c4str_u32_to_u8(const str_t *);
@@ -38,6 +35,7 @@ extern str_t   *c4str_repeat(codepoint_t, int64_t);
 extern str_t   *_c4str_strip(const str_t *s, ...);
 extern str_t   *_c4str_truncate(const str_t *s, int64_t, ...);
 extern str_t   *_c4str_join(const xlist_t *l, const str_t *joiner, ...);
+extern str_t   *c4str_from_int(int64_t n);
 
 extern const uint64_t str_ptr_info[];
 extern const con4m_vtable u8str_vtable;

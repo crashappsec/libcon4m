@@ -228,15 +228,56 @@ table_test()
 	" some reynolds' wrap.");
     str_t      *test2 = con4m_new(T_STR, "cstring", "Some other example.");
     str_t      *test3 = con4m_new(T_STR, "cstring", "Example 3.");
-    str_t      *test4 = con4m_new(T_STR, "cstring", "Last one.");
-    grid_t     *g    = con4m_new(T_GRID, "rows", 2, "cols", 2);
+    str_t      *test4 = con4m_new(T_STR, "cstring", "Defaults.");
+    str_t      *test5 = con4m_new(T_STR, "cstring", "Last one.");
+    grid_t     *g    = con4m_new(T_GRID, "rows", 3, "cols", 3,
+	                         "border_theme", "bold_dash2");
 
     grid_set_cell_contents(g, 0, 0, to_internal(test1));
     grid_set_cell_contents(g, 0, 1, to_internal(test2));
-    grid_set_cell_contents(g, 1, 0, to_internal(test3));
-    grid_set_cell_contents(g, 1, 1, to_internal(test4));
+    grid_set_cell_contents(g, 0, 2, to_internal(test4));
+    grid_set_cell_contents(g, 1, 2, to_internal(test3));
+    grid_set_cell_contents(g, 1, 1, to_internal(test5));
+    grid_add_col_span(g, "num_cols", 2, "string", test1);
+//    grid_set_cell_contents(g, 1, 0, to_internal(empty_string()));
     c4str_apply_style(test1, style1);
+    c4str_apply_style(test2, style2);
+    c4str_apply_style(test3, style1);
+    c4str_apply_style(test5, style2);
     ansi_render(con4m_value_obj_repr(g), stdout);
+}
+
+void
+ordered_list_test()
+{
+    str_t *test1   = con4m_new(T_STR, "cstring",
+			       "This is a good point, one that you haven't "
+			       "heard before.");
+    str_t *test2   = con4m_new(T_STR, "cstring",
+			       "This is a point that's just as valid, but you "
+			       "already know it.");
+    str_t *test3   = con4m_new(T_STR, "cstring", "This is a small point.");
+    str_t *test4   = con4m_new(T_STR, "cstring", "Conclusion.");
+    flexarray_t *l = con4m_new(T_LIST, "length", 12);
+
+    flexarray_set(l, 0, to_internal(test1));
+    flexarray_set(l, 1, to_internal(test2));
+    flexarray_set(l, 2, to_internal(test3));
+    flexarray_set(l, 3, to_internal(test4));
+    flexarray_set(l, 4, to_internal(test1));
+    flexarray_set(l, 5, to_internal(test2));
+    flexarray_set(l, 6, to_internal(test3));
+    flexarray_set(l, 7, to_internal(test4));
+    flexarray_set(l, 8, to_internal(test1));
+    flexarray_set(l, 9, to_internal(test2));
+    flexarray_set(l, 0xa, to_internal(test3));
+    flexarray_set(l, 0xb, to_internal(test4));
+
+    printf("\n");
+    grid_t      *g = ordered_list(l);
+    ansi_render(con4m_value_obj_repr(g), stdout);
+    grid_t      *h = unordered_list(l);
+    ansi_render(con4m_value_obj_repr(h), stdout);
 }
 
 int
@@ -254,6 +295,7 @@ main(int argc, char **argv, char **envp)
     to_slice = NULL;
     test4();
     table_test();
+    ordered_list_test();
     STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
     ansi_render(local_test, stdout);
 }
