@@ -31,13 +31,14 @@ typedef void *object_t;
 #include <con4m/ansi.h>
 #include <con4m/hex.h>
 
+#include <con4m/styledb.h>
+
 // Other core data structures.
 #include <con4m/dict.h>
 #include <con4m/lists.h>
 
 // Our grid abstraction.
 #include <con4m/grid.h>
-#include <con4m/styledb.h>
 
 // IO primitives.
 #include <con4m/term.h>

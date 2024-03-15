@@ -37,56 +37,59 @@ internal_char_render_width(int32_t cp)
 static void
 ansi_render_style_start(uint64_t info, FILE *outstream)
 {
+
+    uint64_t remaining = (~FLAG_MASK) & info;
+
     if (!info) {
 	return;
     }
 
     fputs("\e[", outstream);
     if (info & BOLD_ON) {
-	info &= ~BOLD_ON;
+	remaining &= ~BOLD_ON;
 	fputc('1', outstream);
-	if (info) {
+	if (remaining) {
 	    fputc(';', outstream);
 	}
     }
     if (info & INV_ON) {
-	info &= ~INV_ON;
+	remaining &= ~INV_ON;
 	fputc('7', outstream);
-	if (info) {
+	if (remaining) {
 	    fputc(';', outstream);
 	}
     }
     if (info & ST_ON) {
-	info &= ~ST_ON;
+	remaining &= ~ST_ON;
 	fputc('9', outstream);
-	if (info) {
+	if (remaining) {
 	    fputc(';', outstream);
 	}
     }
     if (info & ITALIC_ON) {
-	info &= ~ITALIC_ON;
+	remaining &= ~ITALIC_ON;
 	fputc('3', outstream);
-	if (info) {
+	if (remaining) {
 	    fputc(';', outstream);
 	}
     }
     if (info & UL_ON) {
-	info &= ~UL_ON;
+	remaining &= ~UL_ON;
 	fputc('4', outstream);
-	if (info) {
+	if (remaining) {
 	    fputc(';', outstream);
 	}
     }
     if (info & UL_DOUBLE) {
-	info &= ~UL_DOUBLE;
+	remaining &= ~UL_DOUBLE;
 	fputs("21", outstream);
-	if (info) {
+	if (remaining) {
 	    fputc(';', outstream);
 	}
     }
 
     if (info & FG_COLOR_ON) {
-	info &= ~FG_COLOR_ON;
+	remaining &= ~FG_COLOR_ON;
 
 	if (use_truecolor()) {
 	    uint8_t r = (uint8_t)((info & ~FG_COLOR_MASK) >> OFFSET_FG_RED);
@@ -99,7 +102,7 @@ ansi_render_style_start(uint64_t info, FILE *outstream)
 		    to_vga((int32_t)(info &
 				     ~(FG_COLOR_MASK))));
 	}
-	if (info) {
+	if (remaining) {
 	    fputc(';', outstream);
 	}
     }
@@ -117,9 +120,6 @@ ansi_render_style_start(uint64_t info, FILE *outstream)
 	    fprintf(outstream, "48;5;%d",
 		    to_vga((int32_t)(info &
 				     ~(BG_COLOR_MASK) >> OFFSET_BG_BLUE)));
-	}
-	if (info) {
-	    fputc(';', outstream);
 	}
     }
     fputc('m', outstream);

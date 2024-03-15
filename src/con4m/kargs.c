@@ -129,7 +129,7 @@ kargs_process_base(char *first_key, va_list actuals, va_list formals)
                 abort();
             }
 // is_read_only_memory() is kinda slow. Make it easy to turn off.
-#ifndef SKIP_KARG_STATIC_MEM_CHECK
+#ifdef DO_KARG_STATIC_MEM_CHECK
             if (!is_read_only_memory(argname) ||
                 // This is a dumb heuristic to try to avoid most
                 // silent crashes that are likely to happen here.  At

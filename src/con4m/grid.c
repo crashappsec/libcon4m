@@ -1,237 +1,45 @@
-// TODO:
-// 1. A tag-based interface for styles to make it easy to tweak styles,
-//    and to be able to use common html style names, etc. Should remove
-//    overrides, etc.
-// 2. Test / debug flex / pct columns.
-// 3. Enable nested tables.
-// 4. Change sizing to work on renderable width not codepoints.
-// 5. Add the ability to add rows or cells easily.
-// 6. Test all the options and look at any render bugs remaining.
-// 7. Now we're ready to add a more generic `print()`.
-// 8. I'd like to do the debug console soon.
+int debug = 0;
 
-// Not soon, but should eventually get done: row spans (column spans
-// are there).
+// TODO for partiy:
+// 1. Enable nested tables (but detect recursion?).
+// 2. Change sizing to work on renderable width not codepoints.
+// 3. Respect no-wrap.
+// 4. Search.
 
-// Also not soon, but should consider allowing style info to "resolve"
-// when strings are
+// Then:
+// 1. Add the ability to add rows or cells easily.
+// 2. Now we're ready to add a more generic `print()`.
+// 3. Deal w/ newlines for fit-to-text (string split).
+// 4. I'd like to do the debug console soon-ish.
+
+// Not soon, but should eventually get done:
+// 1. Row spans (column spans are there; row spans only stubbed).
+// 2. Style doesn't pick up properly w/ col spans ending exactly on middle.
+// 3. Also not soon, but should consider allowing style info to "resolve"
+//    as a better way to fix issues w/ split.
 
 #include <con4m.h>
 
-static col_props_t global_cell_defaults = {
-    .style = FG_COLOR_ON | BG_COLOR_ON | (0x555555UL << 24) | 0x00efef,
-    .pad   = {
-	.left = 1,
-	.right = 1,
-	.top = 0,
-	.bottom = 0
-    },
-    .alignment = ALIGN_TOP_LEFT,
-    .dimensions = {
-	.kind = DIM_AUTO
-    },
-    .wrap = 0,
-    .text_style_override = BOLD_ON | INV_ON | ST_ON | ITALIC_ON |
-    UL_ON | UL_DOUBLE | TITLE_CASE
-};
 
-const border_theme_t border_ascii = {
-    .name            = "ascii",
-    .horizontal_rule = '-',
-    .vertical_rule   = '|',
-    .upper_left      = '/',
-    .upper_right     = '\\',
-    .lower_left      = '\\',
-    .lower_right     = '/',
-    .cross           = '+',
-    .top_t           = '-',
-    .bottom_t        = '-',
-    .left_t          = '|',
-    .right_t         = '|',
-    .next_style      = NULL
-};
-
-const border_theme_t border_asterisk = {
-    .name            = "asterisk",
-    .horizontal_rule = '*',
-    .vertical_rule   = '*',
-    .upper_left      = '*',
-    .upper_right     = '*',
-    .lower_left      = '*',
-    .lower_right     = '*',
-    .cross           = '*',
-    .top_t           = '*',
-    .bottom_t        = '*',
-    .left_t          = '*',
-    .right_t         = '*',
-    .next_style      = (border_theme_t *)&border_ascii
-};
-
-const border_theme_t border_bold_dash2 = {
-    .name            = "bold_dash2",
-    .horizontal_rule = 0x2509,
-    .vertical_rule   = 0x250b,
-    .upper_left      = 0x250f,
-    .upper_right     = 0x2513,
-    .lower_left      = 0x2517,
-    .lower_right     = 0x251b,
-    .cross           = 0x254b,
-    .top_t           = 0x2533,
-    .bottom_t        = 0x253b,
-    .left_t          = 0x2523,
-    .right_t         = 0x252b,
-    .next_style      = (border_theme_t *)&border_asterisk
-};
-
-const border_theme_t border_dash2 = {
-    .name            = "dash2",
-    .horizontal_rule = 0x2508,
-    .vertical_rule   = 0x250a,
-    .upper_left      = 0x250c,
-    .upper_right     = 0x2510,
-    .lower_left      = 0x2514,
-    .lower_right     = 0x2518,
-    .cross           = 0x253c,
-    .top_t           = 0x252c,
-    .bottom_t        = 0x2534,
-    .left_t          = 0x251c,
-    .right_t         = 0x2524,
-    .next_style      = (border_theme_t *)&border_bold_dash2
-};
-
-
-const border_theme_t border_bold_dash = {
-    .name            = "bold_dash",
-    .horizontal_rule = 0x2505,
-    .vertical_rule   = 0x2507,
-    .upper_left      = 0x250f,
-    .upper_right     = 0x2513,
-    .lower_left      = 0x2517,
-    .lower_right     = 0x251b,
-    .cross           = 0x254b,
-    .top_t           = 0x2533,
-    .bottom_t        = 0x253b,
-    .left_t          = 0x2523,
-    .right_t         = 0x252b,
-    .next_style      = (border_theme_t *)&border_dash2
-};
-
-const border_theme_t border_dash =  {
-    .name            = "dash",
-    .horizontal_rule = 0x2504,
-    .vertical_rule   = 0x2506,
-    .upper_left      = 0x250c,
-    .upper_right     = 0x2510,
-    .lower_left      = 0x2514,
-    .lower_right     = 0x2518,
-    .cross           = 0x253c,
-    .top_t           = 0x252c,
-    .bottom_t        = 0x2534,
-    .left_t          = 0x251c,
-    .right_t         = 0x2524,
-    .next_style      = (border_theme_t *)&border_bold_dash
-};
-
-const border_theme_t border_double = {
-    .name            = "double",
-    .horizontal_rule = 0x2550,
-    .vertical_rule   = 0x2551,
-    .upper_left      = 0x2554,
-    .upper_right     = 0x2557,
-    .lower_left      = 0x255a,
-    .lower_right     = 0x255d,
-    .cross           = 0x256c,
-    .top_t           = 0x2566,
-    .bottom_t        = 0x2569,
-    .left_t          = 0x2560,
-    .right_t         = 0x2563,
-    .next_style      = (border_theme_t *)&border_dash
-};
-
-const border_theme_t border_bold =  {
-    .name            = "bold",
-    .horizontal_rule = 0x2501,
-    .vertical_rule   = 0x2503,
-    .upper_left      = 0x250f,
-    .upper_right     = 0x2513,
-    .lower_left      = 0x2517,
-    .lower_right     = 0x251b,
-    .cross           = 0x254b,
-    .top_t           = 0x2533,
-    .bottom_t        = 0x253b,
-    .left_t          = 0x2523,
-    .right_t         = 0x252b,
-    .next_style      = (border_theme_t *)&border_double
-};
-
-const border_theme_t border_plain = {
-    .name            = "plain",
-    .horizontal_rule = 0x2500,
-    .vertical_rule   = 0x2502,
-    .upper_left      = 0x250c,
-    .upper_right     = 0x2510,
-    .lower_left      = 0x2514,
-    .lower_right     = 0x2518,
-    .cross           = 0x253c,
-    .top_t           = 0x252c,
-    .bottom_t        = 0x2534,
-    .left_t          = 0x251c,
-    .right_t         = 0x2524,
-    .next_style      = (border_theme_t *)&border_bold
-};
-
-const border_theme_t *registered_borders = (border_theme_t *)&border_plain;
-
-static inline void
-alloc_grid_props(grid_t *grid)
-{
-    grid->all_row_props = gc_array_alloc(row_props_t, grid->num_rows);
-    grid->all_col_props = gc_array_alloc(col_props_t, grid->num_cols);
+static inline
+render_style_t *
+grid_style(grid_t *grid) {
+    return grid->self->current_style;
 }
+extern void
+apply_container_style(renderable_t *item, char *tag)
 
-static inline border_theme_t *
-get_border_theme(grid_t *grid)
 {
-    if (!grid->border_theme) {
-	return registered_borders;
+    render_style_t *tag_style = lookup_cell_style(tag);
+    if (!tag_style) {
+	return;
     }
 
-    return grid->border_theme;
-}
-
-static inline row_props_t *
-get_cell_row_props(renderable_t *cell)
-{
-    if (!cell->row_props) {
-	return gc_alloc(row_props_t);
+    if (item->current_style == NULL) {
+	item->current_style = tag_style;
     }
-    return cell->row_props;
-}
-
-static inline col_props_t *
-get_cell_col_props(renderable_t *cell)
-{
-    if (!cell->col_props) {
-	return gc_alloc(col_props_t);
-    }
-    return cell->col_props;
-}
-
-static inline void
-internal_set_pad(grid_t *grid, int8_t left, int8_t right, int8_t top,
-		 int8_t bottom)
-{
-    if (left >= 0) {
-	grid->outer_pad.left  = left;
-    }
-    if (right >= 0) {
-	grid->outer_pad.right  = right;
-    }
-    if (top >= 0) {
-	grid->outer_pad.top  = top;
-    }
-    if (bottom >= 0) {
-	grid->outer_pad.top  = bottom;
+    else {
+	layer_styles(tag_style, item->current_style);
     }
 }
 
@@ -255,16 +63,16 @@ get_styled_pad(uint32_t width, style_t style)
 
 
 static xlist_t *
-pad_vertically(grid_t *grid, xlist_t *list, int32_t height, int32_t width,
-	       style_t style)
+pad_lines_vertically(render_style_t *gs, xlist_t *list, int32_t height,
+		     int32_t width)
 {
-    int32_t  len  = xlist_len(list);
-    int32_t  diff = height - len;
-    str_t   *pad;
-    xlist_t *res;
+    int32_t         len  = xlist_len(list);
+    int32_t         diff = height - len;
+    str_t          *pad;
+    xlist_t        *res;
 
     if (len == 0) {
-	pad = get_styled_pad(width, style);
+	pad = get_styled_pad(width, get_pad_style(gs));
     }
     else {
 	pad           = c4str_repeat(' ', width);
@@ -273,7 +81,7 @@ pad_vertically(grid_t *grid, xlist_t *list, int32_t height, int32_t width,
 
 	p->styling = l->styling;
     }
-    switch (grid->outer_alignment & VERTICAL_MASK) {
+    switch (gs->alignment) {
     case ALIGN_BOTTOM:
 	res = con4m_new(T_XLIST, "length", height);
 
@@ -310,122 +118,70 @@ pad_vertically(grid_t *grid, xlist_t *list, int32_t height, int32_t width,
 }
 
 static void
-props_init(row_or_col_props_t *props, va_list args)
-{
-    DECLARE_KARGS(
-	style_t      style               = STYLE_INVALID;
-	int32_t      left                = -1;
-	int32_t      right               = -1;
-	int32_t      top                 = -1;
-	int32_t      bottom              = -1;
-	alignment_t  alignment           = ALIGN_IGNORE;
-	dimspec_t   *dimensions          = NULL;
-	int32_t      wrap                = 0;
-	int32_t      text_style_override = 0;
-	);
-
-    method_kargs(args, style, left, right, top, bottom, alignment,
-		 dimensions, wrap, text_style_override);
-
-    props->style               = style;
-    props->pad.left            = left;
-    props->pad.right           = right;
-    props->pad.top             = top;
-    props->pad.bottom          = bottom;
-    props->alignment           = alignment;
-    props->dimensions          = *dimensions;
-    props->wrap                = wrap;
-    props->text_style_override = text_style_override;
-}
-
-static void
-dimspec_init(dimspec_t *dimensions, va_list args)
-{
-    DECLARE_KARGS(
-	dimspec_kind_t kind   = DIM_AUTO;
-	float          pct    = -1;
-	int64_t        units  = -1;
-	int32_t        min_sz = -1;
-	int32_t        max_sz = -1;
-	);
-
-    method_kargs(args, kind, pct, units, min_sz, max_sz);
-    // TODO: error checking with exception handling.
-
-    dimensions->kind    = kind;
-
-    switch (kind) {
-    case DIM_PERCENT_ROUND:
-    case DIM_PERCENT_TRUNCATE:
-	dimensions->dims.percent = pct;
-	break;
-    case DIM_FLEX_UNITS:
-    case DIM_ABSOLUTE:
-	dimensions->dims.units = units;
-	break;
-    case DIM_ABSOLUTE_RANGE:
-	dimensions->dims.range[0] = min_sz;
-	dimensions->dims.range[1] = max_sz;
-	break;
-    default:
-	break;
-    }
-}
-
-static inline void
-internal_renderable_init(renderable_t *item,      object_t     obj,
-			 uint16_t      start_col, uint16_t     start_row,
-			 style_t       text_style_override)
-{
-    item->raw_item    = obj;
-    item->start_col   = start_col;
-    item->end_col     = start_col + 1;
-    item->start_row   = start_row;
-    item->end_row     = start_row + 1;
-    item->overridable = text_style_override;
-}
-static void
 renderable_init(renderable_t *item, va_list args)
 {
     DECLARE_KARGS(
 	object_t    *obj                 = NULL;
-	int32_t      start_col           = 0;
-	int32_t      start_row           = 0;
-	style_t      text_style_override = 0; // Inherits from row / col too.
+	char        *tag                 = NULL;
 	);
 
-    method_kargs(args, obj, start_col, start_row, text_style_override);
-    internal_renderable_init(item, obj, (uint16_t)start_col,
-			     (uint16_t)start_row, text_style_override);
+    method_kargs(args, obj, tag);
+
+    item->raw_item = obj;
+
+    if (tag != NULL) {
+	apply_container_style(item, tag);
+    }
+}
+
+void
+install_renderable(grid_t *grid, renderable_t *cell,
+		   int start_row, int end_row, int start_col, int end_col)
+{
+    int i, j;
+
+    cell->start_col = start_col;
+    cell->end_col   = end_col;
+    cell->start_row = start_row;
+    cell->end_row   = end_row;
+
+    for (i = start_row; i < end_row; i++) {
+	for (j = start_col; j < end_col; j++) {
+	    *cell_address(grid, i, j) = cell;
+	}
+    }
+
+    if (i < grid->header_rows || j < grid->header_cols) {
+	apply_container_style(cell, get_th_tag(grid));
+    }
+    else {
+	apply_container_style(cell, get_td_tag(grid));
+    }
 }
 
 static void
 grid_init(grid_t *grid, va_list args)
 {
     DECLARE_KARGS(
-	uint32_t      rows         = 1;
-	uint32_t      cols         = 1;
-	uint32_t      spare_rows   = 16;
-	flexarray_t  *contents     = NULL;
-	uint32_t      borders      = 0x3f;
-	style_t       border_style = FG_COLOR_ON | BG_COLOR_ON |
-	                             (0x555555UL << 24) | 0xff007fUL;
-	style_t       pad_style    = FG_COLOR_ON | BG_COLOR_ON;
-	str_t        *border_theme = NULL;
-	row_props_t  *row_defaults = NULL;
-	col_props_t  *col_defaults = &global_cell_defaults;
-	int32_t       left         = -1;
-	int32_t       right        = -1;
-	int32_t       top          = -1;
-	int32_t       bottom       = -1;
-
+	uint32_t      start_rows    = 1;
+	uint32_t      start_cols    = 1;
+	uint32_t      spare_rows    = 16;
+	flexarray_t  *contents      = NULL;
+	char         *container_tag = "table";
+	char         *th_tag        = NULL;
+	char         *td_tag        = NULL;
+	int           header_rows   = 0;
+	int           header_cols   = 0;
 	);
 
-    method_kargs(args, rows, cols, spare_rows, contents, borders,
-		 border_style, pad_style, border_theme, row_defaults,
-		 col_defaults, left, right, top, bottom);
+    method_kargs(args, start_rows, start_cols, spare_rows, contents,
+		 container_tag, th_tag, td_tag, header_rows, header_cols);
 
-    grid->spare_rows = (uint16_t)spare_rows;
+    grid->spare_rows    = (uint16_t)spare_rows;
+    grid->width         = GRID_TERMINAL_DIM;
+    grid->height        = GRID_UNBOUNDED_DIM;
+    grid->td_tag_name   = td_tag;
+    grid->th_tag_name   = th_tag;
 
     if (contents != NULL) {
 	// NOTE: ignoring num_rows and num_cols; could throw an
@@ -434,63 +190,41 @@ grid_init(grid_t *grid, va_list args)
     }
 
     else {
-	grid->num_rows   = (uint16_t)rows;
-	grid->num_cols   = (uint16_t)cols;
-	size_t num_cells = (rows + spare_rows) * cols;
+	grid->num_rows   = (uint16_t)start_rows;
+	grid->num_cols   = (uint16_t)start_cols;
+	size_t num_cells = (start_rows + spare_rows) * start_cols;
 	grid->cells      = gc_array_alloc(renderable_t *, num_cells);
-
     }
 
-    alloc_grid_props(grid);
+    renderable_t *self = con4m_new(T_RENDERABLE, "tag", container_tag,
+				   "obj", grid);
+    grid->self = self;
 
-    grid->default_row_properties = row_defaults;
-    grid->default_col_properties = col_defaults;
-
-    internal_set_pad(grid, (int8_t)left, (int8_t)right,
-		     (int8_t)top, (int8_t)bottom);
-    set_enabled_borders(grid, (border_set_t)borders);
-
-    if (border_theme != NULL) {
-	grid_set_border_theme(grid, (str_t *)border_theme);
-    }
-
-    grid->width        = GRID_TERMINAL_DIM;
-    grid->height       = GRID_UNBOUNDED_DIM;
-    grid->border_color = border_style;
-    grid->pad_color    = pad_style;
+    grid->col_props = gc_array_alloc(render_style_t *, grid->num_cols);
+    grid->row_props = gc_array_alloc(render_style_t *, grid->num_rows +
+				     spare_rows);
 }
 
-void
-_grid_set_outer_pad(grid_t *grid, ...)
+static inline render_style_t *
+get_row_props(grid_t *grid, int row)
 {
-    DECLARE_KARGS(
-	int8_t left   = -1;
-	int8_t right  = -1;
-	int8_t top    = -1;
-	int8_t bottom = -1;
-	);
-
-    kargs(grid, left, right, top, bottom);
-
-    internal_set_pad(grid, left, right, top, bottom);
+    if (!grid->row_props[row]) {
+	return lookup_cell_style("tr");
+    }
+    else {
+	return grid->row_props[row];
+    }
 }
 
-bool
-grid_set_border_theme(grid_t *grid, str_t *name)
+static inline render_style_t *
+get_col_props(grid_t *grid, int col)
 {
-    border_theme_t *cur = registered_borders;
-
-    // If we got passed a u32 make sure it's U8.
-    name = force_utf8(name);
-
-    while (cur != NULL) {
-	if (!strcmp((char *)name, cur->name)) {
-	    grid->border_theme = cur;
-	    return true;
-	}
-	cur = cur->next_style;
+    if (!grid->col_props[col]) {
+	return lookup_cell_style("td");
     }
-    return false;
+    else {
+	return grid->col_props[col];
+    }
 }
 
 // Contents currently must be a list[list[object_t]].  Supply
@@ -523,151 +257,110 @@ grid_set_all_contents(grid_t *g, flexarray_t *contents)
     g->num_cols      = ncols;
 
     for (uint64_t i = 0; i < nrows; i++) {
-
 	uint64_t viewlen = flexarray_view_len(rowviews[i]);
 
 	for (uint64_t j = 0; j < viewlen; j++) {
-	    renderable_t *cell     = con4m_new(T_RENDERABLE);
-	    cell->raw_item         = flexarray_view_next(rowviews[i], &stop);
-	    *cell_address(g, i, j) = cell;
+	    object_t      item = flexarray_view_next(rowviews[i], &stop);
+	    renderable_t *cell = con4m_new(T_RENDERABLE, "obj", item);
+
+	    install_renderable(g, cell, i, i + 1, j, j + 1);
 	}
     }
 }
 
 void
-_grid_add_col_span(grid_t *grid, object_t item, int64_t row, ...)
+grid_add_col_span(grid_t *grid, renderable_t *contents, int64_t row,
+		  int64_t start_col, int64_t num_cols)
 {
-    DECLARE_KARGS(
-	int64_t  start_col           = 0;
-	int64_t  num_cols            = -1;
-	style_t  text_style_override = 0;
-	str_t   *string              = NULL;
-	);
-    kargs(row, start_col, num_cols, text_style_override, string);
-
-    if (row >= grid->num_rows || row < 0) {
-	return; // Later, throw an exception.
-    }
-
     int64_t end_col;
 
     if (num_cols == -1) {
-	end_col = grid->num_cols - 1;
+	end_col = grid->num_cols;
     }
     else {
-	end_col = min(start_col + num_cols - 1, grid->num_cols - 1);
+	end_col = min(start_col + num_cols, grid->num_cols);
     }
 
-    renderable_t *box = con4m_new(
-	T_RENDERABLE,
-	"obj",                 item,
-	"start_row",           row,
-	"start_col",           start_col,
-	"text_style_override", text_style_override);
-
-    box->end_col = end_col;
-
-    for (int64_t col = start_col; col < end_col; col++) {
-	*cell_address(grid, row, col) = box;
-    }
-
-    if (string != NULL) {
-	box->raw_item = to_internal(string);
-    }
-}
-
-void
-_grid_add_row_span(grid_t *grid, object_t item, int64_t col, ...)
-{
-    DECLARE_KARGS(
-	int64_t  start_row           = 0;
-	int64_t  num_rows            = -1;
-	style_t  text_style_override = 0;
-	str_t   *string              = NULL;
-	);
-    kargs(col, start_row, num_rows, text_style_override, string);
-
-    if (col >= grid->num_cols || col < 0) {
+    if (row >= grid->num_rows || row < 0 || start_col < 0 ||
+	(start_col + num_cols) > grid->num_cols) {
 	return; // Later, throw an exception.
     }
 
+    install_renderable(grid, contents, row, row + 1, start_col, end_col);
+}
+
+void
+grid_add_row_span(grid_t *grid, renderable_t *contents, int64_t col,
+		  int64_t start_row, int64_t num_rows)
+{
     int64_t end_row;
 
     if (num_rows == -1) {
-	end_row = grid->num_rows;
+	end_row = grid->num_rows - 1;
     }
     else {
-	end_row = min(start_row + num_rows, grid->num_rows);
+	end_row = min(start_row + num_rows - 1, grid->num_rows - 1);
     }
 
-    renderable_t *box = con4m_new(
-	T_RENDERABLE,
-	"obj",                 item,
-	"start_row",           start_row,
-	"start_col",           col,
-	"text_style_override", text_style_override);
-
-    box->end_row = end_row;
-
-    for (int64_t row = start_row; row < end_row; row++) {
-	*cell_address(grid, row, col) = box;
+    if (col >= grid->num_cols || col < 0 || start_row < 0 ||
+	(start_row + num_rows) > grid->num_rows) {
+	return; // Later, throw an exception.
     }
 
-    if (string != NULL) {
-	box->raw_item = to_internal(string);
-    }
-}
-
-static inline col_props_t *
-lookup_grid_col_props(grid_t *grid, int i)
-{
-    if (!grid->all_col_props) {
-	return grid->default_col_properties;
-    }
-
-    col_props_t *res = grid->all_col_props[i];
-
-    if (res == NULL) {
-	return grid->default_col_properties;
-    }
-    return res;
-}
-
-static inline row_props_t *
-lookup_grid_row_props(grid_t *grid, int i)
-{
-    if (!grid->all_row_props) {
-	return grid->default_row_properties;
-    }
-
-    row_props_t *res = grid->all_row_props[i];
-
-    if (res == NULL) {
-	return grid->default_row_properties;
-    }
-    return res;
+    install_renderable(grid, contents, start_row, end_row, col, col + 1);
 }
 
 static inline int16_t
 get_column_render_overhead(grid_t *grid)
 {
-    int16_t result = grid->outer_pad.left + grid->outer_pad.right;
+    render_style_t *gs  = grid_style(grid);
 
-    if (grid->enabled_borders & BORDER_LEFT) {
+    int16_t result = gs->left_pad + gs->right_pad;
+
+    if (gs->borders & BORDER_LEFT) {
 	result += 1;
     }
 
-    if (grid->enabled_borders & BORDER_RIGHT) {
+    if (gs->borders & BORDER_RIGHT) {
 	result += 1;
     }
 
-    if (grid->enabled_borders & INTERIOR_VERTICAL) {
+    if (gs->borders & INTERIOR_VERTICAL) {
 	result += grid->num_cols - 1;
     }
 
     return result;
 }
 
+static inline int
+column_text_width(grid_t *grid, int col)
+{
+    // For now, this doesn't take newlines into acccount.
+    int         max_width = 0;
+    real_str_t *s;
+
+    for (int i = 0; i < grid->num_rows; i++) {
+	renderable_t *cell = *cell_address(grid, i, col);
+
+	// Skip any spans except one-cell vertical spans..
+	if (!cell || cell->start_row != i || cell->start_col != col ||
+	    cell->end_col != col + 1) {
+	    continue;
+	}
+	switch (get_base_type(cell->raw_item)) {
+	case T_STR:
+	case T_UTF32:
+	    s     = (real_str_t *)cell->raw_item;
+	    int n = internal_num_cp(s);
+	    if (n > max_width) {
+		max_width = n;
+	    }
+	default:
+	    continue;
+	}
+    }
+    return max_width;
+}
 // Here, render width indicates the actual dimensions that rendering
 // will produce, knowing that it might be less than or greater than the
 // desired width (which we'll handle by padding or truncating).
@@ -675,11 +368,14 @@ get_column_render_overhead(grid_t *grid)
 static int16_t *
 calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
 {
-    size_t       term_width;
-    int16_t     *result = gc_array_alloc(uint16_t, grid->num_cols);
-    int16_t      sum    = get_column_render_overhead(grid);
-    col_props_t *props;
+    size_t          term_width;
+    int16_t        *result      = gc_array_alloc(uint16_t, grid->num_cols);
+    int16_t         sum         = get_column_render_overhead(grid);
+    render_style_t *props;
 
+    for (int i = 0; i < grid->num_cols; i ++) {
+	props = get_col_props(grid, i);
+    }
     if (width == GRID_USE_STORED) {
 	width = grid->width;
     }
@@ -697,15 +393,15 @@ calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
 	result = gc_array_alloc(uint16_t, grid->num_cols);
 
 	for (int i = 0; i < grid->num_cols; i++) {
-	    props = lookup_grid_col_props(grid, i);
+	    props = get_col_props(grid, i);
 
-	    switch (props->dimensions.kind) {
+	    switch (props->dim_kind) {
 	    case DIM_ABSOLUTE:
-		result[i] = (uint16_t)props->dimensions.dims.units;
+		result[i] = (uint16_t)props->dims.units;
 		sum      += result[i];
 		break;
 	    case DIM_ABSOLUTE_RANGE:
-		result[i] = (uint16_t)props->dimensions.dims.range[1];
+		result[i] = (uint16_t)props->dims.range[1];
 		sum      += result[i];
 		break;
 	    default:
@@ -740,46 +436,53 @@ calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
     float    pct;
 
     for (int i = 0; i < grid->num_cols; i++) {
+	props = get_col_props(grid, i);
 
-	props = lookup_grid_col_props(grid, i);
-
-	switch (props->dimensions.kind) {
+	switch (props->dim_kind) {
 	case DIM_ABSOLUTE:
-	    cur        = (uint16_t)props->dimensions.dims.units;
+	    cur        = (uint16_t)props->dims.units;
 	    result[i]  = cur;
 	    sum       += cur;
 	    remaining -= cur;
 	    continue;
 	case DIM_ABSOLUTE_RANGE:
 	    has_range  = true;
-            cur        = (uint16_t)props->dimensions.dims.range[0];
+            cur        = (uint16_t)props->dims.range[0];
 	    result[i]  = cur;
 	    sum       += cur;
 	    remaining -= cur;
 	    continue;
 	case DIM_PERCENT_TRUNCATE:
-	    pct        = (props->dimensions.dims.percent / 100);
-	    cur        = (uint16_t)(pct * remaining);
+	    pct        = (props->dims.percent / 100);
+	    cur        = (uint16_t)(pct * width);
 	    result[i]  = cur;
 	    sum       += cur;
 	    remaining -= cur;
 	    continue;
 	case DIM_PERCENT_ROUND:
-	    pct        = (props->dimensions.dims.percent / 100);
-	    cur        = (uint16_t)(0.5 + (pct * remaining));
+	    pct        = (props->dims.percent + 0.5) / 100;
+	    cur        = (uint16_t)(pct * width);
 	    result[i]  = cur;
 	    sum       += cur;
 	    remaining -= cur;
 	    continue;
+	case DIM_FIT_TO_TEXT:
+	    cur        = column_text_width(grid, i);
+	    result[i]  = cur;
+	    sum       += cur;
+	    remaining -= cur;
+
+	    continue;
+	case DIM_UNSET:
 	case DIM_AUTO:
 	    flex_units += 1;
 	    num_flex   += 1;
 	    continue;
 	case DIM_FLEX_UNITS:
-	    flex_units += props->dimensions.dims.units;
+	    flex_units += props->dims.units;
 
 	    // We don't count this if it's set to 0.
-	    if (props->dimensions.dims.units != 0) {
+	    if (props->dims.units != 0) {
 		num_flex += 1;
 	    }
 	    continue;
@@ -796,11 +499,12 @@ calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
     // try to give ranged cells their maximum, up to the remaining width.
     if (has_range) {
 	for (int i = 0; i < grid->num_cols; i++) {
-	    if (props->dimensions.kind != DIM_ABSOLUTE_RANGE) {
+	    props = get_col_props(grid, i);
+
+	    if (props->dim_kind != DIM_ABSOLUTE_RANGE) {
 		continue;
 	    }
-	    int32_t desired = props->dimensions.dims.range[1] -
-		props->dimensions.dims.range[0];
+	    int32_t desired = props->dims.range[1] - props->dims.range[0];
 
 	    if (desired <= 0) {
 		continue;
@@ -828,15 +532,18 @@ calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
     float flex_width = remaining / (float)flex_units;
 
     for (int i = 0; i < grid->num_cols; i++) {
+	props = get_col_props(grid, i);
+
 	uint64_t units = 1;
 
-	switch (props->dimensions.kind) {
+	switch (props->dim_kind) {
 	case DIM_FLEX_UNITS:
-	    units = props->dimensions.dims.units;
+	    units = props->dims.units;
 	    if (units == 0) {
 		continue;
 	    }
 	    /* fallthrough; */
+	case DIM_UNSET:
 	case DIM_AUTO:
 	    if (--num_flex == 0) {
 		result[i] += remaining;
@@ -849,6 +556,7 @@ calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
 	    result[i]  = cur;
 	    sum       += cur;
 	    remaining -= cur;
+	    continue;
 	default:
 	    continue;
 	}
@@ -856,13 +564,6 @@ calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
 
     *render_width = sum;
     return result;
-}
-
-static inline style_t
-grid_blend_color(style_t style1, style_t style2)
-{
-    // We simply do a linear average of the colors.
-    return ((style1 & ~FG_COLOR_MASK) + (style2 & ~FG_COLOR_MASK)) >> 1;
 }
 
 // This takes what's passed in about default style info, and preps the
@@ -881,152 +582,14 @@ grid_blend_color(style_t style1, style_t style2)
 // both specify (in the future we will probably add an layer ordering
 // and an alpha value here, but for now we just do 50%).
 
-static inline style_t
-get_cell_style(renderable_t *cell)
-{
-    if (cell->applied_style != 0) {
-	return cell->applied_style;
-
-    }
-    style_t row_style = get_cell_row_props(cell)->style;
-    style_t col_style = get_cell_col_props(cell)->style;
-
-    // If nobody has colors on, OR-ing the two things together
-    // works pretty well (the only real issue is the possibility
-    // of having both single and double undeline bits set).
-    style_t result = row_style | col_style;
-    // Here we pull out the bits they both have set, so we can check
-    // if we need to blend colors.
-    style_t dupes  = row_style & col_style;
-    if (dupes & FG_COLOR_ON) {
-	// Clear the color; we're going to have to blend it.
-	result &= FG_COLOR_MASK;
-	result |= grid_blend_color(row_style, col_style);
-    }
-    if (dupes & BG_COLOR_ON) {
-	result &= BG_COLOR_MASK;
-	result |= (grid_blend_color(row_style >> 24, col_style >> 24) << 24);
-    }
-
-    cell->applied_style = result;
-
-    return result;
-}
-
-static inline style_t
-get_overridable_style(renderable_t *cell)
-{
-    row_props_t *rprops = get_cell_row_props(cell);
-    col_props_t *cprops = get_cell_col_props(cell);
-
-    style_t r_override = 0;
-    style_t c_override = 0;
-
-    if (rprops == NULL && cprops == NULL) {
-	return global_cell_defaults.text_style_override | cell->overridable;
-    }
-
-    if (rprops != NULL) r_override = rprops->text_style_override;
-    if (cprops != NULL) c_override = cprops->text_style_override;
-
-    return ~(r_override | c_override | cell->overridable);
-}
-
-// Here, we generally will take from the cell's style, but there can
-// be overrides, and if there are, we use them.
-static inline style_t
-grid_new_text_style(renderable_t *cell, style_t text_style)
-{
-    style_t cell_style  = get_cell_style(cell);
-    style_t overrides   = get_overridable_style(cell);
-    style_t to_override = overrides & text_style & ~FLAG_MASK;
-
-    if (to_override & FG_COLOR_ON) {
-	cell_style &= FG_COLOR_MASK;
-	cell_style |= text_style & ~FG_COLOR_MASK;
-    }
-
-    if (to_override & BG_COLOR_ON) {
-	cell_style &= BG_COLOR_MASK;
-	cell_style |= text_style & ~BG_COLOR_MASK;
-    }
-
-    return cell_style | to_override;
-}
-
-static inline
-int8_t get_wrap(renderable_t *cell)
-{
-    int8_t res = cell->wrap_override;
-
-    if (res) {
-	return res;
-    }
-
-    row_props_t *rprops = get_cell_row_props(cell);
-    col_props_t *cprops = get_cell_col_props(cell);
-
-    if (!rprops && !cprops) return 0;
-    if (!rprops) return cprops->wrap;
-    if (!cprops) return rprops->wrap;
-    return max(cprops->wrap, rprops->wrap);
-}
-
-#define def_pad_func(pad_location)                                             \
-    static inline uint8_t                                                      \
-    get_ ## pad_location ## _pad(renderable_t *cell) { 	                       \
-	row_props_t *rprops = get_cell_row_props(cell);                        \
-        col_props_t *cprops = get_cell_col_props(cell);			       \
-        if (cell->pad_overrides.pad_location > 0) {                            \
-            return cell->pad_overrides.pad_location;                           \
-        }                                                                      \
-	if (!rprops && !cprops) return 0;                                      \
-	if (!rprops) return cprops->pad.pad_location;                          \
-	if (!cprops) return rprops->pad.pad_location;                          \
-	return max(cprops->pad.pad_location, rprops->pad.pad_location);        \
-    }
-
-def_pad_func(top);
-def_pad_func(bottom);
-def_pad_func(left);
-def_pad_func(right);
-
-// Flag indicates whether to prioritize the horizontal alignment,
-// which we prefer to take from columns.
-static inline alignment_t
-get_alignment(renderable_t *cell, bool horizontal)
-{
-    if (cell->alignment_overrides) {
-	return cell->alignment_overrides;
-    }
-
-    if (horizontal) {
-	if (cell->col_props) {
-	    return cell->col_props->alignment;
-	}
-	if (cell->row_props) {
-	    return cell->row_props->alignment;
-	}
-    }
-    else {
-	if (cell->row_props) {
-	    return cell->row_props->alignment;
-	}
-	if (cell->col_props) {
-	    return cell->col_props->alignment;
-	}
-    }
-    return ALIGN_MID_LEFT;
-}
-
 static inline str_t *
-pad_and_style_line(renderable_t *cell, int16_t width, str_t *line)
+pad_and_style_line(grid_t *grid, renderable_t *cell, int16_t width, str_t *line)
 {
 
-    alignment_t align = get_alignment(cell, true) & HORIZONTAL_MASK;
+    alignment_t align = cell->current_style->alignment & HORIZONTAL_MASK;
     int64_t     len   = c4str_len(line);
-    uint8_t     lnum  = get_left_pad(cell);
-    uint8_t     rnum  = get_right_pad(cell);
+    uint8_t     lnum  = cell->current_style->left_pad;
+    uint8_t     rnum  = cell->current_style->right_pad;
     int64_t     diff  = width - len - lnum - rnum;
     str_t      *lpad;
     str_t      *rpad;
@@ -1050,11 +613,23 @@ pad_and_style_line(renderable_t *cell, int16_t width, str_t *line)
 	}
     }
 
-    style_t     cell_style = get_cell_style(cell);
-    style_t     lpad_style = cell_style;
-    style_t     rpad_style = cell_style;
+
+    render_style_t *col_style   = get_col_props(grid, cell->start_col);
+    render_style_t *row_style   = get_row_props(grid, cell->start_row);
+    render_style_t *cur_style   = cell->current_style;
+    render_style_t *merge_style = copy_render_style(cell->current_style);
+
+    layer_styles(col_style, merge_style);
+    layer_styles(row_style, merge_style);
+
+
+
+    style_t     cell_style = merge_style->base_style.style;
+    style_t     lpad_style = get_pad_style(merge_style);
+    style_t     rpad_style = lpad_style;
     str_t      *copy       = c4str_copy(line);
     real_str_t *real       = to_internal(copy);
+
 
     style_gaps(real, cell_style);
 
@@ -1069,22 +644,24 @@ pad_and_style_line(renderable_t *cell, int16_t width, str_t *line)
 
     str_t *result = c4str_concat(c4str_concat(lpad, copy), rpad);
 
-
     return result;
 }
 
 static inline uint16_t
-str_render_cell(str_t *s, renderable_t *cell, int16_t width, int16_t height)
+str_render_cell(grid_t *grid, str_t *s, renderable_t *cell, int16_t width,
+		int16_t height)
 {
-    int8_t  wrap              = get_wrap(cell);
-    break_info_t *line_starts = wrap_text(s, width - 1, wrap);
+    int             pad       = cell->current_style->left_pad +
+	cell->current_style->right_pad;
+    render_style_t *cs        = cell->current_style;
+    break_info_t *line_starts = wrap_text(s, width - pad, cs->wrap);
 
-    xlist_t *res = con4m_new(T_XLIST);
+    xlist_t *res      = con4m_new(T_XLIST);
+    str_t   *pad_line = pad_and_style_line(grid, cell, width, empty_string());
     str_t   *line;
-    str_t   *pad_line = pad_and_style_line(cell, width, empty_string());
     int      i;
 
-    for (i = 0; i < get_top_pad(cell); i++) {
+    for (i = 0; i < cs->top_pad; i++) {
 	xlist_append(res, pad_line);
     }
 
@@ -1092,17 +669,17 @@ str_render_cell(str_t *s, renderable_t *cell, int16_t width, int16_t height)
 	line = c4str_slice(s, line_starts->breaks[i],
 				  line_starts->breaks[i + 1]);
 	line = c4str_strip(line);
-	xlist_append(res, pad_and_style_line(cell, width, line));
+	xlist_append(res, pad_and_style_line(grid, cell, width, line));
     }
 
     if (i == (line_starts->num_breaks - 1)) {
 	int b = line_starts->breaks[i];
 	line  = c4str_slice(s, b, c4str_len(s));
 	line = c4str_strip(line);
-	xlist_append(res, pad_and_style_line(cell, width, line));
+	xlist_append(res, pad_and_style_line(grid, cell, width, line));
     }
 
-    for (i = 0; i < get_bottom_pad(cell); i++) {
+    for (i = 0; i < cs->bottom_pad; i++) {
 	xlist_append(res, pad_line);
     }
 
@@ -1114,18 +691,20 @@ str_render_cell(str_t *s, renderable_t *cell, int16_t width, int16_t height)
 // Renders to the exact width, and via the height. For now, we're just going
 // to handle text objects, and then sub-grids.
 static inline uint16_t
-render_to_cache(renderable_t *cell, int16_t width, int16_t height)
+render_to_cache(grid_t *grid, renderable_t *cell, int16_t width, int16_t height)
 {
+    assert (cell->raw_item != NULL);
+
     switch (get_base_type(cell->raw_item)) {
     case T_STR:
     case T_UTF32:
     {
 	real_str_t *r = (real_str_t *)cell->raw_item;
 	if (cell->end_col - cell->start_col != 1) {
-	    str_render_cell(force_utf32((str_t *)r->data),
-			       cell, width, height);
+	    str_render_cell(grid, force_utf32((str_t *)r->data),
+			    cell, width, height);
 	}
-	return str_render_cell(force_utf32((str_t *)r->data),
+	return str_render_cell(grid, force_utf32((str_t *)r->data),
 			       cell, width, height);
     }
     case T_GRID:
@@ -1141,37 +720,18 @@ static inline void
 grid_add_blank_cell(grid_t *grid, uint16_t row, uint16_t col, int16_t width,
 		    int16_t height)
 {
-    renderable_t *cell = con4m_new(T_RENDERABLE,
-				   "start_row", row,
-				   "start_col", col);
+    real_str_t   *empty = to_internal((str_t *)empty_string());
+    renderable_t *cell  = con4m_new(T_RENDERABLE, "obj", empty);
 
-    cell->raw_item  = to_internal((str_t *)empty_string());
-
-    // TODO-- all_row_props aren't being set right, or
-    // else this would be grey.
-    cell->row_props = (row_props_t *)&grid->all_row_props[row];
-    cell->col_props = (col_props_t *)&grid->all_col_props[col];
-
-
-    if (!cell->row_props) {
-	cell->row_props = grid->default_row_properties;
-    }
-    if (!cell->col_props) {
-	cell->col_props = grid->default_col_properties;
-    }
-
-    *cell_address(grid, row, col) = cell;
-
-    render_to_cache(cell, width, -1);
+    install_renderable(grid, cell, row, row + 1, col, col + 1);
+    render_to_cache(grid, cell, width, height);
 }
 
 static inline int16_t *
 grid_pre_render(grid_t *grid, int16_t *col_widths)
 {
-    row_props_t *row_props;
-    col_props_t *col_props;
-
-    int16_t *row_heights = gc_array_alloc(int16_t *, grid->num_rows);
+    int16_t        *row_heights = gc_array_alloc(int16_t *, grid->num_rows);
+    render_style_t *gs          = grid_style(grid);
 
     // Run through and tell the individual items to render.
     // For now we tell them all to render to whatever height.
@@ -1198,27 +758,12 @@ grid_pre_render(grid_t *grid, int16_t *col_widths)
 	    }
 
 	    // Make sure to account for borders in spans.
-	    if (grid->enabled_borders & INTERIOR_VERTICAL) {
+	    if (gs->borders & INTERIOR_VERTICAL) {
 		width += cell->end_col - j - 1;
 	    }
 
 	    cell->render_width = width;
-
-	    row_props = lookup_grid_row_props(grid, i);
-	    col_props = lookup_grid_col_props(grid, j);
-
-	    if (row_props == NULL) {
-		row_props = grid->default_row_properties;
-	    }
-
-	    if (col_props == NULL) {
-		col_props = grid->default_col_properties;
-	    }
-
-	    cell->row_props = row_props;
-	    cell->col_props = col_props;
-	    cell_height     = render_to_cache(cell, width, -1);
-
+	    cell_height        = render_to_cache(grid, cell, width, -1);
 
 	    if (cell_height > row_height) {
 		row_height = cell_height;
@@ -1241,41 +786,24 @@ grid_pre_render(grid_t *grid, int16_t *col_widths)
 	    // TODO: handle vertical spans properly; this does
 	    // not.  Right now we're assuming all heights are
 	    // dynamic to the longest content.
-	    cell->render_cache = pad_vertically(grid, cell->render_cache,
-						row_height, cell->render_width,
-						get_cell_style(cell));
+	    cell->render_cache = pad_lines_vertically(gs, cell->render_cache,
+						row_height, cell->render_width);
 	}
 
     }
     return row_heights;
 }
 
-static inline style_t
-get_border_color(grid_t *grid)
-{
-    return grid->border_color;
-}
-
-static inline style_t
-get_pad_color(grid_t *grid)
-{
-
-    if (grid->pad_color) {
-	return grid->pad_color;
-    }
-
-    return get_border_color(grid);
-}
-
 static inline void
 grid_add_top_pad(grid_t *grid, xlist_t *lines, int16_t width) {
-    int top = grid->outer_pad.top;
+    render_style_t *gs  = grid_style(grid);
+    int             top = gs->top_pad;
 
     if (!top) {
 	return;
     }
 
-    str_t *pad = get_styled_pad(width, get_pad_color(grid));
+    str_t *pad = get_styled_pad(width, get_pad_style(gs));
 
     for (int i = 0; i < top; i++) {
 	xlist_append(lines, pad);
@@ -1283,15 +811,15 @@ grid_add_top_pad(grid_t *grid, xlist_t *lines, int16_t width) {
 }
 
 static inline void
-grid_add_bottom_pad(grid_t *grid, xlist_t *lines, int16_t width)
-{
-    int bottom = grid->outer_pad.bottom;
+grid_add_bottom_pad(grid_t *grid, xlist_t *lines, int16_t width) {
+    render_style_t *gs     = grid_style(grid);
+    int             bottom = gs->bottom_pad;
 
     if (!bottom) {
 	return;
     }
 
-    str_t *pad = get_styled_pad(width, get_pad_color(grid));
+    str_t *pad = get_styled_pad(width, get_pad_style(gs));
 
     for (int i = 0; i < bottom; i++) {
 	xlist_append(lines, pad);
@@ -1301,6 +829,7 @@ grid_add_bottom_pad(grid_t *grid, xlist_t *lines, int16_t width)
 static inline void
 grid_add_top_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 {
+    render_style_t *gs           = grid_style(grid);
     int32_t         border_width = 0;
     int             vertical_borders;
     border_theme_t *draw_chars;
@@ -1309,29 +838,25 @@ grid_add_top_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
     style_t         pad_color;
 
 
-    if (!(grid->enabled_borders & BORDER_TOP)) {
+    if (!(gs->borders & BORDER_TOP)) {
 	return;
     }
 
-    draw_chars = get_border_theme(grid);
-
-    if (draw_chars == NULL) {
-	draw_chars = registered_borders;
-    }
+    draw_chars = get_border_theme(gs);
 
     for (int i = 0; i < grid->num_cols; i++) {
 	border_width += col_widths[i];
     }
 
-    if (grid->enabled_borders & BORDER_LEFT) {
+    if (gs->borders & BORDER_LEFT) {
 	border_width++;
     }
 
-    if (grid->enabled_borders & BORDER_RIGHT) {
+    if (gs->borders & BORDER_RIGHT) {
 	border_width++;
     }
 
-    vertical_borders = grid->enabled_borders & INTERIOR_VERTICAL;
+    vertical_borders = gs->borders & INTERIOR_VERTICAL;
 
     if (vertical_borders) {
 	border_width += grid->num_cols - 1;
@@ -1339,9 +864,10 @@ grid_add_top_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 
     s = (str_t *)con4m_new(T_UTF32, "length", border_width);
     p = (int32_t *)s;
+
     (to_internal(s))->codepoints = ~border_width;
 
-    if (grid->enabled_borders & BORDER_LEFT) {
+    if (gs->borders & BORDER_LEFT) {
 	*p++ = draw_chars->upper_left;
     }
 
@@ -1355,15 +881,15 @@ grid_add_top_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 	}
     }
 
-    if (grid->enabled_borders & BORDER_RIGHT) {
+    if (gs->borders & BORDER_RIGHT) {
 	*p++ = draw_chars->upper_right;
     }
 
-    c4str_apply_style(s, get_border_color(grid));
+    c4str_apply_style(s, get_string_style(gs));
 
-    pad_color = get_pad_color(grid);
-    lpad      = get_styled_pad(grid->outer_pad.left, pad_color);
-    rpad      = get_styled_pad(grid->outer_pad.right, pad_color);
+    pad_color = get_pad_style(gs);
+    lpad      = get_styled_pad(gs->left_pad, pad_color);
+    rpad      = get_styled_pad(gs->right_pad, pad_color);
 
     xlist_append(lines, c4str_concat(c4str_concat(lpad, s), rpad));
 }
@@ -1371,6 +897,7 @@ grid_add_top_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 static inline void
 grid_add_bottom_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 {
+    render_style_t *gs           = grid_style(grid);
     int32_t         border_width = 0;
     int             vertical_borders;
     border_theme_t *draw_chars;
@@ -1378,29 +905,25 @@ grid_add_bottom_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
     int32_t        *p;
     style_t         pad_color;
 
-    if (!(grid->enabled_borders & BORDER_BOTTOM)) {
+    if (!(gs->borders & BORDER_BOTTOM)) {
 	return;
     }
 
-    draw_chars = get_border_theme(grid);
-
-    if (draw_chars == NULL) {
-	draw_chars = registered_borders;
-    }
+    draw_chars = get_border_theme(gs);
 
     for (int i = 0; i < grid->num_cols; i++) {
 	border_width += col_widths[i];
     }
 
-    if (grid->enabled_borders & BORDER_LEFT) {
+    if (gs->borders & BORDER_LEFT) {
 	border_width++;
     }
 
-    if (grid->enabled_borders & BORDER_RIGHT) {
+    if (gs->borders & BORDER_RIGHT) {
 	border_width++;
     }
 
-    vertical_borders = grid->enabled_borders & INTERIOR_VERTICAL;
+    vertical_borders = gs->borders & INTERIOR_VERTICAL;
 
     if (vertical_borders) {
 	border_width += grid->num_cols - 1;
@@ -1410,7 +933,7 @@ grid_add_bottom_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
     p = (int32_t *)s;
     (to_internal(s))->codepoints = ~border_width;
 
-    if (grid->enabled_borders & BORDER_LEFT) {
+    if (gs->borders & BORDER_LEFT) {
 	*p++ = draw_chars->lower_left;
     }
 
@@ -1424,15 +947,15 @@ grid_add_bottom_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 	}
     }
 
-    if (grid->enabled_borders & BORDER_RIGHT) {
+    if (gs->borders & BORDER_RIGHT) {
 	*p++ = draw_chars->lower_right;
     }
 
-    c4str_apply_style(s, get_border_color(grid));
+    c4str_apply_style(s, get_string_style(gs));
 
-    pad_color = get_pad_color(grid);
-    lpad      = get_styled_pad(grid->outer_pad.left, pad_color);
-    rpad      = get_styled_pad(grid->outer_pad.right, pad_color);
+    pad_color = get_pad_style(gs);
+    lpad      = get_styled_pad(gs->left_pad, pad_color);
+    rpad      = get_styled_pad(gs->right_pad, pad_color);
 
     xlist_append(lines, c4str_concat(c4str_concat(lpad, s), rpad));
 }
@@ -1440,6 +963,7 @@ grid_add_bottom_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 static inline void
 grid_add_horizontal_rule(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 {
+    render_style_t *gs           = grid_style(grid);
     int32_t         border_width = 0;
     int             vertical_borders;
     border_theme_t *draw_chars;
@@ -1447,29 +971,25 @@ grid_add_horizontal_rule(grid_t *grid, xlist_t *lines, int16_t *col_widths)
     int32_t        *p;
     style_t         pad_color;
 
-    if (!(grid->enabled_borders & INTERIOR_HORIZONTAL)) {
+    if (!(gs->borders & INTERIOR_HORIZONTAL)) {
 	return;
     }
 
-    draw_chars = get_border_theme(grid);
-
-    if (draw_chars == NULL) {
-	draw_chars = registered_borders;
-    }
+    draw_chars = get_border_theme(gs);
 
     for (int i = 0; i < grid->num_cols; i++) {
 	border_width += col_widths[i];
     }
 
-    if (grid->enabled_borders & BORDER_LEFT) {
+    if (gs->borders & BORDER_LEFT) {
 	border_width++;
     }
 
-    if (grid->enabled_borders & BORDER_RIGHT) {
+    if (gs->borders & BORDER_RIGHT) {
 	border_width++;
     }
 
-    vertical_borders = grid->enabled_borders & INTERIOR_VERTICAL;
+    vertical_borders = gs->borders & INTERIOR_VERTICAL;
 
     if (vertical_borders) {
 	border_width += grid->num_cols - 1;
@@ -1479,7 +999,7 @@ grid_add_horizontal_rule(grid_t *grid, xlist_t *lines, int16_t *col_widths)
     p = (int32_t *)s;
     (to_internal(s))->codepoints = ~border_width;
 
-    if (grid->enabled_borders & BORDER_LEFT) {
+    if (gs->borders & BORDER_LEFT) {
 	*p++ = draw_chars->left_t;
     }
 
@@ -1493,15 +1013,15 @@ grid_add_horizontal_rule(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 	}
     }
 
-    if (grid->enabled_borders & BORDER_RIGHT) {
+    if (gs->borders & BORDER_RIGHT) {
 	*p++ = draw_chars->right_t;
     }
 
-    c4str_apply_style(s, get_border_color(grid));
+    c4str_apply_style(s, get_string_style(gs));
 
-    pad_color = get_pad_color(grid);
-    lpad      = get_styled_pad(grid->outer_pad.left, pad_color);
-    rpad      = get_styled_pad(grid->outer_pad.right, pad_color);
+    pad_color = get_pad_style(gs);
+    lpad      = get_styled_pad(gs->left_pad, pad_color);
+    rpad      = get_styled_pad(gs->right_pad, pad_color);
 
     xlist_append(lines, c4str_concat(c4str_concat(lpad, s), rpad));
 }
@@ -1510,11 +1030,12 @@ grid_add_horizontal_rule(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 static inline xlist_t *
 grid_add_left_pad(grid_t *grid, int height)
 {
-    xlist_t *res  = con4m_new(T_XLIST, "length", height);
-    str_t   *lpad = empty_string();
+    render_style_t *gs   = grid_style(grid);
+    xlist_t        *res  = con4m_new(T_XLIST, "length", height);
+    str_t          *lpad = empty_string();
 
-    if (grid->outer_pad.left > 0) {
-	lpad = get_styled_pad(grid->outer_pad.left, get_pad_color(grid));
+    if (gs->left_pad > 0) {
+	lpad = get_styled_pad(gs->left_pad, get_pad_style(gs));
     }
 
     for (int i = 0; i < height; i++) {
@@ -1527,11 +1048,13 @@ grid_add_left_pad(grid_t *grid, int height)
 static inline void
 grid_add_right_pad(grid_t *grid, xlist_t *lines)
 {
-    if (grid->outer_pad.right <= 0) {
+    render_style_t *gs   = grid_style(grid);
+
+    if (gs->right_pad <= 0) {
 	return;
     }
 
-    str_t *rpad = get_styled_pad(grid->outer_pad.right, get_pad_color(grid));
+    str_t *rpad = get_styled_pad(gs->right_pad, get_pad_style(gs));
 
     for (int i = 0; i < xlist_len(lines); i++) {
 	str_t *s = (str_t *)xlist_get(lines, i, NULL);
@@ -1542,12 +1065,14 @@ grid_add_right_pad(grid_t *grid, xlist_t *lines)
 static inline void
 add_vertical_bar(grid_t *grid, xlist_t *lines, border_set_t to_match)
 {
-    if (!(grid->enabled_borders & to_match)) {
+    render_style_t *gs = grid_style(grid);
+
+    if (!(gs->borders & to_match)) {
 	return;
     }
 
-    border_theme_t *border_theme = get_border_theme(grid);
-    style_t         border_color = get_border_color(grid);
+    border_theme_t *border_theme = get_border_theme(gs);
+    style_t         border_color = get_string_style(gs);
     str_t          *bar;
 
     bar = styled_repeat(border_theme->vertical_rule, 1, border_color);
@@ -1579,9 +1104,10 @@ grid_add_vertical_rule(grid_t *grid, xlist_t *lines)
 static void
 crop_vertically(grid_t *grid, xlist_t *lines, int32_t height)
 {
-    int32_t diff = height - xlist_len(lines);
+    render_style_t *gs   = grid_style(grid);
+    int32_t         diff = height - xlist_len(lines);
 
-    switch (grid->outer_alignment & VERTICAL_MASK) {
+    switch (gs->alignment & VERTICAL_MASK) {
     case ALIGN_BOTTOM:
 	for (int i = 0; i < height; i++) {
 	    xlist_set(lines, i, xlist_get(lines, i + diff, NULL));
@@ -1600,12 +1126,16 @@ crop_vertically(grid_t *grid, xlist_t *lines, int32_t height)
 }
 
 static inline str_t *
-align_and_crop_grid_line(str_t *line, int32_t width, alignment_t align,
-			 style_t pad_style)
+align_and_crop_grid_line(grid_t *grid, str_t *line, int32_t width)
 {
+    render_style_t *gs        = grid_style(grid);
+    alignment_t     align     = gs->alignment;
+    style_t         pad_style = get_pad_style(gs);
+
     // Called on one grid line if we need to align or crop it.
     int32_t diff = width - c4str_render_len(line);
     str_t  *pad;
+
     if (diff > 0) {
 	// We need to pad. Here, we use the alignment info.
 	switch (align & HORIZONTAL_MASK) {
@@ -1629,16 +1159,15 @@ align_and_crop_grid_line(str_t *line, int32_t width, alignment_t align,
     }
     else {
 	// We need to crop. For now, we ONLY crop from the right.
-	return c4str_truncate(line, (int64_t)width, "use_render_width", 1);
+	return c4str_truncate(line, (int64_t)width);
+	//, "use_render_width", 1);
     }
 }
 
 static xlist_t *
 align_and_crop_grid(grid_t *grid, xlist_t *lines, int32_t width, int32_t height)
 {
-    int         num_lines = xlist_len(lines);
-    alignment_t alignment = grid->outer_alignment;
-    style_t     style     = get_pad_color(grid);
+    int num_lines = xlist_len(lines);
 
     // For now, width must always be set. Won't be true for height.
 
@@ -1648,7 +1177,7 @@ align_and_crop_grid(grid_t *grid, xlist_t *lines, int32_t width, int32_t height)
 	    continue;
 	}
 
-	str_t *l = align_and_crop_grid_line(s, width, alignment, style);
+	str_t *l = align_and_crop_grid_line(grid, s, width);
 	xlist_set(lines, i, l);
     }
 
@@ -1658,7 +1187,8 @@ align_and_crop_grid(grid_t *grid, xlist_t *lines, int32_t width, int32_t height)
 	}
 	else {
 	    if (num_lines < height) {
-		lines = pad_vertically(grid, lines, height, width, style);
+		lines = pad_lines_vertically(grid_style(grid), lines,
+					     height, width);
 	    }
 	}
     }
@@ -1684,7 +1214,8 @@ grid_add_cell_contents(grid_t *grid, xlist_t *lines, uint16_t r, uint16_t c,
 	    str_t *s     = (str_t *)xlist_get(lines, i, NULL);
 	    str_t *piece = (str_t *)xlist_get(cell->render_cache, i, NULL);
 	    if (!c4str_len(piece)) {
-		piece = get_styled_pad(col_widths[i],  0);
+		style_t pad_style = get_pad_style(grid_style(grid));
+		piece = get_styled_pad(col_widths[i],  pad_style);
 	    }
 	    xlist_set(lines, i, c4str_concat(s, piece));
 	}
@@ -1693,16 +1224,17 @@ grid_add_cell_contents(grid_t *grid, xlist_t *lines, uint16_t r, uint16_t c,
 
     // For spans, just return the one block of the grid, along with
     // any interior borders.
-    uint16_t row_offset   = r - cell->start_row;
-    uint16_t col_offset   = c - cell->start_col;
-    int      start_width  = 0;
-    int      start_height = 0;
+    uint16_t        row_offset   = r - cell->start_row;
+    uint16_t        col_offset   = c - cell->start_col;
+    int             start_width  = 0;
+    int             start_height = 0;
+    render_style_t *gs           = grid_style(grid);
 
-    if (grid->enabled_borders & INTERIOR_VERTICAL) {
+    if (gs->borders & INTERIOR_VERTICAL) {
 	start_width += col_offset;
     }
 
-    if (grid->enabled_borders & INTERIOR_HORIZONTAL) {
+    if (gs->borders & INTERIOR_HORIZONTAL) {
 	start_height += row_offset;
     }
 
@@ -1717,12 +1249,12 @@ grid_add_cell_contents(grid_t *grid, xlist_t *lines, uint16_t r, uint16_t c,
     int num_rows = row_heights[r];
     int num_cols = col_widths[c];
 
-    if ((grid->enabled_borders & INTERIOR_HORIZONTAL) &&
+    if ((gs->borders & INTERIOR_HORIZONTAL) &&
 	r + 1 != cell->end_row) {
 	num_rows += 1;
     }
 
-    if ((grid->enabled_borders & INTERIOR_VERTICAL) &&
+    if ((gs->borders & INTERIOR_VERTICAL) &&
 	r + 1 != cell->end_col) {
 	num_cols += 1;
 
@@ -1783,8 +1315,8 @@ _grid_render(grid_t *grid, ...)
     // cells. The function abstractions will do the checking to see if
     // they should do anything.
 
-    uint16_t h_alloc = grid->num_rows + 1 + grid->outer_pad.top +
-	grid->outer_pad.bottom;
+    render_style_t *gs = grid_style(grid);
+    uint16_t h_alloc = grid->num_rows + 1 + gs->top_pad + gs->bottom_pad;
 
     for (int i = 0; i < grid->num_rows; i++) {
 	h_alloc += row_heights[i];
@@ -1833,39 +1365,41 @@ grid_to_str(grid_t *g, to_str_use_t how)
 }
 
 grid_t *
-ordered_list(flexarray_t *items)
+_ordered_list(flexarray_t *items, ...)
 {
-    flex_view_t *view         = flexarray_view(items);
-    uint64_t     n            = flexarray_view_len(view);
-    col_props_t *bullet_props = gc_alloc(col_props_t);
-    col_props_t *text_props   = gc_alloc(col_props_t);
-    str_t       *dot          = c4str_repeat('.', 1);
-    grid_t      *res          = con4m_new(T_GRID, "rows", n, "cols", 2,
-					  "borders", 0);
+    DECLARE_KARGS(
+	char       *bullet_style = "bullet";
+	char       *item_style   = "li";
+	);
 
-    bullet_props->pad.left              = 1;
-    bullet_props->alignment             = ALIGN_TOP_RIGHT;
-    bullet_props->dimensions.kind       = DIM_ABSOLUTE;
-    bullet_props->dimensions.dims.units = (64 - __builtin_clzll(n));
-    text_props->pad.left                = 1;
-    text_props->pad.right               = 1;
-    text_props->dimensions.kind         = DIM_ABSOLUTE;
-    text_props->dimensions.dims.units   = terminal_width() - (64 - __builtin_clzll(n));
-    text_props->alignment               = ALIGN_TOP_LEFT;
-//    text_props->dimensions.kind         = DIM_AUTO;
+    kargs(items, bullet_style, item_style);
+
+    flex_view_t *view         = flexarray_view(items);
+    int64_t     n             = flexarray_view_len(view);
+    str_t       *dot          = c4str_repeat('.', 1);
+    grid_t      *res          = con4m_new(T_GRID, "start_rows", n,
+					  "start_cols", 2,
+					  "container_tag", "ol");
+
+
+    render_style_t *bp = lookup_cell_style(bullet_style);
+    bp->dims.units     = terminal_width() - (64 - __builtin_clzll(n));
+
+    set_column_style(res, 0, bullet_style);
+    set_column_style(res, 1, item_style);
 
     for (int i = 0; i < n; i++) {
-	bool        status;
-	str_t      *s         = c4str_concat(c4str_from_int(i + 1), dot);
-	real_str_t *list_item = flexarray_view_next(view, &status);
-
+	int           status;
+	str_t        *s         = c4str_concat(c4str_from_int(i + 1), dot);
+	real_str_t   *list_item = flexarray_view_next(view, &status);
+	renderable_t *li        = con4m_new(T_RENDERABLE, "obj", list_item,
+					    "tag", item_style);
 	grid_set_cell_contents(res, i, 0, to_internal(s));
-	grid_set_cell_contents(res, i, 1, list_item);
+	grid_set_cell_contents(res, i, 1, li);
+
+	install_cell(res, to_str_renderable(s, bullet_style), i, 0);
+	install_cell(res, li, i, 1);
     }
-
-    res->all_col_props[0] = bullet_props;
-    res->all_col_props[1] = text_props;
-
     return res;
 }
 
@@ -1873,39 +1407,32 @@ grid_t *
 _unordered_list(flexarray_t *items, ...)
 {
     DECLARE_KARGS(
+	char       *bullet_style = "bullet";
+	char       *item_style   = "li";
 	codepoint_t bullet = 0x2022;
 	);
 
-    kargs(items, bullet);
+    kargs(items, bullet_style, item_style, bullet);
 
-    flex_view_t *view         = flexarray_view(items);
-    uint64_t     n            = flexarray_view_len(view);
-    col_props_t *bullet_props = gc_alloc(col_props_t);
-    col_props_t *text_props   = gc_alloc(col_props_t);
-    grid_t      *res          = con4m_new(T_GRID, "rows", n, "cols", 2,
-					  "borders", 0);
-    real_str_t  *bull_str     = to_internal(c4str_repeat(bullet, 1));
+    flex_view_t *view       = flexarray_view(items);
+    int64_t      n          = flexarray_view_len(view);
+    grid_t      *res        = con4m_new(T_GRID, "start_rows", n,
+					"start_cols", 2,
+					"container_tag", "ul");
+    str_t       *bull_str   = c4str_repeat(bullet, 1);
 
-    bullet_props->pad.left              = 1;
-    bullet_props->dimensions.kind       = DIM_ABSOLUTE;
-    bullet_props->dimensions.dims.units = 2;
-    text_props->pad.left                = 1;
-    text_props->pad.right               = 1;
-    text_props->dimensions.kind         = DIM_ABSOLUTE;
-    text_props->dimensions.dims.units   = terminal_width() - 2;
-    text_props->alignment               = ALIGN_TOP_LEFT;
-//    text_props->dimensions.kind         = DIM_AUTO;
+    set_column_style(res, 0, bullet_style);
+    set_column_style(res, 1, item_style);
 
     for (int i = 0; i < n; i++) {
-	bool        status;
-	real_str_t *list_item = flexarray_view_next(view, &status);
+	int           status;
+	real_str_t   *list_item = flexarray_view_next(view, &status);
+	renderable_t *li        = con4m_new(T_RENDERABLE, "obj", list_item,
+					    "tag", item_style);
 
-	grid_set_cell_contents(res, i, 0, bull_str);
-	grid_set_cell_contents(res, i, 1, list_item);
+	install_cell(res, to_str_renderable(bull_str, bullet_style), i, 0);
+	install_cell(res, li, i, 1);
     }
-
-    res->all_col_props[0] = bullet_props;
-    res->all_col_props[1] = text_props;
 
     return res;
 }
@@ -1915,20 +1442,6 @@ const con4m_vtable grid_vtable  = {
     .methods     = {
 	(con4m_vtable_entry)grid_init,
 	(con4m_vtable_entry)grid_to_str
-    }
-};
-
-const con4m_vtable dimensions_vtable = {
-    .num_entries = 1,
-    .methods     = {
-	(con4m_vtable_entry)dimspec_init
-    }
-};
-
-const con4m_vtable gridprops_vtable = {
-    .num_entries = 1,
-    .methods     = {
-	(con4m_vtable_entry)props_init
     }
 };
 

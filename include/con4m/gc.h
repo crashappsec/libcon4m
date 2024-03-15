@@ -229,7 +229,7 @@ con4m_alloc_from_arena(con4m_arena_t **arena_ptr, size_t len,
 
     con4m_alloc_hdr *raw = arena->next_alloc;
 
-    if (raw->next_addr >= arena->heap_end) {
+    if (raw >= (con4m_alloc_hdr *)arena->heap_end) {
 	goto try_again;
     }
     arena->next_alloc = (con4m_alloc_hdr *)&(raw->data[wordlen]);

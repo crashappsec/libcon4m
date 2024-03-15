@@ -215,20 +215,28 @@ table_test()
     str_t      *test3 = con4m_new(T_STR, "cstring", "Example 3.");
     str_t      *test4 = con4m_new(T_STR, "cstring", "Defaults.");
     str_t      *test5 = con4m_new(T_STR, "cstring", "Last one.");
-    grid_t     *g    = con4m_new(T_GRID, "rows", 3, "cols", 3,
-	                         "border_theme", "bold_dash2");
+    str_t      *mt    = empty_string();
+    grid_t     *g     = con4m_new(T_GRID, "start_rows", 3, "start_cols", 3);
+
 
     grid_set_cell_contents(g, 0, 0, to_internal(test1));
     grid_set_cell_contents(g, 0, 1, to_internal(test2));
     grid_set_cell_contents(g, 0, 2, to_internal(test4));
     grid_set_cell_contents(g, 1, 2, to_internal(test3));
     grid_set_cell_contents(g, 1, 1, to_internal(test5));
-    grid_add_col_span(g, "num_cols", 2, "string", test1);
-//    grid_set_cell_contents(g, 1, 0, to_internal(empty_string()));
+    grid_add_col_span(g, to_str_renderable(test1, "td"),  2, 0, 2);
+    grid_set_cell_contents(g, 1, 0, to_internal(empty_string()));
+    grid_set_cell_contents(g, 2, 2, to_internal(empty_string()));
     c4str_apply_style(test1, style1);
     c4str_apply_style(test2, style2);
     c4str_apply_style(test3, style1);
     c4str_apply_style(test5, style2);
+    con4m_new(T_RENDER_STYLE, "flex_units", 3, "tag", "col1");
+    con4m_new(T_RENDER_STYLE, "flex_units", 2, "tag", "col3");
+//    con4m_new(T_RENDER_STYLE, "width_pct", 10., "tag", "col1");
+//    con4m_new(T_RENDER_STYLE, "width_pct", 30., "tag", "col3");
+    apply_column_style(g, 0, "col1");
+    apply_column_style(g, 2, "col3");
     ansi_render(con4m_value_obj_repr(g), stdout);
 }
 
@@ -258,8 +266,10 @@ ordered_list_test()
     flexarray_set(l, 0xa, to_internal(test3));
     flexarray_set(l, 0xb, to_internal(test4));
 
-    printf("\n");
+
     grid_t      *g = ordered_list(l);
+    apply_column_style(g, 1, "th");
+
     ansi_render(con4m_value_obj_repr(g), stdout);
     grid_t      *h = unordered_list(l);
     ansi_render(con4m_value_obj_repr(h), stdout);
@@ -275,7 +285,7 @@ main(int argc, char **argv, char **envp)
     test_rand64();
     // Test basic string and single threaded GC.
     test1();
-    style1 = apply_bg_color(style1, "alice blue");
+    //style1 = apply_bg_color(style1, "alice blue");
     str_t *to_slice = test2();
     con4m_gc_register_root(&to_slice, 1);
     test3(to_slice);

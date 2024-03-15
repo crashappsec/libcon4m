@@ -137,9 +137,7 @@ typedef enum : int64_t {
     T_RING,
     T_LOGRING,
     T_STACK,
-    T_GRIDPROPS,
     T_RENDERABLE,
-    T_DIMENSIONS,
     T_XLIST, // single-threaded list.
     T_RENDER_STYLE,
     CON4M_NUM_BUILTIN_DTS

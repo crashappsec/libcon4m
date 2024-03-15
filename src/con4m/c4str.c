@@ -505,7 +505,6 @@ c4str_from_int(int64_t n)
 {
     char  buf[21] = {0, };
     char *p       = &buf[20];
-    char *end     = p;
 
     if (!n) {
 	return c4str_repeat_u8('0', 1);
@@ -521,6 +520,7 @@ c4str_from_int(int64_t n)
     if (n < 0) {
 	*--p = '-';
     }
+
     return con4m_new(T_STR, "cstring", p);
 }
 
