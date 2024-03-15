@@ -21,7 +21,6 @@ else
 endif
 
 c_args        = ['-Wextra',
-                 '-Ofast',
                  '-g',
                  '-Wno-unused-parameter',
                  '-Wno-cast-function-type',
@@ -56,7 +55,7 @@ endif
 c4m_src  = ['src/con4m/style.c',
             'src/con4m/colors.c',
             'src/con4m/breaks.c', 
-            'src/con4m/string.c',
+            'src/con4m/c4str.c',
             'src/con4m/ansi.c',
             'src/con4m/hex.c',
             'src/con4m/switchboard.c',
@@ -66,7 +65,10 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/kargs.c',
             'src/con4m/object.c',
             'src/con4m/dict.c',
-            'src/con4m/lists.c'            
+            'src/con4m/lists.c',
+            'src/con4m/xlist.c',
+            'src/con4m/grid.c',
+            'src/con4m/styledb.c'
             ]
 
 hat_primary = ['src/hatrack/support/hatrack_common.c',
@@ -127,7 +129,6 @@ ssl      = cc.find_library('ssl')
 unibreak = dependency('libunibreak')
 utf8proc = dependency('libutf8proc')
 cmark    = dependency('libcmark-gfm')
-
 deps     = [unibreak, utf8proc, threads, cmark, ffi, ssl, crypto]
 opts     = [math]
 all_deps = deps + opts
@@ -142,23 +143,24 @@ libc4m   = static_library('con4m',
                           dependencies : all_deps,
                           c_args : c_args,
                           link_args: link_args)
-library('con4m-dll',
-        lib_src,
-        include_directories : incdir,
-        dependencies : all_deps,
-        c_args : c_args,
-        link_args: link_args)
+# library('con4m-dll',
+#         lib_src,
+#         include_directories : incdir,
+#         dependencies : all_deps,
+#         c_args : c_args,
+#         link_args: link_args)
 
 executable('c4test', test_src,
-           include_directories : incdir,
-           dependencies : all_deps,
-           c_args : c_args,
-           link_args : exe_link_args,
-           link_with : libc4m)
+                      include_directories : incdir,
+                      dependencies : [all_deps],
+                      c_args : c_args,
+                      link_args : exe_link_args,
+                      link_with : libc4m)
 
-executable('hash', hash_test_src + lib_src,
+executable('hash', hash_test_src,
            include_directories : incdir,
            dependencies : all_deps,
            link_args : exe_link_args,
+           link_with : libc4m,
            c_args : exe_c_args)
 

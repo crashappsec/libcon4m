@@ -12,12 +12,12 @@ typedef struct break_info_st {
 
 #define PMAP_BREAKS ((uint64_t *)0)
 
-extern break_info_t * get_grapheme_breaks(str_t *instr, int32_t start_ix,
+extern break_info_t * get_grapheme_breaks(const str_t *instr, int32_t start_ix,
 					  int32_t end_ix);
 
-extern break_info_t *get_line_breaks(str_t *instr);
-extern break_info_t *get_all_line_break_ops(str_t *instr);
-extern break_info_t * wrap_text(str_t *s, int32_t width, int32_t hang);
+extern break_info_t *get_line_breaks(const str_t *instr);
+extern break_info_t *get_all_line_break_ops(const str_t *instr);
+extern break_info_t * wrap_text(const str_t *s, int32_t width, int32_t hang);
 
 static inline break_info_t *
 alloc_break_structure(real_str_t *s, int shift)

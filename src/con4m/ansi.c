@@ -37,56 +37,59 @@ internal_char_render_width(int32_t cp)
 static void
 ansi_render_style_start(uint64_t info, FILE *outstream)
 {
+
+    uint64_t remaining = (~FLAG_MASK) & info;
+
     if (!info) {
 	return;
     }
 
     fputs("\e[", outstream);
     if (info & BOLD_ON) {
-	info &= ~BOLD_ON;
+	remaining &= ~BOLD_ON;
 	fputc('1', outstream);
-	if (info) {
+	if (remaining) {
 	    fputc(';', outstream);
 	}
     }
     if (info & INV_ON) {
-	info &= ~INV_ON;
+	remaining &= ~INV_ON;
 	fputc('7', outstream);
-	if (info) {
+	if (remaining) {
 	    fputc(';', outstream);
 	}
     }
     if (info & ST_ON) {
-	info &= ~ST_ON;
+	remaining &= ~ST_ON;
 	fputc('9', outstream);
-	if (info) {
+	if (remaining) {
 	    fputc(';', outstream);
 	}
     }
     if (info & ITALIC_ON) {
-	info &= ~ITALIC_ON;
+	remaining &= ~ITALIC_ON;
 	fputc('3', outstream);
-	if (info) {
+	if (remaining) {
 	    fputc(';', outstream);
 	}
     }
     if (info & UL_ON) {
-	info &= ~UL_ON;
+	remaining &= ~UL_ON;
 	fputc('4', outstream);
-	if (info) {
+	if (remaining) {
 	    fputc(';', outstream);
 	}
     }
     if (info & UL_DOUBLE) {
-	info &= ~UL_DOUBLE;
+	remaining &= ~UL_DOUBLE;
 	fputs("21", outstream);
-	if (info) {
+	if (remaining) {
 	    fputc(';', outstream);
 	}
     }
 
     if (info & FG_COLOR_ON) {
-	info &= ~FG_COLOR_ON;
+	remaining &= ~FG_COLOR_ON;
 
 	if (use_truecolor()) {
 	    uint8_t r = (uint8_t)((info & ~FG_COLOR_MASK) >> OFFSET_FG_RED);
@@ -99,7 +102,7 @@ ansi_render_style_start(uint64_t info, FILE *outstream)
 		    to_vga((int32_t)(info &
 				     ~(FG_COLOR_MASK))));
 	}
-	if (info) {
+	if (remaining) {
 	    fputc(';', outstream);
 	}
     }
@@ -117,9 +120,6 @@ ansi_render_style_start(uint64_t info, FILE *outstream)
 	    fprintf(outstream, "48;5;%d",
 		    to_vga((int32_t)(info &
 				     ~(BG_COLOR_MASK) >> OFFSET_BG_BLUE)));
-	}
-	if (info) {
-	    fputc(';', outstream);
 	}
     }
     fputc('m', outstream);
@@ -175,8 +175,8 @@ ansi_render_u8(real_str_t *s, FILE *outstream)
     style_t        default_style = get_default_style();
     style_t        current_style = default_style;
     uint64_t       casing        = current_style & TITLE_CASE;
-    uint32_t       cp_ix         = 0;
-    uint32_t       cp_stop       = 0;
+    int32_t        cp_ix         = 0;
+    int32_t        cp_stop       = 0;
     uint32_t       style_ix      = 0;
     u8_state_t     style_state   = U8_STATE_START_DEFAULT;
     uint8_t       *p             = (uint8_t *)s->data;
@@ -351,6 +351,9 @@ void
 ansi_render_u32(real_str_t *s, int32_t start_ix, int32_t end_ix,
 		FILE *outstream)
 {
+    // This is temporary, while I figure out why some null styles
+    // are staying in here.
+
     int32_t len = internal_num_cp(s);
     style_t style0 = get_default_style();
 
@@ -400,8 +403,12 @@ ansi_render_u32(real_str_t *s, int32_t start_ix, int32_t end_ix,
 }
 
 void
-ansi_render(str_t *s, FILE *out)
+ansi_render(const str_t *s, FILE *out)
 {
+    if (!s) {
+	return;
+    }
+
     real_str_t *real = to_internal(s);
 
     if (internal_is_u32(real)) {
@@ -413,11 +420,19 @@ ansi_render(str_t *s, FILE *out)
 }
 
 void
-ansi_render_to_width(str_t *s, int32_t width, int32_t hang, FILE *out)
+ansi_render_to_width(const str_t *s, int32_t width, int32_t hang, FILE *out)
 {
+    if (!s) {
+	return;
+    }
+
     real_str_t *real   = to_internal(s);
     bool        is_u32 = internal_is_u32(real);
     int32_t     i;
+
+    if (width <= 0) {
+	width = 20;
+    }
 
     if (!is_u32) {
 	s    = c4str_u8_to_u32(s);
@@ -441,7 +456,6 @@ ansi_render_to_width(str_t *s, int32_t width, int32_t hang, FILE *out)
 			out);
     }
 }
-
 
 static size_t
 internal_render_len_u32(real_str_t *s)
@@ -475,8 +489,12 @@ internal_render_len_u8(real_str_t *s)
 }
 
 size_t
-ansi_render_len(str_t *s)
+ansi_render_len(const str_t *s)
 {
+    if (!s) {
+	return 0;
+    }
+
     real_str_t *real = to_internal(s);
 
     if (internal_is_u32(real)) {

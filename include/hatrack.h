@@ -66,6 +66,7 @@ static inline void *con4m_gc_malloc(size_t);
 // Our dictionary algorithms
 #include <hatrack/crown.h>
 #include <hatrack/woolhat.h>
+#include <hatrack/refhat.h>  // single threaded hash.
 
 // Dict algorithms that should only be used for reference.
 #ifdef HATRACK_REFERENCE_ALGORITHMS
@@ -78,7 +79,6 @@ static inline void *con4m_gc_malloc(size_t);
 #include <hatrack/newshat.h>
 #include <hatrack/swimcap.h>
 #include <hatrack/duncecap.h>
-#include <hatrack/refhat.h>
 #include <hatrack/lohat-a.h>
 #include <hatrack/lohat.h>
 #include <hatrack/tophat.h>

@@ -83,15 +83,15 @@ kargs_process_base(char *first_key, va_list actuals, va_list formals)
     }
 
     argname = (char *)va_arg(formals, char *);
-
     cache   = kargs_get_cache();
+
     while (argname != KARG_END) {
         if (cache->top) {
             cur        = cache->top;
             cache->top = cur->next;
         }
         else {
-            cur = (karg_t *)gc_alloc(karg_t, &pmap_karg_t[0]);
+            cur = (karg_t *)gc_alloc_mapped(karg_t, &pmap_karg_t[0]);
         }
         if (!kwinfo) {
             kwinfo = cur;
@@ -111,6 +111,7 @@ kargs_process_base(char *first_key, va_list actuals, va_list formals)
 
     while (argname != KARG_END) {
         cur      = kwinfo;
+	argcount = 0;
         while (true) {
             if (!cur) {
 		// For now, we'll just print error info and abort,
@@ -128,7 +129,7 @@ kargs_process_base(char *first_key, va_list actuals, va_list formals)
                 abort();
             }
 // is_read_only_memory() is kinda slow. Make it easy to turn off.
-#ifndef SKIP_KARG_STATIC_MEM_CHECK
+#ifdef DO_KARG_STATIC_MEM_CHECK
             if (!is_read_only_memory(argname) ||
                 // This is a dumb heuristic to try to avoid most
                 // silent crashes that are likely to happen here.  At
@@ -199,7 +200,7 @@ kargs_process_base(char *first_key, va_list actuals, va_list formals)
 static void
 kargs_init(void)
 {
-    karg_cache = (karg_cache_t *)gc_alloc(karg_cache_t, &pmap_kcache[0]);
+    karg_cache = (karg_cache_t *)gc_alloc_mapped(karg_cache_t, &pmap_kcache[0]);
 }
 
 static karg_cache_t *
@@ -209,7 +210,8 @@ kargs_get_cache(void)
 
     ret = karg_cache;
     if (!ret) {
-        karg_cache = (karg_cache_t *)gc_alloc(karg_cache_t, &pmap_kcache[0]);
+        karg_cache = (karg_cache_t *)gc_alloc_mapped(karg_cache_t,
+						     &pmap_kcache[0]);
         ret        = karg_cache;
     }
 

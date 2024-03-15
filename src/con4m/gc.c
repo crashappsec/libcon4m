@@ -44,7 +44,6 @@ initialize_gc()
 static void *
 raw_arena_alloc(uint64_t len)
 {
-    assert (len < 1<<31);
     void *r = mmap(NULL,
 		   (size_t)len, PROT_READ | PROT_WRITE,
 		   MAP_PRIVATE | MAP_ANON, 0, 0);
@@ -104,11 +103,7 @@ con4m_new_arena(size_t num_words)
 void *
 con4m_gc_alloc(size_t len, uint64_t *ptr_map)
 {
-    void *result;
-
-    result = con4m_alloc_from_arena(&current_heap, len, ptr_map);
-
-    return result;
+    return con4m_alloc_from_arena(&current_heap, len, ptr_map);
 }
 
 void *

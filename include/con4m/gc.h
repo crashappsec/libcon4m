@@ -229,7 +229,7 @@ con4m_alloc_from_arena(con4m_arena_t **arena_ptr, size_t len,
 
     con4m_alloc_hdr *raw = arena->next_alloc;
 
-    if (raw->next_addr >= arena->heap_end) {
+    if (raw >= (con4m_alloc_hdr *)arena->heap_end) {
 	goto try_again;
     }
     arena->next_alloc = (con4m_alloc_hdr *)&(raw->data[wordlen]);
@@ -254,20 +254,30 @@ con4m_alloc_from_arena(con4m_arena_t **arena_ptr, size_t len,
     return (void *)(raw->data);
 }
 
-#define gc_flex_alloc(fixed, var, numv, map)	\
-    (con4m_gc_alloc((size_t)(sizeof(fixed)) + (sizeof(var)) * (numv), (map)))
-
-#define gc_alloc(typename, map) \
-    (con4m_gc_alloc(sizeof(typename), (uint64_t *)map))
-
-// Used in the DT info struct to call an alloc() function instead of calling
 // the GC directly.
 #define CON4M_CUSTOM_ALLOC 0xffffffffffffffff
 #define GC_SCAN_ALL        ((uint64_t *)0xffffffffffffffff)
 
+// gc_malloc and gc_alloc_* should only be used for INTERNAL dynamic
+// allocations. Anything that would be exposed to the language user
+// should be allocated via `gc_new()`, because there's an expectation
+// of an `object` header.
 static inline void *
 con4m_gc_malloc(size_t len)
 {
     void *result = con4m_gc_alloc(len, GC_SCAN_ALL);
     return result;
 }
+
+#define gc_flex_alloc(fixed, var, numv, map)   \
+    (con4m_gc_alloc((size_t)(sizeof(fixed)) + (sizeof(var)) * (numv), (map)))
+
+#define gc_alloc_mapped(typename, map) \
+    (con4m_gc_alloc(sizeof(typename), (uint64_t *)map))
+
+#define gc_alloc(typename) \
+    (con4m_gc_alloc(sizeof(typename), GC_SCAN_ALL))
+
+// Assumes it contains pointers. Call manually if you need otherwise.
+#define gc_array_alloc(typename, n)			\
+    con4m_gc_alloc((sizeof(typename) * n), 0)
