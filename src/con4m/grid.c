@@ -1,7 +1,7 @@
 int debug = 0;
 
 // TODO for partiy:
-// 1. Grids are not properly propogating colors to sub-grids?
+// 1. Alignment isn't working??
 // 2. Change sizing to work on renderable width not codepoints.
 // 3. Respect no-wrap.
 // 4. Search.
@@ -12,6 +12,7 @@ int debug = 0;
 // 2. Now we're ready to add a more generic `print()`.
 // 3. Deal w/ newlines for fit-to-text (string split).
 // 4. I'd like to do the debug console soon-ish.
+// 5. Suppress T's and crosses when there are col spans.
 
 // Not soon, but should eventually get done:
 // 1. Row spans (column spans are there; row spans only stubbed).
@@ -587,7 +588,14 @@ static inline str_t *
 pad_and_style_line(grid_t *grid, renderable_t *cell, int16_t width, str_t *line)
 {
 
-    alignment_t align = cell->current_style->alignment & HORIZONTAL_MASK;
+    render_style_t *col_style   = get_col_props(grid, cell->start_col);
+    render_style_t *row_style   = get_row_props(grid, cell->start_row);
+    render_style_t *merge_style = copy_render_style(cell->current_style);
+
+    layer_styles(col_style, merge_style);
+    layer_styles(row_style, merge_style);
+
+    alignment_t align = merge_style->alignment & HORIZONTAL_MASK;
     int64_t     len   = c4str_len(line);
     uint8_t     lnum  = cell->current_style->left_pad;
     uint8_t     rnum  = cell->current_style->right_pad;
@@ -613,15 +621,6 @@ pad_and_style_line(grid_t *grid, renderable_t *cell, int16_t width, str_t *line)
 	    break;
 	}
     }
-
-
-    render_style_t *col_style   = get_col_props(grid, cell->start_col);
-    render_style_t *row_style   = get_row_props(grid, cell->start_row);
-    render_style_t *merge_style = copy_render_style(cell->current_style);
-
-    layer_styles(col_style, merge_style);
-    layer_styles(row_style, merge_style);
-
 
 
     style_t     cell_style = merge_style->base_style;
