@@ -216,17 +216,19 @@ table_test()
     str_t      *test4 = con4m_new(T_STR, "cstring", "Defaults.");
     str_t      *test5 = con4m_new(T_STR, "cstring", "Last one.");
     str_t      *mt    = empty_string();
-    grid_t     *g     = con4m_new(T_GRID, "start_rows", 3, "start_cols", 3);
+    grid_t     *g     = con4m_new(T_GRID, "start_rows", 4, "start_cols", 3);
+    str_t      *hdr   = con4m_new(T_STR, "cstring", "This is a table, brah.");
 
 
-    grid_set_cell_contents(g, 0, 0, to_internal(test1));
-    grid_set_cell_contents(g, 0, 1, to_internal(test2));
-    grid_set_cell_contents(g, 0, 2, to_internal(test4));
-    grid_set_cell_contents(g, 1, 2, to_internal(test3));
-    grid_set_cell_contents(g, 1, 1, to_internal(test5));
-    grid_add_col_span(g, to_str_renderable(test1, "td"),  2, 0, 2);
-    grid_set_cell_contents(g, 1, 0, to_internal(empty_string()));
-    grid_set_cell_contents(g, 2, 2, to_internal(empty_string()));
+    grid_add_col_span(g, to_str_renderable(hdr, "td"),  0, 0, 3);
+    grid_set_cell_contents(g, 1, 0, to_internal(test1));
+    grid_set_cell_contents(g, 1, 1, to_internal(test2));
+    grid_set_cell_contents(g, 1, 2, to_internal(test4));
+    grid_set_cell_contents(g, 2, 2, to_internal(test3));
+    grid_set_cell_contents(g, 2, 1, to_internal(test5));
+    grid_add_col_span(g, to_str_renderable(test1, "td"),  3, 0, 2);
+    grid_set_cell_contents(g, 2, 0, to_internal(empty_string()));
+    grid_set_cell_contents(g, 3, 2, to_internal(empty_string()));
     c4str_apply_style(test1, style1);
     c4str_apply_style(test2, style2);
     c4str_apply_style(test3, style1);
@@ -235,45 +237,43 @@ table_test()
     con4m_new(T_RENDER_STYLE, "flex_units", 2, "tag", "col3");
 //    con4m_new(T_RENDER_STYLE, "width_pct", 10., "tag", "col1");
 //    con4m_new(T_RENDER_STYLE, "width_pct", 30., "tag", "col3");
+    apply_row_style(g, 0, "th");
     apply_column_style(g, 0, "col1");
     apply_column_style(g, 2, "col3");
-    ansi_render(con4m_value_obj_repr(g), stdout);
-}
 
-void
-ordered_list_test()
-{
-    str_t *test1   = con4m_new(T_STR, "cstring",
+    // Ordered / unordered lists.
+    str_t *ol1   = con4m_new(T_STR, "cstring",
 			       "This is a good point, one that you haven't "
 			       "heard before.");
-    str_t *test2   = con4m_new(T_STR, "cstring",
+    str_t *ol2   = con4m_new(T_STR, "cstring",
 			       "This is a point that's just as valid, but you "
 			       "already know it.");
-    str_t *test3   = con4m_new(T_STR, "cstring", "This is a small point.");
-    str_t *test4   = con4m_new(T_STR, "cstring", "Conclusion.");
+    str_t *ol3   = con4m_new(T_STR, "cstring", "This is a small point.");
+    str_t *ol4   = con4m_new(T_STR, "cstring", "Conclusion.");
     flexarray_t *l = con4m_new(T_LIST, "length", 12);
 
-    flexarray_set(l, 0, to_internal(test1));
-    flexarray_set(l, 1, to_internal(test2));
-    flexarray_set(l, 2, to_internal(test3));
-    flexarray_set(l, 3, to_internal(test4));
-    flexarray_set(l, 4, to_internal(test1));
-    flexarray_set(l, 5, to_internal(test2));
-    flexarray_set(l, 6, to_internal(test3));
-    flexarray_set(l, 7, to_internal(test4));
-    flexarray_set(l, 8, to_internal(test1));
-    flexarray_set(l, 9, to_internal(test2));
-    flexarray_set(l, 0xa, to_internal(test3));
-    flexarray_set(l, 0xb, to_internal(test4));
+    flexarray_set(l, 0, to_internal(ol1));
+    flexarray_set(l, 1, to_internal(ol2));
+    flexarray_set(l, 2, to_internal(ol3));
+    flexarray_set(l, 3, to_internal(ol4));
+    flexarray_set(l, 4, to_internal(ol1));
+    flexarray_set(l, 5, to_internal(ol2));
+    flexarray_set(l, 6, to_internal(ol3));
+    flexarray_set(l, 7, to_internal(ol4));
+    flexarray_set(l, 8, to_internal(ol1));
+    flexarray_set(l, 9, to_internal(ol2));
+    flexarray_set(l, 0xa, to_internal(ol3));
+    flexarray_set(l, 0xb, to_internal(ol4));
 
 
-    grid_t      *g = ordered_list(l);
-    apply_column_style(g, 1, "th");
 
-    ansi_render(con4m_value_obj_repr(g), stdout);
-    grid_t      *h = unordered_list(l);
-    ansi_render(con4m_value_obj_repr(h), stdout);
+    grid_t *ol   = ordered_list(l);
+    grid_t *ul   = unordered_list(l);
+    grid_t *flow = grid_flow(3, g, ul, ol);
+
+    ansi_render(con4m_value_obj_repr(flow), stdout);
 }
+
 
 int
 main(int argc, char **argv, char **envp)
@@ -292,7 +292,6 @@ main(int argc, char **argv, char **envp)
     to_slice = NULL;
     test4();
     table_test();
-    ordered_list_test();
     STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
     ansi_render(local_test, stdout);
 

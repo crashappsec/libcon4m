@@ -235,11 +235,13 @@ void grid_set_all_contents(grid_t *, flexarray_t *);
 xlist_t *_grid_render(grid_t *, ...);
 #define grid_render(g, ...) _grid_render(g, KFUNC(__VA_ARGS__))
 
+extern grid_t *grid_flow(uint64_t items, ...);
 str_t *grid_to_str(grid_t *, to_str_use_t);
 extern grid_t *_ordered_list(flexarray_t *, ...);
 extern grid_t *_unordered_list(flexarray_t *, ...);
 #define ordered_list(l, ...) _ordered_list(l, KFUNC(__VA_ARGS__))
 #define unordered_list(l, ...) _unordered_list(l, KFUNC(__VA_ARGS__))
+
 
 const con4m_vtable grid_vtable;
 extern const con4m_vtable dimensions_vtable;
@@ -292,11 +294,6 @@ extern void install_renderable(grid_t *, renderable_t *, int, int, int, int);
 
 extern void apply_container_style(renderable_t *, char *);
 
-static inline void
-install_cell(grid_t *grid, renderable_t *cell, int r, int c)
-{
-    install_renderable(grid, cell, r, r + 1, c, c + 1);
-}
 
 static inline void
 grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
@@ -305,8 +302,27 @@ grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
 
     switch (get_base_type(item)) {
     case T_RENDERABLE:
-    {
 	cell = (renderable_t *)item;
+	break;
+    case T_GRID:
+    {
+	grid_t *subobj = (grid_t *)item;
+	int tcells     = subobj->num_rows * subobj->num_cols;
+	cell           = subobj->self;
+
+	for (int i = 0; i < tcells; i++) {
+	    renderable_t *item = subobj->cells[i];
+	    if (item == NULL) {
+		continue;
+	    }
+	    object_t sub = item->raw_item;
+
+	    if (get_base_type(sub) == T_GRID) {
+		layer_styles(g->self->current_style,
+			     ((grid_t *)sub)->self->current_style);
+	    }
+	}
+
 	break;
     }
     case T_STR:
@@ -326,5 +342,7 @@ grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
     default:
 	abort();
     }
-    install_cell(g, cell, row, col);
+
+    layer_styles(g->self->current_style, cell->current_style);
+    install_renderable(g, cell, row, row + 1, col, col + 1);
 }

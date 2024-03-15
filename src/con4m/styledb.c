@@ -152,67 +152,63 @@ const border_theme_t *registered_borders = (border_theme_t *)&border_plain;
 
 // Used for border drawing and background (pad color).
 static const render_style_t default_table = {
-    .base_style.bf.fg_color_on = 1,
-    .base_style.bf.bg_color_on = 1,
-    .base_style.bf.fg_color    = 0xf8f8ff, // Ghost white
-    .base_style.bf.bg_color    = 0x2f4f4f, // Dark slate grey.
+    .name                      = "table",
     .borders                   = BORDER_TOP | BORDER_BOTTOM | BORDER_LEFT |
                                  BORDER_RIGHT | INTERIOR_HORIZONTAL |
                                  INTERIOR_VERTICAL,
     .border_theme              = (border_theme_t *)&border_bold_dash,
-    .left_pad                  = 1,
-    .right_pad                 = 1,
     .dim_kind                  = DIM_AUTO,
-    .alignment                 = ALIGN_MID_LEFT
+    //.alignment                 = ALIGN_MID_LEFT
 };
 
 static const render_style_t default_tr = {
+    .name                      = "tr",
     .base_style.style          = 0x00062f4f4ff8f8ff,
     .dim_kind                  = DIM_AUTO,
-    .alignment                 = ALIGN_TOP_LEFT
+//    .alignment                 = ALIGN_TOP_LEFT,
 };
 
 static const render_style_t default_th = {
-    .base_style.bf.fg_color_on = 1,
-    .base_style.bf.bg_color_on = 1,
-    .base_style.bf.fg_color    = 0xb3ff00, // Atomic lime
-    .base_style.bf.bg_color    = 0x000000,
-    .left_pad                  = 1,
-    .right_pad                 = 1,
+    .name                      = "th",
+    .base_style.style          = 0x175fb3ff00000000,
     .dim_kind                  = DIM_AUTO,
-    .alignment                 = ALIGN_TOP_LEFT
+    .alignment                 = ALIGN_MID_CENTER,
+
 };
 
 static const render_style_t default_td = {
-    .base_style.style = 0,
+    .name = "td",
 };
 
 static const render_style_t default_tcol = {
+    .name     = "tcol",
     .dim_kind = DIM_AUTO
 };
 
 static const render_style_t default_list_grid = {
-    .left_pad   = 2,
-    .right_pad  = 1,
-    .bottom_pad = 1,
-    .dim_kind   = DIM_AUTO,
-    .alignment  = ALIGN_MID_LEFT
+    .name                      = "ul/ol",
+    .bottom_pad                = 1,
+    .dim_kind                  = DIM_AUTO,
+//    .alignment                 = ALIGN_MID_LEFT,
 };
 
 static const render_style_t default_bullet_column = {
-    .dim_kind   = DIM_FIT_TO_TEXT,
-    .left_pad   = 0,
-    .dims.units = 2
+    .name       = "bullet",
+    .dim_kind   = DIM_ABSOLUTE,
+    .left_pad   = 1,
+    .dims.units = 1
 };
 
 static const render_style_t default_list_text_column = {
+    .name       = "li",
     .dim_kind   = DIM_AUTO,
     .left_pad   = 1,
     .right_pad  = 1,
-    .alignment  = ALIGN_TOP_LEFT
+//    .alignment  = ALIGN_TOP_LEFT,
 };
 
 static const render_style_t default_h1 = {
+    .name                      = "h1",
     .base_style.bf.italic      = 1,
     .base_style.bf.fg_color_on = 1,
     .base_style.bf.bg_color_on = 1,
@@ -224,6 +220,7 @@ static const render_style_t default_h1 = {
 };
 
 static const render_style_t default_h2 = {
+    .name                      = "h2",
     .base_style.bf.italic      = 1,
     .base_style.bf.fg_color_on = 1,
     .base_style.bf.bg_color_on = 1,
@@ -234,8 +231,19 @@ static const render_style_t default_h2 = {
     .top_pad                   = 1
 };
 
+static const render_style_t default_flow = {
+    .name                      = "flow",
+    .left_pad                  = 1,
+    .right_pad                 = 1,
+    //.alignment                 = ALIGN_TOP_LEFT,
+    .base_style.bf.fg_color_on = 1,
+    .base_style.bf.bg_color_on = 1,
+    .base_style.bf.fg_color    = 0xf8f8ff, // Ghost white
+    .base_style.bf.bg_color    = 0x2f4f4f, // Dark slate grey.
+};
+
 // Third word of render styles is a pointer.
-const uint64_t rs_pmap[2] = { 0x1, 0x8000000000000000 };
+const uint64_t rs_pmap[2] = { 0x1, 0xb000000000000000 };
 
 static inline void
 init_style_db()
@@ -262,7 +270,8 @@ lookup_cell_style(char *name)
 
     int ok = false;
 
-    render_style_t *entry  = hatrack_dict_get(style_dictionary, name, &ok);
+    render_style_t *entry  = hatrack_dict_get(style_dictionary, name,
+					      (bool *)&ok);
 
     if (!entry) {
 	return NULL;
@@ -310,6 +319,7 @@ con4m_style_init(render_style_t *style, va_list args)
 		 disable_wrap, pad_color, alignment, border_theme,
 		 enabled_borders, tag);
 
+    style->name = tag;
     // Use basic math to make sure overlaping cell sizing strategies
     // aren't requested in one call.
     int32_t sz_test = width_pct + flex_units + min_size + max_size + fit_text;
@@ -518,6 +528,7 @@ install_default_styles()
     set_style("h1", (render_style_t *)&default_h1);
     set_style("h2", (render_style_t *)&default_h2);
     set_style("table", (render_style_t *)&default_table);
+    set_style("flow", (render_style_t *)&default_flow);
 }
 
 const con4m_vtable render_style_vtable = {

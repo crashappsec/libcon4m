@@ -91,6 +91,7 @@ typedef union {
 } str_style_t;
 
 typedef struct {
+    char           *name;
     border_theme_t *border_theme;
     str_style_t     base_style;   // Should be able to slam a style_t onto it.
     color_t         pad_color;
@@ -442,6 +443,5 @@ get_border_theme(render_style_t *style)
 }
 
 extern void layer_styles(const render_style_t *, render_style_t *);
-
 extern const con4m_vtable render_style_vtable;
 extern const uint64_t rs_pmap[2];
