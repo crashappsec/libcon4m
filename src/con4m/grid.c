@@ -624,7 +624,7 @@ pad_and_style_line(grid_t *grid, renderable_t *cell, int16_t width, str_t *line)
 
 
 
-    style_t     cell_style = merge_style->base_style.style;
+    style_t     cell_style = merge_style->base_style;
     style_t     lpad_style = get_pad_style(merge_style);
     style_t     rpad_style = lpad_style;
     str_t      *copy       = c4str_copy(line);

@@ -13,7 +13,7 @@
 #define INV_ON          0x0100000000000000
 #define LOWER_CASE      0x0200000000000000
 #define UPPER_CASE      0x0400000000000000
-#define TITLE_CASE      UPPER_CASE | LOWER_CASE
+#define TITLE_CASE      (UPPER_CASE | LOWER_CASE)
 #define STYLE_INVALID   0xffffffffffffffff
 #define FG_COLOR_MASK   0xffffffffff000000
 #define BG_COLOR_MASK   0xffff000000ffffff
@@ -25,10 +25,6 @@
 #define OFFSET_FG_GREEN 8
 #define OFFSET_FG_BLUE  0
 
-
-#define NEW_UL_ON     1
-#define NEW_UL_DOUBLE 2
-#define NEW_UL_NONE   0
 
 static inline void
 style_debug(char *prefix, const str_t *s) {
