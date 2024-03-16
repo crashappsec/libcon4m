@@ -155,9 +155,6 @@ get_all_line_break_ops(const str_t *instr)
 static int32_t
 find_hwrap(const str_t *s, int32_t offset, int32_t width)
 {
-    printf("find_hwrap(offset = %d, width = %d) for ", offset, width);
-    ansi_render(s, stdout);
-    printf("\n");
     real_str_t *str = to_internal(force_utf32(s));
     uint32_t   *u32 = (uint32_t *)str->data;
     int         l   = internal_num_cp(str);
@@ -165,11 +162,9 @@ find_hwrap(const str_t *s, int32_t offset, int32_t width)
     for (int i = offset; i < l; i++) {
 	width -= codepoint_width(u32[i]);
 	if (width < 0) {
-	    printf("result: %d\n", i);
 	    return i;
 	}
     }
-    printf("result: %d\n", l);
     return l;
 }
 
