@@ -39,8 +39,8 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
       .vtable    = &u8str_vtable
     },
     { .typeid    = T_BUFFER,
-      .alloc_len = CON4M_CUSTOM_ALLOC,
-      .ptr_info  = (uint64_t *)pmap_str,
+      .alloc_len = sizeof(buffer_t),
+      .ptr_info  = (uint64_t *)pmap_first_word,
       .vtable    = &buffer_vtable
     },
     { .typeid    = T_UTF32,

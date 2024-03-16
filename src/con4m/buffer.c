@@ -1,11 +1,11 @@
 #include <con4m.h>
 
-static buffer_t *
-buffer_new(va_list args)
+static void
+buffer_init(buffer_t *obj, va_list args)
 {
     DECLARE_KARGS(
-	int64_t     len = -1;
-	real_str_t *hex = NULL;
+	int64_t    len = -1;
+	any_str_t *hex = NULL;
 	);
     method_kargs(args, len, hex);
 
@@ -20,14 +20,7 @@ buffer_new(va_list args)
 	len = internal_num_cp(hex) >> 1;
     }
 
-    con4m_obj_t *obj     = con4m_gc_alloc(get_real_alloc_len(len), NULL);
-    buffer_t     *result = (buffer_t *)obj->data;
-
-
-
-    obj->base_data_type = (con4m_dt_info *)&builtin_type_info[T_BUFFER];
-    obj->concrete_type  = T_BUFFER;
-
+    obj->data = con4m_gc_alloc(len, NULL);
 
     if (hex != NULL) {
 	uint8_t cur         = 0;
@@ -43,7 +36,7 @@ buffer_new(va_list args)
 		}
 		else {
 		    cur |= (byte - '0');
-		    result->data[result->byte_len++] = cur;
+		    obj->data[obj->byte_len++] = cur;
 		}
 		continue;
 	    }
@@ -53,7 +46,7 @@ buffer_new(va_list args)
 		}
 		else {
 		    cur |= (byte - 'a') + 10;
-		    result->data[result->byte_len++] = cur;
+		    obj->data[obj->byte_len++] = cur;
 		}
 		continue;
 	    }
@@ -63,17 +56,15 @@ buffer_new(va_list args)
 		}
 		else {
 		    cur |= (byte - 'A') + 10;
-		    result->data[result->byte_len++] = cur;
+		    obj->data[obj->byte_len++] = cur;
 		}
 		continue;
 	    }
 	}
     }
     else {
-	result->byte_len = len;
+	obj->byte_len = len;
     }
-
-    return result;
 }
 
 static char to_hex_map[] = "0123456789abcdef";
@@ -114,7 +105,9 @@ buffer_repr(buffer_t *buf, to_str_use_t how)
 const con4m_vtable buffer_vtable = {
     .num_entries = 2,
     .methods     = {
-	(con4m_vtable_entry)buffer_new,
+	(con4m_vtable_entry)buffer_init,
 	(con4m_vtable_entry)buffer_repr,
     }
 };
+
+uint64_t pmap_first_word[2] = { 0x1, 0x8000000000000000 };

@@ -43,6 +43,8 @@ typedef void *object_t;
 // Our grid abstraction.
 #include <con4m/grid.h>
 
+#include <con4m/buffer.h>
+
 // IO primitives.
 #include <con4m/term.h>
 #include <con4m/switchboard.h>
