@@ -52,7 +52,7 @@ typedef struct {
 } hatrack_dict_item_t;
 
 
-typedef struct hatrack_dict_st hatrack_dict_t;
+typedef struct dict_t hatrack_dict_t;
 
 typedef void *hatrack_dict_key_t;
 typedef void *hatrack_dict_value_t;
@@ -62,7 +62,7 @@ typedef union {
     hatrack_hash_func_t   custom_hash;
 } hatrack_hash_info_t;
 
-struct hatrack_dict_st {
+struct dict_t {
     crown_t               crown_instance;
     hatrack_hash_info_t   hash_info;
     hatrack_mem_hook_t    free_handler;
@@ -105,3 +105,5 @@ hatrack_dict_item_t  *hatrack_dict_items_sort   (hatrack_dict_t *, uint64_t *);
 hatrack_dict_key_t   *hatrack_dict_keys_nosort  (hatrack_dict_t *, uint64_t *);
 hatrack_dict_value_t *hatrack_dict_values_nosort(hatrack_dict_t *, uint64_t *);
 hatrack_dict_item_t  *hatrack_dict_items_nosort (hatrack_dict_t *, uint64_t *);
+
+typedef hatrack_dict_t dict_t;

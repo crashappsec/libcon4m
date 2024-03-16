@@ -71,28 +71,9 @@ typedef uint8_t border_set_t;
 // Some of the items apply to text, some apply to renderables.
 
 typedef struct {
-    uint64_t     fg_color    : 24;
-    uint64_t     bg_color    : 24;
-    unsigned int invalid     : 1;
-    unsigned int fg_color_on : 1;   // Whether a fg color is set, else inherit.
-    unsigned int bg_color_on : 1;   // Whether a fg color is set, else inherit.
-    unsigned int bold        : 1;   // Use a 'bold' font if possible.
-    unsigned int italic      : 1;
-    unsigned int strikethru  : 1;
-    unsigned int underline   : 2;   // single or double.
-    unsigned int inverse     : 1;
-    unsigned int casing      : 2;   // text casing.
-    // unsigned int reserved    : 5;   // For expansion of string stuff.
-} str_bitfield_t;
-
-typedef union {
-    str_bitfield_t bf;
-    style_t        style;
-} str_style_t;
-
-typedef struct {
+    char           *name;
     border_theme_t *border_theme;
-    str_style_t     base_style;   // Should be able to slam a style_t onto it.
+    style_t         base_style;
     color_t         pad_color;
 
     union {
@@ -137,114 +118,119 @@ static inline style_t
 lookup_text_style(char *name)
 {
     render_style_t *rs = lookup_cell_style(name);
-    return rs->base_style.style;
+    return rs->base_style;
 }
 
 static inline void
 set_fg_color(render_style_t *style, color_t color)
 {
-    style->base_style.bf.fg_color    = color;
-    style->base_style.bf.fg_color_on = 1;
+    style->base_style |= FG_COLOR_ON | color;
 }
 
 static inline void
 set_bg_color(render_style_t *style, color_t color)
 {
-    style->base_style.bf.bg_color    = color;
-    style->base_style.bf.bg_color_on = 1;
+    style->base_style |= BG_COLOR_ON | ((uint64_t)color) << 24;
 }
 
 static inline void
 bold_on(render_style_t *style)
 {
-    style->base_style.bf.bold = 1;
+    style->base_style |= BOLD_ON;
 }
 
 static inline void
 bold_off(render_style_t *style)
 {
-    style->base_style.bf.bold = 0;
+    style->base_style &= ~BOLD_ON;
 }
 
 static inline void
 italic_on(render_style_t *style)
 {
-    style->base_style.bf.italic = 1;
+    style->base_style |= ITALIC_ON;
 }
 
 static inline void
 italic_off(render_style_t *style)
 {
-    style->base_style.bf.italic = 0;
+    style->base_style &= ~ITALIC_ON;
 }
 
 static inline void
 strikethru_on(render_style_t *style)
 {
-    style->base_style.bf.strikethru = 1;
+    style->base_style |= ST_ON;
 }
 
 static inline void
 strikethru_off(render_style_t *style)
 {
-    style->base_style.bf.strikethru = 0;
+    style->base_style &= ~ST_ON;
+}
+
+static inline void
+underline_off(render_style_t *style)
+{
+    style->base_style &= ~(UL_ON|UL_DOUBLE);
 }
 
 static inline void
 underline_on(render_style_t *style)
 {
-    style->base_style.bf.underline = 1;
+    underline_off(style);
+    style->base_style |= UL_ON;
 }
 
 
 static inline void
 double_underline_on(render_style_t *style)
 {
-    style->base_style.bf.underline = 2;
+    underline_off(style);
+    style->base_style |= UL_DOUBLE;
 }
 
-static inline void
-underline_off(render_style_t *style)
-{
-    style->base_style.bf.underline = 0;
-}
 
 static inline void
 inverse_on(render_style_t *style)
 {
-    style->base_style.bf.inverse = 1;
+    style->base_style |= INV_ON;
 }
 
 static inline void
 inverse_off(render_style_t *style)
 {
-    style->base_style.bf.inverse = 0;
+    style->base_style &= ~INV_ON;
+}
+
+static inline void
+casing_off(render_style_t *style)
+{
+    style->base_style &= ~TITLE_CASE;
 }
 
 
 static inline void
 lowercase_on(render_style_t *style)
 {
-    style->base_style.bf.casing = 1;
+    casing_off(style);
+    style->base_style |= LOWER_CASE;
 }
 
 static inline void
 uppercase_on(render_style_t *style)
 {
-    style->base_style.bf.casing = 2;
+    casing_off(style);
+    style->base_style |= UPPER_CASE;
 }
 
 static inline void
 titlecase_on(render_style_t *style)
 {
-    style->base_style.bf.casing = 2;
+    casing_off(style);
+    style->base_style |= TITLE_CASE;
 }
 
-static inline void
-casing_off(render_style_t *style)
-{
-    style->base_style.bf.casing = 0;
-}
 
 const extern border_theme_t *registered_borders;
 
@@ -370,13 +356,13 @@ set_pad_color(render_style_t *style, color_t color)
 static inline void
 clear_fg_color(render_style_t *style)
 {
-    style->base_style.bf.fg_color_on = 0;
+    style->base_style &= ~FG_COLOR_ON;
 }
 
 static inline void
 clear_bg_color(render_style_t *style)
 {
-    style->base_style.bf.bg_color_on = 0;
+    style->base_style &= ~BG_COLOR_ON;
 }
 
 static inline void
@@ -394,25 +380,25 @@ set_borders(render_style_t *style, border_set_t borders)
 static inline bool
 is_bg_color_on(render_style_t *style)
 {
-    return style->base_style.bf.bg_color_on;
+    return style->base_style & BG_COLOR_ON;
 }
 
 static inline bool
 is_fg_color_on(render_style_t *style)
 {
-    return style->base_style.bf.bg_color_on;
+    return style->base_style & FG_COLOR_ON;
 }
 
 static inline color_t
 get_fg_color(render_style_t *style)
 {
-    return (color_t)style->base_style.bf.fg_color;
+    return (color_t)style->base_style & ~FG_COLOR_MASK;
 }
 
 static inline color_t
 get_bg_color(render_style_t *style)
 {
-    return (color_t)style->base_style.bf.bg_color;
+    return (color_t)((style->base_style & ~BG_COLOR_MASK) >> 24);
 }
 
 static inline style_t
@@ -421,13 +407,13 @@ get_pad_style(render_style_t *style)
     if (style->pad_color_set) {
 	return (style->pad_color << 24) | BG_COLOR_ON;
     }
-    return style->base_style.style;
+    return style->base_style;
 }
 
 static inline style_t
 get_string_style(render_style_t *style)
 {
-    return style->base_style.style;
+    return style->base_style;
 }
 
 static inline border_theme_t *
@@ -442,6 +428,5 @@ get_border_theme(render_style_t *style)
 }
 
 extern void layer_styles(const render_style_t *, render_style_t *);
-
 extern const con4m_vtable render_style_vtable;
 extern const uint64_t rs_pmap[2];

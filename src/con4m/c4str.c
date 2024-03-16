@@ -610,7 +610,7 @@ str_t *
 _c4str_truncate(const str_t *s, int64_t len, ...)
 {
     DECLARE_KARGS(
-	bool use_render_width = false;
+	int use_render_width = 0;
 	);
 
     kargs(len, use_render_width);
@@ -738,6 +738,98 @@ c4str_from_file(const char *name, int *err)
 	p   += num_read;
 	len -= num_read;
     }
+}
+
+int64_t
+_c4str_find(str_t *str, str_t *sub, ...)
+{
+    DECLARE_KARGS(
+	int64_t start = 0;
+	int64_t end   = -1;
+	);
+
+    kargs(sub, start, end);
+
+    str = force_utf32(str);
+    sub = force_utf32(sub);
+
+    uint64_t  strcp = c4str_len(str);
+    uint64_t  subcp = c4str_len(sub);
+    uint32_t *strp  = (uint32_t *)str;
+    uint32_t *endp  = strp + end - subcp + 1;
+    uint32_t *subp;
+    uint32_t *p;
+
+    if (start < 0) {
+	start += strcp;
+    }
+    if (start < 0) {
+	return -1;
+    }
+    if (end < 0) {
+	end += strcp + 1;
+    }
+    if (end <= start) {
+	return -1;
+    }
+    if ((uint64_t)end > strcp) {
+	end = strcp;
+    }
+    if (subcp == 0) {
+	return start;
+    }
+
+    strp += start;
+    while (strp < endp) {
+	p    = strp;
+	subp = (uint32_t *)sub;
+	for (uint64_t i = 0; i < subcp; i++) {
+	    if (*p++ != *subp++) {
+		goto next_start;
+	    }
+	}
+	return start;
+    next_start:
+	strp++;
+	start++;
+    }
+    return -1;
+}
+
+flexarray_t *
+c4str_split(str_t *str, str_t *sub)
+{
+    str            = force_utf32(str);
+    sub            = force_utf32(sub);
+    uint64_t strcp = c4str_len(str);
+    uint64_t subcp = c4str_len(sub);
+
+    flexarray_t *result = con4m_new(T_LIST, "length", strcp);
+
+    if (!subcp) {
+	for (uint64_t i = 0; i < strcp; i++) {
+	    flexarray_set(result, i, c4str_slice(str, i, i + 1));
+	}
+	return result;
+    }
+
+    int64_t start = 0;
+    int64_t ix    = c4str_find(str, sub, "start", start);
+    int     n     = 0;
+
+    while (ix != -1) {
+	flexarray_set(result, n++, c4str_slice(str, start, ix));
+	start = ix + subcp;
+	ix    = c4str_find(str, sub, "start", start);
+    }
+
+    if ((uint64_t)start != strcp) {
+	flexarray_set(result, n++, c4str_slice(str, start, strcp));
+    }
+
+    flexarray_shrink(result, n);
+
+    return result;
 }
 
 static str_t *

@@ -36,16 +36,15 @@ extern str_t   *_c4str_strip(const str_t *s, ...);
 extern str_t   *_c4str_truncate(const str_t *s, int64_t, ...);
 extern str_t   *_c4str_join(const xlist_t *l, const str_t *joiner, ...);
 extern str_t   *c4str_from_int(int64_t n);
-
-extern const uint64_t str_ptr_info[];
-extern const con4m_vtable u8str_vtable;
-extern const con4m_vtable u32str_vtable;
+extern int64_t  _c4str_find(str_t *, str_t *, ...);
+extern struct flexarray_t *c4str_split(str_t *, str_t *);
 
 #define force_utf8(x) c4str_u32_to_u8(x)
 #define force_utf32(x) c4str_u8_to_u32(x)
 #define c4str_strip(s, ...) _c4str_strip(s, KFUNC(__VA_ARGS__))
 #define c4str_truncate(s, n, ...) _c4str_truncate(s, n,  KFUNC(__VA_ARGS__))
 #define c4str_join(l, s, ...) _c4str_join(l, s, KFUNC(__VA_ARGS__))
+#define c4str_find(str, sub, ...) _c4str_find(str, sub, KFUNC(__VA_ARGS__))
 
 extern const str_t *empty_string_const;
 extern const str_t *newline_const;

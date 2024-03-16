@@ -27,7 +27,7 @@
 
 static flex_store_t *flexarray_new_store(uint64_t, uint64_t);
 static void          flexarray_migrate(flex_store_t *, flexarray_t *);
-    
+
 /* The size parameter is the one larger than the largest allowable index.
  * The underlying store may be bigger-- it will be sized up to the next
  * power of two.
@@ -38,9 +38,9 @@ flexarray_new(uint64_t initial_size)
     flexarray_t *arr;
 
     arr = (flexarray_t *)malloc(sizeof(flexarray_t));
-    
+
     flexarray_init(arr, initial_size);
-    
+
     return arr;
 }
 
@@ -48,7 +48,7 @@ void
 flexarray_init(flexarray_t *arr, uint64_t initial_size)
 {
     uint64_t store_size;
-    
+
     arr->ret_callback   = NULL;
     arr->eject_callback = NULL;
     store_size          = hatrack_round_up_to_power_of_2(initial_size);
@@ -84,7 +84,7 @@ flexarray_cleanup(flexarray_t *self)
     flex_item_t   item;
 
     store = atomic_load(&self->store);
-    
+
     if (self->eject_callback) {
 	for (i = 0; i < store->array_size; i++) {
 	    item = atomic_read(&store->cells[i]);
@@ -121,7 +121,7 @@ flexarray_get(flexarray_t *self, uint64_t index, int *status)
 {
     flex_item_t   current;
     flex_store_t *store;
-    
+
     mmm_start_basic_op();
 
     store = atomic_read(&self->store);
@@ -139,30 +139,30 @@ flexarray_get(flexarray_t *self, uint64_t index, int *status)
 	if (status) {
 	    *status = FLEX_UNINITIALIZED;
 	}
-	mmm_end_op();	
+	mmm_end_op();
 	return NULL;
     }
 
     current = atomic_read(&store->cells[index]);
-    
+
     if (!(current.state & FLEX_ARRAY_USED)) {
 	if (status) {
 	    *status = FLEX_UNINITIALIZED;
 	}
-	mmm_end_op();	
+	mmm_end_op();
 	return NULL;
     }
-    
+
     if (self->ret_callback && current.item) {
 	(*self->ret_callback)(current.item);
     }
-    
+
     mmm_end_op();
 
     if (status) {
 	*status = FLEX_OK;
     }
-    
+
     return current.item;
 }
 
@@ -175,14 +175,14 @@ flexarray_set(flexarray_t *self, uint64_t index, void *item)
     flex_item_t   candidate;
     flex_cell_t  *cellptr;
     uint64_t      read_index;
-    
+
     mmm_start_basic_op();
-    
+
     store      = atomic_read(&self->store);
     read_index = atomic_read(&store->array_size) & ~FLEX_ARRAY_SHRINK;
-	
+
     if (index >= read_index) {
-	mmm_end_op();	
+	mmm_end_op();
 	return false;
     }
 
@@ -214,7 +214,7 @@ flexarray_set(flexarray_t *self, uint64_t index, void *item)
 
     if (current.state & FLEX_ARRAY_MOVING) {
 	flexarray_migrate(store, self);
-	mmm_end_op();	
+	mmm_end_op();
 	return flexarray_set(self, index, item);
     }
 
@@ -225,7 +225,7 @@ flexarray_set(flexarray_t *self, uint64_t index, void *item)
     if (self->eject_callback) {
 	(*self->eject_callback)(item);
     }
-    
+
     mmm_end_op();
     return true;
 }
@@ -252,18 +252,18 @@ flexarray_grow(flexarray_t *self, uint64_t index)
 	    flexarray_migrate(store, self);
 	    continue;
 	}
-	
+
 	if (index < array_size) {
-	    mmm_end_op();	    
+	    mmm_end_op();
 	    return;
 	}
     } while (!CAS(&store->array_size, &array_size, index));
 
 
     if (index > store->store_size) {
-	flexarray_migrate(store, self);		
+	flexarray_migrate(store, self);
     }
-    
+
     mmm_end_op();
     return;
 }
@@ -275,21 +275,21 @@ flexarray_shrink(flexarray_t *self, uint64_t index)
     uint64_t      array_size;
 
     index |= FLEX_ARRAY_SHRINK;
-    
+
     mmm_start_basic_op();
-    
+
     do {
 	store      = atomic_read(&self->store);
 	array_size = atomic_read(&store->array_size);
-	
+
 	if (index > array_size) {
-	    mmm_end_op();	    
+	    mmm_end_op();
 	    return;
 	}
     } while (!CAS(&store->array_size, &array_size, index));
 
-    flexarray_migrate(store, self);		
-    
+    flexarray_migrate(store, self);
+
     mmm_end_op();
     return;
 }
@@ -305,11 +305,11 @@ flexarray_view(flexarray_t *self)
     flex_item_t   item;
 
     mmm_start_basic_op();
-    
+
     while (true) {
 	store    = atomic_read(&self->store);
 	expected = false;
-	
+
 	if (CAS(&store->claimed, &expected, true)) {
 	    break;
 	}
@@ -326,34 +326,34 @@ flexarray_view(flexarray_t *self)
 	    }
 	}
     }
-    
+
     mmm_end_op();
-    
+
     ret           = (flex_view_t *)malloc(sizeof(flex_view_t));
     ret->contents = store;
     ret->next_ix  = 0;
-    
+
     return ret;
 }
 
 void *
-flexarray_view_next(flex_view_t *view, bool *found)
+flexarray_view_next(flex_view_t *view, int *found)
 {
     flex_item_t item;
 
     while (true) {
 	if (view->next_ix >= view->contents->array_size) {
 	    if (found) {
-		*found = false;
+		*found = 0;
 	    }
 	    return NULL;
 	}
-	
+
 	item = atomic_read(&view->contents->cells[view->next_ix++]);
 
 	if (item.state & FLEX_ARRAY_USED) {
 	    if (found) {
-		*found = true;
+		*found = 1;
 	    }
 	    return item.item;
 	}
@@ -364,8 +364,8 @@ void
 flexarray_view_delete(flex_view_t *view)
 {
     void *item;
-    bool  found;
-    
+    int   found;
+
     if (view->eject_callback) {
 	while (true) {
 	    item = flexarray_view_next(view, &found);
@@ -415,7 +415,7 @@ flexarray_view_get(flex_view_t *view, uint64_t ix, int *err)
  */
 uint64_t
 flexarray_view_len(flex_view_t *view)
-{    
+{
     return view->contents->array_size;
 }
 
@@ -460,7 +460,7 @@ flexarray_new_store(uint64_t array_size, uint64_t store_size)
 
     alloc_len = sizeof(flex_store_t) + sizeof(flex_cell_t) * store_size;
     ret       = (flex_store_t *)mmm_alloc_committed(alloc_len);
-    
+
     ret->store_size = store_size;
 
     atomic_store(&ret->array_size, array_size);
@@ -478,15 +478,15 @@ flexarray_migrate(flex_store_t *store, flexarray_t *top)
     uint64_t      i;
     uint64_t      new_array_len;
     uint64_t      new_store_len;
-    
+
     if (atomic_read(&top->store) != store) {
 	return;
     }
 
     next_store = atomic_read(&store->next);
-    
+
     if (next_store) {
-	new_array_len = store->array_size;	
+	new_array_len = store->array_size;
 	goto help_move;
     }
 
@@ -509,12 +509,12 @@ flexarray_migrate(flex_store_t *store, flexarray_t *top)
     new_array_len = store->array_size;
     new_store_len = hatrack_round_up_to_power_of_2(new_array_len) << 1;
     next_store    = flexarray_new_store(new_array_len, new_store_len);
-    
+
     if (!CAS(&store->next, &expected_next, next_store)) {
 	mmm_retire_unused(next_store);
 	next_store = expected_next;
     }
-    
+
     // Now, help move items that are moving.
  help_move:
     for (i = 0; i < store->store_size; i++) {
@@ -522,12 +522,12 @@ flexarray_migrate(flex_store_t *store, flexarray_t *top)
 	if (candidate_item.state & FLEX_ARRAY_MOVED) {
 	    continue;
 	}
-	
+
 	if (i < new_array_len) {
 	    expected_item.item   = NULL;
 	    expected_item.state  = 0;
 	    candidate_item.state = FLEX_ARRAY_USED;
-	    
+
 	    CAS(&next_store->cells[i], &expected_item, candidate_item);
 	    OR2X64L(&store->cells[i], FLEX_ARRAY_MOVED);
 	    continue;

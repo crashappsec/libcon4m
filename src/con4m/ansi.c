@@ -282,6 +282,7 @@ ansi_render_u8(real_str_t *s, FILE *outstream)
 
 	switch (casing) {
 	case UPPER_CASE:
+	    printf("UPPER\n");
 	    ansi_render_one_codepoint_upper(codepoint, outstream);
 	    break;
 	case LOWER_CASE:
