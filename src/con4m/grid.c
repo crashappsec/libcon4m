@@ -1,11 +1,10 @@
 int debug = 0;
 
 // TODO for partiy:
-// 1. Alignment isn't working??
 // 2. Change sizing to work on renderable width not codepoints.
 // 3. Respect no-wrap.
 // 4. Search.
-// 5. Striping of cells.
+// 5. Striping of cell colors.
 
 // Then:
 // 1. Add the ability to add rows or cells easily (and max col width?)
@@ -21,6 +20,10 @@ int debug = 0;
 //    as a better way to fix issues w/ split.
 
 #include <con4m.h>
+
+#define SPAN_NONE  0
+#define SPAN_HERE  1
+#define SPAN_BELOW 2
 
 
 static inline
@@ -829,6 +832,31 @@ grid_add_bottom_pad(grid_t *grid, xlist_t *lines, int16_t width) {
     }
 }
 
+static inline int
+find_spans(grid_t *grid, int row, int col)
+{
+    int result = SPAN_NONE;
+
+    if (col + 1 == grid->num_rows) {
+	return result;
+    }
+
+    renderable_t *cell = *cell_address(grid, row, col + 1);
+    if (cell->start_col != col + 1) {
+	result |= SPAN_HERE;
+    }
+
+
+    if (row != grid->num_rows - 1) {
+	renderable_t *cell = *cell_address(grid, row + 1, col + 1);
+	if (cell->start_col != col + 1) {
+	    result |= SPAN_BELOW;
+	}
+    }
+
+    return result;
+}
+
 static inline void
 grid_add_top_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 {
@@ -880,7 +908,12 @@ grid_add_top_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 	}
 
 	if (vertical_borders && (i + 1 != grid->num_cols)) {
-	    *p++ = draw_chars->top_t;
+	    if (find_spans(grid, 0, i) == SPAN_HERE) {
+		*p++ = draw_chars->horizontal_rule;
+	    }
+	    else {
+		*p++ = draw_chars->top_t;
+	    }
 	}
     }
 
@@ -946,7 +979,13 @@ grid_add_bottom_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 	}
 
 	if (vertical_borders && (i + 1 != grid->num_cols)) {
-	    *p++ = draw_chars->bottom_t;
+	    if (find_spans(grid, grid->num_rows - 1, i) == SPAN_HERE) {
+		*p++ = draw_chars->horizontal_rule;
+	    }
+	    else {
+		*p++ = draw_chars->bottom_t;
+	    }
+
 	}
     }
 
@@ -964,7 +1003,7 @@ grid_add_bottom_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 }
 
 static inline void
-grid_add_horizontal_rule(grid_t *grid, xlist_t *lines, int16_t *col_widths)
+grid_add_horizontal_rule(grid_t *grid, int row, xlist_t *lines, int16_t *col_widths)
 {
     render_style_t *gs           = grid_style(grid);
     int32_t         border_width = 0;
@@ -1012,7 +1051,20 @@ grid_add_horizontal_rule(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 	}
 
 	if (vertical_borders && (i + 1 != grid->num_cols)) {
-	    *p++ = draw_chars->cross;
+	    switch(find_spans(grid, row, i)) {
+	    case SPAN_NONE:
+		*p++ = draw_chars->cross;
+		break;
+	    case SPAN_HERE:
+		*p++ = draw_chars->top_t;
+		break;
+	    case SPAN_BELOW:
+		*p++ = draw_chars->bottom_t;
+		break;
+	    default:
+		*p++ = draw_chars->horizontal_rule;
+		break;
+	    }
 	}
     }
 
@@ -1354,7 +1406,7 @@ _grid_render(grid_t *grid, ...)
 	xlist_plus_eq(result, row);
 
 	if (i + 1 < grid->num_rows) {
-	    grid_add_horizontal_rule(grid, result, col_widths);
+	    grid_add_horizontal_rule(grid, i, result, col_widths);
 	}
     }
 
