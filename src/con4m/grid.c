@@ -1,10 +1,7 @@
 int debug = 0;
 
-// TODO for partiy:
+// TODO
 // 1. Search.
-// 2. Alternating row color striping option for tables.
-
-// Then:
 // 2. Now we're ready to add a more generic `print()`.
 // 3. I'd like to do the debug console soon-ish.
 
@@ -298,6 +295,7 @@ grid_init(grid_t *grid, va_list args)
 	char         *td_tag        = NULL;
 	int           header_rows   = 0;
 	int           header_cols   = 0;
+	int           stripe        = 0;
 	);
 
     method_kargs(args, start_rows, start_cols, spare_rows, contents,
@@ -320,6 +318,10 @@ grid_init(grid_t *grid, va_list args)
     grid->height        = GRID_UNBOUNDED_DIM;
     grid->td_tag_name   = td_tag;
     grid->th_tag_name   = th_tag;
+
+    if (stripe) {
+	grid->stripe = 1;
+    }
 
     if (contents != NULL) {
 	// NOTE: ignoring num_rows and num_cols; could throw an
@@ -358,6 +360,15 @@ static inline render_style_t *
 get_row_props(grid_t *grid, int row)
 {
     if (!grid->row_props[row]) {
+	if (grid->stripe) {
+	    if (row % 2) {
+		return lookup_cell_style("tr.even");
+	    }
+	    else {
+		return lookup_cell_style("tr.odd");
+	    }
+	}
+
 	return lookup_cell_style("tr");
     }
     else {

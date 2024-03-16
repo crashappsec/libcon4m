@@ -39,10 +39,6 @@ extern str_t   *c4str_from_int(int64_t n);
 extern int64_t  _c4str_find(str_t *, str_t *, ...);
 extern struct flexarray_t *c4str_split(str_t *, str_t *);
 
-extern const uint64_t str_ptr_info[];
-extern const con4m_vtable u8str_vtable;
-extern const con4m_vtable u32str_vtable;
-
 #define force_utf8(x) c4str_u32_to_u8(x)
 #define force_utf32(x) c4str_u8_to_u32(x)
 #define c4str_strip(s, ...) _c4str_strip(s, KFUNC(__VA_ARGS__))

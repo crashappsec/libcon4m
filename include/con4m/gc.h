@@ -155,7 +155,7 @@ extern uint64_t gc_guard;
 typedef struct con4m_arena_t {
     alignas(8)
     con4m_alloc_hdr         *next_alloc;
-    struct hatrack_dict_st  *roots;
+    struct dict_t           *roots;
     struct con4m_arena_t    *previous;
     queue_t                 *late_mutations;
     uint64_t                *heap_end;

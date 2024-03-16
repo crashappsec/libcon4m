@@ -41,7 +41,7 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
     { .typeid    = T_BUFFER,
       .alloc_len = CON4M_CUSTOM_ALLOC,
       .ptr_info  = (uint64_t *)pmap_str,
-      .vtable    = &u8str_vtable
+      .vtable    = &buffer_vtable
     },
     { .typeid    = T_UTF32,
       .alloc_len = CON4M_CUSTOM_ALLOC,
@@ -61,7 +61,7 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
     { .typeid    = T_TUPLE, },
 
     { .typeid    = T_DICT,
-      .alloc_len = sizeof(hatrack_dict_t),
+      .alloc_len = sizeof(dict_t),
       .ptr_info  = GC_SCAN_ALL,
       .vtable    = &dict_vtable
     },

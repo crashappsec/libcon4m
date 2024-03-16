@@ -56,6 +56,11 @@ typedef struct {
 
 typedef char str_t;
 
+typedef real_str_t utf8_t;
+typedef real_str_t utf32_t;
+typedef real_str_t buffer_t;
+typedef real_str_t any_str_t;
+
 static inline real_str_t *
 to_internal(const str_t *s)
 {

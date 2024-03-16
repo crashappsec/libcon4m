@@ -22,6 +22,9 @@ typedef void *object_t;
 // Single-threaded data structures for internal use.
 #include <con4m/xlist.h>
 
+// Type system.
+#include <con4m/types.h>
+
 // Basic string handling.
 #include <con4m/codepoint.h>
 #include <con4m/colors.h>

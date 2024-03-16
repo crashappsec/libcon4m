@@ -143,6 +143,8 @@ typedef enum : int64_t {
     CON4M_NUM_BUILTIN_DTS
 } con4m_builtin_t;
 
+#define T_UTF8 T_STR
+
 // in object.c
 extern const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS];
 
@@ -168,3 +170,19 @@ con4m_value_obj_repr(object_t obj)
     repr_fn ptr = (repr_fn)get_vtable(obj)->methods[CON4M_BI_TO_STR];
     return (*ptr)(obj, TO_STR_USE_AS_VALUE);
 }
+
+extern const uint64_t str_ptr_info[];
+extern const con4m_vtable u8str_vtable;
+extern const con4m_vtable u32str_vtable;
+extern const con4m_vtable buffer_vtable;
+extern const con4m_vtable grid_vtable;
+extern const con4m_vtable dimensions_vtable;
+extern const con4m_vtable gridprops_vtable;
+extern const con4m_vtable renderable_vtable;
+extern const con4m_vtable list_vtable;
+extern const con4m_vtable queue_vtable;
+extern const con4m_vtable ring_vtable;
+extern const con4m_vtable logring_vtable;
+extern const con4m_vtable stack_vtable;
+extern const con4m_vtable dict_vtable;
+extern const con4m_vtable xlist_vtable;

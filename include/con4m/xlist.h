@@ -12,8 +12,6 @@ typedef struct {
     int64_t  **data;
 } xlist_t;
 
-extern const con4m_vtable xlist_vtable;
-
 static inline void *
 xlist_get(const xlist_t *list, int64_t ix, bool *err)
 {

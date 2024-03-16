@@ -56,6 +56,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/colors.c',
             'src/con4m/breaks.c', 
             'src/con4m/c4str.c',
+            'src/con4m/buffer.c',
             'src/con4m/ansi.c',
             'src/con4m/hex.c',
             'src/con4m/switchboard.c',
@@ -68,7 +69,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/lists.c',
             'src/con4m/xlist.c',
             'src/con4m/grid.c',
-            'src/con4m/styledb.c'
+            'src/con4m/styledb.c',
             ]
 
 hat_primary = ['src/hatrack/support/hatrack_common.c',
@@ -128,8 +129,8 @@ ssl      = cc.find_library('ssl')
 
 unibreak = dependency('libunibreak')
 utf8proc = dependency('libutf8proc')
-cmark    = dependency('libcmark-gfm')
-deps     = [unibreak, utf8proc, threads, cmark, ffi, ssl, crypto]
+#cmark    = dependency('libcmark-gfm')
+deps     = [unibreak, utf8proc, threads, ffi, ssl, crypto]
 opts     = [math]
 all_deps = deps + opts
 

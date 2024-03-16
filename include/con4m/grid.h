@@ -199,6 +199,7 @@ struct grid_t {
     // we will apply the 'th' tag to anything in these row/columns.
     int8_t              header_rows;
     int8_t              header_cols;
+    int8_t              stripe;
 };
 
 #define GRID_TERMINAL_DIM ((int16_t)-1)
@@ -244,11 +245,6 @@ extern grid_t *_unordered_list(flexarray_t *, ...);
 #define ordered_list(l, ...) _ordered_list(l, KFUNC(__VA_ARGS__))
 #define unordered_list(l, ...) _unordered_list(l, KFUNC(__VA_ARGS__))
 
-
-const con4m_vtable grid_vtable;
-extern const con4m_vtable dimensions_vtable;
-extern const con4m_vtable gridprops_vtable;
-extern const con4m_vtable renderable_vtable;
 
 void
 grid_add_col_span(grid_t *grid, renderable_t *contents, int64_t row,
@@ -368,4 +364,10 @@ static inline void
 grid_add_cell(grid_t *grid, object_t container)
 {
     grid_set_cell_contents(grid, grid->row_cursor, grid->col_cursor, container);
+}
+
+static inline void
+grid_stripe_rows(grid_t *grid)
+{
+    grid->stripe = 1;
 }

@@ -266,10 +266,10 @@ table_test()
     flexarray_set(l, 0xa, to_internal(ol3));
     flexarray_set(l, 0xb, to_internal(ol4));
 
-
-
     grid_t *ol   = ordered_list(l);
     grid_t *ul   = unordered_list(l);
+
+    grid_stripe_rows(ol);
     grid_t *flow = grid_flow(3, g, ul, ol);
 
     grid_add_cell(flow, to_internal(test1));

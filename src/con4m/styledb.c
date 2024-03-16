@@ -167,6 +167,20 @@ static const render_style_t default_tr = {
     .base_style = 0x2f3f3ff8f8fful | BG_COLOR_ON | FG_COLOR_ON,
 };
 
+static const render_style_t default_tr_even = {
+    .name       = "tr.even",
+    .dim_kind   = DIM_AUTO,
+    .alignment  = ALIGN_TOP_LEFT,
+    .base_style = 0x3f3f3ff8f8fful | BG_COLOR_ON | FG_COLOR_ON,
+};
+
+static const render_style_t default_tr_odd = {
+    .name       = "tr.odd",
+    .dim_kind   = DIM_AUTO,
+    .alignment  = ALIGN_TOP_LEFT,
+    .base_style = 0x5f5f5ff8f8fful | BG_COLOR_ON | FG_COLOR_ON,
+};
+
 static const render_style_t default_th = {
     .name       = "th",
     .base_style = UPPER_CASE | 0xb3ff00 | BG_COLOR_ON | FG_COLOR_ON | BOLD_ON,
@@ -268,9 +282,7 @@ lookup_cell_style(char *name)
 {
     init_style_db();
 
-    int ok = 0;
-
-    render_style_t *entry  = hatrack_dict_get(style_dictionary, name, &ok);
+    render_style_t *entry  = hatrack_dict_get(style_dictionary, name, NULL);
 
     if (!entry) {
 	return NULL;
@@ -521,6 +533,8 @@ install_default_styles()
 
     set_style("table", (render_style_t *)&default_table);
     set_style("tr", (render_style_t *)&default_tr);
+    set_style("tr.even", (render_style_t *)&default_tr_even);
+    set_style("tr.odd", (render_style_t *)&default_tr_odd);
     set_style("td", (render_style_t *)&default_td);
     set_style("th", (render_style_t *)&default_th);
     set_style("tcol", (render_style_t *)&default_tcol);
