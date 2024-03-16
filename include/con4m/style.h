@@ -27,22 +27,22 @@
 
 
 static inline void
-style_debug(char *prefix, const str_t *s) {
-    if (!s) return;
-
-    real_str_t *p = to_internal(s);
+style_debug(char *prefix, const any_str_t *p) {
+    if (!p) return;
 
     if (p->styling == NULL) {
-	printf("debug (%s): len: %lld styles: nil\n", prefix, c4str_len(s));
+	printf("debug (%s): len: %lld styles: nil\n", prefix,
+	       string_codepoint_len(p));
 	return;
     }
     else {
-	printf("debug (%s): len: %lld # styles: %lld\n", prefix, c4str_len(s),
-	       p->styling->num_entries);
+	printf("debug (%s): len: %lld # styles: %lld\n", prefix,
+	       string_codepoint_len(p), p->styling->num_entries);
     }
     for (int i = 0 ; i < p->styling->num_entries; i++) {
 	style_entry_t entry = p->styling->styles[i];
-	printf("%d: %llx (%d:%d)\n", i + 1, p->styling->styles[i].info, entry.start, entry.end);
+	printf("%d: %llx (%d:%d)\n", i + 1, p->styling->styles[i].info,
+	       entry.start, entry.end);
     }
 }
 
@@ -56,14 +56,14 @@ style_size(uint64_t num_entries)
 }
 
 static inline size_t
-alloc_style_len(real_str_t *s)
+alloc_style_len(any_str_t *s)
 {
     return sizeof(style_info_t) +
         s->styling->num_entries * sizeof(style_entry_t);
 }
 
 static inline int64_t
-style_num_entries(real_str_t *s)
+style_num_entries(any_str_t *s)
 {
     if (s->styling == NULL) {
 	return 0;
@@ -71,14 +71,8 @@ style_num_entries(real_str_t *s)
     return s->styling->num_entries;
 }
 
-static inline int64_t
-cstr_num_styles(const str_t *s)
-{
-    return style_num_entries(to_internal(s));
-}
-
 static inline void
-alloc_styles(real_str_t *s, int n)
+alloc_styles(any_str_t *s, int n)
 {
     if (n <= 0) {
 	s->styling              = gc_flex_alloc(style_info_t, style_entry_t, 0,
@@ -92,7 +86,7 @@ alloc_styles(real_str_t *s, int n)
 }
 
 static inline void
-copy_style_info(real_str_t *from_str, real_str_t *to_str)
+copy_style_info(const any_str_t *from_str, any_str_t *to_str)
 {
     if (from_str->styling == NULL) {
 	return;
@@ -110,17 +104,17 @@ copy_style_info(real_str_t *from_str, real_str_t *to_str)
 }
 
 static inline void
-apply_style_to_real_string(real_str_t *s, style_t style)
+string_apply_style(any_str_t *s, style_t style)
 {
 
     alloc_styles(s, 1);
     s->styling->styles[0].start = 0;
-    s->styling->styles[0].end   = internal_num_cp(s);
+    s->styling->styles[0].end   = string_codepoint_len(s);
     s->styling->styles[0].info  = style;
 }
 
 static inline int
-copy_and_offset_styles(real_str_t *from_str, real_str_t *to_str,
+copy_and_offset_styles(any_str_t *from_str, any_str_t *to_str,
 		       int dst_style_ix, int offset)
 {
     if (from_str->styling == NULL || from_str->styling->num_entries == 0) {
@@ -144,16 +138,16 @@ copy_and_offset_styles(real_str_t *from_str, real_str_t *to_str,
 }
 
 static inline void
-style_gaps(real_str_t *s, style_t gapstyle)
+style_gaps(any_str_t *s, style_t gapstyle)
 {
     if (!s->styling || !s->styling->num_entries) {
-	apply_style_to_real_string(s, gapstyle);
+	string_apply_style(s, gapstyle);
 	return;
     }
 
     int num_gaps = 0;
     int last_end = 0;
-    int num_cp   = internal_num_cp(s);
+    int num_cp   = string_codepoint_len(s);
 
     for (int i = 0; i < s->styling->num_entries; i++) {
 	style_entry_t style = s->styling->styles[i];
@@ -235,7 +229,7 @@ extern style_t remove_all_color(style_t style);
 // After the slice, remove dead styles.
 // This isn't being used, but it's a reasonable debugging tool.
 static inline void
-clean_styles(real_str_t *s) {
+clean_styles(any_str_t *s) {
     if (!s->styling) {
 	return;
     }

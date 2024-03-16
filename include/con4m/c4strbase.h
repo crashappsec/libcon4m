@@ -4,30 +4,8 @@ extern const int str_header_size;
 extern const uint64_t pmap_str[2];
 #define PMAP_STR ((uint64_t *)&pmap_str[0])
 
-#define STATIC_STR_STRUCT(id, length) struct static_str_ ## id ## _st {        \
-    con4m_dt_info *base_data_type;                                             \
-    uint64_t       concrete_type;                                              \
-    struct {                                                                   \
-	alignas(8)                                                             \
-	int32_t       codepoints;                                              \
-	int32_t       byte_len;                                                \
-	style_info_t *styling;                                                 \
-	char          data[length];                                            \
-    } r;                                                                       \
-}
-
-// This only works with ASCII strings, not arbitrary utf8.
-#define STATIC_ASCII_STR(id, val) STATIC_STR_STRUCT(id, sizeof(val));          \
-const struct static_str_ ## id ## _st _static_ ## id = {		       \
-	.base_data_type = (con4m_dt_info *)&builtin_type_info[T_STR],          \
-	.concrete_type  = T_STR,                                               \
-        .r.byte_len     = sizeof(val),  				       \
-	.r.codepoints   = sizeof(val),					       \
-	.r.styling      = NULL,                                                \
-        .r.data         = val };                                               \
-    const str_t *id = (str_t *)& (_static_ ## id).r.data
-
 typedef uint64_t style_t;
+typedef int32_t  codepoint_t;
 
 typedef struct {
     int32_t  start;
@@ -51,50 +29,27 @@ typedef struct {
     int32_t       codepoints;
     int32_t       byte_len;
     style_info_t *styling;
-    char          data[];
-} real_str_t;
+    char         *data;
+} base_str_t;
 
-typedef char str_t;
+typedef base_str_t utf8_t;
+typedef base_str_t utf32_t;
+typedef base_str_t any_str_t;
 
-typedef real_str_t utf8_t;
-typedef real_str_t utf32_t;
-typedef real_str_t any_str_t;
+struct internal_string_st {
+    con4m_dt_info *base_data_type;
+    uint64_t       concrete_type;
+    base_str_t     s;
+};
 
-static inline real_str_t *
-to_internal(const str_t *s)
-{
-    return (real_str_t *)(((str_t *)s) - str_header_size);
-}
-
-static inline bool
-internal_is_u32(real_str_t *s)
-{
-    return (bool)(s->codepoints < 0);
-}
-
-static inline size_t
-get_real_alloc_len(int rawbytes)
-{
-    return sizeof(object_t) + sizeof(real_str_t) + 4 + rawbytes;
-}
-
-static inline size_t
-real_alloc_len(real_str_t *r)
-{
-    return get_real_alloc_len(r->byte_len);
-}
-
-static inline int32_t
-internal_num_cp(real_str_t *s)
-{
-    if (s->codepoints < 0) {
-	return ~s->codepoints;
-    }
-    else {
-	return s->codepoints;
-    }
-}
-
-extern int64_t  c4str_byte_len(const str_t *);
-extern int64_t  c4str_len(const str_t *);
-extern int64_t  c4str_render_len(const str_t *);
+// This only works with ASCII strings, not arbitrary utf8.
+#define STATIC_ASCII_STR(id, val)                                              \
+const struct internal_string_st _static_ ## id = {                             \
+	.base_data_type = (con4m_dt_info *)&builtin_type_info[T_UTF8],         \
+	.concrete_type  = T_UTF8,                                              \
+        .s.byte_len     = sizeof(val),  				       \
+	.s.codepoints   = sizeof(val),					       \
+	.s.styling      = NULL,                                                \
+        .s.data         = val						       \
+    };								               \
+    const base_str_t *id = (base_str_t *)&(_static_ ## id.s)

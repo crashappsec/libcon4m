@@ -15,9 +15,9 @@ test1() {
     style2 = add_upper_case(style2);
 
 
-    str_t *s1 = con4m_new(T_STR, "cstring", "\ehello,", "style", style1);
-    str_t *s2 = con4m_new(T_STR, "cstring", " world!");
-    str_t *s3 = con4m_new(T_STR, "cstring", " magic?\n");
+    any_str_t *s1 = con4m_new(T_UTF8, "cstring", "\ehello,", "style", style1);
+    any_str_t *s2 = con4m_new(T_UTF8, "cstring", " world!");
+    any_str_t *s3 = con4m_new(T_UTF8, "cstring", " magic?\n");
 
     con4m_gc_register_root(&s1, 1);
     con4m_gc_register_root(&s2, 1);
@@ -27,17 +27,17 @@ test1() {
     ansi_render(s2, stdout);
     ansi_render(s3, stdout);
 
-    s1 = c4str_u8_to_u32(s1);
-    c4str_apply_style(s3, style2);
-    s2 = c4str_u8_to_u32(s2);
-    s3 = c4str_u8_to_u32(s3);
+    s1 = force_utf32(s1);
+    string_apply_style(s3, style2);
+    s2 = force_utf32(s2);
+    s3 = force_utf32(s3);
 
     ansi_render(s1, stdout);
     ansi_render(s2, stdout);
     ansi_render(s3, stdout);
 
-    str_t *s  = c4str_concat(s1, s2);
-    s         = c4str_concat(s,  s3);
+    utf32_t *s  = string_concat(s1, s2);
+    s           = string_concat(s,  s3);
 
     ansi_render(s, stdout);
     printf("That was at %p\n", s);
@@ -75,20 +75,20 @@ test1() {
     ansi_render(s, stdout);
 }
 
-str_t *
+any_str_t *
 test2() {
-    str_t *w1 = con4m_new(T_STR, "cstring", "Once upon a time, there was a ");
-    str_t *w2 = con4m_new(T_STR, "cstring", "thing I cared about. But then I ");
-    str_t *w3 = con4m_new(T_STR, "cstring",
-	"stopped caring. I don't really remember what it was, though. Do ");
-    str_t *w4 = con4m_new(T_STR, "cstring",
+    utf8_t *w1 = con4m_new(T_UTF8, "cstring", "Once upon a time, there was a ");
+    utf8_t *w2 = con4m_new(T_UTF8, "cstring", "thing I cared about. But then ");
+    utf8_t *w3 = con4m_new(T_UTF8, "cstring",
+	"I stopped caring. I don't really remember what it was, though. Do ");
+    utf8_t *w4 = con4m_new(T_UTF8, "cstring",
 	"you? No, I didn't think so, because it wasn't really all that "
 	"interesting, to be quite honest. Maybe someday I'll find something "
 	"interesting to care about, besides my family. Oh yeah, that's "
 	"what it was, my family! Oh, wait, no, they're either not interesting, "
 	"or I don't care about them.\n");
-    str_t *w5 = con4m_new(T_STR, "cstring", "Basically AirTags for Software");
-    str_t *w6 = con4m_new(T_STR, "cstring", "\n");
+    utf8_t *w5 = con4m_new(T_UTF8, "cstring", "Basically AirTags for Software");
+    utf8_t *w6 = con4m_new(T_UTF8, "cstring", "\n");
 
 
     con4m_gc_register_root(&w1, 1);
@@ -98,35 +98,31 @@ test2() {
     con4m_gc_register_root(&w5, 1);
     con4m_gc_register_root(&w6, 1);
 
-    c4str_apply_style(w2, style1);
-    c4str_apply_style(w3, style2);
-    c4str_apply_style(w5, style1);
+    string_apply_style(w2, style1);
+    string_apply_style(w3, style2);
+    string_apply_style(w5, style1);
 
-    str_t *to_wrap;
+    utf32_t *to_wrap;
 
     con4m_gc_register_root(&to_wrap, 1);
 
-    to_wrap        = c4str_concat(w1, w2);
-    to_wrap        = c4str_concat(to_wrap, w3);
-    to_wrap        = c4str_concat(to_wrap, w4);
-    to_wrap        = c4str_concat(to_wrap, w5);
-    to_wrap        = c4str_concat(to_wrap, w6);
+    to_wrap        = string_concat(w1, w2);
+    to_wrap        = string_concat(to_wrap, w3);
+    to_wrap        = string_concat(to_wrap, w4);
+    to_wrap        = string_concat(to_wrap, w5);
+    to_wrap        = string_concat(to_wrap, w6);
 
-    real_str_t *real = to_internal(to_wrap);
-    con4m_gc_register_root(&real, 1);
+    utf8_t *dump1 = hex_dump(to_wrap->styling,
+			     alloc_style_len(to_wrap),
+			     (uint64_t)to_wrap->styling,
+			     80,
+			     "Style dump\n");
 
-
-    str_t *dump1 = hex_dump(real->styling,
-                            alloc_style_len(real),
-			    (uint64_t)real->styling,
-			    80,
-			    "Style dump\n");
-
-    str_t *dump2 = hex_dump(real,
-			    real_alloc_len(real),
-			    (uint64_t)real,
-			    80,
-			    "String Dump\n");
+    utf8_t *dump2 = hex_dump(to_wrap,
+			     to_wrap->byte_len,
+			     (uint64_t)to_wrap,
+			     80,
+			     "String Dump\n");
 
     con4m_gc_register_root(&dump1, 1);
     con4m_gc_register_root(&dump2, 1);
@@ -150,30 +146,31 @@ test_rand64()
 }
 
 void
-test3(str_t *to_slice)
+test3(any_str_t *to_slice)
 {
-    //ansi_render(c4str_slice(to_slice, 10, 50), stdout);
-    ansi_render_to_width(c4str_slice(to_slice, 10, 50), term_width, 0, stdout);
+    //ansi_render(string_slice(to_slice, 10, 50), stdout);
+    ansi_render_to_width(string_slice(to_slice, 10, 50), term_width, 0, stdout);
     printf("\n");
-    ansi_render_to_width(c4str_slice(to_slice, 40, 100), term_width, 0, stdout);
+    ansi_render_to_width(string_slice(to_slice, 40, 100), term_width, 0,
+			 stdout);
     printf("\n");
 }
 
 void
 test4()
 {
-    str_t *w1 = con4m_new(T_STR, "cstring", "Once upon a time, there was a ");
-    str_t *w2 = con4m_new(T_STR, "cstring", "thing I cared about. But then I ");
-    str_t *w3 = con4m_new(T_STR, "cstring",
-	"stopped caring. I don't really remember what it was, though. Do ");
-    str_t *w4 = con4m_new(T_STR, "cstring",
+    utf8_t *w1 = con4m_new(T_UTF8, "cstring", "Once upon a time, there was a ");
+    utf8_t *w2 = con4m_new(T_UTF8, "cstring", "thing I cared about. But then ");
+    utf8_t *w3 = con4m_new(T_UTF8, "cstring",
+	"I stopped caring. I don't really remember what it was, though. Do ");
+    utf8_t *w4 = con4m_new(T_UTF8, "cstring",
 	"you? No, I didn't think so, because it wasn't really all that "
 	"interesting, to be quite honest. Maybe someday I'll find something "
 	"interesting to care about, besides my family. Oh yeah, that's "
 	"what it was, my family! Oh, wait, no, they're either not interesting, "
-        "or I don't care about them.", "style", style1);
-    str_t *w5 = con4m_new(T_STR, "cstring", "\n");
-    str_t *w6 = con4m_new(T_STR, "cstring", "Basically AirTags for Software\n");
+	"or I don't care about them.\n");
+    utf8_t *w5 = con4m_new(T_UTF8, "cstring", "Basically AirTags for Software");
+    utf8_t *w6 = con4m_new(T_UTF8, "cstring", "\n");
 
     con4m_gc_register_root(&w1, 1);
     con4m_gc_register_root(&w2, 1);
@@ -199,7 +196,7 @@ test4()
     hatrack_dict_item_t *view = hatrack_dict_items_sort(d, &num);
 
     for (uint64_t i = 0; i < num; i++) {
-	ansi_render((str_t *)(view[i].key), stderr);
+	ansi_render((any_str_t *)(view[i].key), stderr);
     }
 
     con4m_gc_thread_collect();
@@ -208,33 +205,33 @@ test4()
 void
 table_test()
 {
-    str_t      *test1 = con4m_new(T_STR, "cstring", "Some example 🤯 🤯 🤯"
+    utf8_t     *test1 = con4m_new(T_UTF8, "cstring", "Some example 🤯 🤯 🤯"
 	" Let's make it a fairly long 🤯 example, so it will be sure to need"
 	" some reynolds' wrap.");
-    str_t      *test2 = con4m_new(T_STR, "cstring", "Some other example.");
-    str_t      *test3 = con4m_new(T_STR, "cstring", "Example 3.");
-    str_t      *test4 = con4m_new(T_STR, "cstring", "Defaults.");
-    str_t      *test5 = con4m_new(T_STR, "cstring", "Last one.");
+    utf8_t     *test2 = con4m_new(T_UTF8, "cstring", "Some other example.");
+    utf8_t     *test3 = con4m_new(T_UTF8, "cstring", "Example 3.");
+    utf8_t     *test4 = con4m_new(T_UTF8, "cstring", "Defaults.");
+    utf8_t     *test5 = con4m_new(T_UTF8, "cstring", "Last one.");
     grid_t     *g     = con4m_new(T_GRID, "start_rows", 4, "start_cols", 3,
 				  "header_rows", 1);
-    str_t      *hdr   = con4m_new(T_STR, "cstring", "Yes, this is a table.");
+    utf8_t     *hdr   = con4m_new(T_UTF8, "cstring", "Yes, this is a table.");
 
 
     grid_add_row(g, to_str_renderable(hdr, "td"));
-    grid_add_cell(g, to_internal(test1));
-    grid_add_cell(g, to_internal(test2));
-    grid_add_cell(g, to_internal(test4));
-    grid_set_cell_contents(g, 2, 2, to_internal(test3));
-    grid_set_cell_contents(g, 2, 1, to_internal(test5));
+    grid_add_cell(g, test1);
+    grid_add_cell(g, test2);
+    grid_add_cell(g, test4);
+    grid_set_cell_contents(g, 2, 2, test3);
+    grid_set_cell_contents(g, 2, 1, test5);
     grid_add_col_span(g, to_str_renderable(test1, "td"),  3, 0, 2);
-    grid_set_cell_contents(g, 2, 0, to_internal(empty_string()));
+    grid_set_cell_contents(g, 2, 0, empty_string());
     // If we don't explicitly set this, there can be some render issues
     // when there's not enough room.
-    grid_set_cell_contents(g, 3, 2, to_internal(empty_string()));
-    c4str_apply_style(test1, style1);
-    c4str_apply_style(test2, style2);
-    c4str_apply_style(test3, style1);
-    c4str_apply_style(test5, style2);
+    grid_set_cell_contents(g, 3, 2, empty_string());
+    string_apply_style(test1, style1);
+    string_apply_style(test2, style2);
+    string_apply_style(test3, style1);
+    string_apply_style(test5, style2);
     con4m_new(T_RENDER_STYLE, "flex_units", 3, "tag", "col1");
     con4m_new(T_RENDER_STYLE, "flex_units", 2, "tag", "col3");
 //    con4m_new(T_RENDER_STYLE, "width_pct", 10., "tag", "col1");
@@ -243,39 +240,38 @@ table_test()
     apply_column_style(g, 2, "col3");
 
     // Ordered / unordered lists.
-    str_t *ol1   = con4m_new(T_STR, "cstring",
+    utf8_t *ol1    = con4m_new(T_UTF8, "cstring",
 			       "This is a good point, one that you haven't "
 			       "heard before.");
-    str_t *ol2   = con4m_new(T_STR, "cstring",
+    utf8_t *ol2    = con4m_new(T_UTF8, "cstring",
 			       "This is a point that's just as valid, but you "
 			       "already know it.");
-    str_t *ol3   = con4m_new(T_STR, "cstring", "This is a small point.");
-    str_t *ol4   = con4m_new(T_STR, "cstring", "Conclusion.");
+    utf8_t *ol3    = con4m_new(T_UTF8, "cstring", "This is a small point.");
+    utf8_t  *ol4   = con4m_new(T_UTF8, "cstring", "Conclusion.");
     flexarray_t *l = con4m_new(T_LIST, "length", 12);
 
-    flexarray_set(l, 0, to_internal(ol1));
-    flexarray_set(l, 1, to_internal(ol2));
-    flexarray_set(l, 2, to_internal(ol3));
-    flexarray_set(l, 3, to_internal(ol4));
-    flexarray_set(l, 4, to_internal(ol1));
-    flexarray_set(l, 5, to_internal(ol2));
-    flexarray_set(l, 6, to_internal(ol3));
-    flexarray_set(l, 7, to_internal(ol4));
-    flexarray_set(l, 8, to_internal(ol1));
-    flexarray_set(l, 9, to_internal(ol2));
-    flexarray_set(l, 0xa, to_internal(ol3));
-    flexarray_set(l, 0xb, to_internal(ol4));
+    flexarray_set(l, 0, ol1);
+    flexarray_set(l, 1, ol2);
+    flexarray_set(l, 2, ol3);
+    flexarray_set(l, 3, ol4);
+    flexarray_set(l, 4, ol1);
+    flexarray_set(l, 5, ol2);
+    flexarray_set(l, 6, ol3);
+    flexarray_set(l, 7, ol4);
+    flexarray_set(l, 8, ol1);
+    flexarray_set(l, 9, ol2);
+    flexarray_set(l, 0xa, ol3);
+    flexarray_set(l, 0xb, ol4);
 
     grid_t *ol   = ordered_list(l);
     grid_t *ul   = unordered_list(l);
 
     grid_stripe_rows(ol);
-    grid_t *flow = grid_flow(3, g, ul, ol);
 
-    grid_add_cell(flow, to_internal(test1));
+    grid_t *flow = grid_flow(3, g, ul, ol);
+    grid_add_cell(flow, test1);
     ansi_render(con4m_value_obj_repr(flow), stdout);
 }
-
 
 int
 main(int argc, char **argv, char **envp)
@@ -288,7 +284,7 @@ main(int argc, char **argv, char **envp)
     // Test basic string and single threaded GC.
     test1();
     //style1 = apply_bg_color(style1, "alice blue");
-    str_t *to_slice = test2();
+    any_str_t *to_slice = test2();
     con4m_gc_register_root(&to_slice, 1);
     test3(to_slice);
     to_slice = NULL;

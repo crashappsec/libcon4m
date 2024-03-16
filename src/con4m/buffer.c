@@ -17,7 +17,7 @@ buffer_init(buffer_t *obj, va_list args)
     }
 
     if (len == -1) {
-	len = internal_num_cp(hex) >> 1;
+	len = string_codepoint_len(hex) >> 1;
     }
 
     obj->data = con4m_gc_alloc(len, NULL);
@@ -26,7 +26,7 @@ buffer_init(buffer_t *obj, va_list args)
 	uint8_t cur         = 0;
 	int     valid_count = 0;
 
-	hex = to_internal(force_utf8(hex->data));
+	hex = force_utf8(hex);
 
 	for (int i = 0; i < hex->byte_len; i++) {
 	    uint8_t byte = hex->data[i];

@@ -273,12 +273,12 @@ print_hex(void *ptr, unsigned int len, char *prefix) {
     printf("%s\n", outbuf);
 }
 
-extern str_t *
+extern utf8_t *
 hex_dump(void *ptr, unsigned int len, uint64_t start_offset,
 	 unsigned int width, char *prefix)
 {
-    char  *dump = chexl(ptr, len, start_offset, width, prefix);
-    str_t *res  = con4m_new(T_STR, "cstring", dump);
+    char   *dump = chexl(ptr, len, start_offset, width, prefix);
+    utf8_t *res  = con4m_new(T_UTF8, "cstring", dump);
 
     return res;
 }

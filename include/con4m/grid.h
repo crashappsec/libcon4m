@@ -87,18 +87,18 @@
  *
  * When the grid asks cells for their rendering, the expectations are:
  *
- * 1) The item provides an array of `str_t *` objects, one for each
+ * 1) The item provides an array of `any_str_t *` objects, one for each
  *    row of the requested height (with no newline type characters).
  *
  * 2) Each item in that array is padded (generally with spaces, but
  *    with whatever 'pad' is set) to the requested width.
  *
  * 3) All alignment and coloring rules are respected in what is passed
- *    back. That means the str_t *'s styling info will be set
+ *    back. That means the any_str_t *'s styling info will be set
  *    appropriately, and that padd will be added based on any
  *    alignment properties.
  *
- * 4) To be clear, the returned array of str_t's returned will contain
+ * 4) To be clear, the returned array of any_str_t's returned will contain
  *    the number of rows asked for, even if some rows are 100% pad.
  *
  * Of course, for any property beyond render dimensions, the cell's
@@ -160,7 +160,7 @@ typedef struct grid_t grid_t;
 // on subsequent lines.
 
 typedef struct {
-    object_t         raw_item; // Currently, must be a grid_t * or str_t *.
+    object_t         raw_item; // Currently, must be a grid_t * or any_str_t *.
     char            *container_tag;
     render_style_t  *current_style;
     uint16_t         start_col;
@@ -239,7 +239,7 @@ xlist_t *_grid_render(grid_t *, ...);
 #define grid_render(g, ...) _grid_render(g, KFUNC(__VA_ARGS__))
 
 extern grid_t *grid_flow(uint64_t items, ...);
-str_t *grid_to_str(grid_t *, to_str_use_t);
+utf32_t *grid_to_str(grid_t *, to_str_use_t);
 extern grid_t *_ordered_list(flexarray_t *, ...);
 extern grid_t *_unordered_list(flexarray_t *, ...);
 #define ordered_list(l, ...) _ordered_list(l, KFUNC(__VA_ARGS__))
@@ -251,9 +251,9 @@ grid_add_col_span(grid_t *grid, renderable_t *contents, int64_t row,
 		  int64_t start_col, int64_t num_cols);
 
 static inline renderable_t *
-to_str_renderable(str_t *s, char *tag)
+to_str_renderable(any_str_t *s, char *tag)
 {
-    return con4m_new(T_RENDERABLE, "obj", to_internal(s), "tag", tag);
+    return con4m_new(T_RENDERABLE, "obj", s, "tag", tag);
 }
 
 static inline void
@@ -328,7 +328,7 @@ grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
 
 	break;
     }
-    case T_STR:
+    case T_UTF8:
     case T_UTF32:
     {
 	char *tag;

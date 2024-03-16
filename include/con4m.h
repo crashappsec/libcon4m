@@ -12,6 +12,7 @@ typedef void *object_t;
 #include <con4m/kargs.h>   // Keyword arguments.
 #include <con4m/random.h>
 
+#include <con4m/objectbase.h>
 #include <con4m/c4strbase.h>
 
 // Memory management
@@ -28,8 +29,8 @@ typedef void *object_t;
 // Basic string handling.
 #include <con4m/codepoint.h>
 #include <con4m/colors.h>
-#include <con4m/style.h>
 #include <con4m/c4str.h>
+#include <con4m/style.h>
 #include <con4m/breaks.h>
 #include <con4m/ansi.h>
 #include <con4m/hex.h>

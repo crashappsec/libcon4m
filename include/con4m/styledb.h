@@ -428,5 +428,3 @@ get_border_theme(render_style_t *style)
 }
 
 extern void layer_styles(const render_style_t *, render_style_t *);
-extern const con4m_vtable render_style_vtable;
-extern const uint64_t rs_pmap[2];

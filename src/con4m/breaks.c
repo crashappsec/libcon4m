@@ -18,12 +18,13 @@
 const int minimum_break_slots = 16;
 
 break_info_t *
-get_grapheme_breaks(const str_t *instr, int32_t start_ix, int32_t end_ix)
+get_grapheme_breaks(const any_str_t *s, int32_t start_ix, int32_t end_ix)
 {
-    real_str_t   *s     = to_internal(instr);
+    if (!s) { return NULL; }
+
     break_info_t *res   = alloc_break_structure(s, 1);
     int32_t       state = 0;
-    int32_t       cps   = internal_num_cp(s);
+    int32_t       cps   = string_codepoint_len(s);
     int32_t       len;
 
     if (start_ix < 0) {
@@ -45,7 +46,7 @@ get_grapheme_breaks(const str_t *instr, int32_t start_ix, int32_t end_ix)
 	return res;
     }
 
-    if (internal_is_u32(s)) {
+    if (string_is_u32(s)) {
 	int32_t *p1 = ((int32_t *)(s->data)) + start_ix;
 	int32_t *p2 = (int32_t *)(p1 + 1);
 	for (int i = 1; i < len; i++) {
@@ -96,13 +97,14 @@ internal_is_line_break(int32_t cp) {
 }
 
 break_info_t *
-get_line_breaks(const str_t *instr)
+get_line_breaks(const any_str_t *s)
 {
-    real_str_t   *s   = to_internal(instr);
-    break_info_t *res = alloc_break_structure(s, 6); // 2^6 = 64.
-    int32_t       l   = internal_num_cp(s);
+    if (!s) { return NULL; }
 
-    if (internal_is_u32(s)) {
+    break_info_t *res = alloc_break_structure(s, 6); // 2^6 = 64.
+    int32_t       l   = string_codepoint_len(s);
+
+    if (string_is_u32(s)) {
 	int32_t *p = (int32_t *)(s->data);
 	for (int i = 0; i < l; i++) {
 	    if (internal_is_line_break(p[i])) {
@@ -125,20 +127,20 @@ get_line_breaks(const str_t *instr)
 }
 
 break_info_t *
-get_all_line_break_ops(const str_t *instr)
+get_all_line_break_ops(const any_str_t *s)
 {
-    real_str_t   *s      = to_internal(instr);
-    int32_t       l      = internal_num_cp(s);
+    if (!s) { return NULL; }
+
+    int32_t       l      = string_codepoint_len(s);
     break_info_t *res    = alloc_break_structure(s, 0);
     char         *br_raw;
 
-    if (internal_is_u32(s)) {
-	br_raw = (char *)con4m_gc_alloc(l, PMAP_BREAKS);
-        assert (s != NULL);
+    if (string_is_u32(s)) {
+	br_raw = (char *)con4m_gc_alloc(l, NULL);
 	set_linebreaks_utf32((int32_t *)s->data, l, "en", br_raw);
     }
     else {
-	br_raw = (char *)con4m_gc_alloc(s->byte_len, PMAP_BREAKS);
+	br_raw = (char *)con4m_gc_alloc(s->byte_len, NULL);
 	set_linebreaks_utf8_per_code_point((int8_t *)s->data, s->byte_len,
 					   "en", br_raw);
     }
@@ -153,11 +155,11 @@ get_all_line_break_ops(const str_t *instr)
 }
 
 static int32_t
-find_hwrap(const str_t *s, int32_t offset, int32_t width)
+find_hwrap(const any_str_t *s, int32_t offset, int32_t width)
 {
-    real_str_t *str = to_internal(force_utf32(s));
+    utf32_t    *str = force_utf32(s);
     uint32_t   *u32 = (uint32_t *)str->data;
-    int         l   = internal_num_cp(str);
+    int         l   = string_codepoint_len(str);
 
     for (int i = offset; i < l; i++) {
 	width -= codepoint_width(u32[i]);
@@ -180,7 +182,7 @@ find_hwrap(const str_t *s, int32_t offset, int32_t width)
  ** expect this to represent a paragraph break.
  **/
 break_info_t *
-wrap_text(const str_t *s, int32_t width, int32_t hang)
+wrap_text(const any_str_t *s, int32_t width, int32_t hang)
 {
     if (width <= 0) {
 	width = max(20, terminal_width());
@@ -189,9 +191,8 @@ wrap_text(const str_t *s, int32_t width, int32_t hang)
     break_info_t *line_breaks  = get_line_breaks(s);
     break_info_t *break_ops    = get_all_line_break_ops(s);
     int32_t       n            = 32 - __builtin_clz(width);
-    real_str_t   *r            = to_internal(s);
-    int32_t       l            = internal_num_cp(r);
-    break_info_t *res          = alloc_break_structure(r, n);
+    int32_t       l            = string_codepoint_len(s);
+    break_info_t *res          = alloc_break_structure(s, n);
     int32_t       cur_start    = 0;
     int32_t       last_ok_br   = 0;
     int32_t       lb_ix        = 0;
@@ -273,11 +274,11 @@ wrap_text(const str_t *s, int32_t width, int32_t hang)
 	}
     }
 
-    if (internal_is_u32(r)) {
+    if (string_is_u32(s)) {
 	return res;
     }
 
-    uint8_t *start = (uint8_t *)r->data;
+    uint8_t *start = (uint8_t *)s->data;
     uint8_t *p     = start;
     int32_t  z     = 0;
     int32_t  i     = 0;

@@ -254,8 +254,6 @@ con4m_alloc_from_arena(con4m_arena_t **arena_ptr, size_t len,
     return (void *)(raw->data);
 }
 
-// the GC directly.
-#define CON4M_CUSTOM_ALLOC 0xffffffffffffffff
 #define GC_SCAN_ALL        ((uint64_t *)0xffffffffffffffff)
 
 // gc_malloc and gc_alloc_* should only be used for INTERNAL dynamic
