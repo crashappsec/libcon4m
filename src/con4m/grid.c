@@ -1,9 +1,8 @@
 int debug = 0;
 
 // TODO for partiy:
-// 1. Change sizing to work on renderable width not codepoints.
-// 2. Search.
-// 3. Striping of cell colors.
+// 1. Search.
+// 2. Alternating row color striping option for tables.
 
 // Then:
 // 1. Add the ability to add rows or cells easily (and max col width?)
