@@ -187,16 +187,18 @@ struct grid_t {
     // alignment of the grid within the dimensions we're given.
     // Negative widths are possible and will cause us to crop to the
     // dimensions of the drawing space.
+    char *              td_tag_name;
+    char *              th_tag_name;
+
     int16_t             width;  // In chars.
     int16_t             height; // In chars.
+    uint16_t            row_cursor;
+    uint16_t            col_cursor;
 
     // When we add renderables, if we have no explicit tag for them,
     // we will apply the 'th' tag to anything in these row/columns.
     int8_t              header_rows;
     int8_t              header_cols;
-
-    char *              td_tag_name;
-    char *              th_tag_name;
 };
 
 #define GRID_TERMINAL_DIM ((int16_t)-1)
@@ -290,15 +292,20 @@ grid_blend_color(style_t style1, style_t style2)
 }
 
 extern void apply_container_style(renderable_t *, char *);
-extern void install_renderable(grid_t *, renderable_t *, int, int, int, int);
-
+extern bool install_renderable(grid_t *, renderable_t *, int, int, int, int);
 extern void apply_container_style(renderable_t *, char *);
-
+extern void grid_expand_columns(grid_t *, uint64_t);
+extern void grid_expand_rows(grid_t *, uint64_t);
+extern void grid_add_row(grid_t *, object_t);
 
 static inline void
 grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
 {
     renderable_t *cell;
+
+    if (row >= g->num_rows) {
+	grid_expand_rows(g, row - (g->num_rows - 1));
+    }
 
     switch (get_base_type(item)) {
     case T_RENDERABLE:
@@ -345,4 +352,20 @@ grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
 
     layer_styles(g->self->current_style, cell->current_style);
     install_renderable(g, cell, row, row + 1, col, col + 1);
+    if (row >= g->row_cursor) {
+	if (col + 1 == g->num_cols) {
+	    g->row_cursor = row + 1;
+	    g->col_cursor = 0;
+	}
+	else {
+	    g->row_cursor = row;
+	    g->col_cursor = col + 1;
+	}
+    }
+}
+
+static inline void
+grid_add_cell(grid_t *grid, object_t container)
+{
+    grid_set_cell_contents(grid, grid->row_cursor, grid->col_cursor, container);
 }

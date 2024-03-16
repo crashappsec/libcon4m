@@ -215,18 +215,21 @@ table_test()
     str_t      *test3 = con4m_new(T_STR, "cstring", "Example 3.");
     str_t      *test4 = con4m_new(T_STR, "cstring", "Defaults.");
     str_t      *test5 = con4m_new(T_STR, "cstring", "Last one.");
-    str_t      *mt    = empty_string();
-    grid_t     *g     = con4m_new(T_GRID, "start_rows", 4, "start_cols", 3);
+    grid_t     *g     = con4m_new(T_GRID, "start_rows", 4, "start_cols", 3,
+				  "header_rows", 1);
     str_t      *hdr   = con4m_new(T_STR, "cstring", "Yes, this is a table.");
 
-    grid_add_col_span(g, to_str_renderable(hdr, "td"),  0, 0, 3);
-    grid_set_cell_contents(g, 1, 0, to_internal(test1));
-    grid_set_cell_contents(g, 1, 1, to_internal(test2));
-    grid_set_cell_contents(g, 1, 2, to_internal(test4));
+
+    grid_add_row(g, to_str_renderable(hdr, "td"));
+    grid_add_cell(g, to_internal(test1));
+    grid_add_cell(g, to_internal(test2));
+    grid_add_cell(g, to_internal(test4));
     grid_set_cell_contents(g, 2, 2, to_internal(test3));
     grid_set_cell_contents(g, 2, 1, to_internal(test5));
     grid_add_col_span(g, to_str_renderable(test1, "td"),  3, 0, 2);
     grid_set_cell_contents(g, 2, 0, to_internal(empty_string()));
+    // If we don't explicitly set this, there can be some render issues
+    // when there's not enough room.
     grid_set_cell_contents(g, 3, 2, to_internal(empty_string()));
     c4str_apply_style(test1, style1);
     c4str_apply_style(test2, style2);
@@ -236,7 +239,6 @@ table_test()
     con4m_new(T_RENDER_STYLE, "flex_units", 2, "tag", "col3");
 //    con4m_new(T_RENDER_STYLE, "width_pct", 10., "tag", "col1");
 //    con4m_new(T_RENDER_STYLE, "width_pct", 30., "tag", "col3");
-    apply_row_style(g, 0, "th");
     apply_column_style(g, 0, "col1");
     apply_column_style(g, 2, "col3");
 
@@ -270,6 +272,7 @@ table_test()
     grid_t *ul   = unordered_list(l);
     grid_t *flow = grid_flow(3, g, ul, ol);
 
+    grid_add_cell(flow, to_internal(test1));
     ansi_render(con4m_value_obj_repr(flow), stdout);
 }
 

@@ -78,7 +78,7 @@ void         flexarray_grow               (flexarray_t *, uint64_t);
 void         flexarray_shrink             (flexarray_t *, uint64_t);
 uint64_t     flexarray_len                (flexarray_t *);
 flex_view_t *flexarray_view               (flexarray_t *);
-void        *flexarray_view_next          (flex_view_t *, bool *);
+void        *flexarray_view_next          (flex_view_t *, int *);
 void         flexarray_view_delete        (flex_view_t *);
 void        *flexarray_view_get           (flex_view_t *, uint64_t, int *);
 uint64_t     flexarray_view_len           (flex_view_t *);

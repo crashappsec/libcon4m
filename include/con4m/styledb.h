@@ -130,7 +130,7 @@ set_fg_color(render_style_t *style, color_t color)
 static inline void
 set_bg_color(render_style_t *style, color_t color)
 {
-    style->base_style |= BG_COLOR_ON | (color << 24);
+    style->base_style |= BG_COLOR_ON | ((uint64_t)color) << 24;
 }
 
 static inline void

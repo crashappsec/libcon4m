@@ -753,7 +753,6 @@ _c4str_find(str_t *str, str_t *sub, ...)
     str = force_utf32(str);
     sub = force_utf32(sub);
 
-    uint64_t  i;
     uint64_t  strcp = c4str_len(str);
     uint64_t  subcp = c4str_len(sub);
     uint32_t *strp  = (uint32_t *)str;
@@ -773,7 +772,7 @@ _c4str_find(str_t *str, str_t *sub, ...)
     if (end <= start) {
 	return -1;
     }
-    if (end > strcp) {
+    if ((uint64_t)end > strcp) {
 	end = strcp;
     }
     if (subcp == 0) {
@@ -808,7 +807,7 @@ c4str_split(str_t *str, str_t *sub)
     flexarray_t *result = con4m_new(T_LIST, "length", strcp);
 
     if (!subcp) {
-	for (int i = 0; i < strcp; i++) {
+	for (uint64_t i = 0; i < strcp; i++) {
 	    flexarray_set(result, i, c4str_slice(str, i, i + 1));
 	}
 	return result;
@@ -824,7 +823,7 @@ c4str_split(str_t *str, str_t *sub)
 	ix    = c4str_find(str, sub, "start", start);
     }
 
-    if (start != strcp) {
+    if ((uint64_t)start != strcp) {
 	flexarray_set(result, n++, c4str_slice(str, start, strcp));
     }
 

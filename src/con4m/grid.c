@@ -5,7 +5,6 @@ int debug = 0;
 // 2. Alternating row color striping option for tables.
 
 // Then:
-// 1. Add the ability to add rows or cells easily (and max col width?)
 // 2. Now we're ready to add a more generic `print()`.
 // 3. I'd like to do the debug console soon-ish.
 
@@ -136,7 +135,7 @@ renderable_init(renderable_t *item, va_list args)
     }
 }
 
-void
+bool
 install_renderable(grid_t *grid, renderable_t *cell,
 		   int start_row, int end_row, int start_col, int end_col)
 {
@@ -146,6 +145,13 @@ install_renderable(grid_t *grid, renderable_t *cell,
     cell->end_col   = end_col;
     cell->start_row = start_row;
     cell->end_row   = end_row;
+
+    if (start_col < 0 || start_col >= grid->num_cols) {
+	return false;
+    }
+    if (start_row < 0 || start_row >= grid->num_rows) {
+	return false;
+    }
 
     for (i = start_row; i < end_row; i++) {
 	for (j = start_col; j < end_col; j++) {
@@ -159,15 +165,133 @@ install_renderable(grid_t *grid, renderable_t *cell,
     else {
 	apply_container_style(cell, get_td_tag(grid));
     }
+
+    return true;
+}
+
+void
+expand_columns(grid_t *grid, uint64_t num)
+{
+    uint16_t       new_cols = grid->num_cols + num;
+    renderable_t **cells    = gc_array_alloc(renderable_t *,
+					     new_cols * (grid->num_rows +
+							 grid->spare_rows));
+    renderable_t  **p       = grid->cells;
+
+    for (int i = 0; i < grid->num_rows; i++) {
+	for (int j = 0; j < grid->num_cols; j++) {
+	    cells[(i * new_cols) + j] = *p++;
+	}
+    }
+
+    render_style_t **col_props = gc_array_alloc(render_style_t *, new_cols);
+
+    for (int i = 0; i < grid->num_cols; i++) {
+	col_props[i] = grid->col_props[i];
+    }
+
+    // This needs a lock.
+    grid->cells    = cells;
+    grid->num_cols = new_cols;
+}
+
+void
+grid_expand_rows(grid_t *grid, uint64_t num)
+{
+    if (num <= grid->spare_rows) {
+	grid->num_rows += num;
+	grid->spare_rows -= num;
+	return;
+    }
+
+
+    int            old_num  = grid->num_rows * grid->num_cols;
+    uint16_t       new_rows = grid->num_rows + num;
+    renderable_t **cells    = gc_array_alloc(renderable_t *, grid->num_cols *
+					     (new_rows + grid->spare_rows));
+    for (int i = 0; i < old_num; i++) {
+	cells[i] = grid->cells[i];
+    }
+
+    render_style_t **row_props = gc_array_alloc(render_style_t *, new_rows);
+
+    for (int i = 0; i < grid->num_rows; i++) {
+	row_props[i] = grid->row_props[i];
+    }
+
+    grid->cells    = cells;
+    grid->num_rows = new_rows;
+}
+
+void
+grid_add_row(grid_t *grid, object_t container)
+{
+    if (grid->row_cursor == grid->num_rows) {
+	grid_expand_rows(grid, 1);
+    }
+    if (grid->col_cursor != 0) {
+	grid->row_cursor++;
+	grid->col_cursor = 0;
+    }
+
+    switch (get_base_type(container)) {
+
+    case T_RENDERABLE:
+	install_renderable(grid, (renderable_t *)container,
+			   grid->row_cursor, grid->row_cursor + 1,
+			   0, grid->num_cols);
+	grid->row_cursor++;
+	return;
+
+    case T_GRID:
+    case T_STR:
+    case T_UTF32:
+    {
+	renderable_t *r = con4m_new(T_RENDERABLE, "obj",
+				    container, "tag", "td");
+	install_renderable(grid, r, grid->row_cursor, grid->row_cursor + 1,
+			   0, grid->num_cols);
+	grid->row_cursor++;
+	return;
+    }
+    case T_LIST:
+    {
+	flex_view_t *items = flexarray_view((flexarray_t *)container);
+
+	for (int i = 0; i < grid->num_cols; i++) {
+	    int err = false;
+	    object_t x = flexarray_view_next(items, &err);
+	    if (err || x == NULL) {
+		x = (object_t)to_internal((str_t *)empty_string());
+	    }
+	    grid_set_cell_contents(grid, grid->row_cursor, i++, x);
+	}
+	grid->row_cursor++;
+	return;
+    }
+    case T_XLIST:
+	for (int i = 0; i < grid->num_cols; i++) {
+	    object_t x = xlist_get((xlist_t *)container, i, NULL);
+	    if (x == NULL) {
+		x = (object_t)to_internal((str_t *)empty_string());
+	    }
+	    grid_set_cell_contents(grid, grid->row_cursor, i++, x);
+	}
+	grid->row_cursor++;
+	return;
+
+    default:
+	abort();
+    }
 }
 
 static void
 grid_init(grid_t *grid, va_list args)
 {
     DECLARE_KARGS(
-	uint32_t      start_rows    = 1;
-	uint32_t      start_cols    = 1;
-	uint32_t      spare_rows    = 16;
+	int32_t       start_rows    = 1;
+	int32_t       start_cols    = 1;
+	int32_t       spare_rows    = 16;
 	flexarray_t  *contents      = NULL;
 	char         *container_tag = "table";
 	char         *th_tag        = NULL;
@@ -178,6 +302,18 @@ grid_init(grid_t *grid, va_list args)
 
     method_kargs(args, start_rows, start_cols, spare_rows, contents,
 		 container_tag, th_tag, td_tag, header_rows, header_cols);
+
+    if (start_rows < 1) {
+	start_rows = 1;
+    }
+
+    if (start_cols < 1) {
+	start_cols = 1;
+    }
+
+    if (spare_rows < 0) {
+	spare_rows = 0;
+    }
 
     grid->spare_rows    = (uint16_t)spare_rows;
     grid->width         = GRID_TERMINAL_DIM;
@@ -200,11 +336,22 @@ grid_init(grid_t *grid, va_list args)
 
     renderable_t *self = con4m_new(T_RENDERABLE, "tag", container_tag,
 				   "obj", grid);
-    grid->self = self;
+    grid->self         = self;
 
     grid->col_props = gc_array_alloc(render_style_t *, grid->num_cols);
     grid->row_props = gc_array_alloc(render_style_t *, grid->num_rows +
 				     spare_rows);
+
+    for (int i = 0; i < min(header_rows, start_rows); i++) {
+	apply_row_style(grid, i, "th");
+    }
+
+    for (int i = 0; i < min(header_cols, start_cols); i++) {
+	apply_column_style(grid, i, "th");
+    }
+
+    grid->header_rows = header_rows;
+    grid->header_cols = header_cols;
 }
 
 static inline render_style_t *
@@ -240,7 +387,7 @@ grid_set_all_contents(grid_t *g, flexarray_t *contents)
     flex_view_t **rowviews  = (flex_view_t **)gc_array_alloc(flex_view_t *,
 							     nrows);
     uint64_t     ncols      = 0;
-    _Bool        stop       = false;
+    int          stop       = false;
 
     for (uint64_t i = 0; i < nrows; i++) {
 	flex_view_t *row  = (flex_view_t *)flexarray_view_next(rowviews[i],
@@ -677,7 +824,7 @@ str_render_cell(grid_t *grid, str_t *s, renderable_t *cell, int16_t width,
 	flexarray_t *f = c4str_split(s, c4str_newline());
 	int err;
 
-	for (i = 0; i < flexarray_len(f); i++) {
+	for (i = 0; i < (int)flexarray_len(f); i++) {
 	    str_t *s = (str_t *)flexarray_get(f, i, &err);
 	    if (s == NULL) {
 		break;
@@ -1476,9 +1623,9 @@ _ordered_list(flexarray_t *items, ...)
     set_column_style(res, 1, item_style);
 
     for (int i = 0; i < n; i++) {
-	int           status;
+	int          status;
 	str_t        *s         = c4str_concat(c4str_from_int(i + 1), dot);
-	real_str_t   *list_item = flexarray_view_next(view, (bool *)&status);
+	real_str_t   *list_item = flexarray_view_next(view, &status);
 	renderable_t *li        = con4m_new(T_RENDERABLE, "obj", list_item,
 					    "tag", item_style);
 	grid_set_cell_contents(res, i, 0, to_str_renderable(s, bullet_style));
@@ -1513,7 +1660,7 @@ _unordered_list(flexarray_t *items, ...)
 
     for (int i = 0; i < n; i++) {
 	int           status;
-	real_str_t   *list_item = flexarray_view_next(view, (bool *)&status);
+	real_str_t   *list_item = flexarray_view_next(view, &status);
 	renderable_t *li        = con4m_new(T_RENDERABLE, "obj", list_item,
 					    "tag", item_style);
 

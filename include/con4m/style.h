@@ -3,21 +3,21 @@
 #include <con4m.h>
 
 // Flags in the style `info` bitfield.
-#define FG_COLOR_ON     0x0002000000000000
-#define BG_COLOR_ON     0x0004000000000000
-#define BOLD_ON         0x0008000000000000
-#define ITALIC_ON       0x0010000000000000
-#define ST_ON           0x0020000000000000
-#define UL_ON           0x0040000000000000
-#define UL_DOUBLE       0x0080000000000000
-#define INV_ON          0x0100000000000000
-#define LOWER_CASE      0x0200000000000000
-#define UPPER_CASE      0x0400000000000000
+#define FG_COLOR_ON     (0x0002000000000000UL)
+#define BG_COLOR_ON     (0x0004000000000000UL)
+#define BOLD_ON         (0x0008000000000000UL)
+#define ITALIC_ON       (0x0010000000000000UL)
+#define ST_ON           (0x0020000000000000UL)
+#define UL_ON           (0x0040000000000000UL)
+#define UL_DOUBLE       (0x0080000000000000UL)
+#define INV_ON          (0x0100000000000000UL)
+#define LOWER_CASE      (0x0200000000000000UL)
+#define UPPER_CASE      (0x0400000000000000UL)
 #define TITLE_CASE      (UPPER_CASE | LOWER_CASE)
-#define STYLE_INVALID   0xffffffffffffffff
-#define FG_COLOR_MASK   0xffffffffff000000
-#define BG_COLOR_MASK   0xffff000000ffffff
-#define FLAG_MASK       0x0000ffffffffffff
+#define STYLE_INVALID   (0xffffffffffffffffUL)
+#define FG_COLOR_MASK   (0xffffffffff000000UL)
+#define BG_COLOR_MASK   (0xffff000000ffffffUL)
+#define FLAG_MASK       (0x0000ffffffffffffUL)
 #define OFFSET_BG_RED   40
 #define OFFSET_BG_GREEN 32
 #define OFFSET_BG_BLUE  24
