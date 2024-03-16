@@ -31,6 +31,7 @@ render_style_t *
 grid_style(grid_t *grid) {
     return grid->self->current_style;
 }
+
 extern void
 apply_container_style(renderable_t *item, char *tag)
 
@@ -590,15 +591,7 @@ calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
 static inline str_t *
 pad_and_style_line(grid_t *grid, renderable_t *cell, int16_t width, str_t *line)
 {
-
-    render_style_t *col_style   = get_col_props(grid, cell->start_col);
-    render_style_t *row_style   = get_row_props(grid, cell->start_row);
-    render_style_t *merge_style = copy_render_style(cell->current_style);
-
-    layer_styles(col_style, merge_style);
-    layer_styles(row_style, merge_style);
-
-    alignment_t align = merge_style->alignment & HORIZONTAL_MASK;
+    alignment_t align = cell->current_style->alignment & HORIZONTAL_MASK;
     int64_t     len   = c4str_len(line);
     uint8_t     lnum  = cell->current_style->left_pad;
     uint8_t     rnum  = cell->current_style->right_pad;
@@ -626,8 +619,8 @@ pad_and_style_line(grid_t *grid, renderable_t *cell, int16_t width, str_t *line)
     }
 
 
-    style_t     cell_style = merge_style->base_style;
-    style_t     lpad_style = get_pad_style(merge_style);
+    style_t     cell_style = cell->current_style->base_style;
+    style_t     lpad_style = get_pad_style(cell->current_style);
     style_t     rpad_style = lpad_style;
     str_t      *copy       = c4str_copy(line);
     real_str_t *real       = to_internal(copy);
@@ -653,32 +646,53 @@ static inline uint16_t
 str_render_cell(grid_t *grid, str_t *s, renderable_t *cell, int16_t width,
 		int16_t height)
 {
-    int             pad       = cell->current_style->left_pad +
-	cell->current_style->right_pad;
-    render_style_t *cs        = cell->current_style;
-    break_info_t *line_starts = wrap_text(s, width - pad, cs->wrap);
+    render_style_t *col_style   = get_col_props(grid, cell->start_col);
+    render_style_t *row_style   = get_row_props(grid, cell->start_row);
+    render_style_t *cs          = copy_render_style(cell->current_style);
+    xlist_t        *res         = con4m_new(T_XLIST);
 
-    xlist_t *res      = con4m_new(T_XLIST);
-    str_t   *pad_line = pad_and_style_line(grid, cell, width, empty_string());
-    str_t   *line;
-    int      i;
+    layer_styles(col_style, cs);
+    layer_styles(row_style, cs);
+
+    cell->current_style = cs;
+
+    int           pad       = cs->left_pad + cs->right_pad;
+    break_info_t *line_starts;
+    str_t        *pad_line = pad_and_style_line(grid, cell, width, empty_string());
+    str_t        *line;
+    int           i;
 
     for (i = 0; i < cs->top_pad; i++) {
 	xlist_append(res, pad_line);
     }
 
-    for (i = 0; i < line_starts->num_breaks - 1; i++) {
-	line = c4str_slice(s, line_starts->breaks[i],
-				  line_starts->breaks[i + 1]);
-	line = c4str_strip(line);
-	xlist_append(res, pad_and_style_line(grid, cell, width, line));
-    }
+    if (cs->disable_wrap) {
+	flexarray_t *f = c4str_split(s, c4str_newline());
+	int err;
 
-    if (i == (line_starts->num_breaks - 1)) {
-	int b = line_starts->breaks[i];
-	line  = c4str_slice(s, b, c4str_len(s));
-	line = c4str_strip(line);
-	xlist_append(res, pad_and_style_line(grid, cell, width, line));
+	for (i = 0; i < flexarray_len(f); i++) {
+	    str_t *s = (str_t *)flexarray_get(f, i, &err);
+	    if (s == NULL) {
+		break;
+	    }
+	    xlist_append(res, c4str_truncate(s, width)); // TODO: change to render width.
+	}
+    }
+    else {
+	line_starts = wrap_text(s, width - pad, cs->wrap);
+	for (i = 0; i < line_starts->num_breaks - 1; i++) {
+	    line = c4str_slice(s, line_starts->breaks[i],
+			       line_starts->breaks[i + 1]);
+	    line = c4str_strip(line);
+	    xlist_append(res, pad_and_style_line(grid, cell, width, line));
+	}
+
+	if (i == (line_starts->num_breaks - 1)) {
+	    int b = line_starts->breaks[i];
+	    line = c4str_slice(s, b, c4str_len(s));
+	    line = c4str_strip(line);
+	    xlist_append(res, pad_and_style_line(grid, cell, width, line));
+	}
     }
 
     for (i = 0; i < cs->bottom_pad; i++) {
