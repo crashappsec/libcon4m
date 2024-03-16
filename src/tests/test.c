@@ -219,7 +219,7 @@ table_test()
     grid_t     *g     = con4m_new(T_GRID, "start_rows", 4, "start_cols", 3);
     str_t      *hdr   = con4m_new(T_STR, "cstring", "This is a table, brah.");
 
-
+    printf("Render len of test1 = %d; strlen = %d\n", c4str_render_len(test1), c4str_len(test1));
     grid_add_col_span(g, to_str_renderable(hdr, "td"),  0, 0, 3);
     grid_set_cell_contents(g, 1, 0, to_internal(test1));
     grid_set_cell_contents(g, 1, 1, to_internal(test2));

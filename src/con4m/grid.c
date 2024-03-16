@@ -1,17 +1,15 @@
 int debug = 0;
 
 // TODO for partiy:
-// 2. Change sizing to work on renderable width not codepoints.
-// 3. Respect no-wrap.
-// 4. Search.
-// 5. Striping of cell colors.
+// 1. Change sizing to work on renderable width not codepoints.
+// 2. Search.
+// 3. Striping of cell colors.
 
 // Then:
 // 1. Add the ability to add rows or cells easily (and max col width?)
 // 2. Now we're ready to add a more generic `print()`.
 // 3. Deal w/ newlines for fit-to-text (string split).
 // 4. I'd like to do the debug console soon-ish.
-// 5. Suppress T's and crosses when there are col spans.
 
 // Not soon, but should eventually get done:
 // 1. Row spans (column spans are there; row spans only stubbed).
