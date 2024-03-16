@@ -7,8 +7,7 @@ int debug = 0;
 // Then:
 // 1. Add the ability to add rows or cells easily (and max col width?)
 // 2. Now we're ready to add a more generic `print()`.
-// 3. Deal w/ newlines for fit-to-text (string split).
-// 4. I'd like to do the debug console soon-ish.
+// 3. I'd like to do the debug console soon-ish.
 
 // Not soon, but should eventually get done:
 // 1. Row spans (column spans are there; row spans only stubbed).
@@ -338,7 +337,6 @@ get_column_render_overhead(grid_t *grid)
 static inline int
 column_text_width(grid_t *grid, int col)
 {
-    // For now, this doesn't take newlines into acccount.
     int         max_width = 0;
     real_str_t *s;
 
@@ -353,10 +351,22 @@ column_text_width(grid_t *grid, int col)
 	switch (get_base_type(cell->raw_item)) {
 	case T_STR:
 	case T_UTF32:
-	    s     = (real_str_t *)cell->raw_item;
-	    int n = internal_num_cp(s);
-	    if (n > max_width) {
-		max_width = n;
+	    s = (real_str_t *)cell->raw_item;
+
+	    flexarray_t *f   = c4str_split((str_t *)s->data, c4str_newline());
+	    flex_view_t *v   = flexarray_view(f);
+	    int          len = flexarray_view_len(v);
+
+	    for (i = 0; i < len; i++) {
+		int err;
+		str_t *item = flexarray_view_get(v, i, &err);
+		if (err || item == NULL) {
+		    break;
+		}
+		int cur = c4str_render_len(item);
+		if (cur > max_width) {
+		    max_width = cur;
+		}
 	    }
 	default:
 	    continue;
