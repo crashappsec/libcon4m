@@ -155,6 +155,9 @@ get_all_line_break_ops(const str_t *instr)
 static int32_t
 find_hwrap(const str_t *s, int32_t offset, int32_t width)
 {
+    printf("find_hwrap(offset = %d, width = %d) for ", offset, width);
+    ansi_render(s, stdout);
+    printf("\n");
     real_str_t *str = to_internal(force_utf32(s));
     uint32_t   *u32 = (uint32_t *)str->data;
     int         l   = internal_num_cp(str);
@@ -162,9 +165,11 @@ find_hwrap(const str_t *s, int32_t offset, int32_t width)
     for (int i = offset; i < l; i++) {
 	width -= codepoint_width(u32[i]);
 	if (width < 0) {
+	    printf("result: %d\n", i);
 	    return i;
 	}
     }
+    printf("result: %d\n", l);
     return l;
 }
 
@@ -222,13 +227,13 @@ wrap_text(const str_t *s, int32_t width, int32_t hang)
 		    // No valid break; hard wrap it.
 		    add_break(&res, hard_wrap_ix);
 		    cur_start    = hard_wrap_ix;
-		    hard_wrap_ix = find_hwrap(s, cur_start + hang_width, width);
+		    hard_wrap_ix = find_hwrap(s, cur_start, hang_width);
 		    goto find_next_break;
 		}
 		else {
 		    add_break(&res, last_ok_br);
 		    cur_start    = last_ok_br;
-		    hard_wrap_ix = find_hwrap(s, cur_start + hang_width, width);
+		    hard_wrap_ix = find_hwrap(s, cur_start, hang_width);
 		    goto find_next_break;
 		}
 	    }
@@ -236,13 +241,13 @@ wrap_text(const str_t *s, int32_t width, int32_t hang)
 	    if (next_lb == cur_break) {
 		add_break(&res, next_lb + 1);
 		cur_start = next_lb + 1;
+		hard_wrap_ix = find_hwrap(s, cur_start, hang_width);
 		if (lb_ix == line_breaks->num_breaks) {
 		    next_lb = l;
 		}
 		else {
 		    next_lb = line_breaks->breaks[lb_ix++];
 		}
-		hard_wrap_ix = find_hwrap(s, cur_start + hang_width, width);
 		bo_ix++;
 		goto find_next_break;
 	    }
@@ -264,12 +269,12 @@ wrap_text(const str_t *s, int32_t width, int32_t hang)
 	if (last_ok_br > cur_start) {
 	    add_break(&res, last_ok_br);
 	    cur_start    = last_ok_br;
-	    hard_wrap_ix = find_hwrap(s, cur_start + hang_width, width);
+	    hard_wrap_ix = find_hwrap(s, cur_start, hang_width);
 	}
 	else {
 	    add_break(&res, hard_wrap_ix);
 	    cur_start    = hard_wrap_ix;
-	    hard_wrap_ix = find_hwrap(s, cur_start + hang_width, width);
+	    hard_wrap_ix = find_hwrap(s, cur_start, hang_width);
 	}
     }
 
