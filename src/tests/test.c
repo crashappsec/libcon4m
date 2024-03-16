@@ -208,8 +208,8 @@ test4()
 void
 table_test()
 {
-    str_t      *test1 = con4m_new(T_STR, "cstring", "Some example??"
-	" Let's make it a fairly long example, so it will be sure to need"
+    str_t      *test1 = con4m_new(T_STR, "cstring", "Some example 🤯 🤯 🤯"
+	" Let's make it a fairly long 🤯 example, so it will be sure to need"
 	" some reynolds' wrap.");
     str_t      *test2 = con4m_new(T_STR, "cstring", "Some other example.");
     str_t      *test3 = con4m_new(T_STR, "cstring", "Example 3.");
@@ -217,9 +217,8 @@ table_test()
     str_t      *test5 = con4m_new(T_STR, "cstring", "Last one.");
     str_t      *mt    = empty_string();
     grid_t     *g     = con4m_new(T_GRID, "start_rows", 4, "start_cols", 3);
-    str_t      *hdr   = con4m_new(T_STR, "cstring", "This is a table, brah.");
+    str_t      *hdr   = con4m_new(T_STR, "cstring", "Yes, this is a table.");
 
-    printf("Render len of test1 = %d; strlen = %d\n", c4str_render_len(test1), c4str_len(test1));
     grid_add_col_span(g, to_str_renderable(hdr, "td"),  0, 0, 3);
     grid_set_cell_contents(g, 1, 0, to_internal(test1));
     grid_set_cell_contents(g, 1, 1, to_internal(test2));

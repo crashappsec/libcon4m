@@ -610,7 +610,7 @@ str_t *
 _c4str_truncate(const str_t *s, int64_t len, ...)
 {
     DECLARE_KARGS(
-	bool use_render_width = false;
+	int use_render_width = 0;
 	);
 
     kargs(len, use_render_width);

@@ -152,6 +152,22 @@ get_all_line_break_ops(const str_t *instr)
     return res;
 }
 
+static int32_t
+find_hwrap(const str_t *s, int32_t offset, int32_t width)
+{
+    real_str_t *str = to_internal(force_utf32(s));
+    uint32_t   *u32 = (uint32_t *)str->data;
+    int         l   = internal_num_cp(str);
+
+    for (int i = offset; i < l; i++) {
+	width -= codepoint_width(u32[i]);
+	if (width < 0) {
+	    return i;
+	}
+    }
+    return l;
+}
+
 /**
  ** This doesn't directly change the string; it instead
  ** returns a list of codepoints that start lines, when
@@ -162,9 +178,6 @@ get_all_line_break_ops(const str_t *instr)
  ** If there is an actual newline in the contents, it is always
  ** returned, which can lead to short lines. This is done because we
  ** expect this to represent a paragraph break.
- **
- ** Also, this currently assumes each codepoint is one character
- ** wide. We'll improve this shortly.
  **/
 break_info_t *
 wrap_text(const str_t *s, int32_t width, int32_t hang)
@@ -183,10 +196,9 @@ wrap_text(const str_t *s, int32_t width, int32_t hang)
     int32_t       last_ok_br   = 0;
     int32_t       lb_ix        = 0;
     int32_t       bo_ix        = 0;
-    int32_t       hard_wrap_ix = width;
+    int32_t       hard_wrap_ix = find_hwrap(s, 0, width);
     int32_t       hang_width   = width - hang;
     int32_t       next_lb;
-
 
     if (line_breaks->num_breaks == 0) {
 	next_lb = l;
@@ -210,13 +222,13 @@ wrap_text(const str_t *s, int32_t width, int32_t hang)
 		    // No valid break; hard wrap it.
 		    add_break(&res, hard_wrap_ix);
 		    cur_start    = hard_wrap_ix;
-		    hard_wrap_ix = cur_start + hang_width;
+		    hard_wrap_ix = find_hwrap(s, cur_start + hang_width, width);
 		    goto find_next_break;
 		}
 		else {
 		    add_break(&res, last_ok_br);
 		    cur_start    = last_ok_br;
-		    hard_wrap_ix = cur_start + hang_width;
+		    hard_wrap_ix = find_hwrap(s, cur_start + hang_width, width);
 		    goto find_next_break;
 		}
 	    }
@@ -230,7 +242,7 @@ wrap_text(const str_t *s, int32_t width, int32_t hang)
 		else {
 		    next_lb = line_breaks->breaks[lb_ix++];
 		}
-		hard_wrap_ix = cur_start + hang_width;
+		hard_wrap_ix = find_hwrap(s, cur_start + hang_width, width);
 		bo_ix++;
 		goto find_next_break;
 	    }
@@ -252,12 +264,12 @@ wrap_text(const str_t *s, int32_t width, int32_t hang)
 	if (last_ok_br > cur_start) {
 	    add_break(&res, last_ok_br);
 	    cur_start    = last_ok_br;
-	    hard_wrap_ix = cur_start + hang_width;
+	    hard_wrap_ix = find_hwrap(s, cur_start + hang_width, width);
 	}
 	else {
 	    add_break(&res, hard_wrap_ix);
 	    cur_start    = hard_wrap_ix;
-	    hard_wrap_ix = cur_start + hang_width;
+	    hard_wrap_ix = find_hwrap(s, cur_start + hang_width, width);
 	}
     }
 

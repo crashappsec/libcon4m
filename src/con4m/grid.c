@@ -590,7 +590,7 @@ static inline str_t *
 pad_and_style_line(grid_t *grid, renderable_t *cell, int16_t width, str_t *line)
 {
     alignment_t align = cell->current_style->alignment & HORIZONTAL_MASK;
-    int64_t     len   = c4str_len(line);
+    int64_t     len   = c4str_render_len(line);
     uint8_t     lnum  = cell->current_style->left_pad;
     uint8_t     rnum  = cell->current_style->right_pad;
     int64_t     diff  = width - len - lnum - rnum;
@@ -673,7 +673,7 @@ str_render_cell(grid_t *grid, str_t *s, renderable_t *cell, int16_t width,
 	    if (s == NULL) {
 		break;
 	    }
-	    xlist_append(res, c4str_truncate(s, width)); // TODO: change to render width.
+	    xlist_append(res, c4str_truncate(s, width, "use_render_width", 1));
 	}
     }
     else {
@@ -1226,8 +1226,7 @@ align_and_crop_grid_line(grid_t *grid, str_t *line, int32_t width)
     }
     else {
 	// We need to crop. For now, we ONLY crop from the right.
-	return c4str_truncate(line, (int64_t)width);
-	//, "use_render_width", 1);
+	return c4str_truncate(line, (int64_t)width, "use_render_width", 1);
     }
 }
 
@@ -1240,7 +1239,7 @@ align_and_crop_grid(grid_t *grid, xlist_t *lines, int32_t width, int32_t height)
 
     for (int i = 0; i < num_lines; i++) {
 	str_t *s = (str_t *)xlist_get(lines, i, NULL);
-	if (c4str_len(s) == width) {
+	if (c4str_render_len(s) == width) {
 	    continue;
 	}
 
