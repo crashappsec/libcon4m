@@ -19,6 +19,8 @@
 #include <pthread.h>
 #include <stdarg.h>
 #include <math.h>
+#include <setjmp.h>
+
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/types.h>
@@ -49,3 +51,4 @@ forkpty(int *, char *, struct termios *, struct winsize *);
 
 #include <vendor.h>
 #include <hatrack.h>
+#include <con4m/datatypes.h>

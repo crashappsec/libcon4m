@@ -10,8 +10,8 @@ extern void add_offset(char **optr, uint64_t start_offset, uint64_t offset_len,
 extern char * chexl(void *ptr, unsigned int len, uint64_t start_offset,
 		   unsigned int width, char *prefix);
 
-extern str_t *hex_dump(void *ptr, unsigned int len, uint64_t start_offset,
-		       unsigned int width, char *prefix);
+extern utf8_t *hex_dump(void *ptr, unsigned int len, uint64_t start_offset,
+			unsigned int width, char *prefix);
 
 
 // Legacy calls for Chalk compat.

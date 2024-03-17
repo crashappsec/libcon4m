@@ -1,7 +1,7 @@
 #include <con4m.h>
 
 static inline bool
-ignore_for_printing(int32_t cp)
+ignore_for_printing(codepoint_t cp)
 {
     // This prevents things like the terminal ANSI code escape
     // indicator from being printed when processing user data for
@@ -26,7 +26,7 @@ ignore_for_printing(int32_t cp)
 }
 
 static inline int
-internal_char_render_width(int32_t cp)
+internal_char_render_width(codepoint_t cp)
 {
     if (ignore_for_printing(cp)) {
 	return 0;
@@ -133,7 +133,7 @@ ansi_render_style_end(FILE *outstream)
 }
 
 static inline void
-ansi_render_one_codepoint_plain(int32_t cp, FILE *outstream)
+ansi_render_one_codepoint_plain(codepoint_t cp, FILE *outstream)
 {
     uint8_t tmp[4];
     int     len;
@@ -147,31 +147,33 @@ ansi_render_one_codepoint_plain(int32_t cp, FILE *outstream)
 }
 
 static inline void
-ansi_render_one_codepoint_lower(int32_t cp, FILE *outstream)
+ansi_render_one_codepoint_lower(codepoint_t cp, FILE *outstream)
 {
     ansi_render_one_codepoint_plain(utf8proc_tolower(cp), outstream);
 }
 
 static inline void
-ansi_render_one_codepoint_upper(int32_t cp, FILE *outstream)
+ansi_render_one_codepoint_upper(codepoint_t cp, FILE *outstream)
 {
     ansi_render_one_codepoint_plain(utf8proc_toupper(cp), outstream);
 }
 
 static inline bool
-ansi_render_one_codepoint_title(int32_t cp, bool go_up, FILE *outstream)
+ansi_render_one_codepoint_title(codepoint_t cp, bool go_up, FILE *outstream)
 {
     if (go_up) {
 	ansi_render_one_codepoint_upper(cp, outstream);
 	return 0;
     }
     ansi_render_one_codepoint_plain(cp, outstream);
-    return internal_is_space(cp);
+    return codepoint_is_space(cp);
 }
 
 void
-ansi_render_u8(real_str_t *s, FILE *outstream)
+utf8_ansi_render(const utf8_t *s, FILE *outstream)
 {
+    if (!s) { return; }
+
     style_t        default_style = get_default_style();
     style_t        current_style = default_style;
     uint64_t       casing        = current_style & TITLE_CASE;
@@ -183,7 +185,7 @@ ansi_render_u8(real_str_t *s, FILE *outstream)
     uint8_t       *end           = p + s->codepoints;
     style_entry_t *entry         = NULL;
     bool           case_up       = true;
-    int32_t        codepoint;
+    codepoint_t    codepoint;
 
 
     style_state = U8_STATE_START_DEFAULT;
@@ -282,7 +284,6 @@ ansi_render_u8(real_str_t *s, FILE *outstream)
 
 	switch (casing) {
 	case UPPER_CASE:
-	    printf("UPPER\n");
 	    ansi_render_one_codepoint_upper(codepoint, outstream);
 	    break;
 	case LOWER_CASE:
@@ -297,22 +298,20 @@ ansi_render_u8(real_str_t *s, FILE *outstream)
 	    break;
 	}
     }
+
     if (style_state == U8_STATE_IN_STYLE ||
 	style_state == U8_STATE_DEFAULT_STYLE) {
-	if (current_style != 0) {
-	    ansi_render_style_end(outstream);
-	}
-    }
+     }
 }
 
-// This generally will have to convert characters to utf-8, since
-// terminals do not support other encodings.
+// This will have to convert characters to utf-8, since terminals
+// generally do not support other encodings.
 static void
-ansi_render_u32_region(real_str_t *s, int32_t from, int32_t to, style_t style,
-		       FILE *outstream)
+ansi_render_u32_region(const utf32_t *s, int32_t from, int32_t to,
+		       style_t style, FILE *outstream)
 {
-    uint32_t *p   = (uint32_t *)(s->data);
-    bool      cap = true;
+    codepoint_t *p   = (codepoint_t *)(s->data);
+    bool         cap = true;
 
     if (style != 0) {
 	ansi_render_style_start(style, outstream);
@@ -349,13 +348,12 @@ ansi_render_u32_region(real_str_t *s, int32_t from, int32_t to, style_t style,
 }
 
 void
-ansi_render_u32(real_str_t *s, int32_t start_ix, int32_t end_ix,
-		FILE *outstream)
+utf32_ansi_render(const utf32_t *s, int32_t start_ix, int32_t end_ix,
+		  FILE *outstream)
 {
-    // This is temporary, while I figure out why some null styles
-    // are staying in here.
+    if (!s) { return; }
 
-    int32_t len = internal_num_cp(s);
+    int32_t len    = string_codepoint_len(s);
     style_t style0 = get_default_style();
 
     if (start_ix < 0) {
@@ -404,66 +402,51 @@ ansi_render_u32(real_str_t *s, int32_t start_ix, int32_t end_ix,
 }
 
 void
-ansi_render(const str_t *s, FILE *out)
+ansi_render(const any_str_t *s, FILE *out)
 {
-    if (!s) {
-	return;
-    }
+    if (!s) { return; }
 
-    real_str_t *real = to_internal(s);
-
-    if (internal_is_u32(real)) {
-	ansi_render_u32(real, 0, 0, out);
+    if (string_is_u32(s)) {
+	utf32_ansi_render(s, 0, 0, out);
     }
     else {
-	ansi_render_u8(real, out);
+	utf8_ansi_render(s, out);
     }
 }
 
 void
-ansi_render_to_width(const str_t *s, int32_t width, int32_t hang, FILE *out)
+ansi_render_to_width(const any_str_t *s, int32_t width, int32_t hang, FILE *out)
 {
-    if (!s) {
-	return;
-    }
+    if (!s) {return; }
 
-    real_str_t *real   = to_internal(s);
-    bool        is_u32 = internal_is_u32(real);
+
+    utf32_t    *as_u32 = force_utf32(s);
     int32_t     i;
 
     if (width <= 0) {
 	width = 20;
     }
 
-    if (!is_u32) {
-	s    = c4str_u8_to_u32(s);
-	real = to_internal(s);
-    }
-
-    break_info_t *line_starts = wrap_text(s, width, hang);
+    break_info_t *line_starts = wrap_text(as_u32, width, hang);
 
     for (i = 0; i < line_starts->num_breaks - 1; i++) {
-	ansi_render_u32(real,
-			line_starts->breaks[i],
-			line_starts->breaks[i + 1],
-			out);
+	utf32_ansi_render(as_u32, line_starts->breaks[i],
+			line_starts->breaks[i + 1], out);
 	fputc('\n', out);
     }
 
     if (i == line_starts->num_breaks - 1) {
-	ansi_render_u32(real,
-			line_starts->breaks[i],
-			internal_num_cp(real),
-			out);
+	utf32_ansi_render(as_u32, line_starts->breaks[i],
+			  string_codepoint_len(as_u32), out);
     }
 }
 
-static size_t
-internal_render_len_u32(real_str_t *s)
+static inline size_t
+internal_render_len_u32(const utf32_t *s)
 {
-    uint32_t *p     = (uint32_t *)s->data;
-    int32_t   len   = ~(s->codepoints);
-    size_t    count = 0;
+    codepoint_t *p     = (codepoint_t *)s->data;
+    int32_t      len   = string_codepoint_len(s);
+    size_t       count = 0;
 
     for (int i = 0; i < len; i++) {
 	count += internal_char_render_width(p[i]);
@@ -472,13 +455,13 @@ internal_render_len_u32(real_str_t *s)
     return count;
 }
 
-static size_t
-internal_render_len_u8(real_str_t *s)
+static inline size_t
+internal_render_len_u8(const utf8_t *s)
 {
-    uint8_t *p   = (uint8_t *)s->data;
-    uint8_t *end = p + s->byte_len;
-    int32_t  cp;
-    size_t   count = 0;
+    uint8_t     *p   = (uint8_t *)s->data;
+    uint8_t     *end = p + s->byte_len;
+    codepoint_t  cp;
+    size_t       count = 0;
 
 
     while (p < end) {
@@ -490,19 +473,14 @@ internal_render_len_u8(real_str_t *s)
 }
 
 size_t
-ansi_render_len(const str_t *s)
+ansi_render_len(const any_str_t *s)
 {
-    if (!s) {
-	return 0;
+    if (!s) { return 0; }
+
+    if (string_is_u32(s)) {
+	return internal_render_len_u32(s);
     }
-
-    real_str_t *real = to_internal(s);
-
-    if (internal_is_u32(real)) {
-	return internal_render_len_u32(real);
-    }
-
     else {
-	return internal_render_len_u8(real);
+	return internal_render_len_u8(s);
     }
 }

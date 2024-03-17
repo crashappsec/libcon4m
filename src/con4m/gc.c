@@ -20,6 +20,16 @@ static uint64_t page_bytes;
 static uint64_t page_modulus;
 static uint64_t modulus_mask;
 
+// This puts a junk call frame on we scan, which on yhr mac seems
+// to be 256 bytes. Playing it safe and not subtracking it out, though.
+void
+get_stack_scan_region(uint64_t *top, uint64_t *bottom)
+{
+    uint64_t local = 0;
+    get_stack_bounds(top, bottom);
+    *top = (uint64_t *)&local;
+}
+
 __attribute__((constructor)) void
 initialize_gc()
 {
@@ -44,13 +54,24 @@ initialize_gc()
 static void *
 raw_arena_alloc(uint64_t len)
 {
-    void *r = mmap(NULL,
-		   (size_t)len, PROT_READ | PROT_WRITE,
-		   MAP_PRIVATE | MAP_ANON, 0, 0);
+    if (len & page_modulus) {
+	len = (len & modulus_mask) + page_bytes;
+    }
 
-    gc_trace("arena:mmap:@%p-@%p:%llu", r, ((char *)r) + len, len);
+    size_t total_len = (size_t)(page_bytes * 2 + len);
+    char *full_alloc = mmap(NULL,
+			    total_len, PROT_READ | PROT_WRITE,
+			    MAP_PRIVATE | MAP_ANON, 0, 0);
 
-    return r;
+    char *ret   = full_alloc + page_bytes;
+    char *guard = full_alloc + total_len - page_bytes;
+
+    mprotect(full_alloc, page_bytes, PROT_NONE);
+    mprotect(guard,      page_bytes, PROT_NONE);
+
+    gc_trace("arena:mmap:@%p-@%p:%llu", ret, ret + len, len);
+
+    return ret;
 }
 
 void
@@ -103,18 +124,33 @@ con4m_new_arena(size_t num_words)
 void *
 con4m_gc_alloc(size_t len, uint64_t *ptr_map)
 {
+
+#ifdef ALLOW_POINTER_MAPS
     return con4m_alloc_from_arena(&current_heap, len, ptr_map);
+#else
+    return con4m_alloc_from_arena(&current_heap, len, GC_SCAN_ALL);
+#endif
 }
 
 void *
 con4m_gc_resize(void *ptr, size_t len)
 {
+
+    // We'd like external C code to be able to use our GC. Some things
+    // (i.e., openssl) will call realloc(NULL, ...) to get memory
+    // for whatever reason.
+    if (ptr == NULL) {
+	return con4m_gc_alloc(len, GC_SCAN_ALL);
+    }
     con4m_alloc_hdr *hdr = &((con4m_alloc_hdr *)ptr)[-1];
 
     assert(hdr->guard = gc_guard);
 
+#ifdef ALLOW_POINTER_MAPS
     void *result = con4m_alloc_from_arena(&current_heap, len, hdr->ptr_map);
-
+#else
+    void *result = con4m_alloc_from_arena(&current_heap, len, GC_SCAN_ALL);
+#endif
     if (len > 0) {
 	size_t bytes = ((size_t)(hdr->next_addr - hdr->data)) * 8;
 	memcpy(result, ptr, min(len, bytes));
@@ -133,17 +169,22 @@ con4m_delete_arena(con4m_arena_t *arena)
     con4m_arena_t *prev_active;
 
     gc_trace("arena:skip_unmap");
-    return;
 
     while (arena != NULL) {
 	prev_active = arena->previous;
 	if (arena->roots != NULL) {
 	    rc_free_and_cleanup(arena->roots, (cleanup_fn)hatrack_dict_cleanup);
 	}
-	free(arena->late_mutations);
-	zfree(arena);
+	rc_free(arena->late_mutations);
+
+
+	char *start = ((char *)arena) - page_bytes;
+	char *end   = ((char *)arena->heap_end) - page_bytes;
+	madvise(start, end - start, MADV_ZERO_WIRED_PAGES);
+
 	arena = prev_active;
     }
+    return;
 }
 
 void
@@ -317,7 +358,12 @@ process_traced_pointer(uint64_t **addr, uint64_t *ptr, uint64_t *start,
 
     uint64_t  len     = sizeof(uint64_t) *
 	                 (uint64_t)(hdr->next_addr - hdr->data);
+
+#ifdef ALLOW_POINTER_MAPS
     uint64_t *forward = con4m_alloc_from_arena(&new_arena, len, hdr->ptr_map);
+#else
+    uint64_t *forward = con4m_alloc_from_arena(&new_arena, len, GC_SCAN_ALL);
+#endif
 
     // Forward before we descend.
     hdr->fw_addr      = forward;
@@ -340,7 +386,9 @@ static void
 con4m_collect_sub_arena(con4m_arena_t       *old,
 			con4m_arena_t       *new,
 			hatrack_dict_item_t *roots,
-			uint64_t             num_roots)
+			uint64_t             num_roots,
+			uint64_t            *stack_top,
+			uint64_t            *stack_bottom)
 {
     // TODO: should have a debug option that keeps a dict with
     // all valid allocations and ensures them.
@@ -362,6 +410,13 @@ con4m_collect_sub_arena(con4m_arena_t       *old,
 	    gc_trace("root_scan_start:@%p", ptr);
 	    process_traced_pointer(ptr, *ptr, start, end, new);
 	    gc_trace("root_scan_done:@%p", ptr);
+	}
+
+	gc_trace("stack_scan_start:@%p", stack_top);
+	uint64_t *p = stack_top;
+	while(p != stack_bottom) {
+	    process_traced_pointer(p, *p, start, end, new);
+	    p++;
 	}
     }
 }
@@ -392,9 +447,15 @@ con4m_collect_arena(con4m_arena_t **ptr_loc)
     roots       = hatrack_dict_items_nosort(cur->roots, &num_roots);
     new->roots  = rc_ref(global_roots);
 
+    uint64_t stack_top, stack_bottom;
+
+    get_stack_scan_region(&stack_top, &stack_bottom);
+
     while (cur != NULL) {
 	con4m_arena_t *prior_sub_arena = cur->previous;
-	con4m_collect_sub_arena(cur, new, roots, num_roots);
+	con4m_collect_sub_arena(cur, new, roots, num_roots,
+				(uint64_t *)stack_top,
+				(uint64_t *)stack_bottom);
 	cur = prior_sub_arena;
     }
 

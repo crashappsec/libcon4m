@@ -55,7 +55,7 @@ endif
 c4m_src  = ['src/con4m/style.c',
             'src/con4m/colors.c',
             'src/con4m/breaks.c', 
-            'src/con4m/c4str.c',
+            'src/con4m/string.c',
             'src/con4m/buffer.c',
             'src/con4m/ansi.c',
             'src/con4m/hex.c',
@@ -70,6 +70,9 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/xlist.c',
             'src/con4m/grid.c',
             'src/con4m/styledb.c',
+            'src/con4m/exceptions.c',
+            'src/con4m/crypto/sha.c'
+            
             ]
 
 hat_primary = ['src/hatrack/support/hatrack_common.c',

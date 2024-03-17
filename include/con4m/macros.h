@@ -226,7 +226,7 @@
 // format does NOT currently treat STRs and generic objects
 // differently.
 #define FORMAT_PARAMETER(x)                                                    \
-    _Generic(x, str_t * : FA_STR, char : FA_CHAR, char * : FA_CSTR,            \
+    _Generic(x, any_str_t * : FA_STR, char : FA_CHAR, char * : FA_CSTR,        \
 bool : FA_BOOL, int64_t : FA_INT, uint64_t : FA_UINT, double : FA_DOUBLE,      \
 default : FA_STR), x
 
