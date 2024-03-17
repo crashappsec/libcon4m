@@ -20,6 +20,16 @@ static uint64_t page_bytes;
 static uint64_t page_modulus;
 static uint64_t modulus_mask;
 
+// This puts a junk call frame on we scan, which on yhr mac seems
+// to be 256 bytes. Playing it safe and not subtracking it out, though.
+void
+get_stack_scan_region(uint64_t *top, uint64_t *bottom)
+{
+    uint64_t local = 0;
+    get_stack_bounds(top, bottom);
+    *top = (uint64_t *)&local;
+}
+
 __attribute__((constructor)) void
 initialize_gc()
 {
@@ -347,7 +357,9 @@ static void
 con4m_collect_sub_arena(con4m_arena_t       *old,
 			con4m_arena_t       *new,
 			hatrack_dict_item_t *roots,
-			uint64_t             num_roots)
+			uint64_t             num_roots,
+			uint64_t            *stack_top,
+			uint64_t            *stack_bottom)
 {
     // TODO: should have a debug option that keeps a dict with
     // all valid allocations and ensures them.
@@ -369,6 +381,13 @@ con4m_collect_sub_arena(con4m_arena_t       *old,
 	    gc_trace("root_scan_start:@%p", ptr);
 	    process_traced_pointer(ptr, *ptr, start, end, new);
 	    gc_trace("root_scan_done:@%p", ptr);
+	}
+
+	gc_trace("stack_scan_start:@%p", stack_top);
+	uint64_t *p = stack_top;
+	while(p != stack_bottom) {
+	    process_traced_pointer(p, *p, start, end, new);
+	    p++;
 	}
     }
 }
@@ -399,9 +418,15 @@ con4m_collect_arena(con4m_arena_t **ptr_loc)
     roots       = hatrack_dict_items_nosort(cur->roots, &num_roots);
     new->roots  = rc_ref(global_roots);
 
+    uint64_t stack_top, stack_bottom;
+
+    get_stack_scan_region(&stack_top, &stack_bottom);
+
     while (cur != NULL) {
 	con4m_arena_t *prior_sub_arena = cur->previous;
-	con4m_collect_sub_arena(cur, new, roots, num_roots);
+	con4m_collect_sub_arena(cur, new, roots, num_roots,
+				(uint64_t *)stack_top,
+				(uint64_t *)stack_bottom);
 	cur = prior_sub_arena;
     }
 

@@ -19,9 +19,9 @@ test1() {
     any_str_t *s2 = con4m_new(T_UTF8, "cstring", " world!");
     any_str_t *s3 = con4m_new(T_UTF8, "cstring", " magic?\n");
 
-    con4m_gc_register_root(&s1, 1);
-    con4m_gc_register_root(&s2, 1);
-    con4m_gc_register_root(&s3, 1);
+    //con4m_gc_register_root(&s1, 1);
+    //con4m_gc_register_root(&s2, 1);
+    //con4m_gc_register_root(&s3, 1);
 
     ansi_render(s1, stdout);
     ansi_render(s2, stdout);
@@ -44,8 +44,8 @@ test1() {
 
     break_info_t *g;
 
-    con4m_gc_register_root(&s, 1);
-    con4m_gc_register_root(&g, 1);
+    //con4m_gc_register_root(&s, 1);
+    //con4m_gc_register_root(&g, 1);
 
     g = get_grapheme_breaks(s, 1, 10);
 
@@ -91,20 +91,21 @@ test2() {
     utf8_t *w6 = con4m_new(T_UTF8, "cstring", "\n");
 
 
-    con4m_gc_register_root(&w1, 1);
-    con4m_gc_register_root(&w2, 1);
-    con4m_gc_register_root(&w3, 1);
-    con4m_gc_register_root(&w4, 1);
-    con4m_gc_register_root(&w5, 1);
-    con4m_gc_register_root(&w6, 1);
-
+    /*
+      con4m_gc_register_root(&w1, 1);
+      con4m_gc_register_root(&w2, 1);
+      con4m_gc_register_root(&w3, 1);
+      con4m_gc_register_root(&w4, 1);
+      con4m_gc_register_root(&w5, 1);
+      con4m_gc_register_root(&w6, 1);
+    */
     string_apply_style(w2, style1);
     string_apply_style(w3, style2);
     string_apply_style(w5, style1);
 
     utf32_t *to_wrap;
 
-    con4m_gc_register_root(&to_wrap, 1);
+    //con4m_gc_register_root(&to_wrap, 1);
 
     to_wrap        = string_concat(w1, w2);
     to_wrap        = string_concat(to_wrap, w3);
@@ -124,9 +125,9 @@ test2() {
 			     80,
 			     "String Dump\n");
 
-    con4m_gc_register_root(&dump1, 1);
+    /*con4m_gc_register_root(&dump1, 1);
     con4m_gc_register_root(&dump2, 1);
-
+    */
     ansi_render(dump1, stderr);
     ansi_render(dump2, stderr);
 
@@ -172,12 +173,14 @@ test4()
     utf8_t *w5 = con4m_new(T_UTF8, "cstring", "Basically AirTags for Software");
     utf8_t *w6 = con4m_new(T_UTF8, "cstring", "\n");
 
-    con4m_gc_register_root(&w1, 1);
-    con4m_gc_register_root(&w2, 1);
-    con4m_gc_register_root(&w3, 1);
-    con4m_gc_register_root(&w4, 1);
-    con4m_gc_register_root(&w5, 1);
-    con4m_gc_register_root(&w6, 1);
+    /*
+      con4m_gc_register_root(&w1, 1);
+      con4m_gc_register_root(&w2, 1);
+      con4m_gc_register_root(&w3, 1);
+      con4m_gc_register_root(&w4, 1);
+      con4m_gc_register_root(&w5, 1);
+      con4m_gc_register_root(&w6, 1);
+    */
 
 
     hatrack_dict_t *d = con4m_new(T_DICT, HATRACK_DICT_KEY_TYPE_CSTR);
@@ -274,23 +277,37 @@ table_test()
 }
 
 void
+another_func()
+{
+    volatile int *i = &table_test;
+    volatile int *x = &table_test;
+
+    printf("In another func: i @%p; x @%p\n", &i, &x);
+}
+
+
+void
 sha_test()
 {
-    utf8_t     *test1 = con4m_new(T_UTF8, "cstring", "Some example 🤯 🤯 🤯"
+    volatile utf8_t     *test1 = con4m_new(T_UTF8, "cstring", "Some example 🤯 🤯 🤯"
 	" Let's make it a fairly long 🤯 example, so it will be sure to need"
 	" some reynolds' wrap.");
-    sha_ctx *ctx = con4m_new(T_SHA);
+
+    volatile sha_ctx *ctx = con4m_new(T_SHA);
     sha_string_update(ctx, test1);
-    buffer_t *b = sha_finish(ctx);
+    volatile buffer_t *b = sha_finish(ctx);
 
     printf("Sha256 is: ");
     ansi_render(con4m_value_obj_repr(b), stdout);
     printf("\n");
+    printf("sha_test stack addresses. test1: %p; b: %p\n", &test1, &b);
+    another_func();
 }
 
 int
 main(int argc, char **argv, char **envp)
 {
+    uint64_t top, bottom;
 
     TRY {
 	install_default_styles();
@@ -301,7 +318,7 @@ main(int argc, char **argv, char **envp)
 	test1();
 	//style1 = apply_bg_color(style1, "alice blue");
 	any_str_t *to_slice = test2();
-	con4m_gc_register_root(&to_slice, 1);
+	// con4m_gc_register_root(&to_slice, 1);
 	test3(to_slice);
 	to_slice = NULL;
 	test4();
@@ -330,4 +347,16 @@ main(int argc, char **argv, char **envp)
     }
     TRY_END;
     printf("This theoretically should run.\n");
+
+    get_stack_scan_region(&top, &bottom);
+
+    uint64_t q = bottom - top;
+
+    // Give ourselves something to see where the real start is.
+    bottom = 0x4141414141414141;
+    utf8_t *s = hex_dump(top, q, top, 80, "");
+    printf("%s\n", s->data);
+
+    bottom = top + q;
+    printf("(start) = %p; (end) = %p (%llu bytes)\n", top, bottom, q);
 }

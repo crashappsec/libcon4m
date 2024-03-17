@@ -150,7 +150,7 @@ typedef struct {
 
 // Shouldn't be accessed by developer, but allows us to inline.
 extern uint64_t gc_guard;
-
+extern thread_local uint64_t *stack_start;
 
 typedef struct con4m_arena_t {
     alignas(8)
@@ -279,3 +279,13 @@ con4m_gc_malloc(size_t len)
 // Assumes it contains pointers. Call manually if you need otherwise.
 #define gc_array_alloc(typename, n)			\
     con4m_gc_alloc((sizeof(typename) * n), 0)
+
+static inline void
+get_stack_bounds(uint64_t *top, uint64_t *bottom)
+{
+    pthread_t self = pthread_self();
+    *bottom = (uint64_t)pthread_get_stackaddr_np(self);
+    *top    = *bottom - pthread_get_stacksize_np(self);
+}
+
+extern void get_stack_scan_region(uint64_t *top, uint64_t *bottom);

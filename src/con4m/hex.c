@@ -10,7 +10,7 @@ calculate_size_prefix(uint64_t len, uint64_t start) {
     // We're going to keep the size prefix even; every 8 bits of max size
     // results in 2 characters printing.
 
-    int log2 = 63 - __builtin_clzll(start + len);
+    int log2 = 64 - __builtin_clzll(start + len);
     int ret  = (log2 / 8) * 2;
 
     if (log2 % 8) {

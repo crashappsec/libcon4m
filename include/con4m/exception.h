@@ -78,7 +78,7 @@
     __xh_frame      = __xh_stack->top;                                         \
     __xh_setjmp_val = setjmp(__xh_jmpbuf);                                     \
                                                                                \
-    if (!__xh_setjmp_val) {printf("Got stack %p; frame = %p\n", __xh_stack, __xh_frame);
+    if (!__xh_setjmp_val) {
 
 
 #define EXCEPT                                                                 \
