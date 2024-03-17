@@ -280,6 +280,26 @@ con4m_gc_malloc(size_t len)
 #define gc_array_alloc(typename, n)			\
     con4m_gc_alloc((sizeof(typename) * n), 0)
 
+#if defined(__linux__)
+static inline void
+get_stack_bounds(uint64_t *top, uint64_t *bottom)
+{
+    pthread_t      self = pthread_self();
+    pthread_attr_t attrs;
+    size_t         size;
+    uint64_t       addr;
+
+    pthread_getattr_np(self, &attrs);
+    pthread_attr_getstack(&attrs, &addr, &size);
+
+    *bottom = (uint64_t)addr;
+    *top    = size + (uint64_t)addr;
+}
+#endif
+
+// Apple at least has no way to get the thread's attr struct that
+// I can find. But it does provide an API to get at the same data.
+#if defined(__APPLE__) || defined(BSD)
 static inline void
 get_stack_bounds(uint64_t *top, uint64_t *bottom)
 {
@@ -287,5 +307,6 @@ get_stack_bounds(uint64_t *top, uint64_t *bottom)
     *bottom = (uint64_t)pthread_get_stackaddr_np(self);
     *top    = *bottom - pthread_get_stacksize_np(self);
 }
+#endif
 
 extern void get_stack_scan_region(uint64_t *top, uint64_t *bottom);

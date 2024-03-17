@@ -54,13 +54,24 @@ initialize_gc()
 static void *
 raw_arena_alloc(uint64_t len)
 {
-    void *r = mmap(NULL,
-		   (size_t)len, PROT_READ | PROT_WRITE,
-		   MAP_PRIVATE | MAP_ANON, 0, 0);
+    if (len & page_modulus) {
+	len = (len & modulus_mask) + page_bytes;
+    }
 
-    gc_trace("arena:mmap:@%p-@%p:%llu", r, ((char *)r) + len, len);
+    size_t total_len = (size_t)(page_bytes * 2 + len);
+    char *full_alloc = mmap(NULL,
+			    total_len, PROT_READ | PROT_WRITE,
+			    MAP_PRIVATE | MAP_ANON, 0, 0);
 
-    return r;
+    char *ret   = full_alloc + page_bytes;
+    char *guard = full_alloc + total_len - page_bytes;
+
+    mprotect(full_alloc, page_bytes, PROT_NONE);
+    mprotect(guard,      page_bytes, PROT_NONE);
+
+    gc_trace("arena:mmap:@%p-@%p:%llu", ret, ret + len, len);
+
+    return ret;
 }
 
 void
