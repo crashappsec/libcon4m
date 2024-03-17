@@ -91,9 +91,7 @@ sha_buffer_update(sha_ctx *ctx, buffer_t *buffer)
 buffer_t *
 sha_finish(sha_ctx *ctx)
 {
-    int num;
-
-    EVP_DigestFinal_ex(ctx->openssl_ctx, ctx->digest->data, &num);
+    EVP_DigestFinal_ex(ctx->openssl_ctx, ctx->digest->data, NULL);
     buffer_t *result = ctx->digest;
     ctx->digest      = NULL;
 

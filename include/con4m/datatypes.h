@@ -12,3 +12,4 @@
 #include <con4m/datatypes/buffers.h>
 #include <con4m/datatypes/io.h>
 #include <con4m/datatypes/crypto.h>
+#include <con4m/datatypes/exceptions.h>

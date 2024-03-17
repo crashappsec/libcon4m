@@ -111,5 +111,6 @@ typedef enum : int64_t {
     T_XLIST, // single-threaded list.
     T_RENDER_STYLE,
     T_SHA,
+    T_EXCEPTION,
     CON4M_NUM_BUILTIN_DTS
 } con4m_builtin_t;

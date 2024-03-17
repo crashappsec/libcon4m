@@ -292,23 +292,42 @@ int
 main(int argc, char **argv, char **envp)
 {
 
-    install_default_styles();
-    terminal_dimensions(&term_width, NULL);
-    ansi_render_to_width(str_test, term_width, 0, stdout);
-    test_rand64();
-    // Test basic string and single threaded GC.
-    test1();
-    //style1 = apply_bg_color(style1, "alice blue");
-    any_str_t *to_slice = test2();
-    con4m_gc_register_root(&to_slice, 1);
-    test3(to_slice);
-    to_slice = NULL;
-    test4();
-    table_test();
+    TRY {
+	install_default_styles();
+	terminal_dimensions(&term_width, NULL);
+	ansi_render_to_width(str_test, term_width, 0, stdout);
+	test_rand64();
+	// Test basic string and single threaded GC.
+	test1();
+	//style1 = apply_bg_color(style1, "alice blue");
+	any_str_t *to_slice = test2();
+	con4m_gc_register_root(&to_slice, 1);
+	test3(to_slice);
+	to_slice = NULL;
+	test4();
+	table_test();
 
-    printf("Sample style: %.16llx\n", style1);
-    sha_test();
+	printf("Sample style: %.16llx\n", style1);
+	sha_test();
 
-    STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
-    ansi_render(local_test, stdout);
+	STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
+	ansi_render(local_test, stdout);
+	RAISE("Except maybe not!");
+    }
+    EXCEPT
+    {
+	exception_t *e = X_CUR();
+        printf("Just kidding. An exception was raised before exit:\n");
+	switch(e->code) {
+	default:
+	    fprintf(stderr, "%s:%lld: Caught you, exception face: ",
+	    exception_get_file(e)->data,
+	    exception_get_line(e));
+	    ansi_render(exception_get_message(X_CUR()), stderr);
+	    fputc('\n', stderr);
+	    JUMP_TO_TRY_END();
+	};
+    }
+    TRY_END;
+    printf("This theoretically should run.\n");
 }

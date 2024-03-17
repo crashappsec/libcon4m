@@ -200,6 +200,13 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	 .alloc_len = sizeof(sha_ctx),
 	 .ptr_info  = GC_SCAN_ALL,
 	 .vtable    = &sha_vtable
+     },
+     {
+	 .name      = "exception",
+	 .typeid    = T_EXCEPTION,
+	 .alloc_len = sizeof(exception_t),
+	 .ptr_info  = (uint64_t *)&exception_pmap,
+	 .vtable    = &exception_vtable
      }
 };
 

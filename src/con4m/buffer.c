@@ -94,7 +94,7 @@ buffer_repr(buffer_t *buf, to_str_use_t how)
 	char *p = result->data;
 
 	for (int i = 0; i < buf->byte_len; i++) {
-	    uint8_t c = (uint8_t *)buf->data[i];
+	    uint8_t c = ((uint8_t *)buf->data)[i];
 	    *p++ = to_hex_map[(c >> 4)];
 	    *p++ = to_hex_map[c & 0x0f];
 	}

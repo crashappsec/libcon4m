@@ -40,5 +40,8 @@ typedef void *object_t;
 #include <con4m/switchboard.h>
 #include <con4m/subproc.h>
 
+// Basic exception handling support.
+#include <con4m/exception.h>
+
 // Yes we use cryptographic hashes internally for type IDing.
 #include <crypto/sha.h>

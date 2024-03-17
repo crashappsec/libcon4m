@@ -19,6 +19,8 @@
 #include <pthread.h>
 #include <stdarg.h>
 #include <math.h>
+#include <setjmp.h>
+
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/types.h>
