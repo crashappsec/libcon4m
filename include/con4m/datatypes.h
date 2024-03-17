@@ -1,5 +1,6 @@
 #pragma once
 
+#include <con4m/datatypes/memory.h>
 #include <con4m/datatypes/kargs.h>
 #include <con4m/datatypes/objects.h>
 #include <con4m/datatypes/colors.h>

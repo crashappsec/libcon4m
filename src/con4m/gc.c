@@ -1,5 +1,9 @@
 #include <con4m.h>
 
+#ifndef DISABLE_POINTER_MAPS
+#define ALLOW_POINTER_MAPS
+#endif
+
 // The lock-free dictionary for roots ensures that threads can add
 // roots in parallel. However, we currently make an implicit
 // assumption that, roots are not going to be added when some thread
@@ -124,7 +128,12 @@ con4m_new_arena(size_t num_words)
 void *
 con4m_gc_alloc(size_t len, uint64_t *ptr_map)
 {
+
+#ifdef ALLOW_POINTER_MAPS
     return con4m_alloc_from_arena(&current_heap, len, ptr_map);
+#else
+    return con4m_alloc_from_arena(&current_heap, len, GC_SCAN_ALL);
+#endif
 }
 
 void *
@@ -141,8 +150,11 @@ con4m_gc_resize(void *ptr, size_t len)
 
     assert(hdr->guard = gc_guard);
 
+#ifdef ALLOW_POINTER_MAPS
     void *result = con4m_alloc_from_arena(&current_heap, len, hdr->ptr_map);
-
+#else
+    void *result = con4m_alloc_from_arena(&current_heap, len, GC_SCAN_ALL);
+#endif
     if (len > 0) {
 	size_t bytes = ((size_t)(hdr->next_addr - hdr->data)) * 8;
 	memcpy(result, ptr, min(len, bytes));
@@ -161,17 +173,22 @@ con4m_delete_arena(con4m_arena_t *arena)
     con4m_arena_t *prev_active;
 
     gc_trace("arena:skip_unmap");
-    return;
 
     while (arena != NULL) {
 	prev_active = arena->previous;
 	if (arena->roots != NULL) {
 	    rc_free_and_cleanup(arena->roots, (cleanup_fn)hatrack_dict_cleanup);
 	}
-	free(arena->late_mutations);
-	zfree(arena);
+	rc_free(arena->late_mutations);
+
+
+	char *start = ((char *)arena) - page_bytes;
+	char *end   = ((char *)arena->heap_end) - page_bytes;
+	madvise(arena, end - start, MADV_ZERO_WIRED_PAGES);
+
 	arena = prev_active;
     }
+    return;
 }
 
 void
@@ -345,7 +362,12 @@ process_traced_pointer(uint64_t **addr, uint64_t *ptr, uint64_t *start,
 
     uint64_t  len     = sizeof(uint64_t) *
 	                 (uint64_t)(hdr->next_addr - hdr->data);
+
+#ifdef ALLOW_POINTER_MAPS
     uint64_t *forward = con4m_alloc_from_arena(&new_arena, len, hdr->ptr_map);
+#else
+    uint64_t *forward = con4m_alloc_from_arena(&new_arena, len, GC_SCAN_ALL);
+#endif
 
     // Forward before we descend.
     hdr->fw_addr      = forward;
