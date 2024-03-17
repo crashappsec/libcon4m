@@ -1,9 +1,5 @@
 #include <con4m.h>
 
-#ifndef DISABLE_POINTER_MAPS
-#define ALLOW_POINTER_MAPS
-#endif
-
 // The lock-free dictionary for roots ensures that threads can add
 // roots in parallel. However, we currently make an implicit
 // assumption that, roots are not going to be added when some thread
@@ -184,7 +180,8 @@ con4m_delete_arena(con4m_arena_t *arena)
 
 	char *start = ((char *)arena) - page_bytes;
 	char *end   = ((char *)arena->heap_end) - page_bytes;
-	madvise(arena, end - start, MADV_ZERO_WIRED_PAGES);
+	mprotect(start, end - start, MADV_ZERO_WIRED_PAGES);
+	madvise(start, end - start, MADV_ZERO_WIRED_PAGES);
 
 	arena = prev_active;
     }
