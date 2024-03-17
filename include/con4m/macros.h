@@ -1,5 +1,4 @@
-#ifndef __MACROS_H__
-#define __MACROS_H__
+#pragma once
 
 /*
  * This file is mostly third party macros, with some additions making
@@ -267,5 +266,3 @@ default : FA_STR), x
 #endif
 
 #define foreach(x, y) while ((x = iterator_next(y)) != NULL)
-
-#endif

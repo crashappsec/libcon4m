@@ -1502,7 +1502,10 @@ grid_add_cell_contents(grid_t *grid, xlist_t *lines, uint16_t r, uint16_t c,
 	xlist_set(lines, i, line);
     }
 
-    return c + 1 == cell->end_col;
+    // This silences a warning... I know I'm not using start_height
+    // yet, but the compiler won't shut up about it! So here, I'm
+    // using it now, are you happy???
+    return ((c + 1) ^ start_height) == ((cell->end_col) ^ start_height);
 }
 
 xlist_t *

@@ -47,7 +47,7 @@ start_one_functest_thread(void *info)
 
     mmm_clean_up_before_exit();
 
-    return (void *)ret;
+    return (void *)(int64_t)ret;
 }
 
 

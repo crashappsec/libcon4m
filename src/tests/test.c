@@ -277,31 +277,19 @@ table_test()
 }
 
 void
-another_func()
-{
-    volatile int *i = &table_test;
-    volatile int *x = &table_test;
-
-    printf("In another func: i @%p; x @%p\n", &i, &x);
-}
-
-
-void
 sha_test()
 {
-    volatile utf8_t     *test1 = con4m_new(T_UTF8, "cstring", "Some example 🤯 🤯 🤯"
+    utf8_t     *test1 = con4m_new(T_UTF8, "cstring", "Some example 🤯 🤯 🤯"
 	" Let's make it a fairly long 🤯 example, so it will be sure to need"
 	" some reynolds' wrap.");
 
-    volatile sha_ctx *ctx = con4m_new(T_SHA);
+    sha_ctx *ctx = con4m_new(T_SHA);
     sha_string_update(ctx, test1);
-    volatile buffer_t *b = sha_finish(ctx);
+    buffer_t *b = sha_finish(ctx);
 
     printf("Sha256 is: ");
     ansi_render(con4m_value_obj_repr(b), stdout);
     printf("\n");
-    printf("sha_test stack addresses. test1: %p; b: %p\n", &test1, &b);
-    another_func();
 }
 
 int
@@ -348,15 +336,18 @@ main(int argc, char **argv, char **envp)
     TRY_END;
     printf("This theoretically should run.\n");
 
-    get_stack_scan_region(&top, &bottom);
+    if (argc > 1) {
+	get_stack_scan_region(&top, &bottom);
 
-    uint64_t q = bottom - top;
+	uint64_t q = bottom - top;
 
-    // Give ourselves something to see where the real start is.
-    bottom = 0x4141414141414141;
-    utf8_t *s = hex_dump(top, q, top, 80, "");
-    printf("%s\n", s->data);
+	// Give ourselves something to see where the real start is.
+	bottom = 0x4141414141414141;
+	utf8_t *s = hex_dump((void *)top, q, top, 80, "");
+	printf("%s\n", s->data);
 
-    bottom = top + q;
-    printf("(start) = %p; (end) = %p (%llu bytes)\n", top, bottom, q);
+	bottom = top + q;
+	printf("(start) = %p; (end) = %p (%llu bytes)\n", (void *)top,
+	       (void *)bottom, q);
+    }
 }
