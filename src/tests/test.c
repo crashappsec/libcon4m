@@ -273,6 +273,21 @@ table_test()
     ansi_render(con4m_value_obj_repr(flow), stdout);
 }
 
+void
+sha_test()
+{
+    utf8_t     *test1 = con4m_new(T_UTF8, "cstring", "Some example 🤯 🤯 🤯"
+	" Let's make it a fairly long 🤯 example, so it will be sure to need"
+	" some reynolds' wrap.");
+    sha_ctx *ctx = con4m_new(T_SHA);
+    sha_string_update(ctx, test1);
+    buffer_t *b = sha_finish(ctx);
+
+    printf("Sha256 is: ");
+    ansi_render(con4m_value_obj_repr(b), stdout);
+    printf("\n");
+}
+
 int
 main(int argc, char **argv, char **envp)
 {
@@ -290,8 +305,10 @@ main(int argc, char **argv, char **envp)
     to_slice = NULL;
     test4();
     table_test();
-    STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
-    ansi_render(local_test, stdout);
 
     printf("Sample style: %.16llx\n", style1);
+    sha_test();
+
+    STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
+    ansi_render(local_test, stdout);
 }

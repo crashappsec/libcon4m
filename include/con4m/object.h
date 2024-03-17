@@ -81,7 +81,7 @@ extern const con4m_vtable logring_vtable;
 extern const con4m_vtable stack_vtable;
 extern const con4m_vtable dict_vtable;
 extern const con4m_vtable xlist_vtable;
+extern const con4m_vtable sha_vtable;
 extern const con4m_vtable render_style_vtable;
-
-extern uint64_t pmap_first_word[2];
+extern const uint64_t pmap_first_word[2];
 extern const uint64_t rs_pmap[2];

@@ -49,3 +49,4 @@ forkpty(int *, char *, struct termios *, struct winsize *);
 
 #include <vendor.h>
 #include <hatrack.h>
+#include <con4m/datatypes.h>

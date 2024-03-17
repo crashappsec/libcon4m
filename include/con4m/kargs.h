@@ -17,19 +17,6 @@
 
 #include <con4m.h>
 
-typedef struct karg_st karg_t;
-
-struct karg_st {
-    char   *name;
-    void   *outloc;
-    karg_t *next;
-    int     size;
-};
-
-typedef struct {
-    karg_t *top;
-} karg_cache_t;
-
 uint64_t kargs_process_w_req_param(va_list, ...);
 uint64_t kargs_process_wo_req_param(char *, va_list, ...);
 

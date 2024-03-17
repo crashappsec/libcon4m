@@ -1,23 +1,5 @@
 #pragma once
-
-extern const int str_header_size;
-extern const uint64_t pmap_str[2];
-#define PMAP_STR ((uint64_t *)&pmap_str[0])
-
-typedef uint64_t style_t;
-typedef int32_t  codepoint_t;
-
-typedef struct {
-    int32_t  start;
-    int32_t  end;
-    style_t  info;  // 16 bits of flags, 24 bits bg color, 24 bits fg color
-} style_entry_t;
-
-typedef struct {
-    int64_t       num_entries;
-    style_entry_t styles[];
-} style_info_t;
-
+#include <con4m.h>
 
 /**
  ** For UTF-32, we actually store in the codepoints field the bitwise
@@ -32,6 +14,12 @@ typedef struct {
     char         *data;
 } base_str_t;
 
+typedef struct break_info_st {
+    int32_t num_slots;
+    int32_t num_breaks;
+    int32_t breaks[];
+} break_info_t;
+
 typedef base_str_t utf8_t;
 typedef base_str_t utf32_t;
 typedef base_str_t any_str_t;
@@ -41,6 +29,14 @@ struct internal_string_st {
     uint64_t       concrete_type;
     base_str_t     s;
 };
+
+// This struct is used to manage state when rending ansi.
+typedef enum {
+    U8_STATE_START_DEFAULT,
+    U8_STATE_START_STYLE,
+    U8_STATE_DEFAULT_STYLE, // Stop at a new start ix or at the end.
+    U8_STATE_IN_STYLE       // Stop at a new end ix or at the end.
+} u8_state_t;
 
 // This only works with ASCII strings, not arbitrary utf8.
 #define STATIC_ASCII_STR(id, val)                                              \

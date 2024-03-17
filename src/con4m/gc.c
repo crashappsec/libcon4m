@@ -109,6 +109,13 @@ con4m_gc_alloc(size_t len, uint64_t *ptr_map)
 void *
 con4m_gc_resize(void *ptr, size_t len)
 {
+
+    // We'd like external C code to be able to use our GC. Some things
+    // (i.e., openssl) will call realloc(NULL, ...) to get memory
+    // for whatever reason.
+    if (ptr == NULL) {
+	return con4m_gc_alloc(len, GC_SCAN_ALL);
+    }
     con4m_alloc_hdr *hdr = &((con4m_alloc_hdr *)ptr)[-1];
 
     assert(hdr->guard = gc_guard);

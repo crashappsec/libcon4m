@@ -2,13 +2,9 @@
 
 #include <con4m.h>
 
-extern const int minimum_break_slots;
+// break_info_t is in datatypes/strings.h
 
-typedef struct break_info_st {
-    int32_t num_slots;
-    int32_t num_breaks;
-    int32_t breaks[];
-} break_info_t;
+extern const int minimum_break_slots;
 
 extern break_info_t *get_grapheme_breaks(const any_str_t *, int32_t, int32_t);
 extern break_info_t *get_line_breaks(const any_str_t *);

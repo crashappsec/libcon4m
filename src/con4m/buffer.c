@@ -4,23 +4,23 @@ static void
 buffer_init(buffer_t *obj, va_list args)
 {
     DECLARE_KARGS(
-	int64_t    len = -1;
-	any_str_t *hex = NULL;
+	int64_t    length = -1;
+	any_str_t *hex    = NULL;
 	);
-    method_kargs(args, len, hex);
+    method_kargs(args, length, hex);
 
-    if (len == -1 && hex == NULL) {
+    if (length == -1 && hex == NULL) {
 	abort();
     }
-    if (len != -1 && hex != NULL) {
+    if (length != -1 && hex != NULL) {
 	abort();
     }
 
-    if (len == -1) {
-	len = string_codepoint_len(hex) >> 1;
+    if (length == -1) {
+	length = string_codepoint_len(hex) >> 1;
     }
 
-    obj->data = con4m_gc_alloc(len, NULL);
+    obj->data = con4m_gc_alloc(length, NULL);
 
     if (hex != NULL) {
 	uint8_t cur         = 0;
@@ -63,7 +63,7 @@ buffer_init(buffer_t *obj, va_list args)
 	}
     }
     else {
-	obj->byte_len = len;
+	obj->byte_len = length;
     }
 }
 
@@ -94,10 +94,13 @@ buffer_repr(buffer_t *buf, to_str_use_t how)
 	char *p = result->data;
 
 	for (int i = 0; i < buf->byte_len; i++) {
-	    char c = buf->data[i];
+	    uint8_t c = (uint8_t *)buf->data[i];
 	    *p++ = to_hex_map[(c >> 4)];
 	    *p++ = to_hex_map[c & 0x0f];
 	}
+
+	result->codepoints = p - result->data;
+	result->byte_len   = result->codepoints;
     }
     return result;
 }
@@ -110,4 +113,4 @@ const con4m_vtable buffer_vtable = {
     }
 };
 
-uint64_t pmap_first_word[2] = { 0x1, 0x8000000000000000 };
+const uint64_t pmap_first_word[2] = { 0x1, 0x8000000000000000 };

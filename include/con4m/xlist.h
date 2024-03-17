@@ -3,15 +3,6 @@
 // The 'x' stands for exclusive; this is meant to be exclusive to
 // a single thread.
 
-typedef struct {
-    alignas(8)
-    // The actual length if treated properly. We should be
-    // careful about it.
-    int32_t   append_ix;
-    int32_t   length;   // The allocated length.
-    int64_t  **data;
-} xlist_t;
-
 static inline void *
 xlist_get(const xlist_t *list, int64_t ix, bool *err)
 {

@@ -2,6 +2,11 @@
 
 #include <con4m.h>
 
+extern const int str_header_size;
+extern const uint64_t pmap_str[2];
+#define PMAP_STR ((uint64_t *)&pmap_str[0])
+
+
 extern any_str_t   *string_copy(const any_str_t *s);
 extern utf32_t     *string_concat(const any_str_t *, const any_str_t *);
 extern utf8_t      *utf32_to_utf8(const utf32_t *);
