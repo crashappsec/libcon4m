@@ -14,3 +14,7 @@
 #include <con4m/datatypes/io.h>
 #include <con4m/datatypes/crypto.h>
 #include <con4m/datatypes/exceptions.h>
+
+typedef any_str_t *(*repr_fn)(object_t, to_str_use_t);
+typedef void (*marshal_fn)(object_t, FILE *, struct dict_t *, int64_t *);
+typedef void (*unmarshal_fn)(object_t, FILE *, struct dict_t *);

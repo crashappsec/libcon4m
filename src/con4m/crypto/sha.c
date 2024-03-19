@@ -98,6 +98,7 @@ sha_finish(sha_ctx *ctx)
     return result;
 }
 
+
 const con4m_vtable sha_vtable = {
     .num_entries = 1,
     .methods     = {

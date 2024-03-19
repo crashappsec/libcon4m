@@ -137,7 +137,10 @@
 #define FINALLY           LFINALLY(default_label)
 #define TRY_END           LTRY_END(default_label)
 
-#define RAISE(s, ...) exception_raise(alloc_exception(s,                       \
+#define CRAISE(s, ...) exception_raise(alloc_exception(s,                      \
+        IF(ISEMPTY(__VA_ARGS__))(EMPTY(), __VA_ARGS__)) , __FILE__, __LINE__)
+
+#define RAISE(s, ...) exception_raise(alloc_str_exception(s,                   \
         IF(ISEMPTY(__VA_ARGS__))(EMPTY(), __VA_ARGS__)) , __FILE__, __LINE__)
 
 #define RERAISE()							       \
@@ -148,6 +151,9 @@
 
 exception_t *_alloc_exception(char *s, ...);
 #define alloc_exception(s, ...) _alloc_exception(s, KFUNC(__VA_ARGS__))
+
+exception_t *_alloc_str_exception(utf8_t *s, ...);
+#define alloc_str_exception(s, ...) _alloc_str_exception(s, KFUNC(__VA_ARGS__))
 
 enum : int64_t
 {

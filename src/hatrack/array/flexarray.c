@@ -191,6 +191,12 @@ flexarray_set(flexarray_t *self, uint64_t index, void *item)
 	mmm_end_op();
 	return flexarray_set(self, index, item);
     }
+    else {
+	if (index >= store->array_size) {
+	    flexarray_grow(self, index);
+	}
+    }
+
 
     cellptr = &store->cells[index];
     current = atomic_read(cellptr);

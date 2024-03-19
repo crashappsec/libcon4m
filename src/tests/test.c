@@ -183,7 +183,7 @@ test4()
     */
 
 
-    hatrack_dict_t *d = con4m_new(T_DICT, HATRACK_DICT_KEY_TYPE_CSTR);
+    hatrack_dict_t *d = con4m_new(T_DICT, HATRACK_DICT_KEY_TYPE_OBJ_CSTR);
 
     con4m_gc_register_root(&d, 1);
 
@@ -317,7 +317,7 @@ main(int argc, char **argv, char **envp)
 
 	STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
 	ansi_render(local_test, stdout);
-	RAISE("Except maybe not!");
+	CRAISE("Except maybe not!");
     }
     EXCEPT
     {

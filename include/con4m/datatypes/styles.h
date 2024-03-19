@@ -105,11 +105,11 @@ typedef struct {
     alignment_t    alignment     : 7;
     dimspec_kind_t dim_kind      : 3;
     border_set_t   borders       : 6;
-    unsigned int   pad_color_set : 1;
-    unsigned int   disable_wrap  : 1;
-    unsigned int   tpad_set      : 1; // These prevent overrides when
-    unsigned int   bpad_set      : 1; // the pad value is 0. If it's not
-    unsigned int   lpad_set      : 1; // 0, this gets ignored.
-    unsigned int   rpad_set      : 1;
-    unsigned int   hang_set      : 1;
+    uint8_t        pad_color_set : 1;
+    uint8_t        disable_wrap  : 1;
+    uint8_t        tpad_set      : 1; // These prevent overrides when
+    uint8_t        bpad_set      : 1; // the pad value is 0. If it's not
+    uint8_t        lpad_set      : 1; // 0, this gets ignored.
+    uint8_t        rpad_set      : 1;
+    uint8_t        hang_set      : 1;
 } render_style_t;

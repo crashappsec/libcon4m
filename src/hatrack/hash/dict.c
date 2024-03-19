@@ -64,7 +64,7 @@ hatrack_dict_init(hatrack_dict_t *self, uint32_t key_type)
     self->free_handler                   = NULL;
     self->key_return_hook                = NULL;
     self->val_return_hook                = NULL;
-    self->slow_views                     = false;
+    self->slow_views                     = true;
 
     return;
 }
@@ -191,11 +191,11 @@ hatrack_dict_get_sorted_views(hatrack_dict_t *self)
 }
 
 void *
-hatrack_dict_get(hatrack_dict_t *self, void *key, bool *found)
+hatrack_dict_get(hatrack_dict_t *self, void *key, int *found)
 {
     hatrack_hash_t       hv;
     hatrack_dict_item_t *item;
-    crown_store_t    *store;
+    crown_store_t       *store;
 
 
     hv = hatrack_dict_get_hash_value(self, key);
@@ -207,7 +207,7 @@ hatrack_dict_get(hatrack_dict_t *self, void *key, bool *found)
 
     if (!item) {
         if (found) {
-            *found = false;
+            *found = 0;
         }
 
 	mmm_end_op();
@@ -215,7 +215,7 @@ hatrack_dict_get(hatrack_dict_t *self, void *key, bool *found)
     }
 
     if (found) {
-        *found = true;
+        *found = 1;
     }
 
     if (self->val_return_hook) {

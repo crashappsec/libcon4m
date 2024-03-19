@@ -48,7 +48,6 @@ extern const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS];
 extern object_t _con4m_new(con4m_builtin_t typeid,  ...);
 extern uint64_t *gc_get_ptr_info(con4m_builtin_t);
 
-typedef any_str_t *(*repr_fn)(object_t, to_str_use_t);
 
 static inline any_str_t *
 con4m_raw_repr(con4m_builtin_t tinfo, object_t val, to_str_use_t kind)
@@ -59,13 +58,7 @@ con4m_raw_repr(con4m_builtin_t tinfo, object_t val, to_str_use_t kind)
     return (*ptr)(val, kind);
 }
 
-static inline any_str_t *
-con4m_value_obj_repr(object_t obj)
-{
-    repr_fn ptr = (repr_fn)get_vtable(obj)->methods[CON4M_BI_TO_STR];
-    return (*ptr)(obj, TO_STR_USE_AS_VALUE);
-}
-
+extern any_str_t *con4m_value_obj_repr(object_t);
 
 extern const uint64_t str_ptr_info[];
 extern const con4m_vtable u8str_vtable;

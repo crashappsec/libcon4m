@@ -81,3 +81,9 @@ string_crlf()
 {
     return string_copy(crlf_const);
 }
+
+static inline utf8_t *
+new_utf8(const char *to_copy)
+{
+    return con4m_new(T_UTF8, "cstring", to_copy);
+}

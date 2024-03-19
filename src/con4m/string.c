@@ -175,7 +175,11 @@ _string_strip(const any_str_t *s, ...)
 any_str_t *
 string_copy(const any_str_t *s)
 {
-    uint64_t  basetype = get_base_type((object_t)s);
+    if (s == NULL) {
+	return NULL;
+    }
+
+    uint64_t  basetype = s->codepoints & (1ull << 63) ? T_UTF32 : T_UTF8;
     uint64_t  l        = basetype == T_UTF8 ? s->byte_len : ~s->codepoints;
     any_str_t *res     = con4m_new(basetype, "length", l);
 
@@ -354,9 +358,10 @@ utf8_init(utf8_t *s, va_list args)
 	int64_t start   = 0;
 	char   *cstring = NULL;
 	style_t style   = STYLE_INVALID;
+	char   *tag     = NULL;
 	);
 
-    method_kargs(args, length, start, cstring, style);
+    method_kargs(args, length, start, cstring, style, tag);
 
     if (cstring != NULL) {
 	if (length == -1) {
@@ -383,6 +388,13 @@ utf8_init(utf8_t *s, va_list args)
 
     if (style != STYLE_INVALID) {
 	string_apply_style(s, style);
+    }
+
+    if (tag != NULL) {
+	render_style_t *rs = lookup_cell_style(tag);
+	if (rs != NULL) {
+	    string_apply_style(s, rs->base_style);
+	}
     }
 }
 
@@ -749,6 +761,30 @@ string_split(any_str_t *str, any_str_t *sub)
     return result;
 }
 
+static void
+con4m_string_marshal(any_str_t *s, FILE *f, dict_t *memos, int64_t *mid)
+{
+    marshal_u32(s->codepoints, f);
+    marshal_u32(s->byte_len, f);
+    con4m_sub_marshal(s->styling, f, memos, mid);
+    if (s->byte_len) {
+	fwrite(s->data, s->byte_len, 1, f);
+    }
+}
+
+static void
+con4m_string_unmarshal(any_str_t *s, FILE *f, dict_t *memos)
+{
+    s->codepoints = unmarshal_u32(f);
+    s->byte_len   = unmarshal_u32(f);
+    s->styling    = con4m_sub_unmarshal(f, memos);
+
+    if (s->byte_len) {
+	s->data = con4m_gc_alloc(s->byte_len + 1, NULL);
+	fread(s->data, s->byte_len, 1, f);
+    }
+}
+
 static any_str_t *
 string_repr(any_str_t *str, to_str_use_t how)
 {
@@ -763,17 +799,23 @@ string_repr(any_str_t *str, to_str_use_t how)
 }
 
 const con4m_vtable u8str_vtable = {
-    .num_entries = 2,
+    .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
 	(con4m_vtable_entry)utf8_init,
 	(con4m_vtable_entry)string_repr,
+	NULL,
+	(con4m_vtable_entry)con4m_string_marshal,
+	(con4m_vtable_entry)con4m_string_unmarshal
     }
 };
 
 const con4m_vtable u32str_vtable = {
-    .num_entries = 2,
+    .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
 	(con4m_vtable_entry)utf32_init,
 	(con4m_vtable_entry)string_repr,
+	NULL,
+	(con4m_vtable_entry)con4m_string_marshal,
+	(con4m_vtable_entry)con4m_string_unmarshal
     }
 };

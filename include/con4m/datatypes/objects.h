@@ -27,7 +27,6 @@ typedef struct {
     const con4m_vtable *vtable;
 } con4m_dt_info;
 
-
 // Below, con4m_obj_t is the *internal* object type.
 //
 // For most uses, we use `object_t`, which is a promise that there's a
@@ -46,7 +45,7 @@ typedef struct {
 struct con4m_obj_t {
     con4m_dt_info *base_data_type;
     uint64_t       concrete_type;
-
+    __uint128_t    cached_hash;
     // The exposed object data.
     uint64_t data[];
 };

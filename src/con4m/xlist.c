@@ -102,9 +102,40 @@ xlist_plus(xlist_t *l1, xlist_t *l2)
     return result;
 }
 
+static void
+con4m_xlist_marshal(xlist_t *r, FILE *f, dict_t *memos, int64_t *mid)
+{
+    marshal_i32(r->append_ix, f);
+    marshal_i32(r->length, f);
+
+    // WARNING!!!  For right now, we are only using this to hold
+    // objects.  We should do this differently when we *aren't*
+    // holding objects, but we can't do that until we port more of the
+    // type system.
+    for (int i = 0; i < r->append_ix; i++) {
+	con4m_sub_marshal(r->data[i], f, memos, mid);
+    }
+}
+
+static void
+con4m_xlist_unmarshal(xlist_t *r, FILE *f, dict_t *memos)
+{
+    r->append_ix = unmarshal_i32(f);
+    r->length    = unmarshal_i32(f);
+    r->data      = gc_array_alloc(int64_t *, r->length);
+    // Same warning here as in the marshal version.
+    for (int i = 0; i < r->append_ix; i++) {
+	r->data[i] = con4m_sub_unmarshal(f, memos);
+    }
+}
+
 const con4m_vtable xlist_vtable = {
-    .num_entries = 1,
+    .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
-	(con4m_vtable_entry)xlist_init
+	(con4m_vtable_entry)xlist_init,
+	NULL,
+	NULL,
+	(con4m_vtable_entry)con4m_xlist_marshal,
+	(con4m_vtable_entry)con4m_xlist_unmarshal,
     }
 };

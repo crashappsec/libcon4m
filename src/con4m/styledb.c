@@ -233,19 +233,49 @@ static const render_style_t default_list_text_column = {
 };
 
 static const render_style_t default_h1 = {
-    .name       = "h1",
-    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON |  UL_ON |
-                  (0xb3ff00UL << 24),
-    .alignment  = ALIGN_TOP_CENTER,
-    .top_pad    = 1
+    .name    = "h1",
+    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON | BOLD_ON |
+                  0x3434340ff2f8eUL,
+    .top_pad = 2,
+    .alignment = ALIGN_BOTTOM_CENTER,
 };
 
 static const render_style_t default_h2 = {
-    .name       = "h2",
+    .name    = "h2",
+    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON | BOLD_ON |
+                  0x606060b3ff00UL,
+    .top_pad = 1,
+    .alignment = ALIGN_BOTTOM_CENTER,
+};
+
+static const render_style_t default_h3 = {
+    .name    = "h3",
+    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON | BOLD_ON |
+                  0x454545ee82eeUL,
+    .top_pad = 1,
+    .alignment = ALIGN_BOTTOM_CENTER,
+};
+
+static const render_style_t default_h4 = {
+    .name       = "h4",
     .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON | UL_ON |
                      (0xff2f8eUL << 24),
-    .alignment  = ALIGN_TOP_CENTER,
-    .top_pad    = 1
+    .alignment  = ALIGN_BOTTOM_LEFT,
+
+};
+
+static const render_style_t default_h5 = {
+    .name       = "h5",
+    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON |  UL_ON |
+                  (0xb3ff00UL << 24),
+    .alignment  = ALIGN_BOTTOM_LEFT,
+};
+
+static const render_style_t default_h6 = {
+    .name       = "h6",
+    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON |  UL_ON |
+                  (0xee82eeUL << 24),
+    .alignment  = ALIGN_BOTTOM_LEFT,
 };
 
 static const render_style_t default_flow = {
@@ -526,6 +556,63 @@ layer_styles(const render_style_t *base, render_style_t *cur)
     }
 }
 
+static void
+con4m_style_marshal(render_style_t *obj, FILE *f, dict_t *memos, int64_t *mid)
+{
+    uint8_t flags = 0;
+
+    flags = (obj->pad_color_set << 6) | (obj->disable_wrap << 5) |
+	(obj->tpad_set << 4) |	(obj->bpad_set << 3) |	(obj->lpad_set << 2) |
+	(obj->rpad_set << 1) |	obj->hang_set;
+
+    marshal_cstring(obj->name, f);
+    marshal_cstring(obj->border_theme->name, f);
+    marshal_u64(obj->base_style, f);
+    marshal_i32(obj->pad_color, f);
+    marshal_u64(obj->dims.units, f);
+    marshal_i8(obj->top_pad, f);
+    marshal_i8(obj->bottom_pad, f);
+    marshal_i8(obj->left_pad, f);
+    marshal_i8(obj->right_pad, f);
+    marshal_i8(obj->wrap, f);
+    marshal_i8(obj->alignment, f);
+    marshal_i8(obj->dim_kind, f);
+    marshal_i8(obj->borders, f);
+    marshal_u8(flags, f);
+}
+
+static void
+con4m_style_unmarshal(render_style_t *obj, FILE *f, dict_t *memos)
+{
+    uint8_t flags;
+    char   *theme;
+
+    obj->name       = unmarshal_cstring(f);
+    theme           = unmarshal_cstring(f);
+    obj->base_style = unmarshal_u64(f);
+    obj->pad_color  = unmarshal_i32(f);
+    obj->dims.units = unmarshal_u64(f);
+    obj->top_pad    = unmarshal_i8(f);
+    obj->bottom_pad = unmarshal_i8(f);
+    obj->left_pad   = unmarshal_i8(f);
+    obj->right_pad  = unmarshal_i8(f);
+    obj->wrap       = unmarshal_i8(f);
+    obj->alignment  = unmarshal_i8(f);
+    obj->dim_kind   = unmarshal_i8(f);
+    obj->borders    = unmarshal_i8(f);
+    flags           = unmarshal_u8(f);
+
+    obj->pad_color_set = flags >> 6;
+    obj->disable_wrap  = (flags >> 5) & 0x01;
+    obj->tpad_set      = (flags >> 4) & 0x01;
+    obj->bpad_set      = (flags >> 3) & 0x01;
+    obj->lpad_set      = (flags >> 2) & 0x01;
+    obj->rpad_set      = (flags >> 1) & 0x01;
+    obj->hang_set      = flags & 0x01;
+
+    set_border_theme(obj, theme);
+}
+
 void
 install_default_styles()
 {
@@ -536,6 +623,7 @@ install_default_styles()
     set_style("tr.even", (render_style_t *)&default_tr_even);
     set_style("tr.odd", (render_style_t *)&default_tr_odd);
     set_style("td", (render_style_t *)&default_td);
+    set_style("text", (render_style_t *)&default_td);
     set_style("th", (render_style_t *)&default_th);
     set_style("tcol", (render_style_t *)&default_tcol);
     set_style("ul", (render_style_t *)&default_list_grid);
@@ -544,13 +632,21 @@ install_default_styles()
     set_style("li", (render_style_t *)&default_list_text_column);
     set_style("h1", (render_style_t *)&default_h1);
     set_style("h2", (render_style_t *)&default_h2);
+    set_style("h3", (render_style_t *)&default_h3);
+    set_style("h4", (render_style_t *)&default_h4);
+    set_style("h5", (render_style_t *)&default_h5);
+    set_style("h6", (render_style_t *)&default_h6);
     set_style("table", (render_style_t *)&default_table);
     set_style("flow", (render_style_t *)&default_flow);
 }
 
 const con4m_vtable render_style_vtable = {
-    .num_entries = 1,
+    .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
-	(con4m_vtable_entry)con4m_style_init
+	(con4m_vtable_entry)con4m_style_init,
+	NULL,
+	NULL,
+	(con4m_vtable_entry)con4m_style_marshal,
+	(con4m_vtable_entry)con4m_style_unmarshal
     }
 };

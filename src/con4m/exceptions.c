@@ -35,6 +35,15 @@ _alloc_exception(char *msg, ...)
     return ret;
 }
 
+exception_t *
+_alloc_str_exception(utf8_t *msg, ...)
+{
+    exception_t *ret = gc_alloc(sizeof(exception_t));
+    ret->msg = msg;
+
+    return ret;
+}
+
 void
 exception_register_uncaught_handler(void (*handler)(exception_t *))
 {

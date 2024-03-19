@@ -217,7 +217,7 @@ _con4m_new(con4m_builtin_t typeid, ...)
     // typeid field.
 
     con4m_obj_t        *obj;
-    object_t           result;
+    object_t            result;
     va_list             args;
     uint64_t            l        = builtin_type_info[typeid].alloc_len;
     uint64_t           *ptr_info = (uint64_t *)builtin_type_info[
@@ -247,4 +247,11 @@ uint64_t *
 gc_get_ptr_info(con4m_builtin_t dtid)
 {
     return (uint64_t *)builtin_type_info[dtid].ptr_info;
+}
+
+any_str_t *
+con4m_value_obj_repr(object_t obj)
+{
+    repr_fn ptr = (repr_fn)get_vtable(obj)->methods[CON4M_BI_TO_STR];
+    return (*ptr)(obj, TO_STR_USE_AS_VALUE);
 }

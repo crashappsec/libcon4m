@@ -56,10 +56,42 @@ con4m_stack_init(hatstack_t *stack, va_list args)
     hatstack_init(stack, prealloc);
 }
 
+static void
+con4m_list_marshal(flexarray_t *r, FILE *f, dict_t *memos, int64_t *mid)
+{
+    // See the note in xlist; this isn't done yet, and won't
+    // be until the type system is ported.
+    flex_view_t *view = flexarray_view(r);
+    uint64_t     len  = flexarray_view_len(view);
+
+    marshal_u64(len, f);
+
+    for (uint64_t i = 0; i < len; i++)
+    {
+	con4m_sub_marshal(flexarray_view_next(view, NULL), f, memos, mid);
+    }
+}
+
+static void
+con4m_list_unmarshal(flexarray_t *r, FILE *f, dict_t *memos)
+{
+    uint64_t len = unmarshal_u64(f);
+
+    flexarray_init(r, len);
+
+    for (uint64_t i = 0; i < len; i++) {
+	flexarray_set(r, i, con4m_sub_unmarshal(f, memos));
+    }
+}
+
 const con4m_vtable list_vtable = {
-    .num_entries = 1,
+    .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
-	(con4m_vtable_entry)con4m_list_init
+	(con4m_vtable_entry)con4m_list_init,
+	NULL,
+	NULL,
+	(con4m_vtable_entry)con4m_list_marshal,
+	(con4m_vtable_entry)con4m_list_unmarshal
     }
 };
 

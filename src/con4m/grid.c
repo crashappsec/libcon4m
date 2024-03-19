@@ -298,7 +298,8 @@ grid_init(grid_t *grid, va_list args)
 	);
 
     method_kargs(args, start_rows, start_cols, spare_rows, contents,
-		 container_tag, th_tag, td_tag, header_rows, header_cols);
+		 container_tag, th_tag, td_tag, header_rows, header_cols,
+	stripe);
 
     if (start_rows < 1) {
 	start_rows = 1;
@@ -1703,18 +1704,126 @@ grid_flow(uint64_t items, ...)
     return res;
 }
 
+static void
+con4m_grid_marshal(grid_t *grid, FILE *f, dict_t *memos, int64_t *mid)
+{
+    int num_cells = grid->num_rows * grid->num_cols;
+
+    marshal_u16(grid->num_cols, f);
+    marshal_u16(grid->num_rows, f);
+    marshal_u16(grid->spare_rows, f);
+    marshal_i16(grid->width, f);
+    marshal_i16(grid->height, f);
+    marshal_u16(grid->col_cursor, f);
+    marshal_u16(grid->row_cursor, f);
+    marshal_i8(grid->header_cols, f);
+    marshal_i8(grid->header_rows, f);
+    marshal_i8(grid->stripe, f);
+    marshal_cstring(grid->td_tag_name, f);
+    marshal_cstring(grid->th_tag_name, f);
+
+    for (int i = 0; i < grid->num_cols; i++) {
+	con4m_sub_marshal(grid->col_props[i], f, memos, mid);
+    }
+
+    for (int i = 0; i < grid->num_rows; i++) {
+	con4m_sub_marshal(grid->row_props[i], f, memos, mid);
+    }
+
+    for (int i = 0; i < num_cells; i++) {
+	con4m_sub_marshal((renderable_t *)grid->cells[i], f, memos, mid);
+    }
+
+    con4m_sub_marshal(grid->self, f, memos, mid);
+}
+
+static void
+con4m_grid_unmarshal(grid_t *grid, FILE *f, dict_t *memos)
+{
+    grid->num_cols    = unmarshal_u16(f);
+    grid->num_rows    = unmarshal_u16(f);
+    grid->spare_rows  = unmarshal_u16(f);
+    grid->width       = unmarshal_i16(f);
+    grid->height      = unmarshal_i16(f);
+    grid->col_cursor  = unmarshal_u16(f);
+    grid->row_cursor  = unmarshal_u16(f);
+    grid->header_cols = unmarshal_i8(f);
+    grid->header_rows = unmarshal_i8(f);
+    grid->stripe      = unmarshal_i8(f);
+    grid->td_tag_name = unmarshal_cstring(f);
+    grid->th_tag_name = unmarshal_cstring(f);
+
+    size_t num_cells = (grid->num_rows + grid->spare_rows) * grid->num_cols;
+    grid->cells      = gc_array_alloc(renderable_t *, num_cells);
+    grid->col_props  = gc_array_alloc(render_style_t *, grid->num_cols);
+    grid->row_props  = gc_array_alloc(render_style_t *, grid->num_rows +
+                                      grid->spare_rows);
+
+    num_cells = grid->num_rows * grid->num_cols;
+
+    for (int i = 0; i < grid->num_cols; i++) {
+	grid->col_props[i] = con4m_sub_unmarshal(f, memos);
+    }
+
+    for (int i = 0; i < grid->num_rows; i++) {
+	grid->row_props[i] = con4m_sub_unmarshal(f, memos);
+    }
+
+    for (size_t i = 0; i < num_cells; i++) {
+	grid->cells[i] = con4m_sub_unmarshal(f, memos);
+    }
+
+    grid->self = con4m_sub_unmarshal(f, memos);
+}
+
+static void
+con4m_renderable_marshal(renderable_t *r, FILE *f, dict_t *memos, int64_t *mid)
+{
+    con4m_sub_marshal(r->raw_item, f, memos, mid);
+    marshal_cstring(r->container_tag, f);
+    con4m_sub_marshal(r->current_style, f, memos, mid);
+    marshal_u16(r->start_col, f);
+    marshal_u16(r->start_row, f);
+    marshal_u16(r->end_col, f);
+    marshal_u16(r->end_row, f);
+    // We 100% skip the render cache.
+    marshal_u16(r->render_width, f);
+    marshal_u16(r->render_height, f);
+}
+
+static void
+con4m_renderable_unmarshal(renderable_t *r, FILE *f, dict_t *memos)
+{
+    r->raw_item      = con4m_sub_unmarshal(f, memos);
+    r->container_tag = unmarshal_cstring(f);
+    r->current_style = con4m_sub_unmarshal(f, memos);
+    r->start_col     = unmarshal_u16(f);
+    r->start_row     = unmarshal_u16(f);
+    r->end_col       = unmarshal_u16(f);
+    r->end_row       = unmarshal_u16(f);
+    r->render_width  = unmarshal_u16(f);
+    r->render_height = unmarshal_u16(f);
+}
 
 const con4m_vtable grid_vtable  = {
-    .num_entries = 2,
+    .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
 	(con4m_vtable_entry)grid_init,
-	(con4m_vtable_entry)grid_to_str
+	(con4m_vtable_entry)grid_to_str,
+	NULL,
+	(con4m_vtable_entry)con4m_grid_marshal,
+	(con4m_vtable_entry)con4m_grid_unmarshal
+
     }
 };
 
 const con4m_vtable renderable_vtable = {
-    .num_entries = 1,
+    .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
-	(con4m_vtable_entry)renderable_init
+	(con4m_vtable_entry)renderable_init,
+	NULL,
+	NULL,
+	(con4m_vtable_entry)con4m_renderable_marshal,
+	(con4m_vtable_entry)con4m_renderable_unmarshal
     }
 };

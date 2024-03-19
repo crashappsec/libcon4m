@@ -71,8 +71,8 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/grid.c',
             'src/con4m/styledb.c',
             'src/con4m/exceptions.c',
-            'src/con4m/crypto/sha.c'
-            
+            'src/con4m/marshal.c',            
+            'src/con4m/crypto/sha.c',
             ]
 
 hat_primary = ['src/hatrack/support/hatrack_common.c',

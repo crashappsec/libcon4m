@@ -43,5 +43,9 @@ typedef void *object_t;
 // Basic exception handling support.
 #include <con4m/exception.h>
 
+// Helper functions for object marshal implementations to
+// marshal primitive values.
+#include <con4m/marshal.h>
+
 // Yes we use cryptographic hashes internally for type IDing.
 #include <crypto/sha.h>
