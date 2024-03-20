@@ -24,6 +24,7 @@ extern uint8_t   *SHA512(const uint8_t *data, size_t count, uint8_t *md_buf);
 
 extern void      init_sha(sha_ctx *, va_list);
 extern void      sha_cstring_update(sha_ctx *, char *);
+extern void      sha_int_update(sha_ctx *, uint64_t);
 extern void      sha_string_update(sha_ctx *, any_str_t *);
 extern void      sha_buffer_update(sha_ctx *, buffer_t *);
 extern buffer_t *sha_finish(sha_ctx *);

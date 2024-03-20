@@ -3,6 +3,14 @@
 
 static hatrack_dict_t *style_dictionary = NULL;
 
+__attribute__((constructor)) void
+register_style_w_collector()
+{
+    initialize_gc();
+
+    con4m_gc_register_root(&style_dictionary, 1);
+}
+
 const border_theme_t border_ascii = {
     .name            = "ascii",
     .horizontal_rule = '-',

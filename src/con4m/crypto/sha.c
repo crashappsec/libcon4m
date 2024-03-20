@@ -66,6 +66,13 @@ sha_cstring_update(sha_ctx *ctx, char *str)
     }
 }
 
+void
+sha_int_update(sha_ctx *ctx, uint64_t n)
+{
+    little_64(result);
+    EVP_DigestUpdate(ctx->openssl_ctx, &n, sizeof(uint64_t));
+}
+
 // Note; we should probably go back and correct 'byte_length' whenever
 // we overestimate so that this doesn't seem nondeterministic when it
 // hashes extra 0's.

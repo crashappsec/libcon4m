@@ -78,7 +78,10 @@ extern const con4m_vtable xlist_vtable;
 extern const con4m_vtable sha_vtable;
 extern const con4m_vtable render_style_vtable;
 extern const con4m_vtable exception_vtable;
+extern const con4m_vtable type_env_vtable;
+extern const con4m_vtable type_details_vtable;
+extern const con4m_vtable type_spec_vtable;
 
-extern const uint64_t pmap_first_word[2];
-extern const uint64_t rs_pmap[2];
-extern const uint64_t exception_pmap[2];
+extern const uint64_t     pmap_first_word[2];
+extern const uint64_t     rs_pmap[2];
+extern const uint64_t     exception_pmap[2];

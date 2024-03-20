@@ -6,16 +6,28 @@
 static inline void *
 xlist_get(const xlist_t *list, int64_t ix, bool *err)
 {
+    if (!list) {
+	if (err) {
+	    *err = true;
+	}
+
+	return NULL;
+    }
+
     if (ix < 0) {
 	ix += list->append_ix;
     }
 
     if (err) {
 	if (ix < 0 || ix >= list->append_ix) {
-	    *err = true;
+	    if (err) {
+		*err = true;
+	    }
 	}
 	else {
-	    *err = false;
+	    if (err) {
+		*err = false;
+	    }
 	}
     }
 
@@ -25,6 +37,9 @@ xlist_get(const xlist_t *list, int64_t ix, bool *err)
 static inline int64_t
 xlist_len(const xlist_t *list)
 {
+    if (list == NULL) {
+	return 0;
+    }
     return (int64_t)list->append_ix;
 }
 

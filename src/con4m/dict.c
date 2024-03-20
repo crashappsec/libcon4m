@@ -35,7 +35,9 @@ con4m_dict_init(hatrack_dict_t *dict, va_list args)
     case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
 	hatrack_dict_set_hash_offset(dict, sizeof(uint64_t) * 2);
 	/* fallthrough */
-    case HATRACK_DICT_KEY_TYPE_PTR:
+    case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
+    case HATRACK_DICT_KEY_TYPE_OBJ_INT:
+    case HATRACK_DICT_KEY_TYPE_OBJ_REAL:
 	hatrack_dict_set_cache_offset(dict, (int32_t)(-sizeof(uint64_t) * 2));
 	break;
     default:

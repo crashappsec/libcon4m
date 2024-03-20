@@ -205,7 +205,7 @@ con4m_marshal(object_t obj, FILE *buf)
 
     // Start w/ 1 as 0 represents the null pointer.
     int64_t next_memo = 1;
-    dict_t *memos     = con4m_new(T_DICT, HATRACK_DICT_KEY_TYPE_PTR);
+    dict_t *memos     = con4m_new(T_DICT, HATRACK_DICT_KEY_TYPE_OBJ_PTR);
 
 
     con4m_sub_marshal(obj, buf, memos, &next_memo);

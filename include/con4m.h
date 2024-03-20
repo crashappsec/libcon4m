@@ -7,7 +7,6 @@ typedef void *object_t;
 // prototyping.
 #include <con4m/base.h>
 
-
 #include <con4m/macros.h>  // Helper macros, mostly 3rd party stuff.
 #include <con4m/kargs.h>   // Keyword arguments.
 #include <con4m/random.h>
@@ -49,3 +48,6 @@ typedef void *object_t;
 
 // Yes we use cryptographic hashes internally for type IDing.
 #include <crypto/sha.h>
+
+// Type system API.
+#include <con4m/type.h>

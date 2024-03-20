@@ -4,6 +4,21 @@
 
 typedef struct con4m_obj_t con4m_obj_t;
 
+typedef enum {
+    BT_nil,
+    BT_primitive,
+    BT_internal,   // Internal primitives.
+    BT_type_var,
+    BT_list,
+    BT_dict,
+    BT_tuple,
+    BT_func,
+    BT_ref,
+    BT_maybe,
+    BT_object,
+    BT_oneof,
+} base_t;
+
 // At least for now, we're going to only us built-in methods of fixed
 // size and know parameters in the vtable.
 typedef void (*con4m_vtable_entry)(con4m_obj_t *, va_list);
@@ -21,10 +36,11 @@ typedef struct {
     // get their IDs from a hash function, and that won't work for
     // everything.
     const char         *name;
-    const uint64_t     typeid;
-    const uint64_t     alloc_len;  // How much space to allocate.
+    const uint64_t      typeid;
+    const uint64_t      alloc_len;  // How much space to allocate.
     const uint64_t     *ptr_info;  // Shows GC u64 offsets to examine for ptrs.
     const con4m_vtable *vtable;
+    const base_t        base;
 } con4m_dt_info;
 
 // Below, con4m_obj_t is the *internal* object type.
@@ -111,5 +127,9 @@ typedef enum : int64_t {
     T_RENDER_STYLE,
     T_SHA,
     T_EXCEPTION,
+    T_TYPE_ENV,
+    T_TYPE_DETAILS,
+    T_GENERIC, // If instantiated, instantiates a 'mixed' object.
     CON4M_NUM_BUILTIN_DTS
+
 } con4m_builtin_t;
