@@ -308,9 +308,8 @@ con4m_type_spec_init(type_spec_t *n, va_list args)
     type_env_t     *env     = va_arg(args, type_env_t *);
     con4m_builtin_t base_id = va_arg(args, con4m_builtin_t);
 
-    // Just return the zero'd memory at this point.
-    if (base_id < T_GENERIC || base_id == T_TYPE_ERROR) {
-	return;
+    if (base_id > T_GENERIC || base_id < T_TYPE_ERROR) {
+	CRAISE("Invalid type ID.");
     }
 
     if (base_id == T_GENERIC) {
@@ -339,10 +338,10 @@ con4m_type_spec_init(type_spec_t *n, va_list args)
     case BT_func:
     {
 	xlist_t *items = con4m_new(T_XLIST);
-	type_spec_t *n = va_arg(args, type_spec_t *);
-	while (n != NULL) {
-	    xlist_append(items, n);
-	    n = va_arg(args, type_spec_t *);
+	type_spec_t *arg = va_arg(args, type_spec_t *);
+	while (arg != NULL) {
+	    xlist_append(items, arg);
+	    arg = va_arg(args, type_spec_t *);
 	}
 	n->details->items = items;
 	break;
@@ -565,7 +564,7 @@ unify(type_spec_t *t1, type_spec_t *t2, type_env_t *env)
 	    sub2       = xlist_get(p2, i, NULL);
 	    sub_result = unify(sub1, sub2, env);
 
-	    if (type_spec_is_type_error(sub_result)) {
+	    if (type_spec_is_error(sub_result)) {
 		return sub_result;
 	    }
 	    xlist_append(new_subs, sub_result);
@@ -637,7 +636,7 @@ unify(type_spec_t *t1, type_spec_t *t2, type_env_t *env)
 	sub2       = xlist_get(p2, f2_params - 1, NULL);
 	sub_result = unify(sub1, sub2, env);
 
-	if (type_spec_is_type_error(sub_result)) {
+	if (type_spec_is_error(sub_result)) {
 	    return sub_result;
 	}
 	// Now, check any varargs.
@@ -646,7 +645,7 @@ unify(type_spec_t *t1, type_spec_t *t2, type_env_t *env)
 	for (int i = max(f1_params - 2, 0); i < f2_params - 1; i++) {
 	    sub2       = xlist_get(p2, i, NULL);
 	    sub_result = unify(sub1, sub2, env);
-	    if (type_spec_is_type_error(sub_result)) {
+	    if (type_spec_is_error(sub_result)) {
 		return sub_result;
 	    }
 	}
@@ -708,7 +707,7 @@ init_punctuation()
 
 
 // This is just hex w/ a different char set; max size would be 18 digits.
-static const char tv_letters[] = "tvwxyzabcdefghij";
+static const char tv_letters[] = "jtvwxyzabcdefghi";
 
 static inline any_str_t *
 create_typevar_name(int64_t num)
@@ -748,8 +747,6 @@ internal_repr_tv(type_details_t *info, dict_t *memos, int64_t *nexttv)
 
     return s;
 }
-
-
 
 static inline any_str_t *
 internal_repr_container(type_details_t *info, dict_t *memos, int64_t *nexttv)

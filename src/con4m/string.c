@@ -266,7 +266,7 @@ _string_join(const xlist_t *l, const any_str_t *joiner, ...)
     codepoint_t *p        = (codepoint_t *)result->data;
     int          txt_ix   = 0;
     int          style_ix = 0;
-    utf32_t     *j        = force_utf32(joiner);
+    utf32_t     *j        = joinlen ? force_utf32(joiner) : NULL;
 
     result->codepoints = ~len;
     alloc_styles(result, n_styles);
@@ -284,10 +284,12 @@ _string_join(const xlist_t *l, const any_str_t *joiner, ...)
 	style_ix = copy_and_offset_styles(line, result, style_ix, txt_ix);
 	txt_ix  += n_cp;
 
-	memcpy(p, j->data, joinlen * 4);
-	p += joinlen;
-	style_ix = copy_and_offset_styles(j, result, style_ix, txt_ix);
-	txt_ix  += joinlen;
+	if (joinlen != 0) {
+	    memcpy(p, j->data, joinlen * 4);
+	    p += joinlen;
+	    style_ix = copy_and_offset_styles(j, result, style_ix, txt_ix);
+	    txt_ix  += joinlen;
+	}
     }
 
     if (!add_trailing) {
@@ -474,7 +476,7 @@ utf8_repeat(codepoint_t cp, int64_t num)
     int       buf_ix = 0;
     int       l      = utf8proc_encode_char(cp, &buf[0]);
     int       blen   = l * num;
-    utf8_t   *res    = con4m_new(T_UTF8, blen + 1);
+    utf8_t   *res    = con4m_new(T_UTF8, "length", blen + 1);
     char     *p      = res->data;
 
     res->codepoints = l;

@@ -292,6 +292,28 @@ sha_test()
     printf("\n");
 }
 
+void
+type_tests()
+{
+    type_env_t  *env = con4m_new(T_TYPE_ENV);
+
+    type_spec_t *t1 = get_builtin_type(env, T_INT);
+    type_spec_t *t2 = get_builtin_type(env, T_GRID);
+    type_spec_t *t3 = con4m_new(T_TYPESPEC, env, T_DICT, t1, t2);
+
+    ansi_render(con4m_value_obj_repr(t3), stdout);
+    printf("\n");
+
+    type_spec_t *t4 = type_spec_new_typevar(env);
+    type_spec_t *t5 = type_spec_new_typevar(env);
+    type_spec_t *t6 = con4m_new(T_TYPESPEC, env, T_DICT, t4, t5);
+
+    ansi_render(con4m_value_obj_repr(t6), stdout);
+    printf("\n");
+    ansi_render(con4m_value_obj_repr(unify(t3, t6, env)), stdout);
+    printf("\n");
+}
+
 int
 main(int argc, char **argv, char **envp)
 {
@@ -315,6 +337,7 @@ main(int argc, char **argv, char **envp)
 	printf("Sample style: %.16llx\n", style1);
 	sha_test();
 
+	type_tests();
 	STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
 	ansi_render(local_test, stdout);
 	CRAISE("Except maybe not!");

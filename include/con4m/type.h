@@ -77,7 +77,7 @@ typeid_get_param(type_t tid, int64_t ix, type_env_t *env)
 }
 
 static inline bool
-type_spec_is_type_error(type_spec_t *n)
+type_spec_is_error(type_spec_t *n)
 {
     return n->typeid == T_TYPE_ERROR;
 }
@@ -98,7 +98,7 @@ tenv_next_tid(type_env_t *env)
 static inline type_spec_t *
 type_spec_new_typevar(type_env_t *env)
 {
-    type_spec_t *result = con4m_new(T_TYPESPEC, T_GENERIC, env);
+    type_spec_t *result = con4m_new(T_TYPESPEC, env, T_GENERIC);
 
 
     return result;
@@ -109,3 +109,5 @@ type_new_typevar(type_env_t *env)
 {
     return type_spec_new_typevar(env)->typeid;
 }
+
+extern type_spec_t *unify(type_spec_t *, type_spec_t *, type_env_t *);
