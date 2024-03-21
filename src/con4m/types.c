@@ -214,11 +214,12 @@ internal_type_hash(type_spec_t *node, type_hash_ctx *ctx)
     }
 }
 
-type_t
-type_hash(type_spec_t *node, type_env_t *env)
+static type_t
+type_hash_and_dedupe(type_spec_t **nodeptr, type_env_t *env)
 {
-    buffer_t *buf;
-    uint64_t  result;
+    buffer_t    *buf;
+    uint64_t     result;
+    type_spec_t *node = *nodeptr;
 
     if (node->typeid != 0) {
 	return node->typeid;
@@ -255,11 +256,21 @@ type_hash(type_spec_t *node, type_env_t *env)
 	}
 
 	node->typeid = result;
-	hatrack_dict_put(env->store, (void *)result, node);
+	if (!hatrack_dict_add(env->store, (void *)result, node)) {
+	    *nodeptr = hatrack_dict_get(env->store, (void *)result, NULL);
+	    *nodeptr = resolve_type_aliases(*nodeptr, env);
+	}
     }
     }
     return result;
 }
+
+static type_t
+type_hash(type_spec_t *node, type_env_t *env)
+{
+    return type_hash_and_dedupe(&node, env);
+}
+
 
 static void
 con4m_type_env_init(type_env_t *env, va_list args)
@@ -363,26 +374,6 @@ get_builtin_type(type_env_t *env, con4m_builtin_t base_id)
     }
 
     return con4m_new(T_TYPESPEC, env, base_id);
-}
-
-type_spec_t *
-type_spec_new_container(con4m_builtin_t base_id, type_env_t *env,
-			uint64_t num, ...)
-{
-    va_list      args;
-    type_spec_t *result = con4m_new(T_TYPESPEC, "base_id", base_id);
-
-    va_start(args, num);
-
-    for (uint64_t i = 0; i < num; i++) {
-	xlist_append(result->details->items, va_arg(args, type_spec_t *));
-    }
-
-    va_end(args);
-
-    type_hash(result, env);
-
-    return result;
 }
 
 type_spec_t *
@@ -668,7 +659,8 @@ unify(type_spec_t *t1, type_spec_t *t2, type_env_t *env)
 	assert(false);
     }
 
-    type_hash(result, env);
+    type_hash_and_dedupe(&result, env);
+
     return result;
 }
 
@@ -704,7 +696,6 @@ init_punctuation()
     }
     con4m_gc_register_root(&type_punct[0], PUNC_MAX);
 }
-
 
 // This is just hex w/ a different char set; max size would be 18 digits.
 static const char tv_letters[] = "jtvwxyzabcdefghi";
@@ -907,3 +898,409 @@ const con4m_vtable type_spec_vtable = {
 	(con4m_vtable_entry)con4m_type_spec_unmarshal
     }
 };
+
+type_env_t *global_type_env = NULL;
+
+__attribute__((constructor))
+void
+initialize_global_types()
+{
+    if (global_type_env == NULL) {
+	global_type_env = con4m_new(T_TYPE_ENV);
+	con4m_gc_register_root(&global_type_env, 1);
+    }
+}
+
+type_spec_t *
+tspec_error()
+{
+    return get_builtin_type(global_type_env, T_TYPE_ERROR);
+}
+
+type_spec_t *
+tspec_void()
+{
+    return get_builtin_type(global_type_env, T_VOID);
+}
+
+type_spec_t *
+tspec_i8()
+{
+    return get_builtin_type(global_type_env, T_I8);
+}
+
+type_spec_t *
+tspec_u8()
+{
+    return get_builtin_type(global_type_env, T_BYTE);
+}
+
+type_spec_t *
+tspec_byte()
+{
+    return get_builtin_type(global_type_env, T_BYTE);
+}
+
+type_spec_t *
+tspec_i32()
+{
+    return get_builtin_type(global_type_env, T_I32);
+}
+
+type_spec_t *
+tspec_u32()
+{
+    return get_builtin_type(global_type_env, T_CHAR);
+}
+
+type_spec_t *
+tspec_char()
+{
+    return get_builtin_type(global_type_env, T_CHAR);
+}
+
+type_spec_t *
+tspec_i64()
+{
+    return get_builtin_type(global_type_env, T_INT);
+}
+
+type_spec_t *
+tspec_int()
+{
+    return get_builtin_type(global_type_env, T_INT);
+}
+
+type_spec_t *
+tspec_u64()
+{
+    return get_builtin_type(global_type_env, T_UINT);
+}
+
+type_spec_t *
+tspec_uint()
+{
+    return get_builtin_type(global_type_env, T_UINT);
+}
+
+type_spec_t *
+tspec_f32()
+{
+    return get_builtin_type(global_type_env, T_F32);
+}
+
+type_spec_t *
+tspec_f64()
+{
+    return get_builtin_type(global_type_env, T_F64);
+}
+
+type_spec_t *
+tspec_float()
+{
+    return get_builtin_type(global_type_env, T_F64);
+}
+
+type_spec_t *
+tspec_utf8()
+{
+    return get_builtin_type(global_type_env, T_UTF8);
+}
+
+type_spec_t *
+tspec_buffer()
+{
+    return get_builtin_type(global_type_env, T_BUFFER);
+}
+
+type_spec_t *
+tspec_utf32()
+{
+    return get_builtin_type(global_type_env, T_UTF32);
+}
+
+type_spec_t *
+tspec_grid()
+{
+    return get_builtin_type(global_type_env, T_GRID);
+}
+
+type_spec_t *
+tspec_typespec()
+{
+    return get_builtin_type(global_type_env, T_TYPESPEC);
+}
+
+type_spec_t *
+tspec_ipv4()
+{
+    return get_builtin_type(global_type_env, T_IPV4);
+}
+
+type_spec_t *
+tspec_ipv6()
+{
+    return get_builtin_type(global_type_env, T_IPV6);
+}
+
+type_spec_t *
+tspec_duration()
+{
+    return get_builtin_type(global_type_env, T_DURATION);
+}
+
+type_spec_t *
+tspec_size()
+{
+    return get_builtin_type(global_type_env, T_SIZE);
+}
+
+type_spec_t *
+tspec_datetime()
+{
+    return get_builtin_type(global_type_env, T_DATETIME);
+}
+
+type_spec_t *
+tspec_date()
+{
+    return get_builtin_type(global_type_env, T_DATE);
+}
+
+type_spec_t *
+tspec_time()
+{
+    return get_builtin_type(global_type_env, T_TIME);
+}
+
+type_spec_t *
+tspec_url()
+{
+    return get_builtin_type(global_type_env, T_URL);
+}
+
+type_spec_t *
+tspec_callback()
+{
+    return get_builtin_type(global_type_env, T_CALLBACK);
+}
+
+type_spec_t *
+tspec_renderable()
+{
+    return get_builtin_type(global_type_env, T_RENDERABLE);
+}
+
+type_spec_t *
+tspec_render_style()
+{
+    return get_builtin_type(global_type_env, T_RENDER_STYLE);
+}
+
+type_spec_t *
+tspec_hash()
+{
+    return get_builtin_type(global_type_env, T_SHA);
+}
+
+type_spec_t *
+tspec_exception()
+{
+    return get_builtin_type(global_type_env, T_EXCEPTION);
+}
+
+type_spec_t *
+tspec_type_env()
+{
+    return get_builtin_type(global_type_env, T_TYPE_ENV);
+}
+
+type_spec_t *
+tspec_type_details()
+{
+    return get_builtin_type(global_type_env, T_TYPE_DETAILS);
+}
+
+type_spec_t *
+tspec_logring()
+{
+    return get_builtin_type(global_type_env, T_LOGRING);
+}
+
+type_spec_t *
+tspec_mixed()
+{
+    return get_builtin_type(global_type_env, T_GENERIC);
+}
+
+type_spec_t *
+tspec_list(type_spec_t *sub)
+{
+    type_spec_t *result = con4m_new(T_TYPESPEC, global_type_env, T_LIST);
+    xlist_t     *items  = result->details->items;
+
+    xlist_append(items, sub);
+
+    type_hash_and_dedupe(&result, global_type_env);
+
+    return result;
+}
+
+type_spec_t *
+tspec_xlist(type_spec_t *sub)
+{
+    type_spec_t *result = con4m_new(T_TYPESPEC, global_type_env, T_XLIST);
+    xlist_t     *items  = result->details->items;
+
+    xlist_append(items, sub);
+
+    type_hash_and_dedupe(&result, global_type_env);
+
+    return result;
+}
+
+type_spec_t *
+tspec_queue(type_spec_t *sub)
+{
+    type_spec_t *result = con4m_new(T_TYPESPEC, global_type_env, T_QUEUE);
+    xlist_t     *items  = result->details->items;
+
+    xlist_append(items, sub);
+
+    type_hash_and_dedupe(&result, global_type_env);
+
+    return result;
+}
+
+type_spec_t *
+tspec_ring(type_spec_t *sub)
+{
+    type_spec_t *result = con4m_new(T_TYPESPEC, global_type_env, T_RING);
+    xlist_t     *items  = result->details->items;
+
+    xlist_append(items, sub);
+
+    type_hash_and_dedupe(&result, global_type_env);
+
+    return result;
+}
+
+type_spec_t *
+tspec_stack(type_spec_t *sub)
+{
+    type_spec_t *result = con4m_new(T_TYPESPEC, global_type_env, T_STACK);
+    xlist_t     *items  = result->details->items;
+
+    xlist_append(items, sub);
+
+    type_hash_and_dedupe(&result, global_type_env);
+
+    return result;
+}
+
+type_spec_t *
+tspec_dict(type_spec_t *sub1, type_spec_t *sub2)
+{
+    type_spec_t *result = con4m_new(T_TYPESPEC, global_type_env, T_DICT);
+    xlist_t     *items  = result->details->items;
+
+    xlist_append(items, sub1);
+    xlist_append(items, sub2);
+
+    type_hash_and_dedupe(&result, global_type_env);
+
+    return result;
+}
+
+type_spec_t *
+tspec_set(type_spec_t *sub1)
+{
+    type_spec_t *result = con4m_new(T_TYPESPEC, global_type_env, T_SET);
+    xlist_t     *items  = result->details->items;
+
+    xlist_append(items, sub1);
+
+    type_hash_and_dedupe(&result, global_type_env);
+
+    return result;
+}
+
+type_spec_t *
+tspec_tuple(int nitems, ...)
+{
+    va_list      args;
+    type_spec_t *result = con4m_new(T_TYPESPEC, global_type_env, T_TUPLE);
+    xlist_t     *items  = result->details->items;
+
+    va_start(args, nitems);
+
+    if (nitems <= 1) {
+	CRAISE("Tuples must contain 2 or more items.");
+    }
+
+    for (int i = 0; i < nitems; i++) {
+	type_spec_t *sub = va_arg(args, type_spec_t *);
+	xlist_append(items, sub);
+    }
+
+    type_hash_and_dedupe(&result, global_type_env);
+
+    return result;
+}
+
+type_spec_t *
+tspec_fn(type_spec_t *return_type, int64_t nparams, ...)
+{
+    va_list      args;
+    type_spec_t *result = con4m_new(T_TYPESPEC, global_type_env, T_FUNCDEF);
+    xlist_t     *items  = result->details->items;
+
+    va_start(args, nparams);
+
+    for (int i = 0; i < nparams; i++) {
+	type_spec_t *sub = va_arg(args, type_spec_t *);
+	xlist_append(items, sub);
+    }
+    xlist_append(items, return_type);
+
+    type_hash_and_dedupe(&result, global_type_env);
+
+    return result;
+}
+
+type_spec_t *
+tspec_varargs_fn(type_spec_t *return_type, int64_t nparams, ...)
+{
+    va_list      args;
+    type_spec_t *result = con4m_new(T_TYPESPEC, global_type_env, T_FUNCDEF);
+    xlist_t     *items  = result->details->items;
+
+    va_start(args, nparams);
+
+    if (nparams < 1) {
+	CRAISE("Varargs functions require at least one argument.");
+    }
+
+    for (int i = 0; i < nparams; i++) {
+	type_spec_t *sub = va_arg(args, type_spec_t *);
+	xlist_append(items, sub);
+    }
+    xlist_append(items, return_type);
+    result->details->flags |= FN_TY_VARARGS;
+
+    type_hash_and_dedupe(&result, global_type_env);
+
+    return result;
+}
+
+type_spec_t *
+lookup_type_spec(type_t tid, type_env_t *env)
+{
+    type_spec_t *node = hatrack_dict_get(env->store, (void *)tid, NULL);
+
+    if (!node || type_spec_is_concrete(node)) {
+	return node;
+    }
+
+    return resolve_type_aliases(node, env);
+}

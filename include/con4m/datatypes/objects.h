@@ -41,6 +41,7 @@ typedef struct {
     const uint64_t     *ptr_info;  // Shows GC u64 offsets to examine for ptrs.
     const con4m_vtable *vtable;
     const base_t        base;
+    const uint32_t      hash_fn;
 } con4m_dt_info;
 
 // Below, con4m_obj_t is the *internal* object type.
@@ -108,6 +109,7 @@ typedef enum : int64_t {
     T_LIST,
     T_TUPLE,
     T_DICT,
+    T_SET,
     T_TYPESPEC,
     T_IPV4,
     T_IPV6,
@@ -129,6 +131,7 @@ typedef enum : int64_t {
     T_EXCEPTION,
     T_TYPE_ENV,
     T_TYPE_DETAILS,
+    T_FUNCDEF,
     T_GENERIC, // If instantiated, instantiates a 'mixed' object.
     CON4M_NUM_BUILTIN_DTS
 

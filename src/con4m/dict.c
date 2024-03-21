@@ -3,6 +3,10 @@
 static void
 con4m_dict_init(hatrack_dict_t *dict, va_list args)
 {
+  //    type_spec_t *key_type = va_arg(args, type_spec_t *);
+  //  type_spec_t *val_type = va_arg(args, type_spec_t *);
+
+
     // Until we push the type system to C, let's just have the
     // constructor require custom invocation I suppose.
     // I.e., for now, this is a C-only API.

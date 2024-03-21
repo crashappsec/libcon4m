@@ -74,6 +74,7 @@ extern const con4m_vtable ring_vtable;
 extern const con4m_vtable logring_vtable;
 extern const con4m_vtable stack_vtable;
 extern const con4m_vtable dict_vtable;
+extern const con4m_vtable set_vtable;
 extern const con4m_vtable xlist_vtable;
 extern const con4m_vtable sha_vtable;
 extern const con4m_vtable render_style_vtable;

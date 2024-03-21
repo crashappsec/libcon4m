@@ -30,7 +30,8 @@ get_stack_scan_region(uint64_t *top, uint64_t *bottom)
     *top = (uint64_t)(&local);
 }
 
-__attribute__((constructor)) void
+__attribute__((constructor))
+void
 initialize_gc()
 {
     static bool once = false;
