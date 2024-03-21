@@ -86,8 +86,12 @@ xlist_plus_eq(xlist_t *l1, xlist_t *l2)
 xlist_t *
 xlist_plus(xlist_t *l1, xlist_t *l2)
 {
-    size_t   needed = l1->append_ix + l2->append_ix;
-    xlist_t *result = con4m_new(T_XLIST, "length", needed);
+    // This assumes type checking already happened statically.
+    // You can make mistakes manually.
+
+    type_spec_t *t      = get_my_type(l1);
+    size_t       needed = l1->append_ix + l2->append_ix;
+    xlist_t     *result = con4m_new(t, "length", needed);
 
     for (int i = 0; i < l1->append_ix; i++) {
 	result->data[i] = l1->data[i];
@@ -105,27 +109,49 @@ xlist_plus(xlist_t *l1, xlist_t *l2)
 static void
 con4m_xlist_marshal(xlist_t *r, FILE *f, dict_t *memos, int64_t *mid)
 {
+    type_spec_t *list_type   = get_my_type(r);
+    xlist_t     *type_params = tspec_get_parameters(list_type);
+    type_spec_t *item_type   = xlist_get(type_params, 0, NULL);
+    dt_info     *item_info   = tspec_get_data_type_info(item_type);
+    bool         by_val      = item_info->by_value;
+
     marshal_i32(r->append_ix, f);
     marshal_i32(r->length, f);
 
-    // WARNING!!!  For right now, we are only using this to hold
-    // objects.  We should do this differently when we *aren't*
-    // holding objects, but we can't do that until we port more of the
-    // type system.
-    for (int i = 0; i < r->append_ix; i++) {
-	con4m_sub_marshal(r->data[i], f, memos, mid);
+    if (by_val) {
+	for (int i = 0; i < r->append_ix; i++) {
+	    marshal_u64((uint64_t)r->data[i], f);
+	}
+    }
+    else {
+	for (int i = 0; i < r->append_ix; i++) {
+	    con4m_sub_marshal(r->data[i], f, memos, mid);
+	}
     }
 }
 
 static void
 con4m_xlist_unmarshal(xlist_t *r, FILE *f, dict_t *memos)
 {
+    type_spec_t *list_type   = get_my_type(r);
+    xlist_t     *type_params = tspec_get_parameters(list_type);
+    type_spec_t *item_type   = xlist_get(type_params, 0, NULL);
+    dt_info     *item_info   = tspec_get_data_type_info(item_type);
+    bool         by_val      = item_info->by_value;
+
     r->append_ix = unmarshal_i32(f);
     r->length    = unmarshal_i32(f);
     r->data      = gc_array_alloc(int64_t *, r->length);
-    // Same warning here as in the marshal version.
-    for (int i = 0; i < r->append_ix; i++) {
-	r->data[i] = con4m_sub_unmarshal(f, memos);
+
+    if (by_val) {
+	for (int i = 0; i < r->append_ix; i++) {
+	    r->data[i] = (void *)unmarshal_u64(f);
+	}
+    }
+    else {
+	for (int i = 0; i < r->append_ix; i++) {
+	    r->data[i] = con4m_sub_unmarshal(f, memos);
+	}
     }
 }
 

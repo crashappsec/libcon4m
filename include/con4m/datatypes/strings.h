@@ -25,9 +25,9 @@ typedef base_str_t utf32_t;
 typedef base_str_t any_str_t;
 
 struct internal_string_st {
-    con4m_dt_info *base_data_type;
-    uint64_t       concrete_type;
-    base_str_t     s;
+    dt_info    *base_data_type;
+    uint64_t    concrete_type;
+    base_str_t  s;
 };
 
 // This struct is used to manage state when rending ansi.
@@ -41,7 +41,7 @@ typedef enum {
 // This only works with ASCII strings, not arbitrary utf8.
 #define STATIC_ASCII_STR(id, val)                                              \
 const struct internal_string_st _static_ ## id = {                             \
-	.base_data_type = (con4m_dt_info *)&builtin_type_info[T_UTF8],         \
+	.base_data_type = (dt_info *)&builtin_type_info[T_UTF8],               \
 	.concrete_type  = T_UTF8,                                              \
         .s.byte_len     = sizeof(val),  				       \
 	.s.codepoints   = sizeof(val),					       \

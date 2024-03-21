@@ -47,7 +47,7 @@ sha_init(sha_ctx *ctx, va_list args)
 	abort();
     }
 
-    ctx->digest = con4m_new(T_BUFFER, "length", bits / 8);
+    ctx->digest = con4m_new(tspec_buffer(), "length", bits / 8);
     version    -= 2;
     bits = (bits >> 7) - 2; // This maps the bit sizes to 0, 1 and 2,
                             // by dividing by 128, then subtracting by 2.

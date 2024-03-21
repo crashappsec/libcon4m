@@ -3,106 +3,107 @@
 static void
 con4m_dict_init(hatrack_dict_t *dict, va_list args)
 {
-  //    type_spec_t *key_type = va_arg(args, type_spec_t *);
-  //  type_spec_t *val_type = va_arg(args, type_spec_t *);
+    size_t       hash_fn;
+    xlist_t     *type_params;
+    type_spec_t *key_type;
+    dt_info     *info;
+    type_spec_t *dict_type = get_my_type(dict);
 
+    if (dict_type != NULL) {
+	type_params = tspec_get_parameters(dict_type);
+	key_type    = xlist_get(type_params, 0, NULL);
+	info        = tspec_get_data_type_info(key_type);
 
-    // Until we push the type system to C, let's just have the
-    // constructor require custom invocation I suppose.
-    // I.e., for now, this is a C-only API.
-    //
-    // For now, the constructor should only be called positionally and
-    // has but one parameter, which should be one of:
-    //
-    //  - HATRACK_DICT_KEY_TYPE_INT
-    //  - HATRACK_DICT_KEY_TYPE_REAL
-    //  - HATRACK_DICT_KEY_TYPE_OBJ_PTR
-    //  - HATRACK_DICT_KEY_TYPE_OBJ_CSTR (for a string object)
-    //
-    // Use that for actual utf8_t / utf32 in which case we assume the
-    // offset into the object to use right now.
-    //
-    // Note that this argument will end up getting removed once the type
-    // system is pushed down to C because we can put it in the DT info
-    // and just look it up.
-    //
-    // While HATRACK_DICT_KEY_TYPE_CSTR also exists, this is only
-    // meant for pure C strings as keys.
+	hash_fn = info->hash_fn;
+    }
 
+    else {
+	hash_fn = va_arg(args, size_t);
+    }
 
-    size_t key_type = (uint32_t)va_arg(args, size_t);
-    assert(!(uint64_t)va_arg(args, uint64_t));
+    hatrack_dict_init(dict, hash_fn);
 
-    hatrack_dict_init(dict, key_type);
-
-    switch (key_type) {
+    switch (hash_fn) {
     case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
-	hatrack_dict_set_hash_offset(dict, sizeof(uint64_t) * 2);
+	hatrack_dict_set_hash_offset(dict, 2 * (int32_t)sizeof(uint64_t));
 	/* fallthrough */
     case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
     case HATRACK_DICT_KEY_TYPE_OBJ_INT:
     case HATRACK_DICT_KEY_TYPE_OBJ_REAL:
-	hatrack_dict_set_cache_offset(dict, (int32_t)(-sizeof(uint64_t) * 2));
+	hatrack_dict_set_cache_offset(dict, -2 * (int32_t)sizeof(uint64_t));
 	break;
     default:
 	// nada.
     }
 }
 
-// Same container challenge as with other types, for values anyway.
-// For keys, we leverage the key_type field being CSTR or PTR.
-// We don't use the OBJ_ options currently. We will use that
-// for strings at some point soon though.
-
 static void
 con4m_dict_marshal(dict_t *d, FILE *f, dict_t *memos, int64_t *mid)
 {
-    uint64_t length;
-    uint8_t  kt = (uint8_t)d->key_type;
+    uint64_t     length;
+    type_spec_t *dict_type = get_my_type(d);
 
-    hatrack_dict_item_t *view = hatrack_dict_items_sort(d, &length);
+    if (dict_type == NULL) {
+	CRAISE("Cannot marshal untyped dictionaries.");
+    }
+
+    xlist_t             *type_params = tspec_get_parameters(dict_type);
+    type_spec_t         *key_type    = xlist_get(type_params, 0, NULL);
+    type_spec_t         *val_type    = xlist_get(type_params, 1, NULL);
+    hatrack_dict_item_t *view        = hatrack_dict_items_sort(d, &length);
+    dt_info             *kinfo       = tspec_get_data_type_info(key_type);
+    dt_info             *vinfo       = tspec_get_data_type_info(val_type);
+    bool                 key_by_val  = kinfo->by_value;
+    bool                 val_by_val  = vinfo->by_value;
 
     marshal_u32((uint32_t)length, f);
-    marshal_u8(kt, f);
+
+    // keyhash field is the easiest way to tell whether we're passing by
+    // value of
 
     for (uint64_t i = 0; i < length; i++)
     {
-	switch (kt) {
-	case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
-	case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
-	    con4m_sub_marshal(view[i].key, f, memos, mid);
-	    break;
-	case HATRACK_DICT_KEY_TYPE_CSTR:
-	    marshal_cstring(view[i].key, f);
-	    break;
-	default:
+	if (key_by_val) {
 	    marshal_u64((uint64_t)view[i].key, f);
-	    break;
+	}
+	else {
+	    con4m_sub_marshal(view[i].key, f, memos, mid);
 	}
 
-	// For now, assume all values are objects even though it is
-	// clearly WRONG.
-	con4m_sub_marshal(view[i].value, f, memos, mid);
+
+	if (val_by_val) {
+	    marshal_u64((uint64_t)view[i].value, f);
+	}
+	else {
+	    con4m_sub_marshal(view[i].value, f, memos, mid);
+	}
     }
 }
 
 static void
 con4m_dict_unmarshal(dict_t *d, FILE *f, dict_t *memos)
 {
-    uint32_t length;
-    uint8_t  kt;
+    uint32_t     length      = unmarshal_u32(f);
+    type_spec_t *dict_type   = get_my_type(d);
+    xlist_t     *type_params = tspec_get_parameters(dict_type);
+    type_spec_t *key_type    = xlist_get(type_params, 0, NULL);
+    type_spec_t *val_type    = xlist_get(type_params, 1, NULL);
+    dt_info     *kinfo       = tspec_get_data_type_info(key_type);
+    dt_info     *vinfo       = tspec_get_data_type_info(val_type);
+    bool         key_by_val  = kinfo->by_value;
+    bool         val_by_val  = vinfo->by_value;
 
-    length = unmarshal_u32(f);
-    kt     = unmarshal_u8(f);
 
-    hatrack_dict_init(d, (uint32_t)kt);
+    hatrack_dict_init(d, kinfo->hash_fn);
 
-    switch (kt) {
+    switch (kinfo->hash_fn) {
     case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
-	hatrack_dict_set_hash_offset(d, sizeof(uint64_t) * 2);
+	hatrack_dict_set_hash_offset(d, 2 * (int32_t)sizeof(uint64_t));
 	/* fallthrough */
-    case HATRACK_DICT_KEY_TYPE_PTR:
-	hatrack_dict_set_cache_offset(d, (int32_t)(-sizeof(uint64_t) * 2));
+    case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
+    case HATRACK_DICT_KEY_TYPE_OBJ_INT:
+    case HATRACK_DICT_KEY_TYPE_OBJ_REAL:
+	hatrack_dict_set_cache_offset(d, -2 * (int32_t)sizeof(uint64_t));
 	break;
     default:
 	// nada.
@@ -112,21 +113,19 @@ con4m_dict_unmarshal(dict_t *d, FILE *f, dict_t *memos)
 	void *key;
 	void *val;
 
-	switch (kt) {
-	case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
-	case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
-	    key = con4m_sub_unmarshal(f, memos);
-	    break;
-	case HATRACK_DICT_KEY_TYPE_CSTR:
-	    key = unmarshal_cstring(f);
-	    break;
-	default:
+	if (key_by_val) {
 	    key = (void *)unmarshal_u64(f);
-	    break;
+	}
+	else {
+	    key = con4m_sub_unmarshal(f, memos);
 	}
 
-	// Again, this is not right.
-	val = con4m_sub_unmarshal(f, memos);
+	if (val_by_val) {
+	    val = (void *)unmarshal_u64(f);
+	}
+	else {
+	    val = con4m_sub_unmarshal(f, memos);
+	}
 
 	hatrack_dict_put(d, key, val);
     }

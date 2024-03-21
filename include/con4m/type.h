@@ -6,46 +6,9 @@
 extern type_spec_t *resolve_type_aliases(type_spec_t *, type_env_t *);
 extern bool type_spec_is_concrete(type_spec_t *);
 extern type_spec_t *type_spec_copy(type_spec_t *node, type_env_t *env);
-extern type_spec_t *get_builtin_type(type_env_t *, con4m_builtin_t);
+extern type_spec_t *get_builtin_type(con4m_builtin_t);
 extern type_spec_t *unify(type_spec_t *, type_spec_t *, type_env_t *);
 extern type_spec_t *lookup_type_spec(type_t tid, type_env_t *env);
-extern type_spec_t *tspec_error();
-extern type_spec_t *tspec_void();
-extern type_spec_t *tspec_i8();
-extern type_spec_t *tspec_u8();
-extern type_spec_t *tspec_byte();
-extern type_spec_t *tspec_i32();
-extern type_spec_t *tspec_u32();
-extern type_spec_t *tspec_char();
-extern type_spec_t *tspec_i64();
-extern type_spec_t *tspec_int();
-extern type_spec_t *tspec_u64();
-extern type_spec_t *tspec_uint();
-extern type_spec_t *tspec_f32();
-extern type_spec_t *tspec_f64();
-extern type_spec_t *tspec_float();
-extern type_spec_t *tspec_utf8();
-extern type_spec_t *tspec_buffer();
-extern type_spec_t *tspec_utf32();
-extern type_spec_t *tspec_grid();
-extern type_spec_t *tspec_typespec();
-extern type_spec_t *tspec_ipv4();
-extern type_spec_t *tspec_ipv6();
-extern type_spec_t *tspec_duration();
-extern type_spec_t *tspec_size();
-extern type_spec_t *tspec_datetime();
-extern type_spec_t *tspec_date();
-extern type_spec_t *tspec_time();
-extern type_spec_t *tspec_url();
-extern type_spec_t *tspec_callback();
-extern type_spec_t *tspec_renderable();
-extern type_spec_t *tspec_render_style();
-extern type_spec_t *tspec_hash();
-extern type_spec_t *tspec_exception();
-extern type_spec_t *tspec_type_env();
-extern type_spec_t *tspec_type_details();
-extern type_spec_t *tspec_logring();
-extern type_spec_t *tspec_mixed();
 extern type_spec_t *tspec_list(type_spec_t *);
 extern type_spec_t *tspec_xlist(type_spec_t *);
 extern type_spec_t *tspec_queue(type_spec_t *);
@@ -125,10 +88,262 @@ tenv_next_tid(type_env_t *env)
     return atomic_fetch_add(&env->next_tid, 1);
 }
 
+extern type_env_t *global_type_env;
+
+static inline type_spec_t *
+merge_types(type_spec_t *t1, type_spec_t *t2)
+{
+    return unify(t1, t2, global_type_env);
+}
+
+static inline xlist_t *
+tspec_get_parameters(type_spec_t *t)
+{
+    return t->details->items;
+}
+
+static inline dt_info *
+tspec_get_data_type_info(type_spec_t *t)
+{
+    return t->details->base_type;
+}
+
+static inline type_spec_t *
+get_my_type(const object_t user_object)
+{
+    con4m_obj_t *hdr = get_object_header(user_object);
+
+    return hdr->concrete_type;
+}
+
+extern type_spec_t *builtin_types[CON4M_NUM_BUILTIN_DTS];
+
+static inline type_spec_t *
+tspec_error()
+{
+    return builtin_types[T_TYPE_ERROR];
+}
+
+static inline type_spec_t *
+tspec_void()
+{
+    return builtin_types[T_VOID];
+}
+
+static inline type_spec_t *
+tspec_i8()
+{
+    return builtin_types[T_I8];
+}
+
+static inline type_spec_t *
+tspec_u8()
+{
+    return builtin_types[T_BYTE];
+}
+
+static inline type_spec_t *
+tspec_byte()
+{
+    return builtin_types[T_BYTE];
+}
+
+static inline type_spec_t *
+tspec_i32()
+{
+    return builtin_types[T_I32];
+}
+
+static inline type_spec_t *
+tspec_u32()
+{
+    return builtin_types[T_CHAR];
+}
+
+static inline type_spec_t *
+tspec_char()
+{
+    return builtin_types[T_CHAR];
+}
+
+static inline type_spec_t *
+tspec_i64()
+{
+    return builtin_types[T_INT];
+}
+
+static inline type_spec_t *
+tspec_int()
+{
+    return builtin_types[T_INT];
+}
+
+static inline type_spec_t *
+tspec_u64()
+{
+    return builtin_types[T_UINT];
+}
+
+static inline type_spec_t *
+tspec_uint()
+{
+    return builtin_types[T_UINT];
+}
+
+static inline type_spec_t *
+tspec_f32()
+{
+    return builtin_types[T_F32];
+}
+
+static inline type_spec_t *
+tspec_f64()
+{
+    return builtin_types[T_F64];
+}
+
+static inline type_spec_t *
+tspec_float()
+{
+    return builtin_types[T_F64];
+}
+
+static inline type_spec_t *
+tspec_utf8()
+{
+    return builtin_types[T_UTF8];
+}
+
+static inline type_spec_t *
+tspec_buffer()
+{
+    return builtin_types[T_BUFFER];
+}
+
+static inline type_spec_t *
+tspec_utf32()
+{
+    return builtin_types[T_UTF32];
+}
+
+static inline type_spec_t *
+tspec_grid()
+{
+    return builtin_types[T_GRID];
+}
+
+static inline type_spec_t *
+tspec_typespec()
+{
+    return builtin_types[T_TYPESPEC];
+}
+
+static inline type_spec_t *
+tspec_ipv4()
+{
+    return builtin_types[T_IPV4];
+}
+
+static inline type_spec_t *
+tspec_ipv6()
+{
+    return builtin_types[T_IPV6];
+}
+
+static inline type_spec_t *
+tspec_duration()
+{
+    return builtin_types[T_DURATION];
+}
+
+static inline type_spec_t *
+tspec_size()
+{
+    return builtin_types[T_SIZE];
+}
+
+static inline type_spec_t *
+tspec_datetime()
+{
+    return builtin_types[T_DATETIME];
+}
+
+static inline type_spec_t *
+tspec_date()
+{
+    return builtin_types[T_DATE];
+}
+
+static inline type_spec_t *
+tspec_time()
+{
+    return builtin_types[T_TIME];
+}
+
+static inline type_spec_t *
+tspec_url()
+{
+    return builtin_types[T_URL];
+}
+
+static inline type_spec_t *
+tspec_callback()
+{
+    return builtin_types[T_CALLBACK];
+}
+
+static inline type_spec_t *
+tspec_renderable()
+{
+    return builtin_types[T_RENDERABLE];
+}
+
+static inline type_spec_t *
+tspec_render_style()
+{
+    return builtin_types[T_RENDER_STYLE];
+}
+
+static inline type_spec_t *
+tspec_hash()
+{
+    return builtin_types[T_SHA];
+}
+
+static inline type_spec_t *
+tspec_exception()
+{
+    return builtin_types[T_EXCEPTION];
+}
+
+static inline type_spec_t *
+tspec_type_env()
+{
+    return builtin_types[T_TYPE_ENV];
+}
+
+static inline type_spec_t *
+tspec_logring()
+{
+    return builtin_types[T_LOGRING];
+}
+
+static inline type_spec_t *
+tspec_mixed()
+{
+    return builtin_types[T_GENERIC];
+}
+
+static inline type_spec_t *
+tspec_ref()
+{
+    return builtin_types[T_REF];
+}
+
 static inline type_spec_t *
 type_spec_new_typevar(type_env_t *env)
 {
-    type_spec_t *result = con4m_new(T_TYPESPEC, env, T_GENERIC);
+    type_spec_t *result = con4m_new(tspec_typespec(), env, T_GENERIC);
 
     return result;
 }
@@ -139,4 +354,8 @@ type_new_typevar(type_env_t *env)
     return type_spec_new_typevar(env)->typeid;
 }
 
-extern type_env_t *global_type_env;
+static inline type_spec_t *
+tspec_typevar()
+{
+    return type_spec_new_typevar(global_type_env);
+}

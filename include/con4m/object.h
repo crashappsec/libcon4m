@@ -8,17 +8,6 @@ get_object_header(const object_t user_object)
     return &((con4m_obj_t *)user_object)[-1];
 }
 
-// This produces a proper con4m type that encodes the type info known
-// about the entire contents. For instance, for a dictionary, the
-// value would encode not just the fact that it's a dictionary, but
-// the type of the key and the type of the value as well.
-static inline uint64_t
-get_concrete_type(const object_t user_object)
-{
-    con4m_obj_t *obj = get_object_header(user_object);
-    return obj->concrete_type;
-}
-
 static inline con4m_vtable *
 get_vtable(const object_t user_object)
 {
@@ -41,11 +30,11 @@ get_base_type_name(const object_t user_object)
 }
 
 // in object.c
-extern const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS];
+extern const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS];
 
 #define con4m_new(tid, ...) _con4m_new(tid, KFUNC(__VA_ARGS__))
 
-extern object_t _con4m_new(con4m_builtin_t typeid,  ...);
+extern object_t _con4m_new(type_spec_t *type,  ...);
 extern uint64_t *gc_get_ptr_info(con4m_builtin_t);
 
 

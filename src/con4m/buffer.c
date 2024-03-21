@@ -75,7 +75,7 @@ buffer_repr(buffer_t *buf, to_str_use_t how)
     utf8_t *result;
 
     if (how == TO_STR_USE_QUOTED) {
-	result = con4m_new(T_UTF8, "length", buf->byte_len * 4 + 2);
+	result = con4m_new(tspec_utf8(), "length", buf->byte_len * 4 + 2);
 	char *p = result->data;
 
 	*p++ = '"';
@@ -90,7 +90,7 @@ buffer_repr(buffer_t *buf, to_str_use_t how)
 	*p++ = '"';
     }
     else {
-	result = con4m_new(T_UTF8, "length", buf->byte_len * 2);
+	result = con4m_new(tspec_utf8(), "length", buf->byte_len * 2);
 	char *p = result->data;
 
 	for (int i = 0; i < buf->byte_len; i++) {
@@ -113,4 +113,5 @@ const con4m_vtable buffer_vtable = {
     }
 };
 
-const uint64_t pmap_first_word[2] = { 0x1, 0x8000000000000000 };
+// First word really means 5th word due to the GC header.
+const uint64_t pmap_first_word[2] = { 0x1, 0x0800000000000000 };

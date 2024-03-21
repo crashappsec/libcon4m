@@ -22,6 +22,9 @@ typedef void *object_t;
 #include <con4m/xlist.h>
 #include <con4m/set.h>
 
+// Type system API.
+#include <con4m/type.h>
+
 // Basic string handling.
 #include <con4m/codepoint.h>
 #include <con4m/string.h>
@@ -49,6 +52,3 @@ typedef void *object_t;
 
 // Yes we use cryptographic hashes internally for type IDing.
 #include <crypto/sha.h>
-
-// Type system API.
-#include <con4m/type.h>

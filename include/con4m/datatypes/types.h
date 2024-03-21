@@ -6,7 +6,7 @@ typedef uint64_t type_t;
 
 typedef struct type_details_t type_details_t;
 
-typedef struct {
+typedef struct type_spec_t {
     // The `typeid field` is EITHER the node's type ID, or a forwarding link
     // to another node in the graph. The rest of the data is accessed via
     // indirection, so that we can easily use CAS when this needs to be
@@ -18,8 +18,8 @@ typedef struct {
 } type_spec_t;
 
 typedef struct type_details_t {
-    any_str_t     *name;  // Obj type name or type var name
-    con4m_dt_info *base_type;
+    char          *name;  // Obj type name or type var name
+    dt_info       *base_type;
     xlist_t       *items;
     struct dict_t *props; // Object properties. maps name to type node.
     // 'Locked' means this type node cannot forward, even though it

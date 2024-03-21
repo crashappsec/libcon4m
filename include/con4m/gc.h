@@ -217,7 +217,7 @@ con4m_gc_malloc(size_t len)
 
 // Assumes it contains pointers. Call manually if you need otherwise.
 #define gc_array_alloc(typename, n)			\
-    con4m_gc_alloc((sizeof(typename) * n), 0)
+    con4m_gc_alloc((sizeof(typename) * n), GC_SCAN_ALL)
 
 #if defined(__linux__)
 static inline void

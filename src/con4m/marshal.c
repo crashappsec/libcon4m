@@ -130,9 +130,12 @@ con4m_sub_marshal(object_t obj, FILE *buf, dict_t *memos, int64_t *mid)
 	RAISE(msg);
     }
 
+    // This captures the actual index of the base type.
     uint16_t diff = (uint16_t)(hdr->base_data_type - &builtin_type_info[0]);
     marshal_u16(diff, buf);
-    marshal_u64(hdr->concrete_type, buf);
+
+    // And now, the concrete type.
+    con4m_sub_marshal(hdr->concrete_type, buf, memos, mid);
 
     return (*ptr)(obj, buf, memos, mid);
 }
@@ -156,15 +159,15 @@ con4m_sub_unmarshal(FILE *buf, dict_t *memos)
 	return obj->data;
     }
 
-    uint16_t       base_type_id = unmarshal_u16(buf);;
-    con4m_dt_info *dt_entry;
+    uint16_t       base_type_id = unmarshal_u16(buf);
+    dt_info       *dt_entry;
     uint64_t       alloc_len;
     unmarshal_fn   ptr;
 
     if (base_type_id > CON4M_NUM_BUILTIN_DTS) {
 	CRAISE("Invalid marshal format (got invalid data type ID)");
     }
-    dt_entry  = (con4m_dt_info *)&builtin_type_info[base_type_id];
+    dt_entry  = (dt_info *)&builtin_type_info[base_type_id];
     alloc_len = sizeof(con4m_obj_t) + dt_entry->alloc_len;
 
     obj = (con4m_obj_t *)con4m_gc_alloc(alloc_len,
@@ -175,7 +178,7 @@ con4m_sub_unmarshal(FILE *buf, dict_t *memos)
     hatrack_dict_put(memos, (void *)memo, obj);
 
     obj->base_data_type = dt_entry;
-    obj->concrete_type  = unmarshal_u64(buf);
+    obj->concrete_type  = con4m_sub_unmarshal(buf, memos);
 
     ptr = (unmarshal_fn)dt_entry->vtable->methods[CON4M_BI_UNMARSHAL];
 
@@ -205,7 +208,7 @@ con4m_marshal(object_t obj, FILE *buf)
 
     // Start w/ 1 as 0 represents the null pointer.
     int64_t next_memo = 1;
-    dict_t *memos     = con4m_new(T_DICT, HATRACK_DICT_KEY_TYPE_OBJ_PTR);
+    dict_t *memos     = con4m_new(tspec_dict(tspec_ref(), tspec_u64()));
 
 
     con4m_sub_marshal(obj, buf, memos, &next_memo);
@@ -222,7 +225,7 @@ con4m_unmarshal(FILE *buf)
 	       "call con4m_sub_unmarshal.");
     }
 
-    dict_t  *memos     = con4m_new(T_DICT, HATRACK_DICT_KEY_TYPE_INT);
+    dict_t  *memos = con4m_new(tspec_dict(tspec_u64(), tspec_ref()));
     object_t result;
 
     marshaling = 1;

@@ -5,7 +5,8 @@ static void (*uncaught_handler)(exception_t *) = exception_uncaught;
 __thread exception_stack_t __exception_stack = {0,};
 static pthread_once_t exceptions_inited = PTHREAD_ONCE_INIT;
 
-const uint64_t exception_pmap[2] = {1, 0xe000000000000000};
+// Skip the 4 GC header words, then the first 3 words are heap pointers.
+const uint64_t exception_pmap[2] = {1, 0x0e00000000000000};
 
 static void
 exception_init(exception_t *exception, va_list args)
@@ -30,7 +31,7 @@ exception_t *
 _alloc_exception(char *msg, ...)
 {
     exception_t *ret = gc_alloc(sizeof(exception_t));
-    ret->msg = con4m_new(T_UTF8, "cstring", msg);
+    ret->msg = con4m_new(tspec_utf8(), "cstring", msg);
 
     return ret;
 }

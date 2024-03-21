@@ -39,6 +39,12 @@ string_is_u32(const any_str_t *s)
     return (bool)(s->codepoints < 0);
 }
 
+static inline bool
+string_is_u8(const any_str_t *s)
+{
+    return (bool)(s->codepoints >= 0);
+}
+
 static inline int64_t
 string_codepoint_len(const any_str_t *s)
 {
@@ -85,5 +91,5 @@ string_crlf()
 static inline utf8_t *
 new_utf8(const char *to_copy)
 {
-    return con4m_new(T_UTF8, "cstring", to_copy);
+    return con4m_new(tspec_utf8(), "cstring", to_copy);
 }

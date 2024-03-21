@@ -44,7 +44,7 @@ grid_add_col_span(grid_t *grid, renderable_t *contents, int64_t row,
 static inline renderable_t *
 to_str_renderable(any_str_t *s, char *tag)
 {
-    return con4m_new(T_RENDERABLE, "obj", s, "tag", tag);
+    return con4m_new(tspec_renderable(), "obj", s, "tag", tag);
 }
 
 static inline void
@@ -130,7 +130,7 @@ grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
 	    tag = get_td_tag(g);
 	}
 
-	cell = con4m_new(T_RENDERABLE, "tag", tag, "obj", item);
+	cell = con4m_new(tspec_renderable(), "tag", tag, "obj", item);
 	break;
     }
     default:

@@ -1,6 +1,6 @@
 #include <con4m.h>
 
-const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
+const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
     {
 	.name      = "error",
 	.typeid    = T_TYPE_ERROR,
@@ -17,6 +17,7 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.alloc_len = 4,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
+	.by_value  = true,
     },
     {
 	.name      = "i8",
@@ -24,6 +25,7 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.alloc_len = 1,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
+	.by_value  = true,
     },
     {
 	.name      = "byte",
@@ -31,12 +33,14 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.alloc_len = 1,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
+	.by_value  = true,
     },
     {   .name      = "i32",
 	.typeid    = T_I32,
 	.alloc_len = 4,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
+	.by_value  = true,
     },
     {
 	.name      = "char",
@@ -44,6 +48,7 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.alloc_len = 4,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
+	.by_value  = true,
     },
     {
 	.name      = "u32",
@@ -51,6 +56,7 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.alloc_len = 4,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
+	.by_value  = true,
     },
     {
 	.name      = "int",
@@ -58,6 +64,7 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.alloc_len = 8,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
+	.by_value  = true,
     },
     {
 	.name      = "uint",
@@ -65,6 +72,7 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.alloc_len = 8,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
+	.by_value  = true,
     },
     {
 	.name      = "f32",
@@ -72,6 +80,7 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.alloc_len = 4,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_REAL,
+	.by_value  = true,
     },
     {
 	.name      = "float",
@@ -79,6 +88,7 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.alloc_len = 8,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_REAL,
+	.by_value  = true,
     },
     {
 	.name      = "utf8",
@@ -302,19 +312,18 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	 .base      = BT_internal,
 	 .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
      },
-     {
-	 .name      = "type_details",
-	 .typeid    = T_TYPE_DETAILS,
-	 .alloc_len = sizeof(type_details_t),
-	 .ptr_info  = GC_SCAN_ALL,
-	 .vtable    = &type_details_vtable,
-	 .base      = BT_internal,
-	 .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
-     },
      { // Non-instantiable.
 	 .name      = "function_definition",
 	 .typeid    = T_FUNCDEF,
 	 .base      = BT_func,
+     },
+     {
+	 .name      = "ref",
+	 .alloc_len = sizeof(void *),
+	 .ptr_info  = GC_SCAN_ALL,
+	 .typeid    = T_REF,
+	 .base      = BT_primitive,
+	 .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
      },
      {
 	 .name      = "mixed",
@@ -327,43 +336,38 @@ const con4m_dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 };
 
 object_t
-_con4m_new(con4m_builtin_t typeid, ...)
+_con4m_new(type_spec_t *type, ...)
 {
-    // With containers, the constructor is expected to update the
-    // typeid field.
+    con4m_obj_t       *obj;
+    object_t           result;
+    va_list            args;
+    dt_info           *tinfo     = type->details->base_type;
+    uint64_t           alloc_len = tinfo->alloc_len + sizeof(con4m_obj_t);
+    con4m_vtable_entry init_fn   = tinfo->vtable->methods[CON4M_BI_CONSTRUCTOR];
 
-    con4m_obj_t        *obj;
-    object_t            result;
-    va_list             args;
-    uint64_t            l        = builtin_type_info[typeid].alloc_len;
-    uint64_t           *ptr_info = (uint64_t *)builtin_type_info[
-	                                                     typeid].ptr_info;
-    con4m_vtable_entry  init     = builtin_type_info[typeid].
-	                           vtable->methods[CON4M_BI_CONSTRUCTOR];
+    obj = con4m_gc_alloc(alloc_len, (uint64_t *)tinfo->ptr_info);
 
-    va_start(args, typeid);
+    obj->base_data_type = tinfo;
+    obj->concrete_type  = type;
+    result              = obj->data;
 
-    obj = (con4m_obj_t *)con4m_gc_alloc(sizeof(con4m_obj_t) + l, ptr_info);
-
-    obj->base_data_type = (con4m_dt_info *)&builtin_type_info[typeid];
-    obj->concrete_type  = typeid;
-
-    result = (object_t)obj->data;
-
-    if (init != NULL) {
-	(*init)(result, args);
+    switch (tinfo->base) {
+    case BT_primitive:
+    case BT_internal:
+    case BT_list:
+    case BT_dict:
+    case BT_tuple:
+	if (init_fn != NULL) {
+	    va_start(args, type);
+	    (*init_fn)(result, args);
+	    va_end(args);
+	}
+	break;
+    default:
+	CRAISE("Requested type is non-instantiable or not yet implemented.");
     }
 
-    va_end(args);
-
     return result;
-}
-
-object_t
-_con4m_new2(type_spec_t *type, ...)
-{
-
-
 }
 
 uint64_t *

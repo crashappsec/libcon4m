@@ -9,7 +9,7 @@ extern void            install_default_styles();
 static inline render_style_t *
 copy_render_style(const render_style_t *style)
 {
-    render_style_t *result = con4m_new(T_RENDER_STYLE);
+    render_style_t *result = con4m_new(tspec_render_style());
 
     memcpy(result, style, sizeof(render_style_t));
 

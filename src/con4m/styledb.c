@@ -295,7 +295,7 @@ static const render_style_t default_flow = {
 };
 
 // Third word of render styles is a pointer.
-const uint64_t rs_pmap[2] = { 0x1, 0xb000000000000000 };
+const uint64_t rs_pmap[2] = { 0x1, 0x0b00000000000000 };
 
 static inline void
 init_style_db()

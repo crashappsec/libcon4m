@@ -13,7 +13,6 @@ typedef enum {
     BT_dict,
     BT_tuple,
     BT_func,
-    BT_ref,
     BT_maybe,
     BT_object,
     BT_oneof,
@@ -22,6 +21,7 @@ typedef enum {
 // At least for now, we're going to only us built-in methods of fixed
 // size and know parameters in the vtable.
 typedef void (*con4m_vtable_entry)(con4m_obj_t *, va_list);
+typedef void (*container_init)(con4m_obj_t *, void *, va_list);
 
 typedef struct {
     uint64_t           num_entries;
@@ -42,7 +42,8 @@ typedef struct {
     const con4m_vtable *vtable;
     const base_t        base;
     const uint32_t      hash_fn;
-} con4m_dt_info;
+    const bool          by_value : 1;
+} dt_info;
 
 // Below, con4m_obj_t is the *internal* object type.
 //
@@ -60,9 +61,9 @@ typedef struct {
 // do not have
 
 struct con4m_obj_t {
-    con4m_dt_info *base_data_type;
-    uint64_t       concrete_type;
-    __uint128_t    cached_hash;
+    dt_info            *base_data_type;
+    struct type_spec_t *concrete_type;
+    __uint128_t         cached_hash;
     // The exposed object data.
     uint64_t data[];
 };
@@ -130,8 +131,8 @@ typedef enum : int64_t {
     T_SHA,
     T_EXCEPTION,
     T_TYPE_ENV,
-    T_TYPE_DETAILS,
     T_FUNCDEF,
+    T_REF,     // A managed pointer.
     T_GENERIC, // If instantiated, instantiates a 'mixed' object.
     CON4M_NUM_BUILTIN_DTS
 
