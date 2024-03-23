@@ -1,6 +1,7 @@
 #pragma once
 
 #include <con4m.h>
+
 typedef struct {
     alignas(8)
     char   *data;

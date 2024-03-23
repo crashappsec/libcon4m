@@ -373,9 +373,8 @@ utf8_init(utf8_t *s, va_list args)
 	}
 
 	if (start > length) {
-	    fprintf(stderr, "Invalid string constructor call: "
+	    CRAISE("Invalid string constructor call: "
 		    "len(cstring) is less than the start index");
-	    abort();
 	}
 
 	s->data     = con4m_gc_alloc(length + 1, NULL);
@@ -385,7 +384,7 @@ utf8_init(utf8_t *s, va_list args)
 	utf8_set_codepoint_count(s);
     } else {
 	if (length < 0) {
-	    abort();
+	    CRAISE("length cannot be < 0 for string initialization");
 	}
 	s->data = con4m_gc_alloc(length + 1, NULL);
     }
@@ -406,39 +405,66 @@ static void
 utf32_init(utf32_t *s, va_list args)
 {
     DECLARE_KARGS(
-	int64_t length  = -1;  // NUMBER OF CODEPOINTS.
-	int64_t start   = 0;
-	char   *cstring = NULL;
-	style_t style   = STYLE_INVALID;
+	int64_t      length     = -1;  // NUMBER OF CODEPOINTS.
+	int64_t      start      = 0;
+	char        *cstring    = NULL;
+	codepoint_t *codepoints = NULL;
+	style_t      style      = STYLE_INVALID;
 	);
 
-    method_kargs(args, length, start, cstring, style);
+    method_kargs(args, length, start, cstring, codepoints, style);
 
-    if (cstring != NULL) {
-	if (length == -1) {
-	    length = strlen(cstring);
+    if (codepoints != NULL && cstring != NULL) {
+	CRAISE("Cannot specify both 'codepoints' and 'cstring' keywords.");
+    }
+    if (codepoints != NULL) {
+	if (length == 0) {
+	    s->byte_len   = 4;
+	    s->data       = con4m_gc_alloc(s->byte_len, NULL);
+	    s->codepoints = ~0;
+	    return;
 	}
 
-	if (start > length) {
-	    fprintf(stderr, "Invalid string constructor call: "
-		    "len(cstring) is less than the start index");
-	    abort();
+	if (length < 0) {
+	    CRAISE("When specifying 'codepoints', must provide a valid "
+		   "'length' containing the number of codepoints.");
 	}
 	s->byte_len = (length + 1) * 4;
 	s->data     = con4m_gc_alloc(s->byte_len, NULL);
 
-	for (int64_t i = 0; i < length; i++) {
-	    ((uint32_t *)s->data)[i] = (uint32_t)(cstring[i]);
+	codepoint_t *local = (codepoint_t *)s->data;
+
+	for (int i = 0; i < length; i++) {
+	    local[i] = codepoints[i];
 	}
+
 	s->codepoints = ~length;
     } else {
-	if (length < 0) {
-	    abort();
-	}
-	s->byte_len = (length + 1) * 4;
-	s->data        = con4m_gc_alloc(s->byte_len, NULL);
-    }
+	if (cstring != NULL) {
+	    if (length == -1) {
+		length = strlen(cstring);
+	    }
 
+	    if (start > length) {
+		CRAISE("Invalid string constructor call: "
+		       "len(cstring) is less than the start index");
+	    }
+	    s->byte_len = (length + 1) * 4;
+	    s->data     = con4m_gc_alloc(s->byte_len, NULL);
+
+	    for (int64_t i = 0; i < length; i++) {
+		((uint32_t *)s->data)[i] = (uint32_t)(cstring[i]);
+	    }
+	    s->codepoints = ~length;
+	} else {
+	    if (length < 0) {
+		CRAISE("Must specify a valid length if not initializing "
+		       "with a null-terminated cstring.");
+	    }
+	    s->byte_len = (length + 1) * 4;
+	    s->data        = con4m_gc_alloc(s->byte_len, NULL);
+	}
+    }
 
     if (style != STYLE_INVALID) {
 	string_apply_style(s, style);
@@ -789,6 +815,25 @@ con4m_string_unmarshal(any_str_t *s, FILE *f, dict_t *memos)
 	s->data = con4m_gc_alloc(s->byte_len + 1, NULL);
 	fread(s->data, s->byte_len, 1, f);
     }
+}
+
+utf8_t *
+con4m_cstring(char *s, int64_t len)
+{
+    return con4m_new(tspec_utf8(), "cstring", s, "length", len);
+}
+
+utf8_t *
+con4m_rich(utf8_t *to_copy, utf8_t *style)
+{
+    utf8_t *res        = string_copy(to_copy);
+    render_style_t *rs = lookup_cell_style(style->data);
+
+    if (rs != NULL) {
+	string_apply_style(res, rs->base_style);
+    }
+
+    return res;
 }
 
 static any_str_t *

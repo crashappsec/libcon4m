@@ -231,8 +231,8 @@ table_test()
     con4m_new(tspec_render_style(), "flex_units", 2, "tag", "col3");
 //    con4m_new(tspec_render_style(), "width_pct", 10., "tag", "col1");
 //    con4m_new(tspec_render_style(), "width_pct", 30., "tag", "col3");
-    apply_column_style(g, 0, "col1");
-    apply_column_style(g, 2, "col3");
+    set_column_style(g, 0, "col1");
+    set_column_style(g, 2, "col3");
 
     // Ordered / unordered lists.
     utf8_t *ol1    = con4m_new(tspec_utf8(), "cstring",

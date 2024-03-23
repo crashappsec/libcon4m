@@ -312,6 +312,15 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	 .base      = BT_internal,
 	 .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
      },
+     {
+	 .name      = "tree",
+	 .typeid    = T_TREE,
+	 .alloc_len = sizeof(tree_node_t),
+	 .ptr_info  = GC_SCAN_ALL, // TODO: set to 6, 7, 8
+	 .vtable    = &tree_vtable,
+	 .base      = BT_list,
+	 .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+     },
      { // Non-instantiable.
 	 .name      = "function_definition",
 	 .typeid    = T_FUNCDEF,

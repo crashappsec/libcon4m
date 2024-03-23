@@ -12,7 +12,7 @@ xlist_init(xlist_t *list, va_list args)
     method_kargs(args, length);
 
     list->append_ix = 0;
-    list->length    = length;
+    list->length    = max(length, 16);
     list->data      = gc_array_alloc(uint64_t *, length);
 }
 
@@ -25,6 +25,7 @@ xlist_resize(xlist_t *list, size_t len)
     for (int i = 0; i < list->length; i++) {
 	new[i] = old[i];
     }
+
     list->data     = new;
     list->length   = len;
 }
@@ -66,6 +67,7 @@ xlist_append(xlist_t *list, void *item)
     }
 
     list->data[list->append_ix++] =  item;
+
     return;
 }
 
@@ -154,6 +156,12 @@ con4m_xlist_unmarshal(xlist_t *r, FILE *f, dict_t *memos)
 	}
     }
 }
+
+xlist_t *con4m_xlist(type_spec_t *x)
+{
+    return con4m_new(tspec_xlist(x));
+}
+
 
 const con4m_vtable xlist_vtable = {
     .num_entries = CON4M_BI_NUM_FUNCS,

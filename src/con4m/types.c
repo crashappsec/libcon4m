@@ -175,6 +175,30 @@ resolve_type_aliases(type_spec_t *node, type_env_t *env)
     }
 }
 
+type_spec_t *
+global_resolve_type(type_spec_t *t)
+{
+    return resolve_type_aliases(t, global_type_env);
+}
+
+type_spec_t *
+global_copy(type_spec_t *t)
+{
+    return type_spec_copy(t, global_type_env);
+}
+
+type_spec_t *
+global_type_check(type_spec_t *t1, type_spec_t *t2)
+{
+    return unify(t1, t2, global_type_env);
+}
+
+void
+lock_type(type_spec_t *t)
+{
+    t->details->flags &= FN_TY_LOCK;
+}
+
 static void
 internal_type_hash(type_spec_t *node, type_hash_ctx *ctx)
 {
@@ -1027,6 +1051,19 @@ tspec_xlist(type_spec_t *sub)
 }
 
 type_spec_t *
+tspec_tree(type_spec_t *sub)
+{
+    type_spec_t *result = con4m_new(tspec_typespec(), global_type_env, T_TREE);
+    xlist_t     *items  = result->details->items;
+
+    xlist_append(items, sub);
+
+    type_hash_and_dedupe(&result, global_type_env);
+
+    return result;
+}
+
+type_spec_t *
 tspec_queue(type_spec_t *sub)
 {
     type_spec_t *result = con4m_new(tspec_typespec(), global_type_env, T_QUEUE);
@@ -1093,7 +1130,7 @@ tspec_set(type_spec_t *sub1)
 }
 
 type_spec_t *
-tspec_tuple(int nitems, ...)
+tspec_tuple(int64_t nitems, ...)
 {
     va_list      args;
     type_spec_t *result = con4m_new(tspec_typespec(), global_type_env, T_TUPLE);

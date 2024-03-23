@@ -198,7 +198,9 @@ static const render_style_t default_th = {
 
 static const render_style_t default_td = {
     .name       = "td",
-    .base_style = 0
+    .base_style = 0,
+    .left_pad   = 1,
+    .right_pad  = 1
 };
 
 static const render_style_t default_tcol = {
@@ -619,6 +621,16 @@ con4m_style_unmarshal(render_style_t *obj, FILE *f, dict_t *memos)
     obj->hang_set      = flags & 0x01;
 
     set_border_theme(obj, theme);
+}
+
+bool
+style_exists(char *name)
+{
+    if (name == NULL) {
+	return 0;
+    }
+
+    return hatrack_dict_get(style_dictionary, name, NULL) != NULL;
 }
 
 void

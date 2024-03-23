@@ -131,6 +131,7 @@ typedef enum : int64_t {
     T_SHA,
     T_EXCEPTION,
     T_TYPE_ENV,
+    T_TREE,
     T_FUNCDEF,
     T_REF,     // A managed pointer.
     T_GENERIC, // If instantiated, instantiates a 'mixed' object.

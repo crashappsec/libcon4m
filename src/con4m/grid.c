@@ -21,6 +21,10 @@ int debug = 0;
 static inline
 render_style_t *
 grid_style(grid_t *grid) {
+    if (!grid->self->current_style) {
+	grid->self->current_style = lookup_cell_style("table");
+    }
+
     return grid->self->current_style;
 }
 
@@ -269,15 +273,14 @@ grid_add_row(grid_t *grid, object_t container)
 	for (int i = 0; i < grid->num_cols; i++) {
 	    object_t x = xlist_get((xlist_t *)container, i, NULL);
 	    if (x == NULL) {
-		x = (object_t)force_utf32(empty_string());
+		x = (object_t)con4m_new(tspec_utf8(), "cstring", " ");
 	    }
-	    grid_set_cell_contents(grid, grid->row_cursor, i++, x);
+	    grid_set_cell_contents(grid, grid->row_cursor, i, x);
 	}
-	grid->row_cursor++;
 	return;
 
     default:
-	abort();
+	CRAISE("Invalid item type for grid.");
     }
 }
 
@@ -336,6 +339,19 @@ grid_init(grid_t *grid, va_list args)
 	grid->cells      = gc_array_alloc(renderable_t *, num_cells);
     }
 
+
+    if (!style_exists(container_tag)) {
+	container_tag = "table";
+    }
+
+    if (!style_exists(td_tag)) {
+	td_tag = "td";
+    }
+
+    if (!style_exists(th_tag)) {
+	td_tag = "th";
+    }
+
     renderable_t *self = con4m_new(tspec_renderable(), "tag", container_tag,
 				   "obj", grid);
     grid->self         = self;
@@ -345,11 +361,11 @@ grid_init(grid_t *grid, va_list args)
 				     spare_rows);
 
     for (int i = 0; i < min(header_rows, start_rows); i++) {
-	apply_row_style(grid, i, "th");
+	set_row_style(grid, i, "th");
     }
 
     for (int i = 0; i < min(header_cols, start_cols); i++) {
-	apply_column_style(grid, i, "th");
+	set_column_style(grid, i, "th");
     }
 
     grid->header_rows = header_rows;
@@ -574,7 +590,7 @@ calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
 		sum      += result[i];
 		break;
 	    default:
-		abort(); // TODO: throw an exception.
+		CRAISE("Invalid col spec for unbounded width.");
 	    }
 	}
 
@@ -891,8 +907,7 @@ render_to_cache(grid_t *grid, renderable_t *cell, int16_t width, int16_t height)
 	return xlist_len(cell->render_cache);
 
     default:
-	printf("Type is not grid-renderable.\n");
-	abort();
+	CRAISE("Type is not grid-renderable.");
     }
 
     return 0;
@@ -1707,6 +1722,38 @@ grid_flow(uint64_t items, ...)
     for (uint64_t i = 0; i < items; i++) {
 	grid_set_cell_contents(res, i, 0, (object_t)va_arg(contents, object_t));
     }
+    va_end(contents);
+
+    return res;
+}
+
+grid_t *
+grid_horizontal_flow(xlist_t *items, uint64_t max_columns, uint64_t total_width,
+		     char *table_style, char *cell_style)
+{
+
+    uint64_t list_len   = xlist_len(items);
+    uint64_t start_cols = min(list_len, max_columns);
+    uint64_t start_rows = (list_len + start_cols - 1)/start_cols;
+
+    if (table_style == NULL) {
+	table_style = "flow";
+    }
+
+    if (cell_style == NULL) {
+	cell_style = "td";
+    }
+
+    grid_t *res = con4m_new(tspec_grid(),
+			    "start_rows", start_rows, "start_cols", start_cols,
+			    "container_tag", table_style, "td_tag", cell_style);
+
+    for (uint64_t i = 0; i < list_len; i++) {
+	int row = i / start_cols;
+	int col = i % start_cols;
+
+	grid_set_cell_contents(res, row, col, xlist_get(items, i, NULL));
+    }
 
     return res;
 }
@@ -1834,3 +1881,153 @@ const con4m_vtable renderable_vtable = {
 	(con4m_vtable_entry)con4m_renderable_unmarshal
     }
 };
+
+// For instantiating w/o varargs.
+grid_t *
+con4m_grid(int32_t start_rows, int32_t start_cols, char *table_tag,
+		   char *td_tag, char *th_tag,  int header_rows,
+		   int header_cols, int s)
+{
+    return _con4m_new(tspec_grid(), "start_rows", start_rows, "start_cols",
+		     start_cols, "container_tag", table_tag, "th_tag", th_tag,
+		     "td_tag", td_tag, "header_rows", header_rows,
+		     "header_cols", header_cols, "stripe", s, 0);
+}
+
+
+typedef struct {
+    codepoint_t     pad;
+    codepoint_t     tchar;
+    codepoint_t     lchar;
+    codepoint_t     hchar;
+    codepoint_t     vchar;
+    int             vpad;
+    int             ipad;
+    int             no_nl;
+    char           *tag;
+    codepoint_t    *padstr;
+    int             pad_ix;
+    grid_t         *grid;
+    utf8_t         *nl;
+} tree_fmt_t;
+
+static void
+build_tree_output(tree_node_t *node, tree_fmt_t *info)
+{
+    any_str_t *line = tree_get_contents(node);
+
+    if (info->no_nl) {
+	int64_t ix = string_find(line, info->nl);
+
+	if (ix != -1) {
+	    line = string_slice(line, 0, ix);
+	    line = string_concat(line, utf32_repeat(0x2026, 1));
+	}
+    }
+
+    utf32_t *pad = con4m_new(tspec_utf32(), "length", info->pad_ix,
+			     "codepoints", info->padstr);
+    line = string_concat(pad, line);
+
+    renderable_t *item = to_str_renderable(line, info->tag);
+
+    grid_add_row(info->grid, item);
+
+    int64_t num_kids = tree_get_number_children(node);
+
+    if (num_kids == 0) {
+	return;
+    }
+
+    codepoint_t *prev_pad = info->padstr;
+    int          last_len = info->pad_ix;
+    int          i;
+
+    info->pad_ix = last_len + info->vpad + info->ipad + 1;
+    info->padstr = gc_array_alloc(codepoint_t, info->pad_ix);
+
+    for (i = 0; i < last_len; i++) {
+	if (prev_pad[i] == info->tchar || prev_pad[i] == info->vchar) {
+	    info->padstr[i] = info->vchar;
+	} else {
+	    info->padstr[i] = info->pad;
+	}
+    }
+    info->padstr[i++] = info->tchar;
+
+    for (int j = 0; j < info->vpad; j++) {
+	info->padstr[i++] = info->hchar;
+    }
+
+    for (int j = 0; j < info->ipad; j++) {
+	info->padstr[i++] = ' ';
+    }
+
+    for (i = 0; i < (num_kids - 1); i++) {
+	build_tree_output(tree_get_child(node, i), info);
+    }
+
+    // Redraw the connector on our last node.
+    info->padstr[last_len] = info->lchar;
+
+    build_tree_output(tree_get_child(node, num_kids - 1), info);
+
+    info->pad_ix = last_len;
+    info->padstr = prev_pad;
+}
+
+// This currently expects a tree[utf8] or tree[utf32].  Eventually
+// maybe would make it handle anything via it's repr.  However, it
+// should also be restructured to be a single renderable item itself,
+// so that it can be responsive when we want to add items, once we get
+// more GUI-oriented.
+//
+// This is the quick-and-dirty implementation to replace the trees
+// I currently have in NIM for con4m debugging, etc.
+
+grid_t *
+_grid_tree(tree_node_t *tree, ...)
+{
+    DECLARE_KARGS(
+	codepoint_t pad   = ' ';
+	codepoint_t tchar = 0x251c;
+	codepoint_t lchar = 0x2514;
+	codepoint_t hchar = 0x2500;
+	codepoint_t vchar = 0x2502;
+	int         vpad  = 2;
+	int         no_nl = 1;
+	int         ipad  = 1;
+	char       *tag   = "li";
+	);
+
+    kargs(tree, pad, tchar, lchar, hchar, vchar, vpad, ipad, no_nl, tag);
+
+    if (vpad < 1) {
+	vpad = 1;
+    }
+    if (ipad < 0) {
+	ipad = 1;
+    }
+
+    grid_t *result = con4m_new(tspec_grid(), "container_tag", "flow",
+			       "td_tag", tag);
+
+    tree_fmt_t fmt_info = {
+	.pad       = pad,
+	.tchar     = tchar,
+	.lchar     = lchar,
+	.hchar     = hchar,
+	.vchar     = vchar,
+	.vpad      = vpad,
+	.ipad      = ipad,
+	.no_nl     = no_nl,
+	.tag       = tag,
+	.pad_ix    = 0,
+	.grid      = result,
+	.nl        = utf8_repeat('\n', 1),
+    };
+
+    build_tree_output(tree, &fmt_info);
+
+    return result;
+}

@@ -11,14 +11,19 @@ extern type_spec_t *unify(type_spec_t *, type_spec_t *, type_env_t *);
 extern type_spec_t *lookup_type_spec(type_t tid, type_env_t *env);
 extern type_spec_t *tspec_list(type_spec_t *);
 extern type_spec_t *tspec_xlist(type_spec_t *);
+extern type_spec_t *tspec_tree(type_spec_t *);
 extern type_spec_t *tspec_queue(type_spec_t *);
 extern type_spec_t *tspec_ring(type_spec_t *);
 extern type_spec_t *tspec_stack(type_spec_t *);
 extern type_spec_t *tspec_dict(type_spec_t *, type_spec_t *);
 extern type_spec_t *tspec_set(type_spec_t *);
-extern type_spec_t *tspec_tuple(int, ...);
+extern type_spec_t *tspec_tuple(int64_t, ...);
 extern type_spec_t *tspec_fn(type_spec_t *, int64_t, ...);
 extern type_spec_t *tspec_varargs_fn(type_spec_t *, int64_t, ...);
+extern type_spec_t *global_resolve_type(type_spec_t *);
+extern type_spec_t *global_copy(type_spec_t *);
+extern type_spec_t *global_type_check(type_spec_t *, type_spec_t *);
+extern void         lock_type(type_spec_t *);
 
 static inline bool
 typeid_is_concrete(type_t tid)

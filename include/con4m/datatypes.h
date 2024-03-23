@@ -8,6 +8,7 @@
 #include <con4m/datatypes/styles.h>
 #include <con4m/datatypes/strings.h>
 #include <con4m/datatypes/lists.h>
+#include <con4m/datatypes/trees.h>
 #include <con4m/datatypes/types.h>
 #include <con4m/datatypes/grids.h>
 #include <con4m/datatypes/buffers.h>

@@ -21,6 +21,8 @@ extern utf32_t     *_string_join(const xlist_t *l, const any_str_t *joiner, ...)
 extern utf8_t      *string_from_int(int64_t n);
 extern int64_t     _string_find(any_str_t *, any_str_t *, ...);
 extern struct flexarray_t *string_split(any_str_t *, any_str_t *);
+extern utf8_t      *con4m_cstring(char *s, int64_t len);
+extern utf8_t      *con4m_rich(utf8_t *, utf8_t *style);
 
 #define force_utf8(x) utf32_to_utf8(x)
 #define force_utf32(x) utf8_to_utf32(x)
