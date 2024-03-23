@@ -302,7 +302,7 @@ grid_init(grid_t *grid, va_list args)
 
     method_kargs(args, start_rows, start_cols, spare_rows, contents,
 		 container_tag, th_tag, td_tag, header_rows, header_cols,
-	stripe);
+		 stripe);
 
     if (start_rows < 1) {
 	start_rows = 1;
@@ -1885,7 +1885,7 @@ const con4m_vtable renderable_vtable = {
 // For instantiating w/o varargs.
 grid_t *
 con4m_grid(int32_t start_rows, int32_t start_cols, char *table_tag,
-		   char *td_tag, char *th_tag,  int header_rows,
+		   char *th_tag, char *td_tag, int header_rows,
 		   int header_cols, int s)
 {
     return _con4m_new(tspec_grid(), "start_rows", start_rows, "start_cols",
