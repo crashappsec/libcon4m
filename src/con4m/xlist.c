@@ -157,19 +157,213 @@ con4m_xlist_unmarshal(xlist_t *r, FILE *f, dict_t *memos)
     }
 }
 
-xlist_t *con4m_xlist(type_spec_t *x)
+int64_t
+xlist_len(const xlist_t *list)
+{
+    if (list == NULL) {
+	return 0;
+    }
+    return (int64_t)list->append_ix;
+}
+
+xlist_t *
+con4m_xlist(type_spec_t *x)
 {
     return con4m_new(tspec_xlist(x));
 }
 
+static any_str_t *
+xlist_repr(xlist_t *list, to_str_use_t how)
+{
+    int64_t  len   = xlist_len(list);
+    xlist_t *items = con4m_new(tspec_xlist(tspec_utf32()));
+
+    for (int i = 0; i < len; i++) {
+	int   err  = 0;
+	void *item = xlist_get(list, i, &err);
+	if (err) {
+	    continue;
+	}
+	any_str_t *s = con4m_repr(item, how);
+	xlist_append(items, s);
+    }
+
+    any_str_t *sep     = get_comma_const();
+    any_str_t *result  = string_join(items, sep);
+
+    if (how == TO_STR_USE_QUOTED) {
+	result = string_concat(get_lbrak_const(),
+			       string_concat(result, get_rbrak_const()));
+    }
+
+    return result;
+}
+
+
+static object_t
+xlist_coerce_to(xlist_t *list, type_spec_t *dst_type)
+{
+    base_t base  = type_spec_get_base(dst_type);
+
+    if (base == T_BOOL) {
+	return (object_t)(int64_t)(xlist_len(list) != 0);
+    }
+
+    if (base == T_XLIST) {
+	return (object_t)list;
+    }
+
+    int64_t      len = xlist_len(list);
+    flexarray_t *res = con4m_new(dst_type, "length", len);
+
+    for (int i = 0; i < len; i++) {
+	flexarray_set(res, i, xlist_get(list, i, NULL));
+    }
+
+    return (object_t)res;
+}
+
+static xlist_t *
+xlist_copy(xlist_t *list)
+{
+    int64_t  len = xlist_len(list);
+    xlist_t *res = con4m_new(get_my_type((object_t)list), "length", len);
+
+    for (int i = 0; i < len; i++) {
+	object_t item = xlist_get(list, i, NULL);
+	xlist_set(res, i, con4m_copy_object(item));
+    }
+
+    return res;
+}
+
+static object_t
+xlist_safe_get(xlist_t *list, int64_t ix)
+{
+    bool err = false;
+
+    object_t result = xlist_get(list, ix, &err);
+
+    if (err) {
+	CRAISE("Index out of bounds error.");
+    }
+
+    return result;
+}
+
+static xlist_t *
+xlist_get_slice(xlist_t *list, int64_t start, int64_t end)
+{
+    int64_t  len = xlist_len(list);
+    xlist_t *res;
+
+    if (start < 0) {
+	start += len;
+    }
+    else {
+	if (start >= len) {
+	    return con4m_new(get_my_type(list), "length", 0);
+	}
+    }
+    if (end < 0) {
+	end += len + 1;
+    }
+    else {
+	if (end > len) {
+	    end = len;
+	}
+    }
+
+    if ((start | end) < 0 || start >= end) {
+	return con4m_new(get_my_type(list), "length", 0);
+    }
+
+    len = end - start;
+    res = con4m_new(get_my_type(list), "length", len);
+
+    for (int i = 0; i < len; i++) {
+	void *item = xlist_get(list, start + i, NULL);
+	xlist_set(res, i, item);
+    }
+
+    return res;
+}
+
+static void
+xlist_set_slice(xlist_t *list, int64_t start, int64_t end, xlist_t *new)
+{
+    int64_t len1 = xlist_len(list);
+    int64_t len2 = xlist_len(new);
+
+    if (start < 0) {
+	start += len1;
+    }
+    else {
+	if (start >= len1) {
+	    CRAISE("Out of bounds slice.");
+	}
+    }
+    if (end < 0) {
+	end += len1 + 1;
+    }
+    else {
+	if (end > len1) {
+	    end = len1;
+	}
+    }
+
+    if ((start | end) < 0 || start >= end) {
+	CRAISE("Out of bounds slice.");
+    }
+
+    int64_t slicelen = end - start;
+    int64_t newlen   = len1 + len2 - slicelen;
+
+    void **newdata = gc_array_alloc(void *, newlen);
+
+    if (start > 0) {
+	for (int i = 0; i < start; i++) {
+	    void *item = xlist_get(list, i, NULL);
+	    newdata[i] = item;
+	}
+    }
+
+    for (int i = 0; i < len2; i++) {
+	void *item = xlist_get(new, i, NULL);
+	newdata[start++] = item;
+    }
+
+    for (int i = end; i < len1; i++) {
+	void *item = xlist_get(list, i, NULL);
+	newdata[start++] = item;
+    }
+
+    list->data = (int64_t **)newdata;
+}
+
+extern bool list_can_coerce_to(type_spec_t *, type_spec_t *);
 
 const con4m_vtable xlist_vtable = {
     .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
 	(con4m_vtable_entry)xlist_init,
-	NULL,
+	(con4m_vtable_entry)xlist_repr,
 	NULL,
 	(con4m_vtable_entry)con4m_xlist_marshal,
 	(con4m_vtable_entry)con4m_xlist_unmarshal,
+	(con4m_vtable_entry)list_can_coerce_to,
+	(con4m_vtable_entry)xlist_coerce_to,
+	NULL,
+	(con4m_vtable_entry)xlist_copy,
+	(con4m_vtable_entry)xlist_plus,
+	NULL, // Subtract
+	NULL, // Mul
+	NULL, // Div
+	NULL, // MOD
+	(con4m_vtable_entry)xlist_len,
+	(con4m_vtable_entry)xlist_safe_get,
+	(con4m_vtable_entry)xlist_set,
+	(con4m_vtable_entry)xlist_get_slice,
+	(con4m_vtable_entry)xlist_set_slice
     }
 };

@@ -23,6 +23,10 @@ extern int64_t     _string_find(any_str_t *, any_str_t *, ...);
 extern struct flexarray_t *string_split(any_str_t *, any_str_t *);
 extern utf8_t      *con4m_cstring(char *s, int64_t len);
 extern utf8_t      *con4m_rich(utf8_t *, utf8_t *style);
+extern codepoint_t  utf8_index(const utf8_t *, int64_t);
+extern codepoint_t  utf32_index(const utf32_t *, int64_t);
+extern bool         string_can_coerce_to(type_spec_t *, type_spec_t *);
+extern object_t     string_coerce_to(const any_str_t *, type_spec_t *);
 
 #define force_utf8(x) utf32_to_utf8(x)
 #define force_utf32(x) utf8_to_utf32(x)
@@ -94,4 +98,10 @@ static inline utf8_t *
 new_utf8(const char *to_copy)
 {
     return con4m_new(tspec_utf8(), "cstring", to_copy);
+}
+
+static inline char *
+to_cstring(any_str_t *s)
+{
+    return s->data;
 }

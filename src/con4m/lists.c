@@ -105,14 +105,254 @@ con4m_list_unmarshal(flexarray_t *r, FILE *f, dict_t *memos)
     }
 }
 
+bool
+list_can_coerce_to(type_spec_t *my_type, type_spec_t *dst_type)
+{
+    base_t base = type_spec_get_base(dst_type);
+
+    if (base == T_BOOL) {
+	return true;
+    }
+
+    if (base == T_LIST || base == T_XLIST) {
+	type_spec_t *my_item  = tspec_get_param(my_type, 0);
+	type_spec_t *dst_item = tspec_get_param(dst_type, 0);
+
+	return tspecs_are_compat(my_item, dst_item);
+    }
+
+    return false;
+}
+
+static object_t
+list_coerce_to(flexarray_t *list, type_spec_t *dst_type)
+{
+    base_t base       = type_spec_get_base(dst_type);
+    flex_view_t *view = flexarray_view(list);
+
+    if (base == T_BOOL) {
+	return (object_t)(int64_t)(flexarray_view_len(view) != 0);
+    }
+
+    if (base == T_LIST) {
+	return (object_t)list;
+    }
+
+    int64_t  len = flexarray_view_len(view);
+    xlist_t *res = con4m_new(dst_type, "length", len);
+
+    for (int i = 0; i < len; i++) {
+	xlist_set(res, i, flexarray_view_next(view, NULL));
+    }
+
+    return (object_t)res;
+}
+
+static flexarray_t *
+list_copy(flexarray_t *list)
+{
+    flex_view_t *view = flexarray_view(list);
+    int64_t      len  = flexarray_view_len(view);
+    flexarray_t *res  = con4m_new(get_my_type((object_t)list), "length", len);
+
+    for (int i = 0; i < len; i++) {
+	object_t item = flexarray_view_next(view, NULL);
+	flexarray_set(res, i, con4m_copy_object(item));
+    }
+
+    return res;
+}
+
+static void *
+list_get(flexarray_t *list, int64_t index)
+{
+    object_t result;
+    int      status;
+
+
+    if (index < 0) {
+	// Thing might get resized, so we have to take a view.
+	flex_view_t *view = flexarray_view(list);
+	int64_t      len  = flexarray_view_len(view);
+
+	index += len;
+
+	if (index < 0) {
+	    CRAISE("Array index out of bounds.");
+	}
+
+	result = flexarray_view_get(view, index, &status);
+    }
+    else {
+	result = flexarray_get(list, index, &status);
+    }
+
+    if (status == FLEX_OK) {
+	return result;
+    }
+
+    if (status == FLEX_UNINITIALIZED) {
+	CRAISE("Array access is for uninitialized value.");
+    }
+    else {
+	CRAISE("Array index out of bounds.");
+    }
+}
+
+static void
+list_set(flexarray_t *list, int64_t ix, void *item)
+{
+    if (!flexarray_set(list, ix, item)) {
+	CRAISE("Array index out of bounds.");
+    }
+}
+
+static flexarray_t *
+list_get_slice(flexarray_t *list, int64_t start, int64_t end)
+{
+    flex_view_t *view = flexarray_view(list);
+    int64_t      len  = flexarray_view_len(view);
+    flexarray_t *res;
+
+    if (start < 0) {
+	start += len;
+    }
+    else {
+	if (start >= len) {
+	    return con4m_new(get_my_type(list), "length", 0);
+	}
+    }
+    if (end < 0) {
+	end += len + 1;
+    }
+    else {
+	if (end > len) {
+	    end = len;
+	}
+    }
+
+    if ((start | end) < 0 || start >= end) {
+	return con4m_new(get_my_type(list), "length", 0);
+    }
+
+    len = end - start;
+    res = con4m_new(get_my_type(list), "length", len);
+
+    for (int i = 0; i < len; i++) {
+	void *item = flexarray_view_get(view, start + i, NULL);
+	flexarray_set(res, i, item);
+    }
+
+    return res;
+}
+
+// Semantics are, take a moment-in time view of each list (not the same moment),
+// Compute the result, then replace the list. Definitely not atomic.
+static void
+list_set_slice(flexarray_t *list, int64_t start, int64_t end, flexarray_t *new)
+{
+    flex_view_t *view1 = flexarray_view(list);
+    flex_view_t *view2 = flexarray_view(new);
+    int64_t      len1  = flexarray_view_len(view1);
+    int64_t      len2  = flexarray_view_len(view2);
+    flexarray_t *tmp;
+
+    if (start < 0) {
+	start += len1;
+    }
+    else {
+	if (start >= len1) {
+	    CRAISE("Out of bounds slice.");
+	}
+    }
+    if (end < 0) {
+	end += len1 + 1;
+    }
+    else {
+	if (end > len1) {
+	    end = len1;
+	}
+    }
+
+    if ((start | end) < 0 || start >= end) {
+	CRAISE("Out of bounds slice.");
+    }
+
+    int64_t slicelen = end - start;
+    int64_t newlen   = len1 + len2 - slicelen;
+
+    tmp = con4m_new(get_my_type(list), "length", newlen);
+
+    if (start > 0) {
+	for (int i = 0; i < start; i++) {
+	    void *item = flexarray_view_get(view1, i, NULL);
+	    flexarray_set(tmp, i, item);
+	}
+    }
+
+    for (int i = 0; i < len2; i++) {
+	void *item = flexarray_view_get(view2, i, NULL);
+	flexarray_set(tmp, start++, item);
+    }
+
+    for (int i = end; i < len1; i++) {
+	void *item = flexarray_view_get(view1, i, NULL);
+	flexarray_set(tmp, start++, item);
+    }
+
+    atomic_store(&list->store, atomic_load(&tmp->store));
+}
+
+static any_str_t *
+list_repr(flexarray_t *list, to_str_use_t how)
+{
+    flex_view_t *view  = flexarray_view(list);
+    int64_t      len   = flexarray_view_len(view);
+    xlist_t     *items = con4m_new(tspec_xlist(tspec_utf32()));
+
+    for (int i = 0; i < len; i++) {
+	int   err  = 0;
+	void *item = flexarray_view_get(view, i, &err);
+	if (err) {
+	    continue;
+	}
+	any_str_t *s = con4m_repr(item, how);
+	xlist_append(items, s);
+    }
+
+    any_str_t *sep     = get_comma_const();
+    any_str_t *result  = string_join(items, sep);
+
+    if (how == TO_STR_USE_QUOTED) {
+	result = string_concat(get_lbrak_const(),
+			       string_concat(result, get_rbrak_const()));
+    }
+
+    return result;
+}
+
 const con4m_vtable list_vtable = {
     .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
 	(con4m_vtable_entry)con4m_list_init,
-	NULL,
-	NULL,
+	(con4m_vtable_entry)list_repr,
+	NULL, // no finalizer
 	(con4m_vtable_entry)con4m_list_marshal,
-	(con4m_vtable_entry)con4m_list_unmarshal
+	(con4m_vtable_entry)con4m_list_unmarshal,
+	(con4m_vtable_entry)list_can_coerce_to,
+	(con4m_vtable_entry)list_coerce_to,
+	NULL, // From lit,
+	(con4m_vtable_entry)list_copy,
+	(con4m_vtable_entry)flexarray_add,
+	NULL, // Subtract
+	NULL, // Mul
+	NULL, // Div
+	NULL, // MOD
+	(con4m_vtable_entry)flexarray_len,
+	(con4m_vtable_entry)list_get,
+	(con4m_vtable_entry)list_set,
+	(con4m_vtable_entry)list_get_slice,
+	(con4m_vtable_entry)list_set_slice,
     }
 };
 

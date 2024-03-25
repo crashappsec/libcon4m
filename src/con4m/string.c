@@ -137,6 +137,63 @@ string_slice(const any_str_t *instr, int64_t start, int64_t end)
     return res;
 }
 
+codepoint_t
+utf8_index(const utf8_t *s, int64_t n)
+{
+    if (!string_is_u8(s)) {
+	return utf32_index(s, n);
+    }
+
+    int64_t l = string_codepoint_len(s);
+
+    if (n < 0) {
+	n += l;
+
+	if (n < 0) {
+	    CRAISE("Index would be before the start of the string.");
+	}
+    }
+
+    if (n >= l) {
+	CRAISE("Index out of bounds.");
+    }
+
+    char       *p = (char *)s->data;
+    codepoint_t cp;
+
+    for (int i = 0; i <= n; i++) {
+	p += utf8proc_iterate((uint8_t *)p, 4, &cp);
+    }
+
+    return cp;
+}
+
+codepoint_t
+utf32_index(const utf32_t *s, int64_t i)
+{
+    if (string_is_u8(s)) {
+	return utf8_index(s, i);
+    }
+
+    int64_t l = string_codepoint_len(s);
+
+    if (i < 0) {
+	i += l;
+
+	if (i < 0) {
+	    CRAISE("Index would be before the start of the string.");
+	}
+    }
+
+    if (i >= l) {
+	CRAISE("Index out of bounds.");
+    }
+
+    codepoint_t *p = (codepoint_t *)s->data;
+
+    return p[i];
+}
+
 utf32_t *
 _string_strip(const any_str_t *s, ...)
 {
@@ -849,14 +906,72 @@ string_repr(any_str_t *str, to_str_use_t how)
     }
 }
 
+bool
+string_can_coerce_to(type_spec_t *my_type, type_spec_t *target_type)
+{
+    if (tspecs_are_compat(target_type, tspec_utf8()) ||
+	tspecs_are_compat(target_type, tspec_utf32()) ||
+	tspecs_are_compat(target_type, tspec_buffer()) ||
+	tspecs_are_compat(target_type, tspec_bool())) {
+	return true;
+    }
+
+    return false;
+}
+
+object_t
+string_coerce_to(const any_str_t *s, type_spec_t *target_type)
+{
+    if (tspecs_are_compat(target_type, tspec_utf8())) {
+	return force_utf8(s);
+    }
+    if (tspecs_are_compat(target_type, tspec_utf32())) {
+	return force_utf32(s);
+    }
+    if (tspecs_are_compat(target_type, tspec_buffer())) {
+	// We can't just point into the UTF8 string, since buffers
+	// are mutable but strings are not.
+
+	s             = force_utf8(s);
+	buffer_t *res = con4m_new(target_type, s->byte_len);
+	memcpy(res->data, s->data, s->byte_len);
+
+	return res;
+    }
+    if (tspecs_are_compat(target_type, tspec_bool())) {
+	if (!s || !string_codepoint_len(s)) {
+	    return (object_t)false;
+	}
+	else {
+	    return (object_t)true;
+	}
+    }
+
+    CRAISE("Invalid coersion.");
+}
+
 const con4m_vtable u8str_vtable = {
     .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
 	(con4m_vtable_entry)utf8_init,
 	(con4m_vtable_entry)string_repr,
-	NULL,
+	NULL, // finalizer
 	(con4m_vtable_entry)con4m_string_marshal,
-	(con4m_vtable_entry)con4m_string_unmarshal
+	(con4m_vtable_entry)con4m_string_unmarshal,
+	(con4m_vtable_entry)string_can_coerce_to,
+	(con4m_vtable_entry)string_coerce_to,
+	NULL, // From lit,
+	(con4m_vtable_entry)string_copy,
+	(con4m_vtable_entry)string_concat,
+	NULL, // Subtract
+	NULL, // Mul
+	NULL, // Div
+	NULL, // MOD
+	(con4m_vtable_entry)string_codepoint_len,
+	(con4m_vtable_entry)utf8_index,
+	NULL, // Index set
+	(con4m_vtable_entry)string_slice,
+	NULL, // Slice set
     }
 };
 
@@ -865,8 +980,22 @@ const con4m_vtable u32str_vtable = {
     .methods     = {
 	(con4m_vtable_entry)utf32_init,
 	(con4m_vtable_entry)string_repr,
-	NULL,
+	NULL, // finalizer
 	(con4m_vtable_entry)con4m_string_marshal,
-	(con4m_vtable_entry)con4m_string_unmarshal
+	(con4m_vtable_entry)con4m_string_unmarshal,
+	(con4m_vtable_entry)string_can_coerce_to,
+	(con4m_vtable_entry)string_coerce_to,
+	NULL, // From lit,
+	(con4m_vtable_entry)string_copy,
+	(con4m_vtable_entry)string_concat,
+	NULL, // Subtract
+	NULL, // Mul
+	NULL, // Div
+	NULL, // MOD
+	(con4m_vtable_entry)string_codepoint_len,
+	(con4m_vtable_entry)utf32_index,
+	NULL, // Index set; strings are immutable.
+	(con4m_vtable_entry)string_slice,
+	NULL, // Slice set; strings are immutable.
     }
 };

@@ -1859,29 +1859,6 @@ con4m_renderable_unmarshal(renderable_t *r, FILE *f, dict_t *memos)
     r->render_height = unmarshal_u16(f);
 }
 
-const con4m_vtable grid_vtable  = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
-    .methods     = {
-	(con4m_vtable_entry)grid_init,
-	(con4m_vtable_entry)grid_to_str,
-	NULL,
-	(con4m_vtable_entry)con4m_grid_marshal,
-	(con4m_vtable_entry)con4m_grid_unmarshal
-
-    }
-};
-
-const con4m_vtable renderable_vtable = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
-    .methods     = {
-	(con4m_vtable_entry)renderable_init,
-	NULL,
-	NULL,
-	(con4m_vtable_entry)con4m_renderable_marshal,
-	(con4m_vtable_entry)con4m_renderable_unmarshal
-    }
-};
-
 // For instantiating w/o varargs.
 grid_t *
 con4m_grid(int32_t start_rows, int32_t start_cols, char *table_tag,
@@ -2031,3 +2008,39 @@ _grid_tree(tree_node_t *tree, ...)
 
     return result;
 }
+
+const con4m_vtable grid_vtable  = {
+    .num_entries = CON4M_BI_NUM_FUNCS,
+    .methods     = {
+	(con4m_vtable_entry)grid_init,
+	(con4m_vtable_entry)grid_to_str,
+	NULL,
+	(con4m_vtable_entry)con4m_grid_marshal,
+	(con4m_vtable_entry)con4m_grid_unmarshal,
+	NULL, // can coerce
+	NULL, // do coerce
+	NULL, // No literal rep.
+	NULL, // Default copy
+	NULL, // No add right now.
+	NULL, // No sub
+	NULL, // No mul
+	NULL, // No div
+	NULL, // No mod
+	NULL, // No len
+	NULL, // No index
+	NULL, // No index
+	NULL, // No slice
+	NULL, // No slice
+    }
+};
+
+const con4m_vtable renderable_vtable = {
+    .num_entries = CON4M_BI_NUM_FUNCS,
+    .methods     = {
+	(con4m_vtable_entry)renderable_init,
+	NULL,
+	NULL,
+	(con4m_vtable_entry)con4m_renderable_marshal,
+	(con4m_vtable_entry)con4m_renderable_unmarshal
+    }
+};

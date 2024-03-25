@@ -47,6 +47,26 @@ con4m_raw_repr(con4m_builtin_t tinfo, object_t val, to_str_use_t kind)
     return (*ptr)(val, kind);
 }
 
+static inline any_str_t *
+con4m_repr(object_t obj, to_str_use_t how)
+{
+    repr_fn ptr = (repr_fn)get_vtable(obj)->methods[CON4M_BI_TO_STR];
+    return (*ptr)(obj, how);
+}
+
+extern object_t con4m_copy_object(object_t);
+extern object_t con4m_copy_object(object_t);
+extern object_t con4m_add(object_t, object_t);
+extern object_t con4m_sub(object_t, object_t);
+extern object_t con4m_mul(object_t, object_t);
+extern object_t con4m_div(object_t, object_t);
+extern object_t con4m_mod(object_t, object_t);
+extern int64_t con4m_len(object_t);
+extern object_t con4m_index_get(object_t, object_t);
+extern void con4m_index_set(object_t, object_t, object_t);
+extern object_t con4m_slice_get(object_t, int64_t, int64_t);
+extern void con4m_slice_set(object_t, int64_t, int64_t, object_t);
+
 extern any_str_t *con4m_value_obj_repr(object_t);
 
 extern const uint64_t str_ptr_info[];

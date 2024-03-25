@@ -722,6 +722,64 @@ init_punctuation()
     con4m_gc_register_root(&type_punct[0], PUNC_MAX);
 }
 
+utf8_t *
+get_lbrak_const()
+{
+    init_punctuation();
+    return type_punct[LBRAK_IX];
+}
+
+utf8_t *
+get_comma_const()
+{
+    init_punctuation();
+    return type_punct[COMMA_IX];
+}
+
+utf8_t *
+get_rbrak_const()
+{
+    init_punctuation();
+    return type_punct[RBRAK_IX];
+}
+
+utf8_t *
+get_lparen_const()
+{
+    init_punctuation();
+    return type_punct[LPAREN_IX];
+}
+
+utf8_t *
+get_rparen_const()
+{
+    init_punctuation();
+    return type_punct[RPAREN_IX];
+}
+
+utf8_t *
+get_arrow_const()
+{
+    init_punctuation();
+    return type_punct[ARROW_IX];
+}
+
+utf8_t *
+get_backtick_const()
+{
+    init_punctuation();
+    return type_punct[BTICK_IX];
+}
+
+utf8_t *
+get_asterisk_const()
+{
+    init_punctuation();
+    return type_punct[STAR_IX];
+}
+
+
+
 // This is just hex w/ a different char set; max size would be 18 digits.
 static const char tv_letters[] = "jtvwxyzabcdefghi";
 

@@ -391,3 +391,143 @@ con4m_value_obj_repr(object_t obj)
     repr_fn ptr = (repr_fn)get_vtable(obj)->methods[CON4M_BI_TO_STR];
     return (*ptr)(obj, TO_STR_USE_AS_VALUE);
 }
+
+object_t
+con4m_copy_object(object_t obj)
+{
+    copy_fn ptr = (copy_fn)get_vtable(obj)->methods[CON4M_BI_COPY];
+
+    if (ptr == NULL) {
+	CRAISE("Copying for this object type not currently supported.");
+    }
+
+    return (*ptr)(obj);
+}
+
+object_t
+con4m_add(object_t lhs, object_t rhs)
+{
+    binop_fn ptr = (binop_fn)get_vtable(lhs)->methods[CON4M_BI_ADD];
+
+    if (ptr == NULL) {
+	CRAISE("Addition not supported for this object type.");
+    }
+
+    return (*ptr)(lhs, rhs);
+}
+
+object_t
+con4m_sub(object_t lhs, object_t rhs)
+{
+    binop_fn ptr = (binop_fn)get_vtable(lhs)->methods[CON4M_BI_SUB];
+
+    if (ptr == NULL) {
+	CRAISE("Subtraction not supported for this object type.");
+    }
+
+    return (*ptr)(lhs, rhs);
+}
+
+object_t
+con4m_mul(object_t lhs, object_t rhs)
+{
+    binop_fn ptr = (binop_fn)get_vtable(lhs)->methods[CON4M_BI_MUL];
+
+    if (ptr == NULL) {
+	CRAISE("Multiplication not supported for this object type.");
+    }
+
+    return (*ptr)(lhs, rhs);
+}
+
+object_t
+con4m_div(object_t lhs, object_t rhs)
+{
+    binop_fn ptr = (binop_fn)get_vtable(lhs)->methods[CON4M_BI_DIV];
+
+    if (ptr == NULL) {
+	CRAISE("Division not supported for this object type.");
+    }
+
+    return (*ptr)(lhs, rhs);
+}
+
+object_t
+con4m_mod(object_t lhs, object_t rhs)
+{
+    binop_fn ptr = (binop_fn)get_vtable(lhs)->methods[CON4M_BI_MOD];
+
+    if (ptr == NULL) {
+	CRAISE("Modulus not supported for this object type.");
+    }
+
+    return (*ptr)(lhs, rhs);
+}
+
+int64_t
+con4m_len(object_t container)
+{
+    len_fn ptr = (len_fn)get_vtable(container)->methods[CON4M_BI_LEN];
+
+    if (ptr == NULL) {
+	CRAISE("Cannot call len on a non-container.");
+    }
+
+    return (*ptr)(container);
+}
+
+object_t
+con4m_index_get(object_t container, object_t index)
+{
+    index_get_fn ptr;
+
+    ptr = (index_get_fn)get_vtable(container)->methods[CON4M_BI_INDEX_GET];
+
+    if (ptr == NULL) {
+	CRAISE("No index operation available.");
+    }
+
+    return (*ptr)(container, index);
+}
+
+void
+con4m_index_set(object_t container, object_t index, object_t value)
+{
+    index_set_fn ptr;
+
+    ptr = (index_set_fn)get_vtable(container)->methods[CON4M_BI_INDEX_SET];
+
+    if (ptr == NULL) {
+	CRAISE("No index assignment operation available.");
+    }
+
+    (*ptr)(container, index, value);
+}
+
+object_t
+con4m_slice_get(object_t container, int64_t start, int64_t end)
+{
+    slice_get_fn ptr;
+
+    ptr = (slice_get_fn)get_vtable(container)->methods[CON4M_BI_SLICE_GET];
+
+    if (ptr == NULL) {
+	CRAISE("No slice operation available.");
+    }
+
+    return (*ptr)(container, start, end);
+}
+
+void
+con4m_slice_set(object_t container, int64_t start, int64_t end, object_t o)
+{
+    slice_set_fn ptr;
+
+    ptr = (slice_set_fn)get_vtable(container)->methods[CON4M_BI_SLICE_SET];
+
+    if (ptr == NULL) {
+	CRAISE("No slice assignment operation available.");
+    }
+
+    (*ptr)(container, start, end, o);
+}

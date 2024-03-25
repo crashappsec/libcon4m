@@ -25,6 +25,15 @@ extern type_spec_t *global_copy(type_spec_t *);
 extern type_spec_t *global_type_check(type_spec_t *, type_spec_t *);
 extern void         lock_type(type_spec_t *);
 
+extern utf8_t *get_lbrak_const();
+extern utf8_t *get_comma_const();
+extern utf8_t *get_rbrak_const();
+extern utf8_t *get_lparen_const();
+extern utf8_t *get_rparen_const();
+extern utf8_t *get_arrow_const();
+extern utf8_t *get_backtick_const();
+extern utf8_t *get_asterisk_const();
+
 static inline bool
 typeid_is_concrete(type_t tid)
 {
@@ -107,6 +116,12 @@ tspec_get_parameters(type_spec_t *t)
     return t->details->items;
 }
 
+static inline type_spec_t *
+tspec_get_param(type_spec_t *t, int i)
+{
+    return xlist_get(t->details->items, i, NULL);
+}
+
 static inline dt_info *
 tspec_get_data_type_info(type_spec_t *t)
 {
@@ -133,6 +148,12 @@ static inline type_spec_t *
 tspec_void()
 {
     return builtin_types[T_VOID];
+}
+
+static inline type_spec_t *
+tspec_bool()
+{
+    return builtin_types[T_BOOL];
 }
 
 static inline type_spec_t *
@@ -363,4 +384,13 @@ static inline type_spec_t *
 tspec_typevar()
 {
     return type_spec_new_typevar(global_type_env);
+}
+
+static inline bool
+tspecs_are_compat(type_spec_t *t1, type_spec_t *t2)
+{
+    t1 = global_copy(t1);
+    t2 = global_copy(t2);
+
+    return ! type_spec_is_error(global_type_check(t1, t2));
 }
