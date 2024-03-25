@@ -182,14 +182,20 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	 .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     {
-	.name      = "ipv4",
+	.name      = "ipaddr",
 	.typeid    = T_IPV4,
+	.ptr_info  = NULL,
+	.vtable    = &ipaddr_vtable,
+	.alloc_len = sizeof(struct sockaddr_in6),
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     {
-	.name      = "ipv6",
+	.name      = "ipv6_unused", // Going to merge w/ ipv4
 	.typeid    = T_IPV6,
+	.ptr_info  = NULL,
+	.vtable    = &ipaddr_vtable,
+	.alloc_len = sizeof(struct sockaddr_in6),
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },

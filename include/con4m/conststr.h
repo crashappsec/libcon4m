@@ -14,3 +14,4 @@ extern utf8_t *get_space_const();
 extern utf8_t *get_lbrace_const();
 extern utf8_t *get_rbrace_const();
 extern utf8_t *get_colon_const();
+extern utf8_t *get_colon_no_space_const();

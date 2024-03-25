@@ -13,7 +13,8 @@ enum {
     LBRACE_IX = 9,
     RBRACE_IX = 10,
     COLON_IX  = 11,
-    PUNC_MAX  = 12
+    COLON_NSP = 12,
+    PUNC_MAX  = 13
 };
 
 static any_str_t *type_punct[PUNC_MAX] = {0, };
@@ -34,6 +35,7 @@ init_punctuation()
 	type_punct[LBRACE_IX] = utf8_repeat('{', 1);
 	type_punct[RBRACE_IX] = utf8_repeat('}', 1);
 	type_punct[COLON_IX]  = con4m_new(tspec_utf8(), "cstring", " : ");
+	type_punct[COLON_NSP] = utf8_repeat(':', 1);
     }
     con4m_gc_register_root(&type_punct[0], PUNC_MAX);
 }
@@ -121,4 +123,11 @@ get_colon_const()
 {
     init_punctuation();
     return type_punct[COLON_IX];
+}
+
+utf8_t *
+get_colon_no_space_const()
+{
+    init_punctuation();
+    return type_punct[COLON_NSP];
 }
