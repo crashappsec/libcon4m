@@ -175,8 +175,11 @@ con4m_xlist(type_spec_t *x)
 static any_str_t *
 xlist_repr(xlist_t *list, to_str_use_t how)
 {
-    int64_t  len   = xlist_len(list);
-    xlist_t *items = con4m_new(tspec_xlist(tspec_utf32()));
+    type_spec_t *list_type   = get_my_type(list);
+    xlist_t     *type_params = tspec_get_parameters(list_type);
+    type_spec_t *item_type   = xlist_get(type_params, 0, NULL);
+    int64_t      len         = xlist_len(list);
+    xlist_t     *items       = con4m_new(tspec_xlist(tspec_utf32()));
 
     for (int i = 0; i < len; i++) {
 	int   err  = 0;
@@ -184,7 +187,7 @@ xlist_repr(xlist_t *list, to_str_use_t how)
 	if (err) {
 	    continue;
 	}
-	any_str_t *s = con4m_repr(item, how);
+	any_str_t *s = con4m_repr(item, item_type, how);
 	xlist_append(items, s);
     }
 
@@ -203,21 +206,31 @@ xlist_repr(xlist_t *list, to_str_use_t how)
 static object_t
 xlist_coerce_to(xlist_t *list, type_spec_t *dst_type)
 {
-    base_t base  = type_spec_get_base(dst_type);
+    base_t base                = type_spec_get_base(dst_type);
+    type_spec_t *src_item_type = tspec_get_param(get_my_type(list), 0);
+    type_spec_t *dst_item_type = tspec_get_param(dst_type, 0);
+    int64_t      len           = xlist_len(list);
 
     if (base == T_BOOL) {
 	return (object_t)(int64_t)(xlist_len(list) != 0);
     }
 
     if (base == T_XLIST) {
-	return (object_t)list;
+	xlist_t *res = con4m_new(dst_type, "length", len);
+
+	for (int i = 0; i < len; i++) {
+	    void *item = xlist_get(list, i, NULL);
+	    xlist_set(res, i, con4m_coerce(item, src_item_type, dst_item_type));
+	}
+
+	return (object_t)res;
     }
 
-    int64_t      len = xlist_len(list);
     flexarray_t *res = con4m_new(dst_type, "length", len);
 
     for (int i = 0; i < len; i++) {
-	flexarray_set(res, i, xlist_get(list, i, NULL));
+	void *item = xlist_get(list, i, NULL);
+	flexarray_set(res, i, con4m_coerce(item, src_item_type, dst_item_type));
     }
 
     return (object_t)res;

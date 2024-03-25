@@ -692,94 +692,6 @@ unify(type_spec_t *t1, type_spec_t *t2, type_env_t *env)
 
 static any_str_t *internal_type_repr(type_spec_t *, dict_t *, int64_t *);
 
-enum {
-    LBRAK_IX  = 0,
-    COMMA_IX  = 1,
-    RBRAK_IX  = 2,
-    LPAREN_IX = 3,
-    RPAREN_IX = 4,
-    ARROW_IX  = 5,
-    BTICK_IX  = 6,
-    STAR_IX   = 7,
-    PUNC_MAX  = 8
-};
-
-static any_str_t *type_punct[PUNC_MAX] = {0, };
-
-static inline void
-init_punctuation()
-{
-    if (type_punct[0] == NULL) {
-	type_punct[LBRAK_IX]  = utf8_repeat('[', 1);
-	type_punct[COMMA_IX]  = con4m_new(tspec_utf8(), "cstring", ", ");
-	type_punct[RBRAK_IX]  = utf8_repeat(']', 1);
-	type_punct[LPAREN_IX] = utf8_repeat('(', 1);
-	type_punct[RPAREN_IX] = utf8_repeat(')', 1);
-	type_punct[ARROW_IX]  = con4m_new(tspec_utf8(), "cstring", " -> ");
-	type_punct[BTICK_IX]  = utf8_repeat('`', 1);
-	type_punct[STAR_IX]   = utf8_repeat('*', 1);
-    }
-    con4m_gc_register_root(&type_punct[0], PUNC_MAX);
-}
-
-utf8_t *
-get_lbrak_const()
-{
-    init_punctuation();
-    return type_punct[LBRAK_IX];
-}
-
-utf8_t *
-get_comma_const()
-{
-    init_punctuation();
-    return type_punct[COMMA_IX];
-}
-
-utf8_t *
-get_rbrak_const()
-{
-    init_punctuation();
-    return type_punct[RBRAK_IX];
-}
-
-utf8_t *
-get_lparen_const()
-{
-    init_punctuation();
-    return type_punct[LPAREN_IX];
-}
-
-utf8_t *
-get_rparen_const()
-{
-    init_punctuation();
-    return type_punct[RPAREN_IX];
-}
-
-utf8_t *
-get_arrow_const()
-{
-    init_punctuation();
-    return type_punct[ARROW_IX];
-}
-
-utf8_t *
-get_backtick_const()
-{
-    init_punctuation();
-    return type_punct[BTICK_IX];
-}
-
-utf8_t *
-get_asterisk_const()
-{
-    init_punctuation();
-    return type_punct[STAR_IX];
-}
-
-
-
 // This is just hex w/ a different char set; max size would be 18 digits.
 static const char tv_letters[] = "jtvwxyzabcdefghi";
 
@@ -815,7 +727,7 @@ internal_repr_tv(type_spec_t *t, dict_t *memos, int64_t *nexttv)
 	*nexttv   = v;
     }
 
-    s = string_concat(type_punct[BTICK_IX], s);
+    s = string_concat(get_backtick_const(), s);
 
     hatrack_dict_put(memos, t, s);
 
@@ -833,11 +745,11 @@ internal_repr_container(type_details_t *info, dict_t *memos, int64_t *nexttv)
 
     xlist_append(to_join, con4m_new(tspec_utf8(),
 				    "cstring", info->base_type->name));
-    xlist_append(to_join, type_punct[LBRAK_IX]);
+    xlist_append(to_join, get_lbrak_const());
     goto first_loop_start;
 
     for (; i < num_types; i++) {
-	xlist_append(to_join, type_punct[COMMA_IX]);
+	xlist_append(to_join, get_comma_const());
 
     first_loop_start:
 	subnode = xlist_get(info->items, i, NULL);
@@ -848,7 +760,7 @@ internal_repr_container(type_details_t *info, dict_t *memos, int64_t *nexttv)
 	xlist_append(to_join, substr);
     }
 
-    xlist_append(to_join, type_punct[RBRAK_IX]);
+    xlist_append(to_join, get_rbrak_const());
 
     return string_join(to_join, NULL);
 }
@@ -866,7 +778,7 @@ internal_repr_func(type_details_t *info, dict_t *memos, int64_t *nexttv)
 
 
 
-    xlist_append(to_join, type_punct[LPAREN_IX]);
+    xlist_append(to_join, get_lparen_const());
 
     // num_types - 1 will be 0 if there are no args, but there is a
     // return value. So the below loop won't run in all cases.  But
@@ -877,12 +789,12 @@ internal_repr_func(type_details_t *info, dict_t *memos, int64_t *nexttv)
 	goto first_loop_start;
 
 	for (; i < num_types - 1; i++) {
-	    xlist_append(to_join, type_punct[COMMA_IX]);
+	    xlist_append(to_join, get_comma_const());
 
 	first_loop_start:
 
 	    if ((i == num_types - 2) && info->flags & FN_TY_VARARGS) {
-		xlist_append(to_join, type_punct[STAR_IX]);
+		xlist_append(to_join, get_asterisk_const());
 	    }
 
 	    subnode = xlist_get(info->items, i, NULL);
@@ -891,8 +803,8 @@ internal_repr_func(type_details_t *info, dict_t *memos, int64_t *nexttv)
 	}
     }
 
-    xlist_append(to_join, type_punct[RPAREN_IX]);
-    xlist_append(to_join, type_punct[ARROW_IX]);
+    xlist_append(to_join, get_rparen_const());
+    xlist_append(to_join, get_arrow_const());
 
     subnode = xlist_get(info->items, num_types - 1, NULL);
     substr  = internal_type_repr(subnode, memos, nexttv);
@@ -907,8 +819,6 @@ static any_str_t *
 internal_type_repr(type_spec_t *t, dict_t *memos, int64_t *nexttv)
 {
     type_details_t *info = t->details;
-
-    init_punctuation();
 
     switch(info->base_type->base) {
     case BT_nil:
@@ -984,7 +894,12 @@ const con4m_vtable type_spec_vtable = {
 	(con4m_vtable_entry)con4m_type_spec_repr,
 	NULL,
 	(con4m_vtable_entry)con4m_type_spec_marshal,
-	(con4m_vtable_entry)con4m_type_spec_unmarshal
+	(con4m_vtable_entry)con4m_type_spec_unmarshal,
+	NULL, // Nothing to coerce to.
+	NULL,
+	NULL, // from-lit still handled in Nim.
+	(con4m_vtable_entry)global_copy,
+	// Nothing else is appropriate.
     }
 };
 

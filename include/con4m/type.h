@@ -25,15 +25,6 @@ extern type_spec_t *global_copy(type_spec_t *);
 extern type_spec_t *global_type_check(type_spec_t *, type_spec_t *);
 extern void         lock_type(type_spec_t *);
 
-extern utf8_t *get_lbrak_const();
-extern utf8_t *get_comma_const();
-extern utf8_t *get_rbrak_const();
-extern utf8_t *get_lparen_const();
-extern utf8_t *get_rparen_const();
-extern utf8_t *get_arrow_const();
-extern utf8_t *get_backtick_const();
-extern utf8_t *get_asterisk_const();
-
 static inline bool
 typeid_is_concrete(type_t tid)
 {

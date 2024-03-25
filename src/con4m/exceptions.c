@@ -28,7 +28,7 @@ exception_init(exception_t *exception, va_list args)
 }
 
 exception_t *
-_alloc_exception(char *msg, ...)
+_alloc_exception(const char *msg, ...)
 {
     exception_t *ret = gc_alloc(sizeof(exception_t));
     ret->msg = con4m_new(tspec_utf8(), "cstring", msg);

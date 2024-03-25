@@ -149,7 +149,7 @@
 
 #define X_CUR() __xh_current_exception
 
-exception_t *_alloc_exception(char *s, ...);
+exception_t *_alloc_exception(const char *s, ...);
 #define alloc_exception(s, ...) _alloc_exception(s, KFUNC(__VA_ARGS__))
 
 exception_t *_alloc_str_exception(utf8_t *s, ...);

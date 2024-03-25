@@ -15,6 +15,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.name      = "bool",
 	.typeid    = T_BOOL,
 	.alloc_len = 4,
+	.vtable    = &bool_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
 	.by_value  = true,
@@ -23,6 +24,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.name      = "i8",
 	.typeid    = T_I8,
 	.alloc_len = 1,
+	.vtable    = &signed_ordinal_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
 	.by_value  = true,
@@ -31,6 +33,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.name      = "byte",
 	.typeid    = T_BYTE,
 	.alloc_len = 1,
+	.vtable    = &unsigned_ordinal_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
 	.by_value  = true,
@@ -38,6 +41,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
     {   .name      = "i32",
 	.typeid    = T_I32,
 	.alloc_len = 4,
+	.vtable    = &signed_ordinal_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
 	.by_value  = true,
@@ -46,6 +50,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.name      = "char",
 	.typeid    = T_CHAR,
 	.alloc_len = 4,
+	.vtable    = &unsigned_ordinal_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
 	.by_value  = true,
@@ -54,6 +59,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.name      = "u32",
 	.typeid    = T_U32,
 	.alloc_len = 4,
+	.vtable    = &unsigned_ordinal_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
 	.by_value  = true,
@@ -62,6 +68,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.name      = "int",
 	.typeid    = T_INT,
 	.alloc_len = 8,
+	.vtable    = &signed_ordinal_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
 	.by_value  = true,
@@ -70,6 +77,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.name      = "uint",
 	.typeid    = T_UINT,
 	.alloc_len = 8,
+	.vtable    = &signed_ordinal_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
 	.by_value  = true,
@@ -78,6 +86,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.name      = "f32",
 	.typeid    = T_F32,
 	.alloc_len = 4,
+	.vtable    = &float_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_REAL,
 	.by_value  = true,
@@ -86,6 +95,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.name      = "float",
 	.typeid    = T_F64,
 	.alloc_len = 8,
+	.vtable    = &float_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_REAL,
 	.by_value  = true,
@@ -338,6 +348,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	 .name      = "mixed",
 	 .typeid    = T_GENERIC,
 	 .ptr_info  = GC_SCAN_ALL,
+	 .vtable    = &mixed_vtable,
 	 .base      = BT_type_var,
 	 .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
      },
@@ -385,12 +396,33 @@ gc_get_ptr_info(con4m_builtin_t dtid)
     return (uint64_t *)builtin_type_info[dtid].ptr_info;
 }
 
+static const char *repr_err = "Held type does not have a __repr__ function.";
+
 any_str_t *
 con4m_value_obj_repr(object_t obj)
 {
+    // This does NOT work if obj is a value. Use the next fn
+    // if that's a possibility.
     repr_fn ptr = (repr_fn)get_vtable(obj)->methods[CON4M_BI_TO_STR];
+    if (!ptr) {
+	CRAISE(repr_err);
+    }
     return (*ptr)(obj, TO_STR_USE_AS_VALUE);
 }
+
+any_str_t *
+con4m_repr(void *item, type_spec_t *t, to_str_use_t how)
+{
+    uint64_t x = tspec_get_data_type_info(t)->typeid;
+    repr_fn  p = (repr_fn)builtin_type_info[x].vtable->methods[CON4M_BI_TO_STR];
+
+    if (!p) {
+	CRAISE(repr_err);
+    }
+
+    return (*p)(item, how);
+}
+
 
 object_t
 con4m_copy_object(object_t obj)
@@ -530,4 +562,36 @@ con4m_slice_set(object_t container, int64_t start, int64_t end, object_t o)
     }
 
     (*ptr)(container, start, end, o);
+}
+
+bool
+con4m_can_coerce(type_spec_t *t1, type_spec_t *t2)
+{
+    if (tspecs_are_compat(t1, t2)) {
+	return true;
+    }
+
+    int64_t       ix   = tspec_get_data_type_info(t1)->typeid;
+    con4m_vtable *vtbl = (con4m_vtable *)builtin_type_info[ix].vtable;
+    can_coerce_fn ptr  = (can_coerce_fn)vtbl->methods[CON4M_BI_COERCIBLE];
+
+    if (ptr == NULL) {
+	return false;
+    }
+
+    return (*ptr)(t1, t2);
+}
+
+void *
+con4m_coerce(void *data, type_spec_t *t1, type_spec_t *t2)
+{
+    int64_t       ix   = tspec_get_data_type_info(t1)->typeid;
+    con4m_vtable *vtbl = (con4m_vtable *)builtin_type_info[ix].vtable;
+    coerce_fn     ptr  = (coerce_fn)vtbl->methods[CON4M_BI_COERCE];
+
+    if (ptr == NULL) {
+	CRAISE("Invalid conversion between types.");
+    }
+
+    return (*ptr)(data, t2);
 }

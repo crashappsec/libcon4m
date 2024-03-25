@@ -37,22 +37,9 @@ extern const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS];
 extern object_t _con4m_new(type_spec_t *type,  ...);
 extern uint64_t *gc_get_ptr_info(con4m_builtin_t);
 
-
-static inline any_str_t *
-con4m_raw_repr(con4m_builtin_t tinfo, object_t val, to_str_use_t kind)
-{
-    const con4m_vtable *vtbl = builtin_type_info[tinfo].vtable;
-    repr_fn             ptr  = (repr_fn)vtbl->methods[CON4M_BI_TO_STR];
-
-    return (*ptr)(val, kind);
-}
-
-static inline any_str_t *
-con4m_repr(object_t obj, to_str_use_t how)
-{
-    repr_fn ptr = (repr_fn)get_vtable(obj)->methods[CON4M_BI_TO_STR];
-    return (*ptr)(obj, how);
-}
+extern any_str_t *con4m_repr(void *, type_spec_t *, to_str_use_t);
+extern bool       con4m_can_coerce(type_spec_t *, type_spec_t *);
+extern object_t   con4m_coerce(void *, type_spec_t *, type_spec_t *);
 
 extern object_t con4m_copy_object(object_t);
 extern object_t con4m_copy_object(object_t);
@@ -70,6 +57,11 @@ extern void con4m_slice_set(object_t, int64_t, int64_t, object_t);
 extern any_str_t *con4m_value_obj_repr(object_t);
 
 extern const uint64_t str_ptr_info[];
+
+extern const con4m_vtable signed_ordinal_type;
+extern const con4m_vtable unsigned_ordinal_type;
+extern const con4m_vtable bool_type;
+extern const con4m_vtable float_type;
 extern const con4m_vtable u8str_vtable;
 extern const con4m_vtable u32str_vtable;
 extern const con4m_vtable buffer_vtable;
@@ -92,6 +84,7 @@ extern const con4m_vtable type_env_vtable;
 extern const con4m_vtable type_details_vtable;
 extern const con4m_vtable type_spec_vtable;
 extern const con4m_vtable tree_vtable;
+extern const con4m_vtable mixed_vtable;
 
 extern const uint64_t     pmap_first_word[2];
 extern const uint64_t     rs_pmap[2];

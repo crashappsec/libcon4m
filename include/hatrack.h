@@ -52,6 +52,15 @@ static inline void *con4m_gc_malloc(size_t);
 #define zero_alloc(x, y) calloc(x, y)
 #endif
 
+// This dance ensures we circumvent the above function-like macro.
+static inline void
+free_libc_allocation(void *ptr)
+{
+    void (*p)(void *) = free;
+
+    (*p)(ptr);
+}
+
 #include <hatrack/xxhash.h>
 #include <hatrack/hatrack_config.h>
 #include <hatrack/debug.h>
