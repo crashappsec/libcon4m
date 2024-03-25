@@ -28,6 +28,7 @@ typedef void *object_t;
 #include <con4m/set.h>
 #include <con4m/tree.h>
 #include <con4m/buffer.h>
+#include <con4m/tuple.h>
 
 // Basic string handling.
 #include <con4m/codepoint.h>

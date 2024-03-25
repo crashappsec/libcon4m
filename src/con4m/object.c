@@ -148,6 +148,9 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
     {
 	.name      = "tuple",
 	.typeid    = T_TUPLE,
+	.alloc_len = sizeof(tuple_t),
+	.ptr_info  = GC_SCAN_ALL,
+	.vtable    = &tuple_vtable,
 	.base      = BT_tuple,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },

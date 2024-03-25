@@ -134,7 +134,7 @@ con4m_dict_unmarshal(dict_t *d, FILE *f, dict_t *memos)
 static any_str_t *
 dict_repr(dict_t *dict, to_str_use_t how)
 {
-    int64_t              view_len;
+    uint64_t              view_len;
     type_spec_t         *dict_type   = get_my_type(dict);
     xlist_t             *type_params = tspec_get_parameters(dict_type);
     type_spec_t         *key_type    = xlist_get(type_params, 0, NULL);
@@ -145,7 +145,7 @@ dict_repr(dict_t *dict, to_str_use_t how)
     xlist_t             *one_item    = con4m_new(tspec_xlist(tspec_utf32()));
     utf8_t              *colon       = get_colon_const();
 
-    for (int64_t i = 0; i < view_len; i++) {
+    for (uint64_t i = 0; i < view_len; i++) {
 	xlist_set(one_item, 0, con4m_repr(view[i].key, key_type, how));
 	xlist_set(one_item, 1, con4m_repr(view[i].value, val_type, how));
 	xlist_append(items, string_join(one_item, colon));
@@ -167,7 +167,7 @@ dict_can_coerce_to(type_spec_t *my_type, type_spec_t *dst_type)
 static dict_t *
 dict_coerce_to(dict_t *dict, type_spec_t *dst_type)
 {
-    int64_t              len;
+    uint64_t             len;
     hatrack_dict_item_t *view     = hatrack_dict_items_sort(dict, &len);
     dict_t              *res      = con4m_new(dst_type);
     type_spec_t         *src_type = get_my_type(dict);
@@ -176,7 +176,7 @@ dict_coerce_to(dict_t *dict, type_spec_t *dst_type)
     type_spec_t         *vt_src   = tspec_get_param(src_type, 1);
     type_spec_t         *vt_dst   = tspec_get_param(dst_type, 1);
 
-    for (int64_t i = 0; i < len; i++) {
+    for (uint64_t i = 0; i < len; i++) {
 	void *key_copy = con4m_coerce(view[i].key, kt_src, kt_dst);
 	void *val_copy = con4m_coerce(view[i].value, vt_src, vt_dst);
 
@@ -192,30 +192,30 @@ dict_copy(dict_t *dict)
     return dict_coerce_to(dict, get_my_type(dict));
 }
 
-int64_t *
+int64_t
 dict_len(dict_t *dict)
 {
-    int64_t              len;
-    hatrack_dict_item_t *view = hatrack_dict_items_sort(dict, &len);
+    uint64_t len;
+    uint64_t view = (uint64_t)hatrack_dict_items_nosort(dict, &len);
 
-    return len;
+    return (int64_t)len | (int64_t)(view ^ view);
 }
 
 dict_t *
 dict_plus(dict_t *d1, dict_t *d2)
 {
-    int64_t              l1;
-    int64_t              l2;
+    uint64_t             l1;
+    uint64_t             l2;
     hatrack_dict_item_t *v1 = hatrack_dict_items_sort(d1, &l1);
     hatrack_dict_item_t *v2 = hatrack_dict_items_sort(d2, &l2);
 
     dict_t *result = con4m_new(get_my_type(d1));
 
-    for (int64_t i = 0; i < l1; i++) {
+    for (uint64_t i = 0; i < l1; i++) {
 	hatrack_dict_put(result, v1[i].key, v1[i].value);
     }
 
-    for (int64_t i = 0; i < l2; i++) {
+    for (uint64_t i = 0; i < l2; i++) {
 	hatrack_dict_put(result, v2[i].key, v2[i].value);
     }
 

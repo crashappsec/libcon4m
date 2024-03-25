@@ -84,6 +84,7 @@ extern const con4m_vtable type_env_vtable;
 extern const con4m_vtable type_details_vtable;
 extern const con4m_vtable type_spec_vtable;
 extern const con4m_vtable tree_vtable;
+extern const con4m_vtable tuple_vtable;
 extern const con4m_vtable mixed_vtable;
 
 extern const uint64_t     pmap_first_word[2];

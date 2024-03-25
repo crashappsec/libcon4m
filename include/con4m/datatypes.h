@@ -16,6 +16,7 @@
 #include <con4m/datatypes/crypto.h>
 #include <con4m/datatypes/exceptions.h>
 #include <con4m/datatypes/mixed.h>
+#include <con4m/datatypes/tuples.h>
 
 typedef any_str_t *(*repr_fn)(object_t, to_str_use_t);
 typedef void (*marshal_fn)(object_t, FILE *, struct dict_t *, int64_t *);
