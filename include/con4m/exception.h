@@ -197,3 +197,16 @@ void exception_register_uncaught_handler(void (*)(exception_t *));
     }
 
 extern __thread exception_stack_t __exception_stack;
+
+static inline void
+raise_errcode(int code) {
+    char msg[2048] = {0, };
+
+    strerror_r(code, msg, 2048);
+    RAISE(con4m_new(tspec_utf8(), "cstring", msg));
+}
+
+static inline void raise_errno()
+{
+    raise_errcode(errno);
+}

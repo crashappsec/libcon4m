@@ -307,6 +307,35 @@ type_tests()
     printf("\n");
 }
 
+void
+stream_tests()
+{
+
+    utf8_t   *n   = con4m_new(tspec_utf8(), "cstring", "../meson.build");
+    stream_t *s1  = con4m_new(tspec_stream(), "filename", n);
+    buffer_t *b   = con4m_new(tspec_buffer(), "length", 16);
+    stream_t *s2  = con4m_new(tspec_stream(), "buffer", b, "write", 1);
+    style_t   sty = add_bold(add_italic(new_style()));
+
+    while (true) {
+	utf8_t *s = stream_read(s1, 16);
+
+	if (con4m_len(s) == 0) {
+	    break;
+	}
+
+	stream_write_object(s2, s);
+    }
+
+
+    print_hex(b->data, b->byte_len, "Buffer");
+    utf8_t *s = con4m_new(tspec_utf8(), "cstring", b->data,
+			  "length", b->byte_len);
+
+    string_apply_style(s, sty);
+    ansi_render(s, stdout);
+}
+
 int
 main(int argc, char **argv, char **envp)
 {
@@ -331,6 +360,7 @@ main(int argc, char **argv, char **envp)
 	sha_test();
 
 	type_tests();
+	stream_tests();
 	STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
 	ansi_render(local_test, stdout);
 	CRAISE("Except maybe not!");

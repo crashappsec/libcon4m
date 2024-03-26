@@ -51,6 +51,9 @@ typedef void *object_t;
 // Basic exception handling support.
 #include <con4m/exception.h>
 
+// Stream IO API.
+#include <con4m/stream.h>
+
 // Helper functions for object marshal implementations to
 // marshal primitive values.
 #include <con4m/marshal.h>
@@ -60,7 +63,6 @@ typedef void *object_t;
 
 // Basic internal API to cache and access common string constants.
 #include <con4m/conststr.h>
-
 
 // Yes we use cryptographic hashes internally for type IDing.
 #include <crypto/sha.h>

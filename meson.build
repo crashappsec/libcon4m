@@ -82,6 +82,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/tuple.c',
             'src/con4m/ipaddr.c',
             'src/con4m/callback.c',
+            'src/con4m/streams.c',
             'src/con4m/crypto/sha.c',
             ]
 

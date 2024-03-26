@@ -127,6 +127,12 @@ get_my_type(const object_t user_object)
     return hdr->concrete_type;
 }
 
+static inline int64_t
+get_base_type_id(const object_t obj)
+{
+    return tspec_get_data_type_info(get_my_type(obj))->typeid;
+}
+
 extern type_spec_t *builtin_types[CON4M_NUM_BUILTIN_DTS];
 
 static inline type_spec_t *
@@ -356,6 +362,13 @@ tspec_ref()
 {
     return builtin_types[T_REF];
 }
+
+static inline type_spec_t *
+tspec_stream()
+{
+    return builtin_types[T_STREAM];
+}
+
 
 static inline type_spec_t *
 type_spec_new_typevar(type_env_t *env)

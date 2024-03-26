@@ -361,6 +361,14 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	 .base      = BT_type_var,
 	 .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
      },
+     {
+	 .name      = "stream",
+	 .typeid    = T_STREAM,
+	 .ptr_info  = GC_SCAN_ALL,
+	 .vtable    = &stream_vtable,
+	 .base      = BT_primitive,
+	 .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+     }
 
 };
 
@@ -594,6 +602,9 @@ con4m_can_coerce(type_spec_t *t1, type_spec_t *t2)
 void *
 con4m_coerce(void *data, type_spec_t *t1, type_spec_t *t2)
 {
+    // TODO-- if it's not a primitive type in t1, we should
+    // use data's type for extra precaution.
+
     int64_t       ix   = tspec_get_data_type_info(t1)->typeid;
     con4m_vtable *vtbl = (con4m_vtable *)builtin_type_info[ix].vtable;
     coerce_fn     ptr  = (coerce_fn)vtbl->methods[CON4M_BI_COERCE];

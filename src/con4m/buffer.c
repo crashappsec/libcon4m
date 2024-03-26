@@ -1,27 +1,51 @@
 #include <con4m.h>
 
+/*
+ * Note that, unlike strings, buffers are intended to be mutable.
+ * BUT! Currently, this implementation does not guard against
+ * writes happenening concurrent to any operation.
+ *
+ * We should add locking to allow multiple concurrent readers, but
+ * give exclusivity and priority to writes. But it's fine to wait on
+ * that until needed.
+ */
+
 static void
 buffer_init(buffer_t *obj, va_list args)
 {
     DECLARE_KARGS(
 	int64_t    length = -1;
+	char      *raw    = NULL;
 	any_str_t *hex    = NULL;
 	);
-    method_kargs(args, length, hex);
 
-    if (length == -1 && hex == NULL) {
+    method_kargs(args, length, raw, hex);
+
+
+    if (length < 0 && hex == NULL) {
 	abort();
     }
-    if (length != -1 && hex != NULL) {
+    if (length >= 0 && hex != NULL) {
 	abort();
     }
 
-    if (length == -1) {
+    if (length < 0) {
 	length = string_codepoint_len(hex) >> 1;
     }
 
     if (length > 0) {
-	obj->data = con4m_gc_alloc(length, NULL);
+	int64_t alloc_len = hatrack_round_up_to_power_of_2(length);
+
+	obj->data      = con4m_gc_alloc(alloc_len, NULL);
+	obj->alloc_len = alloc_len;
+    }
+
+    if (raw != NULL) {
+	if (hex != NULL) {
+	    CRAISE("Cannot set both hex and raw fields.");
+	}
+
+	memcpy(obj->data, raw, length);
     }
 
     if (hex != NULL) {
@@ -67,6 +91,26 @@ buffer_init(buffer_t *obj, va_list args)
     else {
 	obj->byte_len = length;
     }
+}
+
+void
+buffer_resize(buffer_t *buffer, uint64_t new_sz)
+{
+    if ((int64_t)new_sz <= buffer->alloc_len) {
+	buffer->byte_len = new_sz;
+	return;
+    }
+
+    // Resize up, copying old data and leaving the rest zero'd.
+    uint64_t new_alloc_sz = hatrack_round_up_to_power_of_2(new_sz);
+    char    *new_data     = con4m_gc_alloc(new_alloc_sz, NULL);
+
+    memcpy(new_data, buffer->data, buffer->byte_len);
+
+    buffer->data      = new_data;
+    buffer->byte_len  = new_sz;
+    buffer->alloc_len = new_alloc_sz;
+
 }
 
 static char to_hex_map[] = "0123456789abcdef";

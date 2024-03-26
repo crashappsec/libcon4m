@@ -87,6 +87,7 @@ extern const con4m_vtable tree_vtable;
 extern const con4m_vtable tuple_vtable;
 extern const con4m_vtable mixed_vtable;
 extern const con4m_vtable ipaddr_vtable;
+extern const con4m_vtable stream_vtable;
 
 extern const uint64_t     pmap_first_word[2];
 extern const uint64_t     rs_pmap[2];
