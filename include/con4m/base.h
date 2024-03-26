@@ -21,6 +21,7 @@
 #include <math.h>
 #include <setjmp.h>
 #include <netdb.h>
+#include <dlfcn.h>
 
 #include <sys/select.h>
 #include <sys/types.h>

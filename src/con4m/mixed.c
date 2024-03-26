@@ -230,7 +230,7 @@ mixed_repr(mixed_t *mixed, to_str_use_t how)
 {
     // For the value types, we need to convert them to a 64-bit equiv
     // to send to the appropriate repr.
-    return con4m_repr(mixed_as_word(mixed), mixed->held_type, how);
+    return con4m_repr((void *)mixed_as_word(mixed), mixed->held_type, how);
 }
 
 static void

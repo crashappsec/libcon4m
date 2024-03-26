@@ -8,6 +8,7 @@ project('libcon4m', 'c',
 
 cc              = meson.get_compiler('c')
 incdir          = include_directories('include')
+incdir  
 using_osx       = false
 glibc_check       = '''
 #ifndef __GLIBC__
@@ -80,6 +81,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/conststr.c',
             'src/con4m/tuple.c',
             'src/con4m/ipaddr.c',
+            'src/con4m/callback.c',
             'src/con4m/crypto/sha.c',
             ]
 
@@ -135,6 +137,7 @@ test_src = ['src/tests/test.c']
 threads  = dependency('threads')
 math     = cc.find_library('m', required : false)
 ffi      = cc.find_library('ffi')
+
 crypto   = cc.find_library('crypto')
 ssl      = cc.find_library('ssl')
 
