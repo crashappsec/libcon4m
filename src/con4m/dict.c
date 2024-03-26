@@ -38,7 +38,7 @@ con4m_dict_init(hatrack_dict_t *dict, va_list args)
 }
 
 static void
-con4m_dict_marshal(dict_t *d, FILE *f, dict_t *memos, int64_t *mid)
+con4m_dict_marshal(dict_t *d, stream_t *s, dict_t *memos, int64_t *mid)
 {
     uint64_t     length;
     type_spec_t *dict_type = get_my_type(d);
@@ -56,7 +56,7 @@ con4m_dict_marshal(dict_t *d, FILE *f, dict_t *memos, int64_t *mid)
     bool                 key_by_val  = kinfo->by_value;
     bool                 val_by_val  = vinfo->by_value;
 
-    marshal_u32((uint32_t)length, f);
+    marshal_u32((uint32_t)length, s);
 
     // keyhash field is the easiest way to tell whether we're passing by
     // value of
@@ -64,26 +64,26 @@ con4m_dict_marshal(dict_t *d, FILE *f, dict_t *memos, int64_t *mid)
     for (uint64_t i = 0; i < length; i++)
     {
 	if (key_by_val) {
-	    marshal_u64((uint64_t)view[i].key, f);
+	    marshal_u64((uint64_t)view[i].key, s);
 	}
 	else {
-	    con4m_sub_marshal(view[i].key, f, memos, mid);
+	    con4m_sub_marshal(view[i].key, s, memos, mid);
 	}
 
 
 	if (val_by_val) {
-	    marshal_u64((uint64_t)view[i].value, f);
+	    marshal_u64((uint64_t)view[i].value, s);
 	}
 	else {
-	    con4m_sub_marshal(view[i].value, f, memos, mid);
+	    con4m_sub_marshal(view[i].value, s, memos, mid);
 	}
     }
 }
 
 static void
-con4m_dict_unmarshal(dict_t *d, FILE *f, dict_t *memos)
+con4m_dict_unmarshal(dict_t *d, stream_t *s, dict_t *memos)
 {
-    uint32_t     length      = unmarshal_u32(f);
+    uint32_t     length      = unmarshal_u32(s);
     type_spec_t *dict_type   = get_my_type(d);
     xlist_t     *type_params = tspec_get_parameters(dict_type);
     type_spec_t *key_type    = xlist_get(type_params, 0, NULL);
@@ -114,17 +114,17 @@ con4m_dict_unmarshal(dict_t *d, FILE *f, dict_t *memos)
 	void *val;
 
 	if (key_by_val) {
-	    key = (void *)unmarshal_u64(f);
+	    key = (void *)unmarshal_u64(s);
 	}
 	else {
-	    key = con4m_sub_unmarshal(f, memos);
+	    key = con4m_sub_unmarshal(s, memos);
 	}
 
 	if (val_by_val) {
-	    val = (void *)unmarshal_u64(f);
+	    val = (void *)unmarshal_u64(s);
 	}
 	else {
-	    val = con4m_sub_unmarshal(f, memos);
+	    val = con4m_sub_unmarshal(s, memos);
 	}
 
 	hatrack_dict_put(d, key, val);

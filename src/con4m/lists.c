@@ -57,7 +57,7 @@ con4m_stack_init(hatstack_t *stack, va_list args)
 }
 
 static void
-con4m_list_marshal(flexarray_t *r, FILE *f, dict_t *memos, int64_t *mid)
+con4m_list_marshal(flexarray_t *r, stream_t *s, dict_t *memos, int64_t *mid)
 {
     type_spec_t *list_type   = get_my_type(r);
     xlist_t     *type_params = tspec_get_parameters(list_type);
@@ -67,40 +67,40 @@ con4m_list_marshal(flexarray_t *r, FILE *f, dict_t *memos, int64_t *mid)
     flex_view_t *view        = flexarray_view(r);
     uint64_t     len         = flexarray_view_len(view);
 
-    marshal_u64(len, f);
+    marshal_u64(len, s);
 
     if (by_val) {
 	for (uint64_t i = 0; i < len; i++) {
-	    marshal_u64((uint64_t)flexarray_view_next(view, NULL), f);
+	    marshal_u64((uint64_t)flexarray_view_next(view, NULL), s);
 	}
     }
     else {
 	for (uint64_t i = 0; i < len; i++) {
-	    con4m_sub_marshal(flexarray_view_next(view, NULL), f, memos, mid);
+	    con4m_sub_marshal(flexarray_view_next(view, NULL), s, memos, mid);
 	}
     }
 }
 
 static void
-con4m_list_unmarshal(flexarray_t *r, FILE *f, dict_t *memos)
+con4m_list_unmarshal(flexarray_t *r, stream_t *s, dict_t *memos)
 {
     type_spec_t *list_type   = get_my_type(r);
     xlist_t     *type_params = tspec_get_parameters(list_type);
     type_spec_t *item_type   = xlist_get(type_params, 0, NULL);
     dt_info     *item_info   = tspec_get_data_type_info(item_type);
     bool         by_val      = item_info->by_value;
-    uint64_t     len         = unmarshal_u64(f);
+    uint64_t     len         = unmarshal_u64(s);
 
     flexarray_init(r, len);
 
     if (by_val) {
 	for (uint64_t i = 0; i < len; i++) {
-	    flexarray_set(r, i, (void *)unmarshal_u64(f));
+	    flexarray_set(r, i, (void *)unmarshal_u64(s));
 	}
     }
     else {
 	for (uint64_t i = 0; i < len; i++) {
-	    flexarray_set(r, i, con4m_sub_unmarshal(f, memos));
+	    flexarray_set(r, i, con4m_sub_unmarshal(s, memos));
 	}
     }
 }

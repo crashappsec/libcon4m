@@ -30,6 +30,29 @@ utf8_set_codepoint_count(utf8_t *instr)
     }
 }
 
+int64_t
+utf8_validate(const utf8_t *instr)
+{
+    uint8_t     *p   = (uint8_t *)instr->data;
+    uint8_t     *end = p + instr->byte_len;
+    codepoint_t  cp;
+    int64_t      n   = 0;
+
+    while (p < end) {
+	int to_add = utf8proc_iterate(p, 4, &cp);
+
+	if (to_add < 0) {
+	    return n;
+	}
+
+	p += to_add;
+
+	n++;
+    }
+
+    return 0;
+}
+
 // For now, we're going to do this just for u32, so u8 will convert to
 // u32, in full.
 utf32_t *
@@ -851,26 +874,48 @@ string_split(any_str_t *str, any_str_t *sub)
 }
 
 static void
-con4m_string_marshal(any_str_t *s, FILE *f, dict_t *memos, int64_t *mid)
+con4m_string_marshal(any_str_t *s, stream_t *out, dict_t *memos, int64_t *mid)
 {
-    marshal_u32(s->codepoints, f);
-    marshal_u32(s->byte_len, f);
-    con4m_sub_marshal(s->styling, f, memos, mid);
+    marshal_u32(s->codepoints, out);
+    marshal_u32(s->byte_len, out);
+
+    if (s->styling == NULL) {
+	marshal_u32(0, out);
+    }
+    else {
+	marshal_u32((int32_t)s->styling->num_entries, out);
+	for (int i = 0; i < s->styling->num_entries; i++) {
+	    marshal_i32(s->styling->styles[i].start, out);
+	    marshal_i32(s->styling->styles[i].end, out);
+	    marshal_u64(s->styling->styles[i].info, out);
+	}
+    }
     if (s->byte_len) {
-	fwrite(s->data, s->byte_len, 1, f);
+	stream_raw_write(out, s->byte_len, s->data);
     }
 }
 
 static void
-con4m_string_unmarshal(any_str_t *s, FILE *f, dict_t *memos)
+con4m_string_unmarshal(any_str_t *s, stream_t *in, dict_t *memos)
 {
-    s->codepoints = unmarshal_u32(f);
-    s->byte_len   = unmarshal_u32(f);
-    s->styling    = con4m_sub_unmarshal(f, memos);
+    s->codepoints = unmarshal_u32(in);
+    s->byte_len   = unmarshal_u32(in);
+
+    int32_t num_styles = unmarshal_u32(in);
+
+    if (num_styles > 0) {
+	alloc_styles(s, num_styles);
+    }
+
+    for (int i = 0; i < num_styles; i++) {
+	s->styling->styles[i].start = unmarshal_i32(in);
+	s->styling->styles[i].end   = unmarshal_i32(in);
+	s->styling->styles[i].info  = unmarshal_u64(in);
+    }
 
     if (s->byte_len) {
 	s->data = con4m_gc_alloc(s->byte_len + 1, NULL);
-	fread(s->data, s->byte_len, 1, f);
+	stream_raw_read(in, s->byte_len, s->data);
     }
 }
 

@@ -301,20 +301,35 @@ stream_bytes_to_output(int64_t flags, char *buf, int64_t len)
 // Therefore, for the internal API, we accept a 64-bit value in, but
 // expect the write length to be a size_t because that's what fread()
 // will give us.
+//
+// The final parameter here is meant for internal use, mainly for
+// marshal, so we don't have to go through an object to read out
+// things like ints that we plan on returning.
+
 object_t
-stream_read(stream_t *stream, int64_t len)
+stream_raw_read(stream_t *stream, int64_t len, char *buf)
 {
+    // If a buffer is provided, return the length and write into
+    // the buffer.
+    bool return_len = (buf != NULL);
+
     if (stream->flags & F_STREAM_CLOSED) {
 	CRAISE("Stream is already closed.");
     }
 
     if (!len) {
+	if (return_len) {
+	    return (object_t)(0); // I.e., null
+	}
 	return stream_bytes_to_output(stream->flags, "", 0);
     }
 
     int64_t flags  = stream->flags;
     size_t  actual = 0;
-    char   *buf    = alloca(len);
+
+    if (!return_len) {
+	buf = alloca(len);
+    }
 
     if (! (flags & F_STREAM_READ)) {
 	CRAISE("Cannot read; stream was not opened with read enabled.");
@@ -334,11 +349,16 @@ stream_read(stream_t *stream, int64_t len)
 	actual = fread(buf, 1, len, stream->contents.f);
     }
 
-    return stream_bytes_to_output(stream->flags, buf, actual);
+    if (return_len) {
+	return (object_t)(actual);
+    }
+    else {
+	return stream_bytes_to_output(stream->flags, buf, actual);
+    }
 }
 
 size_t
-stream_raw_write(stream_t *stream, char *buf, int64_t len)
+stream_raw_write(stream_t *stream, int64_t len, char *buf)
 {
     size_t    actual = 0;
     cookie_t *cookie = NULL;
@@ -424,7 +444,7 @@ _stream_write_object(stream_t *stream, object_t obj, ...)
     case T_UTF8:
     {
 	utf8_t *s = (utf8_t *)obj;
-	return stream_raw_write(stream, &s->data[start], slice_len);
+	return stream_raw_write(stream, slice_len, &s->data[start]);
     }
     case T_UTF32:
     {
@@ -432,12 +452,12 @@ _stream_write_object(stream_t *stream, object_t obj, ...)
 	codepoint_t *p = (codepoint_t *)s->data;
 
 	// stream_raw_write expects bytes.
-	return stream_raw_write(stream, (char *)&p[start], slice_len * 4) / 4;
+	return stream_raw_write(stream, slice_len * 4, (char *)&p[start]) / 4;
     }
     case T_BUFFER:
     {
 	buffer_t *b = (buffer_t *)obj;
-	return stream_raw_write(stream, &b->data[start], slice_len);
+	return stream_raw_write(stream, slice_len, &b->data[start]);
     }
     default:
 	CRAISE("Cannot write this object type to a stream directly; either "

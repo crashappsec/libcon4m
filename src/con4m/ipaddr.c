@@ -55,26 +55,26 @@ ipaddr_init(ipaddr_t *obj, va_list args)
 // TODO: currently this isn't at all portable across platforms.
 // Too quick and dirty.
 static void
-ipaddr_marshal(ipaddr_t *obj, FILE *f, dict_t *memos, int64_t *mid)
+ipaddr_marshal(ipaddr_t *obj, stream_t *s, dict_t *memos, int64_t *mid)
 {
-    marshal_u32(sizeof(struct sockaddr_in6), f);
-    fwrite(obj->addr, sizeof(struct sockaddr_in6), 1, f);
-    marshal_u16(obj->port, f);
-    marshal_i32(obj->af, f);
+    marshal_u32(sizeof(struct sockaddr_in6), s);
+    stream_raw_write(s, sizeof(struct sockaddr_in6), obj->addr);
+    marshal_u16(obj->port, s);
+    marshal_i32(obj->af, s);
 }
 
 static void
-ipaddr_unmarshal(ipaddr_t *obj, FILE *f, dict_t *memos)
+ipaddr_unmarshal(ipaddr_t *obj, stream_t *s, dict_t *memos)
 {
-    uint32_t struct_sz = unmarshal_u32(f);
+    uint32_t struct_sz = unmarshal_u32(s);
 
     if (struct_sz != sizeof(struct sockaddr_in6)) {
 	CRAISE("Cannot unmarshal ipaddr on different platform.");
     }
 
-    fread(obj->addr, struct_sz, 1, f);
-    obj->port = unmarshal_u16(f);
-    obj->af   = unmarshal_i32(f);
+    stream_raw_read(s, struct_sz, obj->addr);
+    obj->port = unmarshal_u16(s);
+    obj->af   = unmarshal_i32(s);
 }
 
 static any_str_t *

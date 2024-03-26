@@ -329,8 +329,7 @@ stream_tests()
 
 
     print_hex(b->data, b->byte_len, "Buffer");
-    utf8_t *s = con4m_new(tspec_utf8(), "cstring", b->data,
-			  "length", b->byte_len);
+    utf8_t *s = buffer_to_utf8_string(b);
 
     string_apply_style(s, sty);
     ansi_render(s, stdout);

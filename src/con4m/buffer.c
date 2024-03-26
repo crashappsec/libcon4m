@@ -220,22 +220,36 @@ buffer_len(buffer_t *buffer)
     return (int64_t)buffer->byte_len;
 }
 
-static void
-con4m_buffer_marshal(buffer_t *b, FILE *f, dict_t *memos, int64_t *mid)
+utf8_t *
+buffer_to_utf8_string(buffer_t *buffer)
 {
-    marshal_u32(b->byte_len, f);
-    marshal_u32(b->flags, f);  // Not currently used btw.
-    fwrite(b->data, b->byte_len, 1, f);
+    utf8_t *result = con4m_new(tspec_utf8(),
+			       "cstring", buffer->data,
+			       "length",  buffer->byte_len);
+
+    if (utf8_validate(result) < 0) {
+	CRAISE("Buffer contains invalid UTF-8.");
+    }
+
+    return result;
 }
 
 static void
-con4m_buffer_unmarshal(buffer_t *b, FILE *f, dict_t *memos)
+con4m_buffer_marshal(buffer_t *b, stream_t *s, dict_t *memos, int64_t *mid)
 {
-    b->byte_len = unmarshal_u32(f);
-    b->flags    = unmarshal_u32(f); // Not currently used btw.
+    marshal_u32(b->byte_len, s);
+    marshal_u32(b->flags, s);  // Not currently used btw.
+    stream_raw_write(s, b->byte_len, b->data);
+}
+
+static void
+con4m_buffer_unmarshal(buffer_t *b, stream_t *s, dict_t *memos)
+{
+    b->byte_len = unmarshal_u32(s);
+    b->flags    = unmarshal_u32(s); // Not currently used btw.
     if (b->byte_len) {
 	b->data = con4m_gc_alloc(b->byte_len, NULL);
-	fread(b->data, b->byte_len, 1, f);
+	stream_raw_read(s, b->byte_len, b->data);
     }
 }
 

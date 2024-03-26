@@ -28,40 +28,40 @@ con4m_set_init(set_t *set, va_list args)
 // for strings at some point soon though.
 
 static void
-con4m_set_marshal(set_t *d, FILE *f, dict_t *memos, int64_t *mid)
+con4m_set_marshal(set_t *d, stream_t *s, dict_t *memos, int64_t *mid)
 {
     uint64_t  length;
     uint8_t   kt = (uint8_t)d->item_type;
     void    **view = hatrack_set_items_sort(d, &length);
 
-    marshal_u32((uint32_t)length, f);
-    marshal_u8(kt, f);
+    marshal_u32((uint32_t)length, s);
+    marshal_u8(kt, s);
 
     for (uint64_t i = 0; i < length; i++)
     {
 	switch (kt) {
 	case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
 	case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
-	    con4m_sub_marshal(view[i], f, memos, mid);
+	    con4m_sub_marshal(view[i], s, memos, mid);
 	    break;
 	case HATRACK_DICT_KEY_TYPE_CSTR:
-	    marshal_cstring(view[i], f);
+	    marshal_cstring(view[i], s);
 	    break;
 	default:
-	    marshal_u64((uint64_t)view[i], f);
+	    marshal_u64((uint64_t)view[i], s);
 	    break;
 	}
     }
 }
 
 static void
-con4m_set_unmarshal(set_t *d, FILE *f, dict_t *memos)
+con4m_set_unmarshal(set_t *d, stream_t *s, dict_t *memos)
 {
     uint32_t length;
     uint8_t  kt;
 
-    length = unmarshal_u32(f);
-    kt     = unmarshal_u8(f);
+    length = unmarshal_u32(s);
+    kt     = unmarshal_u8(s);
 
     hatrack_set_init(d, (uint32_t)kt);
 
@@ -82,13 +82,13 @@ con4m_set_unmarshal(set_t *d, FILE *f, dict_t *memos)
 	switch (kt) {
 	case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
 	case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
-	    key = con4m_sub_unmarshal(f, memos);
+	    key = con4m_sub_unmarshal(s, memos);
 	    break;
 	case HATRACK_DICT_KEY_TYPE_CSTR:
-	    key = unmarshal_cstring(f);
+	    key = unmarshal_cstring(s);
 	    break;
 	default:
-	    key = (void *)unmarshal_u64(f);
+	    key = (void *)unmarshal_u64(s);
 	    break;
 	}
 

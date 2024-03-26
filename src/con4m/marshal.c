@@ -4,99 +4,103 @@ STATIC_ASCII_STR(marshal_err, "No marshal implementation is defined for the "
 		 "data type: ");
 
 void
-marshal_cstring(char *s, FILE *stream)
+marshal_cstring(char *s, stream_t *stream)
 {
-    size_t len = 0;
+    uint32_t len = 0;
 
     if (s == NULL) {
-	fwrite(&len, sizeof(size_t), 1, stream);
+
+	stream_raw_write(stream, sizeof(uint32_t), (char *)&len);
 	return;
     }
 
     len = strlen(s);
-    fwrite(&len, sizeof(size_t), 1, stream);
-    fwrite(s, len, 1, stream);
+
+    stream_raw_write(stream, sizeof(uint32_t), (char *)&len);
+    stream_raw_write(stream, len, s);
 }
 
 char *
-unmarshal_cstring(FILE *stream)
+unmarshal_cstring(stream_t *stream)
 {
     size_t len = 0;
     char  *result;
 
-    fread(&len, sizeof(size_t), 1, stream);
+    stream_raw_read(stream, sizeof(size_t), (char *)&len);
+
     if (!len) {
 	return 0;
     }
 
     result = con4m_gc_alloc(len + 1, NULL);
-    fread(result, len, 1, stream);
+
+    stream_raw_read(stream, len, result);
 
     return result;
 }
 
 void
-marshal_i64(int64_t i, FILE *f)
+marshal_i64(int64_t i, stream_t *s)
 {
     little_64(i);
 
-    fwrite(&i, sizeof(int64_t), 1, f);
+    stream_raw_write(s, sizeof(int64_t), (char *)&i);
 }
 
 int64_t
-unmarshal_i64(FILE *f)
+unmarshal_i64(stream_t *s)
 {
     int64_t result;
 
-    fread(&result, sizeof(int64_t), 1, f);
+    stream_raw_read(s, sizeof(int64_t), (char *)&result);
     little_64(result);
 
     return result;
 }
 
 void
-marshal_i32(int32_t i, FILE *f)
+marshal_i32(int32_t i, stream_t *s)
 {
     little_32(i);
 
-    fwrite(&i, sizeof(int32_t), 1, f);
+    stream_raw_write(s, sizeof(int32_t), (char *)&i);
 }
 
 int32_t
-unmarshal_i32(FILE *f)
+unmarshal_i32(stream_t *s)
 {
     int32_t result;
 
-    fread(&result, sizeof(int32_t), 1, f);
+    stream_raw_read(s, sizeof(int32_t), (char *)&result);
     little_32(result);
 
     return result;
 }
 
 void
-marshal_i16(int16_t i, FILE *f)
+marshal_i16(int16_t i, stream_t *s)
 {
     little_16(i);
 
-    fwrite(&i, sizeof(int16_t), 1, f);
+    stream_raw_write(s, sizeof(int16_t), (char *)&i);
 }
 
 int16_t
-unmarshal_i16(FILE *f)
+unmarshal_i16(stream_t *s)
 {
     int16_t result;
 
-    fread(&result, sizeof(int16_t), 1, f);
+    stream_raw_read(s, sizeof(int16_t), (char *)&result);
     little_16(result);
 
     return result;
 }
 
 void
-con4m_sub_marshal(object_t obj, FILE *buf, dict_t *memos, int64_t *mid)
+con4m_sub_marshal(object_t obj, stream_t *s, dict_t *memos, int64_t *mid)
 {
     if (obj == NULL) {
-	marshal_u64(0ull, buf);
+	marshal_u64(0ull, s);
 	return;
     }
 
@@ -107,7 +111,7 @@ con4m_sub_marshal(object_t obj, FILE *buf, dict_t *memos, int64_t *mid)
     // a memo, so we write out the ID for the memo only, and do not
     // duplicate the contents.
     if (found) {
-	marshal_u64(memo, buf);
+	marshal_u64(memo, s);
 	return;
     }
 
@@ -115,7 +119,7 @@ con4m_sub_marshal(object_t obj, FILE *buf, dict_t *memos, int64_t *mid)
     // we also need to add it to the dict.
     memo = *mid;
     *mid = memo + 1;
-    marshal_u64(memo, buf);
+    marshal_u64(memo, s);
     hatrack_dict_put(memos, obj, (void *)memo);
 
     con4m_obj_t *hdr = get_object_header(obj);
@@ -132,22 +136,22 @@ con4m_sub_marshal(object_t obj, FILE *buf, dict_t *memos, int64_t *mid)
 
     // This captures the actual index of the base type.
     uint16_t diff = (uint16_t)(hdr->base_data_type - &builtin_type_info[0]);
-    marshal_u16(diff, buf);
+    marshal_u16(diff, s);
 
     // And now, the concrete type.
-    con4m_sub_marshal(hdr->concrete_type, buf, memos, mid);
+    con4m_sub_marshal(hdr->concrete_type, s, memos, mid);
 
-    return (*ptr)(obj, buf, memos, mid);
+    return (*ptr)(obj, s, memos, mid);
 }
 
 object_t
-con4m_sub_unmarshal(FILE *buf, dict_t *memos)
+con4m_sub_unmarshal(stream_t *s, dict_t *memos)
 {
     int            found = 0;
     uint64_t       memo;
     con4m_obj_t   *obj;
 
-    memo = unmarshal_u64(buf);
+    memo = unmarshal_u64(s);
 
     if (!memo) {
 	return NULL;
@@ -159,7 +163,7 @@ con4m_sub_unmarshal(FILE *buf, dict_t *memos)
 	return obj->data;
     }
 
-    uint16_t       base_type_id = unmarshal_u16(buf);
+    uint16_t       base_type_id = unmarshal_u16(s);
     dt_info       *dt_entry;
     uint64_t       alloc_len;
     unmarshal_fn   ptr;
@@ -178,7 +182,7 @@ con4m_sub_unmarshal(FILE *buf, dict_t *memos)
     hatrack_dict_put(memos, (void *)memo, obj);
 
     obj->base_data_type = dt_entry;
-    obj->concrete_type  = con4m_sub_unmarshal(buf, memos);
+    obj->concrete_type  = con4m_sub_unmarshal(s, memos);
 
     ptr = (unmarshal_fn)dt_entry->vtable->methods[CON4M_BI_UNMARSHAL];
 
@@ -188,7 +192,7 @@ con4m_sub_unmarshal(FILE *buf, dict_t *memos)
 	RAISE(force_utf8(string_concat(marshal_err, type_name)));
     }
 
-    (*ptr)(obj->data, buf, memos);
+    (*ptr)(obj->data, s, memos);
 
     return obj->data;
 }
@@ -196,7 +200,7 @@ con4m_sub_unmarshal(FILE *buf, dict_t *memos)
 thread_local int marshaling = 0;
 
 void
-con4m_marshal(object_t obj, FILE *buf)
+con4m_marshal(object_t obj, stream_t *s)
 {
 
     if (marshaling) {
@@ -211,13 +215,13 @@ con4m_marshal(object_t obj, FILE *buf)
     dict_t *memos     = con4m_new(tspec_dict(tspec_ref(), tspec_u64()));
 
 
-    con4m_sub_marshal(obj, buf, memos, &next_memo);
+    con4m_sub_marshal(obj, s, memos, &next_memo);
     marshaling = 0;
 }
 
 
 object_t
-con4m_unmarshal(FILE *buf)
+con4m_unmarshal(stream_t *s)
 {
 
     if (marshaling) {
@@ -230,7 +234,7 @@ con4m_unmarshal(FILE *buf)
 
     marshaling = 1;
 
-    result = con4m_sub_unmarshal(buf, memos);
+    result = con4m_sub_unmarshal(s, memos);
 
     marshaling = 0;
 

@@ -109,7 +109,7 @@ xlist_plus(xlist_t *l1, xlist_t *l2)
 }
 
 static void
-con4m_xlist_marshal(xlist_t *r, FILE *f, dict_t *memos, int64_t *mid)
+con4m_xlist_marshal(xlist_t *r, stream_t *s, dict_t *memos, int64_t *mid)
 {
     type_spec_t *list_type   = get_my_type(r);
     xlist_t     *type_params = tspec_get_parameters(list_type);
@@ -117,23 +117,23 @@ con4m_xlist_marshal(xlist_t *r, FILE *f, dict_t *memos, int64_t *mid)
     dt_info     *item_info   = tspec_get_data_type_info(item_type);
     bool         by_val      = item_info->by_value;
 
-    marshal_i32(r->append_ix, f);
-    marshal_i32(r->length, f);
+    marshal_i32(r->append_ix, s);
+    marshal_i32(r->length, s);
 
     if (by_val) {
 	for (int i = 0; i < r->append_ix; i++) {
-	    marshal_u64((uint64_t)r->data[i], f);
+	    marshal_u64((uint64_t)r->data[i], s);
 	}
     }
     else {
 	for (int i = 0; i < r->append_ix; i++) {
-	    con4m_sub_marshal(r->data[i], f, memos, mid);
+	    con4m_sub_marshal(r->data[i], s, memos, mid);
 	}
     }
 }
 
 static void
-con4m_xlist_unmarshal(xlist_t *r, FILE *f, dict_t *memos)
+con4m_xlist_unmarshal(xlist_t *r, stream_t *s, dict_t *memos)
 {
     type_spec_t *list_type   = get_my_type(r);
     xlist_t     *type_params = tspec_get_parameters(list_type);
@@ -141,18 +141,18 @@ con4m_xlist_unmarshal(xlist_t *r, FILE *f, dict_t *memos)
     dt_info     *item_info   = tspec_get_data_type_info(item_type);
     bool         by_val      = item_info->by_value;
 
-    r->append_ix = unmarshal_i32(f);
-    r->length    = unmarshal_i32(f);
+    r->append_ix = unmarshal_i32(s);
+    r->length    = unmarshal_i32(s);
     r->data      = gc_array_alloc(int64_t *, r->length);
 
     if (by_val) {
 	for (int i = 0; i < r->append_ix; i++) {
-	    r->data[i] = (void *)unmarshal_u64(f);
+	    r->data[i] = (void *)unmarshal_u64(s);
 	}
     }
     else {
 	for (int i = 0; i < r->append_ix; i++) {
-	    r->data[i] = con4m_sub_unmarshal(f, memos);
+	    r->data[i] = con4m_sub_unmarshal(s, memos);
 	}
     }
 }

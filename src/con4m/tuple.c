@@ -32,7 +32,7 @@ tuple_get(tuple_t *tup, int64_t ix)
 }
 
 static void
-tuple_marshal(tuple_t *tup, FILE *f, dict_t *memos, int64_t *mid)
+tuple_marshal(tuple_t *tup, stream_t *s, dict_t *memos, int64_t *mid)
 {
     xlist_t *tparams = tspec_get_parameters(get_my_type(tup));
 
@@ -41,16 +41,16 @@ tuple_marshal(tuple_t *tup, FILE *f, dict_t *memos, int64_t *mid)
 	dt_info     *dt_info = tspec_get_data_type_info(param);
 
 	if (dt_info->by_value) {
-	    marshal_u64((uint64_t)tup->items[i], f);
+	    marshal_u64((uint64_t)tup->items[i], s);
 	}
 	else {
-	    con4m_sub_marshal(tup->items[i], f, memos, mid);
+	    con4m_sub_marshal(tup->items[i], s, memos, mid);
 	}
     }
 }
 
 static void
-tuple_unmarshal(tuple_t *tup, FILE *f, dict_t *memos)
+tuple_unmarshal(tuple_t *tup, stream_t *s, dict_t *memos)
 {
     xlist_t *tparams = tspec_get_parameters(get_my_type(tup));
 
@@ -61,10 +61,10 @@ tuple_unmarshal(tuple_t *tup, FILE *f, dict_t *memos)
 	dt_info     *dt_info = tspec_get_data_type_info(param);
 
 	if (dt_info->by_value) {
-	    tup->items[i] = (void *)unmarshal_u64(f);
+	    tup->items[i] = (void *)unmarshal_u64(s);
 	}
 	else {
-	    tup->items[i] = con4m_sub_unmarshal(f, memos);
+	    tup->items[i] = con4m_sub_unmarshal(s, memos);
 	}
     }
 }

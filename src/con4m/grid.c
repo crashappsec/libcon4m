@@ -1759,53 +1759,53 @@ grid_horizontal_flow(xlist_t *items, uint64_t max_columns, uint64_t total_width,
 }
 
 static void
-con4m_grid_marshal(grid_t *grid, FILE *f, dict_t *memos, int64_t *mid)
+con4m_grid_marshal(grid_t *grid, stream_t *s, dict_t *memos, int64_t *mid)
 {
     int num_cells = grid->num_rows * grid->num_cols;
 
-    marshal_u16(grid->num_cols, f);
-    marshal_u16(grid->num_rows, f);
-    marshal_u16(grid->spare_rows, f);
-    marshal_i16(grid->width, f);
-    marshal_i16(grid->height, f);
-    marshal_u16(grid->col_cursor, f);
-    marshal_u16(grid->row_cursor, f);
-    marshal_i8(grid->header_cols, f);
-    marshal_i8(grid->header_rows, f);
-    marshal_i8(grid->stripe, f);
-    marshal_cstring(grid->td_tag_name, f);
-    marshal_cstring(grid->th_tag_name, f);
+    marshal_u16(grid->num_cols, s);
+    marshal_u16(grid->num_rows, s);
+    marshal_u16(grid->spare_rows, s);
+    marshal_i16(grid->width, s);
+    marshal_i16(grid->height, s);
+    marshal_u16(grid->col_cursor, s);
+    marshal_u16(grid->row_cursor, s);
+    marshal_i8(grid->header_cols, s);
+    marshal_i8(grid->header_rows, s);
+    marshal_i8(grid->stripe, s);
+    marshal_cstring(grid->td_tag_name, s);
+    marshal_cstring(grid->th_tag_name, s);
 
     for (int i = 0; i < grid->num_cols; i++) {
-	con4m_sub_marshal(grid->col_props[i], f, memos, mid);
+	con4m_sub_marshal(grid->col_props[i], s, memos, mid);
     }
 
     for (int i = 0; i < grid->num_rows; i++) {
-	con4m_sub_marshal(grid->row_props[i], f, memos, mid);
+	con4m_sub_marshal(grid->row_props[i], s, memos, mid);
     }
 
     for (int i = 0; i < num_cells; i++) {
-	con4m_sub_marshal((renderable_t *)grid->cells[i], f, memos, mid);
+	con4m_sub_marshal((renderable_t *)grid->cells[i], s, memos, mid);
     }
 
-    con4m_sub_marshal(grid->self, f, memos, mid);
+    con4m_sub_marshal(grid->self, s, memos, mid);
 }
 
 static void
-con4m_grid_unmarshal(grid_t *grid, FILE *f, dict_t *memos)
+con4m_grid_unmarshal(grid_t *grid, stream_t *s, dict_t *memos)
 {
-    grid->num_cols    = unmarshal_u16(f);
-    grid->num_rows    = unmarshal_u16(f);
-    grid->spare_rows  = unmarshal_u16(f);
-    grid->width       = unmarshal_i16(f);
-    grid->height      = unmarshal_i16(f);
-    grid->col_cursor  = unmarshal_u16(f);
-    grid->row_cursor  = unmarshal_u16(f);
-    grid->header_cols = unmarshal_i8(f);
-    grid->header_rows = unmarshal_i8(f);
-    grid->stripe      = unmarshal_i8(f);
-    grid->td_tag_name = unmarshal_cstring(f);
-    grid->th_tag_name = unmarshal_cstring(f);
+    grid->num_cols    = unmarshal_u16(s);
+    grid->num_rows    = unmarshal_u16(s);
+    grid->spare_rows  = unmarshal_u16(s);
+    grid->width       = unmarshal_i16(s);
+    grid->height      = unmarshal_i16(s);
+    grid->col_cursor  = unmarshal_u16(s);
+    grid->row_cursor  = unmarshal_u16(s);
+    grid->header_cols = unmarshal_i8(s);
+    grid->header_rows = unmarshal_i8(s);
+    grid->stripe      = unmarshal_i8(s);
+    grid->td_tag_name = unmarshal_cstring(s);
+    grid->th_tag_name = unmarshal_cstring(s);
 
     size_t num_cells = (grid->num_rows + grid->spare_rows) * grid->num_cols;
     grid->cells      = gc_array_alloc(renderable_t *, num_cells);
@@ -1816,47 +1816,48 @@ con4m_grid_unmarshal(grid_t *grid, FILE *f, dict_t *memos)
     num_cells = grid->num_rows * grid->num_cols;
 
     for (int i = 0; i < grid->num_cols; i++) {
-	grid->col_props[i] = con4m_sub_unmarshal(f, memos);
+	grid->col_props[i] = con4m_sub_unmarshal(s, memos);
     }
 
     for (int i = 0; i < grid->num_rows; i++) {
-	grid->row_props[i] = con4m_sub_unmarshal(f, memos);
+	grid->row_props[i] = con4m_sub_unmarshal(s, memos);
     }
 
     for (size_t i = 0; i < num_cells; i++) {
-	grid->cells[i] = con4m_sub_unmarshal(f, memos);
+	grid->cells[i] = con4m_sub_unmarshal(s, memos);
     }
 
-    grid->self = con4m_sub_unmarshal(f, memos);
+    grid->self = con4m_sub_unmarshal(s, memos);
 }
 
 static void
-con4m_renderable_marshal(renderable_t *r, FILE *f, dict_t *memos, int64_t *mid)
+con4m_renderable_marshal(renderable_t *r, stream_t *s, dict_t *memos,
+			 int64_t *mid)
 {
-    con4m_sub_marshal(r->raw_item, f, memos, mid);
-    marshal_cstring(r->container_tag, f);
-    con4m_sub_marshal(r->current_style, f, memos, mid);
-    marshal_u16(r->start_col, f);
-    marshal_u16(r->start_row, f);
-    marshal_u16(r->end_col, f);
-    marshal_u16(r->end_row, f);
+    con4m_sub_marshal(r->raw_item, s, memos, mid);
+    marshal_cstring(r->container_tag, s);
+    con4m_sub_marshal(r->current_style, s, memos, mid);
+    marshal_u16(r->start_col, s);
+    marshal_u16(r->start_row, s);
+    marshal_u16(r->end_col, s);
+    marshal_u16(r->end_row, s);
     // We 100% skip the render cache.
-    marshal_u16(r->render_width, f);
-    marshal_u16(r->render_height, f);
+    marshal_u16(r->render_width, s);
+    marshal_u16(r->render_height, s);
 }
 
 static void
-con4m_renderable_unmarshal(renderable_t *r, FILE *f, dict_t *memos)
+con4m_renderable_unmarshal(renderable_t *r, stream_t *s, dict_t *memos)
 {
-    r->raw_item      = con4m_sub_unmarshal(f, memos);
-    r->container_tag = unmarshal_cstring(f);
-    r->current_style = con4m_sub_unmarshal(f, memos);
-    r->start_col     = unmarshal_u16(f);
-    r->start_row     = unmarshal_u16(f);
-    r->end_col       = unmarshal_u16(f);
-    r->end_row       = unmarshal_u16(f);
-    r->render_width  = unmarshal_u16(f);
-    r->render_height = unmarshal_u16(f);
+    r->raw_item      = con4m_sub_unmarshal(s, memos);
+    r->container_tag = unmarshal_cstring(s);
+    r->current_style = con4m_sub_unmarshal(s, memos);
+    r->start_col     = unmarshal_u16(s);
+    r->start_row     = unmarshal_u16(s);
+    r->end_col       = unmarshal_u16(s);
+    r->end_row       = unmarshal_u16(s);
+    r->render_width  = unmarshal_u16(s);
+    r->render_height = unmarshal_u16(s);
 }
 
 // For instantiating w/o varargs.

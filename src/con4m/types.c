@@ -319,17 +319,18 @@ con4m_type_env_init(type_env_t *env, va_list args)
 }
 
 static void
-con4m_type_env_marshal(type_env_t *env, FILE *f, dict_t *memos, int64_t *mid)
+con4m_type_env_marshal(type_env_t *env, stream_t *s, dict_t *memos,
+		       int64_t *mid)
 {
-    con4m_sub_marshal(env->store, f, memos, mid);
-    marshal_u64(atomic_load(&env->next_tid), f);
+    con4m_sub_marshal(env->store, s, memos, mid);
+    marshal_u64(atomic_load(&env->next_tid), s);
 }
 
 static void
-con4m_type_env_unmarshal(type_env_t *env, FILE *f, dict_t *memos)
+con4m_type_env_unmarshal(type_env_t *env, stream_t *s, dict_t *memos)
 {
-    env->store = con4m_sub_unmarshal(f, memos);
-    atomic_store(&env->next_tid, unmarshal_u64(f));
+    env->store = con4m_sub_unmarshal(s, memos);
+    atomic_store(&env->next_tid, unmarshal_u64(s));
 }
 
 static void
@@ -849,31 +850,31 @@ con4m_type_spec_repr(type_spec_t *t, to_str_use_t how)
 }
 
 static void
-con4m_type_spec_marshal(type_spec_t *n, FILE *f, dict_t *m, int64_t *mid)
+con4m_type_spec_marshal(type_spec_t *n, stream_t *s, dict_t *m, int64_t *mid)
 {
-    marshal_u64(n->typeid, f);
+    marshal_u64(n->typeid, s);
 
     type_details_t *d = n->details;
 
-    marshal_cstring(d->name, f);
-    con4m_sub_marshal(d->base_type, f, m, mid);
-    con4m_sub_marshal(d->items, f, m, mid);
-    con4m_sub_marshal(d->props, f, m, mid);
-    marshal_u8(d->flags, f);
+    marshal_cstring(d->name, s);
+    con4m_sub_marshal(d->base_type, s, m, mid);
+    con4m_sub_marshal(d->items, s, m, mid);
+    con4m_sub_marshal(d->props, s, m, mid);
+    marshal_u8(d->flags, s);
 }
 
 static void
-con4m_type_spec_unmarshal(type_spec_t *n, FILE *f, dict_t *m)
+con4m_type_spec_unmarshal(type_spec_t *n, stream_t *s, dict_t *m)
 {
     type_details_t *d = gc_alloc(type_details_t);
 
     n->details   = d;
-    n->typeid    = unmarshal_u64(f);
-    d->name      = unmarshal_cstring(f);
-    d->base_type = con4m_sub_unmarshal(f, m);
-    d->items     = con4m_sub_unmarshal(f, m);
-    d->props     = con4m_sub_unmarshal(f, m);
-    d->flags     = unmarshal_u8(f);
+    n->typeid    = unmarshal_u64(s);
+    d->name      = unmarshal_cstring(s);
+    d->base_type = con4m_sub_unmarshal(s, m);
+    d->items     = con4m_sub_unmarshal(s, m);
+    d->props     = con4m_sub_unmarshal(s, m);
+    d->flags     = unmarshal_u8(s);
 }
 
 const con4m_vtable type_env_vtable = {

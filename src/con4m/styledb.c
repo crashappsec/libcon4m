@@ -567,7 +567,8 @@ layer_styles(const render_style_t *base, render_style_t *cur)
 }
 
 static void
-con4m_style_marshal(render_style_t *obj, FILE *f, dict_t *memos, int64_t *mid)
+con4m_style_marshal(render_style_t *obj, stream_t *s, dict_t *memos,
+		    int64_t *mid)
 {
     uint8_t flags = 0;
 
@@ -575,42 +576,42 @@ con4m_style_marshal(render_style_t *obj, FILE *f, dict_t *memos, int64_t *mid)
 	(obj->tpad_set << 4) |	(obj->bpad_set << 3) |	(obj->lpad_set << 2) |
 	(obj->rpad_set << 1) |	obj->hang_set;
 
-    marshal_cstring(obj->name, f);
-    marshal_cstring(obj->border_theme->name, f);
-    marshal_u64(obj->base_style, f);
-    marshal_i32(obj->pad_color, f);
-    marshal_u64(obj->dims.units, f);
-    marshal_i8(obj->top_pad, f);
-    marshal_i8(obj->bottom_pad, f);
-    marshal_i8(obj->left_pad, f);
-    marshal_i8(obj->right_pad, f);
-    marshal_i8(obj->wrap, f);
-    marshal_i8(obj->alignment, f);
-    marshal_i8(obj->dim_kind, f);
-    marshal_i8(obj->borders, f);
-    marshal_u8(flags, f);
+    marshal_cstring(obj->name, s);
+    marshal_cstring(obj->border_theme->name, s);
+    marshal_u64(obj->base_style, s);
+    marshal_i32(obj->pad_color, s);
+    marshal_u64(obj->dims.units, s);
+    marshal_i8(obj->top_pad, s);
+    marshal_i8(obj->bottom_pad, s);
+    marshal_i8(obj->left_pad, s);
+    marshal_i8(obj->right_pad, s);
+    marshal_i8(obj->wrap, s);
+    marshal_i8(obj->alignment, s);
+    marshal_i8(obj->dim_kind, s);
+    marshal_i8(obj->borders, s);
+    marshal_u8(flags, s);
 }
 
 static void
-con4m_style_unmarshal(render_style_t *obj, FILE *f, dict_t *memos)
+con4m_style_unmarshal(render_style_t *obj, stream_t *s, dict_t *memos)
 {
     uint8_t flags;
     char   *theme;
 
-    obj->name       = unmarshal_cstring(f);
-    theme           = unmarshal_cstring(f);
-    obj->base_style = unmarshal_u64(f);
-    obj->pad_color  = unmarshal_i32(f);
-    obj->dims.units = unmarshal_u64(f);
-    obj->top_pad    = unmarshal_i8(f);
-    obj->bottom_pad = unmarshal_i8(f);
-    obj->left_pad   = unmarshal_i8(f);
-    obj->right_pad  = unmarshal_i8(f);
-    obj->wrap       = unmarshal_i8(f);
-    obj->alignment  = unmarshal_i8(f);
-    obj->dim_kind   = unmarshal_i8(f);
-    obj->borders    = unmarshal_i8(f);
-    flags           = unmarshal_u8(f);
+    obj->name       = unmarshal_cstring(s);
+    theme           = unmarshal_cstring(s);
+    obj->base_style = unmarshal_u64(s);
+    obj->pad_color  = unmarshal_i32(s);
+    obj->dims.units = unmarshal_u64(s);
+    obj->top_pad    = unmarshal_i8(s);
+    obj->bottom_pad = unmarshal_i8(s);
+    obj->left_pad   = unmarshal_i8(s);
+    obj->right_pad  = unmarshal_i8(s);
+    obj->wrap       = unmarshal_i8(s);
+    obj->alignment  = unmarshal_i8(s);
+    obj->dim_kind   = unmarshal_i8(s);
+    obj->borders    = unmarshal_i8(s);
+    flags           = unmarshal_u8(s);
 
     obj->pad_color_set = flags >> 6;
     obj->disable_wrap  = (flags >> 5) & 0x01;

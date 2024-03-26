@@ -234,28 +234,28 @@ mixed_repr(mixed_t *mixed, to_str_use_t how)
 }
 
 static void
-mixed_marshal_arts(mixed_t *m, FILE *f, dict_t *memos, int64_t *mid)
+mixed_marshal_arts(mixed_t *m, stream_t *s, dict_t *memos, int64_t *mid)
 {
-    con4m_sub_marshal(m->held_type, f, memos, mid);
+    con4m_sub_marshal(m->held_type, s, memos, mid);
 
     if (tspec_get_data_type_info(m->held_type)->by_value) {
-	marshal_i64((int64_t)m->held_value, f);
+	marshal_i64((int64_t)m->held_value, s);
     }
     else {
-	con4m_sub_marshal(m->held_value, f, memos, mid);
+	con4m_sub_marshal(m->held_value, s, memos, mid);
     }
 }
 
 static void
-mixed_unmarshal_arts(mixed_t *m, FILE *f, dict_t *memos)
+mixed_unmarshal_arts(mixed_t *m, stream_t *s, dict_t *memos)
 {
-    m->held_type = con4m_sub_unmarshal(f, memos);
+    m->held_type = con4m_sub_unmarshal(s, memos);
 
     if (tspec_get_data_type_info(m->held_type)->by_value) {
-	m->held_value = (void *)unmarshal_i64(f);
+	m->held_value = (void *)unmarshal_i64(s);
     }
     else {
-	m->held_value = con4m_sub_unmarshal(f, memos);
+	m->held_value = con4m_sub_unmarshal(s, memos);
     }
 }
 

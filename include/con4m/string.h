@@ -7,26 +7,29 @@ extern const uint64_t pmap_str[2];
 #define PMAP_STR ((uint64_t *)&pmap_str[0])
 
 
-extern any_str_t   *string_copy(const any_str_t *s);
-extern utf32_t     *string_concat(const any_str_t *, const any_str_t *);
-extern utf8_t      *utf32_to_utf8(const utf32_t *);
-extern utf32_t     *utf8_to_utf32(const utf8_t *);
-extern utf8_t      *utf8_from_file(const any_str_t *, int *);
-extern utf32_t     *string_slice(const any_str_t *, int64_t, int64_t);
-extern utf8_t      *utf8_repeat(codepoint_t, int64_t);
-extern utf32_t     *utf32_repeat(codepoint_t, int64_t);
-extern utf32_t     *_string_strip(const any_str_t *s, ...);
-extern any_str_t   *_string_truncate(const any_str_t *s, int64_t, ...);
-extern utf32_t     *_string_join(const xlist_t *l, const any_str_t *joiner, ...);
-extern utf8_t      *string_from_int(int64_t n);
+extern any_str_t  *string_copy(const any_str_t *s);
+extern utf32_t    *string_concat(const any_str_t *, const any_str_t *);
+extern utf8_t     *utf32_to_utf8(const utf32_t *);
+extern utf32_t    *utf8_to_utf32(const utf8_t *);
+extern utf8_t     *utf8_from_file(const any_str_t *, int *);
+extern int64_t     utf8_validate(const utf8_t *);
+extern utf32_t    *string_slice(const any_str_t *, int64_t, int64_t);
+extern utf8_t     *utf8_repeat(codepoint_t, int64_t);
+extern utf32_t    *utf32_repeat(codepoint_t, int64_t);
+extern utf32_t    *_string_strip(const any_str_t *s, ...);
+extern any_str_t  *_string_truncate(const any_str_t *s, int64_t, ...);
+extern utf32_t    *_string_join(const xlist_t *l, const any_str_t *joiner, ...);
+extern utf8_t     *string_from_int(int64_t n);
 extern int64_t     _string_find(any_str_t *, any_str_t *, ...);
+extern utf8_t     *con4m_cstring(char *s, int64_t len);
+extern utf8_t     *con4m_rich(utf8_t *, utf8_t *style);
+extern codepoint_t utf8_index(const utf8_t *, int64_t);
+extern codepoint_t utf32_index(const utf32_t *, int64_t);
+extern bool        string_can_coerce_to(type_spec_t *, type_spec_t *);
+extern object_t    string_coerce_to(const any_str_t *, type_spec_t *);
+
+
 extern struct flexarray_t *string_split(any_str_t *, any_str_t *);
-extern utf8_t      *con4m_cstring(char *s, int64_t len);
-extern utf8_t      *con4m_rich(utf8_t *, utf8_t *style);
-extern codepoint_t  utf8_index(const utf8_t *, int64_t);
-extern codepoint_t  utf32_index(const utf32_t *, int64_t);
-extern bool         string_can_coerce_to(type_spec_t *, type_spec_t *);
-extern object_t     string_coerce_to(const any_str_t *, type_spec_t *);
 
 #define force_utf8(x) utf32_to_utf8(x)
 #define force_utf32(x) utf8_to_utf32(x)

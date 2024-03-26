@@ -68,7 +68,7 @@ tree_children(tree_node_t *t)
 }
 
 static void
-tree_node_marshal(tree_node_t *t, FILE *f, dict_t *memos, int64_t *mid)
+tree_node_marshal(tree_node_t *t, stream_t *s, dict_t *memos, int64_t *mid)
 {
     type_spec_t *list_type   = get_my_type(t);
     xlist_t     *type_params = tspec_get_parameters(list_type);
@@ -76,24 +76,24 @@ tree_node_marshal(tree_node_t *t, FILE *f, dict_t *memos, int64_t *mid)
     dt_info     *item_info   = tspec_get_data_type_info(item_type);
     bool         by_val      = item_info->by_value;
 
-    marshal_i32(t->alloced_kids, f);
-    marshal_i32(t->num_kids, f);
-    con4m_sub_marshal(t->parent, f, memos, mid);
+    marshal_i32(t->alloced_kids, s);
+    marshal_i32(t->num_kids, s);
+    con4m_sub_marshal(t->parent, s, memos, mid);
 
     if (by_val) {
-	marshal_u64((uint64_t)t->contents, f);
+	marshal_u64((uint64_t)t->contents, s);
     }
     else {
-	con4m_sub_marshal(t->contents, f, memos, mid);
+	con4m_sub_marshal(t->contents, s, memos, mid);
     }
 
     for (int i = 0; i < t->num_kids; i++) {
-	con4m_sub_marshal(t->children[i], f, memos, mid);
+	con4m_sub_marshal(t->children[i], s, memos, mid);
     }
 }
 
 static void
-tree_node_unmarshal(tree_node_t *t, FILE *f, dict_t *memos)
+tree_node_unmarshal(tree_node_t *t, stream_t *s, dict_t *memos)
 {
     type_spec_t *list_type   = get_my_type(t);
     xlist_t     *type_params = tspec_get_parameters(list_type);
@@ -101,20 +101,20 @@ tree_node_unmarshal(tree_node_t *t, FILE *f, dict_t *memos)
     dt_info     *item_info   = tspec_get_data_type_info(item_type);
     bool         by_val      = item_info->by_value;
 
-    t->alloced_kids = unmarshal_i32(f);
-    t->num_kids     = unmarshal_i32(f);
-    t->parent       = con4m_sub_unmarshal(f, memos);
+    t->alloced_kids = unmarshal_i32(s);
+    t->num_kids     = unmarshal_i32(s);
+    t->parent       = con4m_sub_unmarshal(s, memos);
     t->children     = gc_array_alloc(tree_node_t **, t->alloced_kids);
 
     if (by_val) {
-	t->contents = (object_t)unmarshal_u64(f);
+	t->contents = (object_t)unmarshal_u64(s);
     }
     else {
-	t->contents = con4m_sub_unmarshal(f, memos);
+	t->contents = con4m_sub_unmarshal(s, memos);
     }
 
     for (int i = 0; i < t->num_kids; i++) {
-	t->children[i] = con4m_sub_unmarshal(f, memos);
+	t->children[i] = con4m_sub_unmarshal(s, memos);
     }
 }
 
