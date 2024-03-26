@@ -33,8 +33,11 @@ extern grid_t *grid_flow(uint64_t items, ...);
 utf32_t *grid_to_str(grid_t *, to_str_use_t);
 extern grid_t *_ordered_list(flexarray_t *, ...);
 extern grid_t *_unordered_list(flexarray_t *, ...);
+extern grid_t *_grid_tree(tree_node_t *, ...);
+
 #define ordered_list(l, ...) _ordered_list(l, KFUNC(__VA_ARGS__))
 #define unordered_list(l, ...) _unordered_list(l, KFUNC(__VA_ARGS__))
+#define grid_tree(t, ...) _grid_tree(t, KFUNC(__VA_ARGS__))
 
 
 void
@@ -44,19 +47,7 @@ grid_add_col_span(grid_t *grid, renderable_t *contents, int64_t row,
 static inline renderable_t *
 to_str_renderable(any_str_t *s, char *tag)
 {
-    return con4m_new(T_RENDERABLE, "obj", s, "tag", tag);
-}
-
-static inline void
-apply_column_style(grid_t *grid, int col, char *tag)
-{
-    grid->col_props[col] = lookup_cell_style(tag);
-}
-
-static inline void
-apply_row_style(grid_t *grid, int row, char *tag)
-{
-    grid->row_props[row] = lookup_cell_style(tag);
+    return con4m_new(tspec_renderable(), "obj", s, "tag", tag);
 }
 
 static inline void
@@ -84,7 +75,11 @@ extern void apply_container_style(renderable_t *, char *);
 extern void grid_expand_columns(grid_t *, uint64_t);
 extern void grid_expand_rows(grid_t *, uint64_t);
 extern void grid_add_row(grid_t *, object_t);
-
+extern grid_t *con4m_grid(int start_rows, int start_cols, char *table_tag,
+			  char *th_tag, char *td_tag, int header_rows,
+			  int header_cols, int stripe);
+extern grid_t *grid_horizontal_flow(xlist_t *, uint64_t, uint64_t, char *,
+				    char *);
 static inline void
 grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
 {
@@ -130,7 +125,7 @@ grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
 	    tag = get_td_tag(g);
 	}
 
-	cell = con4m_new(T_RENDERABLE, "tag", tag, "obj", item);
+	cell = con4m_new(tspec_renderable(), "tag", tag, "obj", item);
 	break;
     }
     default:
@@ -161,4 +156,12 @@ static inline void
 grid_stripe_rows(grid_t *grid)
 {
     grid->stripe = 1;
+}
+
+static inline utf32_t *
+nim_grid_to_str(grid_t *grid, int64_t width)
+{
+    xlist_t *lines = grid_render(grid, "width", width);
+
+    return string_join(lines, utf32_repeat('\n', 1));
 }

@@ -15,9 +15,12 @@ test1() {
     style2 = add_upper_case(style2);
 
 
-    any_str_t *s1 = con4m_new(T_UTF8, "cstring", "\ehello,", "style", style1);
-    any_str_t *s2 = con4m_new(T_UTF8, "cstring", " world!");
-    any_str_t *s3 = con4m_new(T_UTF8, "cstring", " magic?\n");
+    any_str_t *s1 = con4m_new(tspec_utf8(),
+			      "cstring", "\ehello,",
+			      "style", style1);
+
+    any_str_t *s2 = con4m_new(tspec_utf8(), "cstring", " world!");
+    any_str_t *s3 = con4m_new(tspec_utf8(), "cstring", " magic?\n");
 
     //con4m_gc_register_root(&s1, 1);
     //con4m_gc_register_root(&s2, 1);
@@ -77,35 +80,30 @@ test1() {
 
 any_str_t *
 test2() {
-    utf8_t *w1 = con4m_new(T_UTF8, "cstring", "Once upon a time, there was a ");
-    utf8_t *w2 = con4m_new(T_UTF8, "cstring", "thing I cared about. But then ");
-    utf8_t *w3 = con4m_new(T_UTF8, "cstring",
+    utf8_t *w1 = con4m_new(tspec_utf8(),
+			   "cstring", "Once upon a time, there was a ");
+    utf8_t *w2 = con4m_new(tspec_utf8(),
+			   "cstring", "thing I cared about. But then ");
+    utf8_t *w3 = con4m_new(tspec_utf8(),
+			   "cstring",
 	"I stopped caring. I don't really remember what it was, though. Do ");
-    utf8_t *w4 = con4m_new(T_UTF8, "cstring",
+    utf8_t *w4 = con4m_new(tspec_utf8(),
+			   "cstring",
 	"you? No, I didn't think so, because it wasn't really all that "
 	"interesting, to be quite honest. Maybe someday I'll find something "
 	"interesting to care about, besides my family. Oh yeah, that's "
 	"what it was, my family! Oh, wait, no, they're either not interesting, "
 	"or I don't care about them.\n");
-    utf8_t *w5 = con4m_new(T_UTF8, "cstring", "Basically AirTags for Software");
-    utf8_t *w6 = con4m_new(T_UTF8, "cstring", "\n");
+    utf8_t *w5 = con4m_new(tspec_utf8(),
+			   "cstring", "Basically AirTags for Software");
+    utf8_t *w6 = con4m_new(tspec_utf8(),
+			   "cstring", "\n");
 
-
-    /*
-      con4m_gc_register_root(&w1, 1);
-      con4m_gc_register_root(&w2, 1);
-      con4m_gc_register_root(&w3, 1);
-      con4m_gc_register_root(&w4, 1);
-      con4m_gc_register_root(&w5, 1);
-      con4m_gc_register_root(&w6, 1);
-    */
     string_apply_style(w2, style1);
     string_apply_style(w3, style2);
     string_apply_style(w5, style1);
 
     utf32_t *to_wrap;
-
-    //con4m_gc_register_root(&to_wrap, 1);
 
     to_wrap        = string_concat(w1, w2);
     to_wrap        = string_concat(to_wrap, w3);
@@ -125,9 +123,6 @@ test2() {
 			     80,
 			     "String Dump\n");
 
-    /*con4m_gc_register_root(&dump1, 1);
-    con4m_gc_register_root(&dump2, 1);
-    */
     ansi_render(dump1, stderr);
     ansi_render(dump2, stderr);
 
@@ -160,30 +155,23 @@ test3(any_str_t *to_slice)
 void
 test4()
 {
-    utf8_t *w1 = con4m_new(T_UTF8, "cstring", "Once upon a time, there was a ");
-    utf8_t *w2 = con4m_new(T_UTF8, "cstring", "thing I cared about. But then ");
-    utf8_t *w3 = con4m_new(T_UTF8, "cstring",
+    utf8_t *w1 = con4m_new(tspec_utf8(),
+			   "cstring", "Once upon a time, there was a ");
+    utf8_t *w2 = con4m_new(tspec_utf8(),
+			   "cstring", "thing I cared about. But then ");
+    utf8_t *w3 = con4m_new(tspec_utf8(), "cstring",
 	"I stopped caring. I don't really remember what it was, though. Do ");
-    utf8_t *w4 = con4m_new(T_UTF8, "cstring",
+    utf8_t *w4 = con4m_new(tspec_utf8(), "cstring",
 	"you? No, I didn't think so, because it wasn't really all that "
 	"interesting, to be quite honest. Maybe someday I'll find something "
 	"interesting to care about, besides my family. Oh yeah, that's "
 	"what it was, my family! Oh, wait, no, they're either not interesting, "
 	"or I don't care about them.\n");
-    utf8_t *w5 = con4m_new(T_UTF8, "cstring", "Basically AirTags for Software");
-    utf8_t *w6 = con4m_new(T_UTF8, "cstring", "\n");
+    utf8_t *w5 = con4m_new(tspec_utf8(),
+			   "cstring", "Basically AirTags for Software");
+    utf8_t *w6 = con4m_new(tspec_utf8(), "cstring", "\n");
 
-    /*
-      con4m_gc_register_root(&w1, 1);
-      con4m_gc_register_root(&w2, 1);
-      con4m_gc_register_root(&w3, 1);
-      con4m_gc_register_root(&w4, 1);
-      con4m_gc_register_root(&w5, 1);
-      con4m_gc_register_root(&w6, 1);
-    */
-
-
-    hatrack_dict_t *d = con4m_new(T_DICT, HATRACK_DICT_KEY_TYPE_CSTR);
+    hatrack_dict_t *d = con4m_new(tspec_dict(tspec_utf8(), tspec_ref()));
 
     con4m_gc_register_root(&d, 1);
 
@@ -208,17 +196,21 @@ test4()
 void
 table_test()
 {
-    utf8_t     *test1 = con4m_new(T_UTF8, "cstring", "Some example 🤯 🤯 🤯"
+    utf8_t     *test1 = con4m_new(tspec_utf8(),
+				  "cstring", "Some example 🤯 🤯 🤯"
 	" Let's make it a fairly long 🤯 example, so it will be sure to need"
 	" some reynolds' wrap.");
-    utf8_t     *test2 = con4m_new(T_UTF8, "cstring", "Some other example.");
-    utf8_t     *test3 = con4m_new(T_UTF8, "cstring", "Example 3.");
-    utf8_t     *test4 = con4m_new(T_UTF8, "cstring", "Defaults.");
-    utf8_t     *test5 = con4m_new(T_UTF8, "cstring", "Last one.");
-    grid_t     *g     = con4m_new(T_GRID, "start_rows", 4, "start_cols", 3,
+    utf8_t     *test2 = con4m_new(tspec_utf8(),
+				  "cstring", "Some other example.");
+    utf8_t     *test3 = con4m_new(tspec_utf8(),
+				  "cstring", "Example 3.");
+    utf8_t     *test4 = con4m_new(tspec_utf8(), "cstring", "Defaults.");
+    utf8_t     *test5 = con4m_new(tspec_utf8(), "cstring", "Last one.");
+    grid_t     *g     = con4m_new(tspec_grid(),
+				  "start_rows", 4, "start_cols", 3,
 				  "header_rows", 1);
-    utf8_t     *hdr   = con4m_new(T_UTF8, "cstring", "Yes, this is a table.");
-
+    utf8_t     *hdr   = con4m_new(tspec_utf8(),
+				  "cstring", "Yes, this is a table.");
 
     grid_add_row(g, to_str_renderable(hdr, "td"));
     grid_add_cell(g, test1);
@@ -235,23 +227,24 @@ table_test()
     string_apply_style(test2, style2);
     string_apply_style(test3, style1);
     string_apply_style(test5, style2);
-    con4m_new(T_RENDER_STYLE, "flex_units", 3, "tag", "col1");
-    con4m_new(T_RENDER_STYLE, "flex_units", 2, "tag", "col3");
-//    con4m_new(T_RENDER_STYLE, "width_pct", 10., "tag", "col1");
-//    con4m_new(T_RENDER_STYLE, "width_pct", 30., "tag", "col3");
-    apply_column_style(g, 0, "col1");
-    apply_column_style(g, 2, "col3");
+    con4m_new(tspec_render_style(), "flex_units", 3, "tag", "col1");
+    con4m_new(tspec_render_style(), "flex_units", 2, "tag", "col3");
+//    con4m_new(tspec_render_style(), "width_pct", 10., "tag", "col1");
+//    con4m_new(tspec_render_style(), "width_pct", 30., "tag", "col3");
+    set_column_style(g, 0, "col1");
+    set_column_style(g, 2, "col3");
 
     // Ordered / unordered lists.
-    utf8_t *ol1    = con4m_new(T_UTF8, "cstring",
+    utf8_t *ol1    = con4m_new(tspec_utf8(), "cstring",
 			       "This is a good point, one that you haven't "
 			       "heard before.");
-    utf8_t *ol2    = con4m_new(T_UTF8, "cstring",
+    utf8_t *ol2    = con4m_new(tspec_utf8(), "cstring",
 			       "This is a point that's just as valid, but you "
 			       "already know it.");
-    utf8_t *ol3    = con4m_new(T_UTF8, "cstring", "This is a small point.");
-    utf8_t  *ol4   = con4m_new(T_UTF8, "cstring", "Conclusion.");
-    flexarray_t *l = con4m_new(T_LIST, "length", 12);
+    utf8_t *ol3    = con4m_new(tspec_utf8(),
+			       "cstring", "This is a small point.");
+    utf8_t  *ol4   = con4m_new(tspec_utf8(), "cstring", "Conclusion.");
+    flexarray_t *l = con4m_new(tspec_list(tspec_utf8()), "length", 12);
 
     flexarray_set(l, 0, ol1);
     flexarray_set(l, 1, ol2);
@@ -277,31 +270,69 @@ table_test()
 }
 
 void
-another_func()
-{
-    volatile int *i = &table_test;
-    volatile int *x = &table_test;
-
-    printf("In another func: i @%p; x @%p\n", &i, &x);
-}
-
-
-void
 sha_test()
 {
-    volatile utf8_t     *test1 = con4m_new(T_UTF8, "cstring", "Some example 🤯 🤯 🤯"
+    utf8_t     *test1 = con4m_new(tspec_utf8(),
+				  "cstring", "Some example 🤯 🤯 🤯"
 	" Let's make it a fairly long 🤯 example, so it will be sure to need"
 	" some reynolds' wrap.");
 
-    volatile sha_ctx *ctx = con4m_new(T_SHA);
+    sha_ctx *ctx = con4m_new(tspec_hash());
     sha_string_update(ctx, test1);
-    volatile buffer_t *b = sha_finish(ctx);
+    buffer_t *b = sha_finish(ctx);
 
     printf("Sha256 is: ");
     ansi_render(con4m_value_obj_repr(b), stdout);
     printf("\n");
-    printf("sha_test stack addresses. test1: %p; b: %p\n", &test1, &b);
-    another_func();
+}
+
+void
+type_tests()
+{
+
+    type_spec_t *t1 = tspec_int();
+    type_spec_t *t2 = tspec_grid();
+    type_spec_t *t3 = tspec_dict(t1, t2);
+
+    ansi_render(con4m_value_obj_repr(t3), stdout);
+    printf("\n");
+
+    type_spec_t *t4 = type_spec_new_typevar(global_type_env);
+    type_spec_t *t5 = type_spec_new_typevar(global_type_env);
+    type_spec_t *t6 = tspec_dict(t4, t5);
+
+    ansi_render(con4m_value_obj_repr(t6), stdout);
+    printf("\n");
+    ansi_render(con4m_value_obj_repr(merge_types(t3, t6)), stdout);
+    printf("\n");
+}
+
+void
+stream_tests()
+{
+
+    utf8_t   *n   = con4m_new(tspec_utf8(), "cstring", "../meson.build");
+    stream_t *s1  = con4m_new(tspec_stream(), "filename", n);
+    buffer_t *b   = con4m_new(tspec_buffer(), "length", 16);
+    stream_t *s2  = con4m_new(tspec_stream(), "buffer", b, "write", 1);
+    style_t   sty = add_bold(add_italic(new_style()));
+
+    while (true) {
+	utf8_t *s = stream_read(s1, 16);
+
+	if (con4m_len(s) == 0) {
+	    break;
+	}
+
+	stream_write_object(s2, s);
+    }
+
+
+    print_hex(b->data, b->byte_len, "Buffer");
+    utf8_t *s = buffer_to_utf8_string(b);
+
+    string_apply_style(s, sty);
+    ansi_render(s, stdout);
 }
 
 int
@@ -327,9 +358,11 @@ main(int argc, char **argv, char **envp)
 	printf("Sample style: %.16llx\n", style1);
 	sha_test();
 
+	type_tests();
+	stream_tests();
 	STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
 	ansi_render(local_test, stdout);
-	RAISE("Except maybe not!");
+	CRAISE("Except maybe not!");
     }
     EXCEPT
     {
@@ -348,15 +381,18 @@ main(int argc, char **argv, char **envp)
     TRY_END;
     printf("This theoretically should run.\n");
 
-    get_stack_scan_region(&top, &bottom);
+    if (argc > 1) {
+	get_stack_scan_region(&top, &bottom);
 
-    uint64_t q = bottom - top;
+	uint64_t q = bottom - top;
 
-    // Give ourselves something to see where the real start is.
-    bottom = 0x4141414141414141;
-    utf8_t *s = hex_dump(top, q, top, 80, "");
-    printf("%s\n", s->data);
+	// Give ourselves something to see where the real start is.
+	bottom = 0x4141414141414141;
+	utf8_t *s = hex_dump((void *)top, q, top, 80, "");
+	printf("%s\n", s->data);
 
-    bottom = top + q;
-    printf("(start) = %p; (end) = %p (%llu bytes)\n", top, bottom, q);
+	bottom = top + q;
+	printf("(start) = %p; (end) = %p (%llu bytes)\n", (void *)top,
+	       (void *)bottom, q);
+    }
 }

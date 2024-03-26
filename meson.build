@@ -8,6 +8,7 @@ project('libcon4m', 'c',
 
 cc              = meson.get_compiler('c')
 incdir          = include_directories('include')
+incdir  
 using_osx       = false
 glibc_check       = '''
 #ifndef __GLIBC__
@@ -66,13 +67,23 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/kargs.c',
             'src/con4m/object.c',
             'src/con4m/dict.c',
+            'src/con4m/set.c',            
             'src/con4m/lists.c',
             'src/con4m/xlist.c',
             'src/con4m/grid.c',
             'src/con4m/styledb.c',
             'src/con4m/exceptions.c',
-            'src/con4m/crypto/sha.c'
-            
+            'src/con4m/marshal.c',
+            'src/con4m/types.c',
+            'src/con4m/tree.c',
+            'src/con4m/numbers.c',
+            'src/con4m/mixed.c',
+            'src/con4m/conststr.c',
+            'src/con4m/tuple.c',
+            'src/con4m/ipaddr.c',
+            'src/con4m/callback.c',
+            'src/con4m/streams.c',
+            'src/con4m/crypto/sha.c',
             ]
 
 hat_primary = ['src/hatrack/support/hatrack_common.c',
@@ -127,6 +138,7 @@ test_src = ['src/tests/test.c']
 threads  = dependency('threads')
 math     = cc.find_library('m', required : false)
 ffi      = cc.find_library('ffi')
+
 crypto   = cc.find_library('crypto')
 ssl      = cc.find_library('ssl')
 

@@ -47,7 +47,7 @@ sha_init(sha_ctx *ctx, va_list args)
 	abort();
     }
 
-    ctx->digest = con4m_new(T_BUFFER, "length", bits / 8);
+    ctx->digest = con4m_new(tspec_buffer(), "length", bits / 8);
     version    -= 2;
     bits = (bits >> 7) - 2; // This maps the bit sizes to 0, 1 and 2,
                             // by dividing by 128, then subtracting by 2.
@@ -64,6 +64,13 @@ sha_cstring_update(sha_ctx *ctx, char *str)
     if (len > 0) {
 	EVP_DigestUpdate(ctx->openssl_ctx, str, len);
     }
+}
+
+void
+sha_int_update(sha_ctx *ctx, uint64_t n)
+{
+    little_64(result);
+    EVP_DigestUpdate(ctx->openssl_ctx, &n, sizeof(uint64_t));
 }
 
 // Note; we should probably go back and correct 'byte_length' whenever
@@ -97,6 +104,7 @@ sha_finish(sha_ctx *ctx)
 
     return result;
 }
+
 
 const con4m_vtable sha_vtable = {
     .num_entries = 1,

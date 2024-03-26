@@ -137,7 +137,10 @@
 #define FINALLY           LFINALLY(default_label)
 #define TRY_END           LTRY_END(default_label)
 
-#define RAISE(s, ...) exception_raise(alloc_exception(s,                       \
+#define CRAISE(s, ...) exception_raise(alloc_exception(s,                      \
+        IF(ISEMPTY(__VA_ARGS__))(EMPTY(), __VA_ARGS__)) , __FILE__, __LINE__)
+
+#define RAISE(s, ...) exception_raise(alloc_str_exception(s,                   \
         IF(ISEMPTY(__VA_ARGS__))(EMPTY(), __VA_ARGS__)) , __FILE__, __LINE__)
 
 #define RERAISE()							       \
@@ -146,8 +149,11 @@
 
 #define X_CUR() __xh_current_exception
 
-exception_t *_alloc_exception(char *s, ...);
+exception_t *_alloc_exception(const char *s, ...);
 #define alloc_exception(s, ...) _alloc_exception(s, KFUNC(__VA_ARGS__))
+
+exception_t *_alloc_str_exception(utf8_t *s, ...);
+#define alloc_str_exception(s, ...) _alloc_str_exception(s, KFUNC(__VA_ARGS__))
 
 enum : int64_t
 {
@@ -166,7 +172,7 @@ void               exception_raise(exception_t *, char *,
 static inline utf8_t *
 exception_get_file(exception_t *exception)
 {
-    return con4m_new(T_UTF8, "cstring", exception->file);
+    return con4m_new(tspec_utf8(), "cstring", exception->file);
 }
 
 static inline uint64_t
@@ -187,7 +193,20 @@ void exception_register_uncaught_handler(void (*)(exception_t *));
     {                                                                          \
         char buf[BUFSIZ];                                                      \
         strerror_r(errno, buf, BUFSIZ);                                        \
-        RAISE(con4m_new(T_UTF8, "cstring", buf), "error_code", errno);	       \
+        RAISE(con4m_new(tspec_utf8(), "cstring", buf), "error_code", errno);   \
     }
 
 extern __thread exception_stack_t __exception_stack;
+
+static inline void
+raise_errcode(int code) {
+    char msg[2048] = {0, };
+
+    strerror_r(code, msg, 2048);
+    RAISE(con4m_new(tspec_utf8(), "cstring", msg));
+}
+
+static inline void raise_errno()
+{
+    raise_errcode(errno);
+}

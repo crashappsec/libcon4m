@@ -9,17 +9,22 @@ extern void            install_default_styles();
 static inline render_style_t *
 copy_render_style(const render_style_t *style)
 {
-    render_style_t *result = con4m_new(T_RENDER_STYLE);
+    render_style_t *result = con4m_new(tspec_render_style());
 
     memcpy(result, style, sizeof(render_style_t));
 
     return result;
 }
 static inline style_t
+get_string_style(render_style_t *style)
+{
+    return style->base_style;
+}
+
+static inline style_t
 lookup_text_style(char *name)
 {
-    render_style_t *rs = lookup_cell_style(name);
-    return rs->base_style;
+    return get_string_style(lookup_cell_style(name));
 }
 
 static inline void
@@ -136,7 +141,8 @@ titlecase_on(render_style_t *style)
 const extern border_theme_t *registered_borders;
 
 static inline _Bool
-set_border_theme(render_style_t *style, char *name) {
+set_border_theme(render_style_t *style, char *name)
+{
     border_theme_t *cur = (border_theme_t *)registered_borders;
 
     while (cur != NULL) {
@@ -311,12 +317,6 @@ get_pad_style(render_style_t *style)
     return style->base_style;
 }
 
-static inline style_t
-get_string_style(render_style_t *style)
-{
-    return style->base_style;
-}
-
 static inline border_theme_t *
 get_border_theme(render_style_t *style)
 {
@@ -328,4 +328,11 @@ get_border_theme(render_style_t *style)
     return result;
 }
 
+static inline render_style_t *
+new_render_style()
+{
+    return con4m_new(tspec_render_style());
+}
+
+extern bool style_exists(char *name);
 extern void layer_styles(const render_style_t *, render_style_t *);

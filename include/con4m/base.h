@@ -20,13 +20,17 @@
 #include <stdarg.h>
 #include <math.h>
 #include <setjmp.h>
+#include <netdb.h>
+#include <dlfcn.h>
 
-#include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 
 #if defined(__linux__)
 #include <sys/random.h>
@@ -52,3 +56,13 @@ forkpty(int *, char *, struct termios *, struct winsize *);
 #include <vendor.h>
 #include <hatrack.h>
 #include <con4m/datatypes.h>
+
+#if defined(__LITTLE_ENDIAN__)
+  #define little_64(x)
+  #define little_32(x)
+  #define little_16(x)
+#else // if defined(__BIG_ENDIAN__)
+  #define little_64(x) x = htonll(x)
+  #define little_32(x) x = htonl(x)
+  #define little_16(x) x = htons(x)
+#endif

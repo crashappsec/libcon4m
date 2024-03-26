@@ -217,7 +217,7 @@ con4m_gc_malloc(size_t len)
 
 // Assumes it contains pointers. Call manually if you need otherwise.
 #define gc_array_alloc(typename, n)			\
-    con4m_gc_alloc((sizeof(typename) * n), 0)
+    con4m_gc_alloc((sizeof(typename) * n), GC_SCAN_ALL)
 
 #if defined(__linux__)
 static inline void
@@ -249,3 +249,4 @@ get_stack_bounds(uint64_t *top, uint64_t *bottom)
 #endif
 
 extern void get_stack_scan_region(uint64_t *top, uint64_t *bottom);
+extern __attribute__((constructor)) void initialize_gc();

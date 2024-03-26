@@ -1,11 +1,14 @@
 #include <con4m.h>
 
-// From the start of the GC header, currently the
-// 2nd (64-bit) word of the string struction is a pointer to track.
-// first value indicates there's only one 64-bit value in the pmap.
+// The object header has 4 words that we don't need to scan (there is
+// a heap pointer in there, but it points to something definitely
+// always available from the roots).
+//
+// Our pointer shows in our second word. Therefore, the 6th most
+// significant bit gets set here.
 const uint64_t pmap_str[2] = {
                               0x0000000000000001,
-                              0x4000000000000000
+                              0x0400000000000000
                              };
 
 STATIC_ASCII_STR(empty_string_const, "");
@@ -25,6 +28,29 @@ utf8_set_codepoint_count(utf8_t *instr)
 	instr->codepoints += 1;
 	p                 += utf8proc_iterate(p, 4, &cp);
     }
+}
+
+int64_t
+utf8_validate(const utf8_t *instr)
+{
+    uint8_t     *p   = (uint8_t *)instr->data;
+    uint8_t     *end = p + instr->byte_len;
+    codepoint_t  cp;
+    int64_t      n   = 0;
+
+    while (p < end) {
+	int to_add = utf8proc_iterate(p, 4, &cp);
+
+	if (to_add < 0) {
+	    return n;
+	}
+
+	p += to_add;
+
+	n++;
+    }
+
+    return 0;
 }
 
 // For now, we're going to do this just for u32, so u8 will convert to
@@ -59,7 +85,7 @@ string_slice(const any_str_t *instr, int64_t start, int64_t end)
     }
 
     int64_t slice_len = end - start;
-    utf32_t *res      = con4m_new(T_UTF32, "length", slice_len);
+    utf32_t *res      = con4m_new(tspec_utf32(), "length", slice_len);
     res->codepoints   = ~(slice_len);
 
     codepoint_t *src = (codepoint_t *)s->data;
@@ -134,6 +160,63 @@ string_slice(const any_str_t *instr, int64_t start, int64_t end)
     return res;
 }
 
+codepoint_t
+utf8_index(const utf8_t *s, int64_t n)
+{
+    if (!string_is_u8(s)) {
+	return utf32_index(s, n);
+    }
+
+    int64_t l = string_codepoint_len(s);
+
+    if (n < 0) {
+	n += l;
+
+	if (n < 0) {
+	    CRAISE("Index would be before the start of the string.");
+	}
+    }
+
+    if (n >= l) {
+	CRAISE("Index out of bounds.");
+    }
+
+    char       *p = (char *)s->data;
+    codepoint_t cp;
+
+    for (int i = 0; i <= n; i++) {
+	p += utf8proc_iterate((uint8_t *)p, 4, &cp);
+    }
+
+    return cp;
+}
+
+codepoint_t
+utf32_index(const utf32_t *s, int64_t i)
+{
+    if (string_is_u8(s)) {
+	return utf8_index(s, i);
+    }
+
+    int64_t l = string_codepoint_len(s);
+
+    if (i < 0) {
+	i += l;
+
+	if (i < 0) {
+	    CRAISE("Index would be before the start of the string.");
+	}
+    }
+
+    if (i >= l) {
+	CRAISE("Index out of bounds.");
+    }
+
+    codepoint_t *p = (codepoint_t *)s->data;
+
+    return p[i];
+}
+
 utf32_t *
 _string_strip(const any_str_t *s, ...)
 {
@@ -175,9 +258,12 @@ _string_strip(const any_str_t *s, ...)
 any_str_t *
 string_copy(const any_str_t *s)
 {
-    uint64_t  basetype = get_base_type((object_t)s);
-    uint64_t  l        = basetype == T_UTF8 ? s->byte_len : ~s->codepoints;
-    any_str_t *res     = con4m_new(basetype, "length", l);
+    if (s == NULL) {
+	return NULL;
+    }
+    bool        u8  = string_is_u8(s);
+    uint64_t     l  = u8 ? s->byte_len : ~s->codepoints;
+    any_str_t *res  = con4m_new(u8 ? tspec_utf8() : tspec_utf32(), "length", l);
 
     res->codepoints = s->codepoints;
     memcpy(res->data, s->data, s->byte_len);
@@ -194,7 +280,7 @@ string_concat(const any_str_t *p1, const any_str_t *p2)
     int64_t   s1_len      = string_codepoint_len(s1);
     int64_t   s2_len      = string_codepoint_len(s2);
     int64_t   n           = s1_len + s2_len;
-    utf32_t  *r           = con4m_new(T_UTF32, "length", n);
+    utf32_t  *r           = con4m_new(tspec_utf32(), "length", n);
     uint64_t  num_entries = style_num_entries(s1) + style_num_entries(s2);
 
     if (!s1_len) {
@@ -258,11 +344,11 @@ _string_join(const xlist_t *l, const any_str_t *joiner, ...)
     }
 
 
-    utf32_t     *result   = con4m_new(T_UTF32, "length", len);
+    utf32_t     *result   = con4m_new(tspec_utf32(), "length", len);
     codepoint_t *p        = (codepoint_t *)result->data;
     int          txt_ix   = 0;
     int          style_ix = 0;
-    utf32_t     *j        = force_utf32(joiner);
+    utf32_t     *j        = joinlen ? force_utf32(joiner) : NULL;
 
     result->codepoints = ~len;
     alloc_styles(result, n_styles);
@@ -280,10 +366,12 @@ _string_join(const xlist_t *l, const any_str_t *joiner, ...)
 	style_ix = copy_and_offset_styles(line, result, style_ix, txt_ix);
 	txt_ix  += n_cp;
 
-	memcpy(p, j->data, joinlen * 4);
-	p += joinlen;
-	style_ix = copy_and_offset_styles(j, result, style_ix, txt_ix);
-	txt_ix  += joinlen;
+	if (joinlen != 0) {
+	    memcpy(p, j->data, joinlen * 4);
+	    p += joinlen;
+	    style_ix = copy_and_offset_styles(j, result, style_ix, txt_ix);
+	    txt_ix  += joinlen;
+	}
     }
 
     if (!add_trailing) {
@@ -306,7 +394,7 @@ utf32_to_utf8(const utf32_t *inp)
     // Allocates 4 bytes per codepoint; this is an overestimate in
     // cases where UTF8 codepoints are above U+00ff. But nbd.
 
-    utf8_t      *res     = con4m_new(T_UTF8, "length", inp->byte_len);
+    utf8_t      *res     = con4m_new(tspec_utf8(), "length", inp->byte_len);
     codepoint_t *p       = (codepoint_t *)inp->data;
     uint8_t     *outloc  = (uint8_t *)res->data;
     int          l;
@@ -331,7 +419,7 @@ utf8_to_utf32(const utf8_t *instr)
     }
 
     int64_t      len    = (int64_t)string_codepoint_len(instr);
-    utf32_t     *outstr = con4m_new(T_UTF32, "length", len);
+    utf32_t     *outstr = con4m_new(tspec_utf32(), "length", len);
     uint8_t     *inp    = (uint8_t *)(instr->data);
     codepoint_t *outp   = (codepoint_t *)(outstr->data);
 
@@ -354,9 +442,10 @@ utf8_init(utf8_t *s, va_list args)
 	int64_t start   = 0;
 	char   *cstring = NULL;
 	style_t style   = STYLE_INVALID;
+	char   *tag     = NULL;
 	);
 
-    method_kargs(args, length, start, cstring, style);
+    method_kargs(args, length, start, cstring, style, tag);
 
     if (cstring != NULL) {
 	if (length == -1) {
@@ -364,9 +453,8 @@ utf8_init(utf8_t *s, va_list args)
 	}
 
 	if (start > length) {
-	    fprintf(stderr, "Invalid string constructor call: "
+	    CRAISE("Invalid string constructor call: "
 		    "len(cstring) is less than the start index");
-	    abort();
 	}
 
 	s->data     = con4m_gc_alloc(length + 1, NULL);
@@ -376,7 +464,7 @@ utf8_init(utf8_t *s, va_list args)
 	utf8_set_codepoint_count(s);
     } else {
 	if (length < 0) {
-	    abort();
+	    CRAISE("length cannot be < 0 for string initialization");
 	}
 	s->data = con4m_gc_alloc(length + 1, NULL);
     }
@@ -384,45 +472,79 @@ utf8_init(utf8_t *s, va_list args)
     if (style != STYLE_INVALID) {
 	string_apply_style(s, style);
     }
+
+    if (tag != NULL) {
+	render_style_t *rs = lookup_cell_style(tag);
+	if (rs != NULL) {
+	    string_apply_style(s, rs->base_style);
+	}
+    }
 }
 
 static void
 utf32_init(utf32_t *s, va_list args)
 {
     DECLARE_KARGS(
-	int64_t length  = -1;  // NUMBER OF CODEPOINTS.
-	int64_t start   = 0;
-	char   *cstring = NULL;
-	style_t style   = STYLE_INVALID;
+	int64_t      length     = -1;  // NUMBER OF CODEPOINTS.
+	int64_t      start      = 0;
+	char        *cstring    = NULL;
+	codepoint_t *codepoints = NULL;
+	style_t      style      = STYLE_INVALID;
 	);
 
-    method_kargs(args, length, start, cstring, style);
+    method_kargs(args, length, start, cstring, codepoints, style);
 
-    if (cstring != NULL) {
-	if (length == -1) {
-	    length = strlen(cstring);
+    if (codepoints != NULL && cstring != NULL) {
+	CRAISE("Cannot specify both 'codepoints' and 'cstring' keywords.");
+    }
+    if (codepoints != NULL) {
+	if (length == 0) {
+	    s->byte_len   = 4;
+	    s->data       = con4m_gc_alloc(s->byte_len, NULL);
+	    s->codepoints = ~0;
+	    return;
 	}
 
-	if (start > length) {
-	    fprintf(stderr, "Invalid string constructor call: "
-		    "len(cstring) is less than the start index");
-	    abort();
+	if (length < 0) {
+	    CRAISE("When specifying 'codepoints', must provide a valid "
+		   "'length' containing the number of codepoints.");
 	}
 	s->byte_len = (length + 1) * 4;
 	s->data     = con4m_gc_alloc(s->byte_len, NULL);
 
-	for (int64_t i = 0; i < length; i++) {
-	    ((uint32_t *)s->data)[i] = (uint32_t)(cstring[i]);
+	codepoint_t *local = (codepoint_t *)s->data;
+
+	for (int i = 0; i < length; i++) {
+	    local[i] = codepoints[i];
 	}
+
 	s->codepoints = ~length;
     } else {
-	if (length < 0) {
-	    abort();
-	}
-	s->byte_len = (length + 1) * 4;
-	s->data        = con4m_gc_alloc(s->byte_len, NULL);
-    }
+	if (cstring != NULL) {
+	    if (length == -1) {
+		length = strlen(cstring);
+	    }
 
+	    if (start > length) {
+		CRAISE("Invalid string constructor call: "
+		       "len(cstring) is less than the start index");
+	    }
+	    s->byte_len = (length + 1) * 4;
+	    s->data     = con4m_gc_alloc(s->byte_len, NULL);
+
+	    for (int64_t i = 0; i < length; i++) {
+		((uint32_t *)s->data)[i] = (uint32_t)(cstring[i]);
+	    }
+	    s->codepoints = ~length;
+	} else {
+	    if (length < 0) {
+		CRAISE("Must specify a valid length if not initializing "
+		       "with a null-terminated cstring.");
+	    }
+	    s->byte_len = (length + 1) * 4;
+	    s->data        = con4m_gc_alloc(s->byte_len, NULL);
+	}
+    }
 
     if (style != STYLE_INVALID) {
 	string_apply_style(s, style);
@@ -450,7 +572,7 @@ string_from_int(int64_t n)
 	*--p = '-';
     }
 
-    return con4m_new(T_UTF8, "cstring", p);
+    return con4m_new(tspec_utf8(), "cstring", p);
 }
 
 // For repeat, we leave an extra alloc'd character to ensure we
@@ -462,7 +584,7 @@ utf8_repeat(codepoint_t cp, int64_t num)
     int       buf_ix = 0;
     int       l      = utf8proc_encode_char(cp, &buf[0]);
     int       blen   = l * num;
-    utf8_t   *res    = con4m_new(T_UTF8, blen + 1);
+    utf8_t   *res    = con4m_new(tspec_utf8(), "length", blen + 1);
     char     *p      = res->data;
 
     res->codepoints = l;
@@ -483,7 +605,7 @@ utf32_repeat(codepoint_t cp, int64_t num)
 	return empty_string();
     }
 
-    utf32_t     *res = con4m_new(T_UTF32, "length", num + 1);
+    utf32_t     *res = con4m_new(tspec_utf8(), "length", num + 1);
     codepoint_t *p   = (codepoint_t *)res->data;
 
     res->codepoints = ~num;
@@ -578,7 +700,8 @@ _string_truncate(const any_str_t *s, int64_t len, ...)
 		    {
 			uint8_t  *start = (uint8_t *)s->data;
 			int64_t   blen  = p - start;
-			utf8_t   *res   = con4m_new(T_UTF8, "length", blen);
+			utf8_t   *res   = con4m_new(tspec_utf8(),
+						    "length", blen);
 
 			memcpy(res->data, start, blen);
 			copy_style_info(s, res);
@@ -634,7 +757,7 @@ utf8_from_file(const any_str_t *name, int *err)
 	goto err;
     }
 
-    utf8_t *result = con4m_new(T_UTF8, "length", len);
+    utf8_t *result = con4m_new(tspec_utf8(), "length", len);
     char *p       = result->data;
 
     while (1) {
@@ -721,7 +844,8 @@ string_split(any_str_t *str, any_str_t *sub)
     uint64_t strcp = string_codepoint_len(str);
     uint64_t subcp = string_codepoint_len(sub);
 
-    flexarray_t *result = con4m_new(T_LIST, "length", strcp);
+    flexarray_t *result = con4m_new(tspec_list(tspec_utf32()),
+				    "length", strcp);
 
     if (!subcp) {
 	for (uint64_t i = 0; i < strcp; i++) {
@@ -749,12 +873,77 @@ string_split(any_str_t *str, any_str_t *sub)
     return result;
 }
 
+static void
+con4m_string_marshal(any_str_t *s, stream_t *out, dict_t *memos, int64_t *mid)
+{
+    marshal_u32(s->codepoints, out);
+    marshal_u32(s->byte_len, out);
+
+    if (s->styling == NULL) {
+	marshal_u32(0, out);
+    }
+    else {
+	marshal_u32((int32_t)s->styling->num_entries, out);
+	for (int i = 0; i < s->styling->num_entries; i++) {
+	    marshal_i32(s->styling->styles[i].start, out);
+	    marshal_i32(s->styling->styles[i].end, out);
+	    marshal_u64(s->styling->styles[i].info, out);
+	}
+    }
+    if (s->byte_len) {
+	stream_raw_write(out, s->byte_len, s->data);
+    }
+}
+
+static void
+con4m_string_unmarshal(any_str_t *s, stream_t *in, dict_t *memos)
+{
+    s->codepoints = unmarshal_u32(in);
+    s->byte_len   = unmarshal_u32(in);
+
+    int32_t num_styles = unmarshal_u32(in);
+
+    if (num_styles > 0) {
+	alloc_styles(s, num_styles);
+    }
+
+    for (int i = 0; i < num_styles; i++) {
+	s->styling->styles[i].start = unmarshal_i32(in);
+	s->styling->styles[i].end   = unmarshal_i32(in);
+	s->styling->styles[i].info  = unmarshal_u64(in);
+    }
+
+    if (s->byte_len) {
+	s->data = con4m_gc_alloc(s->byte_len + 1, NULL);
+	stream_raw_read(in, s->byte_len, s->data);
+    }
+}
+
+utf8_t *
+con4m_cstring(char *s, int64_t len)
+{
+    return con4m_new(tspec_utf8(), "cstring", s, "length", len);
+}
+
+utf8_t *
+con4m_rich(utf8_t *to_copy, utf8_t *style)
+{
+    utf8_t *res        = string_copy(to_copy);
+    render_style_t *rs = lookup_cell_style(style->data);
+
+    if (rs != NULL) {
+	string_apply_style(res, rs->base_style);
+    }
+
+    return res;
+}
+
 static any_str_t *
 string_repr(any_str_t *str, to_str_use_t how)
 {
     // TODO: actually implement string quoting.
     if (how == TO_STR_USE_QUOTED) {
-	utf32_t *q = con4m_new(T_UTF32, "cstring", "\"");
+	utf32_t *q = con4m_new(tspec_utf32(), "cstring", "\"");
 	return string_concat(string_concat(q, str), q);
     }
     else {
@@ -762,18 +951,96 @@ string_repr(any_str_t *str, to_str_use_t how)
     }
 }
 
+bool
+string_can_coerce_to(type_spec_t *my_type, type_spec_t *target_type)
+{
+    if (tspecs_are_compat(target_type, tspec_utf8()) ||
+	tspecs_are_compat(target_type, tspec_utf32()) ||
+	tspecs_are_compat(target_type, tspec_buffer()) ||
+	tspecs_are_compat(target_type, tspec_bool())) {
+	return true;
+    }
+
+    return false;
+}
+
+object_t
+string_coerce_to(const any_str_t *s, type_spec_t *target_type)
+{
+    if (tspecs_are_compat(target_type, tspec_utf8())) {
+	return force_utf8(s);
+    }
+    if (tspecs_are_compat(target_type, tspec_utf32())) {
+	return force_utf32(s);
+    }
+    if (tspecs_are_compat(target_type, tspec_buffer())) {
+	// We can't just point into the UTF8 string, since buffers
+	// are mutable but strings are not.
+
+	s             = force_utf8(s);
+	buffer_t *res = con4m_new(target_type, s->byte_len);
+	memcpy(res->data, s->data, s->byte_len);
+
+	return res;
+    }
+    if (tspecs_are_compat(target_type, tspec_bool())) {
+	if (!s || !string_codepoint_len(s)) {
+	    return (object_t)false;
+	}
+	else {
+	    return (object_t)true;
+	}
+    }
+
+    CRAISE("Invalid coersion.");
+}
+
 const con4m_vtable u8str_vtable = {
-    .num_entries = 2,
+    .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
 	(con4m_vtable_entry)utf8_init,
 	(con4m_vtable_entry)string_repr,
+	NULL, // finalizer
+	(con4m_vtable_entry)con4m_string_marshal,
+	(con4m_vtable_entry)con4m_string_unmarshal,
+	(con4m_vtable_entry)string_can_coerce_to,
+	(con4m_vtable_entry)string_coerce_to,
+	NULL, // From lit,
+	(con4m_vtable_entry)string_copy,
+	(con4m_vtable_entry)string_concat,
+	NULL, // Subtract
+	NULL, // Mul
+	NULL, // Div
+	NULL, // MOD
+	(con4m_vtable_entry)string_codepoint_len,
+	(con4m_vtable_entry)utf8_index,
+	NULL, // Index set
+	(con4m_vtable_entry)string_slice,
+	NULL, // Slice set
     }
 };
 
 const con4m_vtable u32str_vtable = {
-    .num_entries = 2,
+    .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
 	(con4m_vtable_entry)utf32_init,
 	(con4m_vtable_entry)string_repr,
+	NULL, // finalizer
+	(con4m_vtable_entry)con4m_string_marshal,
+	(con4m_vtable_entry)con4m_string_unmarshal,
+	(con4m_vtable_entry)string_can_coerce_to,
+	(con4m_vtable_entry)string_coerce_to,
+	NULL, // From lit,
+	(con4m_vtable_entry)string_copy,
+	(con4m_vtable_entry)string_concat,
+	NULL, // Subtract
+	NULL, // Mul
+	NULL, // Div
+	NULL, // MOD
+	(con4m_vtable_entry)string_codepoint_len,
+	(con4m_vtable_entry)utf32_index,
+	NULL, // Index set; strings are immutable.
+	(con4m_vtable_entry)string_slice,
+	NULL, // Slice set; strings are immutable.
     }
 };

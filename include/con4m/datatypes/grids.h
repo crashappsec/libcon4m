@@ -170,17 +170,16 @@ typedef struct {
     xlist_t         *render_cache;
     uint16_t         render_width;
     uint16_t         render_height;
-    uint16_t         alloc_height;
 } renderable_t;
 
 struct grid_t {
     renderable_t       *self;
     renderable_t      **cells; // A 2d array of renderable_objects, by ref
-    uint16_t            num_rows;
     uint16_t            num_cols;
-    uint16_t            spare_rows;  // Not used yet.
-    render_style_t    **row_props;
+    uint16_t            num_rows;
+    uint16_t            spare_rows;
     render_style_t    **col_props;
+    render_style_t    **row_props;
 
 
    // Per-render info, which includes any adding added to perform
@@ -197,8 +196,8 @@ struct grid_t {
 
     // When we add renderables, if we have no explicit tag for them,
     // we will apply the 'th' tag to anything in these row/columns.
-    int8_t              header_rows;
     int8_t              header_cols;
+    int8_t              header_rows;
     int8_t              stripe;
 };
 

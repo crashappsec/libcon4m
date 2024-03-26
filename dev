@@ -85,13 +85,15 @@ function debug_it {
 }
 
 function libcon4m_run_tests {
+    shift
+
     TARGET=$(cat .meson_last)
 
     mason_build ${TARGET} --buildtype=${TARGET}
     log Running test binary for target: $(color green '[==' $TARGET '==]')
 
     cd $TARGET
-    ./c4test
+    ./c4test $@
     cd ..
 }
 
@@ -123,7 +125,7 @@ case $1 in
              ;;
     release) meson_build release --buildtype=release
              ;;
-    run)     libcon4m_run_tests
+    run)     libcon4m_run_tests $@
              ;;
     *)
         libcon4m_dev_usage

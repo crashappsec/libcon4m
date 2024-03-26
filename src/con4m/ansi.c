@@ -302,6 +302,8 @@ utf8_ansi_render(const utf8_t *s, FILE *outstream)
     if (style_state == U8_STATE_IN_STYLE ||
 	style_state == U8_STATE_DEFAULT_STYLE) {
      }
+
+    ansi_render_style_end(outstream);
 }
 
 // This will have to convert characters to utf-8, since terminals
