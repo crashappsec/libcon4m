@@ -5,5 +5,5 @@
 #define use_truecolor() (1)
 
 
-extern color_t lookup_color(char *);
-extern color_t to_vga(int32_t truecolor);
+extern color_t lookup_color(utf8_t *);
+extern color_t to_vga(color_t truecolor);

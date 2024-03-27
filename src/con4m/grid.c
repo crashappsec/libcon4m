@@ -51,7 +51,7 @@ styled_repeat(codepoint_t c, uint32_t width, style_t style)
     utf32_t *result = utf32_repeat(c, width);
 
     if (string_codepoint_len(result) != 0) {
-	string_apply_style(result, style);
+	string_set_style(result, style);
     }
 
     return result;
@@ -1112,7 +1112,7 @@ grid_add_top_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 	*p++ = draw_chars->upper_right;
     }
 
-    string_apply_style(s, get_string_style(gs));
+    string_set_style(s, get_string_style(gs));
 
     pad_color = get_pad_style(gs);
     lpad      = get_styled_pad(gs->left_pad, pad_color);
@@ -1185,7 +1185,7 @@ grid_add_bottom_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 	*p++ = draw_chars->lower_right;
     }
 
-    string_apply_style(s, get_string_style(gs));
+    string_set_style(s, get_string_style(gs));
 
     pad_color = get_pad_style(gs);
     lpad      = get_styled_pad(gs->left_pad, pad_color);
@@ -1266,7 +1266,7 @@ grid_add_horizontal_rule(grid_t *grid, int row, xlist_t *lines,
 	*p++ = draw_chars->right_t;
     }
 
-    string_apply_style(s, get_string_style(gs));
+    string_set_style(s, get_string_style(gs));
 
     pad_color = get_pad_style(gs);
     lpad      = get_styled_pad(gs->left_pad, pad_color);
