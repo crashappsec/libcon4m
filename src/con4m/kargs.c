@@ -201,6 +201,7 @@ static void
 kargs_init(void)
 {
     karg_cache = (karg_cache_t *)gc_alloc_mapped(karg_cache_t, &pmap_kcache[0]);
+    con4m_gc_register_root(&karg_cache, 1);
 }
 
 static karg_cache_t *

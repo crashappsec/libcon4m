@@ -59,11 +59,13 @@ bool_repr(int64_t item, to_str_use_t how)
     if (item == 0) {
 	if (false_repr == NULL) {
 	    false_repr = con4m_new(tspec_utf8(), "cstring", "false");
+	    con4m_gc_register_root(&false_repr, 1);
 	}
 	return false_repr;
     }
     if (true_repr == NULL) {
 	true_repr = con4m_new(tspec_utf8(), "cstring", "true");
+	con4m_gc_register_root(&true_repr, 1);
     }
 
     return true_repr;

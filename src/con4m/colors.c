@@ -4597,7 +4597,7 @@ get_color_table()
 color_t
 lookup_color(utf8_t *name) {
     int     found  = 0;
-    color_t result = hatrack_dict_get(get_color_table(), name, &found);
+    color_t result = (color_t)(int64_t)hatrack_dict_get(get_color_table(), name, &found);
 
     if (!found) {
 	return -1;

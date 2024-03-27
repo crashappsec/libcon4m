@@ -95,7 +95,6 @@ mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
     }
 }
 
-
 static void
 mixed_init(mixed_t *m, va_list args)
 {

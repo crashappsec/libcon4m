@@ -1,12 +1,12 @@
 #include <con4m.h>
 
-
 // I realize some of this is redundant, but it's just easier.
 typedef struct {
     char      addr[sizeof(struct sockaddr_in6)];
     uint16_t  port;
     int32_t   af;
 } ipaddr_t;
+
 void
 ipaddr_set_address(ipaddr_t *obj, any_str_t *s, uint16_t port)
 {

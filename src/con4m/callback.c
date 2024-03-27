@@ -21,6 +21,7 @@ callback_init(callback_t *cb, va_list args)
 
     if (bound_functions == NULL) {
 	bound_functions = con4m_new(tspec_dict(tspec_ref(), tspec_ref()));
+	con4m_gc_register_root(&bound_functions, 1);
     }
 
     if (address == NULL) {

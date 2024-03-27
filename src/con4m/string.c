@@ -465,8 +465,6 @@ utf8_init(utf8_t *s, va_list args)
 	utf8_set_codepoint_count(s);
     } else {
 	if (length < 0) {
-	    s->data = 0;
-	    char c = s->data[10];
 	    CRAISE("length cannot be < 0 for string initialization");
 	}
 	s->data = con4m_gc_alloc(length + 1, NULL);
