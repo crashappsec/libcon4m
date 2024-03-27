@@ -294,7 +294,7 @@ type_hash_and_dedupe(type_spec_t **nodeptr, type_env_t *env)
     return result;
 }
 
-static type_t
+type_t
 type_hash(type_spec_t *node, type_env_t *env)
 {
     return type_hash_and_dedupe(&node, env);
@@ -333,11 +333,40 @@ con4m_type_env_unmarshal(type_env_t *env, stream_t *s, dict_t *memos)
     atomic_store(&env->next_tid, unmarshal_u64(s));
 }
 
+void
+internal_add_items_array(type_spec_t *n)
+{
+    // Avoid infinite recursion by manually constructing the list.
+    con4m_obj_t *alloc = con4m_gc_alloc(sizeof(con4m_obj_t) +
+					sizeof(xlist_t), GC_SCAN_ALL);
+
+    xlist_t *items            = (xlist_t *)alloc->data;
+    alloc->base_data_type     = (dt_info *)&builtin_type_info[T_XLIST];
+    alloc->concrete_type      = type_node_for_list_of_type_objects;
+    items->data               = gc_array_alloc(uint64_t *, 16);
+    items->length             = 16;
+
+    n->details->items = items;
+}
+
 static void
 con4m_type_spec_init(type_spec_t *n, va_list args)
 {
-    type_env_t     *env     = va_arg(args, type_env_t *);
-    con4m_builtin_t base_id = va_arg(args, con4m_builtin_t);
+    type_env_t     *env       = va_arg(args, type_env_t *);
+    con4m_builtin_t base_id   = va_arg(args, con4m_builtin_t);
+
+    n->details = gc_alloc(type_details_t);
+
+    if (env == NULL && base_id == 0) {
+	// This short circuit should be used when unmarshaling only.
+	// We basically only jump down to add the items xlist, if
+	// needed, which is controlled by a 3rd param after the
+	// two typical params.
+	if (va_arg(args, int64_t)) {
+	    internal_add_items_array(n);
+	}
+	return;
+    }
 
     if (base_id > T_GENERIC || base_id < T_TYPE_ERROR) {
 	CRAISE("Invalid type ID.");
@@ -349,17 +378,19 @@ con4m_type_spec_init(type_spec_t *n, va_list args)
 
     dt_info *info = (dt_info *)&builtin_type_info[base_id];
 
-    n->details            = gc_alloc(type_details_t);
     n->details->base_type = info;
 
     switch(info->base) {
     case BT_nil:
     case BT_primitive:
     case BT_internal:
+	n->typeid = base_id;
 	if (hatrack_dict_get(env->store, (void *)base_id, NULL)) {
 		CRAISE("Call get_builtin_type(), not con4m_new().");
 	}
-	n->typeid = info->typeid;
+	if ((n->typeid = info->typeid) == T_TYPESPEC) {
+	    internal_add_items_array(n);
+	}
 	break;
     case BT_type_var:
 	n->typeid = tenv_next_tid(env);
@@ -368,30 +399,21 @@ con4m_type_spec_init(type_spec_t *n, va_list args)
     case BT_tuple:
     case BT_dict:
     case BT_func:
-    {
-	// Avoid infinite recursion by manually constructing the list.
-	con4m_obj_t *alloc = con4m_gc_alloc(sizeof(con4m_obj_t) +
-					    sizeof(xlist_t), GC_SCAN_ALL);
-
-	xlist_t *items        = (xlist_t *)alloc->data;
-	alloc->base_data_type = (dt_info *)&builtin_type_info[T_XLIST];
-	alloc->concrete_type  = type_node_for_list_of_type_objects;
-	items->data           = gc_array_alloc(uint64_t *, 16);
-	items->length         = 16;
-	type_spec_t *arg      = va_arg(args, type_spec_t *);
+	internal_add_items_array(n);
+	type_spec_t *arg = va_arg(args, type_spec_t *);
 
 	while (arg != NULL) {
-	    xlist_append(items, arg);
+	    xlist_append(n->details->items, arg);
 	    arg = va_arg(args, type_spec_t *);
 	}
-	n->details->items = items;
+
 	break;
-    }
     default:
 	assert(false);
     }
 
     type_hash(n, env);
+    assert(n->details != NULL && (((int64_t)n->details) & 0x07) == 0);
 }
 
 type_spec_t *
@@ -849,32 +871,23 @@ con4m_type_spec_repr(type_spec_t *t, to_str_use_t how)
     return internal_type_repr(t, memos, &n);
 }
 
+extern void marshal_compact_type(type_spec_t *t, stream_t *s);
+extern type_spec_t * unmarshal_compact_type(stream_t *s);
+
 static void
 con4m_type_spec_marshal(type_spec_t *n, stream_t *s, dict_t *m, int64_t *mid)
 {
-    marshal_u64(n->typeid, s);
-
-    type_details_t *d = n->details;
-
-    marshal_cstring(d->name, s);
-    con4m_sub_marshal(d->base_type, s, m, mid);
-    con4m_sub_marshal(d->items, s, m, mid);
-    con4m_sub_marshal(d->props, s, m, mid);
-    marshal_u8(d->flags, s);
+    marshal_compact_type(n, s);
 }
 
 static void
 con4m_type_spec_unmarshal(type_spec_t *n, stream_t *s, dict_t *m)
 {
-    type_details_t *d = gc_alloc(type_details_t);
+    type_spec_t *r = unmarshal_compact_type(s);
 
-    n->details   = d;
-    n->typeid    = unmarshal_u64(s);
-    d->name      = unmarshal_cstring(s);
-    d->base_type = con4m_sub_unmarshal(s, m);
-    d->items     = con4m_sub_unmarshal(s, m);
-    d->props     = con4m_sub_unmarshal(s, m);
-    d->flags     = unmarshal_u8(s);
+
+    n->details = r->details;
+    n->typeid  = r->typeid;
 }
 
 const con4m_vtable type_env_vtable = {
@@ -917,13 +930,17 @@ initialize_global_types()
 	con4m_obj_t    *one;
 	type_spec_t    *ts;
 
+	ts          = (type_spec_t *)tobj->data;
+	ts->typeid  = T_TYPESPEC;
+	ts->details =  info;
+
+	internal_add_items_array(ts);
+
 	tobj->base_data_type         = tspec;
-	tobj->concrete_type          = (type_spec_t *)tobj->data;
-	tobj->concrete_type->typeid  = T_TYPESPEC;
-	tobj->concrete_type->details = info;
+	tobj->concrete_type          = ts;
 	info->name                   = (char *)tspec->name;
 	info->base_type              = tspec;
-	builtin_types[T_TYPESPEC]    = (type_spec_t *)tobj->data;
+	builtin_types[T_TYPESPEC]    = ts;
 
 	for (int i = 0; i < CON4M_NUM_BUILTIN_DTS; i++) {
 	    if (i == T_TYPESPEC) {
@@ -947,7 +964,7 @@ initialize_global_types()
 		info->base_type     = one_spec;
 
 		builtin_types[i]    = ts;
-
+		assert(ts->details != NULL && (((int64_t)ts->details) & 0x07) == 0);
 		continue;
 	    default:
 		continue;
@@ -983,6 +1000,9 @@ initialize_global_types()
 	ts->details->base_type = (dt_info *)&builtin_type_info[T_XLIST];
 	ts->details->name      = (char *)ts->details->base_type->name;
 
+
+	// This type hash won't really be right because there's
+	// a recursive loop.
 	type_hash(ts, global_type_env);
 	type_node_for_list_of_type_objects = ts;
 
@@ -993,8 +1013,22 @@ initialize_global_types()
 	envstore->base_data_type = (dt_info *)&builtin_type_info[T_DICT];
 	envstore->concrete_type  = tspec_dict(tspec_int(), tspec_typespec());
 
+	// Now, we have to manually set up an xlist.
+	con4m_obj_t *xobj = con4m_gc_alloc(sizeof(xlist_t) +
+					   sizeof(con4m_obj_t),
+					   GC_SCAN_ALL);
+	xobj->base_data_type = ts->details->base_type;
+
+	xlist_t *list        = (xlist_t *)xobj->data;
+	list->data           = gc_alloc(int64_t *);
+	list->data[0]        = (int64_t *)ts;
+	list->append_ix      = 1;
+	list->length         = 1;
+	ts->details->items   = list;
+
 	// Theoretically, we should be able to marshal these now.
     }
+
 }
 
 

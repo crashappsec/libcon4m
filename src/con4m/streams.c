@@ -140,14 +140,14 @@ stream_init(stream_t *stream, va_list args)
 	int             fd            = -1;
 	int             read          = 1;
 	int             write         = 0;
-	int             can_create    = 0;
 	int             append        = 0;
+	int             no_create     = 0;
 	int             close_on_exec = 1;
 	con4m_builtin_t out_type      = T_UTF8;
 	);
 
     method_kargs(args, filename, instring, buffer, cookie, fd, read, write,
-		 can_create, append, close_on_exec, out_type);
+		 append, no_create, close_on_exec, out_type);
 
     int64_t src_count = 0;
     char    buf[10]   = {0,};
@@ -188,6 +188,10 @@ stream_init(stream_t *stream, va_list args)
 	if (read) {
 	    buf[i++] = '+';
 	}
+
+	if (no_create) {
+	    buf[i++] = 'x';
+	}
     }
     else {
 	if (write) {
@@ -197,8 +201,7 @@ stream_init(stream_t *stream, va_list args)
 	    if(read) {
 		buf[i++] = '+';
 	    }
-
-	    if (!can_create) {
+	    if (no_create) {
 		buf[i++] = 'x';
 	    }
 	}
@@ -227,14 +230,11 @@ stream_init(stream_t *stream, va_list args)
 	stream->contents.f = fopen(filename->data, buf);
 	stream->flags      = flags;
 
+    err_check:
 	if (stream->contents.f == NULL) {
 	    raise_errno();
 	}
 
-    err_check:
-	if (!stream->contents.f) {
-	    raise_errno();
-	}
 	return;
     }
 
@@ -382,7 +382,7 @@ stream_raw_write(stream_t *stream, int64_t len, char *buf)
 	actual = fwrite(buf, len, 1, stream->contents.f);
     }
 
-    if (actual == (size_t)len) {
+    if (actual > 0) {
 	return actual;
     }
 
@@ -396,7 +396,9 @@ stream_raw_write(stream_t *stream, int64_t len, char *buf)
     }
 
     else {
-	raise_errcode(ferror(stream->contents.f));
+	if (!feof(stream->contents.f)) {
+	    raise_errcode(ferror(stream->contents.f));
+	}
     }
 
     return 0;

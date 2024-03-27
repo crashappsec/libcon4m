@@ -144,7 +144,6 @@ ssl      = cc.find_library('ssl')
 
 unibreak = dependency('libunibreak')
 utf8proc = dependency('libutf8proc')
-#cmark    = dependency('libcmark-gfm')
 deps     = [unibreak, utf8proc, threads, ffi, ssl, crypto]
 opts     = [math]
 all_deps = deps + opts

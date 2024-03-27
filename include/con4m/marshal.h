@@ -1,19 +1,24 @@
 #pragma once
 
-void    marshal_cstring(char *, stream_t *);
-char   *unmarshal_cstring(stream_t *);
-void    marshal_i64(int64_t, stream_t *);
-int64_t unmarshal_i64(stream_t *);
-void    marshal_i32(int32_t, stream_t *);
-int32_t unmarshal_i32(stream_t *);
-void    marshal_i16(int16_t, stream_t *);
-int16_t unmarshal_i16(stream_t *);
+extern void    marshal_cstring(char *, stream_t *);
+extern char   *unmarshal_cstring(stream_t *);
+extern void    marshal_i64(int64_t, stream_t *);
+extern int64_t unmarshal_i64(stream_t *);
+extern void    marshal_i32(int32_t, stream_t *);
+extern int32_t unmarshal_i32(stream_t *);
+extern void    marshal_i16(int16_t, stream_t *);
+extern int16_t unmarshal_i16(stream_t *);
 
-void     con4m_sub_marshal(object_t, stream_t *, struct dict_t *, int64_t *);
-object_t con4m_sub_unmarshal(stream_t *, struct dict_t *);
-void     con4m_marshal(object_t, stream_t *);
-object_t con4m_unmarshal(stream_t *);
-
+extern void     con4m_sub_marshal(object_t, stream_t *, struct dict_t *,
+				  int64_t *);
+extern object_t con4m_sub_unmarshal(stream_t *, struct dict_t *);
+extern void     con4m_marshal(object_t, stream_t *);
+extern object_t con4m_unmarshal(stream_t *);
+extern void     marshal_unmanaged_object(void *, stream_t *, struct dict_t *,
+					 int64_t *, marshal_fn);
+extern void *   unmarshal_unmanaged_object(size_t, stream_t *, struct dict_t *,
+					   unmarshal_fn);
+extern void     dump_c_static_instance_code(object_t, char *, utf8_t *);
 static inline void
 marshal_i8(int8_t c, stream_t *s)
 {

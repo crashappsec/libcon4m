@@ -39,7 +39,7 @@ function meson_build {
             rm -rf ${1}
         fi
         log Creating meson target ${1}
-        meson setup ${@}
+        meson setup ${1}
     fi
     cd ${1}
 
@@ -49,6 +49,42 @@ function meson_build {
         meson compile
     else
         CC=musl-gcc meson compile
+    fi
+
+    CODE=$?
+    if [[ $CODE -eq 0 ]] ; then
+        log "Done!"
+    else
+        log "Build FAILED"
+    fi
+
+    cd ..
+    if [[ ${1} != "debug" ]]; then
+        exit $CODE
+    fi
+
+    if [[ $CODE -ne 0 ]]; then
+        exit $CODE
+    fi
+}
+
+function meson_hatrack {
+
+    if [[ ! -d ${1} ]]; then
+        if [[ -f ${1} ]]; then
+            rm -rf ${1}
+        fi
+        log Creating meson target ${1}
+        meson setup ${1}
+    fi
+    cd ${1}
+
+    log Compiling meson target ${1}
+
+    if [[ ${OS} = "Darwin" ]] ; then
+        meson compile hash
+    else
+        CC=musl-gcc meson compile hash
     fi
 
     CODE=$?
@@ -126,6 +162,8 @@ case $1 in
     release) meson_build release --buildtype=release
              ;;
     run)     libcon4m_run_tests $@
+             ;;
+    hash)    meson_hatrack hash
              ;;
     *)
         libcon4m_dev_usage

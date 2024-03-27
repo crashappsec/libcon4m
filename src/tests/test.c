@@ -31,7 +31,7 @@ test1() {
     ansi_render(s3, stdout);
 
     s1 = force_utf32(s1);
-    string_apply_style(s3, style2);
+    string_set_style(s3, style2);
     s2 = force_utf32(s2);
     s3 = force_utf32(s3);
 
@@ -99,9 +99,9 @@ test2() {
     utf8_t *w6 = con4m_new(tspec_utf8(),
 			   "cstring", "\n");
 
-    string_apply_style(w2, style1);
-    string_apply_style(w3, style2);
-    string_apply_style(w5, style1);
+    string_set_style(w2, style1);
+    string_set_style(w3, style2);
+    string_set_style(w5, style1);
 
     utf32_t *to_wrap;
 
@@ -223,10 +223,10 @@ table_test()
     // If we don't explicitly set this, there can be some render issues
     // when there's not enough room.
     grid_set_cell_contents(g, 3, 2, empty_string());
-    string_apply_style(test1, style1);
-    string_apply_style(test2, style2);
-    string_apply_style(test3, style1);
-    string_apply_style(test5, style2);
+    string_set_style(test1, style1);
+    string_set_style(test2, style2);
+    string_set_style(test3, style1);
+    string_set_style(test5, style2);
     con4m_new(tspec_render_style(), "flex_units", 3, "tag", "col1");
     con4m_new(tspec_render_style(), "flex_units", 2, "tag", "col3");
 //    con4m_new(tspec_render_style(), "width_pct", 10., "tag", "col1");
@@ -327,13 +327,69 @@ stream_tests()
 	stream_write_object(s2, s);
     }
 
-
     print_hex(b->data, b->byte_len, "Buffer");
     utf8_t *s = buffer_to_utf8_string(b);
 
-    string_apply_style(s, sty);
+    string_set_style(s, sty);
     ansi_render(s, stdout);
 }
+
+extern color_info_t color_data[];
+
+void
+marshal_test()
+{
+    utf8_t   *contents = con4m_new(tspec_utf8(),
+				   "cstring",  "This is a test of marshal.");
+    buffer_t *b = con4m_new(tspec_buffer(), "length", 16);
+    stream_t *s = con4m_new(tspec_stream(),
+			    "buffer", b,
+			    "write", 1,
+			    "read", 0);
+
+    con4m_marshal(contents, s);
+    stream_close(s);
+
+    s = con4m_new(tspec_stream(), "buffer", b);
+
+    utf8_t *new_str = con4m_unmarshal(s);
+
+    ansi_render(new_str, stdout);
+
+}
+
+#if 0
+// This works, and now is in color.c locally.
+#include "/tmp/color.c"
+
+void
+marshal_test2()
+{
+    dict_t *d = con4m_new(tspec_dict(tspec_utf8(), tspec_int()));
+    int n;
+
+    for (n = 0; color_data[n].name != NULL; n++) {
+	utf8_t  *color = con4m_new(tspec_utf8(), "cstring", color_data[n].name);
+	int64_t rgb    = (int64_t)color_data[n].rgb;
+
+	hatrack_dict_put(d, color, (void *)rgb);
+    }
+
+    printf("Writing test color dictionary to /tmp/color.c\n");
+    dump_c_static_instance_code(d, "color_table",
+		con4m_new(tspec_utf8(), "cstring", "/tmp/color.c"));
+
+    for (int64_t i = 0; i < n - 1; i++) {
+	char   *ckey = color_data[i].name;
+	if (ckey == NULL) {
+	    continue;
+	}
+	utf8_t *key  = con4m_new(tspec_utf8(), "cstring", ckey);
+	int64_t val  = lookup_color(key);
+	printf("%s: %06llx\n", key->data, val);
+    }
+}
+#endif
 
 int
 main(int argc, char **argv, char **envp)
@@ -360,6 +416,8 @@ main(int argc, char **argv, char **envp)
 
 	type_tests();
 	stream_tests();
+	marshal_test();
+	//marshal_test2();
 	STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
 	ansi_render(local_test, stdout);
 	CRAISE("Except maybe not!");

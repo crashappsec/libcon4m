@@ -104,7 +104,7 @@ copy_style_info(const any_str_t *from_str, any_str_t *to_str)
 }
 
 static inline void
-string_apply_style(any_str_t *s, style_t style)
+string_set_style(any_str_t *s, style_t style)
 {
 
     alloc_styles(s, 1);
@@ -137,63 +137,17 @@ copy_and_offset_styles(any_str_t *from_str, any_str_t *to_str,
     return dst_style_ix;
 }
 
+extern void style_gaps(any_str_t *, style_t);
+extern void string_layer_style(any_str_t *, style_t, style_t);
+
 static inline void
-style_gaps(any_str_t *s, style_t gapstyle)
+string_apply_style(any_str_t *s, style_t style, bool replace)
 {
-    if (!s->styling || !s->styling->num_entries) {
-	string_apply_style(s, gapstyle);
-	return;
+    if (replace) {
+	string_set_style(s, style);
     }
-
-    int num_gaps = 0;
-    int last_end = 0;
-    int num_cp   = string_codepoint_len(s);
-
-    for (int i = 0; i < s->styling->num_entries; i++) {
-	style_entry_t style = s->styling->styles[i];
-	if (style.start > last_end) {
-	    num_gaps++;
-	}
-	last_end = style.end;
-    }
-    if (num_cp > last_end) {
-	num_gaps++;
-    }
-
-    if (!num_gaps) {
-	return;
-    }
-    style_info_t *old = s->styling;
-    int new_ix        = 0;
-
-    alloc_styles(s, old->num_entries + num_gaps);
-
-
-    last_end = 0;
-
-    for (int i = 0; i < old->num_entries; i++) {
-	style_entry_t style = s->styling->styles[i];
-
-	if (style.start > last_end) {
-	    style_entry_t filler = {
-		.start = last_end,
-                .end   = style.start,
-	        .info  = gapstyle
-	    };
-
-	    s->styling->styles[new_ix++] = filler;
-	}
-	s->styling->styles[new_ix++] = old->styles[i];
-	last_end = old->styles[i].end;
-    }
-    if (last_end != num_cp) {
-	style_entry_t filler = {
-	    .start = last_end,
-	    .end   = num_cp,
-	    .info  = gapstyle
-	};
-
-	s->styling->styles[new_ix] = filler;
+    else {
+	string_layer_style(s, style, 0);
     }
 }
 
@@ -216,8 +170,8 @@ extern style_t add_bg_color(style_t style, uint8_t red, uint8_t green,
 			    uint8_t blue);
 extern style_t add_fg_color(style_t style, uint8_t red, uint8_t green,
 			    uint8_t blue);
-extern style_t apply_bg_color(style_t style, char *name);
-extern style_t apply_fg_color(style_t style, char *name);
+extern style_t apply_bg_color(style_t style, utf8_t *name);
+extern style_t apply_fg_color(style_t style, utf8_t *name);
 extern style_t add_upper_case(style_t style);
 extern style_t add_lower_case(style_t style);
 extern style_t add_title_case(style_t style);

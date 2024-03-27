@@ -438,17 +438,18 @@ static void
 utf8_init(utf8_t *s, va_list args)
 {
     DECLARE_KARGS(
-	int64_t length  = -1;  // BYTE length.
-	int64_t start   = 0;
-	char   *cstring = NULL;
-	style_t style   = STYLE_INVALID;
-	char   *tag     = NULL;
+	int64_t length        = -1;  // BYTE length.
+	int64_t start         = 0;
+	char   *cstring       = NULL;
+	style_t style         = STYLE_INVALID;
+	int     replace_style = 1;
+	char   *tag           = NULL;
 	);
 
-    method_kargs(args, length, start, cstring, style, tag);
+    method_kargs(args, length, start, cstring, style, replace_style, tag);
 
     if (cstring != NULL) {
-	if (length == -1) {
+	if (length < 0) {
 	    length = strlen(cstring);
 	}
 
@@ -464,19 +465,21 @@ utf8_init(utf8_t *s, va_list args)
 	utf8_set_codepoint_count(s);
     } else {
 	if (length < 0) {
+	    s->data = 0;
+	    char c = s->data[10];
 	    CRAISE("length cannot be < 0 for string initialization");
 	}
 	s->data = con4m_gc_alloc(length + 1, NULL);
     }
 
     if (style != STYLE_INVALID) {
-	string_apply_style(s, style);
+	string_apply_style(s, style, replace_style ? true : false);
     }
 
     if (tag != NULL) {
 	render_style_t *rs = lookup_cell_style(tag);
 	if (rs != NULL) {
-	    string_apply_style(s, rs->base_style);
+	    string_apply_style(s, rs->base_style, replace_style ? true : false);
 	}
     }
 }
@@ -485,11 +488,12 @@ static void
 utf32_init(utf32_t *s, va_list args)
 {
     DECLARE_KARGS(
-	int64_t      length     = -1;  // NUMBER OF CODEPOINTS.
-	int64_t      start      = 0;
-	char        *cstring    = NULL;
-	codepoint_t *codepoints = NULL;
-	style_t      style      = STYLE_INVALID;
+	int64_t      length        = -1;  // NUMBER OF CODEPOINTS.
+	int64_t      start         = 0;
+	char        *cstring       = NULL;
+	codepoint_t *codepoints    = NULL;
+	style_t      style         = STYLE_INVALID;
+	int          replace_style = 1;
 	);
 
     method_kargs(args, length, start, cstring, codepoints, style);
@@ -547,7 +551,7 @@ utf32_init(utf32_t *s, va_list args)
     }
 
     if (style != STYLE_INVALID) {
-	string_apply_style(s, style);
+	string_apply_style(s, style, replace_style ? true : false);
     }
 }
 
@@ -932,7 +936,7 @@ con4m_rich(utf8_t *to_copy, utf8_t *style)
     render_style_t *rs = lookup_cell_style(style->data);
 
     if (rs != NULL) {
-	string_apply_style(res, rs->base_style);
+	string_apply_style(res, rs->base_style, 0);
     }
 
     return res;

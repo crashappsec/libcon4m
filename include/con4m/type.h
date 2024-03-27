@@ -87,6 +87,18 @@ type_spec_is_locked(type_spec_t *t)
     return t->details->flags & FN_TY_LOCK;
 }
 
+static inline void
+type_spec_lock(type_spec_t *t)
+{
+    t->details->flags |= FN_TY_LOCK;
+}
+
+static inline void
+type_spec_unlock(type_spec_t *t)
+{
+    t->details->flags &= ~FN_TY_LOCK;
+}
+
 static inline type_t
 tenv_next_tid(type_env_t *env)
 {

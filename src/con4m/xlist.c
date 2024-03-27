@@ -108,7 +108,7 @@ xlist_plus(xlist_t *l1, xlist_t *l2)
     return result;
 }
 
-static void
+void
 con4m_xlist_marshal(xlist_t *r, stream_t *s, dict_t *memos, int64_t *mid)
 {
     type_spec_t *list_type   = get_my_type(r);
@@ -132,14 +132,15 @@ con4m_xlist_marshal(xlist_t *r, stream_t *s, dict_t *memos, int64_t *mid)
     }
 }
 
-static void
+void
 con4m_xlist_unmarshal(xlist_t *r, stream_t *s, dict_t *memos)
 {
     type_spec_t *list_type   = get_my_type(r);
     xlist_t     *type_params = tspec_get_parameters(list_type);
     type_spec_t *item_type   = xlist_get(type_params, 0, NULL);
-    dt_info     *item_info   = tspec_get_data_type_info(item_type);
-    bool         by_val      = item_info->by_value;
+    dt_info     *item_info   = item_type ? tspec_get_data_type_info(item_type) :
+ 	                       NULL;
+    bool         by_val      = item_info ? item_info->by_value: false;
 
     r->append_ix = unmarshal_i32(s);
     r->length    = unmarshal_i32(s);
