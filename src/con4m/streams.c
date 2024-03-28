@@ -137,6 +137,7 @@ stream_init(stream_t *stream, va_list args)
 	any_str_t      *instring      = NULL;
 	buffer_t       *buffer        = NULL;
 	cookie_t       *cookie        = NULL;
+	FILE           *fstream       = NULL;
 	int             fd            = -1;
 	int             read          = 1;
 	int             write         = 0;
@@ -146,8 +147,8 @@ stream_init(stream_t *stream, va_list args)
 	con4m_builtin_t out_type      = T_UTF8;
 	);
 
-    method_kargs(args, filename, instring, buffer, cookie, fd, read, write,
-		 append, no_create, close_on_exec, out_type);
+    method_kargs(args, filename, instring, buffer, cookie, fstream, fd,
+		 read, write, append, no_create, close_on_exec, out_type);
 
     int64_t src_count = 0;
     char    buf[10]   = {0,};
@@ -158,7 +159,8 @@ stream_init(stream_t *stream, va_list args)
     src_count += (int64_t)!!instring;
     src_count += (int64_t)!!buffer;
     src_count += (int64_t)!!cookie;
-    src_count += fd + 1;
+    src_count += (int64_t)!!fstream;
+    src_count += (fd >= 0);
 
     switch (out_type) {
     case T_UTF8:
@@ -235,6 +237,13 @@ stream_init(stream_t *stream, va_list args)
 	    raise_errno();
 	}
 
+	return;
+    }
+
+    if (fstream != NULL) {
+	printf("passed file, is it a tty?: %d\n",
+	       isatty(fileno(fstream)));
+	stream->contents.f = fstream;
 	return;
     }
 

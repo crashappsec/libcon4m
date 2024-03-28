@@ -35,7 +35,7 @@ internal_char_render_width(codepoint_t cp)
 }
 
 static void
-ansi_render_style_start(uint64_t info, FILE *outstream)
+ansi_render_style_start(uint64_t info, stream_t *outstream)
 {
 
     uint64_t remaining = (~FLAG_MASK) & info;
@@ -44,47 +44,48 @@ ansi_render_style_start(uint64_t info, FILE *outstream)
 	return;
     }
 
-    fputs("\e[", outstream);
+    stream_putc(outstream, '\e');
+    stream_putc(outstream, '[');
     if (info & BOLD_ON) {
 	remaining &= ~BOLD_ON;
-	fputc('1', outstream);
+	stream_putc(outstream, '1');
 	if (remaining) {
-	    fputc(';', outstream);
+	    stream_putc(outstream, ';');
 	}
     }
     if (info & INV_ON) {
 	remaining &= ~INV_ON;
-	fputc('7', outstream);
+	stream_putc(outstream, '7');
 	if (remaining) {
-	    fputc(';', outstream);
+	    stream_putc(outstream, ';');
 	}
     }
     if (info & ST_ON) {
 	remaining &= ~ST_ON;
-	fputc('9', outstream);
+	stream_putc(outstream, '9');
 	if (remaining) {
-	    fputc(';', outstream);
+	    stream_putc(outstream, ';');
 	}
     }
     if (info & ITALIC_ON) {
 	remaining &= ~ITALIC_ON;
-	fputc('3', outstream);
+	stream_putc(outstream, '3');
 	if (remaining) {
-	    fputc(';', outstream);
+	    stream_putc(outstream, ';');
 	}
     }
     if (info & UL_ON) {
 	remaining &= ~UL_ON;
-	fputc('4', outstream);
+	stream_putc(outstream, '4');
 	if (remaining) {
-	    fputc(';', outstream);
+	    stream_putc(outstream, ';');
 	}
     }
     if (info & UL_DOUBLE) {
 	remaining &= ~UL_DOUBLE;
-	fputs("21", outstream);
+	stream_puts(outstream, "21");
 	if (remaining) {
-	    fputc(';', outstream);
+	    stream_putc(outstream, ';');
 	}
     }
 
@@ -95,15 +96,19 @@ ansi_render_style_start(uint64_t info, FILE *outstream)
 	    uint8_t r = (uint8_t)((info & ~FG_COLOR_MASK) >> OFFSET_FG_RED);
 	    uint8_t g = (uint8_t)((info & ~FG_COLOR_MASK) >> OFFSET_FG_GREEN);
 	    uint8_t b = (uint8_t)((info & ~FG_COLOR_MASK) >> OFFSET_FG_BLUE);
-	    fprintf(outstream, "38;2;%d;%d;%d", r, g, b);
+	    stream_puts(outstream, "38;2;");
+	    stream_puti(outstream, r);
+	    stream_putc(outstream, ';');
+	    stream_puti(outstream, g);
+	    stream_putc(outstream, ';');
+	    stream_puti(outstream, b);
 	}
 	else {
-	    fprintf(outstream, "38;5;%d",
-		    to_vga((int32_t)(info &
-				     ~(FG_COLOR_MASK))));
+	    stream_puts(outstream, "38;5;");
+	    stream_puti(outstream, to_vga((int32_t)(info & ~(FG_COLOR_MASK))));
 	}
 	if (remaining) {
-	    fputc(';', outstream);
+	    stream_putc(outstream, ';');
 	}
     }
 
@@ -114,33 +119,40 @@ ansi_render_style_start(uint64_t info, FILE *outstream)
 	    uint8_t r = (uint8_t)((info & ~BG_COLOR_MASK) >> OFFSET_BG_RED);
 	    uint8_t g = (uint8_t)((info & ~BG_COLOR_MASK) >> OFFSET_BG_GREEN);
 	    uint8_t b = (uint8_t)((info & ~BG_COLOR_MASK) >> OFFSET_BG_BLUE);
-	    fprintf(outstream, "48;2;%d;%d;%d", r, g, b);
+	    stream_puts(outstream, "48;2;");
+	    stream_puti(outstream, r);
+	    stream_putc(outstream, ';');
+	    stream_puti(outstream, g);
+	    stream_putc(outstream, ';');
+	    stream_puti(outstream, b);
 	}
 	else {
-	    fprintf(outstream, "48;5;%d",
-		    to_vga((int32_t)(info &
-				     ~(BG_COLOR_MASK) >> OFFSET_BG_BLUE)));
+	    stream_puts(outstream, "38;5;");
+	    stream_puti(outstream,
+			to_vga((int32_t)(info &
+					 ~(BG_COLOR_MASK) >> OFFSET_BG_BLUE)));
 	}
     }
-    fputc('m', outstream);
+    stream_putc(outstream, 'm');
 }
 
 static inline void
-ansi_render_style_end(FILE *outstream)
+ansi_render_style_end(stream_t *outstream)
 {
-    fputs("\e[0m", outstream);
-    fflush(outstream);
+    stream_putc(outstream, '\e');
+    stream_putc(outstream, '[');
+    stream_putc(outstream, '0');
+    stream_putc(outstream, 'm');
 }
 
 static inline void
-ansi_render_style_final(FILE *outstream)
+ansi_render_style_final(stream_t *outstream)
 {
-    fputs("\e[0m\e[K", outstream);
-    fflush(outstream);
+    stream_puts(outstream, "\e[0m\e[K");
 }
 
 static inline void
-ansi_render_one_codepoint_plain(codepoint_t cp, FILE *outstream)
+ansi_render_one_codepoint_plain(codepoint_t cp, stream_t *outstream)
 {
     uint8_t tmp[4];
     int     len;
@@ -150,23 +162,23 @@ ansi_render_one_codepoint_plain(codepoint_t cp, FILE *outstream)
     }
 
     len = utf8proc_encode_char(cp, tmp);
-    fwrite(tmp, len, 1, outstream);
+    stream_raw_write(outstream, len, (char *)tmp);
 }
 
 static inline void
-ansi_render_one_codepoint_lower(codepoint_t cp, FILE *outstream)
+ansi_render_one_codepoint_lower(codepoint_t cp, stream_t *outstream)
 {
     ansi_render_one_codepoint_plain(utf8proc_tolower(cp), outstream);
 }
 
 static inline void
-ansi_render_one_codepoint_upper(codepoint_t cp, FILE *outstream)
+ansi_render_one_codepoint_upper(codepoint_t cp, stream_t *outstream)
 {
     ansi_render_one_codepoint_plain(utf8proc_toupper(cp), outstream);
 }
 
 static inline bool
-ansi_render_one_codepoint_title(codepoint_t cp, bool go_up, FILE *outstream)
+ansi_render_one_codepoint_title(codepoint_t cp, bool go_up, stream_t *outstream)
 {
     if (go_up) {
 	ansi_render_one_codepoint_upper(cp, outstream);
@@ -177,7 +189,7 @@ ansi_render_one_codepoint_title(codepoint_t cp, bool go_up, FILE *outstream)
 }
 
 void
-utf8_ansi_render(const utf8_t *s, FILE *outstream)
+utf8_ansi_render(const utf8_t *s, stream_t *outstream)
 {
     if (!s) { return; }
 
@@ -313,7 +325,7 @@ utf8_ansi_render(const utf8_t *s, FILE *outstream)
 // generally do not support other encodings.
 static void
 ansi_render_u32_region(const utf32_t *s, int32_t from, int32_t to,
-		       style_t style, FILE *outstream)
+		       style_t style, stream_t *outstream)
 {
     codepoint_t *p   = (codepoint_t *)(s->data);
     bool         cap = true;
@@ -350,7 +362,7 @@ ansi_render_u32_region(const utf32_t *s, int32_t from, int32_t to,
 
 void
 utf32_ansi_render(const utf32_t *s, int32_t start_ix, int32_t end_ix,
-		  FILE *outstream)
+		  stream_t *outstream)
 {
     if (!s) { return; }
 
@@ -403,7 +415,7 @@ utf32_ansi_render(const utf32_t *s, int32_t start_ix, int32_t end_ix,
 }
 
 void
-ansi_render(const any_str_t *s, FILE *out)
+ansi_render(const any_str_t *s, stream_t *out)
 {
     if (!s) { return; }
 
@@ -416,7 +428,8 @@ ansi_render(const any_str_t *s, FILE *out)
 }
 
 void
-ansi_render_to_width(const any_str_t *s, int32_t width, int32_t hang, FILE *out)
+ansi_render_to_width(const any_str_t *s, int32_t width, int32_t hang,
+		     stream_t *out)
 {
     if (!s) {return; }
 
@@ -433,7 +446,7 @@ ansi_render_to_width(const any_str_t *s, int32_t width, int32_t hang, FILE *out)
     for (i = 0; i < line_starts->num_breaks - 1; i++) {
 	utf32_ansi_render(as_u32, line_starts->breaks[i],
 			line_starts->breaks[i + 1], out);
-	fputc('\n', out);
+	stream_putc(out, '\n');
     }
 
     if (i == line_starts->num_breaks - 1) {

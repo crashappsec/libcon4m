@@ -18,10 +18,38 @@ stream_putc(stream_t *s, char c)
     return stream_raw_write(s, 1, &c) == 1;
 }
 
+static inline int
+stream_puts(stream_t *s, char *c)
+{
+    return stream_raw_write(s, strlen(c), c);
+}
+
 static inline object_t
 stream_read(stream_t *stream, int64_t len)
 {
     return stream_raw_read(stream, len, NULL);
+}
+
+static inline void
+stream_puti(stream_t *s, int64_t n)
+{
+    if (!n) {
+	stream_putc(s, '0');
+	return;
+    }
+    if (n < 0) {
+	stream_putc(s, '-');
+	n *= -1;
+    }
+    char  buf[21] = {0,};
+    char *p       = buf + 20;
+
+    while (n != 0) {
+	*--p = (n % 10) + '0';
+	n /= 10;
+    }
+
+    stream_puts(s, p);
 }
 
 // For nim integration.
@@ -79,4 +107,22 @@ file_iostream(any_str_t *filename, int can_create)
 		     "read", 0,
 		     "write", 1,
 		     "can_create", can_create);
+}
+
+static inline stream_t *
+get_stdin()
+{
+    return con4m_new(tspec_stream(), "fd", 0);
+}
+
+static inline stream_t *
+get_stdout()
+{
+    return con4m_new(tspec_stream(), "fd", 1, "read", 0, "write", 1);
+}
+
+static inline stream_t *
+get_stderr()
+{
+    return con4m_new(tspec_stream(), "fd", 2, "read", 0, "write", 1);
 }

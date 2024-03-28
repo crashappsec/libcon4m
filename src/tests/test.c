@@ -7,6 +7,8 @@ size_t  term_width;
 STATIC_ASCII_STR(str_test, "Welcome to the testing center. First order of "
 		 "business: This is a static string, stored in static memory."
 		 "However, we have not set any styling information on it.\n");
+stream_t *sout;
+stream_t *serr;
 
 void
 test1() {
@@ -26,23 +28,23 @@ test1() {
     //con4m_gc_register_root(&s2, 1);
     //con4m_gc_register_root(&s3, 1);
 
-    ansi_render(s1, stdout);
-    ansi_render(s2, stdout);
-    ansi_render(s3, stdout);
+    ansi_render(s1, sout);
+    ansi_render(s2, sout);
+    ansi_render(s3, sout);
 
     s1 = force_utf32(s1);
     string_set_style(s3, style2);
     s2 = force_utf32(s2);
     s3 = force_utf32(s3);
 
-    ansi_render(s1, stdout);
-    ansi_render(s2, stdout);
-    ansi_render(s3, stdout);
+    ansi_render(s1, sout);
+    ansi_render(s2, sout);
+    ansi_render(s3, sout);
 
     utf32_t *s  = string_concat(s1, s2);
     s           = string_concat(s,  s3);
 
-    ansi_render(s, stdout);
+    ansi_render(s, sout);
     printf("That was at %p\n", s);
 
     break_info_t *g;
@@ -75,7 +77,7 @@ test1() {
     con4m_gc_thread_collect();
 
     printf("s is now at: %p\n Let's render s again.\n", s);
-    ansi_render(s, stdout);
+    ansi_render(s, sout);
 }
 
 any_str_t *
@@ -123,10 +125,10 @@ test2() {
 			     80,
 			     "String Dump\n");
 
-    ansi_render(dump1, stderr);
-    ansi_render(dump2, stderr);
+    ansi_render(dump1, serr);
+    ansi_render(dump2, serr);
 
-    ansi_render_to_width(to_wrap, term_width, 0, stdout);
+    ansi_render_to_width(to_wrap, term_width, 0, sout);
     con4m_gc_thread_collect();
     return to_wrap;
 }
@@ -144,11 +146,11 @@ test_rand64()
 void
 test3(any_str_t *to_slice)
 {
-    //ansi_render(string_slice(to_slice, 10, 50), stdout);
-    ansi_render_to_width(string_slice(to_slice, 10, 50), term_width, 0, stdout);
+    //ansi_render(string_slice(to_slice, 10, 50), sout);
+    ansi_render_to_width(string_slice(to_slice, 10, 50), term_width, 0, sout);
     printf("\n");
     ansi_render_to_width(string_slice(to_slice, 40, 100), term_width, 0,
-			 stdout);
+			 sout);
     printf("\n");
 }
 
@@ -187,7 +189,7 @@ test4()
     hatrack_dict_item_t *view = hatrack_dict_items_sort(d, &num);
 
     for (uint64_t i = 0; i < num; i++) {
-	ansi_render((any_str_t *)(view[i].key), stderr);
+	ansi_render((any_str_t *)(view[i].key), serr);
     }
 
     con4m_gc_thread_collect();
@@ -266,7 +268,7 @@ table_test()
 
     grid_t *flow = grid_flow(3, g, ul, ol);
     grid_add_cell(flow, test1);
-    ansi_render(con4m_value_obj_repr(flow), stdout);
+    ansi_render(con4m_value_obj_repr(flow), sout);
 }
 
 void
@@ -282,7 +284,7 @@ sha_test()
     buffer_t *b = sha_finish(ctx);
 
     printf("Sha256 is: ");
-    ansi_render(con4m_value_obj_repr(b), stdout);
+    ansi_render(con4m_value_obj_repr(b), sout);
     printf("\n");
 }
 
@@ -294,16 +296,16 @@ type_tests()
     type_spec_t *t2 = tspec_grid();
     type_spec_t *t3 = tspec_dict(t1, t2);
 
-    ansi_render(con4m_value_obj_repr(t3), stdout);
+    ansi_render(con4m_value_obj_repr(t3), sout);
     printf("\n");
 
     type_spec_t *t4 = type_spec_new_typevar(global_type_env);
     type_spec_t *t5 = type_spec_new_typevar(global_type_env);
     type_spec_t *t6 = tspec_dict(t4, t5);
 
-    ansi_render(con4m_value_obj_repr(t6), stdout);
+    ansi_render(con4m_value_obj_repr(t6), sout);
     printf("\n");
-    ansi_render(con4m_value_obj_repr(merge_types(t3, t6)), stdout);
+    ansi_render(con4m_value_obj_repr(merge_types(t3, t6)), sout);
     printf("\n");
 }
 
@@ -331,7 +333,7 @@ stream_tests()
     utf8_t *s = buffer_to_utf8_string(b);
 
     string_set_style(s, sty);
-    ansi_render(s, stdout);
+    ansi_render(s, sout);
 }
 
 extern color_info_t color_data[];
@@ -354,7 +356,7 @@ marshal_test()
 
     utf8_t *new_str = con4m_unmarshal(s);
 
-    ansi_render(new_str, stdout);
+    ansi_render(new_str, sout);
 
 }
 
@@ -438,39 +440,39 @@ rich_lit_test()
     utf8_t *test;
 
     test = rich_lit("H[atomic lime]ello, [jazzberry]world!\n");
-    ansi_render(test, stdout);
+    ansi_render(test, sout);
 
     test = rich_lit("[atomic lime]Hello, [jazzberry]world[/]!\n");
-    ansi_render(test, stdout);
+    ansi_render(test, sout);
 
     test = rich_lit("[atomic lime on jazzberry]Hello, world[/]!\n");
-    ansi_render(test, stdout);
+    ansi_render(test, sout);
 
     test = rich_lit("[jazzberry on atomic lime]Hello, world![/]\n");
-    ansi_render(test, stdout);
+    ansi_render(test, sout);
 
     test = rich_lit("[bold italic jazzberry on atomic lime]Hello,[/color] "
 		    "world!\n");
-    ansi_render(test, stdout);
+    ansi_render(test, sout);
 
     test = rich_lit("[bold italic jazzberry on atomic lime]Hello,"
 		    "[/color bold] world!\n");
-    ansi_render(test, stdout);
+    ansi_render(test, sout);
 
     test = rich_lit("[bold italic jazzberry on atomic lime]Hello,"
 		    "[/color bold italic] world!\n");
-    ansi_render(test, stdout);
+    ansi_render(test, sout);
     test = rich_lit("[bold italic jazzberry on atomic lime]Hello,[/bg bold] "
 		    "world!\n");
-    ansi_render(test, stdout);
+    ansi_render(test, sout);
     test = rich_lit("[bold italic u jazzberry on atomic lime]Hello,[/bold] "
 		    "world!\n\n\n");
-    ansi_render(test, stdout);
+    ansi_render(test, sout);
     test = rich_lit("[bold italic atomic lime on jazzberry]Hello,[/bold fg] "
 		    "world!\n");
-    ansi_render(test, stdout);
+    ansi_render(test, sout);
     test = rich_lit("[h2]Hello, world!\n");
-    ansi_render(test, stdout);
+    ansi_render(test, sout);
 }
 
 int
@@ -478,10 +480,13 @@ main(int argc, char **argv, char **envp)
 {
     uint64_t top, bottom;
 
+    sout = get_stdout();
+    serr = get_stderr();
+
     TRY {
 	install_default_styles();
 	terminal_dimensions(&term_width, NULL);
-	ansi_render_to_width(str_test, term_width, 0, stdout);
+	ansi_render_to_width(str_test, term_width, 0, sout);
 	test_rand64();
 	// Test basic string and single threaded GC.
 	test1();
@@ -503,7 +508,7 @@ main(int argc, char **argv, char **envp)
 	create_dict_lit();
 	rich_lit_test();
 	STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
-	ansi_render(local_test, stdout);
+	ansi_render(local_test, sout);
 	CRAISE("Except maybe not!");
     }
     EXCEPT
@@ -512,16 +517,16 @@ main(int argc, char **argv, char **envp)
         printf("Just kidding. An exception was raised before exit:\n");
 	switch(e->code) {
 	default:
-	    fprintf(stderr, "%s:%lld: Caught you, exception face: ",
-	    exception_get_file(e)->data,
-	    exception_get_line(e));
-	    ansi_render(exception_get_message(X_CUR()), stderr);
-	    fputc('\n', stderr);
+	    stream_puts(serr, exception_get_file(e)->data);
+	    stream_puti(serr, exception_get_line(e));
+	    stream_puts(serr, ": Caught you, exception man: ");
+	    ansi_render(exception_get_message(X_CUR()), serr);
+	    stream_putc(serr, '\n');
 	    JUMP_TO_TRY_END();
 	};
     }
     TRY_END;
-    printf("This theoretically should run.\n");
+    stream_puts(serr, "This theoretically should run.\n");
 
     if (argc > 1) {
 	get_stack_scan_region(&top, &bottom);
@@ -531,7 +536,8 @@ main(int argc, char **argv, char **envp)
 	// Give ourselves something to see where the real start is.
 	bottom = 0x4141414141414141;
 	utf8_t *s = hex_dump((void *)top, q, top, 80, "");
-	printf("%s\n", s->data);
+	stream_puts(sout, s->data);
+	stream_putc(sout, '\n');
 
 	bottom = top + q;
 	printf("(start) = %p; (end) = %p (%llu bytes)\n", (void *)top,

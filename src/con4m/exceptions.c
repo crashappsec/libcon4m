@@ -93,12 +93,14 @@ void
 exception_uncaught(exception_t *exception)
 {
     // Basic for now.
-    fprintf(stderr, "%s:%lld: Uncaught exception: ", exception->file,
-	    exception->line);
+    stream_t *s = get_stderr();
 
+    stream_puts(s, (char *)exception->file);
+    stream_putc(s, ':');
+    stream_puti(s, exception->line);
 
-    ansi_render(exception->msg, stderr);
-    fputc('\n', stderr);
+    ansi_render(exception->msg, s);
+    stream_putc(s, '\n');
 }
 
 void
