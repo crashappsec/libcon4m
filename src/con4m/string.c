@@ -465,6 +465,7 @@ utf8_init(utf8_t *s, va_list args)
 	utf8_set_codepoint_count(s);
     } else {
 	if (length < 0) {
+	    s->data = 0;
 	    CRAISE("length cannot be < 0 for string initialization");
 	}
 	s->data = con4m_gc_alloc(length + 1, NULL);
@@ -797,10 +798,6 @@ _string_find(any_str_t *str, any_str_t *sub, ...)
 
     uint64_t  strcp = string_codepoint_len(str);
     uint64_t  subcp = string_codepoint_len(sub);
-    uint32_t *strp  = (uint32_t *)str->data;
-    uint32_t *endp  = strp + end - subcp + 1;
-    uint32_t *subp;
-    uint32_t *p;
 
     if (start < 0) {
 	start += strcp;
@@ -820,6 +817,11 @@ _string_find(any_str_t *str, any_str_t *sub, ...)
     if (subcp == 0) {
 	return start;
     }
+
+    uint32_t *strp  = (uint32_t *)str->data;
+    uint32_t *endp  = &strp[end - subcp + 1];
+    uint32_t *subp;
+    uint32_t *p;
 
     strp += start;
     while (strp < endp) {
@@ -871,6 +873,39 @@ string_split(any_str_t *str, any_str_t *sub)
     }
 
     flexarray_shrink(result, n);
+
+    return result;
+}
+
+xlist_t *
+string_xsplit(any_str_t *str, any_str_t *sub)
+{
+    str            = force_utf32(str);
+    sub            = force_utf32(sub);
+    uint64_t strcp = string_codepoint_len(str);
+    uint64_t subcp = string_codepoint_len(sub);
+
+    xlist_t *result = con4m_new(tspec_xlist(tspec_utf32()));
+
+    if (!subcp) {
+	for (uint64_t i = 0; i < strcp; i++) {
+	    xlist_append(result, string_slice(str, i, i + 1));
+	}
+	return result;
+    }
+
+    int64_t start = 0;
+    int64_t ix    = string_find(str, sub, "start", start);
+
+    while (ix != -1) {
+	xlist_append(result, string_slice(str, start, ix));
+	start = ix + subcp;
+	ix    = string_find(str, sub, "start", start);
+    }
+
+    if ((uint64_t)start != strcp) {
+	xlist_append(result, string_slice(str, start, strcp));
+    }
 
     return result;
 }

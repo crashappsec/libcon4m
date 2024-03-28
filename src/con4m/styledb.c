@@ -1,6 +1,5 @@
 #include <con4m.h>
 
-
 static hatrack_dict_t *style_dictionary = NULL;
 
 __attribute__((constructor)) void
@@ -390,10 +389,10 @@ con4m_style_init(render_style_t *style, va_list args)
     }
 
     if (fg_color != -1) {
-	set_fg_color(style, fg_color);
+	set_render_style_fg_color(style, fg_color);
     }
     if (bg_color != -1) {
-	set_bg_color(style, bg_color);
+	set_render_style_bg_color(style, bg_color);
     }
     if (bold > 0) {
 	bold_on(style);
@@ -488,10 +487,11 @@ layer_styles(const render_style_t *base, render_style_t *cur)
 {
     // Anything not explicitly set in 'cur' will get set from base.
     if (!(cur->base_style & FG_COLOR_ON) && base->base_style & FG_COLOR_ON) {
-	set_fg_color(cur, base->base_style & ~FG_COLOR_MASK);
+	set_render_style_fg_color(cur, base->base_style & ~FG_COLOR_MASK);
     }
     if (!(cur->base_style & BG_COLOR_ON) && base->base_style & BG_COLOR_ON) {
-	set_bg_color(cur, (color_t)((base->base_style & ~BG_COLOR_MASK) >> 24));
+	set_render_style_bg_color(cur,
+			  (color_t)((base->base_style & ~BG_COLOR_MASK) >> 24));
     }
     if (base->base_style & BOLD_ON) {
 	cur->base_style |= BOLD_ON;

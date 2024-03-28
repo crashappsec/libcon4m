@@ -12,7 +12,11 @@ void     stream_flush(stream_t *);
 
 #define stream_write_object(s, o, ...) _stream_write_object(s, o,              \
                                                            KFUNC(__VA_ARGS__))
-
+static inline bool
+stream_putc(stream_t *s, char c)
+{
+    return stream_raw_write(s, 1, &c) == 1;
+}
 
 static inline object_t
 stream_read(stream_t *stream, int64_t len)

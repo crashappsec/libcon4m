@@ -265,7 +265,7 @@ xlist_safe_get(xlist_t *list, int64_t ix)
     return result;
 }
 
-static xlist_t *
+xlist_t *
 xlist_get_slice(xlist_t *list, int64_t start, int64_t end)
 {
     int64_t  len = xlist_len(list);
@@ -303,7 +303,7 @@ xlist_get_slice(xlist_t *list, int64_t start, int64_t end)
     return res;
 }
 
-static void
+void
 xlist_set_slice(xlist_t *list, int64_t start, int64_t end, xlist_t *new)
 {
     int64_t len1 = xlist_len(list);

@@ -340,7 +340,7 @@ void
 marshal_test()
 {
     utf8_t   *contents = con4m_new(tspec_utf8(),
-				   "cstring",  "This is a test of marshal.");
+				   "cstring",  "This is a test of marshal.\n");
     buffer_t *b = con4m_new(tspec_buffer(), "length", 16);
     stream_t *s = con4m_new(tspec_stream(),
 			    "buffer", b,
@@ -391,6 +391,88 @@ marshal_test2()
 }
 #endif
 
+void
+create_dict_lit()
+{
+    dict_t *d = con4m_new(tspec_dict(tspec_utf8(), tspec_int()));
+
+    hatrack_dict_add(d, new_utf8("no"), (void *)1LLU);
+    hatrack_dict_add(d, new_utf8("b"), (void *)2LLU);
+    hatrack_dict_add(d, new_utf8("bold"), (void *)2LLU);
+    hatrack_dict_add(d, new_utf8("i"), (void *)3LLU);
+    hatrack_dict_add(d, new_utf8("italic"), (void *)3LLU);
+    hatrack_dict_add(d, new_utf8("italics"), (void *)3LLU);
+    hatrack_dict_add(d, new_utf8("st"), (void *)4LLU);
+    hatrack_dict_add(d, new_utf8("strike"), (void *)4LLU);
+    hatrack_dict_add(d, new_utf8("strikethru"), (void *)4LLU);
+    hatrack_dict_add(d, new_utf8("strikethrough"), (void *)4LLU);
+    hatrack_dict_add(d, new_utf8("u"), (void *)5LLU);
+    hatrack_dict_add(d, new_utf8("underline"), (void *)5LLU);
+    hatrack_dict_add(d, new_utf8("uu"), (void *)6LLU);
+    hatrack_dict_add(d, new_utf8("2u"), (void *)6LLU);
+    hatrack_dict_add(d, new_utf8("r"), (void *)7LLU);
+    hatrack_dict_add(d, new_utf8("reverse"), (void *)7LLU);
+    hatrack_dict_add(d, new_utf8("inverse"), (void *)7LLU);
+    hatrack_dict_add(d, new_utf8("invert"), (void *)7LLU);
+    hatrack_dict_add(d, new_utf8("inv"), (void *)7LLU);
+    hatrack_dict_add(d, new_utf8("t"), (void *)8LLU);
+    hatrack_dict_add(d, new_utf8("title"), (void *)8LLU);
+    hatrack_dict_add(d, new_utf8("l"), (void *)9LLU);
+    hatrack_dict_add(d, new_utf8("lower"), (void *)9LLU);
+    hatrack_dict_add(d, new_utf8("up"), (void *)10LLU);
+    hatrack_dict_add(d, new_utf8("upper"), (void *)10LLU);
+    hatrack_dict_add(d, new_utf8("on"), (void *)11LLU);
+    hatrack_dict_add(d, new_utf8("fg"), (void *)12LLU);
+    hatrack_dict_add(d, new_utf8("foreground"), (void *)12LLU);
+    hatrack_dict_add(d, new_utf8("bg"), (void *)13LLU);
+    hatrack_dict_add(d, new_utf8("background"), (void *)13LLU);
+    hatrack_dict_add(d, new_utf8("color"), (void *)14LLU);
+
+    dump_c_static_instance_code(d, "style_keywords",
+				new_utf8("/tmp/style_keys.c"));
+}
+
+void
+rich_lit_test()
+{
+    utf8_t *test;
+
+    test = rich_lit("H[atomic lime]ello, [jazzberry]world!\n");
+    ansi_render(test, stdout);
+
+    test = rich_lit("[atomic lime]Hello, [jazzberry]world[/]!\n");
+    ansi_render(test, stdout);
+
+    test = rich_lit("[atomic lime on jazzberry]Hello, world[/]!\n");
+    ansi_render(test, stdout);
+
+    test = rich_lit("[jazzberry on atomic lime]Hello, world![/]\n");
+    ansi_render(test, stdout);
+
+    test = rich_lit("[bold italic jazzberry on atomic lime]Hello,[/color] "
+		    "world!\n");
+    ansi_render(test, stdout);
+
+    test = rich_lit("[bold italic jazzberry on atomic lime]Hello,"
+		    "[/color bold] world!\n");
+    ansi_render(test, stdout);
+
+    test = rich_lit("[bold italic jazzberry on atomic lime]Hello,"
+		    "[/color bold italic] world!\n");
+    ansi_render(test, stdout);
+    test = rich_lit("[bold italic jazzberry on atomic lime]Hello,[/bg bold] "
+		    "world!\n");
+    ansi_render(test, stdout);
+    test = rich_lit("[bold italic u jazzberry on atomic lime]Hello,[/bold] "
+		    "world!\n\n\n");
+    ansi_render(test, stdout);
+    test = rich_lit("[bold italic atomic lime on jazzberry]Hello,[/bold fg] "
+		    "world!\n");
+    ansi_render(test, stdout);
+    test = rich_lit("[h2]Hello, world!\n");
+    ansi_render(test, stdout);
+}
+
 int
 main(int argc, char **argv, char **envp)
 {
@@ -418,6 +500,8 @@ main(int argc, char **argv, char **envp)
 	stream_tests();
 	marshal_test();
 	//marshal_test2();
+	create_dict_lit();
+	rich_lit_test();
 	STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
 	ansi_render(local_test, stdout);
 	CRAISE("Except maybe not!");

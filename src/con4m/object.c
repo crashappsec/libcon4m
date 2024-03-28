@@ -407,6 +407,41 @@ _con4m_new(type_spec_t *type, ...)
     return result;
 }
 
+object_t
+_con4m_stack_alloc(type_spec_t *type, ...)
+{
+    con4m_obj_t       *obj;
+    object_t           result;
+    va_list            args;
+    dt_info           *tinfo     = type->details->base_type;
+    uint64_t           alloc_len = tinfo->alloc_len + sizeof(con4m_obj_t);
+    con4m_vtable_entry init_fn   = tinfo->vtable->methods[CON4M_BI_CONSTRUCTOR];
+
+    obj = alloca(alloc_len);
+
+    obj->base_data_type = tinfo;
+    obj->concrete_type  = type;
+    result              = obj->data;
+
+    switch (tinfo->base) {
+    case BT_primitive:
+    case BT_internal:
+    case BT_list:
+    case BT_dict:
+    case BT_tuple:
+	if (init_fn != NULL) {
+	    va_start(args, type);
+	    (*init_fn)(result, args);
+	    va_end(args);
+	}
+	break;
+    default:
+	CRAISE("Requested type is non-instantiable or not yet implemented.");
+    }
+
+    return result;
+}
+
 uint64_t *
 gc_get_ptr_info(con4m_builtin_t dtid)
 {

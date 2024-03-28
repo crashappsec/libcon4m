@@ -28,13 +28,13 @@ lookup_text_style(char *name)
 }
 
 static inline void
-set_fg_color(render_style_t *style, color_t color)
+set_render_style_fg_color(render_style_t *style, color_t color)
 {
     style->base_style |= FG_COLOR_ON | color;
 }
 
 static inline void
-set_bg_color(render_style_t *style, color_t color)
+set_render_style_bg_color(render_style_t *style, color_t color)
 {
     style->base_style |= BG_COLOR_ON | ((uint64_t)color) << 24;
 }

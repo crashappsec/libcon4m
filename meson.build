@@ -83,6 +83,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/ipaddr.c',
             'src/con4m/callback.c',
             'src/con4m/streams.c',
+            'src/con4m/richlit.c',
             'src/con4m/crypto/sha.c',
             ]
 
@@ -144,6 +145,7 @@ ssl      = cc.find_library('ssl')
 
 unibreak = dependency('libunibreak')
 utf8proc = dependency('libutf8proc')
+
 deps     = [unibreak, utf8proc, threads, ffi, ssl, crypto]
 opts     = [math]
 all_deps = deps + opts

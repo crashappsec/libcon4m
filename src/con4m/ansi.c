@@ -133,6 +133,13 @@ ansi_render_style_end(FILE *outstream)
 }
 
 static inline void
+ansi_render_style_final(FILE *outstream)
+{
+    fputs("\e[0m\e[K", outstream);
+    fflush(outstream);
+}
+
+static inline void
 ansi_render_one_codepoint_plain(codepoint_t cp, FILE *outstream)
 {
     uint8_t tmp[4];
@@ -299,11 +306,7 @@ utf8_ansi_render(const utf8_t *s, FILE *outstream)
 	}
     }
 
-    if (style_state == U8_STATE_IN_STYLE ||
-	style_state == U8_STATE_DEFAULT_STYLE) {
-     }
-
-    ansi_render_style_end(outstream);
+    ansi_render_style_final(outstream);
 }
 
 // This will have to convert characters to utf-8, since terminals
@@ -342,11 +345,7 @@ ansi_render_u32_region(const utf32_t *s, int32_t from, int32_t to,
 	break;
     }
 
-    if (style != 0) {
-	ansi_render_style_end(outstream);
-    }
-
-    fputc(0, outstream);
+    ansi_render_style_final(outstream);
 }
 
 void

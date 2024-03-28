@@ -33,8 +33,10 @@ get_base_type_name(const object_t user_object)
 extern const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS];
 
 #define con4m_new(tid, ...) _con4m_new(tid, KFUNC(__VA_ARGS__))
+#define con4m_stack_alloc(tid, ...) _con4m_stack_alloc(tid, KFUNC(__VA_ARGS__))
 
 extern object_t _con4m_new(type_spec_t *type,  ...);
+extern object_t _con4m_stack_alloc(type_spec_t *type,  ...);
 extern uint64_t *gc_get_ptr_info(con4m_builtin_t);
 
 extern any_str_t *con4m_repr(void *, type_spec_t *, to_str_use_t);
