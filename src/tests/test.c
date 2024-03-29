@@ -439,40 +439,48 @@ rich_lit_test()
 {
     utf8_t *test;
 
-    test = rich_lit("H[atomic lime]ello, [jazzberry]world!\n");
-    ansi_render(test, sout);
+    test = rich_lit("H[atomic lime]ello, [jazzberry]world!");
+    print(test);
 
-    test = rich_lit("[atomic lime]Hello, [jazzberry]world[/]!\n");
-    ansi_render(test, sout);
 
-    test = rich_lit("[atomic lime on jazzberry]Hello, world[/]!\n");
-    ansi_render(test, sout);
+    test = rich_lit("[atomic lime]Hello, [jazzberry]world[/]!");
+    print(test);
 
-    test = rich_lit("[jazzberry on atomic lime]Hello, world![/]\n");
-    ansi_render(test, sout);
+    test = rich_lit("[atomic lime on jazzberry]Hello, world[/]!");
+    print(test);
+
+    test = rich_lit("[jazzberry on atomic lime]Hello, world![/]");
+    print(test);
 
     test = rich_lit("[bold italic jazzberry on atomic lime]Hello,[/color] "
-		    "world!\n");
-    ansi_render(test, sout);
+		    "world!");
+    print(test);
 
     test = rich_lit("[bold italic jazzberry on atomic lime]Hello,"
-		    "[/color bold] world!\n");
-    ansi_render(test, sout);
+		    "[/color bold] world!");
+    print(test);
 
     test = rich_lit("[bold italic jazzberry on atomic lime]Hello,"
-		    "[/color bold italic] world!\n");
-    ansi_render(test, sout);
+		    "[/color bold italic] world!");
+    print(test);
+
     test = rich_lit("[bold italic jazzberry on atomic lime]Hello,[/bg bold] "
-		    "world!\n");
-    ansi_render(test, sout);
+		    "world!");
+    print(test);
+
     test = rich_lit("[bold italic u jazzberry on atomic lime]Hello,[/bold] "
-		    "world!\n\n\n");
-    ansi_render(test, sout);
+		    "world!\n\n");
+    print(test);
+
     test = rich_lit("[bold italic atomic lime on jazzberry]Hello,[/bold fg] "
-		    "world!\n");
-    ansi_render(test, sout);
-    test = rich_lit("[h2]Hello, world!\n");
-    ansi_render(test, sout);
+		    "world!");
+    print(test);
+
+    test = rich_lit("[h2]Hello, world!");
+    print(test);
+
+    print(test, test, kw("no_color", ka(true), "sep", ka('&')));
+
 }
 
 int
@@ -507,8 +515,9 @@ main(int argc, char **argv, char **envp)
 	//marshal_test2();
 	create_dict_lit();
 	rich_lit_test();
-	STATIC_ASCII_STR(local_test, "\nGoodbye!\n");
-	ansi_render(local_test, sout);
+	STATIC_ASCII_STR(local_test, "Goodbye!");
+	//ansi_render(local_test, sout);
+	print((object_t *)local_test);
 	CRAISE("Except maybe not!");
     }
     EXCEPT

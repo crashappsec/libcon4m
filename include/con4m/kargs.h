@@ -125,3 +125,31 @@ enum : int64_t
 // clang-format on
 
 #define DECLARE_KARGS(x) x
+
+karg_info_t *get_kargs(va_list);
+karg_info_t *pass_kargs(int, ...);
+karg_info_t *get_kargs_and_count(va_list, int *);
+
+static inline bool
+kw_get(karg_info_t *provided, char *name, int64_t *ptr)
+{
+    int64_t n = provided->num_provided;
+
+    *ptr = 0;
+
+    for (int64_t i = 0; i < n; i++) {
+	if (!strcmp(name, provided->args[i].kw)) {
+	    *ptr = (int64_t)provided->args[i].value;
+	    return true;
+	}
+    }
+
+    return false;
+}
+
+
+// print(foo, bar, boz, kw("file", stdin, "sep", ' ', "end", '\n',
+//                         "flush", false ));
+
+#define ka(x) ((int64_t)x)
+#define kw(...) pass_kargs(PP_NARG(__VA_ARGS__), __VA_ARGS__), NULL

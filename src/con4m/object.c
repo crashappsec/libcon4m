@@ -356,6 +356,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
      {
 	 .name      = "mixed",
 	 .typeid    = T_GENERIC,
+	 .alloc_len = sizeof(mixed_t),
 	 .ptr_info  = GC_SCAN_ALL,
 	 .vtable    = &mixed_vtable,
 	 .base      = BT_type_var,
@@ -364,12 +365,21 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
      {
 	 .name      = "stream",
 	 .typeid    = T_STREAM,
+	 .alloc_len = sizeof(stream_t),
 	 .ptr_info  = GC_SCAN_ALL,
 	 .vtable    = &stream_vtable,
 	 .base      = BT_primitive,
 	 .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+     },
+     {
+	 .name      = "keyword",
+	 .typeid    = T_KEYWORD,
+	 .alloc_len = sizeof(karg_info_t),
+	 .ptr_info  = GC_SCAN_ALL,
+	 .vtable    = &kargs_vtable,
+	 .base      = BT_internal,
+	 .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
      }
-
 };
 
 object_t
@@ -383,41 +393,6 @@ _con4m_new(type_spec_t *type, ...)
     con4m_vtable_entry init_fn   = tinfo->vtable->methods[CON4M_BI_CONSTRUCTOR];
 
     obj = con4m_gc_alloc(alloc_len, (uint64_t *)tinfo->ptr_info);
-
-    obj->base_data_type = tinfo;
-    obj->concrete_type  = type;
-    result              = obj->data;
-
-    switch (tinfo->base) {
-    case BT_primitive:
-    case BT_internal:
-    case BT_list:
-    case BT_dict:
-    case BT_tuple:
-	if (init_fn != NULL) {
-	    va_start(args, type);
-	    (*init_fn)(result, args);
-	    va_end(args);
-	}
-	break;
-    default:
-	CRAISE("Requested type is non-instantiable or not yet implemented.");
-    }
-
-    return result;
-}
-
-object_t
-_con4m_stack_alloc(type_spec_t *type, ...)
-{
-    con4m_obj_t       *obj;
-    object_t           result;
-    va_list            args;
-    dt_info           *tinfo     = type->details->base_type;
-    uint64_t           alloc_len = tinfo->alloc_len + sizeof(con4m_obj_t);
-    con4m_vtable_entry init_fn   = tinfo->vtable->methods[CON4M_BI_CONSTRUCTOR];
-
-    obj = alloca(alloc_len);
 
     obj->base_data_type = tinfo;
     obj->concrete_type  = type;

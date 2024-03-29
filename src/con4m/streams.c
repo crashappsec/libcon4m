@@ -241,8 +241,6 @@ stream_init(stream_t *stream, va_list args)
     }
 
     if (fstream != NULL) {
-	printf("passed file, is it a tty?: %d\n",
-	       isatty(fileno(fstream)));
 	stream->contents.f = fstream;
 	return;
     }
@@ -413,66 +411,20 @@ stream_raw_write(stream_t *stream, int64_t len, char *buf)
     return 0;
 }
 
-int64_t
-_stream_write_object(stream_t *stream, object_t obj, ...)
+void
+_stream_write_object(stream_t *stream, object_t obj, bool ansi)
 {
-    DECLARE_KARGS(
-	int64_t start = 0;
-	int64_t end   = -1;
-	);
-
-    kargs(obj, start, end);
-
     if (stream->flags & F_STREAM_CLOSED) {
 	CRAISE("Stream is already closed.");
     }
 
-    int64_t len = con4m_len(obj);
-
-    if (start < 0) {
-	start += len;
+    any_str_t *s = con4m_value_obj_repr(obj);
+    if (ansi) {
+	ansi_render(s, stream);
     }
     else {
-	if (start >= len) {
-	    return -1;
-	}
-    }
-    if (end < 0) {
-	end += len + 1;
-    }
-    else {
-	if (end > len) {
-	    end = len;
-	}
-    }
-    if ((start | end) < 0 || start >= end) {
-	return -1;
-    }
-
-    int64_t slice_len = end - start;
-
-    switch(get_base_type_id(obj)) {
-    case T_UTF8:
-    {
-	utf8_t *s = (utf8_t *)obj;
-	return stream_raw_write(stream, slice_len, &s->data[start]);
-    }
-    case T_UTF32:
-    {
-	utf32_t     *s = (utf32_t *)obj;
-	codepoint_t *p = (codepoint_t *)s->data;
-
-	// stream_raw_write expects bytes.
-	return stream_raw_write(stream, slice_len * 4, (char *)&p[start]) / 4;
-    }
-    case T_BUFFER:
-    {
-	buffer_t *b = (buffer_t *)obj;
-	return stream_raw_write(stream, slice_len, &b->data[start]);
-    }
-    default:
-	CRAISE("Cannot write this object type to a stream directly; either "
-	       "convert to a string or buffer, or marshal it to this stream.");
+	s = force_utf8(s);
+	stream_raw_write(stream, s->byte_len, s->data);
     }
 }
 
@@ -592,6 +544,98 @@ stream_flush(stream_t *stream)
 	stream->flags = F_STREAM_CLOSED;
 	raise_errno();
     }
+}
+
+void
+_print(object_t first, ...)
+{
+
+    va_list      args;
+    object_t     cur     = first;
+    karg_info_t *kargs   = NULL;
+    stream_t    *stream  = NULL;
+    codepoint_t  sep     = ' ';
+    codepoint_t  end     = '\n';
+    bool         flush   = false;
+    int          ansi    = -1;
+    int          numargs;
+
+    va_start(args, first);
+
+    if (first == NULL) {
+	stream_putc(get_stdout(), '\n');
+	return;
+    }
+
+    if (get_my_type(first) == tspec_kargs()) {
+	kargs   = first;
+	numargs = 0;
+    }
+    else {
+	kargs = get_kargs_and_count(args, &numargs);
+	numargs++;
+    }
+
+    if (kargs != NULL) {
+
+	int64_t tmp;
+
+	if (!kw_get(kargs, "stream", (int64_t *)&stream)) {
+	    stream = get_stdout();
+	}
+	if (kw_get(kargs, "sep", &tmp)) {
+	    sep = (codepoint_t)tmp;
+	}
+	if (kw_get(kargs, "end", &tmp)) {
+	    end = (codepoint_t)tmp;
+	}
+	if (kw_get(kargs, "flush", &tmp)) {
+	    end = (bool)flush;
+	}
+	if (kw_get(kargs, "force_color", &tmp)) {
+	    ansi = 1;
+	}
+	else {
+	    if (kw_get(kargs, "no_color", &tmp)) {
+		ansi = tmp ? 0 : -1;
+	    }
+	}
+    }
+
+    if (stream == NULL) {
+	stream = get_stdout();
+    }
+
+    if (ansi == -1) {
+	int fno = stream_fileno(stream);
+
+	if (fno == -1 || !isatty(fno)) {
+	    ansi = 0;
+	}
+	else {
+	    ansi = 1;
+	}
+    }
+
+    for (int i = 0; i < numargs; i++) {
+
+	if (i && sep) {
+	    stream_putcp(stream, sep);
+	}
+
+	stream_write_object(stream, cur, (bool)ansi);
+	cur = va_arg(args, object_t);
+    }
+
+    if (end) {
+	stream_putcp(stream, end);
+    }
+
+    if (flush) {
+	stream_flush(stream);
+    }
+
+    va_end(args);
 }
 
 const con4m_vtable stream_vtable = {

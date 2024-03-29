@@ -8,7 +8,6 @@ project('libcon4m', 'c',
 
 cc              = meson.get_compiler('c')
 incdir          = include_directories('include')
-incdir  
 using_osx       = false
 glibc_check       = '''
 #ifndef __GLIBC__

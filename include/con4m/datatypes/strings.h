@@ -24,9 +24,12 @@ typedef base_str_t utf8_t;
 typedef base_str_t utf32_t;
 typedef base_str_t any_str_t;
 
+// Only used for the static macro.
 struct internal_string_st {
     dt_info    *base_data_type;
     uint64_t    concrete_type;
+    uint64_t    hash_cache_1;
+    uint64_t    hash_cache_2;
     base_str_t  s;
 };
 

@@ -149,6 +149,7 @@ static inline void
 ansi_render_style_final(stream_t *outstream)
 {
     stream_puts(outstream, "\e[0m\e[K");
+    stream_flush(outstream);
 }
 
 static inline void

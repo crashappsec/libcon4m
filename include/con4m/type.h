@@ -383,6 +383,12 @@ tspec_stream()
 
 
 static inline type_spec_t *
+tspec_kargs()
+{
+    return builtin_types[T_KEYWORD];
+}
+
+static inline type_spec_t *
 type_spec_new_typevar(type_env_t *env)
 {
     type_spec_t *result = con4m_new(tspec_typespec(), env, T_GENERIC);

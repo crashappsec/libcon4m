@@ -169,6 +169,7 @@ typedef enum : int64_t {
     T_REF,     // A managed pointer.
     T_GENERIC, // If instantiated, instantiates a 'mixed' object.
     T_STREAM,  // streaming IO interface.
+    T_KEYWORD, // Keyword arg object for internal use.
     CON4M_NUM_BUILTIN_DTS
 
 } con4m_builtin_t;
