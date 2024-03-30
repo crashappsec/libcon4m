@@ -84,7 +84,7 @@ pad_lines_vertically(render_style_t *gs, xlist_t *list, int32_t height,
     }
     switch (gs->alignment) {
     case ALIGN_BOTTOM:
-	res = con4m_new(tspec_xlist(tspec_utf32()), "length", height);
+	res = con4m_new(tspec_xlist(tspec_utf32()), kw("length", ka(height)));
 
 	for (int i = 0; i < diff; i++) {
 	    xlist_append(res, pad);
@@ -93,7 +93,7 @@ pad_lines_vertically(render_style_t *gs, xlist_t *list, int32_t height,
 	return res;
 
     case ALIGN_MIDDLE:
-	res = con4m_new(tspec_xlist(tspec_utf32()), "length", height);
+	res = con4m_new(tspec_xlist(tspec_utf32()), kw("length", ka(height)));
 
 	for (int i = 0; i < diff / 2; i++) {
 	    xlist_append(res, pad);
@@ -121,12 +121,13 @@ pad_lines_vertically(render_style_t *gs, xlist_t *list, int32_t height,
 static void
 renderable_init(renderable_t *item, va_list args)
 {
-    DECLARE_KARGS(
-	object_t    *obj                 = NULL;
-	char        *tag                 = NULL;
-	);
+    object_t    *obj = NULL;
+    char        *tag = NULL;
 
-    method_kargs(args, obj, tag);
+    karg_va_init(args);
+
+    kw_ptr("obj", obj);
+    kw_ptr("tag", tag);
 
     item->raw_item = obj;
 
@@ -247,8 +248,9 @@ grid_add_row(grid_t *grid, object_t container)
     case T_UTF8:
     case T_UTF32:
     {
-	renderable_t *r = con4m_new(tspec_renderable(), "obj", container,
-				    "tag", "td");
+	renderable_t *r = con4m_new(tspec_renderable(),
+				    kw("obj", ka(container),
+				       "tag", ka("td")));
 	install_renderable(grid, r, grid->row_cursor, grid->row_cursor + 1,
 			   0, grid->num_cols);
 	grid->row_cursor++;
@@ -273,7 +275,7 @@ grid_add_row(grid_t *grid, object_t container)
 	for (int i = 0; i < grid->num_cols; i++) {
 	    object_t x = xlist_get((xlist_t *)container, i, NULL);
 	    if (x == NULL) {
-		x = (object_t)con4m_new(tspec_utf8(), "cstring", " ");
+		x = (object_t)con4m_new(tspec_utf8(), kw("cstring", ka(" ")));
 	    }
 	    grid_set_cell_contents(grid, grid->row_cursor, i, x);
 	}
@@ -287,22 +289,28 @@ grid_add_row(grid_t *grid, object_t container)
 static void
 grid_init(grid_t *grid, va_list args)
 {
-    DECLARE_KARGS(
-	int32_t       start_rows    = 1;
-	int32_t       start_cols    = 1;
-	int32_t       spare_rows    = 16;
-	flexarray_t  *contents      = NULL;
-	char         *container_tag = "table";
-	char         *th_tag        = NULL;
-	char         *td_tag        = NULL;
-	int           header_rows   = 0;
-	int           header_cols   = 0;
-	int           stripe        = 0;
-	);
+    int32_t       start_rows    = 1;
+    int32_t       start_cols    = 1;
+    int32_t       spare_rows    = 16;
+    flexarray_t  *contents      = NULL;
+    char         *container_tag = "table";
+    char         *th_tag        = NULL;
+    char         *td_tag        = NULL;
+    int32_t       header_rows   = 0;
+    int32_t       header_cols   = 0;
+    bool          stripe        = false;
 
-    method_kargs(args, start_rows, start_cols, spare_rows, contents,
-		 container_tag, th_tag, td_tag, header_rows, header_cols,
-		 stripe);
+    karg_va_init(args);
+    kw_int32("start_rows", start_rows);
+    kw_int32("start_cols", start_cols);
+    kw_int32("spare_rows", spare_rows);
+    kw_ptr("contents", contents);
+    kw_ptr("container_tag", container_tag);
+    kw_ptr("th_tag", th_tag);
+    kw_ptr("td_tag", td_tag);
+    kw_int32("header_rows", header_rows);
+    kw_int32("header_cols", header_cols);
+    kw_bool("stripe", stripe);
 
     if (start_rows < 1) {
 	start_rows = 1;
@@ -352,8 +360,9 @@ grid_init(grid_t *grid, va_list args)
 	td_tag = "th";
     }
 
-    renderable_t *self = con4m_new(tspec_renderable(), "tag", container_tag,
-				   "obj", grid);
+    renderable_t *self = con4m_new(tspec_renderable(),
+				   kw("tag", ka(container_tag),
+				      "obj", ka(grid)));
     grid->self         = self;
 
     grid->col_props = gc_array_alloc(render_style_t *, grid->num_cols);
@@ -437,7 +446,8 @@ grid_set_all_contents(grid_t *g, flexarray_t *contents)
 
 	for (uint64_t j = 0; j < viewlen; j++) {
 	    object_t      item = flexarray_view_next(rowviews[i], &stop);
-	    renderable_t *cell = con4m_new(tspec_renderable(), "obj", item);
+	    renderable_t *cell = con4m_new(tspec_renderable(),
+					   kw("obj", ka(item)));
 
 	    install_renderable(g, cell, i, i + 1, j, j + 1);
 	}
@@ -852,7 +862,8 @@ str_render_cell(grid_t *grid, utf32_t *s, renderable_t *cell, int16_t width,
 		break;
 	    }
 	    xlist_append(res,
-			 string_truncate(one, width, "use_render_width", 1));
+			 string_truncate(one, width,
+					 kw("use_render_width", ka(true))));
 	}
     }
     else {
@@ -902,8 +913,9 @@ render_to_cache(grid_t *grid, renderable_t *cell, int16_t width, int16_t height)
     }
 
     case T_GRID:
-	cell->render_cache = grid_render(cell->raw_item, "width", width,
-	                                 "height", height);
+	cell->render_cache = grid_render(cell->raw_item,
+					 kw("width", ka(width),
+					    "height", ka(height)));
 	return xlist_len(cell->render_cache);
 
     default:
@@ -918,7 +930,7 @@ grid_add_blank_cell(grid_t *grid, uint16_t row, uint16_t col, int16_t width,
 		    int16_t height)
 {
     utf32_t      *empty = force_utf32(empty_string());
-    renderable_t *cell  = con4m_new(tspec_renderable(), "obj", empty);
+    renderable_t *cell  = con4m_new(tspec_renderable(), kw("obj", ka(empty)));
 
     install_renderable(grid, cell, row, row + 1, col, col + 1);
     render_to_cache(grid, cell, width, height);
@@ -1084,7 +1096,7 @@ grid_add_top_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 	border_width += grid->num_cols - 1;
     }
 
-    s = con4m_new(tspec_utf32(), "length", border_width);
+    s = con4m_new(tspec_utf32(), kw("length", ka(border_width)));
     p = (codepoint_t *)s->data;
 
     s->codepoints = ~border_width;
@@ -1156,7 +1168,7 @@ grid_add_bottom_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 	border_width += grid->num_cols - 1;
     }
 
-    s = con4m_new(tspec_utf32(), "length", border_width);
+    s = con4m_new(tspec_utf32(), kw("length", ka(border_width)));
     p = (codepoint_t *)s->data;
 
     s->codepoints = ~border_width;
@@ -1230,7 +1242,7 @@ grid_add_horizontal_rule(grid_t *grid, int row, xlist_t *lines,
 	border_width += grid->num_cols - 1;
     }
 
-    s = con4m_new(tspec_utf32(), "length", border_width);
+    s = con4m_new(tspec_utf32(), kw("length", ka(border_width)));
     p = (codepoint_t *)s->data;
 
     s->codepoints = ~border_width;
@@ -1281,7 +1293,7 @@ grid_add_left_pad(grid_t *grid, int height)
 {
     render_style_t *gs   = grid_style(grid);
     xlist_t        *res  = con4m_new(tspec_xlist(tspec_utf32()),
-				     "length", height);
+				     kw("length", ka(height)));
     utf32_t        *lpad = empty_string();
 
     if (gs->left_pad > 0) {
@@ -1409,7 +1421,8 @@ align_and_crop_grid_line(grid_t *grid, utf32_t *line, int32_t width)
     }
     else {
 	// We need to crop. For now, we ONLY crop from the right.
-	return string_truncate(line, (int64_t)width, "use_render_width", 1);
+	return string_truncate(line, (int64_t)width, kw("use_render_width",
+							ka(1)));
     }
 }
 
@@ -1536,12 +1549,13 @@ _grid_render(grid_t *grid, ...)
     // A single streaming implementation doesn't really work, since
     // when writing to a FILE *, we would render the ansi codes as we
     // go.
-    DECLARE_KARGS(
-	int64_t width  = -1;
-	int64_t height = -1;
-	);
 
-    kargs(grid, width, height);
+    karg_only_init(grid);
+    int64_t width  = -1;
+    int64_t height = -1;
+
+    kw_int64("width", width);
+    kw_int64("height", height);
 
     if (width == -1) {
 	width = terminal_width();
@@ -1549,7 +1563,7 @@ _grid_render(grid_t *grid, ...)
     }
 
     if (width == 0) {
-	return con4m_new(tspec_xlist(tspec_utf32()), "length", 0);
+	return con4m_new(tspec_xlist(tspec_utf32()), kw("length", ka(0)));
     }
 
     int16_t *col_widths  = calculate_col_widths(grid, width, &grid->width);
@@ -1581,7 +1595,8 @@ _grid_render(grid_t *grid, ...)
 	h_alloc += row_heights[i];
     }
 
-    xlist_t *result = con4m_new(tspec_xlist(tspec_utf32()), "length", h_alloc);
+    xlist_t *result = con4m_new(tspec_xlist(tspec_utf32()),
+				kw("length", ka(h_alloc)));
 
     grid_add_top_pad(grid, result, width);
     grid_add_top_border(grid, result, col_widths);
@@ -1621,26 +1636,26 @@ grid_to_str(grid_t *g, to_str_use_t how)
     xlist_t *l = grid_render(g);
 
     // join will force utf32 on the newline.
-    return string_join(l, string_newline(), "add_trailing", true);
+    return string_join(l, string_newline(), kw("add_trailing", ka(true)));
 }
 
 grid_t *
 _ordered_list(flexarray_t *items, ...)
 {
-    DECLARE_KARGS(
-	char       *bullet_style = "bullet";
-	char       *item_style   = "li";
-	);
+    char       *bullet_style = "bullet";
+    char       *item_style   = "li";
 
-    kargs(items, bullet_style, item_style);
+    karg_only_init(items);
+    kw_ptr("bullet_style", bullet_style);
+    kw_ptr("item_style", item_style);
 
     flex_view_t *view         = flexarray_view(items);
     int64_t     n             = flexarray_view_len(view);
     utf32_t     *dot          = utf32_repeat('.', 1);
     grid_t      *res          = con4m_new(tspec_grid(),
-					  "start_rows", n,
-					  "start_cols", 2,
-					  "container_tag", "ol");
+					  kw("start_rows", ka(n),
+					     "start_cols", ka(2),
+					     "container_tag", ka("ol")));
 
 
     render_style_t *bp    = lookup_cell_style(bullet_style);
@@ -1660,8 +1675,8 @@ _ordered_list(flexarray_t *items, ...)
 	utf32_t      *s         = string_concat(string_from_int(i + 1), dot);
 	utf32_t      *list_item = force_utf32(flexarray_view_next(view, NULL));
 	renderable_t *li        = con4m_new(tspec_renderable(),
-					    "obj", list_item,
-					    "tag", item_style);
+					    kw("obj", ka(list_item),
+					       "tag", ka(item_style)));
 	grid_set_cell_contents(res, i, 0, to_str_renderable(s, bullet_style));
 	grid_set_cell_contents(res, i, 1, li);
     }
@@ -1671,20 +1686,22 @@ _ordered_list(flexarray_t *items, ...)
 grid_t *
 _unordered_list(flexarray_t *items, ...)
 {
-    DECLARE_KARGS(
-	char       *bullet_style = "bullet";
-	char       *item_style   = "li";
-	codepoint_t bullet       = 0x2022;
-	);
 
-    kargs(items, bullet_style, item_style, bullet);
+    char       *bullet_style = "bullet";
+    char       *item_style   = "li";
+    codepoint_t bullet       = 0x2022;
+
+    karg_only_init(items);
+    kw_ptr("bullet_style", bullet_style);
+    kw_ptr("item_style", item_style);
+    kw_codepoint("bullet", bullet);
 
     flex_view_t *view       = flexarray_view(items);
     int64_t      n          = flexarray_view_len(view);
     grid_t      *res        = con4m_new(tspec_grid(),
-					"start_rows", n,
-					"start_cols", 2,
-					"container_tag", "ul");
+					kw("start_rows", ka(n),
+					   "start_cols", ka(2),
+					   "container_tag", ka("ul")));
     utf32_t     *bull_str   = utf32_repeat(bullet, 1);
 
     render_style_t *bp = lookup_cell_style(bullet_style);
@@ -1697,8 +1714,8 @@ _unordered_list(flexarray_t *items, ...)
 
 	utf32_t      *list_item = force_utf32(flexarray_view_next(view, NULL));
 	renderable_t *li        = con4m_new(tspec_renderable(),
-					    "obj", list_item,
-					    "tag", item_style);
+					    kw("obj", ka(list_item),
+					       "tag", ka(item_style)));
 
 	grid_set_cell_contents(res, i, 0,
 			       to_str_renderable(bull_str, bullet_style));
@@ -1714,9 +1731,9 @@ grid_flow(uint64_t items, ...)
     va_list contents;
 
     grid_t *res = con4m_new(tspec_grid(),
-			    "start_rows", items,
-			    "start_cols", 1,
-			    "container_tag", "flow");
+			    kw("start_rows", ka(items),
+			       "start_cols", ka(1),
+			       "container_tag", ka("flow")));
 
     va_start(contents, items);
     for (uint64_t i = 0; i < items; i++) {
@@ -1866,10 +1883,15 @@ con4m_grid(int32_t start_rows, int32_t start_cols, char *table_tag,
 		   char *th_tag, char *td_tag, int header_rows,
 		   int header_cols, int s)
 {
-    return _con4m_new(tspec_grid(), "start_rows", start_rows, "start_cols",
-		     start_cols, "container_tag", table_tag, "th_tag", th_tag,
-		     "td_tag", td_tag, "header_rows", header_rows,
-		     "header_cols", header_cols, "stripe", s, 0);
+    return con4m_new(tspec_grid(),
+		      kw("start_rows", ka(start_rows),
+			 "start_cols", ka(start_cols),
+			 "container_tag", ka(table_tag),
+			 "th_tag", ka(th_tag),
+			 "td_tag", ka(td_tag),
+			 "header_rows", ka(header_rows),
+			 "header_cols", ka(header_cols),
+			 "stripe", ka(s)));
 }
 
 
@@ -1903,8 +1925,8 @@ build_tree_output(tree_node_t *node, tree_fmt_t *info)
 	}
     }
 
-    utf32_t *pad = con4m_new(tspec_utf32(), "length", info->pad_ix,
-			     "codepoints", info->padstr);
+    utf32_t *pad = con4m_new(tspec_utf32(), kw("length", ka(info->pad_ix),
+					       "codepoints", ka(info->padstr)));
     line = string_concat(pad, line);
 
     renderable_t *item = to_str_renderable(line, info->tag);
@@ -1966,19 +1988,26 @@ build_tree_output(tree_node_t *node, tree_fmt_t *info)
 grid_t *
 _grid_tree(tree_node_t *tree, ...)
 {
-    DECLARE_KARGS(
-	codepoint_t pad   = ' ';
-	codepoint_t tchar = 0x251c;
-	codepoint_t lchar = 0x2514;
-	codepoint_t hchar = 0x2500;
-	codepoint_t vchar = 0x2502;
-	int         vpad  = 2;
-	int         no_nl = 1;
-	int         ipad  = 1;
-	char       *tag   = "li";
-	);
+    codepoint_t pad   = ' ';
+    codepoint_t tchar = 0x251c;
+    codepoint_t lchar = 0x2514;
+    codepoint_t hchar = 0x2500;
+    codepoint_t vchar = 0x2502;
+    int32_t     vpad  = 2;
+    int32_t     ipad  = 1;
+    bool        no_nl = true;
+    char       *tag   = "li";
 
-    kargs(tree, pad, tchar, lchar, hchar, vchar, vpad, ipad, no_nl, tag);
+    karg_only_init(tree);
+    kw_codepoint("pad", pad);
+    kw_codepoint("t_char", tchar);
+    kw_codepoint("l_char", lchar);
+    kw_codepoint("h_char", hchar);
+    kw_codepoint("v_char", vchar);
+    kw_int32("vpad", vpad);
+    kw_int32("ipad", ipad);
+    kw_bool("truncate_at_newline", no_nl);
+    kw_ptr("style_tag", tag);
 
     if (vpad < 1) {
 	vpad = 1;
@@ -1987,8 +2016,8 @@ _grid_tree(tree_node_t *tree, ...)
 	ipad = 1;
     }
 
-    grid_t *result = con4m_new(tspec_grid(), "container_tag", "flow",
-			       "td_tag", tag);
+    grid_t *result = con4m_new(tspec_grid(), kw("container_tag", ka("flow"),
+						"td_tag", ka(tag)));
 
     tree_fmt_t fmt_info = {
 	.pad       = pad,

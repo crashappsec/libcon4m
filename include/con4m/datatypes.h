@@ -3,7 +3,6 @@
 #include <con4m/datatypes/memory.h>
 #include <con4m/datatypes/kargs.h>
 #include <con4m/datatypes/objects.h>
-#include <con4m/datatypes/karg_new.h>
 #include <con4m/datatypes/colors.h>
 #include <con4m/datatypes/codepoints.h>
 #include <con4m/datatypes/styles.h>

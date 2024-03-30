@@ -3,11 +3,10 @@
 static void
 tuple_init(tuple_t *tup, va_list args)
 {
-    DECLARE_KARGS(
-	void **ptr = NULL;
-	);
+    void **ptr = NULL;
 
-    method_kargs(args, ptr);
+    karg_va_init(args);
+    kw_ptr("contents", ptr);
 
     tup->num_items = xlist_len(tspec_get_parameters(get_my_type(tup)));
 

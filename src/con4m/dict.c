@@ -141,7 +141,7 @@ dict_repr(dict_t *dict, to_str_use_t how)
     type_spec_t         *val_type    = xlist_get(type_params, 1, NULL);
     hatrack_dict_item_t *view        = hatrack_dict_items_sort(dict, &view_len);
     xlist_t             *items       = con4m_new(tspec_xlist(tspec_utf32()),
-						 "length", view_len);
+						 kw("length", ka(view_len)));
     xlist_t             *one_item    = con4m_new(tspec_xlist(tspec_utf32()));
     utf8_t              *colon       = get_colon_const();
 
@@ -225,11 +225,11 @@ dict_plus(dict_t *d1, dict_t *d2)
 void *
 dict_get(dict_t *d, void *k)
 {
-    int found = 0;
+    bool found = false;
 
     void *result = hatrack_dict_get(d, k, &found);
 
-    if (found == 0) {
+    if (found == false) {
 	CRAISE("Dictionary key not found.");
     }
 

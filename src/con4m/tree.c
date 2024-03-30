@@ -3,11 +3,10 @@
 static void
 tree_node_init(tree_node_t *t, va_list args)
 {
-    DECLARE_KARGS(
-	object_t contents;
-	);
+    object_t contents;
 
-    method_kargs(args, contents);
+    karg_va_init(args);
+    kw_ptr("root", contents);
 
     t->children     = gc_array_alloc(tree_node_t **, 4);
     t->alloced_kids = 4;
@@ -58,7 +57,7 @@ tree_children(tree_node_t *t)
     type_spec_t *item_type   = xlist_get(type_params, 0, NULL);
     xlist_t     *result;
 
-    result = con4m_new(tspec_list(item_type), "length", t->num_kids);
+    result = con4m_new(tspec_list(item_type), kw("length", ka(t->num_kids)));
 
     for (int i = 0; i < t->num_kids; i++) {
 	xlist_append(result, t->children[i]);

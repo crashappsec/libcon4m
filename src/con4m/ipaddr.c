@@ -29,13 +29,16 @@ ipaddr_set_address(ipaddr_t *obj, any_str_t *s, uint16_t port)
 static void
 ipaddr_init(ipaddr_t *obj, va_list args)
 {
-    DECLARE_KARGS(
-	any_str_t *address = NULL;
-	int32_t    port    = -1;
-	int32_t    ipv6    = 0;
-	);
+    any_str_t *address = NULL;
+    int32_t    port    = -1;
+    bool       ipv6    = false;
 
-    method_kargs(args, address, port);
+    karg_va_init(args);
+
+    kw_ptr("address", address);
+    kw_int32("port", port);
+    kw_bool("ipv6", ipv6);
+
 
     if (ipv6) {
 	obj->af = AF_INET6;
@@ -87,10 +90,10 @@ ipaddr_repr(ipaddr_t *obj)
     }
 
     if (obj->port == 0) {
-	return con4m_new(tspec_utf8(), "cstring", buf);
+	return con4m_new(tspec_utf8(), kw("cstring", ka(buf)));
     }
 
-    return string_concat(con4m_new(tspec_utf8(), "cstring", buf),
+    return string_concat(con4m_new(tspec_utf8(), kw("cstring", ka(buf))),
 			string_concat(get_colon_no_space_const(),
 				     string_from_int((int64_t)obj->port)));
 }

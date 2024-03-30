@@ -71,75 +71,78 @@ stream_puti(stream_t *s, int64_t n)
 static inline stream_t *
 string_instream(any_str_t *instring)
 {
-    return con4m_new(tspec_stream(), "instring", instring);
+    return con4m_new(tspec_stream(), kw("instring", ka(instring)));
 }
 
 static inline stream_t *
 buffer_instream(buffer_t *inbuf)
 {
-    return con4m_new(tspec_stream(), "buffer", inbuf, "read", 1);
+    return con4m_new(tspec_stream(), kw("buffer", ka(inbuf),
+					"read", ka(true)));
 }
 
 static inline stream_t *
 buffer_outstream(buffer_t *outbuf)
 {
-    return con4m_new(tspec_stream(), "buffer", outbuf, "read", 0,
-		     "write", 1);
+    return con4m_new(tspec_stream(), kw("buffer", ka(outbuf),
+					"read", ka(false),
+					"write", ka(true)));
 }
 
 static inline stream_t *
 buffer_iostream(buffer_t *buf)
 {
-    return con4m_new(tspec_stream(), "buffer", buf, "read", 1,
-		     "write", 1);
+    return con4m_new(tspec_stream(), kw("buffer", ka(buf),
+					"read", ka(true),
+					"write", ka(true)));
 }
 
 static inline stream_t *
 file_instream(any_str_t *filename, con4m_builtin_t output_type)
 {
     return con4m_new(tspec_stream(),
-		     "filename", filename,
-		     "out_type", output_type);
+		     kw("filename", ka(filename),
+			"out_type", ka(output_type)));
 }
 
 static inline stream_t *
-file_outstream(any_str_t *filename, int can_create, int append)
+file_outstream(any_str_t *filename, bool no_create, bool append)
 {
     return con4m_new(tspec_stream(),
-		     "filename", filename,
-		     "read", 0,
-		     "append", append,
-		     "write", 1,
-		     "can_create", can_create);
+		     kw("filename", ka(filename),
+			"read", ka(false),
+			"append", ka(append),
+			"write", ka(true),
+			"can_create", ka(no_create)));
 }
 
 
 static inline stream_t *
-file_iostream(any_str_t *filename, int can_create)
+file_iostream(any_str_t *filename, bool no_create)
 {
     return con4m_new(tspec_stream(),
-		     "filename", filename,
-		     "read", 0,
-		     "write", 1,
-		     "can_create", can_create);
+		     kw("filename", ka(filename),
+			"read", ka(false),
+			"write", ka(true),
+			"no_create", ka(no_create)));
 }
 
 static inline stream_t *
 get_stdin()
 {
-    return con4m_new(tspec_stream(), "fstream", stdin);
+    return con4m_new(tspec_stream(), kw("cstream", ka(stdin)));
 }
 
 static inline stream_t *
 get_stdout()
 {
-    return con4m_new(tspec_stream(), "fstream", stdout);
+    return con4m_new(tspec_stream(), kw("cstream", ka(stdout)));
 }
 
 static inline stream_t *
 get_stderr()
 {
-    return con4m_new(tspec_stream(), "fstream", stderr);
+    return con4m_new(tspec_stream(), kw("cstream", ka(stderr)));
 }
 
 static inline bool

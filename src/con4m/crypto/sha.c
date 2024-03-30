@@ -33,12 +33,13 @@ static const EVP_MD init_map[2][3] = {
 void
 sha_init(sha_ctx *ctx, va_list args)
 {
-    DECLARE_KARGS(
-	int64_t version = 2;
-	int64_t bits    = 256;
-	);
+    int64_t version = 2;
+    int64_t bits    = 256;
 
-    method_kargs(args, version, bits);
+
+    karg_va_init(args);
+    kw_int64("version", version);
+    kw_int64("bits", bits);
 
     if (bits != 256 && bits != 384 && bits != 512) {
 	abort();
@@ -47,7 +48,7 @@ sha_init(sha_ctx *ctx, va_list args)
 	abort();
     }
 
-    ctx->digest = con4m_new(tspec_buffer(), "length", bits / 8);
+    ctx->digest = con4m_new(tspec_buffer(), kw("length", ka(bits / 8)));
     version    -= 2;
     bits = (bits >> 7) - 2; // This maps the bit sizes to 0, 1 and 2,
                             // by dividing by 128, then subtracting by 2.

@@ -11,16 +11,16 @@ const uint64_t exception_pmap[2] = {1, 0x0e00000000000000};
 static void
 exception_init(exception_t *exception, va_list args)
 {
-    DECLARE_KARGS(
-	utf8_t  *message    = NULL;
-	object_t context    = NULL;
-	int64_t  error_code = -1;
-	);
+    utf8_t  *message    = NULL;
+    object_t context    = NULL;
+    int64_t  error_code = -1;
 
-    method_kargs(args, message, context, error_code);
+    karg_va_init(args);
 
-    if (message == NULL) {
-    }
+    kw_ptr("message", message);
+    kw_ptr("context", context);
+    kw_int64("error_code", error_code);
+
 
     exception->msg     = message;
     exception->context = context;
@@ -31,7 +31,7 @@ exception_t *
 _alloc_exception(const char *msg, ...)
 {
     exception_t *ret = gc_alloc(sizeof(exception_t));
-    ret->msg = con4m_new(tspec_utf8(), "cstring", msg);
+    ret->msg = con4m_new(tspec_utf8(), kw("cstring", ka(msg)));
 
     return ret;
 }

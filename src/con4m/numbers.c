@@ -13,7 +13,7 @@ signed_repr(int64_t item, to_str_use_t how)
     }
 
     if (item == 0) {
-	return con4m_new(tspec_utf8(), "cstring", "0");
+	return con4m_new(tspec_utf8(), kw("cstring", ka("0")));
     }
 
     int i = 20;
@@ -27,7 +27,7 @@ signed_repr(int64_t item, to_str_use_t how)
 	buf[--i] = '-';
     }
 
-    return con4m_new(tspec_utf8(), "cstring", &buf[i]);
+    return con4m_new(tspec_utf8(), kw("cstring", ka(&buf[i])));
 }
 
 any_str_t *
@@ -37,7 +37,7 @@ unsigned_repr(int64_t item, to_str_use_t how)
     char buf[21] = {0, };
 
     if (item == 0) {
-	return con4m_new(tspec_utf8(), "cstring", "0");
+	return con4m_new(tspec_utf8(), kw("cstring", ka("0")));
     }
 
     int i = 20;
@@ -47,7 +47,7 @@ unsigned_repr(int64_t item, to_str_use_t how)
 	i /= 10;
     }
 
-    return con4m_new(tspec_utf8(), "cstring", &buf[i]);
+    return con4m_new(tspec_utf8(), kw("cstring", ka(&buf[i])));
 }
 
 static any_str_t *true_repr = NULL;
@@ -58,13 +58,13 @@ bool_repr(int64_t item, to_str_use_t how)
 {
     if (item == 0) {
 	if (false_repr == NULL) {
-	    false_repr = con4m_new(tspec_utf8(), "cstring", "false");
+	    false_repr = con4m_new(tspec_utf8(), kw("cstring", ka("false")));
 	    con4m_gc_register_root(&false_repr, 1);
 	}
 	return false_repr;
     }
     if (true_repr == NULL) {
-	true_repr = con4m_new(tspec_utf8(), "cstring", "true");
+	true_repr = con4m_new(tspec_utf8(), kw("cstring", ka("true")));
 	con4m_gc_register_root(&true_repr, 1);
     }
 
@@ -154,7 +154,7 @@ float_repr(const double d, to_str_use_t how)
     // snprintf includes null terminator in its count.
     snprintf(buf, 20, "%g", d);
 
-    return con4m_new(tspec_utf8(), "cstring", buf);
+    return con4m_new(tspec_utf8(), kw("cstring", ka(buf)));
 }
 
 void *

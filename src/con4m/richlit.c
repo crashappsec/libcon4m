@@ -34,9 +34,9 @@ init_style_keywords()
 {
     if (style_keywords == NULL) {
 	buffer_t *b = con4m_new(tspec_buffer(),
-				"raw",     _marshaled_style_keywords,
-				"length", 1426);
-        stream_t *s = con4m_new(tspec_stream(), "buffer", b);
+				kw("raw",     ka(_marshaled_style_keywords),
+				   "length", ka(1426)));
+        stream_t *s = con4m_new(tspec_stream(), kw("buffer", ka(b)));
 
 	con4m_gc_register_root(&style_keywords, 1);
         style_keywords = con4m_unmarshal(s);
@@ -336,11 +336,11 @@ parse_style_lit(fmt_frame_t *f, utf8_t *instr)
 utf8_t *
 rich_lit(char *instr)
 {
-    buffer_t *b = con4m_new(tspec_buffer(), "length", 1);
+    buffer_t *b = con4m_new(tspec_buffer(), kw("length", ka(1)));
     stream_t *s = con4m_new(tspec_stream(),
-			    "buffer", b,
-			    "write", 1,
-			    "read", 0);
+			    kw("buffer", ka(b),
+			       "write", ka(1),
+			       "read", ka(0)));
     fmt_frame_t *style_next;
     fmt_frame_t *style_top = NULL;
     fmt_frame_t *style_cur = NULL;
@@ -441,15 +441,16 @@ rich_lit(char *instr)
 
     // If style blobs, parse them. (otherwise, return the whole string).
     if (style_top == NULL) {
-	return con4m_new(tspec_utf8(), "cstring", instr);
+	return con4m_new(tspec_utf8(), kw("cstring", ka(instr)));
     }
 
     fmt_frame_t *f = style_top;
     int num_styles = 0;
     while (f != NULL) {
 	utf8_t *s = con4m_new(tspec_utf8(),
-			      "cstring", instr + f->absolute_start,
-			      "length",  f->absolute_end - f->absolute_start);
+			      kw("cstring", ka(instr + f->absolute_start),
+				 "length",  ka(f->absolute_end -
+					       f->absolute_start)));
 	parse_style_lit(f, s);
 
 	if (f->style != 0) {

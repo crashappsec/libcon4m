@@ -191,7 +191,7 @@ hatrack_dict_get_sorted_views(hatrack_dict_t *self)
 }
 
 void *
-hatrack_dict_get(hatrack_dict_t *self, void *key, int *found)
+hatrack_dict_get(hatrack_dict_t *self, void *key, bool *found)
 {
     hatrack_hash_t       hv;
     hatrack_dict_item_t *item;

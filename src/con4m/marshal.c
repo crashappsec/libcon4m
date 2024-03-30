@@ -103,7 +103,7 @@ marshal_unmanaged_object(void *addr, stream_t *s, dict_t *memos, int64_t *mid,
 	return;
     }
 
-    int     found = 0;
+    bool    found = false;
     int64_t memo = (int64_t)hatrack_dict_get(memos, addr, &found);
 
     if (found) {
@@ -207,7 +207,7 @@ con4m_sub_marshal(object_t obj, stream_t *s, dict_t *memos, int64_t *mid)
 	return;
     }
 
-    int     found = 0;
+   bool     found = 0;
     int64_t memo  = (int64_t)hatrack_dict_get(memos, obj, &found);
 
     // If we have already processed this object, we will already have
@@ -250,7 +250,7 @@ con4m_sub_marshal(object_t obj, stream_t *s, dict_t *memos, int64_t *mid)
 void *
 unmarshal_unmanaged_object(size_t len, stream_t *s, dict_t *memos,
 			   unmarshal_fn fn) {
-    int            found = 0;
+    bool           found = false;
     uint64_t       memo;
     void          *addr;
 
@@ -277,7 +277,7 @@ unmarshal_unmanaged_object(size_t len, stream_t *s, dict_t *memos,
 object_t
 con4m_sub_unmarshal(stream_t *s, dict_t *memos)
 {
-    int            found = 0;
+    bool           found = false;
     uint64_t       memo;
     con4m_obj_t   *obj;
 
@@ -372,15 +372,16 @@ con4m_unmarshal(stream_t *s)
 void
 dump_c_static_instance_code(object_t obj, char *symbol_name, utf8_t *filename)
 {
-    buffer_t *b = con4m_new(tspec_buffer(), "length", 1);
+    buffer_t *b = con4m_new(tspec_buffer(), kw("length", ka(1)));
     stream_t *s = con4m_new(tspec_stream(),
-			    "buffer", b,
-			    "write",  1);
+			    kw("buffer", ka(b),
+			       "write",  ka(1)));
 
     con4m_marshal(obj, s);
     stream_close(s);
 
-    s = con4m_new(tspec_stream(), "filename", filename, "write", 1, "read", 0);
+    s = con4m_new(tspec_stream(), kw("filename", ka(filename),
+				     "write", ka(1), "read", ka(0)));
 
     static int   char_per_line  = 12;
     static char *decl_start     = "#include <con4m.h>\n\n"
@@ -396,11 +397,11 @@ dump_c_static_instance_code(object_t obj, char *symbol_name, utf8_t *filename)
     static char *fn_part1       = "()\n{\n    if (";
     static char *fn_part2       = " == NULL) {\n"
         "        stream_t *s = con4m_new(tspec_stream(), \n"
-	"                                \"buffer\", "
+	"                                kw(\"buffer\", "
 	"con4m_new(tspec_buffer(),  \"raw\", _marshaled_";
     static char *fn_part3       = ", \n"
-	"                                             \"length\", ";
-    static char *fn_part4       = "));\n        "
+	"                                             \"length\", ka(";
+    static char *fn_part4       = "))));\n        "
         "        con4m_gc_register_root(&";
     static char *fn_part5       = ", 1);\n        ";
     static char *fn_part6       = " = con4m_unmarshal(s);\n    }\n"

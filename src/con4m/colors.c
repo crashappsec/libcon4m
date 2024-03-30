@@ -9,9 +9,9 @@ get_color_table()
 {
     if (color_table == NULL) {
 	buffer_t *b = con4m_new(tspec_buffer(),
-				"raw", _marshaled_color_table,
-				"length", 44237);
-        stream_t *s = con4m_new(tspec_stream(), "buffer", b);
+				kw("raw", ka(_marshaled_color_table),
+				   "length", ka(44237)));
+        stream_t *s = con4m_new(tspec_stream(), kw("buffer", ka(b)));
                 con4m_gc_register_root(&color_table, 1);
         color_table = con4m_unmarshal(s);
     }
@@ -20,11 +20,11 @@ get_color_table()
 
 color_t
 lookup_color(utf8_t *name) {
-    int     found  = 0;
+    bool    found  = false;
     color_t result = (color_t)(int64_t)hatrack_dict_get(get_color_table(),
 							name, &found);
 
-    if (!found) {
+    if (found == false) {
 	return -1;
     }
 

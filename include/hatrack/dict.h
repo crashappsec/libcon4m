@@ -90,7 +90,7 @@ void hatrack_dict_set_sorted_views    (hatrack_dict_t *, bool);
 bool hatrack_dict_get_consistent_views(hatrack_dict_t *);
 bool hatrack_dict_get_sorted_views    (hatrack_dict_t *);
 
-void *hatrack_dict_get    (hatrack_dict_t *, void *, int *);
+void *hatrack_dict_get    (hatrack_dict_t *, void *, bool *);
 void  hatrack_dict_put    (hatrack_dict_t *, void *, void *);
 bool  hatrack_dict_replace(hatrack_dict_t *, void *, void *);
 bool  hatrack_dict_add    (hatrack_dict_t *, void *, void *);

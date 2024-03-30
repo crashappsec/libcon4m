@@ -29,5 +29,5 @@ tree_get_parent(tree_node_t *t)
 static inline tree_node_t *
 con4m_tree(any_str_t *s)
 {
-    return con4m_new(tspec_tree(tspec_utf32()), "contents", s);
+    return con4m_new(tspec_tree(tspec_utf32()), kw("contents", ka(s)));
 }

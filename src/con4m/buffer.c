@@ -13,14 +13,15 @@
 static void
 buffer_init(buffer_t *obj, va_list args)
 {
-    DECLARE_KARGS(
-	int64_t    length = -1;
-	char      *raw    = NULL;
-	any_str_t *hex    = NULL;
-	);
+    int64_t    length = -1;
+    char      *raw    = NULL;
+    any_str_t *hex    = NULL;
 
-    method_kargs(args, length, raw, hex);
+    karg_va_init(args);
 
+    kw_int64("length", length);
+    kw_ptr("raw", raw);
+    kw_ptr("hex", hex);
 
     if (length < 0 && hex == NULL) {
 	abort();
@@ -121,7 +122,8 @@ buffer_repr(buffer_t *buf, to_str_use_t how)
     utf8_t *result;
 
     if (how == TO_STR_USE_QUOTED) {
-	result = con4m_new(tspec_utf8(), "length", buf->byte_len * 4 + 2);
+	result = con4m_new(tspec_utf8(), kw("length",
+					    ka(buf->byte_len * 4 + 2)));
 	char *p = result->data;
 
 	*p++ = '"';
@@ -136,7 +138,7 @@ buffer_repr(buffer_t *buf, to_str_use_t how)
 	*p++ = '"';
     }
     else {
-	result = con4m_new(tspec_utf8(), "length", buf->byte_len * 2);
+	result = con4m_new(tspec_utf8(), kw("length", ka(buf->byte_len * 2)));
 	char *p = result->data;
 
 	for (int i = 0; i < buf->byte_len; i++) {
@@ -157,7 +159,7 @@ buffer_add(buffer_t *b1, buffer_t *b2)
     int64_t l1       = max(buffer_len(b1), 0);
     int64_t l2       = max(buffer_len(b2), 0);
     int64_t lnew     =  l1 + l2;
-    buffer_t *result = con4m_new(tspec_buffer(), "length", lnew);
+    buffer_t *result = con4m_new(tspec_buffer(), kw("length", ka(lnew)));
 
     if (l1 > 0) {
 	memcpy(result->data, b1->data, l1);
@@ -189,7 +191,7 @@ buffer_join(xlist_t *list, buffer_t *joiner)
 	new_len += jlen * (num_items - 1);
     }
 
-    buffer_t *result = con4m_new(tspec_buffer(), "length", new_len);
+    buffer_t *result = con4m_new(tspec_buffer(), kw("length", ka(new_len)));
     char     *p      = result->data;
     buffer_t *cur    = xlist_get(list, 0, NULL);
     int       clen   = buffer_len(cur);
@@ -224,8 +226,8 @@ utf8_t *
 buffer_to_utf8_string(buffer_t *buffer)
 {
     utf8_t *result = con4m_new(tspec_utf8(),
-			       "cstring", buffer->data,
-			       "length",  buffer->byte_len);
+			       kw("cstring", ka(buffer->data),
+				  "length",  ka(buffer->byte_len)));
 
     if (utf8_validate(result) < 0) {
 	CRAISE("Buffer contains invalid UTF-8.");
@@ -297,7 +299,8 @@ buffer_coerce_to(const buffer_t *b, type_spec_t *target_type)
 	    p += cplen;
 	}
 
-	utf8_t *result     = con4m_new(target_type, "length", b->byte_len);
+	utf8_t *result     = con4m_new(target_type,
+				       kw("length", ka(b->byte_len)));
 	result->codepoints = count;
 
 	memcpy(result->data, b->data, b->byte_len);
@@ -352,7 +355,7 @@ buffer_get_slice(const buffer_t *b, int64_t start, int64_t end)
     }
     else {
 	if (start >= len) {
-	    return con4m_new(tspec_buffer(), "length", 0);
+	    return con4m_new(tspec_buffer(), kw("length", ka(0)));
 	}
     }
     if (end < 0) {
@@ -364,11 +367,11 @@ buffer_get_slice(const buffer_t *b, int64_t start, int64_t end)
 	}
     }
     if ((start | end) < 0 || start >= end) {
-	return con4m_new(tspec_buffer(), "length", 0);
+	return con4m_new(tspec_buffer(), kw("length", ka(0)));
     }
 
     int64_t   slice_len = end - start;
-    buffer_t *result = con4m_new(tspec_buffer(), "length", slice_len);
+    buffer_t *result = con4m_new(tspec_buffer(), kw("length", ka(slice_len)));
 
     memcpy(result->data, b->data + start, slice_len);
     return result;
@@ -441,7 +444,8 @@ buffer_set_slice(buffer_t *b, int64_t start, int64_t end, buffer_t *val)
 buffer_t *
 buffer_copy(buffer_t *inbuf)
 {
-    buffer_t *outbuf = con4m_new(tspec_buffer(), "length", inbuf->byte_len);
+    buffer_t *outbuf = con4m_new(tspec_buffer(),
+				 kw("length", ka(inbuf->byte_len)));
 
     memcpy(outbuf->data, inbuf->data, inbuf->byte_len);
 

@@ -5,54 +5,58 @@
 static void
 con4m_list_init(flexarray_t *list, va_list args)
 {
-    DECLARE_KARGS(
-	uint64_t length = 0;
-	);
+    int64_t length = 0;
 
-    method_kargs(args, length);
+    karg_va_init(args);
+    kw_int64("length", length);
+
     flexarray_init(list, length);
 }
 
 static void
 con4m_queue_init(queue_t *list, va_list args)
 {
-    DECLARE_KARGS(
-	uint64_t length = 0;
-	);
-    method_kargs(args, length);
+    int64_t length = 0;
+
+    karg_va_init(args);
+    kw_int64("length", length);
+
     queue_init_size(list, (char)(64 - __builtin_clzll(length)));
 }
 
 static void
 con4m_ring_init(hatring_t *ring, va_list args)
 {
-    DECLARE_KARGS(
-	uint64_t length = 0;
-	);
+    int64_t length = 0;
 
-    method_kargs(args, length);
+    karg_va_init(args);
+    kw_int64("length", length);
+
     hatring_init(ring, length);
 }
 
 static void
 con4m_logring_init(logring_t *ring, va_list args)
 {
-    DECLARE_KARGS(
-	uint64_t num_entries  = 0;
-	uint64_t entry_length = 1024;
-	);
+    int64_t num_entries  = 0;
+    int64_t entry_length = 1024;
 
-    method_kargs(args, num_entries, entry_length);
+    karg_va_init(args);
+    kw_int64("num_entries", num_entries);
+    kw_int64("entry_length", entry_length);
+
     logring_init(ring, num_entries, entry_length);
 }
 
 static void
 con4m_stack_init(hatstack_t *stack, va_list args)
 {
-    DECLARE_KARGS(
-	uint64_t prealloc = 128;
-	method_kargs(args, prealloc);
-	)
+    int64_t prealloc = 128;
+
+    karg_va_init(args);
+    kw_int64("prealloc", prealloc);
+
+
     hatstack_init(stack, prealloc);
 }
 
@@ -138,7 +142,7 @@ list_coerce_to(flexarray_t *list, type_spec_t *dst_type)
     }
 
     if (base == T_LIST) {
-	flexarray_t *res = con4m_new(dst_type, "length", len);
+	flexarray_t *res = con4m_new(dst_type, kw("length", ka(len)));
 
 	for (int i = 0; i < len; i++) {
 	    void *item = flexarray_view_next(view, NULL);
@@ -149,7 +153,7 @@ list_coerce_to(flexarray_t *list, type_spec_t *dst_type)
 	return (object_t)res;
     }
 
-    xlist_t *res = con4m_new(dst_type, "length", len);
+    xlist_t *res = con4m_new(dst_type, kw("length", ka(len)));
 
     for (int i = 0; i < len; i++) {
 	void *item = flexarray_view_next(view, NULL);
@@ -164,7 +168,8 @@ list_copy(flexarray_t *list)
 {
     flex_view_t *view = flexarray_view(list);
     int64_t      len  = flexarray_view_len(view);
-    flexarray_t *res  = con4m_new(get_my_type((object_t)list), "length", len);
+    flexarray_t *res  = con4m_new(get_my_type((object_t)list),
+				  kw("length", ka(len)));
 
     for (int i = 0; i < len; i++) {
 	object_t item = flexarray_view_next(view, NULL);
@@ -230,7 +235,7 @@ list_get_slice(flexarray_t *list, int64_t start, int64_t end)
     }
     else {
 	if (start >= len) {
-	    return con4m_new(get_my_type(list), "length", 0);
+	    return con4m_new(get_my_type(list), kw("length", ka(0)));
 	}
     }
     if (end < 0) {
@@ -243,11 +248,11 @@ list_get_slice(flexarray_t *list, int64_t start, int64_t end)
     }
 
     if ((start | end) < 0 || start >= end) {
-	return con4m_new(get_my_type(list), "length", 0);
+	return con4m_new(get_my_type(list), kw("length", ka(0)));
     }
 
     len = end - start;
-    res = con4m_new(get_my_type(list), "length", len);
+    res = con4m_new(get_my_type(list), kw("length", ka(len)));
 
     for (int i = 0; i < len; i++) {
 	void *item = flexarray_view_get(view, start + i, NULL);
@@ -292,7 +297,7 @@ list_set_slice(flexarray_t *list, int64_t start, int64_t end, flexarray_t *new)
     int64_t slicelen = end - start;
     int64_t newlen   = len1 + len2 - slicelen;
 
-    tmp = con4m_new(get_my_type(list), "length", newlen);
+    tmp = con4m_new(get_my_type(list), kw("length", ka(newlen)));
 
     if (start > 0) {
 	for (int i = 0; i < start; i++) {

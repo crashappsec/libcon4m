@@ -210,12 +210,6 @@
 
 // Below is our stuff, mostly helper macros.
 
-// Use int to hold booleans, so that we can use them in varargs functions.
-// Use _Bool if you don't want that.
-
-#undef bool
-#define bool int
-
 // If you try to pass a 32-bit value into a format parameter, you're
 // going to have it treated like a bool.  This is easy to notice,
 // because your value should usually get cast to 1 ("True").  You can
@@ -228,26 +222,9 @@
 #define U(x) ((uint64_t)x)
 #define R(x) ((double)x)
 
-#define KARG_END 0
 // These are helper functions to make declaring format or kargs functions
 // easier.
 #define KFUNC(...) IF(ISEMPTY(__VA_ARGS__))(EMPTY(), __VA_ARGS__ MAP_COMMA) 0
-
-#define mem_copy(d, s, l) (l ? memcpy(d, s, l) : d)
-
-#define thread_add_destructor(var, f)                                          \
-    {                                                                          \
-        static __thread pthread_key_t __destructor_key = 0;                    \
-        if (!__destructor_key) {                                               \
-            pthread_key_create(&__destructor_key, f);                          \
-            pthread_setspecific(__destructor_key, var);                        \
-        }                                                                      \
-    }
-
-#ifndef likely
-#define likely(x)   __builtin_expect(!!(x), 1)
-#define unlikely(x) __builtin_expect(!!(x), 0)
-#endif
 
 #define PP_NARG(...) \
     PP_NARG_(__VA_ARGS__,PP_RSEQ_N())

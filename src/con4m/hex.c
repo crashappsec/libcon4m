@@ -278,7 +278,7 @@ hex_dump(void *ptr, unsigned int len, uint64_t start_offset,
 	 unsigned int width, char *prefix)
 {
     char   *dump = chexl(ptr, len, start_offset, width, prefix);
-    utf8_t *res  = con4m_new(tspec_utf8(), "cstring", dump);
+    utf8_t *res  = con4m_new(tspec_utf8(), kw("cstring", ka(dump)));
 
     return res;
 }

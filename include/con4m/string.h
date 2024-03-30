@@ -101,7 +101,7 @@ string_crlf()
 static inline utf8_t *
 new_utf8(const char *to_copy)
 {
-    return con4m_new(tspec_utf8(), "cstring", to_copy);
+    return con4m_new(tspec_utf8(), kw("cstring", ka(to_copy)));
 }
 
 static inline char *
