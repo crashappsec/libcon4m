@@ -207,7 +207,7 @@ con4m_sub_marshal(object_t obj, stream_t *s, dict_t *memos, int64_t *mid)
 	return;
     }
 
-   bool     found = 0;
+    bool    found = 0;
     int64_t memo  = (int64_t)hatrack_dict_get(memos, obj, &found);
 
     // If we have already processed this object, we will already have

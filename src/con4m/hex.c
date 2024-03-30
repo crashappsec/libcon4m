@@ -5,7 +5,7 @@ const uint8_t hex_map[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
 
 #define MIN_DUMP_WIDTH 36
 
-int
+static int
 calculate_size_prefix(uint64_t len, uint64_t start) {
     // We're going to keep the size prefix even; every 8 bits of max size
     // results in 2 characters printing.
@@ -22,7 +22,7 @@ calculate_size_prefix(uint64_t len, uint64_t start) {
     return ret;
 }
 
-void
+static void
 add_offset(char **optr, uint64_t start_offset, uint64_t offset_len,
 	   uint64_t line, uint64_t cpl) {
 
@@ -66,8 +66,8 @@ add_offset(char **optr, uint64_t start_offset, uint64_t offset_len,
  	            *lineptr++
 
 char *
-chexl(void *ptr, unsigned int len, uint64_t start_offset,
-     unsigned int width, char *prefix) {
+chexl(void *ptr, int32_t len, uint64_t start_offset,
+     int32_t width, char *prefix) {
 
     struct winsize ws;
     uint64_t       offset_len  = calculate_size_prefix(len, start_offset);
@@ -82,7 +82,7 @@ chexl(void *ptr, unsigned int len, uint64_t start_offset,
     uint8_t        c;
     size_t         prefix_len = strlen(prefix);
 
-    if (width == 0) {
+    if (width <= 0) {
       ioctl(0, TIOCGWINSZ, &ws);
       if (ws.ws_col > MIN_DUMP_WIDTH) {
 	width = ws.ws_col;
@@ -250,33 +250,19 @@ chexl(void *ptr, unsigned int len, uint64_t start_offset,
   return ret;
 }
 
-
-
-// Legacy calls.
-char *
-chex(void *ptr, unsigned int len, uint64_t start_offset,
-      unsigned int width) {
-    char buf[1024] = {0, };
-
-    sprintf(buf, "Dump of %d bytes at: %p\n", len, ptr);
-
-    return chexl(ptr, len, start_offset, width, buf);
-}
-
-
-void
-print_hex(void *ptr, unsigned int len, char *prefix) {
-    if (strlen(prefix) != 0) {
-	printf("%s\n", prefix);
-    }
-    char *outbuf = chex(ptr, len, 0, 0);
-    printf("%s\n", outbuf);
-}
-
-extern utf8_t *
-hex_dump(void *ptr, unsigned int len, uint64_t start_offset,
-	 unsigned int width, char *prefix)
+utf8_t *
+_hex_dump(void *ptr, uint32_t len, ...)
 {
+    int64_t  start_offset = 0;
+    int32_t  width        = -1;
+    char    *prefix       = "";
+
+    karg_only_init(len);
+
+    kw_int64("start_offset", start_offset);
+    kw_int32("width", width);
+    kw_ptr("prefix", prefix);
+
     char   *dump = chexl(ptr, len, start_offset, width, prefix);
     utf8_t *res  = con4m_new(tspec_utf8(), kw("cstring", ka(dump)));
 

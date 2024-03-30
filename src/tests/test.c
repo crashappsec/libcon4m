@@ -116,15 +116,15 @@ test2() {
 
     utf8_t *dump1 = hex_dump(to_wrap->styling,
 			     alloc_style_len(to_wrap),
-			     (uint64_t)to_wrap->styling,
-			     80,
-			     "Style dump\n");
+			     kw("start_offset", ka(to_wrap->styling),
+				"width", ka(80),
+				"prefix", ka("Style dump\n")));
 
     utf8_t *dump2 = hex_dump(to_wrap,
 			     to_wrap->byte_len,
-			     (uint64_t)to_wrap,
-			     80,
-			     "String Dump\n");
+			     kw("start_offset", ka((uint64_t)to_wrap),
+				"width", ka(80),
+				"prefix", ka("String Dump\n")));
 
     ansi_render(dump1, serr);
     ansi_render(dump2, serr);
@@ -334,11 +334,11 @@ stream_tests()
 	stream_write_object(s2, s);
     }
 
-    print_hex(b->data, b->byte_len, "Buffer");
+    print(hex_dump(b->data, b->byte_len));
     utf8_t *s = buffer_to_utf8_string(b);
 
     string_set_style(s, sty);
-    ansi_render(s, sout);
+    print(s);
 }
 
 extern color_info_t color_data[];
