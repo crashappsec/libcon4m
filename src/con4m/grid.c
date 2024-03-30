@@ -1762,8 +1762,10 @@ grid_horizontal_flow(xlist_t *items, uint64_t max_columns, uint64_t total_width,
     }
 
     grid_t *res = con4m_new(tspec_grid(),
-			    "start_rows", start_rows, "start_cols", start_cols,
-			    "container_tag", table_style, "td_tag", cell_style);
+			    kw("start_rows", ka(start_rows),
+			       "start_cols", ka(start_cols),
+			       "container_tag", ka(table_style),
+			       "td_tag", ka(cell_style)));
 
     for (uint64_t i = 0; i < list_len; i++) {
 	int row = i / start_cols;
@@ -1895,6 +1897,8 @@ con4m_grid(int32_t start_rows, int32_t start_cols, char *table_tag,
 }
 
 
+
+
 typedef struct {
     codepoint_t     pad;
     codepoint_t     tchar;
@@ -1916,13 +1920,17 @@ build_tree_output(tree_node_t *node, tree_fmt_t *info)
 {
     any_str_t *line = tree_get_contents(node);
 
-    if (info->no_nl) {
-	int64_t ix = string_find(line, info->nl);
+    if (line != NULL) {
+	if (info->no_nl) {
+	    int64_t ix = string_find(line, info->nl);
 
-	if (ix != -1) {
-	    line = string_slice(line, 0, ix);
-	    line = string_concat(line, utf32_repeat(0x2026, 1));
+	    if (ix != -1) {
+		line = string_slice(line, 0, ix);
+		line = string_concat(line, utf32_repeat(0x2026, 1));
+	    }
 	}
+    } else {
+	line = utf32_repeat(0x2026, 1);
     }
 
     utf32_t *pad = con4m_new(tspec_utf32(), kw("length", ka(info->pad_ix),

@@ -158,11 +158,3 @@ grid_stripe_rows(grid_t *grid)
 {
     grid->stripe = 1;
 }
-
-static inline utf32_t *
-nim_grid_to_str(grid_t *grid, int64_t width)
-{
-    xlist_t *lines = grid_render(grid, "width", width);
-
-    return string_join(lines, utf32_repeat('\n', 1));
-}
