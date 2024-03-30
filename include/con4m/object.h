@@ -60,8 +60,12 @@ extern any_str_t *con4m_value_obj_repr(object_t);
 
 extern const uint64_t str_ptr_info[];
 
-extern const con4m_vtable signed_ordinal_type;
-extern const con4m_vtable unsigned_ordinal_type;
+extern const con4m_vtable i8_type;
+extern const con4m_vtable u8_type;
+extern const con4m_vtable i32_type;
+extern const con4m_vtable u32_type;
+extern const con4m_vtable i64_type;
+extern const con4m_vtable u64_type;
 extern const con4m_vtable bool_type;
 extern const con4m_vtable float_type;
 extern const con4m_vtable u8str_vtable;

@@ -24,7 +24,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.name      = "i8",
 	.typeid    = T_I8,
 	.alloc_len = 1,
-	.vtable    = &signed_ordinal_type,
+	.vtable    = &i8_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
 	.by_value  = true,
@@ -33,7 +33,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.name      = "byte",
 	.typeid    = T_BYTE,
 	.alloc_len = 1,
-	.vtable    = &unsigned_ordinal_type,
+	.vtable    = &u8_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
 	.by_value  = true,
@@ -41,7 +41,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
     {   .name      = "i32",
 	.typeid    = T_I32,
 	.alloc_len = 4,
-	.vtable    = &signed_ordinal_type,
+	.vtable    = &i32_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
 	.by_value  = true,
@@ -50,7 +50,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.name      = "char",
 	.typeid    = T_CHAR,
 	.alloc_len = 4,
-	.vtable    = &unsigned_ordinal_type,
+	.vtable    = &u32_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
 	.by_value  = true,
@@ -59,7 +59,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.name      = "u32",
 	.typeid    = T_U32,
 	.alloc_len = 4,
-	.vtable    = &unsigned_ordinal_type,
+	.vtable    = &u32_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
 	.by_value  = true,
@@ -68,7 +68,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.name      = "int",
 	.typeid    = T_INT,
 	.alloc_len = 8,
-	.vtable    = &signed_ordinal_type,
+	.vtable    = &i64_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
 	.by_value  = true,
@@ -77,7 +77,7 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
 	.name      = "uint",
 	.typeid    = T_UINT,
 	.alloc_len = 8,
-	.vtable    = &signed_ordinal_type,
+	.vtable    = &u64_type,
 	.base      = BT_primitive,
 	.hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
 	.by_value  = true,
@@ -428,8 +428,7 @@ static const char *repr_err = "Held type does not have a __repr__ function.";
 any_str_t *
 con4m_value_obj_repr(object_t obj)
 {
-    // This does NOT work if obj is a value. Use the next fn
-    // if that's a possibility.
+    // This does NOT work on direct values.
     repr_fn ptr = (repr_fn)get_vtable(obj)->methods[CON4M_BI_TO_STR];
     if (!ptr) {
 	CRAISE(repr_err);

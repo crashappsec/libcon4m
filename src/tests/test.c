@@ -524,6 +524,8 @@ main(int argc, char **argv, char **envp)
 	//marshal_test2();
 	create_dict_lit();
 	rich_lit_test();
+	print(box_u32((int32_t)-1));
+	print(box_i32((int32_t)-1));
 	STATIC_ASCII_STR(local_test, "Goodbye!");
 	//ansi_render(local_test, sout);
 	print((object_t *)local_test);

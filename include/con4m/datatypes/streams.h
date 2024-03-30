@@ -29,7 +29,7 @@ typedef struct {
 	FILE     *f;
 	cookie_t *cookie;
     } contents;
-    int64_t flags;
+    int64_t   flags;
 } stream_t;
 
 #define F_STREAM_READ         0x0001
