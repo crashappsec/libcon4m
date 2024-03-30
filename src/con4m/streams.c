@@ -132,22 +132,33 @@ new_mem_cookie()
 static void
 stream_init(stream_t *stream, va_list args)
 {
-    DECLARE_KARGS(
-	any_str_t      *filename      = NULL;
-	any_str_t      *instring      = NULL;
-	buffer_t       *buffer        = NULL;
-	cookie_t       *cookie        = NULL;
-	int             fd            = -1;
-	int             read          = 1;
-	int             write         = 0;
-	int             append        = 0;
-	int             no_create     = 0;
-	int             close_on_exec = 1;
-	con4m_builtin_t out_type      = T_UTF8;
-	);
+    any_str_t      *filename      = NULL;
+    any_str_t      *instring      = NULL;
+    buffer_t       *buffer        = NULL;
+    cookie_t       *cookie        = NULL;
+    FILE           *fstream       = NULL;
+    int             fd            = -1;
+    bool            read          = true;
+    bool            write         = false;
+    bool            append        = false;
+    bool            no_create     = false;
+    bool            close_on_exec = true;
+    con4m_builtin_t out_type      = T_UTF8;
 
-    method_kargs(args, filename, instring, buffer, cookie, fd, read, write,
-		 append, no_create, close_on_exec, out_type);
+    karg_va_init(args);
+
+    kw_ptr("filename", filename);
+    kw_ptr("instring", instring);
+    kw_ptr("buffer", buffer);
+    kw_ptr("cookie", cookie);
+    kw_ptr("cstream", fstream);
+    kw_int32("fd", fd);
+    kw_bool("read", read);
+    kw_bool("write", write);
+    kw_bool("append", append);
+    kw_bool("no_create", no_create);
+    kw_bool("close_on_exec", close_on_exec);
+    kw_int64("out_type", out_type);
 
     int64_t src_count = 0;
     char    buf[10]   = {0,};
@@ -158,7 +169,8 @@ stream_init(stream_t *stream, va_list args)
     src_count += (int64_t)!!instring;
     src_count += (int64_t)!!buffer;
     src_count += (int64_t)!!cookie;
-    src_count += fd + 1;
+    src_count += (int64_t)!!fstream;
+    src_count += (fd >= 0);
 
     switch (out_type) {
     case T_UTF8:
@@ -238,6 +250,11 @@ stream_init(stream_t *stream, va_list args)
 	return;
     }
 
+    if (fstream != NULL) {
+	stream->contents.f = fstream;
+	return;
+    }
+
     if (fd != -1) {
 	stream->contents.f = fdopen(fd, buf);
 	goto err_check;
@@ -283,16 +300,18 @@ static object_t
 stream_bytes_to_output(int64_t flags, char *buf, int64_t len)
 {
     if (flags & F_STREAM_UTF8_OUT) {
-	return con4m_new(tspec_utf8(), "cstring", buf, "length", len);
+	return con4m_new(tspec_utf8(), kw("cstring", ka(buf),
+					  "length", ka(len)));
     }
 
     if (flags & F_STREAM_UTF32_OUT) {
-	return con4m_new(tspec_utf32(), "cstring", buf, "codepoints", len / 4);
+	return con4m_new(tspec_utf32(), kw("cstring", ka(buf),
+					   "codepoints", ka(len / 4)));
     }
 
     else {
 	// Else, it's going to a buffer.
-	return con4m_new(tspec_buffer(), "raw", buf, "length", len);
+	return con4m_new(tspec_buffer(), kw("raw", ka(buf), "length", ka(len)));
     }
 }
 
@@ -404,66 +423,20 @@ stream_raw_write(stream_t *stream, int64_t len, char *buf)
     return 0;
 }
 
-int64_t
-_stream_write_object(stream_t *stream, object_t obj, ...)
+void
+_stream_write_object(stream_t *stream, object_t obj, bool ansi)
 {
-    DECLARE_KARGS(
-	int64_t start = 0;
-	int64_t end   = -1;
-	);
-
-    kargs(obj, start, end);
-
     if (stream->flags & F_STREAM_CLOSED) {
 	CRAISE("Stream is already closed.");
     }
 
-    int64_t len = con4m_len(obj);
-
-    if (start < 0) {
-	start += len;
+    any_str_t *s = con4m_value_obj_repr(obj);
+    if (ansi) {
+	ansi_render(s, stream);
     }
     else {
-	if (start >= len) {
-	    return -1;
-	}
-    }
-    if (end < 0) {
-	end += len + 1;
-    }
-    else {
-	if (end > len) {
-	    end = len;
-	}
-    }
-    if ((start | end) < 0 || start >= end) {
-	return -1;
-    }
-
-    int64_t slice_len = end - start;
-
-    switch(get_base_type_id(obj)) {
-    case T_UTF8:
-    {
-	utf8_t *s = (utf8_t *)obj;
-	return stream_raw_write(stream, slice_len, &s->data[start]);
-    }
-    case T_UTF32:
-    {
-	utf32_t     *s = (utf32_t *)obj;
-	codepoint_t *p = (codepoint_t *)s->data;
-
-	// stream_raw_write expects bytes.
-	return stream_raw_write(stream, slice_len * 4, (char *)&p[start]) / 4;
-    }
-    case T_BUFFER:
-    {
-	buffer_t *b = (buffer_t *)obj;
-	return stream_raw_write(stream, slice_len, &b->data[start]);
-    }
-    default:
-	CRAISE("Cannot write this object type to a stream directly; either "
-	       "convert to a string or buffer, or marshal it to this stream.");
+	s = force_utf8(s);
+	stream_raw_write(stream, s->byte_len, s->data);
     }
 }
 
@@ -583,6 +556,100 @@ stream_flush(stream_t *stream)
 	stream->flags = F_STREAM_CLOSED;
 	raise_errno();
     }
+}
+
+void
+_print(object_t first, ...)
+{
+
+    va_list      args;
+    object_t     cur     = first;
+    karg_info_t *_karg   = NULL;
+    stream_t    *stream  = NULL;
+    codepoint_t  sep     = ' ';
+    codepoint_t  end     = '\n';
+    bool         flush   = false;
+    bool         force   = false;
+    bool         nocolor = false;
+    int          numargs;
+    bool         ansi;
+
+    va_start(args, first);
+
+    if (first == NULL) {
+	stream_putc(get_stdout(), '\n');
+	return;
+    }
+
+    if (get_my_type(first) == tspec_kargs()) {
+	_karg   = first;
+	numargs = 0;
+    }
+    else {
+	_karg = get_kargs_and_count(args, &numargs);
+	numargs++;
+    }
+
+    if (_karg != NULL) {
+	if (!kw_ptr("stream", stream)) {
+	    stream = get_stdout();
+	}
+	kw_codepoint("sep", sep);
+
+	kw_codepoint("end", end);
+	kw_bool("flush", flush);
+
+	if (!kw_bool("force_color", force)) {
+	    kw_bool("no_color", nocolor);
+	}
+	else {
+	    if (kw_bool("no_color", nocolor)) {
+		CRAISE("Cannot specify `force_color` and `no_color` together.");
+	    }
+	}
+    }
+
+    if (stream == NULL) {
+	stream = get_stdout();
+    }
+    if (force) {
+	ansi = true;
+    }
+    else {
+	if (nocolor) {
+	    ansi = false;
+	}
+	else {
+	    int fno = stream_fileno(stream);
+
+	    if (fno == -1 || !isatty(fno)) {
+		ansi = false;
+	    }
+	    else {
+		ansi = true;
+	    }
+	}
+    }
+
+    for (int i = 0; i < numargs; i++) {
+
+	if (i && sep) {
+	    stream_putcp(stream, sep);
+	}
+
+	stream_write_object(stream, cur, ansi);
+	cur = va_arg(args, object_t);
+    }
+
+    if (end) {
+	stream_putcp(stream, end);
+    }
+
+    if (flush) {
+	stream_flush(stream);
+    }
+
+    va_end(args);
 }
 
 const con4m_vtable stream_vtable = {

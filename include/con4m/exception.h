@@ -172,7 +172,7 @@ void               exception_raise(exception_t *, char *,
 static inline utf8_t *
 exception_get_file(exception_t *exception)
 {
-    return con4m_new(tspec_utf8(), "cstring", exception->file);
+    return con4m_new(tspec_utf8(), kw("cstring", ka(exception->file)));
 }
 
 static inline uint64_t
@@ -193,7 +193,8 @@ void exception_register_uncaught_handler(void (*)(exception_t *));
     {                                                                          \
         char buf[BUFSIZ];                                                      \
         strerror_r(errno, buf, BUFSIZ);                                        \
-        RAISE(con4m_new(tspec_utf8(), "cstring", buf), "error_code", errno);   \
+        RAISE(con4m_new(tspec_utf8(), kw("cstring", ka(buf))),                 \
+	      kw("error_code", ka(errno)));				       \
     }
 
 extern __thread exception_stack_t __exception_stack;
@@ -203,7 +204,7 @@ raise_errcode(int code) {
     char msg[2048] = {0, };
 
     strerror_r(code, msg, 2048);
-    RAISE(con4m_new(tspec_utf8(), "cstring", msg));
+    RAISE(con4m_new(tspec_utf8(), kw("cstring", ka(msg))));
 }
 
 static inline void raise_errno()

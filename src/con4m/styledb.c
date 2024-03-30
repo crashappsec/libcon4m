@@ -1,6 +1,5 @@
 #include <con4m.h>
 
-
 static hatrack_dict_t *style_dictionary = NULL;
 
 __attribute__((constructor)) void
@@ -336,37 +335,56 @@ lookup_cell_style(char *name)
 void
 con4m_style_init(render_style_t *style, va_list args)
 {
-    DECLARE_KARGS(
-	color_t fg_color        = -1;
-	color_t bg_color        = -1;
-	int64_t bold            = -1;
-	int64_t italic          = -1;
-	int64_t strikethru      = -1;
-	int64_t underline       = -1;
-	int64_t inverse         = -1;
-	double  width_pct       = -1;
-	int64_t flex_units      = -1;
-	int32_t min_size        = -1;
-	int32_t max_size        = -1;
-	int32_t fit_text        = -1;
-	int32_t top_pad         = -1;
-	int32_t bottom_pad      = -1;
-	int32_t left_pad        = -1;
-	int32_t right_pad       = -1;
-	int32_t wrap_hang       = -1;
-	int32_t disable_wrap    = -1;
-	color_t pad_color       = 0xffffffff;
-	int32_t alignment       = -1;
-	char   *border_theme    = NULL;
-	int32_t enabled_borders = -1;
-	char *  tag             = NULL;
+    color_t fg_color        = -1;
+    color_t bg_color        = -1;
+    bool    bold            = false;
+    bool    italic          = false;
+    bool    strikethru      = false;
+    bool    underline       = false;
+    bool    duline          = false;
+    bool    inverse         = false;
+    bool    fit_text        = false;
+    bool    disable_wrap    = false;
+    double  width_pct       = -1;
+    int64_t flex_units      = -1;
+    int32_t min_size        = -1;
+    int32_t max_size        = -1;
+    int32_t top_pad         = -1;
+    int32_t bottom_pad      = -1;
+    int32_t left_pad        = -1;
+    int32_t right_pad       = -1;
+    int32_t wrap_hang       = -1;
+    color_t pad_color       = 0xffffffff;
+    int32_t alignment       = -1;
+    int32_t enabled_borders = -1;
+    char   *border_theme    = NULL;
+    char   *tag             = NULL;
 
-	);
-    method_kargs(args, fg_color, bg_color, bold, italic, strikethru, underline,
-		 inverse, width_pct, flex_units, min_size, max_size, fit_text,
-		 left_pad, right_pad, top_pad, bottom_pad, wrap_hang,
-		 disable_wrap, pad_color, alignment, border_theme,
-		 enabled_borders, tag);
+    karg_va_init(args);
+    kw_int32("fg_color", fg_color);
+    kw_int32("bg_color", bg_color);
+    kw_bool("bold", bold);
+    kw_bool("italic", italic);
+    kw_bool("strike", strikethru);
+    kw_bool("underline", underline);
+    kw_bool("double_underline", duline);
+    kw_bool("inverse", inverse);
+    kw_bool("fit_text", fit_text);
+    kw_bool("disable_wrap", disable_wrap);
+    kw_float("width_pct", width_pct);
+    kw_int64("flex_units", flex_units);
+    kw_int32("min_size", min_size);
+    kw_int32("max_size", max_size);
+    kw_int32("top_pad", top_pad);
+    kw_int32("bottom_pad", bottom_pad);
+    kw_int32("left_pad", left_pad);
+    kw_int32("right_pad", right_pad);
+    kw_int32("wrap_hand", wrap_hang);
+    kw_int32("pad_color", pad_color);
+    kw_int32("alignment", alignment);
+    kw_int32("enabled_borders", enabled_borders);
+    kw_ptr("border_theme", border_theme);
+    kw_ptr("tag", tag);
 
     style->name = tag;
     // Use basic math to make sure overlaping cell sizing strategies
@@ -375,44 +393,42 @@ con4m_style_init(render_style_t *style, va_list args)
 
     if (sz_test != -5) {
 	if ((width_pct != -1 &&
-	     (flex_units + min_size + max_size + fit_text) != -4) ||
-	    (flex_units != -1 && (min_size + max_size + fit_text) != -3) ||
-	    (fit_text != -1 && (min_size + max_size) != -2)) {
-              printf("Future exception: can't specify two cell "
-		     "sizing strategies.\n");
-  	      abort();
+	     (flex_units + min_size + max_size + fit_text) != -3) ||
+	    (flex_units != -1 && (min_size + max_size + (int)fit_text) != -2) ||
+	    (fit_text && (min_size + max_size) != -2)) {
+              CRAISE("Can't specify two cell sizing strategies.");
 	}
     }
 
-    if (wrap_hang != -1 && disable_wrap != -1) {
+    if (wrap_hang != -1 && disable_wrap) {
 	printf("Cannot set 'wrap_hang' and 'disable_wrap' at once.\n");
 	abort();
     }
 
     if (fg_color != -1) {
-	set_fg_color(style, fg_color);
+	set_render_style_fg_color(style, fg_color);
     }
     if (bg_color != -1) {
-	set_bg_color(style, bg_color);
+	set_render_style_bg_color(style, bg_color);
     }
-    if (bold > 0) {
+    if (bold) {
 	bold_on(style);
     }
-    if (italic > 0) {
+    if (italic) {
 	italic_on(style);
     }
-    if (strikethru > 0) {
+    if (strikethru) {
 	strikethru_on(style);
     }
-    if (underline == UL_DOUBLE) {
+    if (duline) {
 	double_underline_on(style);
     }
     else {
-	if (underline != -1) {
+	if (underline) {
 	    underline_on(style);
 	}
     }
-    if (inverse > 0) {
+    if (inverse) {
 	inverse_on(style);
     }
 
@@ -438,7 +454,7 @@ con4m_style_init(render_style_t *style, va_list args)
 	set_size_range(style, min_size, max_size);
     }
 
-    if (fit_text > 0) {
+    if (fit_text) {
 	set_fit_to_text(style);
     }
 
@@ -462,7 +478,7 @@ con4m_style_init(render_style_t *style, va_list args)
 	set_wrap_hang(style, wrap_hang);
     }
 
-    if (disable_wrap > 0) {
+    if (disable_wrap) {
 	disable_line_wrap(style);
     }
 
@@ -488,10 +504,11 @@ layer_styles(const render_style_t *base, render_style_t *cur)
 {
     // Anything not explicitly set in 'cur' will get set from base.
     if (!(cur->base_style & FG_COLOR_ON) && base->base_style & FG_COLOR_ON) {
-	set_fg_color(cur, base->base_style & ~FG_COLOR_MASK);
+	set_render_style_fg_color(cur, base->base_style & ~FG_COLOR_MASK);
     }
     if (!(cur->base_style & BG_COLOR_ON) && base->base_style & BG_COLOR_ON) {
-	set_bg_color(cur, (color_t)((base->base_style & ~BG_COLOR_MASK) >> 24));
+	set_render_style_bg_color(cur,
+			  (color_t)((base->base_style & ~BG_COLOR_MASK) >> 24));
     }
     if (base->base_style & BOLD_ON) {
 	cur->base_style |= BOLD_ON;

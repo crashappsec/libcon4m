@@ -4,17 +4,8 @@
 
 // TODO, should use a streaming interface for long dumps.
 
-extern int calculate_size_prefix(uint64_t len, uint64_t start);
-extern void add_offset(char **optr, uint64_t start_offset, uint64_t offset_len,
-		       uint64_t line, uint64_t cpl);
-extern char * chexl(void *ptr, unsigned int len, uint64_t start_offset,
-		   unsigned int width, char *prefix);
+extern char *chexl(void *ptr, int32_t len, uint64_t start_offset,
+		   int32_t width, char *prefix);
+extern utf8_t *_hex_dump(void *ptr, uint32_t len, ...);
 
-extern utf8_t *hex_dump(void *ptr, unsigned int len, uint64_t start_offset,
-			unsigned int width, char *prefix);
-
-
-// Legacy calls for Chalk compat.
-extern char *chex(void *ptr, unsigned int len, uint64_t start_offset,
-		  unsigned int width);
-extern void print_hex(void *ptr, unsigned int len, char *prefix);
+#define hex_dump(p, l, ...) _hex_dump(p, l, KFUNC(__VA_ARGS__))

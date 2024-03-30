@@ -436,8 +436,8 @@ type_spec_copy(type_spec_t *node, type_env_t *env)
     }
 
     type_spec_t    *result  = con4m_new(tspec_typespec(),
-					"name", ts_from->name,
-			 	        "base_id", ts_from->base_type->typeid);
+				kw("name", ka(ts_from->name),
+				   "base_id", ka(ts_from->base_type->typeid)));
     int             n       = type_spec_get_num_params(node);
     xlist_t        *to_copy = type_spec_get_params(node);
     type_details_t *ts_to   = result->details;
@@ -597,7 +597,7 @@ unify(type_spec_t *t1, type_spec_t *t2, type_env_t *env)
 	p1       = type_spec_get_params(t1);
 	p2       = type_spec_get_params(t2);
 	new_subs = con4m_new(tspec_xlist(tspec_typespec()),
-			     "length", num_params);
+			     kw("length", ka(num_params)));
 
 	for (int i = 0; i < num_params; i++) {
 	    sub1       = xlist_get(p1, i, NULL);
@@ -662,7 +662,7 @@ unify(type_spec_t *t1, type_spec_t *t2, type_env_t *env)
 	p1       = type_spec_get_params(t1);
 	p2       = type_spec_get_params(t2);
 	new_subs = con4m_new(tspec_xlist(tspec_typespec()),
-			     "length", num_params);
+			     kw("length", ka(num_params)));
 
 	for (int i = 0; i < f1_params - 2; i++) {
 	    sub1       = xlist_get(p1, i, NULL);
@@ -729,7 +729,7 @@ create_typevar_name(int64_t num)
 	num >>= 4;
     }
 
-    return con4m_new(tspec_utf8(), "cstring", buf);
+    return con4m_new(tspec_utf8(), kw("cstring", ka(buf)));
 }
 
 static inline any_str_t *
@@ -742,7 +742,7 @@ internal_repr_tv(type_spec_t *t, dict_t *memos, int64_t *nexttv)
     }
 
     if (t->details->name != NULL) {
-	s = con4m_new(tspec_utf8(), "cstring", t->details->name);
+	s = con4m_new(tspec_utf8(), kw("cstring", ka(t->details->name)));
     }
     else {
 	int64_t v = *nexttv;
@@ -767,7 +767,7 @@ internal_repr_container(type_details_t *info, dict_t *memos, int64_t *nexttv)
     any_str_t   *substr;
 
     xlist_append(to_join, con4m_new(tspec_utf8(),
-				    "cstring", info->base_type->name));
+				    kw("cstring", ka(info->base_type->name))));
     xlist_append(to_join, get_lbrak_const());
     goto first_loop_start;
 
@@ -846,7 +846,8 @@ internal_type_repr(type_spec_t *t, dict_t *memos, int64_t *nexttv)
     switch(info->base_type->base) {
     case BT_nil:
     case BT_primitive:
-	return con4m_new(tspec_utf8(), "cstring", info->base_type->name);
+	return con4m_new(tspec_utf8(),
+			 kw("cstring", ka(info->base_type->name)));
     case BT_type_var:
 	return internal_repr_tv(t, memos, nexttv);
     case BT_list:

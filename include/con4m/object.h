@@ -33,8 +33,10 @@ get_base_type_name(const object_t user_object)
 extern const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS];
 
 #define con4m_new(tid, ...) _con4m_new(tid, KFUNC(__VA_ARGS__))
+#define con4m_stack_alloc(tid, ...) _con4m_stack_alloc(tid, KFUNC(__VA_ARGS__))
 
 extern object_t _con4m_new(type_spec_t *type,  ...);
+extern object_t _con4m_stack_alloc(type_spec_t *type,  ...);
 extern uint64_t *gc_get_ptr_info(con4m_builtin_t);
 
 extern any_str_t *con4m_repr(void *, type_spec_t *, to_str_use_t);
@@ -58,8 +60,12 @@ extern any_str_t *con4m_value_obj_repr(object_t);
 
 extern const uint64_t str_ptr_info[];
 
-extern const con4m_vtable signed_ordinal_type;
-extern const con4m_vtable unsigned_ordinal_type;
+extern const con4m_vtable i8_type;
+extern const con4m_vtable u8_type;
+extern const con4m_vtable i32_type;
+extern const con4m_vtable u32_type;
+extern const con4m_vtable i64_type;
+extern const con4m_vtable u64_type;
 extern const con4m_vtable bool_type;
 extern const con4m_vtable float_type;
 extern const con4m_vtable u8str_vtable;
@@ -88,6 +94,7 @@ extern const con4m_vtable tuple_vtable;
 extern const con4m_vtable mixed_vtable;
 extern const con4m_vtable ipaddr_vtable;
 extern const con4m_vtable stream_vtable;
+extern const con4m_vtable kargs_vtable;
 
 extern const uint64_t     pmap_first_word[2];
 extern const uint64_t     rs_pmap[2];

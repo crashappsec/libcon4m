@@ -23,6 +23,16 @@ typedef enum {
 typedef void (*con4m_vtable_entry)(con4m_obj_t *, va_list);
 typedef void (*container_init)(con4m_obj_t *, void *, va_list);
 
+typedef int64_t  i64_box;
+typedef uint64_t u64_box;
+typedef int32_t  i32_box;
+typedef uint32_t u32_box;
+typedef int16_t  i16_box;
+typedef uint16_t u16_box;
+typedef int8_t   i8_box;
+typedef uint8_t  u8_box;
+typedef double   double_box;
+
 typedef struct {
     uint64_t           num_entries;
     con4m_vtable_entry methods[];
@@ -169,6 +179,7 @@ typedef enum : int64_t {
     T_REF,     // A managed pointer.
     T_GENERIC, // If instantiated, instantiates a 'mixed' object.
     T_STREAM,  // streaming IO interface.
+    T_KEYWORD, // Keyword arg object for internal use.
     CON4M_NUM_BUILTIN_DTS
 
 } con4m_builtin_t;

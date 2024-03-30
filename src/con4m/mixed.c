@@ -95,17 +95,18 @@ mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
     }
 }
 
-
 static void
 mixed_init(mixed_t *m, va_list args)
 {
 
-    DECLARE_KARGS(
-	type_spec_t *type = NULL;
-	void        *ptr  = NULL;
-	);
+    type_spec_t *type = NULL;
+    void        *ptr  = NULL;
 
-    method_kargs(args, type, ptr);
+    karg_va_init(args);
+
+    kw_ptr("type", type);
+    kw_ptr("value", ptr);
+
     mixed_set_value(m, type, ptr);
 }
 

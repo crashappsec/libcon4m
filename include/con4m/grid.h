@@ -47,7 +47,7 @@ grid_add_col_span(grid_t *grid, renderable_t *contents, int64_t row,
 static inline renderable_t *
 to_str_renderable(any_str_t *s, char *tag)
 {
-    return con4m_new(tspec_renderable(), "obj", s, "tag", tag);
+    return con4m_new(tspec_renderable(), kw("obj", ka(s), "tag", ka(tag)));
 }
 
 static inline void
@@ -125,7 +125,8 @@ grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
 	    tag = get_td_tag(g);
 	}
 
-	cell = con4m_new(tspec_renderable(), "tag", tag, "obj", item);
+	cell = con4m_new(tspec_renderable(), kw("tag", ka(tag),
+						"obj", ka(item)));
 	break;
     }
     default:
@@ -156,12 +157,4 @@ static inline void
 grid_stripe_rows(grid_t *grid)
 {
     grid->stripe = 1;
-}
-
-static inline utf32_t *
-nim_grid_to_str(grid_t *grid, int64_t width)
-{
-    xlist_t *lines = grid_render(grid, "width", width);
-
-    return string_join(lines, utf32_repeat('\n', 1));
 }

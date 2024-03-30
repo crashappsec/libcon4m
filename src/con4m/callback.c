@@ -5,22 +5,29 @@ static dict_t *bound_functions = NULL;
 static void
 callback_init(callback_t *cb, va_list args)
 {
-    DECLARE_KARGS(
-	type_spec_t *type        = NULL;
-	void        *address     = NULL;
-	any_str_t   *symbol_name = NULL;
-	xlist_t     *libraries   = NULL; // of any_str_t
-	int32_t      static_link = 0;
-	int32_t      ffi         = 0;
-	int32_t      bind_now    = 0;
-	);
+    type_spec_t *type        = NULL;
+    void        *address     = NULL;
+    any_str_t   *symbol_name = NULL;
+    xlist_t     *libraries   = NULL; // of any_str_t
+    int32_t      static_link = 0;
+    bool         ffi         = false;
+    //    bool         bind_now    = false;
 
-    method_kargs(args, type, address, symbol_name, static_link, ffi, bind_now);
+
+    karg_va_init(args);
+
+    kw_ptr("type", type);
+    kw_ptr("address", address);
+    kw_ptr("symbol_name", symbol_name);
+    kw_int32("static_linking", static_link);
+    kw_bool("ffi", ffi);
+    //kw_bool("bind_now", bind_now);
 
     funcinfo_t *info = NULL;
 
     if (bound_functions == NULL) {
 	bound_functions = con4m_new(tspec_dict(tspec_ref(), tspec_ref()));
+	con4m_gc_register_root(&bound_functions, 1);
     }
 
     if (address == NULL) {

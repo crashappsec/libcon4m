@@ -27,6 +27,7 @@ extern codepoint_t utf8_index(const utf8_t *, int64_t);
 extern codepoint_t utf32_index(const utf32_t *, int64_t);
 extern bool        string_can_coerce_to(type_spec_t *, type_spec_t *);
 extern object_t    string_coerce_to(const any_str_t *, type_spec_t *);
+extern xlist_t    *string_xsplit(any_str_t *, any_str_t *);
 
 
 extern struct flexarray_t *string_split(any_str_t *, any_str_t *);
@@ -100,7 +101,7 @@ string_crlf()
 static inline utf8_t *
 new_utf8(const char *to_copy)
 {
-    return con4m_new(tspec_utf8(), "cstring", to_copy);
+    return con4m_new(tspec_utf8(), kw("cstring", ka(to_copy)));
 }
 
 static inline char *
@@ -108,3 +109,6 @@ to_cstring(any_str_t *s)
 {
     return s->data;
 }
+
+// This is in richlit.c
+extern utf8_t * rich_lit(char *);

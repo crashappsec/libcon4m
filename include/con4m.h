@@ -64,5 +64,8 @@ typedef void *object_t;
 // Basic internal API to cache and access common string constants.
 #include <con4m/conststr.h>
 
+// Boxes for ordinal types
+#include <con4m/box.h>
+
 // Yes we use cryptographic hashes internally for type IDing.
 #include <crypto/sha.h>
