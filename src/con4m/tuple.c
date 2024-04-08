@@ -145,6 +145,9 @@ const con4m_vtable tuple_vtable = {
 	NULL, // Mul
 	NULL, // Div
 	NULL, // MOD
+	NULL, // EQ
+	NULL, // LT
+	NULL, // GT
 	(con4m_vtable_entry)tuple_len,
 	(con4m_vtable_entry)tuple_get,
 	(con4m_vtable_entry)tuple_set,

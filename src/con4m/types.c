@@ -898,7 +898,8 @@ const con4m_vtable type_env_vtable = {
 	NULL,
 	NULL,
 	(con4m_vtable_entry)con4m_type_env_marshal,
-	(con4m_vtable_entry)con4m_type_env_unmarshal
+	(con4m_vtable_entry)con4m_type_env_unmarshal,
+	NULL,
     }
 };
 
@@ -914,6 +915,7 @@ const con4m_vtable type_spec_vtable = {
 	NULL,
 	NULL, // from-lit still handled in Nim.
 	(con4m_vtable_entry)global_copy,
+	NULL,
 	// Nothing else is appropriate.
     }
 };
@@ -1162,7 +1164,7 @@ tspec_tuple(int64_t nitems, ...)
 }
 
 type_spec_t *
-tspec_fn(type_spec_t *return_type, int64_t nparams, ...)
+tspec_fn_va(type_spec_t *return_type, int64_t nparams, ...)
 {
     va_list      args;
     type_spec_t *result = con4m_new(tspec_typespec(), global_type_env,
@@ -1209,6 +1211,27 @@ tspec_varargs_fn(type_spec_t *return_type, int64_t nparams, ...)
 }
 
 type_spec_t *
+tspec_fn(type_spec_t *ret, xlist_t *params, bool va)
+{
+    type_spec_t *result = con4m_new(tspec_typespec(), global_type_env,
+				    T_FUNCDEF);
+    xlist_t     *items  = result->details->items;
+    int          n      = xlist_len(params);
+
+    for (int i = 0; i < n; i++) {
+	xlist_append(items, xlist_get(params, i, NULL));
+    }
+    xlist_append(items, ret);
+
+    if (va) {
+	result->details->flags |= FN_TY_VARARGS;
+    }
+    type_hash_and_dedupe(&result, global_type_env);
+
+    return result;
+}
+
+type_spec_t *
 lookup_type_spec(type_t tid, type_env_t *env)
 {
     type_spec_t *node = hatrack_dict_get(env->store, (void *)tid, NULL);
@@ -1224,4 +1247,65 @@ type_spec_t *
 get_builtin_type(con4m_builtin_t base_id)
 {
     return builtin_types[base_id];
+}
+
+type_spec_t *
+get_promotion_type(type_spec_t *t1, type_spec_t *t2, int *warning)
+{
+    *warning = 0;
+
+    t1 = resolve_type_aliases(t1, global_type_env);
+    t2 = resolve_type_aliases(t2, global_type_env);
+
+    type_t id1 = tspec_get_data_type_info(t1)->typeid;
+    type_t id2 = tspec_get_data_type_info(t2)->typeid;
+
+    if (id1 < T_I8 || id1 > T_UINT || id2 < T_I8 || id2 > T_UINT) {
+	*warning = -1;
+	return type_error();
+    }
+
+    if (id2 > id1) {
+	type_t swap = id1;
+	id1         = id2;
+	id2         = swap;
+    }
+
+    switch (id1) {
+    case T_UINT:
+	switch(id2) {
+	case T_INT:
+	    *warning = 1; // Might wrap.;
+		// fallthrough
+	case T_I32:
+	case T_I8:
+	    return tspec_i64();
+	default:
+	    return tspec_u64();
+
+	}
+    case T_U32:
+    case T_CHAR:
+	switch(id2) {
+	case T_I32:
+	    *warning = 1;
+	    // fallthrough
+	case T_I8:
+	    return tspec_i32();
+	default:
+	    return tspec_u32();
+	}
+    case T_BYTE:
+	if (id2 != T_BYTE) {
+	    *warning = 1;
+	    return tspec_i8();
+	}
+	return tspec_byte();
+    case T_INT:
+	return tspec_i64();
+    case T_I32:
+	return tspec_i32();
+    default:
+	return tspec_i8();
+    }
 }

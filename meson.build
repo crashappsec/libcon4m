@@ -83,6 +83,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/callback.c',
             'src/con4m/streams.c',
             'src/con4m/richlit.c',
+            'src/con4m/literals.c',            
             'src/con4m/crypto/sha.c',
             ]
 

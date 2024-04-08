@@ -117,7 +117,9 @@ typedef enum {
     CON4M_BI_MUL,    // `t * `t -> `v -- requires return type
     CON4M_BI_DIV,    // `t / `t -> `v -- requires return type
     CON4M_BI_MOD,    // `t % `t -> `v
-
+    CON4M_BI_EQ,
+    CON4M_BI_LT,
+    CON4M_BI_GT,
     // Container funcs
     CON4M_BI_LEN,       // `t -> int
     CON4M_BI_INDEX_GET, // `t[`n] -> `v (such that `t = list[`v] or

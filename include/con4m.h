@@ -67,5 +67,8 @@ typedef void *object_t;
 // Boxes for ordinal types
 #include <con4m/box.h>
 
+// A few prototypes for literal handling.
+#include <con4m/literal.h>
+
 // Yes we use cryptographic hashes internally for type IDing.
 #include <crypto/sha.h>

@@ -253,6 +253,9 @@ const con4m_vtable dict_vtable = {
 	NULL,
 	NULL,
 	NULL,
+	NULL, // EQ
+	NULL, // LT
+	NULL, // GT
 	(con4m_vtable_entry)dict_len,
 	(con4m_vtable_entry)dict_get,
 	(con4m_vtable_entry)hatrack_dict_put,

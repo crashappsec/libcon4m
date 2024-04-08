@@ -96,7 +96,6 @@ get_kargs_and_count(va_list args, int *nargs)
     return NULL;
 }
 
-
 const con4m_vtable kargs_vtable = {
     .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {

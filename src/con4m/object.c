@@ -597,8 +597,8 @@ con4m_can_coerce(type_spec_t *t1, type_spec_t *t2)
 	return true;
     }
 
-    int64_t       ix   = tspec_get_data_type_info(t1)->typeid;
-    con4m_vtable *vtbl = (con4m_vtable *)builtin_type_info[ix].vtable;
+    dt_info      *info = tspec_get_data_type_info(t1);
+    con4m_vtable *vtbl = (con4m_vtable *)info->vtable;
     can_coerce_fn ptr  = (can_coerce_fn)vtbl->methods[CON4M_BI_COERCIBLE];
 
     if (ptr == NULL) {
@@ -614,8 +614,8 @@ con4m_coerce(void *data, type_spec_t *t1, type_spec_t *t2)
     // TODO-- if it's not a primitive type in t1, we should
     // use data's type for extra precaution.
 
-    int64_t       ix   = tspec_get_data_type_info(t1)->typeid;
-    con4m_vtable *vtbl = (con4m_vtable *)builtin_type_info[ix].vtable;
+    dt_info      *info = tspec_get_data_type_info(t1);
+    con4m_vtable *vtbl = (con4m_vtable *)info->vtable;
     coerce_fn     ptr  = (coerce_fn)vtbl->methods[CON4M_BI_COERCE];
 
     if (ptr == NULL) {
@@ -623,4 +623,46 @@ con4m_coerce(void *data, type_spec_t *t1, type_spec_t *t2)
     }
 
     return (*ptr)(data, t2);
+}
+
+bool
+con4m_eq(type_spec_t *t, object_t o1, object_t o2)
+{
+    dt_info      *info = tspec_get_data_type_info(t);
+    con4m_vtable *vtbl = (con4m_vtable *)info->vtable;
+    cmp_fn        ptr  = (cmp_fn)vtbl->methods[CON4M_BI_EQ];
+
+    if (!ptr) {
+	return o1 == o2;
+    }
+
+    return (*ptr)(o1, o2);
+}
+
+bool
+con4m_lt(type_spec_t *t, object_t o1, object_t o2)
+{
+    dt_info      *info = tspec_get_data_type_info(t);
+    con4m_vtable *vtbl = (con4m_vtable *)info->vtable;
+    cmp_fn        ptr  = (cmp_fn)vtbl->methods[CON4M_BI_LT];
+
+    if (!ptr) {
+	return o1 < o2;
+    }
+
+    return (*ptr)(o1, o2);
+}
+
+bool
+con4m_gt(type_spec_t *t, object_t o1, object_t o2)
+{
+    dt_info      *info = tspec_get_data_type_info(t);
+    con4m_vtable *vtbl = (con4m_vtable *)info->vtable;
+    cmp_fn        ptr  = (cmp_fn)vtbl->methods[CON4M_BI_GT];
+
+    if (!ptr) {
+	return o1 > o2;
+    }
+
+    return (*ptr)(o1, o2);
 }

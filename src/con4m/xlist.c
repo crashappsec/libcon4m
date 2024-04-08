@@ -355,6 +355,21 @@ xlist_set_slice(xlist_t *list, int64_t start, int64_t end, xlist_t *new)
     list->data = (int64_t **)newdata;
 }
 
+bool
+xlist_contains(xlist_t *list, object_t item)
+{
+    int64_t len            = xlist_len(list);
+    type_spec_t *item_type = get_my_type(item);
+
+    for (int i = 0; i < len; i++) {
+	if (con4m_eq(item_type, item, xlist_get(list, i, NULL))) {
+	    return true;
+	}
+    }
+
+    return false;
+}
+
 extern bool list_can_coerce_to(type_spec_t *, type_spec_t *);
 
 const con4m_vtable xlist_vtable = {
@@ -374,6 +389,9 @@ const con4m_vtable xlist_vtable = {
 	NULL, // Mul
 	NULL, // Div
 	NULL, // MOD
+	NULL, // EQ
+	NULL, // LT
+	NULL, // GT
 	(con4m_vtable_entry)xlist_len,
 	(con4m_vtable_entry)xlist_safe_get,
 	(con4m_vtable_entry)xlist_set,

@@ -18,12 +18,14 @@ extern type_spec_t *tspec_stack(type_spec_t *);
 extern type_spec_t *tspec_dict(type_spec_t *, type_spec_t *);
 extern type_spec_t *tspec_set(type_spec_t *);
 extern type_spec_t *tspec_tuple(int64_t, ...);
-extern type_spec_t *tspec_fn(type_spec_t *, int64_t, ...);
+extern type_spec_t *tspec_fn(type_spec_t *, xlist_t *, bool);
+extern type_spec_t *tspec_varargs_fn_va(type_spec_t *, int64_t, ...);
 extern type_spec_t *tspec_varargs_fn(type_spec_t *, int64_t, ...);
 extern type_spec_t *global_resolve_type(type_spec_t *);
 extern type_spec_t *global_copy(type_spec_t *);
 extern type_spec_t *global_type_check(type_spec_t *, type_spec_t *);
 extern void         lock_type(type_spec_t *);
+extern type_spec_t *get_promotion_type(type_spec_t *, type_spec_t *, int *);
 
 static inline bool
 typeid_is_concrete(type_t tid)
@@ -42,6 +44,13 @@ type_spec_get_base(type_spec_t *n)
 {
     return n->details->base_type->base;
 }
+
+static inline base_t
+type_spec_get_type_kind(type_spec_t *n)
+{
+    return n->details->base_type->base;
+}
+
 
 static inline xlist_t *
 type_spec_get_params(type_spec_t *n)
@@ -143,6 +152,12 @@ static inline int64_t
 get_base_type_id(const object_t obj)
 {
     return tspec_get_data_type_info(get_my_type(obj))->typeid;
+}
+
+static inline con4m_builtin_t
+tspec_get_base_tid(type_spec_t *n)
+{
+    return n->details->base_type->typeid;
 }
 
 extern type_spec_t *builtin_types[CON4M_NUM_BUILTIN_DTS];
@@ -415,4 +430,41 @@ tspecs_are_compat(type_spec_t *t1, type_spec_t *t2)
     t2 = global_copy(t2);
 
     return ! type_spec_is_error(global_type_check(t1, t2));
+}
+
+static inline type_spec_t *
+tspec_tuple_from_xlist(xlist_t *item_types)
+{
+    type_spec_t *result   = con4m_new(tspec_typespec(), global_type_env,
+				      T_TUPLE);
+    xlist_t     *res_list = result->details->items;
+
+    int n = xlist_len(item_types);
+
+    for (int i = 0; i < n; i++) {
+	xlist_append(res_list, xlist_get(item_types, i, NULL));
+    }
+
+    return result;
+}
+
+static inline bool
+tspec_is_int_type(type_spec_t *t)
+{
+    if (t == NULL) {
+	return false;
+    }
+
+    switch (t->typeid) {
+    case T_I8:
+    case T_BYTE:
+    case T_I32:
+    case T_CHAR:
+    case T_U32:
+    case T_INT:
+    case T_UINT:
+	return true;
+    default:
+	return false;
+    }
 }

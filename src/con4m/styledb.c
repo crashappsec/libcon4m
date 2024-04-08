@@ -685,6 +685,7 @@ const con4m_vtable render_style_vtable = {
 	NULL,
 	NULL,
 	(con4m_vtable_entry)con4m_style_marshal,
-	(con4m_vtable_entry)con4m_style_unmarshal
+	(con4m_vtable_entry)con4m_style_unmarshal,
+	NULL,
     }
 };
