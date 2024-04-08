@@ -1057,6 +1057,42 @@ string_coerce_to(const any_str_t *s, type_spec_t *target_type)
     CRAISE("Invalid coersion.");
 }
 
+static object_t
+string_lit(char *s, syntax_t st, char *litmod, lit_error_t *err)
+{
+    if (*litmod == 0 || !strcmp(litmod, "u8") || !strcmp(litmod, "utf8")) {
+	return con4m_new(tspec_utf8(), kw("cstring", ka(s)));
+    }
+
+    if (!strcmp(litmod, "u32") || !strcmp(litmod, "utf32")) {
+	return con4m_new(tspec_utf32(), kw("cstring", ka(s)));
+    }
+
+    return rich_lit(s);
+}
+
+static bool
+string_eq(any_str_t *s1, any_str_t *s2)
+{
+    bool s1_is_u32 = string_is_u32(s1);
+    bool s2_is_u32 = string_is_u32(s2);
+
+    if (s1_is_u32 ^ s2_is_u32) {
+	if (s1_is_u32) {
+	    s2 = force_utf32(s2);
+	}
+	else {
+	    s1 = force_utf32(s1);
+	}
+    }
+
+    if (s1->byte_len != s2->byte_len) {
+	return false;
+    }
+
+    return memcmp(s1->data, s2->data, s1->byte_len) == 0;
+}
+
 const con4m_vtable u8str_vtable = {
     .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
@@ -1074,6 +1110,9 @@ const con4m_vtable u8str_vtable = {
 	NULL, // Mul
 	NULL, // Div
 	NULL, // MOD
+	NULL, // EQ
+	NULL, // LT
+	NULL, // GT
 	(con4m_vtable_entry)string_codepoint_len,
 	(con4m_vtable_entry)utf8_index,
 	NULL, // Index set
@@ -1092,13 +1131,16 @@ const con4m_vtable u32str_vtable = {
 	(con4m_vtable_entry)con4m_string_unmarshal,
 	(con4m_vtable_entry)string_can_coerce_to,
 	(con4m_vtable_entry)string_coerce_to,
-	NULL, // From lit,
+	(con4m_vtable_entry)string_lit,
 	(con4m_vtable_entry)string_copy,
 	(con4m_vtable_entry)string_concat,
 	NULL, // Subtract
 	NULL, // Mul
 	NULL, // Div
 	NULL, // MOD
+	(con4m_vtable_entry)string_eq, // EQ
+	NULL, // LT
+	NULL, // GT
 	(con4m_vtable_entry)string_codepoint_len,
 	(con4m_vtable_entry)utf32_index,
 	NULL, // Index set; strings are immutable.

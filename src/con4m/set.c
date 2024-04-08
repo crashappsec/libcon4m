@@ -103,6 +103,6 @@ const con4m_vtable set_vtable = {
 	NULL,
 	NULL,
 	(con4m_vtable_entry)con4m_set_marshal,
-	(con4m_vtable_entry)con4m_set_unmarshal
+	(con4m_vtable_entry)con4m_set_unmarshal,
     }
 };

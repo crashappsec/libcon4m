@@ -341,7 +341,7 @@ con4m_marshal(object_t obj, stream_t *s)
 
     // Start w/ 1 as 0 represents the null pointer.
     int64_t next_memo = 1;
-    dict_t *memos     = con4m_new(tspec_dict(tspec_ref(), tspec_u64()));
+    dict_t *memos     = alloc_marshal_memos();
 
 
     con4m_sub_marshal(obj, s, memos, &next_memo);
@@ -357,7 +357,7 @@ con4m_unmarshal(stream_t *s)
 	       "call con4m_sub_unmarshal.");
     }
 
-    dict_t  *memos = con4m_new(tspec_dict(tspec_u64(), tspec_ref()));
+    dict_t  *memos = alloc_unmarshal_memos();
     object_t result;
 
     marshaling = 1;

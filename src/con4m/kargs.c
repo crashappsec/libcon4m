@@ -77,25 +77,24 @@ get_kargs_and_count(va_list args, int *nargs)
     int      count = 0;
 
     va_copy(arg_copy, args);
-
+  
     cur = va_arg(arg_copy, object_t);
 
     while (cur != NULL) {
-	if (get_my_type(cur) == tspec_kargs()) {
-	    *nargs = count;
-	    va_end(arg_copy);
-	    return cur;
-	}
+	      if (get_my_type(cur) == tspec_kargs()) {
+	          *nargs = count;
+	          va_end(arg_copy);
+	          return cur;
+      	}
 
-	count++;
-	cur = va_arg(arg_copy, object_t);
+	      count++;
+	      cur = va_arg(arg_copy, object_t);
     }
 
     *nargs = count;
     va_end(arg_copy);
     return NULL;
 }
-
 
 const con4m_vtable kargs_vtable = {
     .num_entries = CON4M_BI_NUM_FUNCS,

@@ -367,6 +367,9 @@ const con4m_vtable list_vtable = {
 	NULL, // Mul
 	NULL, // Div
 	NULL, // MOD
+	NULL, // EQ
+	NULL, // LT
+	NULL, // GT
 	(con4m_vtable_entry)flexarray_len,
 	(con4m_vtable_entry)list_get,
 	(con4m_vtable_entry)list_set,

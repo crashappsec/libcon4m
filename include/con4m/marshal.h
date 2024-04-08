@@ -36,7 +36,7 @@ unmarshal_i8(stream_t *s)
 }
 
 static inline void
-marshal_bool(int value, stream_t *s)
+marshal_bool(bool value, stream_t *s)
 {
     marshal_i8(value ? 1 : 0, s);
 }
@@ -93,4 +93,45 @@ static inline uint8_t
 unmarshal_u8(stream_t *s)
 {
     return (uint8_t)unmarshal_i64(s);
+}
+
+static inline buffer_t *
+con4m_marshal_to_buf(object_t obj)
+{
+    buffer_t *b = con4m_new(tspec_buffer(), kw("length", ka(16)));
+    stream_t *s = con4m_new(tspec_stream(), kw("buffer", ka(b),
+					       "write", ka(1),
+					       "read", ka(0)));
+
+    con4m_marshal(obj, s);
+    stream_close(s);
+
+    return b;
+
+}
+
+static inline object_t
+con4m_mem_unmarshal(char *mem, int64_t len)
+{
+    buffer_t *b = con4m_new(tspec_buffer(), kw("length", ka(len),
+					       "ptr", mem));
+    stream_t *s = con4m_new(tspec_stream(), kw("buffer", ka(b)));
+
+    object_t result = con4m_unmarshal(s);
+
+    stream_close(s);
+    return result;
+
+}
+
+static inline struct dict_t *
+alloc_marshal_memos()
+{
+    return con4m_new(tspec_dict(tspec_ref(), tspec_u64()));
+}
+
+static inline struct dict_t *
+alloc_unmarshal_memos()
+{
+    return con4m_new(tspec_dict(tspec_u64(), tspec_ref()));
 }

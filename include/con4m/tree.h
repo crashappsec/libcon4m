@@ -12,7 +12,6 @@ tree_get_contents(tree_node_t *t)
     return t->contents;
 }
 
-
 static inline int64_t
 tree_get_number_children(tree_node_t *t)
 {

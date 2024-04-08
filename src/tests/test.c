@@ -488,6 +488,9 @@ rich_lit_test()
     test = rich_lit("[h2]Hello, world!");
     print(test);
 
+    test = rich_lit("[h2]Hello, [i u]world[/i u], it is me!");
+    print(test);
+
     print(test, test, kw("no_color", ka(true), "sep", ka('&')));
 
 }

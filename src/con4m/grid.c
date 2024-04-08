@@ -2064,6 +2064,9 @@ const con4m_vtable grid_vtable  = {
 	NULL, // No mul
 	NULL, // No div
 	NULL, // No mod
+	NULL, // EQ
+	NULL, // LT
+	NULL, // GT
 	NULL, // No len
 	NULL, // No index
 	NULL, // No index
@@ -2079,6 +2082,7 @@ const con4m_vtable renderable_vtable = {
 	NULL,
 	NULL,
 	(con4m_vtable_entry)con4m_renderable_marshal,
-	(con4m_vtable_entry)con4m_renderable_unmarshal
+	(con4m_vtable_entry)con4m_renderable_unmarshal,
+	NULL,
     }
 };

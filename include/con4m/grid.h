@@ -62,6 +62,18 @@ set_row_style(grid_t *grid, int row, char *tag)
     grid->row_props[row] = lookup_cell_style(tag);
 }
 
+static inline void
+set_column_props(grid_t *grid, int col, render_style_t *s)
+{
+    grid->col_props[col] = s;
+}
+
+static inline void
+set_row_props(grid_t *grid, int row, render_style_t *s)
+{
+    grid->row_props[row] = s;
+}
+
 static inline style_t
 grid_blend_color(style_t style1, style_t style2)
 {

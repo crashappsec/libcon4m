@@ -16,22 +16,28 @@ buffer_init(buffer_t *obj, va_list args)
     int64_t    length = -1;
     char      *raw    = NULL;
     any_str_t *hex    = NULL;
+    char      *ptr    = NULL;
 
     karg_va_init(args);
 
     kw_int64("length", length);
     kw_ptr("raw", raw);
     kw_ptr("hex", hex);
+    kw_ptr("ptr", ptr);
 
-    if (length < 0 && hex == NULL) {
-	abort();
-    }
-    if (length >= 0 && hex != NULL) {
-	abort();
-    }
+    if (raw == NULL && hex == NULL && ptr == NULL) {
+	if (length < 0) {
+	    CRAISE("Invalid buffer initializer.");
+	}
 
+    }
     if (length < 0) {
-	length = string_codepoint_len(hex) >> 1;
+	if (hex == NULL) {
+	    CRAISE("Must specify length for raw / ptr initializer.");
+	}
+	else {
+	    length = string_codepoint_len(hex) >> 1;
+	}
     }
 
     if (length > 0) {
@@ -43,10 +49,21 @@ buffer_init(buffer_t *obj, va_list args)
 
     if (raw != NULL) {
 	if (hex != NULL) {
-	    CRAISE("Cannot set both hex and raw fields.");
+	    CRAISE("Cannot set both 'hex' and 'raw' fields.");
+	}
+	if (ptr != NULL) {
+	    CRAISE("Cannot set both 'ptr' and 'raw' fields.");
 	}
 
 	memcpy(obj->data, raw, length);
+    }
+
+    if (ptr != NULL) {
+	if (hex != NULL) {
+	    CRAISE("Cannot set both 'hex' and 'ptr' fields.");
+	}
+
+	obj->data = ptr;
     }
 
     if (hex != NULL) {
@@ -441,6 +458,22 @@ buffer_set_slice(buffer_t *b, int64_t start, int64_t end, buffer_t *val)
     b->byte_len = new_len;
 }
 
+static object_t
+buffer_lit(char *s, syntax_t st, char *litmod, lit_error_t *err)
+{
+    if (!strcmp(litmod, "h") || !strcmp(litmod, "hex")) {
+	int length = strlen(s);
+	if (length & 2) {
+	    err->code = LE_WrongNumDigits;
+	    return NULL;
+	}
+	return con4m_new(tspec_buffer(), kw("length", ka(length),
+					    "hex",    ka(s)));
+    }
+
+    return con4m_new(tspec_buffer(), kw("raw", ka(s)));
+}
+
 buffer_t *
 buffer_copy(buffer_t *inbuf)
 {
@@ -462,13 +495,16 @@ const con4m_vtable buffer_vtable = {
 	(con4m_vtable_entry)con4m_buffer_unmarshal,
 	(con4m_vtable_entry)buffer_can_coerce_to,
 	(con4m_vtable_entry)buffer_coerce_to,
-	NULL, // From lit,
+	(con4m_vtable_entry)buffer_lit,
 	(con4m_vtable_entry)buffer_copy,
 	(con4m_vtable_entry)buffer_add,
 	NULL, // Subtract
 	NULL, // Mul
 	NULL, // Div
 	NULL, // MOD
+	NULL, // EQ
+	NULL, // LT
+	NULL, // GT
 	(con4m_vtable_entry)buffer_len,
 	(con4m_vtable_entry)buffer_get_index,
 	(con4m_vtable_entry)buffer_set_index,
