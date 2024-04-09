@@ -38,15 +38,15 @@ style_debug(char *prefix, const any_str_t *p)
         return;
 
     if (p->styling == NULL) {
-        printf("debug (%s): len: %lld styles: nil\n", prefix, string_codepoint_len(p));
+        printf("debug (%s): len: %lld styles: nil\n", prefix, (long long)string_codepoint_len(p));
         return;
     }
     else {
-        printf("debug (%s): len: %lld # styles: %lld\n", prefix, string_codepoint_len(p), p->styling->num_entries);
+        printf("debug (%s): len: %lld # styles: %lld\n", prefix, (long long)string_codepoint_len(p), (long long)p->styling->num_entries);
     }
     for (int i = 0; i < p->styling->num_entries; i++) {
         style_entry_t entry = p->styling->styles[i];
-        printf("%d: %llx (%d:%d)\n", i + 1, p->styling->styles[i].info, entry.start, entry.end);
+        printf("%d: %llx (%d:%d)\n", i + 1, (long long)p->styling->styles[i].info, entry.start, entry.end);
     }
 }
 

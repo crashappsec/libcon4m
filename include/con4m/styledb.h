@@ -134,7 +134,7 @@ titlecase_on(render_style_t *style)
     style->base_style |= TITLE_CASE;
 }
 
-const extern border_theme_t *registered_borders;
+extern const border_theme_t *registered_borders;
 
 static inline _Bool
 set_border_theme(render_style_t *style, char *name)

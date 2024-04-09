@@ -178,7 +178,7 @@ unmarshal_compact_type(stream_t *s)
         return result;
     case BT_func:
         flags = unmarshal_u8(s);
-        // Fallthrough.
+        // fallthrough
     case BT_list:
     case BT_dict:
     case BT_tuple:
@@ -195,6 +195,8 @@ unmarshal_compact_type(stream_t *s)
         type_hash(result, global_type_env);
         return result;
     }
+    // unreachable
+    abort();
 }
 
 void

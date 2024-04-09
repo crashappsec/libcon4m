@@ -214,7 +214,7 @@ internal_type_hash(type_spec_t *node, type_hash_ctx *ctx)
         // Currently not hashing for future things.
     case BT_func:
         sha_int_update(ctx->sha, (uint64_t)deets->flags);
-
+        break;
     case BT_type_var:
         num_tvars = (uint64_t)hatrack_dict_get(ctx->memos,
                                                (void *)node->typeid,

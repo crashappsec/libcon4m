@@ -67,7 +67,7 @@ sha_cstring_update(sha_ctx *ctx, char *str)
 void
 sha_int_update(sha_ctx *ctx, uint64_t n)
 {
-    little_64(result);
+    little_64(n);
     EVP_DigestUpdate(ctx->openssl_ctx, &n, sizeof(uint64_t));
 }
 

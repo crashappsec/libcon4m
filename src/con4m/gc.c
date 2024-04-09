@@ -176,9 +176,11 @@ con4m_delete_arena(con4m_arena_t *arena)
         }
         rc_free(arena->late_mutations);
 
+#if defined(MADV_ZERO_WIRED_PAGES)
         char *start = ((char *)arena) - page_bytes;
         char *end   = ((char *)arena->heap_end) - page_bytes;
         madvise(start, end - start, MADV_ZERO_WIRED_PAGES);
+#endif
 
         arena = prev_active;
     }

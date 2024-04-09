@@ -103,7 +103,7 @@ enum {
  * ballpark the widest reasonable columns. If a column gets too
  * wide, we don't truncate, we just let things look bad :)
  */
-#define COL_WIDTH    25
+#define COL_WIDTH    26
 #define COL_PAD      1
 #define FMT_READS    "Reads:         %u%%"
 #define FMT_PUTS     "Puts:          %u%%"
