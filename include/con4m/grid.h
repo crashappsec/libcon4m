@@ -48,19 +48,20 @@ c4m_grid_add_col_span(grid_t       *grid,
 static inline renderable_t *
 c4m_to_str_renderable(any_str_t *s, char *tag)
 {
-    return c4m_new(tspec_renderable(), c4m_kw("obj", c4m_ka(s), "tag", c4m_ka(tag)));
+    return c4m_new(c4m_tspec_renderable(),
+                   c4m_kw("obj", c4m_ka(s), "tag", c4m_ka(tag)));
 }
 
 static inline void
 c4m_set_column_style(grid_t *grid, int col, char *tag)
 {
-    grid->col_props[col] = lookup_cell_style(tag);
+    grid->col_props[col] = c4m_lookup_cell_style(tag);
 }
 
 static inline void
 c4m_set_row_style(grid_t *grid, int row, char *tag)
 {
-    grid->row_props[row] = lookup_cell_style(tag);
+    grid->row_props[row] = c4m_lookup_cell_style(tag);
 }
 
 static inline void
@@ -79,7 +80,7 @@ static inline style_t
 c4m_grid_blend_color(style_t style1, style_t style2)
 {
     // We simply do a linear average of the colors.
-    return ((style1 & ~FG_COLOR_MASK) + (style2 & ~FG_COLOR_MASK)) >> 1;
+    return ((style1 & ~C4M_STY_CLEAR_FG) + (style2 & ~C4M_STY_CLEAR_FG)) >> 1;
 }
 
 extern void    c4m_apply_container_style(renderable_t *, char *);
@@ -109,7 +110,7 @@ c4m_grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
         c4m_grid_expand_rows(g, row - (g->num_rows - 1));
     }
 
-    switch (get_base_type(item)) {
+    switch (c4m_base_type(item)) {
     case T_RENDERABLE:
         cell = (renderable_t *)item;
         break;
@@ -125,9 +126,9 @@ c4m_grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
             }
             object_t sub = item->raw_item;
 
-            if (get_base_type(sub) == T_GRID) {
-                layer_styles(g->self->current_style,
-                             ((grid_t *)sub)->self->current_style);
+            if (c4m_base_type(sub) == T_GRID) {
+                c4m_layer_styles(g->self->current_style,
+                                 ((grid_t *)sub)->self->current_style);
             }
         }
 
@@ -143,7 +144,7 @@ c4m_grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
             tag = c4m_get_td_tag(g);
         }
 
-        cell = c4m_new(tspec_renderable(),
+        cell = c4m_new(c4m_tspec_renderable(),
                        c4m_kw("tag",
                               c4m_ka(tag),
                               "obj",
@@ -154,7 +155,7 @@ c4m_grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
         abort();
     }
 
-    layer_styles(g->self->current_style, cell->current_style);
+    c4m_layer_styles(g->self->current_style, cell->current_style);
     c4m_install_renderable(g, cell, row, row + 1, col, col + 1);
     if (row >= g->row_cursor) {
         if (col + 1 == g->num_cols) {

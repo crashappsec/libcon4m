@@ -36,23 +36,25 @@ typedef double   double_box;
 typedef struct {
     uint64_t         num_entries;
     c4m_vtable_entry methods[];
-} c4m_vtable;
+} c4m_vtable_t;
 
 typedef struct {
     alignas(8)
-        // The base ID for the data type. For now, this is redundant while we
-        // don't have user-defined types, since we're caching data type info
-        // in a fixed array. But once we add user-defined types, they'll
-        // get their IDs from a hash function, and that won't work for
-        // everything.
-        const char *name;
-    const uint64_t typeid;
-    const uint64_t    alloc_len; // How much space to allocate.
-    const uint64_t   *ptr_info;  // Shows GC u64 offsets to examine for ptrs.
-    const c4m_vtable *vtable;
-    const base_t      base;
-    const uint32_t    hash_fn;
-    const bool        by_value : 1;
+        // clang-format off
+    // The base ID for the data type. For now, this is redundant while we
+    // don't have user-defined types, since we're caching data type info
+    // in a fixed array. But once we add user-defined types, they'll
+    // get their IDs from a hash function, and that won't work for
+    // everything.
+    const char         *name;
+    const uint64_t      typeid;
+    const uint64_t      alloc_len; // How much space to allocate.
+    const uint64_t     *ptr_info;  // Shows GC u64 offsets to examine for ptrs.
+    const c4m_vtable_t *vtable;
+    const base_t        base;
+    const uint32_t      hash_fn;
+    const bool          by_value : 1;
+    // clang-format on
 } dt_info;
 
 // Below, c4m_obj_t is the *internal* object type.

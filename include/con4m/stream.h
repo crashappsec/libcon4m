@@ -1,58 +1,59 @@
 #pragma once
 #include "con4m.h"
 
-object_t stream_raw_read(stream_t *, int64_t, char *);
-size_t   stream_raw_write(stream_t *, int64_t, char *);
-void     _stream_write_object(stream_t *, object_t, bool);
-bool     stream_at_eof(stream_t *);
-int64_t  stream_get_location(stream_t *);
-void     stream_set_location(stream_t *, int64_t);
-void     stream_close(stream_t *);
-void     stream_flush(stream_t *);
-void     _print(object_t, ...);
+object_t c4m_stream_raw_read(stream_t *, int64_t, char *);
+size_t   c4m_stream_raw_write(stream_t *, int64_t, char *);
+void     _c4m_stream_write_object(stream_t *, object_t, bool);
+bool     c4m_stream_at_eof(stream_t *);
+int64_t  c4m_stream_get_location(stream_t *);
+void     c4m_stream_set_location(stream_t *, int64_t);
+void     c4m_stream_close(stream_t *);
+void     c4m_stream_flush(stream_t *);
+void     _c4m_print(object_t, ...);
 
-#define stream_write_object(s, o, ...) _stream_write_object(s, o, IF(ISEMPTY(__VA_ARGS__))(false) __VA_ARGS__)
+#define c4m_stream_write_object(s, o, ...) \
+    _c4m_stream_write_object(s, o, IF(ISEMPTY(__VA_ARGS__))(false) __VA_ARGS__)
 
-#define print(s, ...) _print(s, KFUNC(__VA_ARGS__))
+#define c4m_print(s, ...) _c4m_print(s, KFUNC(__VA_ARGS__))
 
 static inline bool
-stream_putc(stream_t *s, char c)
+c4m_stream_putc(stream_t *s, char c)
 {
-    return stream_raw_write(s, 1, &c) == 1;
+    return c4m_stream_raw_write(s, 1, &c) == 1;
 }
 
 static inline bool
-stream_putcp(stream_t *s, codepoint_t cp)
+c4m_stream_putcp(stream_t *s, codepoint_t cp)
 {
     uint8_t utf8[5];
 
     size_t n = utf8proc_encode_char(cp, utf8);
     utf8[n]  = 0;
 
-    return stream_raw_write(s, n, (char *)utf8) == n;
+    return c4m_stream_raw_write(s, n, (char *)utf8) == n;
 }
 
 static inline int
-stream_puts(stream_t *s, char *c)
+c4m_stream_puts(stream_t *s, char *c)
 {
-    return stream_raw_write(s, strlen(c), c);
+    return c4m_stream_raw_write(s, strlen(c), c);
 }
 
 static inline object_t
-stream_read(stream_t *stream, int64_t len)
+c4m_stream_read(stream_t *stream, int64_t len)
 {
-    return stream_raw_read(stream, len, NULL);
+    return c4m_stream_raw_read(stream, len, NULL);
 }
 
 static inline void
-stream_puti(stream_t *s, int64_t n)
+c4m_stream_puti(stream_t *s, int64_t n)
 {
     if (!n) {
-        stream_putc(s, '0');
+        c4m_stream_putc(s, '0');
         return;
     }
     if (n < 0) {
-        stream_putc(s, '-');
+        c4m_stream_putc(s, '-');
         n *= -1;
     }
     char buf[21] = {
@@ -65,45 +66,61 @@ stream_puti(stream_t *s, int64_t n)
         n /= 10;
     }
 
-    stream_puts(s, p);
+    c4m_stream_puts(s, p);
 }
 
 // For nim integration.
 static inline stream_t *
-string_instream(any_str_t *instring)
+c4m_string_instream(any_str_t *instring)
 {
-    return c4m_new(tspec_stream(), c4m_kw("instring", c4m_ka(instring)));
+    return c4m_new(c4m_tspec_stream(), c4m_kw("instring", c4m_ka(instring)));
 }
 
 static inline stream_t *
-buffer_instream(buffer_t *inbuf)
+c4m_buffer_instream(buffer_t *inbuf)
 {
-    return c4m_new(tspec_stream(), c4m_kw("buffer", c4m_ka(inbuf), "read", c4m_ka(true)));
+    return c4m_new(c4m_tspec_stream(),
+                   c4m_kw("buffer", c4m_ka(inbuf), "read", c4m_ka(true)));
 }
 
 static inline stream_t *
-buffer_outstream(buffer_t *outbuf)
+c4m_buffer_outstream(buffer_t *outbuf)
 {
-    return c4m_new(tspec_stream(), c4m_kw("buffer", c4m_ka(outbuf), "read", c4m_ka(false), "write", c4m_ka(true)));
+    return c4m_new(c4m_tspec_stream(),
+                   c4m_kw("buffer",
+                          c4m_ka(outbuf),
+                          "read",
+                          c4m_ka(false),
+                          "write",
+                          c4m_ka(true)));
 }
 
 static inline stream_t *
 buffer_iostream(buffer_t *buf)
 {
-    return c4m_new(tspec_stream(), c4m_kw("buffer", c4m_ka(buf), "read", c4m_ka(true), "write", c4m_ka(true)));
+    return c4m_new(c4m_tspec_stream(),
+                   c4m_kw("buffer",
+                          c4m_ka(buf),
+                          "read",
+                          c4m_ka(true),
+                          "write",
+                          c4m_ka(true)));
 }
 
 static inline stream_t *
 file_instream(any_str_t *filename, c4m_builtin_t output_type)
 {
-    return c4m_new(tspec_stream(),
-                   c4m_kw("filename", c4m_ka(filename), "out_type", c4m_ka(output_type)));
+    return c4m_new(c4m_tspec_stream(),
+                   c4m_kw("filename",
+                          c4m_ka(filename),
+                          "out_type",
+                          c4m_ka(output_type)));
 }
 
 static inline stream_t *
-file_outstream(any_str_t *filename, bool no_create, bool append)
+c4m_file_outstream(any_str_t *filename, bool no_create, bool append)
 {
-    return c4m_new(tspec_stream(),
+    return c4m_new(c4m_tspec_stream(),
                    c4m_kw("filename",
                           c4m_ka(filename),
                           "read",
@@ -117,9 +134,9 @@ file_outstream(any_str_t *filename, bool no_create, bool append)
 }
 
 static inline stream_t *
-file_iostream(any_str_t *filename, bool no_create)
+c4m_file_iostream(any_str_t *filename, bool no_create)
 {
-    return c4m_new(tspec_stream(),
+    return c4m_new(c4m_tspec_stream(),
                    c4m_kw("filename",
                           c4m_ka(filename),
                           "read",
@@ -131,33 +148,33 @@ file_iostream(any_str_t *filename, bool no_create)
 }
 
 static inline stream_t *
-get_stdin()
+c4m_get_stdin()
 {
-    return c4m_new(tspec_stream(), c4m_kw("cstream", c4m_ka(stdin)));
+    return c4m_new(c4m_tspec_stream(), c4m_kw("cstream", c4m_ka(stdin)));
 }
 
 static inline stream_t *
-get_stdout()
+c4m_get_stdout()
 {
-    return c4m_new(tspec_stream(), c4m_kw("cstream", c4m_ka(stdout)));
+    return c4m_new(c4m_tspec_stream(), c4m_kw("cstream", c4m_ka(stdout)));
 }
 
 static inline stream_t *
-get_stderr()
+c4m_get_stderr()
 {
-    return c4m_new(tspec_stream(), c4m_kw("cstream", c4m_ka(stderr)));
+    return c4m_new(c4m_tspec_stream(), c4m_kw("cstream", c4m_ka(stderr)));
 }
 
 static inline bool
-stream_using_cookie(stream_t *s)
+c4m_stream_using_cookie(stream_t *s)
 {
     return (bool)(s->flags & F_STREAM_USING_COOKIE);
 }
 
 static inline int
-stream_fileno(stream_t *s)
+c4m_stream_fileno(stream_t *s)
 {
-    if (stream_using_cookie(s)) {
+    if (c4m_stream_using_cookie(s)) {
         return -1;
     }
 

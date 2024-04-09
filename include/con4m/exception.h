@@ -173,7 +173,7 @@ void               c4m_exception_raise(exception_t *,
 static inline utf8_t *
 c4m_exception_get_file(exception_t *exception)
 {
-    return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(exception->file)));
+    return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(exception->file)));
 }
 
 static inline uint64_t
@@ -190,12 +190,12 @@ c4m_exception_get_message(exception_t *exception)
 
 void c4m_exception_register_uncaught_handler(void (*)(exception_t *));
 
-#define C4M_RAISE_SYS()                                                  \
-    {                                                                    \
-        char buf[BUFSIZ];                                                \
-        strerror_r(errno, buf, BUFSIZ);                                  \
-        C4M_RAISE(c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(buf))), \
-                  c4m_kw("error_code", c4m_ka(errno)));                  \
+#define C4M_RAISE_SYS()                                                      \
+    {                                                                        \
+        char buf[BUFSIZ];                                                    \
+        strerror_r(errno, buf, BUFSIZ);                                      \
+        C4M_RAISE(c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(buf))), \
+                  c4m_kw("error_code", c4m_ka(errno)));                      \
     }
 
 extern __thread exception_stack_t __exception_stack;
@@ -208,7 +208,7 @@ c4m_raise_errcode(int code)
     };
 
     strerror_r(code, msg, 2048);
-    C4M_RAISE(c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(msg))));
+    C4M_RAISE(c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(msg))));
 }
 
 static inline void

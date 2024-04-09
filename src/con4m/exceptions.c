@@ -8,7 +8,7 @@ __thread exception_stack_t __exception_stack = {
 static pthread_once_t exceptions_inited = PTHREAD_ONCE_INIT;
 
 // Skip the 4 GC header words, then the first 3 words are heap pointers.
-const uint64_t exception_pmap[2] = {1, 0x0e00000000000000};
+const uint64_t c4m_exception_pmap[2] = {1, 0x0e00000000000000};
 
 static void
 exception_init(exception_t *exception, va_list args)
@@ -31,7 +31,8 @@ exception_t *
 _c4m_alloc_exception(const char *msg, ...)
 {
     exception_t *ret = c4m_gc_alloc(sizeof(exception_t));
-    ret->msg         = c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(msg)));
+    ret->msg         = c4m_new(c4m_tspec_utf8(),
+                       c4m_kw("cstring", c4m_ka(msg)));
 
     return ret;
 }
@@ -93,14 +94,14 @@ void
 c4m_exception_uncaught(exception_t *exception)
 {
     // Basic for now.
-    stream_t *s = get_stderr();
+    stream_t *s = c4m_get_stderr();
 
-    stream_puts(s, (char *)exception->file);
-    stream_putc(s, ':');
-    stream_puti(s, exception->line);
+    c4m_stream_puts(s, (char *)exception->file);
+    c4m_stream_putc(s, ':');
+    c4m_stream_puti(s, exception->line);
 
     c4m_ansi_render(exception->msg, s);
-    stream_putc(s, '\n');
+    c4m_stream_putc(s, '\n');
 }
 
 void
@@ -120,7 +121,7 @@ c4m_exception_raise(exception_t *exception, char *filename, int line)
     longjmp(*(frame->buf), 1);
 }
 
-const c4m_vtable exception_vtable = {
+const c4m_vtable_t c4m_exception_vtable = {
     .num_entries = 1,
     .methods     = {
         (c4m_vtable_entry)exception_init,

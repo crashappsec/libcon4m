@@ -25,22 +25,22 @@ static inline void
 init_punctuation()
 {
     if (type_punct[0] == NULL) {
-        type_punct[LBRAK_IX]  = utf8_repeat('[', 1);
-        type_punct[COMMA_IX]  = c4m_new(tspec_utf8(),
+        type_punct[LBRAK_IX]  = c4m_utf8_repeat('[', 1);
+        type_punct[COMMA_IX]  = c4m_new(c4m_tspec_utf8(),
                                        c4m_kw("cstring", c4m_ka(", ")));
-        type_punct[RBRAK_IX]  = utf8_repeat(']', 1);
-        type_punct[LPAREN_IX] = utf8_repeat('(', 1);
-        type_punct[RPAREN_IX] = utf8_repeat(')', 1);
-        type_punct[ARROW_IX]  = c4m_new(tspec_utf8(),
+        type_punct[RBRAK_IX]  = c4m_utf8_repeat(']', 1);
+        type_punct[LPAREN_IX] = c4m_utf8_repeat('(', 1);
+        type_punct[RPAREN_IX] = c4m_utf8_repeat(')', 1);
+        type_punct[ARROW_IX]  = c4m_new(c4m_tspec_utf8(),
                                        c4m_kw("cstring", c4m_ka(" -> ")));
-        type_punct[BTICK_IX]  = utf8_repeat('`', 1);
-        type_punct[STAR_IX]   = utf8_repeat('*', 1);
-        type_punct[SPACE_IX]  = utf8_repeat(' ', 1);
-        type_punct[LBRACE_IX] = utf8_repeat('{', 1);
-        type_punct[RBRACE_IX] = utf8_repeat('}', 1);
-        type_punct[COLON_IX]  = c4m_new(tspec_utf8(),
+        type_punct[BTICK_IX]  = c4m_utf8_repeat('`', 1);
+        type_punct[STAR_IX]   = c4m_utf8_repeat('*', 1);
+        type_punct[SPACE_IX]  = c4m_utf8_repeat(' ', 1);
+        type_punct[LBRACE_IX] = c4m_utf8_repeat('{', 1);
+        type_punct[RBRACE_IX] = c4m_utf8_repeat('}', 1);
+        type_punct[COLON_IX]  = c4m_new(c4m_tspec_utf8(),
                                        c4m_kw("cstring", c4m_ka(" : ")));
-        type_punct[COLON_NSP] = utf8_repeat(':', 1);
+        type_punct[COLON_NSP] = c4m_utf8_repeat(':', 1);
     }
     c4m_gc_register_root(&type_punct[0], PUNC_MAX);
 }

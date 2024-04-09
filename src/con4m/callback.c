@@ -24,7 +24,8 @@ callback_init(callback_t *cb, va_list args)
     funcinfo_t *info = NULL;
 
     if (bound_functions == NULL) {
-        bound_functions = c4m_new(tspec_dict(tspec_ref(), tspec_ref()));
+        bound_functions = c4m_new(c4m_tspec_dict(c4m_tspec_ref(),
+                                                 c4m_tspec_ref()));
         c4m_gc_register_root(&bound_functions, 1);
     }
 
@@ -36,8 +37,8 @@ callback_init(callback_t *cb, va_list args)
         address = dlsym(RTLD_DEFAULT, symbol_name->data);
 
         if (!address && libraries != NULL) {
-            for (int i = 0; i < xlist_len(libraries); i++) {
-                utf8_t *s = force_utf8(xlist_get(libraries, i, NULL));
+            for (int i = 0; i < c4m_xlist_len(libraries); i++) {
+                utf8_t *s = c4m_to_utf8(c4m_xlist_get(libraries, i, NULL));
                 address   = dlopen(s->data, RTLD_NOW | RTLD_GLOBAL);
 
                 if (address != NULL) {
@@ -69,7 +70,7 @@ callback_init(callback_t *cb, va_list args)
     cb->info = info;
 }
 
-const c4m_vtable callback_vtable = {
+const c4m_vtable_t c4m_callback_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         (c4m_vtable_entry)callback_init,

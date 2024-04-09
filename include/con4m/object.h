@@ -3,29 +3,29 @@
 #include "con4m.h"
 
 static inline c4m_obj_t *
-get_object_header(const object_t user_object)
+c4m_object_header(const object_t user_object)
 {
     return &((c4m_obj_t *)user_object)[-1];
 }
 
-static inline c4m_vtable *
-get_vtable(const object_t user_object)
+static inline c4m_vtable_t *
+c4m_vtable(const object_t user_object)
 {
-    c4m_obj_t *obj = get_object_header(user_object);
-    return (c4m_vtable *)obj->base_data_type->vtable;
+    c4m_obj_t *obj = c4m_object_header(user_object);
+    return (c4m_vtable_t *)obj->base_data_type->vtable;
 }
 
 static inline uint64_t
-get_base_type(const object_t user_object)
+c4m_base_type(const object_t user_object)
 {
-    c4m_obj_t *obj = get_object_header(user_object);
+    c4m_obj_t *obj = c4m_object_header(user_object);
     return obj->base_data_type->typeid;
 }
 
 static inline const char *
-get_base_type_name(const object_t user_object)
+c4m_base_type_name(const object_t user_object)
 {
-    c4m_obj_t *obj = get_object_header(user_object);
+    c4m_obj_t *obj = c4m_object_header(user_object);
     return obj->base_data_type->name;
 }
 
@@ -34,13 +34,11 @@ extern const dt_info builtin_type_info[C4M_NUM_BUILTIN_DTS];
 
 #define c4m_new(tid, ...) _c4m_new(tid, KFUNC(__VA_ARGS__))
 
-extern object_t  _c4m_new(type_spec_t *type, ...);
-extern uint64_t *gc_get_ptr_info(c4m_builtin_t);
-
+extern object_t   _c4m_new(type_spec_t *type, ...);
+extern uint64_t  *c4m_gc_ptr_info(c4m_builtin_t);
 extern any_str_t *c4m_repr(void *, type_spec_t *, to_str_use_t);
 extern bool       c4m_can_coerce(type_spec_t *, type_spec_t *);
 extern object_t   c4m_coerce(void *, type_spec_t *, type_spec_t *);
-
 extern object_t   c4m_copy_object(object_t);
 extern object_t   c4m_add(object_t, object_t);
 extern object_t   c4m_sub(object_t, object_t);
@@ -57,43 +55,42 @@ extern object_t   c4m_slice_get(object_t, int64_t, int64_t);
 extern void       c4m_slice_set(object_t, int64_t, int64_t, object_t);
 extern any_str_t *c4m_value_obj_repr(object_t);
 
-extern const uint64_t str_ptr_info[];
+extern const uint64_t     str_ptr_info[];
+extern const c4m_vtable_t c4m_i8_type;
+extern const c4m_vtable_t c4m_u8_type;
+extern const c4m_vtable_t c4m_i32_type;
+extern const c4m_vtable_t c4m_u32_type;
+extern const c4m_vtable_t c4m_i64_type;
+extern const c4m_vtable_t c4m_u64_type;
+extern const c4m_vtable_t c4m_bool_type;
+extern const c4m_vtable_t c4m_float_type;
+extern const c4m_vtable_t c4m_u8str_vtable;
+extern const c4m_vtable_t c4m_u32str_vtable;
+extern const c4m_vtable_t c4m_buffer_vtable;
+extern const c4m_vtable_t c4m_grid_vtable;
+extern const c4m_vtable_t c4m_gridprops_vtable;
+extern const c4m_vtable_t c4m_renderable_vtable;
+extern const c4m_vtable_t c4m_list_vtable;
+extern const c4m_vtable_t c4m_queue_vtable;
+extern const c4m_vtable_t c4m_ring_vtable;
+extern const c4m_vtable_t c4m_logring_vtable;
+extern const c4m_vtable_t c4m_stack_vtable;
+extern const c4m_vtable_t c4m_dict_vtable;
+extern const c4m_vtable_t c4m_set_vtable;
+extern const c4m_vtable_t c4m_xlist_vtable;
+extern const c4m_vtable_t c4m_sha_vtable;
+extern const c4m_vtable_t c4m_render_style_vtable;
+extern const c4m_vtable_t c4m_exception_vtable;
+extern const c4m_vtable_t c4m_type_env_vtable;
+extern const c4m_vtable_t c4m_type_details_vtable;
+extern const c4m_vtable_t c4m_type_spec_vtable;
+extern const c4m_vtable_t c4m_tree_vtable;
+extern const c4m_vtable_t c4m_tuple_vtable;
+extern const c4m_vtable_t c4m_mixed_vtable;
+extern const c4m_vtable_t c4m_ipaddr_vtable;
+extern const c4m_vtable_t c4m_stream_vtable;
+extern const c4m_vtable_t c4m_kargs_vtable;
 
-extern const c4m_vtable i8_type;
-extern const c4m_vtable u8_type;
-extern const c4m_vtable i32_type;
-extern const c4m_vtable u32_type;
-extern const c4m_vtable i64_type;
-extern const c4m_vtable u64_type;
-extern const c4m_vtable bool_type;
-extern const c4m_vtable float_type;
-extern const c4m_vtable u8str_vtable;
-extern const c4m_vtable u32str_vtable;
-extern const c4m_vtable buffer_vtable;
-extern const c4m_vtable grid_vtable;
-extern const c4m_vtable gridprops_vtable;
-extern const c4m_vtable renderable_vtable;
-extern const c4m_vtable list_vtable;
-extern const c4m_vtable queue_vtable;
-extern const c4m_vtable ring_vtable;
-extern const c4m_vtable logring_vtable;
-extern const c4m_vtable stack_vtable;
-extern const c4m_vtable dict_vtable;
-extern const c4m_vtable set_vtable;
-extern const c4m_vtable xlist_vtable;
-extern const c4m_vtable sha_vtable;
-extern const c4m_vtable render_style_vtable;
-extern const c4m_vtable exception_vtable;
-extern const c4m_vtable type_env_vtable;
-extern const c4m_vtable type_details_vtable;
-extern const c4m_vtable type_spec_vtable;
-extern const c4m_vtable tree_vtable;
-extern const c4m_vtable tuple_vtable;
-extern const c4m_vtable mixed_vtable;
-extern const c4m_vtable ipaddr_vtable;
-extern const c4m_vtable stream_vtable;
-extern const c4m_vtable kargs_vtable;
-
-extern const uint64_t pmap_first_word[2];
-extern const uint64_t rs_pmap[2];
-extern const uint64_t exception_pmap[2];
+extern const uint64_t c4m_pmap_first_word[2];
+extern const uint64_t c4m_rs_pmap[2];
+extern const uint64_t c4m_exception_pmap[2];

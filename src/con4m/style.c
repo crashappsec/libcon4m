@@ -3,7 +3,7 @@
 style_t default_style = 0;
 
 style_t
-apply_bg_color(style_t style, utf8_t *name)
+c4m_apply_bg_color(style_t style, utf8_t *name)
 {
     int64_t color = (int64_t)c4m_lookup_color(name);
 
@@ -11,11 +11,11 @@ apply_bg_color(style_t style, utf8_t *name)
         return style;
     }
 
-    return (style & BG_COLOR_MASK) | (color << 24) | BG_COLOR_ON;
+    return (style & C4M_STY_CLEAR_BG) | (color << 24) | C4M_STY_BG;
 }
 
 style_t
-apply_fg_color(style_t style, utf8_t *name)
+c4m_apply_fg_color(style_t style, utf8_t *name)
 {
     int64_t color = (int64_t)c4m_lookup_color(name);
 
@@ -23,19 +23,19 @@ apply_fg_color(style_t style, utf8_t *name)
         return style;
     }
 
-    return (style & FG_COLOR_MASK) | color | FG_COLOR_ON;
+    return (style & C4M_STY_CLEAR_FG) | color | C4M_STY_FG;
 }
 void
-style_gaps(any_str_t *s, style_t gapstyle)
+c4m_style_gaps(any_str_t *s, style_t gapstyle)
 {
     if (!s->styling || !s->styling->num_entries) {
-        string_apply_style(s, gapstyle, 0);
+        c4m_str_apply_style(s, gapstyle, 0);
         return;
     }
 
     int num_gaps = 0;
     int last_end = 0;
-    int num_cp   = string_codepoint_len(s);
+    int num_cp   = c4m_str_codepoint_len(s);
 
     for (int i = 0; i < s->styling->num_entries; i++) {
         style_entry_t style = s->styling->styles[i];
@@ -54,7 +54,7 @@ style_gaps(any_str_t *s, style_t gapstyle)
     style_info_t *old    = s->styling;
     int           new_ix = 0;
 
-    alloc_styles(s, old->num_entries + num_gaps);
+    c4m_alloc_styles(s, old->num_entries + num_gaps);
 
     last_end = 0;
 
@@ -83,20 +83,20 @@ style_gaps(any_str_t *s, style_t gapstyle)
 }
 
 void
-string_layer_style(any_str_t *s, style_t additions, style_t subtractions)
+c4m_str_layer_style(any_str_t *s, style_t additions, style_t subtractions)
 {
     if (!s->styling || !s->styling->num_entries) {
-        string_set_style(s, additions);
+        c4m_str_set_style(s, additions);
         return;
     }
 
-    style_t turn_off = ~(subtractions & ~FLAG_MASK);
+    style_t turn_off = ~(subtractions & ~C4M_STY_CLEAR_FLAGS);
 
-    if (additions & FG_COLOR_ON) {
-        turn_off |= ~FG_COLOR_MASK;
+    if (additions & C4M_STY_FG) {
+        turn_off |= ~C4M_STY_CLEAR_FG;
     }
-    if (additions & BG_COLOR_ON) {
-        turn_off |= ~BG_COLOR_MASK;
+    if (additions & C4M_STY_BG) {
+        turn_off |= ~C4M_STY_CLEAR_BG;
     }
 
     for (int i = 0; i < s->styling->num_entries; i++) {

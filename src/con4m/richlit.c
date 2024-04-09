@@ -33,12 +33,12 @@ static inline void
 init_style_keywords()
 {
     if (style_keywords == NULL) {
-        buffer_t *b = c4m_new(tspec_buffer(),
+        buffer_t *b = c4m_new(c4m_tspec_buffer(),
                               c4m_kw("raw",
                                      c4m_ka(_marshaled_style_keywords),
                                      "length",
                                      c4m_ka(1426)));
-        stream_t *s = c4m_new(tspec_stream(), c4m_kw("buffer", c4m_ka(b)));
+        stream_t *s = c4m_new(c4m_tspec_stream(), c4m_kw("buffer", c4m_ka(b)));
 
         c4m_gc_register_root(&style_keywords, 1);
         style_keywords = c4m_unmarshal(s);
@@ -65,8 +65,8 @@ parse_style_lit(fmt_frame_t *f, utf8_t *instr)
 {
     uint64_t        seen         = 0;
     utf8_t         *space        = c4m_get_space_const();
-    xlist_t        *parts        = string_xsplit(instr, space);
-    int             len          = xlist_len(parts);
+    xlist_t        *parts        = c4m_str_xsplit(instr, space);
+    int             len          = c4m_xlist_len(parts);
     int             color_start  = -1;
     style_t         result       = f->style;
     bool            saw_fg       = false;
@@ -89,18 +89,18 @@ parse_style_lit(fmt_frame_t *f, utf8_t *instr)
     }
 
     if (len == 1) {
-        s  = xlist_get(parts, 0, NULL);
-        rs = lookup_cell_style((force_utf8(s))->data);
+        s  = c4m_xlist_get(parts, 0, NULL);
+        rs = c4m_lookup_cell_style((c4m_to_utf8(s))->data);
 
         if (rs != NULL) {
-            f->style = get_string_style(rs);
+            f->style = c4m_str_style(rs);
             if (f->next != NULL) {
                 f->next->style = f->style;
             }
             return;
         }
 
-        l = string_codepoint_len(s);
+        l = c4m_str_codepoint_len(s);
         switch (l) {
         case 0:
             C4M_CRAISE("Empty style block not allowed.");
@@ -113,9 +113,9 @@ parse_style_lit(fmt_frame_t *f, utf8_t *instr)
         default:
             if (s->data[0] == '/') {
                 seen |= F_NEG;
-                s = string_slice(s, 1, -1);
+                s = c4m_str_slice(s, 1, -1);
 
-                rs = lookup_cell_style(s->data);
+                rs = c4m_lookup_cell_style(s->data);
                 if (rs != NULL) {
                     // [/style] is not different from [/] since we are
                     // not keeping a stack. This doesn't need to be
@@ -140,8 +140,8 @@ parse_style_lit(fmt_frame_t *f, utf8_t *instr)
     }
 
     for (i = 0; i < len; i++) {
-        s = force_utf8(xlist_get(parts, i, NULL));
-        l = string_codepoint_len(s);
+        s = c4m_to_utf8(c4m_xlist_get(parts, i, NULL));
+        l = c4m_str_codepoint_len(s);
 
         if (i == 0 && l != 0) {
             if (s->data[0] == '/') {
@@ -149,8 +149,8 @@ parse_style_lit(fmt_frame_t *f, utf8_t *instr)
                 if (l == 1) {
                     continue;
                 }
-                s = force_utf8(string_slice(s, 1, -1));
-                xlist_set(parts, i, s);
+                s = c4m_to_utf8(c4m_str_slice(s, 1, -1));
+                c4m_xlist_set(parts, i, s);
             }
         }
 
@@ -161,8 +161,8 @@ skip_first_load:
         if (n == 0) {
             if (color_start == -1) {
                 if (color_done) {
-                    C4M_RAISE(string_concat(
-                        new_utf8("Invalid element in style block: "),
+                    C4M_RAISE(c4m_str_concat(
+                        c4m_new_utf8("Invalid element in style block: "),
                         s));
                 }
                 color_start = i;
@@ -182,26 +182,26 @@ check_color: {
     // we jump back up here to reuse the code, then
     // jump back down to where we calculate the style.
 
-    xlist_t *slice = xlist_get_slice(parts, color_start, i);
-    utf8_t  *cname = force_utf8(string_join(slice, space));
+    xlist_t *slice = c4m_xlist_get_slice(parts, color_start, i);
+    utf8_t  *cname = c4m_to_utf8(c4m_str_join(slice, space));
     color_t  color = c4m_lookup_color(cname);
 
     if (color == -1) {
-        C4M_RAISE(string_concat(new_utf8("Color not found: "),
-                                cname));
+        C4M_RAISE(c4m_str_concat(c4m_new_utf8("Color not found: "),
+                                 cname));
     }
 
     color_start = -1;
 
     if (saw_fg) {
         color_done = true;
-        result     = set_bg_color(result, color);
+        result     = c4m_set_bg_color(result, color);
     }
 
     else {
         saw_fg = true;
         on_ok  = true;
-        result = set_fg_color(result, color);
+        result = c4m_set_fg_color(result, color);
     }
 }
 
@@ -219,36 +219,38 @@ check_color: {
                 case 1:
                     C4M_CRAISE("Double negation in one style tag.");
                 case 2:
-                    result = remove_bold(result);
+                    result = c4m_remove_bold(result);
                     break;
                 case 3:
-                    result = remove_italic(result);
+                    result = c4m_remove_italic(result);
                     break;
                 case 4:
-                    result = remove_strikethrough(result);
+                    result = c4m_remove_strikethrough(result);
                     break;
                 case 5:
                 case 6:
-                    result = remove_underline(result);
+                    result = c4m_remove_underline(result);
                     break;
                 case 7:
-                    result = remove_inverse(result);
+                    result = c4m_remove_inverse(result);
                     break;
                 case 8:
                 case 9:
                 case 10:
-                    result = remove_case(result);
+                    result = c4m_remove_case(result);
                     break;
                 case 11:
-                    C4M_CRAISE("Use the 'on' keyword to set color, not clear it.");
+                    C4M_CRAISE(
+                        "Use the 'on' keyword to set color, not "
+                        "clear it.");
                 case 12:
-                    result = remove_fg_color(result);
+                    result = c4m_remove_fg_color(result);
                     break;
                 case 13:
-                    result = remove_bg_color(result);
+                    result = c4m_remove_bg_color(result);
                     break;
                 case 14:
-                    result = remove_all_color(result);
+                    result = c4m_remove_all_color(result);
                     break;
                 }
             }
@@ -257,31 +259,31 @@ check_color: {
                 case 1:
                     break; // F_NEG will get set below.
                 case 2:
-                    result = add_bold(result);
+                    result = c4m_add_bold(result);
                     break;
                 case 3:
-                    result = add_italic(result);
+                    result = c4m_add_italic(result);
                     break;
                 case 4:
-                    result = add_strikethrough(result);
+                    result = c4m_add_strikethrough(result);
                     break;
                 case 5:
-                    result = add_underline(result);
+                    result = c4m_add_underline(result);
                     break;
                 case 6:
-                    result = add_double_underline(result);
+                    result = c4m_add_double_underline(result);
                     break;
                 case 7:
-                    result = add_inverse(result);
+                    result = c4m_add_inverse(result);
                     break;
                 case 8:
-                    result = add_lower_case(result);
+                    result = c4m_add_lower_case(result);
                     break;
                 case 9:
-                    result = add_upper_case(result);
+                    result = c4m_add_upper_case(result);
                     break;
                 case 10:
-                    result = add_title_case(result);
+                    result = c4m_add_title_case(result);
                     break;
                 case 11:
                     if (!on_ok) {
@@ -294,12 +296,13 @@ check_color: {
                     break;
                 default:
                     C4M_RAISE(
-                        string_concat(s,
-                                      new_utf8(": style keyword is for "
-                                               "turning off colors. Either "
-                                               "add a / to the block before "
-                                               "this keyword, or the "
-                                               "word 'no'. ")));
+                        c4m_str_concat(s,
+                                       c4m_new_utf8(
+                                           ": style keyword is for "
+                                           "turning off colors. Either "
+                                           "add a / to the block before "
+                                           "this keyword, or the "
+                                           "word 'no'. ")));
                 }
             }
 
@@ -310,8 +313,8 @@ check_color: {
             n = 1 << n;
 
             if (seen & n) {
-                C4M_RAISE(string_concat(
-                    new_utf8("Duplicate param in style tag: "),
+                C4M_RAISE(c4m_str_concat(
+                    c4m_new_utf8("Duplicate param in style tag: "),
                     s));
             }
 
@@ -337,10 +340,10 @@ check_color: {
 }
 
 utf8_t *
-rich_lit(char *instr)
+c4m_rich_lit(char *instr)
 {
-    buffer_t    *b = c4m_new(tspec_buffer(), c4m_kw("length", c4m_ka(1)));
-    stream_t    *s = c4m_new(tspec_stream(),
+    buffer_t    *b = c4m_new(c4m_tspec_buffer(), c4m_kw("length", c4m_ka(1)));
+    stream_t    *s = c4m_new(c4m_tspec_stream(),
                           c4m_kw("buffer",
                                  c4m_ka(b),
                                  "write",
@@ -361,7 +364,7 @@ rich_lit(char *instr)
     while (p < end) {
         one_len = utf8proc_iterate((uint8_t *)p, 4, &cp);
         if (one_len < 0) {
-            C4M_RAISE(string_from_int(-1 * ((int64_t)(p - one_len) + 1)));
+            C4M_RAISE(c4m_str_from_int(-1 * ((int64_t)(p - one_len) + 1)));
         }
 
         switch (cp) {
@@ -373,21 +376,21 @@ rich_lit(char *instr)
             }
             one_len = utf8proc_iterate((uint8_t *)p, 4, &cp);
             if (one_len < 0) {
-                C4M_RAISE(string_from_int(-1 * ((int64_t)(p - one_len) + 1)));
+                C4M_RAISE(c4m_str_from_int(-1 * ((int64_t)(p - one_len) + 1)));
             }
 
             switch (cp) {
             case 'n':
-                stream_putc(s, '\n');
+                c4m_stream_putc(s, '\n');
                 break;
             case 'r':
-                stream_putc(s, '\r');
+                c4m_stream_putc(s, '\r');
                 break;
             case 't':
-                stream_putc(s, '\t');
+                c4m_stream_putc(s, '\t');
                 break;
             default:
-                stream_raw_write(s, one_len, p);
+                c4m_stream_raw_write(s, one_len, p);
                 break;
             }
 
@@ -417,7 +420,7 @@ rich_lit(char *instr)
                 one_len = utf8proc_iterate((uint8_t *)p, 4, &cp);
                 if (one_len < 0) {
                     C4M_RAISE(
-                        string_from_int(-1 * ((int64_t)(p - one_len) + 1)));
+                        c4m_str_from_int(-1 * ((int64_t)(p - one_len) + 1)));
                 }
                 p += one_len;
                 if (cp == ']') {
@@ -430,7 +433,7 @@ not_eof:
             style_cur->absolute_end = p - instr - 1;
             continue; // do not update the cp count.
         default:
-            stream_raw_write(s, one_len, p);
+            c4m_stream_raw_write(s, one_len, p);
             p += one_len;
             break;
         }
@@ -438,20 +441,20 @@ not_eof:
         cp_count += 1;
     }
 
-    stream_close(s);
+    c4m_stream_close(s);
 
     utf8_t *result = c4m_buffer_to_utf8_string(b);
 
     // If style blobs, parse them. (otherwise, return the whole string).
     if (style_top == NULL) {
-        return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(instr)));
+        return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(instr)));
     }
 
     fmt_frame_t *f          = style_top;
     int          num_styles = 0;
     while (f != NULL) {
         utf8_t *s = c4m_new(
-            tspec_utf8(),
+            c4m_tspec_utf8(),
             c4m_kw("cstring",
                    c4m_ka(instr + f->absolute_start),
                    "length",
@@ -470,7 +473,7 @@ not_eof:
     }
 
     // Final phase, apply the styles.
-    alloc_styles(result, num_styles);
+    c4m_alloc_styles(result, num_styles);
 
     i = 0;
     f = style_top;

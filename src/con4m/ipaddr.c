@@ -10,7 +10,7 @@ typedef struct {
 void
 ipaddr_set_address(ipaddr_t *obj, any_str_t *s, uint16_t port)
 {
-    s = force_utf8(s);
+    s = c4m_to_utf8(s);
 
     obj->port = port;
 
@@ -58,24 +58,24 @@ ipaddr_init(ipaddr_t *obj, va_list args)
 static void
 ipaddr_marshal(ipaddr_t *obj, stream_t *s, dict_t *memos, int64_t *mid)
 {
-    marshal_u32(sizeof(struct sockaddr_in6), s);
-    stream_raw_write(s, sizeof(struct sockaddr_in6), obj->addr);
-    marshal_u16(obj->port, s);
-    marshal_i32(obj->af, s);
+    c4m_marshal_u32(sizeof(struct sockaddr_in6), s);
+    c4m_stream_raw_write(s, sizeof(struct sockaddr_in6), obj->addr);
+    c4m_marshal_u16(obj->port, s);
+    c4m_marshal_i32(obj->af, s);
 }
 
 static void
 ipaddr_unmarshal(ipaddr_t *obj, stream_t *s, dict_t *memos)
 {
-    uint32_t struct_sz = unmarshal_u32(s);
+    uint32_t struct_sz = c4m_unmarshal_u32(s);
 
     if (struct_sz != sizeof(struct sockaddr_in6)) {
         C4M_CRAISE("Cannot unmarshal ipaddr on different platform.");
     }
 
-    stream_raw_read(s, struct_sz, obj->addr);
-    obj->port = unmarshal_u16(s);
-    obj->af   = unmarshal_i32(s);
+    c4m_stream_raw_read(s, struct_sz, obj->addr);
+    obj->port = c4m_unmarshal_u16(s);
+    obj->af   = c4m_unmarshal_i32(s);
 }
 
 static any_str_t *
@@ -90,15 +90,15 @@ ipaddr_repr(ipaddr_t *obj)
     }
 
     if (obj->port == 0) {
-        return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(buf)));
+        return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(buf)));
     }
 
-    return string_concat(c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(buf))),
-                         string_concat(c4m_get_colon_no_space_const(),
-                                       string_from_int((int64_t)obj->port)));
+    return c4m_str_concat(c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(buf))),
+                          c4m_str_concat(c4m_get_colon_no_space_const(),
+                                         c4m_str_from_int((int64_t)obj->port)));
 }
 
-const c4m_vtable ipaddr_vtable = {
+const c4m_vtable_t c4m_ipaddr_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         (c4m_vtable_entry)ipaddr_init,

@@ -34,8 +34,8 @@ c4m_set_marshal(set_t *d, stream_t *s, dict_t *memos, int64_t *mid)
     uint8_t  kt   = (uint8_t)d->item_type;
     void   **view = hatrack_set_items_sort(d, &length);
 
-    marshal_u32((uint32_t)length, s);
-    marshal_u8(kt, s);
+    c4m_marshal_u32((uint32_t)length, s);
+    c4m_marshal_u8(kt, s);
 
     for (uint64_t i = 0; i < length; i++) {
         switch (kt) {
@@ -44,10 +44,10 @@ c4m_set_marshal(set_t *d, stream_t *s, dict_t *memos, int64_t *mid)
             c4m_sub_marshal(view[i], s, memos, mid);
             break;
         case HATRACK_DICT_KEY_TYPE_CSTR:
-            marshal_cstring(view[i], s);
+            c4m_marshal_cstring(view[i], s);
             break;
         default:
-            marshal_u64((uint64_t)view[i], s);
+            c4m_marshal_u64((uint64_t)view[i], s);
             break;
         }
     }
@@ -59,8 +59,8 @@ c4m_set_unmarshal(set_t *d, stream_t *s, dict_t *memos)
     uint32_t length;
     uint8_t  kt;
 
-    length = unmarshal_u32(s);
-    kt     = unmarshal_u8(s);
+    length = c4m_unmarshal_u32(s);
+    kt     = c4m_unmarshal_u8(s);
 
     hatrack_set_init(d, (uint32_t)kt);
 
@@ -84,10 +84,10 @@ c4m_set_unmarshal(set_t *d, stream_t *s, dict_t *memos)
             key = c4m_sub_unmarshal(s, memos);
             break;
         case HATRACK_DICT_KEY_TYPE_CSTR:
-            key = unmarshal_cstring(s);
+            key = c4m_unmarshal_cstring(s);
             break;
         default:
-            key = (void *)unmarshal_u64(s);
+            key = (void *)c4m_unmarshal_u64(s);
             break;
         }
 
@@ -95,7 +95,7 @@ c4m_set_unmarshal(set_t *d, stream_t *s, dict_t *memos)
     }
 }
 
-const c4m_vtable set_vtable = {
+const c4m_vtable_t c4m_set_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         (c4m_vtable_entry)c4m_set_init,

@@ -45,7 +45,8 @@ c4m_sha_init(sha_ctx *ctx, va_list args)
         abort();
     }
 
-    ctx->digest = c4m_new(tspec_buffer(), c4m_kw("length", c4m_ka(bits / 8)));
+    ctx->digest = c4m_new(c4m_tspec_buffer(),
+                          c4m_kw("length", c4m_ka(bits / 8)));
     version -= 2;
     bits               = (bits >> 7) - 2; // Maps the bit sizes to 0, 1 and 2,
                                           // by dividing by 128, then - 2.
@@ -56,7 +57,7 @@ c4m_sha_init(sha_ctx *ctx, va_list args)
 }
 
 void
-c4m_sha_cstring_update(sha_ctx *ctx, char *str)
+c4m_sha_cc4m_str_update(sha_ctx *ctx, char *str)
 {
     size_t len = strlen(str);
     if (len > 0) {
@@ -77,7 +78,7 @@ c4m_sha_int_update(sha_ctx *ctx, uint64_t n)
 void
 c4m_sha_string_update(sha_ctx *ctx, any_str_t *str)
 {
-    int64_t len = string_byte_len(str);
+    int64_t len = c4m_str_byte_len(str);
 
     if (len > 0) {
         EVP_DigestUpdate(ctx->openssl_ctx, str->data, len);
@@ -103,7 +104,7 @@ c4m_sha_finish(sha_ctx *ctx)
     return result;
 }
 
-const c4m_vtable sha_vtable = {
+const c4m_vtable_t c4m_sha_vtable = {
     .num_entries = 1,
     .methods     = {
         (c4m_vtable_entry)c4m_sha_init,

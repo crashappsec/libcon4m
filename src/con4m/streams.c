@@ -7,12 +7,12 @@ static void
 mem_stream_setup(cookie_t *c)
 {
     if (c->object == NULL) {
-        c->object = c4m_new(tspec_buffer());
+        c->object = c4m_new(c4m_tspec_buffer());
         c->extra  = NULL;
         return;
     }
     else {
-        switch (get_base_type_id(c->object)) {
+        switch (c4m_get_base_type_id(c->object)) {
         case T_UTF8:
         case T_UTF32: {
             any_str_t *s = (any_str_t *)c->object;
@@ -237,7 +237,7 @@ stream_init(stream_t *stream, va_list args)
     }
 
     if (filename != NULL) {
-        filename           = force_utf8(filename);
+        filename           = c4m_to_utf8(filename);
         stream->contents.f = fopen(filename->data, buf);
         stream->flags      = flags;
 
@@ -299,12 +299,12 @@ static object_t
 stream_bytes_to_output(int64_t flags, char *buf, int64_t len)
 {
     if (flags & F_STREAM_UTF8_OUT) {
-        return c4m_new(tspec_utf8(),
+        return c4m_new(c4m_tspec_utf8(),
                        c4m_kw("cstring", c4m_ka(buf), "length", c4m_ka(len)));
     }
 
     if (flags & F_STREAM_UTF32_OUT) {
-        return c4m_new(tspec_utf32(),
+        return c4m_new(c4m_tspec_utf32(),
                        c4m_kw("cstring",
                               c4m_ka(buf),
                               "codepoints",
@@ -313,7 +313,7 @@ stream_bytes_to_output(int64_t flags, char *buf, int64_t len)
 
     else {
         // Else, it's going to a buffer.
-        return c4m_new(tspec_buffer(),
+        return c4m_new(c4m_tspec_buffer(),
                        c4m_kw("raw", c4m_ka(buf), "length", c4m_ka(len)));
     }
 }
@@ -329,7 +329,7 @@ stream_bytes_to_output(int64_t flags, char *buf, int64_t len)
 // things like ints that we plan on returning.
 
 object_t
-stream_raw_read(stream_t *stream, int64_t len, char *buf)
+c4m_stream_raw_read(stream_t *stream, int64_t len, char *buf)
 {
     // If a buffer is provided, return the length and write into
     // the buffer.
@@ -380,7 +380,7 @@ stream_raw_read(stream_t *stream, int64_t len, char *buf)
 }
 
 size_t
-stream_raw_write(stream_t *stream, int64_t len, char *buf)
+c4m_stream_raw_write(stream_t *stream, int64_t len, char *buf)
 {
     size_t    actual = 0;
     cookie_t *cookie = NULL;
@@ -427,7 +427,7 @@ stream_raw_write(stream_t *stream, int64_t len, char *buf)
 }
 
 void
-_stream_write_object(stream_t *stream, object_t obj, bool ansi)
+_c4m_stream_write_object(stream_t *stream, object_t obj, bool ansi)
 {
     if (stream->flags & F_STREAM_CLOSED) {
         C4M_CRAISE("Stream is already closed.");
@@ -438,13 +438,13 @@ _stream_write_object(stream_t *stream, object_t obj, bool ansi)
         c4m_ansi_render(s, stream);
     }
     else {
-        s = force_utf8(s);
-        stream_raw_write(stream, s->byte_len, s->data);
+        s = c4m_to_utf8(s);
+        c4m_stream_raw_write(stream, s->byte_len, s->data);
     }
 }
 
 bool
-stream_at_eof(stream_t *stream)
+c4m_stream_at_eof(stream_t *stream)
 {
     if (stream->flags & F_STREAM_CLOSED) {
         return true;
@@ -460,7 +460,7 @@ stream_at_eof(stream_t *stream)
 }
 
 int64_t
-stream_get_location(stream_t *stream)
+c4m_stream_get_location(stream_t *stream)
 {
     if (stream->flags & F_STREAM_CLOSED) {
         C4M_CRAISE("Stream is already closed.");
@@ -518,7 +518,7 @@ stream_set_location(stream_t *stream, int64_t offset)
 }
 
 void
-stream_close(stream_t *stream)
+c4m_stream_close(stream_t *stream)
 {
     if (stream->flags & F_STREAM_USING_COOKIE) {
         cookie_t *cookie = stream->contents.cookie;
@@ -545,7 +545,7 @@ stream_close(stream_t *stream)
 }
 
 void
-stream_flush(stream_t *stream)
+c4m_stream_flush(stream_t *stream)
 {
     if (stream->flags & F_STREAM_CLOSED) {
         C4M_CRAISE("Stream is already closed.");
@@ -562,7 +562,7 @@ stream_flush(stream_t *stream)
 }
 
 void
-_print(object_t first, ...)
+_c4m_print(object_t first, ...)
 {
     va_list      args;
     object_t     cur       = first;
@@ -579,11 +579,11 @@ _print(object_t first, ...)
     va_start(args, first);
 
     if (first == NULL) {
-        stream_putc(get_stdout(), '\n');
+        c4m_stream_putc(c4m_get_stdout(), '\n');
         return;
     }
 
-    if (get_my_type(first) == tspec_kargs()) {
+    if (c4m_get_my_type(first) == c4m_tspec_kargs()) {
         _c4m_karg = first;
         numargs   = 0;
     }
@@ -594,26 +594,26 @@ _print(object_t first, ...)
 
     if (_c4m_karg != NULL) {
         if (!c4m_kw_ptr("stream", stream)) {
-            stream = get_stdout();
+            stream = c4m_get_stdout();
         }
         c4m_kw_codepoint("sep", sep);
         c4m_kw_codepoint("end", end);
         c4m_kw_bool("flush", flush);
 
-        if (!c4m_kw_bool("force_color", force)) {
+        if (!c4m_kw_bool("c4m_to_color", force)) {
             c4m_kw_bool("no_color", nocolor);
         }
         else {
             if (c4m_kw_bool("no_color", nocolor)) {
                 C4M_CRAISE(
-                    "Cannot specify `force_color` and `no_color` "
+                    "Cannot specify `c4m_to_color` and `no_color` "
                     "together.");
             }
         }
     }
 
     if (stream == NULL) {
-        stream = get_stdout();
+        stream = c4m_get_stdout();
     }
     if (force) {
         ansi = true;
@@ -623,7 +623,7 @@ _print(object_t first, ...)
             ansi = false;
         }
         else {
-            int fno = stream_fileno(stream);
+            int fno = c4m_stream_fileno(stream);
 
             if (fno == -1 || !isatty(fno)) {
                 ansi = false;
@@ -636,25 +636,25 @@ _print(object_t first, ...)
 
     for (int i = 0; i < numargs; i++) {
         if (i && sep) {
-            stream_putcp(stream, sep);
+            c4m_stream_putcp(stream, sep);
         }
 
-        stream_write_object(stream, cur, ansi);
+        c4m_stream_write_object(stream, cur, ansi);
         cur = va_arg(args, object_t);
     }
 
     if (end) {
-        stream_putcp(stream, end);
+        c4m_stream_putcp(stream, end);
     }
 
     if (flush) {
-        stream_flush(stream);
+        c4m_stream_flush(stream);
     }
 
     va_end(args);
 }
 
-const c4m_vtable stream_vtable = {
+const c4m_vtable_t c4m_stream_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         (c4m_vtable_entry)stream_init,

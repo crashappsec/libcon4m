@@ -26,7 +26,7 @@ c4m_get_grapheme_breaks(const any_str_t *s, int32_t start_ix, int32_t end_ix)
 
     break_info_t *res   = c4m_alloc_break_structure(s, 1);
     int32_t       state = 0;
-    int32_t       cps   = string_codepoint_len(s);
+    int32_t       cps   = c4m_str_codepoint_len(s);
     int32_t       len;
 
     if (start_ix < 0) {
@@ -48,7 +48,7 @@ c4m_get_grapheme_breaks(const any_str_t *s, int32_t start_ix, int32_t end_ix)
         return res;
     }
 
-    if (string_is_u32(s)) {
+    if (c4m_str_is_u32(s)) {
         int32_t *p1 = ((int32_t *)(s->data)) + start_ix;
         int32_t *p2 = (int32_t *)(p1 + 1);
         for (int i = 1; i < len; i++) {
@@ -107,9 +107,9 @@ c4m_get_line_breaks(const any_str_t *s)
     }
 
     break_info_t *res = c4m_alloc_break_structure(s, 6); // 2^6 = 64.
-    int32_t       l   = string_codepoint_len(s);
+    int32_t       l   = c4m_str_codepoint_len(s);
 
-    if (string_is_u32(s)) {
+    if (c4m_str_is_u32(s)) {
         int32_t *p = (int32_t *)(s->data);
         for (int i = 0; i < l; i++) {
             if (internal_is_line_break(p[i])) {
@@ -138,11 +138,11 @@ c4m_get_all_line_break_ops(const any_str_t *s)
         return NULL;
     }
 
-    int32_t       l   = string_codepoint_len(s);
+    int32_t       l   = c4m_str_codepoint_len(s);
     break_info_t *res = c4m_alloc_break_structure(s, 0);
     char         *br_raw;
 
-    if (string_is_u32(s)) {
+    if (c4m_str_is_u32(s)) {
         br_raw = (char *)c4m_gc_raw_alloc(l, NULL);
         set_linebreaks_utf32((int32_t *)s->data, l, "en", br_raw);
     }
@@ -166,9 +166,9 @@ c4m_get_all_line_break_ops(const any_str_t *s)
 static int32_t
 c4m_find_hwrap(const any_str_t *s, int32_t offset, int32_t width)
 {
-    utf32_t  *str = force_utf32(s);
+    utf32_t  *str = c4m_to_utf32(s);
     uint32_t *u32 = (uint32_t *)str->data;
-    int       l   = string_codepoint_len(str);
+    int       l   = c4m_str_codepoint_len(str);
 
     for (int i = offset; i < l; i++) {
         width -= c4m_codepoint_width(u32[i]);
@@ -194,13 +194,13 @@ break_info_t *
 c4m_wrap_text(const any_str_t *s, int32_t width, int32_t hang)
 {
     if (width <= 0) {
-        width = max(20, terminal_width());
+        width = max(20, c4m_terminal_width());
     }
 
     break_info_t *line_breaks  = c4m_get_line_breaks(s);
     break_info_t *break_ops    = c4m_get_all_line_break_ops(s);
     int32_t       n            = 32 - __builtin_clz(width);
-    int32_t       l            = string_codepoint_len(s);
+    int32_t       l            = c4m_str_codepoint_len(s);
     break_info_t *res          = c4m_alloc_break_structure(s, n);
     int32_t       cur_start    = 0;
     int32_t       last_ok_br   = 0;
@@ -283,7 +283,7 @@ find_next_break:
         }
     }
 
-    if (string_is_u32(s)) {
+    if (c4m_str_is_u32(s)) {
         return res;
     }
 

@@ -62,19 +62,19 @@ c4m_stack_init(hatstack_t *stack, va_list args)
 static void
 c4m_list_marshal(flexarray_t *r, stream_t *s, dict_t *memos, int64_t *mid)
 {
-    type_spec_t *list_type   = get_my_type(r);
-    xlist_t     *type_params = tspec_get_parameters(list_type);
-    type_spec_t *item_type   = xlist_get(type_params, 0, NULL);
-    dt_info     *item_info   = tspec_get_data_type_info(item_type);
+    type_spec_t *list_type   = c4m_get_my_type(r);
+    xlist_t     *type_params = c4m_tspec_get_parameters(list_type);
+    type_spec_t *item_type   = c4m_xlist_get(type_params, 0, NULL);
+    dt_info     *item_info   = c4m_tspec_get_data_type_info(item_type);
     bool         by_val      = item_info->by_value;
     flex_view_t *view        = flexarray_view(r);
     uint64_t     len         = flexarray_view_len(view);
 
-    marshal_u64(len, s);
+    c4m_marshal_u64(len, s);
 
     if (by_val) {
         for (uint64_t i = 0; i < len; i++) {
-            marshal_u64((uint64_t)flexarray_view_next(view, NULL), s);
+            c4m_marshal_u64((uint64_t)flexarray_view_next(view, NULL), s);
         }
     }
     else {
@@ -87,18 +87,18 @@ c4m_list_marshal(flexarray_t *r, stream_t *s, dict_t *memos, int64_t *mid)
 static void
 c4m_list_unmarshal(flexarray_t *r, stream_t *s, dict_t *memos)
 {
-    type_spec_t *list_type   = get_my_type(r);
-    xlist_t     *type_params = tspec_get_parameters(list_type);
-    type_spec_t *item_type   = xlist_get(type_params, 0, NULL);
-    dt_info     *item_info   = tspec_get_data_type_info(item_type);
+    type_spec_t *list_type   = c4m_get_my_type(r);
+    xlist_t     *type_params = c4m_tspec_get_parameters(list_type);
+    type_spec_t *item_type   = c4m_xlist_get(type_params, 0, NULL);
+    dt_info     *item_info   = c4m_tspec_get_data_type_info(item_type);
     bool         by_val      = item_info->by_value;
-    uint64_t     len         = unmarshal_u64(s);
+    uint64_t     len         = c4m_unmarshal_u64(s);
 
     flexarray_init(r, len);
 
     if (by_val) {
         for (uint64_t i = 0; i < len; i++) {
-            flexarray_set(r, i, (void *)unmarshal_u64(s));
+            flexarray_set(r, i, (void *)c4m_unmarshal_u64(s));
         }
     }
     else {
@@ -111,15 +111,15 @@ c4m_list_unmarshal(flexarray_t *r, stream_t *s, dict_t *memos)
 bool
 list_can_coerce_to(type_spec_t *my_type, type_spec_t *dst_type)
 {
-    base_t base = type_spec_get_base(dst_type);
+    base_t base = c4m_tspec_get_base(dst_type);
 
     if (base == T_BOOL) {
         return true;
     }
 
     if (base == T_LIST || base == T_XLIST) {
-        type_spec_t *my_item  = tspec_get_param(my_type, 0);
-        type_spec_t *dst_item = tspec_get_param(dst_type, 0);
+        type_spec_t *my_item  = c4m_tspec_get_param(my_type, 0);
+        type_spec_t *dst_item = c4m_tspec_get_param(dst_type, 0);
 
         return c4m_can_coerce(my_item, dst_item);
     }
@@ -130,11 +130,11 @@ list_can_coerce_to(type_spec_t *my_type, type_spec_t *dst_type)
 static object_t
 list_coerce_to(flexarray_t *list, type_spec_t *dst_type)
 {
-    base_t       base          = type_spec_get_base(dst_type);
+    base_t       base          = c4m_tspec_get_base(dst_type);
     flex_view_t *view          = flexarray_view(list);
     int64_t      len           = flexarray_view_len(view);
-    type_spec_t *src_item_type = tspec_get_param(get_my_type(list), 0);
-    type_spec_t *dst_item_type = tspec_get_param(dst_type, 0);
+    type_spec_t *src_item_type = c4m_tspec_get_param(c4m_get_my_type(list), 0);
+    type_spec_t *dst_item_type = c4m_tspec_get_param(dst_type, 0);
 
     if (base == T_BOOL) {
         return (object_t)(int64_t)(flexarray_view_len(view) != 0);
@@ -155,7 +155,7 @@ list_coerce_to(flexarray_t *list, type_spec_t *dst_type)
 
     for (int i = 0; i < len; i++) {
         void *item = flexarray_view_next(view, NULL);
-        xlist_set(res, i, c4m_coerce(item, src_item_type, dst_item_type));
+        c4m_xlist_set(res, i, c4m_coerce(item, src_item_type, dst_item_type));
     }
 
     return (object_t)res;
@@ -166,7 +166,7 @@ list_copy(flexarray_t *list)
 {
     flex_view_t *view = flexarray_view(list);
     int64_t      len  = flexarray_view_len(view);
-    flexarray_t *res  = c4m_new(get_my_type((object_t)list),
+    flexarray_t *res  = c4m_new(c4m_get_my_type((object_t)list),
                                c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {
@@ -232,7 +232,7 @@ list_get_slice(flexarray_t *list, int64_t start, int64_t end)
     }
     else {
         if (start >= len) {
-            return c4m_new(get_my_type(list), c4m_kw("length", c4m_ka(0)));
+            return c4m_new(c4m_get_my_type(list), c4m_kw("length", c4m_ka(0)));
         }
     }
     if (end < 0) {
@@ -245,11 +245,11 @@ list_get_slice(flexarray_t *list, int64_t start, int64_t end)
     }
 
     if ((start | end) < 0 || start >= end) {
-        return c4m_new(get_my_type(list), c4m_kw("length", c4m_ka(0)));
+        return c4m_new(c4m_get_my_type(list), c4m_kw("length", c4m_ka(0)));
     }
 
     len = end - start;
-    res = c4m_new(get_my_type(list), c4m_kw("length", c4m_ka(len)));
+    res = c4m_new(c4m_get_my_type(list), c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {
         void *item = flexarray_view_get(view, start + i, NULL);
@@ -294,7 +294,7 @@ list_set_slice(flexarray_t *list, int64_t start, int64_t end, flexarray_t *new)
     int64_t slicelen = end - start;
     int64_t newlen   = len1 + len2 - slicelen;
 
-    tmp = c4m_new(get_my_type(list), c4m_kw("length", c4m_ka(newlen)));
+    tmp = c4m_new(c4m_get_my_type(list), c4m_kw("length", c4m_ka(newlen)));
 
     if (start > 0) {
         for (int i = 0; i < start; i++) {
@@ -319,12 +319,12 @@ list_set_slice(flexarray_t *list, int64_t start, int64_t end, flexarray_t *new)
 static any_str_t *
 list_repr(flexarray_t *list, to_str_use_t how)
 {
-    type_spec_t *list_type   = get_my_type(list);
-    xlist_t     *type_params = tspec_get_parameters(list_type);
-    type_spec_t *item_type   = xlist_get(type_params, 0, NULL);
+    type_spec_t *list_type   = c4m_get_my_type(list);
+    xlist_t     *type_params = c4m_tspec_get_parameters(list_type);
+    type_spec_t *item_type   = c4m_xlist_get(type_params, 0, NULL);
     flex_view_t *view        = flexarray_view(list);
     int64_t      len         = flexarray_view_len(view);
-    xlist_t     *items       = c4m_new(tspec_xlist(tspec_utf32()));
+    xlist_t     *items       = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
 
     for (int i = 0; i < len; i++) {
         int   err  = 0;
@@ -333,21 +333,21 @@ list_repr(flexarray_t *list, to_str_use_t how)
             continue;
         }
         any_str_t *s = c4m_repr(item, item_type, how);
-        xlist_append(items, s);
+        c4m_xlist_append(items, s);
     }
 
     any_str_t *sep    = c4m_get_comma_const();
-    any_str_t *result = string_join(items, sep);
+    any_str_t *result = c4m_str_join(items, sep);
 
     if (how == TO_STR_USE_QUOTED) {
-        result = string_concat(c4m_get_lbrak_const(),
-                               string_concat(result, c4m_get_rbrak_const()));
+        result = c4m_str_concat(c4m_get_lbrak_const(),
+                                c4m_str_concat(result, c4m_get_rbrak_const()));
     }
 
     return result;
 }
 
-const c4m_vtable list_vtable = {
+const c4m_vtable_t c4m_list_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         (c4m_vtable_entry)c4m_list_init,
@@ -375,28 +375,28 @@ const c4m_vtable list_vtable = {
     },
 };
 
-const c4m_vtable queue_vtable = {
+const c4m_vtable_t c4m_queue_vtable = {
     .num_entries = 1,
     .methods     = {
         (c4m_vtable_entry)c4m_queue_init,
     },
 };
 
-const c4m_vtable ring_vtable = {
+const c4m_vtable_t c4m_ring_vtable = {
     .num_entries = 1,
     .methods     = {
         (c4m_vtable_entry)c4m_ring_init,
     },
 };
 
-const c4m_vtable logring_vtable = {
+const c4m_vtable_t c4m_logring_vtable = {
     .num_entries = 1,
     .methods     = {
         (c4m_vtable_entry)c4m_logring_init,
     },
 };
 
-const c4m_vtable stack_vtable = {
+const c4m_vtable_t c4m_stack_vtable = {
     .num_entries = 1,
     .methods     = {
         (c4m_vtable_entry)c4m_stack_init,

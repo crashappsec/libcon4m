@@ -107,7 +107,7 @@ c4m_expand_arena(size_t num_words, c4m_arena_t **cur_ptr)
     queue_init(new_arena->late_mutations);
 
     if (current != NULL && current->roots != NULL) {
-        new_arena->roots = rc_ref(current->roots);
+        new_arena->roots = c4m_rc_ref(current->roots);
     }
 }
 
@@ -171,9 +171,10 @@ c4m_delete_arena(c4m_arena_t *arena)
     while (arena != NULL) {
         prev_active = arena->previous;
         if (arena->roots != NULL) {
-            rc_free_and_cleanup(arena->roots, (cleanup_fn)hatrack_dict_cleanup);
+            c4m_rc_free_and_cleanup(arena->roots,
+                                    (cleanup_fn)hatrack_dict_cleanup);
         }
-        rc_free(arena->late_mutations);
+        c4m_rc_free(arena->late_mutations);
 
         char *start = ((char *)arena) - page_bytes;
         char *end   = ((char *)arena->heap_end) - page_bytes;
@@ -190,7 +191,7 @@ c4m_arena_register_root(c4m_arena_t *arena, void *ptr, uint64_t len)
     // Len is measured in 64 bit words and must be at least 1.
 
     if (arena->roots == NULL) {
-        arena->roots = rc_ref(global_roots);
+        arena->roots = c4m_rc_ref(global_roots);
     }
 
     hatrack_dict_put(arena->roots, ptr, (void *)len);
@@ -462,14 +463,14 @@ c4m_collect_arena(c4m_arena_t **ptr_loc)
     cur = *ptr_loc;
 
     if (cur->roots == NULL) {
-        cur->roots = rc_ref(global_roots);
+        cur->roots = c4m_rc_ref(global_roots);
     }
 
     uint64_t             num_roots = 0;
     hatrack_dict_item_t *roots;
 
     roots      = hatrack_dict_items_nosort(cur->roots, &num_roots);
-    new->roots = rc_ref(global_roots);
+    new->roots = c4m_rc_ref(global_roots);
 
     uint64_t stack_top, stack_bottom;
 

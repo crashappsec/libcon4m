@@ -32,7 +32,7 @@ signed_repr(int64_t item, to_str_use_t how)
     }
 
     if (item == 0) {
-        return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka("0")));
+        return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka("0")));
     }
 
     int i = 20;
@@ -46,7 +46,7 @@ signed_repr(int64_t item, to_str_use_t how)
         buf[--i] = '-';
     }
 
-    return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(&buf[i])));
+    return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(&buf[i])));
 }
 
 static any_str_t *
@@ -58,7 +58,7 @@ unsigned_repr(int64_t item, to_str_use_t how)
     };
 
     if (item == 0) {
-        return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka("0")));
+        return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka("0")));
     }
 
     int i = 20;
@@ -68,7 +68,7 @@ unsigned_repr(int64_t item, to_str_use_t how)
         item /= 10;
     }
 
-    return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(&buf[i])));
+    return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(&buf[i])));
 }
 
 __uint128_t
@@ -169,7 +169,7 @@ raw_hex_parse(char *s, lit_error_t *err)
 static object_t
 i8_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 {
-    char       *result = c4m_new(tspec_i8());
+    char       *result = c4m_new(c4m_tspec_i8());
     lit_error_t err    = {0, LE_NoError};
     bool        neg;
     __uint128_t val;
@@ -209,7 +209,7 @@ i8_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 object_t
 u8_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 {
-    uint8_t    *result = c4m_new(tspec_byte());
+    uint8_t    *result = c4m_new(c4m_tspec_byte());
     lit_error_t err    = {0, LE_NoError};
     bool        neg;
     __uint128_t val;
@@ -243,7 +243,7 @@ u8_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 object_t
 i32_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 {
-    int32_t    *result = c4m_new(tspec_i32());
+    int32_t    *result = c4m_new(c4m_tspec_i32());
     lit_error_t err    = {0, LE_NoError};
     bool        neg;
     __uint128_t val;
@@ -284,7 +284,7 @@ i32_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 object_t
 u32_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 {
-    uint32_t   *result = c4m_new(tspec_u32());
+    uint32_t   *result = c4m_new(c4m_tspec_u32());
     lit_error_t err    = {0, LE_NoError};
     bool        neg;
     __uint128_t val;
@@ -327,7 +327,7 @@ bool_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
     case 'T':
         if (!strcmp(s, "rue")) {
             if (true_lit == NULL) {
-                int32_t *lit = c4m_new(tspec_bool());
+                int32_t *lit = c4m_new(c4m_tspec_bool());
                 *lit         = 1;
                 true_lit     = (object_t)lit;
                 c4m_gc_register_root(&true_lit, 1);
@@ -339,7 +339,7 @@ bool_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
     case 'F':
         if (!strcmp(s, "alse")) {
             if (false_lit == NULL) {
-                int32_t *lit = c4m_new(tspec_bool());
+                int32_t *lit = c4m_new(c4m_tspec_bool());
                 *lit         = 0;
                 false_lit    = (object_t)lit;
                 c4m_gc_register_root(&false_lit, 1);
@@ -358,7 +358,7 @@ bool_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 object_t
 i64_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 {
-    int64_t    *result = c4m_new(tspec_int());
+    int64_t    *result = c4m_new(c4m_tspec_int());
     lit_error_t err    = {0, LE_NoError};
     bool        neg;
     __uint128_t val;
@@ -399,7 +399,7 @@ i64_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 object_t
 u64_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 {
-    uint64_t   *result = c4m_new(tspec_uint());
+    uint64_t   *result = c4m_new(c4m_tspec_uint());
     lit_error_t err    = {0, LE_NoError};
     bool        neg;
     __uint128_t val;
@@ -435,7 +435,7 @@ object_t
 f64_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 {
     char   *end;
-    double *lit = c4m_new(tspec_f64());
+    double *lit = c4m_new(c4m_tspec_f64());
     double  d   = strtod(s, &end);
 
     if (end == s || *end) {
@@ -503,14 +503,14 @@ bool_repr(bool *b, to_str_use_t how)
 {
     if (*b == false) {
         if (false_repr == NULL) {
-            false_repr = c4m_new(tspec_utf8(),
+            false_repr = c4m_new(c4m_tspec_utf8(),
                                  c4m_kw("cstring", c4m_ka("false")));
             c4m_gc_register_root(&false_repr, 1);
         }
         return false_repr;
     }
     if (true_repr == NULL) {
-        true_repr = c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka("true")));
+        true_repr = c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka("true")));
         c4m_gc_register_root(&true_repr, 1);
     }
 
@@ -520,7 +520,7 @@ bool_repr(bool *b, to_str_use_t how)
 bool
 any_number_can_coerce_to(type_spec_t *my_type, type_spec_t *target_type)
 {
-    switch (tspec_get_data_type_info(target_type)->typeid) {
+    switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
     case T_BOOL:
     case T_I8:
     case T_BYTE:
@@ -542,7 +542,7 @@ any_int_coerce_to(const int64_t data, type_spec_t *target_type)
 {
     double d;
 
-    switch (tspec_get_data_type_info(target_type)->typeid) {
+    switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
     case T_BOOL:
     case T_I8:
     case T_BYTE:
@@ -564,7 +564,7 @@ any_int_coerce_to(const int64_t data, type_spec_t *target_type)
 void *
 bool_coerce_to(const int64_t data, type_spec_t *target_type)
 {
-    switch (tspec_get_data_type_info(target_type)->typeid) {
+    switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
     case T_BOOL:
     case T_I8:
     case T_BYTE:
@@ -603,7 +603,7 @@ float_repr(const double *dp, to_str_use_t how)
     // snprintf includes null terminator in its count.
     snprintf(buf, 20, "%g", d);
 
-    return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(buf)));
+    return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(buf)));
 }
 
 void *
@@ -611,7 +611,7 @@ float_coerce_to(const double d, type_spec_t *target_type)
 {
     int64_t i;
 
-    switch (tspec_get_data_type_info(target_type)->typeid) {
+    switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
     case T_BOOL:
     case T_I8:
     case T_BYTE:
@@ -631,7 +631,7 @@ float_coerce_to(const double d, type_spec_t *target_type)
     }
 }
 
-const c4m_vtable u8_type = {
+const c4m_vtable_t c4m_u8_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
@@ -646,7 +646,7 @@ const c4m_vtable u8_type = {
     },
 };
 
-const c4m_vtable i8_type = {
+const c4m_vtable_t c4m_i8_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
@@ -661,7 +661,7 @@ const c4m_vtable i8_type = {
     },
 };
 
-const c4m_vtable u32_type = {
+const c4m_vtable_t c4m_u32_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
@@ -676,7 +676,7 @@ const c4m_vtable u32_type = {
     },
 };
 
-const c4m_vtable i32_type = {
+const c4m_vtable_t c4m_i32_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
@@ -691,7 +691,7 @@ const c4m_vtable i32_type = {
     },
 };
 
-const c4m_vtable u64_type = {
+const c4m_vtable_t c4m_u64_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
@@ -706,7 +706,7 @@ const c4m_vtable u64_type = {
     },
 };
 
-const c4m_vtable i64_type = {
+const c4m_vtable_t c4m_i64_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
@@ -721,7 +721,7 @@ const c4m_vtable i64_type = {
     },
 };
 
-const c4m_vtable bool_type = {
+const c4m_vtable_t c4m_bool_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
@@ -736,7 +736,7 @@ const c4m_vtable bool_type = {
     },
 };
 
-const c4m_vtable float_type = {
+const c4m_vtable_t c4m_float_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.

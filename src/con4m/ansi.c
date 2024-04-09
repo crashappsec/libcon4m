@@ -37,118 +37,118 @@ internal_char_render_width(codepoint_t cp)
 static void
 ansi_render_style_start(uint64_t info, stream_t *outstream)
 {
-    uint64_t remaining = (~FLAG_MASK) & info;
+    uint64_t remaining = (~C4M_STY_CLEAR_FLAGS) & info;
 
     if (!info) {
         return;
     }
 
-    stream_putc(outstream, '\e');
-    stream_putc(outstream, '[');
-    if (info & BOLD_ON) {
-        remaining &= ~BOLD_ON;
-        stream_putc(outstream, '1');
+    c4m_stream_putc(outstream, '\e');
+    c4m_stream_putc(outstream, '[');
+    if (info & C4M_STY_BOLD) {
+        remaining &= ~C4M_STY_BOLD;
+        c4m_stream_putc(outstream, '1');
         if (remaining) {
-            stream_putc(outstream, ';');
+            c4m_stream_putc(outstream, ';');
         }
     }
-    if (info & INV_ON) {
-        remaining &= ~INV_ON;
-        stream_putc(outstream, '7');
+    if (info & C4M_STY_REV) {
+        remaining &= ~C4M_STY_REV;
+        c4m_stream_putc(outstream, '7');
         if (remaining) {
-            stream_putc(outstream, ';');
+            c4m_stream_putc(outstream, ';');
         }
     }
-    if (info & ST_ON) {
-        remaining &= ~ST_ON;
-        stream_putc(outstream, '9');
+    if (info & C4M_STY_ST) {
+        remaining &= ~C4M_STY_ST;
+        c4m_stream_putc(outstream, '9');
         if (remaining) {
-            stream_putc(outstream, ';');
+            c4m_stream_putc(outstream, ';');
         }
     }
-    if (info & ITALIC_ON) {
-        remaining &= ~ITALIC_ON;
-        stream_putc(outstream, '3');
+    if (info & C4M_STY_ITALIC) {
+        remaining &= ~C4M_STY_ITALIC;
+        c4m_stream_putc(outstream, '3');
         if (remaining) {
-            stream_putc(outstream, ';');
+            c4m_stream_putc(outstream, ';');
         }
     }
-    if (info & UL_ON) {
-        remaining &= ~UL_ON;
-        stream_putc(outstream, '4');
+    if (info & C4M_STY_UL) {
+        remaining &= ~C4M_STY_UL;
+        c4m_stream_putc(outstream, '4');
         if (remaining) {
-            stream_putc(outstream, ';');
+            c4m_stream_putc(outstream, ';');
         }
     }
-    if (info & UL_DOUBLE) {
-        remaining &= ~UL_DOUBLE;
-        stream_puts(outstream, "21");
+    if (info & C4M_STY_UUL) {
+        remaining &= ~C4M_STY_UUL;
+        c4m_stream_puts(outstream, "21");
         if (remaining) {
-            stream_putc(outstream, ';');
-        }
-    }
-
-    if (info & FG_COLOR_ON) {
-        remaining &= ~FG_COLOR_ON;
-
-        if (c4m_use_truecolor()) {
-            uint8_t r = (uint8_t)((info & ~FG_COLOR_MASK) >> OFFSET_FG_RED);
-            uint8_t g = (uint8_t)((info & ~FG_COLOR_MASK) >> OFFSET_FG_GREEN);
-            uint8_t b = (uint8_t)((info & ~FG_COLOR_MASK) >> OFFSET_FG_BLUE);
-            stream_puts(outstream, "38;2;");
-            stream_puti(outstream, r);
-            stream_putc(outstream, ';');
-            stream_puti(outstream, g);
-            stream_putc(outstream, ';');
-            stream_puti(outstream, b);
-        }
-        else {
-            stream_puts(outstream, "38;5;");
-            int32_t color = (int32_t)(info & ~(FG_COLOR_MASK));
-            stream_puti(outstream, c4m_to_vga(color));
-        }
-        if (remaining) {
-            stream_putc(outstream, ';');
+            c4m_stream_putc(outstream, ';');
         }
     }
 
-    if (info & BG_COLOR_ON) {
-        info &= ~BG_COLOR_ON;
+    if (info & C4M_STY_FG) {
+        remaining &= ~C4M_STY_FG;
 
         if (c4m_use_truecolor()) {
-            uint8_t r = (uint8_t)((info & ~BG_COLOR_MASK) >> OFFSET_BG_RED);
-            uint8_t g = (uint8_t)((info & ~BG_COLOR_MASK) >> OFFSET_BG_GREEN);
-            uint8_t b = (uint8_t)((info & ~BG_COLOR_MASK) >> OFFSET_BG_BLUE);
-            stream_puts(outstream, "48;2;");
-            stream_puti(outstream, r);
-            stream_putc(outstream, ';');
-            stream_puti(outstream, g);
-            stream_putc(outstream, ';');
-            stream_puti(outstream, b);
+            uint8_t r = (uint8_t)((info & ~C4M_STY_CLEAR_FG) >> C4M_OFFSET_FG_RED);
+            uint8_t g = (uint8_t)((info & ~C4M_STY_CLEAR_FG) >> C4M_OFFSET_FG_GREEN);
+            uint8_t b = (uint8_t)((info & ~C4M_STY_CLEAR_FG) >> C4M_OFFSET_FG_BLUE);
+            c4m_stream_puts(outstream, "38;2;");
+            c4m_stream_puti(outstream, r);
+            c4m_stream_putc(outstream, ';');
+            c4m_stream_puti(outstream, g);
+            c4m_stream_putc(outstream, ';');
+            c4m_stream_puti(outstream, b);
         }
         else {
-            stream_puts(outstream, "38;5;");
-            int32_t toand = (int32_t) ~(BG_COLOR_MASK) >> OFFSET_BG_BLUE;
-            stream_puti(outstream, c4m_to_vga(info & toand));
+            c4m_stream_puts(outstream, "38;5;");
+            int32_t color = (int32_t)(info & ~(C4M_STY_CLEAR_FG));
+            c4m_stream_puti(outstream, c4m_to_vga(color));
+        }
+        if (remaining) {
+            c4m_stream_putc(outstream, ';');
         }
     }
-    stream_putc(outstream, 'm');
+
+    if (info & C4M_STY_BG) {
+        info &= ~C4M_STY_BG;
+
+        if (c4m_use_truecolor()) {
+            uint8_t r = (uint8_t)((info & ~C4M_STY_CLEAR_BG) >> C4M_OFFSET_BG_RED);
+            uint8_t g = (uint8_t)((info & ~C4M_STY_CLEAR_BG) >> C4M_OFFSET_BG_GREEN);
+            uint8_t b = (uint8_t)((info & ~C4M_STY_CLEAR_BG) >> C4M_OFFSET_BG_BLUE);
+            c4m_stream_puts(outstream, "48;2;");
+            c4m_stream_puti(outstream, r);
+            c4m_stream_putc(outstream, ';');
+            c4m_stream_puti(outstream, g);
+            c4m_stream_putc(outstream, ';');
+            c4m_stream_puti(outstream, b);
+        }
+        else {
+            c4m_stream_puts(outstream, "38;5;");
+            int32_t toand = (int32_t) ~(C4M_STY_CLEAR_BG) >> C4M_OFFSET_BG_BLUE;
+            c4m_stream_puti(outstream, c4m_to_vga(info & toand));
+        }
+    }
+    c4m_stream_putc(outstream, 'm');
 }
 
 static inline void
 ansi_render_style_end(stream_t *outstream)
 {
-    stream_putc(outstream, '\e');
-    stream_putc(outstream, '[');
-    stream_putc(outstream, '0');
-    stream_putc(outstream, 'm');
+    c4m_stream_putc(outstream, '\e');
+    c4m_stream_putc(outstream, '[');
+    c4m_stream_putc(outstream, '0');
+    c4m_stream_putc(outstream, 'm');
 }
 
 static inline void
 ansi_render_style_final(stream_t *outstream)
 {
-    stream_puts(outstream, "\e[0m\e[K");
-    stream_flush(outstream);
+    c4m_stream_puts(outstream, "\e[0m\e[K");
+    c4m_stream_flush(outstream);
 }
 
 static inline void
@@ -162,7 +162,7 @@ ansi_render_one_codepoint_plain(codepoint_t cp, stream_t *outstream)
     }
 
     len = utf8proc_encode_char(cp, tmp);
-    stream_raw_write(outstream, len, (char *)tmp);
+    c4m_stream_raw_write(outstream, len, (char *)tmp);
 }
 
 static inline void
@@ -195,9 +195,9 @@ c4m_utf8_ansi_render(const utf8_t *s, stream_t *outstream)
         return;
     }
 
-    style_t        default_style = get_default_style();
+    style_t        default_style = c4m_get_default_style();
     style_t        current_style = default_style;
-    uint64_t       casing        = current_style & TITLE_CASE;
+    uint64_t       casing        = current_style & C4M_STY_TITLE;
     int32_t        cp_ix         = 0;
     int32_t        cp_stop       = 0;
     uint32_t       style_ix      = 0;
@@ -210,7 +210,7 @@ c4m_utf8_ansi_render(const utf8_t *s, stream_t *outstream)
 
     style_state = U8_STATE_START_DEFAULT;
 
-    if (s->styling != NULL && ((uint64_t)s->styling != STYLE_INVALID) && s->styling->num_entries != 0) {
+    if (s->styling != NULL && ((uint64_t)s->styling != C4M_STY_BAD) && s->styling->num_entries != 0) {
         entry = &s->styling->styles[0];
         if (entry->start == 0) {
             style_state = U8_STATE_START_STYLE;
@@ -231,7 +231,7 @@ c4m_utf8_ansi_render(const utf8_t *s, stream_t *outstream)
             }
 
             current_style = default_style;
-            casing        = current_style & TITLE_CASE;
+            casing        = current_style & C4M_STY_TITLE;
             case_up       = true;
 
             if (entry != NULL) {
@@ -248,7 +248,7 @@ c4m_utf8_ansi_render(const utf8_t *s, stream_t *outstream)
 
         case U8_STATE_START_STYLE:
             current_style = entry->info;
-            casing        = current_style & TITLE_CASE;
+            casing        = current_style & C4M_STY_TITLE;
             cp_stop       = entry->end;
             case_up       = true;
 
@@ -301,13 +301,13 @@ c4m_utf8_ansi_render(const utf8_t *s, stream_t *outstream)
         cp_ix += 1;
 
         switch (casing) {
-        case UPPER_CASE:
+        case C4M_STY_UPPER:
             ansi_render_one_codepoint_upper(codepoint, outstream);
             break;
-        case LOWER_CASE:
+        case C4M_STY_LOWER:
             ansi_render_one_codepoint_lower(codepoint, outstream);
             break;
-        case TITLE_CASE:
+        case C4M_STY_TITLE:
             case_up = ansi_render_one_codepoint_title(codepoint, case_up, outstream);
             break;
         default:
@@ -335,18 +335,18 @@ ansi_render_u32_region(const utf32_t *s,
         ansi_render_style_start(style, outstream);
     }
 
-    switch (style & TITLE_CASE) {
-    case UPPER_CASE:
+    switch (style & C4M_STY_TITLE) {
+    case C4M_STY_UPPER:
         for (int32_t i = from; i < to; i++) {
             ansi_render_one_codepoint_upper(p[i], outstream);
         }
         break;
-    case LOWER_CASE:
+    case C4M_STY_LOWER:
         for (int32_t i = from; i < to; i++) {
             ansi_render_one_codepoint_lower(p[i], outstream);
         }
         break;
-    case TITLE_CASE:
+    case C4M_STY_TITLE:
         for (int32_t i = from; i < to; i++) {
             cap = ansi_render_one_codepoint_title(p[i], cap, outstream);
         }
@@ -371,8 +371,8 @@ c4m_utf32_ansi_render(const utf32_t *s,
         return;
     }
 
-    int32_t len    = string_codepoint_len(s);
-    style_t style0 = get_default_style();
+    int32_t len    = c4m_str_codepoint_len(s);
+    style_t style0 = c4m_get_default_style();
 
     if (start_ix < 0) {
         start_ix += len;
@@ -381,7 +381,7 @@ c4m_utf32_ansi_render(const utf32_t *s,
         end_ix += len;
     }
 
-    if (s->styling == NULL || (uint64_t)s->styling == STYLE_INVALID) {
+    if (s->styling == NULL || (uint64_t)s->styling == C4M_STY_BAD) {
         ansi_render_u32_region(s, start_ix, end_ix, style0, outstream);
         return;
     }
@@ -425,7 +425,7 @@ c4m_ansi_render(const any_str_t *s, stream_t *out)
         return;
     }
 
-    if (string_is_u32(s)) {
+    if (c4m_str_is_u32(s)) {
         c4m_utf32_ansi_render(s, 0, 0, out);
     }
     else {
@@ -443,7 +443,7 @@ c4m_ansi_render_to_width(const any_str_t *s,
         return;
     }
 
-    utf32_t *as_u32 = force_utf32(s);
+    utf32_t *as_u32 = c4m_to_utf32(s);
     int32_t  i;
 
     if (width <= 0) {
@@ -457,13 +457,13 @@ c4m_ansi_render_to_width(const any_str_t *s,
                               line_starts->breaks[i],
                               line_starts->breaks[i + 1],
                               out);
-        stream_putc(out, '\n');
+        c4m_stream_putc(out, '\n');
     }
 
     if (i == line_starts->num_breaks - 1) {
         c4m_utf32_ansi_render(as_u32,
                               line_starts->breaks[i],
-                              string_codepoint_len(as_u32),
+                              c4m_str_codepoint_len(as_u32),
                               out);
     }
 }
@@ -472,7 +472,7 @@ static inline size_t
 internal_render_len_u32(const utf32_t *s)
 {
     codepoint_t *p     = (codepoint_t *)s->data;
-    int32_t      len   = string_codepoint_len(s);
+    int32_t      len   = c4m_str_codepoint_len(s);
     size_t       count = 0;
 
     for (int i = 0; i < len; i++) {
@@ -505,7 +505,7 @@ c4m_ansi_render_len(const any_str_t *s)
         return 0;
     }
 
-    if (string_is_u32(s)) {
+    if (c4m_str_is_u32(s)) {
         return internal_render_len_u32(s);
     }
     else {

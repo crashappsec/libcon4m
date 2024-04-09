@@ -20,13 +20,13 @@ c4m_mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
         return;
     }
 
-    if (!type_spec_is_concrete(type)) {
+    if (!c4m_tspec_is_concrete(type)) {
         C4M_CRAISE((char *)err1);
     }
 
     m->held_type = type;
 
-    switch (tspec_get_data_type_info(type)->typeid) {
+    switch (c4m_tspec_get_data_type_info(type)->typeid) {
     case T_BOOL: {
         bool   *p = (bool *)ptr;
         bool    b = *p;
@@ -106,11 +106,11 @@ mixed_init(mixed_t *m, va_list args)
 void
 c4m_unbox_mixed(mixed_t *m, type_spec_t *expected_type, void **ptr)
 {
-    if (!tspecs_are_compat(m->held_type, expected_type)) {
+    if (!c4m_tspecs_are_compat(m->held_type, expected_type)) {
         C4M_CRAISE((char *)err2);
     }
 
-    switch (tspec_get_data_type_info(m->held_type)->typeid) {
+    switch (c4m_tspec_get_data_type_info(m->held_type)->typeid) {
     case T_BOOL: {
         if (m->held_value) {
             *(bool *)ptr = true;
@@ -170,7 +170,7 @@ c4m_unbox_mixed(mixed_t *m, type_spec_t *expected_type, void **ptr)
 static int64_t
 mixed_as_word(mixed_t *m)
 {
-    switch (tspec_get_data_type_info(m->held_type)->typeid) {
+    switch (c4m_tspec_get_data_type_info(m->held_type)->typeid) {
     case T_BOOL:
         if (m->held_value == NULL) {
             return 0;
@@ -221,8 +221,8 @@ mixed_marshal_arts(mixed_t *m, stream_t *s, dict_t *memos, int64_t *mid)
 {
     c4m_sub_marshal(m->held_type, s, memos, mid);
 
-    if (tspec_get_data_type_info(m->held_type)->by_value) {
-        marshal_i64((int64_t)m->held_value, s);
+    if (c4m_tspec_get_data_type_info(m->held_type)->by_value) {
+        c4m_marshal_i64((int64_t)m->held_value, s);
     }
     else {
         c4m_sub_marshal(m->held_value, s, memos, mid);
@@ -234,8 +234,8 @@ mixed_unmarshal_arts(mixed_t *m, stream_t *s, dict_t *memos)
 {
     m->held_type = c4m_sub_unmarshal(s, memos);
 
-    if (tspec_get_data_type_info(m->held_type)->by_value) {
-        m->held_value = (void *)unmarshal_i64(s);
+    if (c4m_tspec_get_data_type_info(m->held_type)->by_value) {
+        m->held_value = (void *)c4m_unmarshal_i64(s);
     }
     else {
         m->held_value = c4m_sub_unmarshal(s, memos);
@@ -245,14 +245,14 @@ mixed_unmarshal_arts(mixed_t *m, stream_t *s, dict_t *memos)
 static mixed_t *
 mixed_copy(mixed_t *m)
 {
-    mixed_t *result = c4m_new(tspec_mixed());
+    mixed_t *result = c4m_new(c4m_tspec_mixed());
 
     // Types are concrete whenever there is a value, so we don't need to
     // call copy, but we do it anyway.
 
-    result->held_type = global_copy(m->held_type);
+    result->held_type = c4m_global_copy(m->held_type);
 
-    if (tspec_get_data_type_info(m->held_type)->by_value) {
+    if (c4m_tspec_get_data_type_info(m->held_type)->by_value) {
         result->held_value = m->held_value;
     }
     else {
@@ -262,7 +262,7 @@ mixed_copy(mixed_t *m)
     return result;
 }
 
-const c4m_vtable mixed_vtable = {
+const c4m_vtable_t c4m_mixed_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         (c4m_vtable_entry)mixed_init,
