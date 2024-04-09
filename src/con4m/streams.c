@@ -7,30 +7,28 @@ static void
 mem_stream_setup(cookie_t *c)
 {
     if (c->object == NULL) {
-	c->object = con4m_new(tspec_buffer());
-	c->extra = NULL;
-	return;
+        c->object = con4m_new(tspec_buffer());
+        c->extra  = NULL;
+        return;
     }
     else {
-	switch(get_base_type_id(c->object)) {
-	case T_UTF8:
-	case T_UTF32:
-	{
-	    any_str_t *s = (any_str_t *)c->object;
-	    c->extra     = s->data;
-	    c->eof       = s->byte_len;
-	    return;
-	}
-	case T_BUFFER:
-	{
-	    buffer_t *b = (buffer_t *)c->object;
-	    c->extra    = b->data;
-	    c->eof      = b->byte_len;
-	    return;
-	}
-	default:
-	    assert(false);
-	}
+        switch (get_base_type_id(c->object)) {
+        case T_UTF8:
+        case T_UTF32: {
+            any_str_t *s = (any_str_t *)c->object;
+            c->extra     = s->data;
+            c->eof       = s->byte_len;
+            return;
+        }
+        case T_BUFFER: {
+            buffer_t *b = (buffer_t *)c->object;
+            c->extra    = b->data;
+            c->eof      = b->byte_len;
+            return;
+        }
+        default:
+            assert(false);
+        }
     }
 }
 
@@ -44,24 +42,24 @@ mem_stream_read(cookie_t *c, char *dst, int64_t request)
     // this is basically meaningless).
 
     if (c->flags & F_STREAM_BUFFER_IN) {
-	buffer_t *b = (buffer_t *)c->object;
+        buffer_t *b = (buffer_t *)c->object;
 
-	c->eof = b->byte_len;
+        c->eof = b->byte_len;
     }
 
     if (request < 0) {
-	request += c->eof;
+        request += c->eof;
     }
 
     int64_t read_len = min((int64_t)request, c->eof - c->position);
 
     if (read_len <= 0) {
-	return 0;
+        return 0;
     }
 
     memcpy(dst, c->extra, read_len);
 
-    c->extra    += read_len;
+    c->extra += read_len;
     c->position += read_len;
 
     return read_len;
@@ -75,17 +73,17 @@ mem_stream_write(cookie_t *c, char *buf, int64_t request)
     c->eof      = b->byte_len;
 
     if (c->flags & F_STREAM_APPEND) {
-	c->position = c->eof;
+        c->position = c->eof;
     }
 
     if (c->position + request > c->eof) {
-	c->eof = c->position + request;
-	buffer_resize(b, c->eof);
-	c->extra = b->data + c->position;
+        c->eof = c->position + request;
+        buffer_resize(b, c->eof);
+        c->extra = b->data + c->position;
     }
 
     memcpy(c->extra, buf, request);
-    c->extra    += request;
+    c->extra += request;
     c->position += request;
 
     return request;
@@ -103,14 +101,14 @@ static _Bool
 mem_stream_seek(cookie_t *c, int64_t pos)
 {
     if (pos < 0) {
-	return false;
+        return false;
     }
 
     if (pos > c->eof) {
-	return false;
+        return false;
     }
 
-    c->extra   += (pos - c->position);
+    c->extra += (pos - c->position);
     c->position = pos;
     return true;
 }
@@ -161,130 +159,132 @@ stream_init(stream_t *stream, va_list args)
     kw_int64("out_type", out_type);
 
     int64_t src_count = 0;
-    char    buf[10]   = {0,};
-    int     i         = 0;
-    int64_t  flags    = 0;
+    char    buf[10]   = {
+        0,
+    };
+    int     i     = 0;
+    int64_t flags = 0;
 
-    src_count += (int64_t)!!filename;
-    src_count += (int64_t)!!instring;
-    src_count += (int64_t)!!buffer;
-    src_count += (int64_t)!!cookie;
-    src_count += (int64_t)!!fstream;
+    src_count += (int64_t) !!filename;
+    src_count += (int64_t) !!instring;
+    src_count += (int64_t) !!buffer;
+    src_count += (int64_t) !!cookie;
+    src_count += (int64_t) !!fstream;
     src_count += (fd >= 0);
 
     switch (out_type) {
     case T_UTF8:
-	flags = F_STREAM_UTF8_OUT;
-	break;
+        flags = F_STREAM_UTF8_OUT;
+        break;
     case T_UTF32:
-	flags = F_STREAM_UTF32_OUT;
-	break;
+        flags = F_STREAM_UTF32_OUT;
+        break;
     case T_BUFFER:
-	break;
+        break;
     default:
-	CRAISE("Invalid output type for streams.");
+        CRAISE("Invalid output type for streams.");
     }
 
     switch (src_count) {
     case 0:
-	CRAISE("No stream source provided.");
+        CRAISE("No stream source provided.");
     case 1:
-	break;
+        break;
     default:
-	CRAISE("Cannot provide multiple stream sources.");
+        CRAISE("Cannot provide multiple stream sources.");
     }
 
     if (append) {
-	buf[i++] = 'a';
-	buf[i++] = 'b';
-	if (read) {
-	    buf[i++] = '+';
-	}
+        buf[i++] = 'a';
+        buf[i++] = 'b';
+        if (read) {
+            buf[i++] = '+';
+        }
 
-	if (no_create) {
-	    buf[i++] = 'x';
-	}
+        if (no_create) {
+            buf[i++] = 'x';
+        }
     }
     else {
-	if (write) {
-	    buf[i++] = 'w';
-	    buf[i++] = 'b';
+        if (write) {
+            buf[i++] = 'w';
+            buf[i++] = 'b';
 
-	    if(read) {
-		buf[i++] = '+';
-	    }
-	    if (no_create) {
-		buf[i++] = 'x';
-	    }
-	}
-	else {
-	    buf[i++] = 'r';
-	    buf[i++] = 'b';
-	}
+            if (read) {
+                buf[i++] = '+';
+            }
+            if (no_create) {
+                buf[i++] = 'x';
+            }
+        }
+        else {
+            buf[i++] = 'r';
+            buf[i++] = 'b';
+        }
     }
 
     if (close_on_exec) {
-	buf[i++] = 'e';
+        buf[i++] = 'e';
     }
 
     if (read) {
-	flags |= F_STREAM_READ;
+        flags |= F_STREAM_READ;
     }
     if (write) {
-	flags |= F_STREAM_WRITE;
+        flags |= F_STREAM_WRITE;
     }
     if (append) {
-	flags |= F_STREAM_APPEND;
+        flags |= F_STREAM_APPEND;
     }
 
     if (filename != NULL) {
-	filename           = force_utf8(filename);
-	stream->contents.f = fopen(filename->data, buf);
-	stream->flags      = flags;
+        filename           = force_utf8(filename);
+        stream->contents.f = fopen(filename->data, buf);
+        stream->flags      = flags;
 
-    err_check:
-	if (stream->contents.f == NULL) {
-	    raise_errno();
-	}
+err_check:
+        if (stream->contents.f == NULL) {
+            raise_errno();
+        }
 
-	return;
+        return;
     }
 
     if (fstream != NULL) {
-	stream->contents.f = fstream;
-	return;
+        stream->contents.f = fstream;
+        return;
     }
 
     if (fd != -1) {
-	stream->contents.f = fdopen(fd, buf);
-	goto err_check;
+        stream->contents.f = fdopen(fd, buf);
+        goto err_check;
     }
 
     flags |= F_STREAM_USING_COOKIE;
 
     if (cookie == NULL) {
-	if (instring && write) {
-	    CRAISE("Cannot open string for writing (they are non-mutable).");
-	}
+        if (instring && write) {
+            CRAISE("Cannot open string for writing (they are non-mutable).");
+        }
 
-	cookie = new_mem_cookie();
+        cookie = new_mem_cookie();
     }
     else {
-	if (read && !cookie->ptr_read) {
-	    CRAISE("Custom stream implementation does not support reading.");
-	}
-	if ((write || append) && !cookie->ptr_write) {
-	    CRAISE("Custom stream implementation does not support writing.");
-	}
+        if (read && !cookie->ptr_read) {
+            CRAISE("Custom stream implementation does not support reading.");
+        }
+        if ((write || append) && !cookie->ptr_write) {
+            CRAISE("Custom stream implementation does not support writing.");
+        }
     }
 
     if (instring) {
-	cookie->object = instring;
-	flags |= F_STREAM_STR_IN;
+        cookie->object = instring;
+        flags |= F_STREAM_STR_IN;
     }
     if (buffer) {
-	cookie->object = buffer;
-	flags |= F_STREAM_BUFFER_IN;
+        cookie->object = buffer;
+        flags |= F_STREAM_BUFFER_IN;
     }
 
     cookie->flags           = flags;
@@ -292,7 +292,7 @@ stream_init(stream_t *stream, va_list args)
     stream->flags           = flags;
 
     if (cookie->ptr_setup != NULL) {
-	(*cookie->ptr_setup)(cookie);
+        (*cookie->ptr_setup)(cookie);
     }
 }
 
@@ -300,18 +300,16 @@ static object_t
 stream_bytes_to_output(int64_t flags, char *buf, int64_t len)
 {
     if (flags & F_STREAM_UTF8_OUT) {
-	return con4m_new(tspec_utf8(), kw("cstring", ka(buf),
-					  "length", ka(len)));
+        return con4m_new(tspec_utf8(), kw("cstring", ka(buf), "length", ka(len)));
     }
 
     if (flags & F_STREAM_UTF32_OUT) {
-	return con4m_new(tspec_utf32(), kw("cstring", ka(buf),
-					   "codepoints", ka(len / 4)));
+        return con4m_new(tspec_utf32(), kw("cstring", ka(buf), "codepoints", ka(len / 4)));
     }
 
     else {
-	// Else, it's going to a buffer.
-	return con4m_new(tspec_buffer(), kw("raw", ka(buf), "length", ka(len)));
+        // Else, it's going to a buffer.
+        return con4m_new(tspec_buffer(), kw("raw", ka(buf), "length", ka(len)));
     }
 }
 
@@ -333,46 +331,46 @@ stream_raw_read(stream_t *stream, int64_t len, char *buf)
     bool return_len = (buf != NULL);
 
     if (stream->flags & F_STREAM_CLOSED) {
-	CRAISE("Stream is already closed.");
+        CRAISE("Stream is already closed.");
     }
 
     if (!len) {
-	if (return_len) {
-	    return (object_t)(0); // I.e., null
-	}
-	return stream_bytes_to_output(stream->flags, "", 0);
+        if (return_len) {
+            return (object_t)(0); // I.e., null
+        }
+        return stream_bytes_to_output(stream->flags, "", 0);
     }
 
     int64_t flags  = stream->flags;
     size_t  actual = 0;
 
     if (!return_len) {
-	buf = alloca(len);
+        buf = alloca(len);
     }
 
-    if (! (flags & F_STREAM_READ)) {
-	CRAISE("Cannot read; stream was not opened with read enabled.");
+    if (!(flags & F_STREAM_READ)) {
+        CRAISE("Cannot read; stream was not opened with read enabled.");
     }
 
     if (flags & F_STREAM_UTF32_OUT) {
-	len *= 4;
+        len *= 4;
     }
 
     if (stream->flags & F_STREAM_USING_COOKIE) {
-	cookie_t      *cookie = stream->contents.cookie;
-	stream_read_fn f      = cookie->ptr_read;
+        cookie_t      *cookie = stream->contents.cookie;
+        stream_read_fn f      = cookie->ptr_read;
 
-	actual = (*f)(cookie, buf, len);
+        actual = (*f)(cookie, buf, len);
     }
     else {
-	actual = fread(buf, 1, len, stream->contents.f);
+        actual = fread(buf, 1, len, stream->contents.f);
     }
 
     if (return_len) {
-	return (object_t)(actual);
+        return (object_t)(actual);
     }
     else {
-	return stream_bytes_to_output(stream->flags, buf, actual);
+        return stream_bytes_to_output(stream->flags, buf, actual);
     }
 }
 
@@ -383,41 +381,41 @@ stream_raw_write(stream_t *stream, int64_t len, char *buf)
     cookie_t *cookie = NULL;
 
     if (stream->flags & F_STREAM_CLOSED) {
-	CRAISE("Stream is already closed.");
+        CRAISE("Stream is already closed.");
     }
 
     if (len <= 0) {
-	return 0;
+        return 0;
     }
 
     if (stream->flags & F_STREAM_USING_COOKIE) {
-	cookie = stream->contents.cookie;
+        cookie = stream->contents.cookie;
 
-	stream_write_fn f = cookie->ptr_write;
+        stream_write_fn f = cookie->ptr_write;
 
-	actual = (*f)(cookie, buf, len);
+        actual = (*f)(cookie, buf, len);
     }
     else {
-	actual = fwrite(buf, len, 1, stream->contents.f);
+        actual = fwrite(buf, len, 1, stream->contents.f);
     }
 
     if (actual > 0) {
-	return actual;
+        return actual;
     }
 
     if (cookie != NULL) {
-	if (cookie->eof == cookie->position) {
-	    CRAISE("Custom stream implementation could write past EOF.");
-	}
-	else {
-	    CRAISE("Custom stream implementation could not complete write.");
-	}
+        if (cookie->eof == cookie->position) {
+            CRAISE("Custom stream implementation could write past EOF.");
+        }
+        else {
+            CRAISE("Custom stream implementation could not complete write.");
+        }
     }
 
     else {
-	if (!feof(stream->contents.f)) {
-	    raise_errcode(ferror(stream->contents.f));
-	}
+        if (!feof(stream->contents.f)) {
+            raise_errcode(ferror(stream->contents.f));
+        }
     }
 
     return 0;
@@ -427,16 +425,16 @@ void
 _stream_write_object(stream_t *stream, object_t obj, bool ansi)
 {
     if (stream->flags & F_STREAM_CLOSED) {
-	CRAISE("Stream is already closed.");
+        CRAISE("Stream is already closed.");
     }
 
     any_str_t *s = con4m_value_obj_repr(obj);
     if (ansi) {
-	ansi_render(s, stream);
+        ansi_render(s, stream);
     }
     else {
-	s = force_utf8(s);
-	stream_raw_write(stream, s->byte_len, s->data);
+        s = force_utf8(s);
+        stream_raw_write(stream, s->byte_len, s->data);
     }
 }
 
@@ -444,13 +442,13 @@ bool
 stream_at_eof(stream_t *stream)
 {
     if (stream->flags & F_STREAM_CLOSED) {
-	return true;
+        return true;
     }
 
     if (stream->flags & F_STREAM_USING_COOKIE) {
-	cookie_t *cookie = stream->contents.cookie;
+        cookie_t *cookie = stream->contents.cookie;
 
-	return cookie->position >= cookie->eof;
+        return cookie->position >= cookie->eof;
     }
 
     return feof(stream->contents.f);
@@ -460,11 +458,11 @@ int64_t
 stream_get_location(stream_t *stream)
 {
     if (stream->flags & F_STREAM_CLOSED) {
-	CRAISE("Stream is already closed.");
+        CRAISE("Stream is already closed.");
     }
 
     if (stream->flags & F_STREAM_USING_COOKIE) {
-	return stream->contents.cookie->position;
+        return stream->contents.cookie->position;
     }
 
     return ftell(stream->contents.f);
@@ -474,43 +472,43 @@ void
 stream_set_location(stream_t *stream, int64_t offset)
 {
     if (stream->flags & F_STREAM_CLOSED) {
-	CRAISE("Stream is already closed.");
+        CRAISE("Stream is already closed.");
     }
 
     if (stream->flags & F_STREAM_USING_COOKIE) {
-	cookie_t *cookie = stream->contents.cookie;
+        cookie_t *cookie = stream->contents.cookie;
 
-	if (offset < 0) {
-	    offset += cookie->eof;
-	}
+        if (offset < 0) {
+            offset += cookie->eof;
+        }
 
-	stream_seek_fn fn = cookie->ptr_seek;
+        stream_seek_fn fn = cookie->ptr_seek;
 
-	if (fn == NULL) {
-	    CRAISE("Custom stream does not have the ability to seek.");
-	}
+        if (fn == NULL) {
+            CRAISE("Custom stream does not have the ability to seek.");
+        }
 
-	if ((*fn)(cookie, offset) == false) {
-	    CRAISE("Seek position out of bounds for stream.");
-	}
+        if ((*fn)(cookie, offset) == false) {
+            CRAISE("Seek position out of bounds for stream.");
+        }
     }
 
     else {
-	int result;
+        int result;
 
-	if (offset < 0) {
-	    offset *= -1;
+        if (offset < 0) {
+            offset *= -1;
 
-	    result = fseek(stream->contents.f, offset, SEEK_END);
-	}
-	else {
-	    result = fseek(stream->contents.f, offset, SEEK_SET);
-	}
+            result = fseek(stream->contents.f, offset, SEEK_END);
+        }
+        else {
+            result = fseek(stream->contents.f, offset, SEEK_SET);
+        }
 
-	if (result != 0) {
-	    stream->flags = F_STREAM_CLOSED;
-	    raise_errno();
-	}
+        if (result != 0) {
+            stream->flags = F_STREAM_CLOSED;
+            raise_errno();
+        }
     }
 }
 
@@ -518,23 +516,23 @@ void
 stream_close(stream_t *stream)
 {
     if (stream->flags & F_STREAM_USING_COOKIE) {
-	cookie_t *cookie = stream->contents.cookie;
+        cookie_t *cookie = stream->contents.cookie;
 
-	stream_close_fn fn = cookie->ptr_close;
+        stream_close_fn fn = cookie->ptr_close;
 
-	cookie->flags = F_STREAM_CLOSED;
+        cookie->flags = F_STREAM_CLOSED;
 
-	if (fn) {
-	    (*fn)(cookie);
-	}
+        if (fn) {
+            (*fn)(cookie);
+        }
     }
 
     else {
-	while (fclose(stream->contents.f) != 0) {
-	    if (errno != EINTR) {
-		break;
-	    }
-	}
+        while (fclose(stream->contents.f) != 0) {
+            if (errno != EINTR) {
+                break;
+            }
+        }
     }
 
     stream->contents.f = NULL;
@@ -545,23 +543,22 @@ void
 stream_flush(stream_t *stream)
 {
     if (stream->flags & F_STREAM_CLOSED) {
-	CRAISE("Stream is already closed.");
+        CRAISE("Stream is already closed.");
     }
 
     if (stream->flags & F_STREAM_USING_COOKIE) {
-	return; // Not actually buffering ATM.
+        return; // Not actually buffering ATM.
     }
 
     if (fflush(stream->contents.f)) {
-	stream->flags = F_STREAM_CLOSED;
-	raise_errno();
+        stream->flags = F_STREAM_CLOSED;
+        raise_errno();
     }
 }
 
 void
 _print(object_t first, ...)
 {
-
     va_list      args;
     object_t     cur     = first;
     karg_info_t *_karg   = NULL;
@@ -577,76 +574,75 @@ _print(object_t first, ...)
     va_start(args, first);
 
     if (first == NULL) {
-	stream_putc(get_stdout(), '\n');
-	return;
+        stream_putc(get_stdout(), '\n');
+        return;
     }
 
     if (get_my_type(first) == tspec_kargs()) {
-	_karg   = first;
-	numargs = 0;
+        _karg   = first;
+        numargs = 0;
     }
     else {
-	_karg = get_kargs_and_count(args, &numargs);
-	numargs++;
+        _karg = get_kargs_and_count(args, &numargs);
+        numargs++;
     }
 
     if (_karg != NULL) {
-	if (!kw_ptr("stream", stream)) {
-	    stream = get_stdout();
-	}
-	kw_codepoint("sep", sep);
+        if (!kw_ptr("stream", stream)) {
+            stream = get_stdout();
+        }
+        kw_codepoint("sep", sep);
 
-	kw_codepoint("end", end);
-	kw_bool("flush", flush);
+        kw_codepoint("end", end);
+        kw_bool("flush", flush);
 
-	if (!kw_bool("force_color", force)) {
-	    kw_bool("no_color", nocolor);
-	}
-	else {
-	    if (kw_bool("no_color", nocolor)) {
-		CRAISE("Cannot specify `force_color` and `no_color` together.");
-	    }
-	}
+        if (!kw_bool("force_color", force)) {
+            kw_bool("no_color", nocolor);
+        }
+        else {
+            if (kw_bool("no_color", nocolor)) {
+                CRAISE("Cannot specify `force_color` and `no_color` together.");
+            }
+        }
     }
 
     if (stream == NULL) {
-	stream = get_stdout();
+        stream = get_stdout();
     }
     if (force) {
-	ansi = true;
+        ansi = true;
     }
     else {
-	if (nocolor) {
-	    ansi = false;
-	}
-	else {
-	    int fno = stream_fileno(stream);
+        if (nocolor) {
+            ansi = false;
+        }
+        else {
+            int fno = stream_fileno(stream);
 
-	    if (fno == -1 || !isatty(fno)) {
-		ansi = false;
-	    }
-	    else {
-		ansi = true;
-	    }
-	}
+            if (fno == -1 || !isatty(fno)) {
+                ansi = false;
+            }
+            else {
+                ansi = true;
+            }
+        }
     }
 
     for (int i = 0; i < numargs; i++) {
+        if (i && sep) {
+            stream_putcp(stream, sep);
+        }
 
-	if (i && sep) {
-	    stream_putcp(stream, sep);
-	}
-
-	stream_write_object(stream, cur, ansi);
-	cur = va_arg(args, object_t);
+        stream_write_object(stream, cur, ansi);
+        cur = va_arg(args, object_t);
     }
 
     if (end) {
-	stream_putcp(stream, end);
+        stream_putcp(stream, end);
     }
 
     if (flush) {
-	stream_flush(stream);
+        stream_flush(stream);
     }
 
     va_end(args);
@@ -655,7 +651,6 @@ _print(object_t first, ...)
 const con4m_vtable stream_vtable = {
     .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
-	(con4m_vtable_entry)stream_init,
-	NULL, // Aboslutelty nothing else.
-    }
-};
+        (con4m_vtable_entry)stream_init,
+        NULL, // Aboslutelty nothing else.
+    }};

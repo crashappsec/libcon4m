@@ -13,12 +13,12 @@ typedef struct type_spec_t {
     // multi-threaded (not sure that it would actually ever be necessary.)
     // But each type spec will always get a unique details node.
 
-    type_t          typeid;
+    type_t typeid;
     type_details_t *details;
 } type_spec_t;
 
 typedef struct type_details_t {
-    char          *name;  // Obj type name or type var name
+    char          *name; // Obj type name or type var name
     dt_info       *base_type;
     xlist_t       *items;
     struct dict_t *props; // Object properties. maps name to type node.
@@ -30,14 +30,13 @@ typedef struct type_details_t {
     // Basically think of locked types as fully resolved in one
     // universe, but being copied over into others.
 
-    uint8_t        flags;
+    uint8_t flags;
 } type_details_t;
 
 #define FN_TY_VARARGS 1
 #define FN_TY_LOCK    2
 
-
 typedef struct {
-    struct dict_t *store;
+    struct dict_t   *store;
     _Atomic uint64_t next_tid;
 } type_env_t;

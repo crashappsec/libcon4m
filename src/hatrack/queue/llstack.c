@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  *  Name:           llstack.c
- *  Description:    A lock-free, linked-list based stack, primarily for 
+ *  Description:    A lock-free, linked-list based stack, primarily for
  *                  reference.
  *
  *                  This is basically the "classic" lock-free
@@ -30,7 +30,7 @@ llstack_t *
 llstack_new(void)
 {
     llstack_t *ret;
-    
+
     ret = (llstack_t *)malloc(sizeof(llstack_t));
 
     llstack_init(ret);
@@ -54,8 +54,8 @@ llstack_cleanup(llstack_t *self)
     bool found;
 
     do {
-	llstack_pop(self, &found);
-    } while(found);
+        llstack_pop(self, &found);
+    } while (found);
 
     return;
 }
@@ -76,17 +76,17 @@ llstack_push(llstack_t *self, void *item)
     llstack_node_t *head;
 
     mmm_start_basic_op();
-    
+
     node       = mmm_alloc_committed(sizeof(llstack_node_t));
     head       = atomic_read(&self->head);
     node->item = item;
 
     do {
-	node->next = head;
+        node->next = head;
     } while (!CAS(&self->head, &head, node));
 
     mmm_end_op();
-    
+
     return;
 }
 
@@ -95,24 +95,25 @@ llstack_pop(llstack_t *self, bool *found)
 {
     llstack_node_t *old_head;
     void           *ret;
-    
+
     mmm_start_basic_op();
 
     old_head = atomic_read(&self->head);
 
-    while (old_head && !CAS(&self->head, &old_head, old_head->next));
+    while (old_head && !CAS(&self->head, &old_head, old_head->next))
+        ;
 
     if (!old_head) {
-	if (found) {
-	    *found = false;
-	}
+        if (found) {
+            *found = false;
+        }
 
-	mmm_end_op();
-	return NULL;
+        mmm_end_op();
+        return NULL;
     }
 
     if (found) {
-	*found = true;
+        *found = true;
     }
 
     ret = old_head->item;

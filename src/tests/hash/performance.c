@@ -24,7 +24,7 @@
 #include <string.h>
 
 #ifdef __MACH__
-_Bool clock_service_inited = false;
+_Bool        clock_service_inited = false;
 clock_serv_t clock_service;
 #endif
 
@@ -88,8 +88,7 @@ static duration_t stop_times[HATRACK_THREADS_MAX];
 #define calculate_num_test_keys(n) hatrack_round_up_to_power_of_2(n)
 
 // Internal enumeration used for the op distribution.
-enum
-{
+enum {
     OP_READ,
     OP_PUT,
     OP_ADD,
@@ -121,11 +120,11 @@ enum
 #define FMT_RNG      "RNG?:          %s"
 #define FMT_COL_SEP  " %-25s"
 
-#define output_cell(fmt, ...)                                                  \
-    snprintf(buf, COL_WIDTH, fmt, __VA_ARGS__);                                \
-    fprintf(stderr, FMT_COL_SEP, buf);                                         \
-    if (!(++i % num_cols)) {                                                   \
-        fputc('\n', stderr);                                                   \
+#define output_cell(fmt, ...)                   \
+    snprintf(buf, COL_WIDTH, fmt, __VA_ARGS__); \
+    fprintf(stderr, FMT_COL_SEP, buf);          \
+    if (!(++i % num_cols)) {                    \
+        fputc('\n', stderr);                    \
     }
 
 static void
@@ -575,12 +574,12 @@ performance_report(char *hat, benchmark_t *config, duration_t *start)
 {
     double cur, min, max;
 
-    min   = 0;
-    max   = 0;
+    min = 0;
+    max = 0;
 
     for (int i = 0; i < HATRACK_THREADS_MAX; i++) {
         if (stop_times[i].tv_sec || stop_times[i].tv_nsec) {
-            cur   = time_diff(&stop_times[i], start);
+            cur = time_diff(&stop_times[i], start);
 
             if (!min || cur < min) {
                 min = cur;
@@ -607,13 +606,13 @@ performance_report(char *hat, benchmark_t *config, duration_t *start)
 void
 run_performance_test(benchmark_t *config)
 {
-    int             i = 0;
-    unsigned int    j;
-    uint64_t        ops_per_thread;
-    uint32_t        tstep;
-    pthread_t       threads[config->num_threads];
-    duration_t      sspec;
-    alg_info_t     *alg_info;
+    int          i = 0;
+    unsigned int j;
+    uint64_t     ops_per_thread;
+    uint32_t     tstep;
+    pthread_t    threads[config->num_threads];
+    duration_t   sspec;
+    alg_info_t  *alg_info;
 
     key_mod_mask = calculate_num_test_keys(config->key_range) - 1;
 

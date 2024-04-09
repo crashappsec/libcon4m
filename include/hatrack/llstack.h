@@ -33,7 +33,7 @@ struct llstack_node_t {
 };
 
 typedef struct {
-    _Atomic (llstack_node_t *) head;
+    _Atomic(llstack_node_t *) head;
 } llstack_t;
 
 // clang-format off

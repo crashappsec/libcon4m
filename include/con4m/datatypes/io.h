@@ -3,12 +3,15 @@
 #include <con4m.h>
 
 #define DEFAULT_HEAP_SIZE (256)
-#define SB_ALLOC_LEN (PIPE_BUF + sizeof(struct sb_msg_t))
-#define SB_MSG_LEN PIPE_BUF
+#define SB_ALLOC_LEN      (PIPE_BUF + sizeof(struct sb_msg_t))
+#define SB_MSG_LEN        PIPE_BUF
 
-typedef enum
-{ PT_STRING = 1, PT_FD = 2, PT_LISTENER = 4, PT_CALLBACK = 8} party_e;
-
+typedef enum {
+    PT_STRING   = 1,
+    PT_FD       = 2,
+    PT_LISTENER = 4,
+    PT_CALLBACK = 8
+} party_e;
 
 typedef void (*switchboard_cb_t)(void *, void *, char *, size_t);
 typedef void (*accept_cb_decl)(void *, int fd, struct sockaddr *, socklen_t *);
@@ -91,10 +94,10 @@ typedef struct {
  * For strings being piped into a process, pipe or whatever.
  */
 typedef struct {
-    char   *strbuf;
-    bool    free_on_close;      // Did we take ownership of the str?
-    size_t  len;                // Total length of strbuf.
-    bool    close_fd_when_done; // Close the fd after writing?
+    char  *strbuf;
+    bool   free_on_close;      // Did we take ownership of the str?
+    size_t len;                // Total length of strbuf.
+    bool   close_fd_when_done; // Close the fd after writing?
 } str_src_party_t;
 
 /*
@@ -103,10 +106,10 @@ typedef struct {
  */
 typedef struct {
     char  *strbuf;
-    size_t len;            // Length allocated for strbuf
-    size_t ix;             // Current length; next write at strbuf + ix
-    char  *tag;            // Used when returning.
-    size_t step;           // Step for alloc length
+    size_t len;  // Length allocated for strbuf
+    size_t ix;   // Current length; next write at strbuf + ix
+    char  *tag;  // Used when returning.
+    size_t step; // Step for alloc length
 } str_dst_party_t;
 
 /*
@@ -215,57 +218,56 @@ typedef struct {
  * transparent to the user; everything should be dealt with via API.
  */
 typedef struct switchboard_t {
-    struct timeval   *io_timeout_ptr;
-    struct timeval    io_timeout;
-    progress_cb_decl  progress_callback;
-    bool              progress_on_timeout_only;
-    bool              done;
-    fd_set            readset;
-    fd_set            writeset;
-    int               max_fd;
-    int               fds_ready;
-    party_t          *parties_for_reading;
-    party_t          *parties_for_writing;
-    party_t          *party_loners;
-    monitor_t        *pid_watch_list;
-    sb_msg_t         *freelist;
-    sb_heap_t        *heap;
-    size_t            heap_elems;
-    void             *extra;
-    bool              ignore_running_procs_on_shutdown;
+    struct timeval  *io_timeout_ptr;
+    struct timeval   io_timeout;
+    progress_cb_decl progress_callback;
+    bool             progress_on_timeout_only;
+    bool             done;
+    fd_set           readset;
+    fd_set           writeset;
+    int              max_fd;
+    int              fds_ready;
+    party_t         *parties_for_reading;
+    party_t         *parties_for_writing;
+    party_t         *party_loners;
+    monitor_t       *pid_watch_list;
+    sb_msg_t        *freelist;
+    sb_heap_t       *heap;
+    size_t           heap_elems;
+    void            *extra;
+    bool             ignore_running_procs_on_shutdown;
 } switchboard_t;
-
 
 typedef sb_result_t sp_result_t;
 
 typedef struct {
-    switchboard_t   sb;
-    bool            run;
-    int             signal_fd;
-    int             pty_fd;
-    bool            pty_stdin_pipe;
-    bool            proxy_stdin_close;
-    bool            use_pty;
-    bool            str_waiting;
-    char           *cmd;
-    char          **argv;
-    char          **envp;
-    char           *path;
-    char            passthrough;
-    bool            pt_all_to_stdout;
-    char            capture;
-    bool            combine_captures;  // Combine stdout / err and termout
-    party_t         str_stdin;
-    party_t         parent_stdin;
-    party_t         parent_stdout;
-    party_t         parent_stderr;
-    party_t         subproc_stdin;
-    party_t         subproc_stdout;
-    party_t         subproc_stderr;
-    party_t         capture_stdin;
-    party_t         capture_stdout;
-    party_t         capture_stderr;
-    void            (*startup_callback)(void *);
+    switchboard_t sb;
+    bool          run;
+    int           signal_fd;
+    int           pty_fd;
+    bool          pty_stdin_pipe;
+    bool          proxy_stdin_close;
+    bool          use_pty;
+    bool          str_waiting;
+    char         *cmd;
+    char        **argv;
+    char        **envp;
+    char         *path;
+    char          passthrough;
+    bool          pt_all_to_stdout;
+    char          capture;
+    bool          combine_captures; // Combine stdout / err and termout
+    party_t       str_stdin;
+    party_t       parent_stdin;
+    party_t       parent_stdout;
+    party_t       parent_stderr;
+    party_t       subproc_stdin;
+    party_t       subproc_stdout;
+    party_t       subproc_stderr;
+    party_t       capture_stdin;
+    party_t       capture_stdout;
+    party_t       capture_stderr;
+    void (*startup_callback)(void *);
     sb_result_t     result;
     struct termios  saved_termcap;
     struct termios *parent_termcap;
@@ -273,20 +275,19 @@ typedef struct {
     struct dcb_t   *deferred_cbs;
 } subprocess_t;
 
-#define SP_IO_STDIN     1
-#define SP_IO_STDOUT    2
-#define SP_IO_STDERR    4
-#define SP_IO_ALL       7
-#define CAP_ALLOC       16 // In # of PIPE_BUF sized chunks
+#define SP_IO_STDIN  1
+#define SP_IO_STDOUT 2
+#define SP_IO_STDERR 4
+#define SP_IO_ALL    7
+#define CAP_ALLOC    16 // In # of PIPE_BUF sized chunks
 
 // These are the real signatures.
-typedef void (*accept_cb_t)(struct switchboard_t *, int fd,
-			    struct sockaddr *, socklen_t *);
+typedef void (*accept_cb_t)(struct switchboard_t *, int fd, struct sockaddr *, socklen_t *);
 typedef bool (*progress_cb_t)(struct switchboard_t *);
 
 typedef struct dcb_t {
-    struct dcb_t       *next;
-    unsigned char       which;
-    switchboard_cb_t    cb;
-    party_t            *to_free;
+    struct dcb_t    *next;
+    unsigned char    which;
+    switchboard_cb_t cb;
+    party_t         *to_free;
 } deferred_cb_t;

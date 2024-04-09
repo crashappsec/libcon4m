@@ -2,9 +2,8 @@
 
 #include <con4m.h>
 
-
 extern type_spec_t *resolve_type_aliases(type_spec_t *, type_env_t *);
-extern bool type_spec_is_concrete(type_spec_t *);
+extern bool         type_spec_is_concrete(type_spec_t *);
 extern type_spec_t *type_spec_copy(type_spec_t *node, type_env_t *env);
 extern type_spec_t *get_builtin_type(con4m_builtin_t);
 extern type_spec_t *unify(type_spec_t *, type_spec_t *, type_env_t *);
@@ -51,7 +50,6 @@ type_spec_get_type_kind(type_spec_t *n)
     return n->details->base_type->base;
 }
 
-
 static inline xlist_t *
 type_spec_get_params(type_spec_t *n)
 {
@@ -78,7 +76,7 @@ typeid_get_param(type_t tid, int64_t ix, type_env_t *env)
     type_spec_t *kid = xlist_get(n->details->items, ix, NULL);
 
     if (kid == NULL) {
-	return T_TYPE_ERROR;
+        return T_TYPE_ERROR;
     }
 
     return kid->typeid;
@@ -396,7 +394,6 @@ tspec_stream()
     return builtin_types[T_STREAM];
 }
 
-
 static inline type_spec_t *
 tspec_kargs()
 {
@@ -429,20 +426,19 @@ tspecs_are_compat(type_spec_t *t1, type_spec_t *t2)
     t1 = global_copy(t1);
     t2 = global_copy(t2);
 
-    return ! type_spec_is_error(global_type_check(t1, t2));
+    return !type_spec_is_error(global_type_check(t1, t2));
 }
 
 static inline type_spec_t *
 tspec_tuple_from_xlist(xlist_t *item_types)
 {
-    type_spec_t *result   = con4m_new(tspec_typespec(), global_type_env,
-				      T_TUPLE);
+    type_spec_t *result   = con4m_new(tspec_typespec(), global_type_env, T_TUPLE);
     xlist_t     *res_list = result->details->items;
 
     int n = xlist_len(item_types);
 
     for (int i = 0; i < n; i++) {
-	xlist_append(res_list, xlist_get(item_types, i, NULL));
+        xlist_append(res_list, xlist_get(item_types, i, NULL));
     }
 
     return result;
@@ -452,7 +448,7 @@ static inline bool
 tspec_is_int_type(type_spec_t *t)
 {
     if (t == NULL) {
-	return false;
+        return false;
     }
 
     switch (t->typeid) {
@@ -463,8 +459,8 @@ tspec_is_int_type(type_spec_t *t)
     case T_U32:
     case T_INT:
     case T_UINT:
-	return true;
+        return true;
     default:
-	return false;
+        return false;
     }
 }

@@ -8,8 +8,8 @@ static inline void *
 double_to_ptr(double d)
 {
     union {
-	double  d;
-	int64_t i;
+        double  d;
+        int64_t i;
     } u;
 
     u.d = d;
@@ -21,8 +21,8 @@ static inline double
 ptr_to_double(void *p)
 {
     union {
-	double  d;
-	int64_t i;
+        double  d;
+        int64_t i;
     } u;
 
     u.i = (int64_t)p;

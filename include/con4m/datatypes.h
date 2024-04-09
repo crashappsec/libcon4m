@@ -21,7 +21,6 @@
 #include <con4m/datatypes/callbacks.h>
 #include <con4m/datatypes/streams.h>
 
-
 typedef any_str_t *(*repr_fn)(object_t, to_str_use_t);
 typedef void (*marshal_fn)(object_t, stream_t *, struct dict_t *, int64_t *);
 typedef void (*unmarshal_fn)(object_t, stream_t *, struct dict_t *);
@@ -36,5 +35,4 @@ typedef bool (*can_coerce_fn)(type_spec_t *, type_spec_t *);
 typedef void *(*coerce_fn)(void *, type_spec_t *);
 typedef bool (*cmp_fn)(object_t, object_t);
 typedef object_t (*literal_fn)(char *, syntax_t, char *, lit_error_t *);
-typedef object_t (*container_lit_fn)(type_spec_t *, object_t *, syntax_t,
-				     char *);
+typedef object_t (*container_lit_fn)(type_spec_t *, object_t *, syntax_t, char *);

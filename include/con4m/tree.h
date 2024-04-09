@@ -2,7 +2,7 @@
 
 #include <con4m.h>
 
-extern xlist_t *tree_children(tree_node_t *);
+extern xlist_t     *tree_children(tree_node_t *);
 extern tree_node_t *tree_get_child(tree_node_t *, int64_t);
 extern tree_node_t *tree_add_node(tree_node_t *, void *);
 

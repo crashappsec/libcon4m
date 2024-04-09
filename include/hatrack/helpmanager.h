@@ -65,9 +65,9 @@ typedef void (*helper_func)(void *, help_record_t *, uint64_t);
 static help_record_t thread_records[HATRACK_THREADS_MAX];
 
 typedef struct {
-    void                *parent;
-    helper_func         *vtable;
-    capq_t               capq;
+    void        *parent;
+    helper_func *vtable;
+    capq_t       capq;
 } help_manager_t;
 
 static inline void *
@@ -76,7 +76,6 @@ hatrack_help_get_parent(help_manager_t *manager)
     return manager->parent;
 }
 
-void  hatrack_help_init    (help_manager_t *, void *, helper_func *, bool);
+void  hatrack_help_init(help_manager_t *, void *, helper_func *, bool);
 void *hatrack_perform_wf_op(help_manager_t *, uint64_t, void *, void *, bool *);
-void  hatrack_complete_help(help_manager_t *, help_record_t *, int64_t, void *,
-			    bool);
+void  hatrack_complete_help(help_manager_t *, help_record_t *, int64_t, void *, bool);

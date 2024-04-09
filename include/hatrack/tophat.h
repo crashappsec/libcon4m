@@ -129,8 +129,7 @@
  *            TOPHAT_T_CONSISTENT_LOCKING   is ballcap
  *            TOPHAT_T_CONSISTENT_WAIT_FREE is woolhat
  */
-typedef enum
-{
+typedef enum {
     TOPHAT_T_FAST_LOCKING,
     TOPHAT_T_FAST_WAIT_FREE,
     TOPHAT_T_CONSISTENT_LOCKING,

@@ -35,7 +35,6 @@
 
 #include <hatrack.h>
 
-
 #define QUEUE_HELP_VALUE 1 << QUEUE_HELP_STEPS
 
 // clang-format off

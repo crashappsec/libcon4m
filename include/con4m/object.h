@@ -32,31 +32,31 @@ get_base_type_name(const object_t user_object)
 // in object.c
 extern const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS];
 
-#define con4m_new(tid, ...) _con4m_new(tid, KFUNC(__VA_ARGS__))
+#define con4m_new(tid, ...)         _con4m_new(tid, KFUNC(__VA_ARGS__))
 #define con4m_stack_alloc(tid, ...) _con4m_stack_alloc(tid, KFUNC(__VA_ARGS__))
 
-extern object_t _con4m_new(type_spec_t *type,  ...);
-extern object_t _con4m_stack_alloc(type_spec_t *type,  ...);
+extern object_t  _con4m_new(type_spec_t *type, ...);
+extern object_t  _con4m_stack_alloc(type_spec_t *type, ...);
 extern uint64_t *gc_get_ptr_info(con4m_builtin_t);
 
 extern any_str_t *con4m_repr(void *, type_spec_t *, to_str_use_t);
 extern bool       con4m_can_coerce(type_spec_t *, type_spec_t *);
 extern object_t   con4m_coerce(void *, type_spec_t *, type_spec_t *);
 
-extern object_t con4m_copy_object(object_t);
-extern object_t con4m_add(object_t, object_t);
-extern object_t con4m_sub(object_t, object_t);
-extern object_t con4m_mul(object_t, object_t);
-extern object_t con4m_div(object_t, object_t);
-extern object_t con4m_mod(object_t, object_t);
-extern bool     con4m_eq(type_spec_t *, object_t, object_t);
-extern bool     con4m_lt(type_spec_t *, object_t, object_t);
-extern bool     con4m_gt(type_spec_t *, object_t, object_t);
-extern int64_t con4m_len(object_t);
-extern object_t con4m_index_get(object_t, object_t);
-extern void con4m_index_set(object_t, object_t, object_t);
-extern object_t con4m_slice_get(object_t, int64_t, int64_t);
-extern void con4m_slice_set(object_t, int64_t, int64_t, object_t);
+extern object_t   con4m_copy_object(object_t);
+extern object_t   con4m_add(object_t, object_t);
+extern object_t   con4m_sub(object_t, object_t);
+extern object_t   con4m_mul(object_t, object_t);
+extern object_t   con4m_div(object_t, object_t);
+extern object_t   con4m_mod(object_t, object_t);
+extern bool       con4m_eq(type_spec_t *, object_t, object_t);
+extern bool       con4m_lt(type_spec_t *, object_t, object_t);
+extern bool       con4m_gt(type_spec_t *, object_t, object_t);
+extern int64_t    con4m_len(object_t);
+extern object_t   con4m_index_get(object_t, object_t);
+extern void       con4m_index_set(object_t, object_t, object_t);
+extern object_t   con4m_slice_get(object_t, int64_t, int64_t);
+extern void       con4m_slice_set(object_t, int64_t, int64_t, object_t);
 extern any_str_t *con4m_value_obj_repr(object_t);
 
 extern const uint64_t str_ptr_info[];
@@ -96,6 +96,6 @@ extern const con4m_vtable ipaddr_vtable;
 extern const con4m_vtable stream_vtable;
 extern const con4m_vtable kargs_vtable;
 
-extern const uint64_t     pmap_first_word[2];
-extern const uint64_t     rs_pmap[2];
-extern const uint64_t     exception_pmap[2];
+extern const uint64_t pmap_first_word[2];
+extern const uint64_t rs_pmap[2];
+extern const uint64_t exception_pmap[2];

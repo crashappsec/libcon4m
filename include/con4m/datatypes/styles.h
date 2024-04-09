@@ -4,16 +4,15 @@
 typedef uint64_t style_t;
 
 typedef struct {
-    int32_t  start;
-    int32_t  end;
-    style_t  info;  // 16 bits of flags, 24 bits bg color, 24 bits fg color
+    int32_t start;
+    int32_t end;
+    style_t info; // 16 bits of flags, 24 bits bg color, 24 bits fg color
 } style_entry_t;
 
 typedef struct {
     int64_t       num_entries;
     style_entry_t styles[];
 } style_info_t;
-
 
 #define BORDER_TOP          0x01
 #define BORDER_BOTTOM       0x02
@@ -31,21 +30,21 @@ typedef enum : int8_t {
     ALIGN_BOTTOM = 16,
     ALIGN_MIDDLE = 32,
 
-    ALIGN_TOP_LEFT      = ALIGN_LEFT   | ALIGN_TOP,
-    ALIGN_TOP_RIGHT     = ALIGN_RIGHT  | ALIGN_TOP,
-    ALIGN_TOP_CENTER    = ALIGN_CENTER | ALIGN_TOP,
+    ALIGN_TOP_LEFT   = ALIGN_LEFT | ALIGN_TOP,
+    ALIGN_TOP_RIGHT  = ALIGN_RIGHT | ALIGN_TOP,
+    ALIGN_TOP_CENTER = ALIGN_CENTER | ALIGN_TOP,
 
-    ALIGN_MID_LEFT      = ALIGN_LEFT   | ALIGN_MIDDLE,
-    ALIGN_MID_RIGHT     = ALIGN_RIGHT  | ALIGN_MIDDLE,
-    ALIGN_MID_CENTER    = ALIGN_CENTER | ALIGN_MIDDLE,
+    ALIGN_MID_LEFT   = ALIGN_LEFT | ALIGN_MIDDLE,
+    ALIGN_MID_RIGHT  = ALIGN_RIGHT | ALIGN_MIDDLE,
+    ALIGN_MID_CENTER = ALIGN_CENTER | ALIGN_MIDDLE,
 
-    ALIGN_BOTTOM_LEFT   = ALIGN_LEFT   | ALIGN_BOTTOM,
-    ALIGN_BOTTOM_RIGHT  = ALIGN_RIGHT  | ALIGN_BOTTOM,
+    ALIGN_BOTTOM_LEFT   = ALIGN_LEFT | ALIGN_BOTTOM,
+    ALIGN_BOTTOM_RIGHT  = ALIGN_RIGHT | ALIGN_BOTTOM,
     ALIGN_BOTTOM_CENTER = ALIGN_CENTER | ALIGN_BOTTOM,
 } alignment_t;
 
 #define HORIZONTAL_MASK (ALIGN_LEFT | ALIGN_CENTER | ALIGN_RIGHT)
-#define VERTICAL_MASK (ALIGN_TOP | ALIGN_MIDDLE | ALIGN_BOTTOM )
+#define VERTICAL_MASK   (ALIGN_TOP | ALIGN_MIDDLE | ALIGN_BOTTOM)
 
 typedef enum : uint8_t {
     DIM_UNSET,
@@ -90,16 +89,16 @@ typedef struct {
     color_t         pad_color;
 
     union {
-	float      percent;
-	uint64_t   units;
-	int32_t    range[2];
+        float    percent;
+        uint64_t units;
+        int32_t  range[2];
     } dims;
 
-    int8_t         top_pad;
-    int8_t         bottom_pad;
-    int8_t         left_pad;
-    int8_t         right_pad;
-    int8_t         wrap;
+    int8_t top_pad;
+    int8_t bottom_pad;
+    int8_t left_pad;
+    int8_t right_pad;
+    int8_t wrap;
 
     // Eventually we'll add more in like z-ordering and transparency.
     alignment_t    alignment     : 7;

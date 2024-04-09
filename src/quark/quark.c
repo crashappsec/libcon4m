@@ -2,7 +2,8 @@
 
 #include <quark.h>
 
-__int128_t __atomic_load_16(__int128_t *address)
+__int128_t
+__atomic_load_16(__int128_t *address)
 {
     // My understanding on the x86 is that we can do a direct load,
     // but we might need to deal w/ register pairs. Doesn't much
@@ -15,17 +16,22 @@ __int128_t __atomic_load_16(__int128_t *address)
     return value;
 }
 
-void __atomic_store_16(__int128_t *address, __int128_t new_value) {
+void
+__atomic_store_16(__int128_t *address, __int128_t new_value)
+{
     // This one, we're going to be conservative as well; unless the
     // target memory is 0'd, we'll end up doing at least 2 CAS
     // operations.
 
     __int128_t value = 0;
 
-    while (!__atomic_compare_exchange_16(address, &value, new_value));
+    while (!__atomic_compare_exchange_16(address, &value, new_value))
+        ;
 }
 
-__int128_t __atomic_fetch_or_16(__int128_t *address, __int128_t operand) {
+__int128_t
+__atomic_fetch_or_16(__int128_t *address, __int128_t operand)
+{
     // This one always requires at least 2 CAS ops, since we need to load
     // before we can do the | operation.
 
@@ -35,7 +41,7 @@ __int128_t __atomic_fetch_or_16(__int128_t *address, __int128_t operand) {
 
     do {
         retval = value | operand;
-    } while(!__atomic_compare_exchange_16(address, &value, retval));
+    } while (!__atomic_compare_exchange_16(address, &value, retval));
 
     return retval;
 }

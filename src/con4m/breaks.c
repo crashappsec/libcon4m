@@ -20,7 +20,9 @@ const int minimum_break_slots = 16;
 break_info_t *
 get_grapheme_breaks(const any_str_t *s, int32_t start_ix, int32_t end_ix)
 {
-    if (!s) { return NULL; }
+    if (!s) {
+        return NULL;
+    }
 
     break_info_t *res   = alloc_break_structure(s, 1);
     int32_t       state = 0;
@@ -28,100 +30,103 @@ get_grapheme_breaks(const any_str_t *s, int32_t start_ix, int32_t end_ix)
     int32_t       len;
 
     if (start_ix < 0) {
-	start_ix += cps;
+        start_ix += cps;
     }
 
     if (end_ix <= 0) {
-	end_ix += cps;
+        end_ix += cps;
     }
 
     if (start_ix > cps || end_ix <= start_ix) {
-	return res;
+        return res;
     }
 
     len = end_ix - start_ix;
 
     if (len < 2) {
-	add_break(&res, end_ix);
-	return res;
+        add_break(&res, end_ix);
+        return res;
     }
 
     if (string_is_u32(s)) {
-	int32_t *p1 = ((int32_t *)(s->data)) + start_ix;
-	int32_t *p2 = (int32_t *)(p1 + 1);
-	for (int i = 1; i < len; i++) {
-	    if (utf8proc_grapheme_break_stateful(*p1, *p2, &state)) {
-		add_break(&res, start_ix + i);
-	    }
-	    p1++;
-	    p2++;
-	}
-	return res;
+        int32_t *p1 = ((int32_t *)(s->data)) + start_ix;
+        int32_t *p2 = (int32_t *)(p1 + 1);
+        for (int i = 1; i < len; i++) {
+            if (utf8proc_grapheme_break_stateful(*p1, *p2, &state)) {
+                add_break(&res, start_ix + i);
+            }
+            p1++;
+            p2++;
+        }
+        return res;
     }
     else {
-	int32_t  prev;
-	int32_t  cur;
-	int32_t  i   = 0;
-	uint8_t *p   = (uint8_t *)s->data;
+        int32_t  prev;
+        int32_t  cur;
+        int32_t  i = 0;
+        uint8_t *p = (uint8_t *)s->data;
 
-	while (i <= start_ix) {
-	    p += utf8proc_iterate(p, 4, &prev);
-	    i++;
-	}
+        while (i <= start_ix) {
+            p += utf8proc_iterate(p, 4, &prev);
+            i++;
+        }
 
-	while(i < end_ix) {
-	    p += utf8proc_iterate(p, 4, &cur);
-	    if (utf8proc_grapheme_break_stateful(prev, cur, &state)) {
-		add_break(&res, i);
-	    }
-	    i   += 1;
-	    prev = cur;
-	}
-	return res;
+        while (i < end_ix) {
+            p += utf8proc_iterate(p, 4, &cur);
+            if (utf8proc_grapheme_break_stateful(prev, cur, &state)) {
+                add_break(&res, i);
+            }
+            i += 1;
+            prev = cur;
+        }
+        return res;
     }
 }
 
 static inline bool
-internal_is_line_break(int32_t cp) {
+internal_is_line_break(int32_t cp)
+{
     if (cp == '\n' || cp == '\r') {
-	return true;
+        return true;
     }
 
     switch (utf8proc_category(cp)) {
     case CP_CATEGORY_ZL:
     case CP_CATEGORY_ZP:
-	return true;
+        return true;
     default:
-	return false;
+        return false;
     }
 }
 
 break_info_t *
 get_line_breaks(const any_str_t *s)
 {
-    if (!s) { return NULL; }
+    if (!s) {
+        return NULL;
+    }
 
     break_info_t *res = alloc_break_structure(s, 6); // 2^6 = 64.
     int32_t       l   = string_codepoint_len(s);
 
     if (string_is_u32(s)) {
-	int32_t *p = (int32_t *)(s->data);
-	for (int i = 0; i < l; i++) {
-	    if (internal_is_line_break(p[i])) {
-		add_break(&res, i);
-	    }
-	}
+        int32_t *p = (int32_t *)(s->data);
+        for (int i = 0; i < l; i++) {
+            if (internal_is_line_break(p[i])) {
+                add_break(&res, i);
+            }
+        }
     }
     else {
-	int32_t  cp;
-	uint8_t *p  = (uint8_t *)s->data;
+        int32_t  cp;
+        uint8_t *p = (uint8_t *)s->data;
 
-	for (int i = 0; i < l; i++) {
-	    p += utf8proc_iterate(p, 4, &cp);
-	    if (internal_is_line_break(cp)) {
-		add_break(&res, i);
-	    }
-	}
+        for (int i = 0; i < l; i++) {
+            p += utf8proc_iterate(p, 4, &cp);
+            if (internal_is_line_break(cp)) {
+                add_break(&res, i);
+            }
+        }
     }
     return res;
 }
@@ -129,26 +134,27 @@ get_line_breaks(const any_str_t *s)
 break_info_t *
 get_all_line_break_ops(const any_str_t *s)
 {
-    if (!s) { return NULL; }
+    if (!s) {
+        return NULL;
+    }
 
-    int32_t       l      = string_codepoint_len(s);
-    break_info_t *res    = alloc_break_structure(s, 0);
+    int32_t       l   = string_codepoint_len(s);
+    break_info_t *res = alloc_break_structure(s, 0);
     char         *br_raw;
 
     if (string_is_u32(s)) {
-	br_raw = (char *)con4m_gc_alloc(l, NULL);
-	set_linebreaks_utf32((int32_t *)s->data, l, "en", br_raw);
+        br_raw = (char *)con4m_gc_alloc(l, NULL);
+        set_linebreaks_utf32((int32_t *)s->data, l, "en", br_raw);
     }
     else {
-	br_raw = (char *)con4m_gc_alloc(s->byte_len, NULL);
-	set_linebreaks_utf8_per_code_point((int8_t *)s->data, s->byte_len,
-					   "en", br_raw);
+        br_raw = (char *)con4m_gc_alloc(s->byte_len, NULL);
+        set_linebreaks_utf8_per_code_point((int8_t *)s->data, s->byte_len, "en", br_raw);
     }
 
     for (int i = 0; i < l; i++) {
-	if (br_raw[i] < LB_NOBREAK) {
-	    add_break(&res, i);
-	}
+        if (br_raw[i] < LB_NOBREAK) {
+            add_break(&res, i);
+        }
     }
 
     return res;
@@ -157,15 +163,15 @@ get_all_line_break_ops(const any_str_t *s)
 static int32_t
 find_hwrap(const any_str_t *s, int32_t offset, int32_t width)
 {
-    utf32_t    *str = force_utf32(s);
-    uint32_t   *u32 = (uint32_t *)str->data;
-    int         l   = string_codepoint_len(str);
+    utf32_t  *str = force_utf32(s);
+    uint32_t *u32 = (uint32_t *)str->data;
+    int       l   = string_codepoint_len(str);
 
     for (int i = offset; i < l; i++) {
-	width -= codepoint_width(u32[i]);
-	if (width < 0) {
-	    return i;
-	}
+        width -= codepoint_width(u32[i]);
+        if (width < 0) {
+            return i;
+        }
     }
     return l;
 }
@@ -185,7 +191,7 @@ break_info_t *
 wrap_text(const any_str_t *s, int32_t width, int32_t hang)
 {
     if (width <= 0) {
-	width = max(20, terminal_width());
+        width = max(20, terminal_width());
     }
 
     break_info_t *line_breaks  = get_line_breaks(s);
@@ -202,80 +208,80 @@ wrap_text(const any_str_t *s, int32_t width, int32_t hang)
     int32_t       next_lb;
 
     if (line_breaks->num_breaks == 0) {
-	next_lb = l;
+        next_lb = l;
     }
     else {
-	next_lb = line_breaks->breaks[0];
-	lb_ix   = 1;
+        next_lb = line_breaks->breaks[0];
+        lb_ix   = 1;
     }
 
     add_break(&res, 0);
 
     while (cur_start < l) {
-    find_next_break:
-	last_ok_br = cur_start;
+find_next_break:
+        last_ok_br = cur_start;
 
-	while (bo_ix < break_ops->num_breaks) {
-	    int32_t cur_break = break_ops->breaks[bo_ix];
+        while (bo_ix < break_ops->num_breaks) {
+            int32_t cur_break = break_ops->breaks[bo_ix];
 
-	    if (cur_break >= hard_wrap_ix) {
-		if (last_ok_br == cur_start) {
-		    // No valid break; hard wrap it.
-		    add_break(&res, hard_wrap_ix);
-		    cur_start    = hard_wrap_ix;
-		    hard_wrap_ix = find_hwrap(s, cur_start, hang_width);
-		    goto find_next_break;
-		}
-		else {
-		    add_break(&res, last_ok_br);
-		    cur_start    = last_ok_br;
-		    hard_wrap_ix = find_hwrap(s, cur_start, hang_width);
-		    goto find_next_break;
-		}
-	    }
+            if (cur_break >= hard_wrap_ix) {
+                if (last_ok_br == cur_start) {
+                    // No valid break; hard wrap it.
+                    add_break(&res, hard_wrap_ix);
+                    cur_start    = hard_wrap_ix;
+                    hard_wrap_ix = find_hwrap(s, cur_start, hang_width);
+                    goto find_next_break;
+                }
+                else {
+                    add_break(&res, last_ok_br);
+                    cur_start    = last_ok_br;
+                    hard_wrap_ix = find_hwrap(s, cur_start, hang_width);
+                    goto find_next_break;
+                }
+            }
 
-	    if (next_lb == cur_break) {
-		add_break(&res, next_lb + 1);
-		cur_start = next_lb + 1;
-		hard_wrap_ix = find_hwrap(s, cur_start, hang_width);
-		if (lb_ix == line_breaks->num_breaks) {
-		    next_lb = l;
-		}
-		else {
-		    next_lb = line_breaks->breaks[lb_ix++];
-		}
-		bo_ix++;
-		goto find_next_break;
-	    }
+            if (next_lb == cur_break) {
+                add_break(&res, next_lb + 1);
+                cur_start    = next_lb + 1;
+                hard_wrap_ix = find_hwrap(s, cur_start, hang_width);
+                if (lb_ix == line_breaks->num_breaks) {
+                    next_lb = l;
+                }
+                else {
+                    next_lb = line_breaks->breaks[lb_ix++];
+                }
+                bo_ix++;
+                goto find_next_break;
+            }
 
-	    last_ok_br = cur_break + 1;
-	    bo_ix++;
-	}
-	break;
+            last_ok_br = cur_break + 1;
+            bo_ix++;
+        }
+        break;
     }
 
     while (true) {
-	if (l == cur_start) {
-	    break;
-	}
-	if (l <= hard_wrap_ix) {
-	    break;
-	}
+        if (l == cur_start) {
+            break;
+        }
+        if (l <= hard_wrap_ix) {
+            break;
+        }
 
-	if (last_ok_br > cur_start) {
-	    add_break(&res, last_ok_br);
-	    cur_start    = last_ok_br;
-	    hard_wrap_ix = find_hwrap(s, cur_start, hang_width);
-	}
-	else {
-	    add_break(&res, hard_wrap_ix);
-	    cur_start    = hard_wrap_ix;
-	    hard_wrap_ix = find_hwrap(s, cur_start, hang_width);
-	}
+        if (last_ok_br > cur_start) {
+            add_break(&res, last_ok_br);
+            cur_start    = last_ok_br;
+            hard_wrap_ix = find_hwrap(s, cur_start, hang_width);
+        }
+        else {
+            add_break(&res, hard_wrap_ix);
+            cur_start    = hard_wrap_ix;
+            hard_wrap_ix = find_hwrap(s, cur_start, hang_width);
+        }
     }
 
     if (string_is_u32(s)) {
-	return res;
+        return res;
     }
 
     uint8_t *start = (uint8_t *)s->data;
@@ -285,12 +291,12 @@ wrap_text(const any_str_t *s, int32_t width, int32_t hang)
     int32_t  cp;
 
     while (z < res->num_breaks) {
-	if (i == res->breaks[z]) {
-	    res->breaks[z] = p - start;
-	    z++;
-	}
-	p += utf8proc_iterate(p, 4, &cp);
-	i++;
+        if (i == res->breaks[z]) {
+            res->breaks[z] = p - start;
+            z++;
+        }
+        p += utf8proc_iterate(p, 4, &cp);
+        i++;
     }
 
     return res;

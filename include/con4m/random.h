@@ -21,9 +21,9 @@ con4m_rand64()
 {
     uint64_t res;
 
-    while(getrandom(&res, 8, GRND_NONBLOCK) != 8)
-	// retry on interrupt.
-	;
+    while (getrandom(&res, 8, GRND_NONBLOCK) != 8)
+        // retry on interrupt.
+        ;
 
     return res;
 }

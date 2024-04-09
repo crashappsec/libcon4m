@@ -69,35 +69,34 @@
 #define ALLOW_POINTER_MAPS
 #endif
 
-
 #ifndef CON4M_DEFAULT_ARENA_SIZE
 // 4 Meg
 #define CON4M_DEFAULT_ARENA_SIZE (1 << 26)
 // Was previously using 1 << 19
-//#define CON4M_DEFAULT_ARENA_SIZE 64 // Was using this for extreme tests
+// #define CON4M_DEFAULT_ARENA_SIZE 64 // Was using this for extreme tests
 #endif
 
 // In the future, we would expect that a writer seeing the
 // 'collecting' field will attempt to help migration to minimize
 // time spent waiting, but for the time being, any cross-thread
 // writes to a thread-local heap will involve spinning.
-#define GC_FLAG_COLLECTING           0x00000001
+#define GC_FLAG_COLLECTING 0x00000001
 
 // Whether collection has reached this allocation yet.
-#define GC_FLAG_REACHED              0x00000002
+#define GC_FLAG_REACHED 0x00000002
 
 // Whether collection has finished migrating this allocation and all it's
 // dependencies.
-#define GC_FLAG_MOVED                0x00000004
+#define GC_FLAG_MOVED 0x00000004
 
 // Whether another thread is currently mutating a cross-thread pointer.
-#define GC_FLAG_WRITER_LOCK          0x00000008
+#define GC_FLAG_WRITER_LOCK 0x00000008
 
 // True when the owner is waiting to use the value.
-#define GC_FLAG_OWNER_WAITING        0x00000010
+#define GC_FLAG_OWNER_WAITING 0x00000010
 
 // True when we are freezing everything to marshal memory in toto.
-#define GC_FLAG_GLOBAL_STOP          0x00000020
+#define GC_FLAG_GLOBAL_STOP 0x00000020
 
 // Shouldn't be accessed by developer, but allows us to inline.
 extern uint64_t gc_guard;
@@ -109,8 +108,7 @@ extern void           con4m_collect_arena(con4m_arena_t **);
 extern void          *con4m_gc_alloc(size_t, uint64_t *);
 extern void          *con4m_gc_resize(void *ptr, size_t len);
 extern void           con4m_gc_thread_collect();
-extern void           con4m_arena_register_root(con4m_arena_t *, void *,
-						uint64_t);
+extern void           con4m_arena_register_root(con4m_arena_t *, void *, uint64_t);
 extern void           con4m_gc_register_root(void *ptr, uint64_t num_words);
 extern _Bool          is_read_only_memory(volatile void *);
 
@@ -118,18 +116,19 @@ extern _Bool          is_read_only_memory(volatile void *);
 #ifdef GC_TRACE
 extern int con4m_gc_trace;
 
+extern void trace_on();
+extern void trace_off();
 
-extern  void trace_on();
-extern  void trace_off();
+#define gc_trace(...)                                   \
+    {                                                   \
+        if (con4m_gc_trace) {                           \
+            fprintf(stderr, "gc_trace:%s: ", __func__); \
+            fprintf(stderr, __VA_ARGS__);               \
+            fputc('\n', stderr);                        \
+        }                                               \
+    }
 
-#define gc_trace(...) { if(con4m_gc_trace)  { \
-	    fprintf(stderr, "gc_trace:%s: ", __func__); \
-	fprintf(stderr, __VA_ARGS__); \
-	fputc('\n', stderr); \
-	}		     \
-			}
-
-#define trace_on() con4m_gc_trace = 1
+#define trace_on()  con4m_gc_trace = 1
 #define trace_off() con4m_gc_trace = 0
 
 #else
@@ -143,38 +142,37 @@ round_up_to_given_power_of_2(uint64_t power, uint64_t n)
     uint64_t remainder = n & modulus;
 
     if (!remainder) {
-	return n;
+        return n;
     }
     else {
-	return (n & ~modulus) + power;
+        return (n & ~modulus) + power;
     }
 }
 
 // This currently assumes ptr_map doesn't need more than 64 entries.
 static inline void *
-con4m_alloc_from_arena(con4m_arena_t **arena_ptr, size_t len,
-		  const uint64_t *ptr_map)
+con4m_alloc_from_arena(con4m_arena_t **arena_ptr, size_t len, const uint64_t *ptr_map)
 {
     // Round up to aligned length.
     size_t         wordlen = round_up_to_given_power_of_2(16, len);
     con4m_arena_t *arena   = *arena_ptr;
 
     if (arena == 0) {
-    try_again:
-	con4m_expand_arena(max(CON4M_DEFAULT_ARENA_SIZE, wordlen * 2),
-			   arena_ptr);
-	arena = *arena_ptr;
+try_again:
+        con4m_expand_arena(max(CON4M_DEFAULT_ARENA_SIZE, wordlen * 2),
+                           arena_ptr);
+        arena = *arena_ptr;
     }
 
     con4m_alloc_hdr *raw = arena->next_alloc;
 
     if (raw >= (con4m_alloc_hdr *)arena->heap_end) {
-	goto try_again;
+        goto try_again;
     }
     arena->next_alloc = (con4m_alloc_hdr *)&(raw->data[wordlen]);
 
     if (arena->next_alloc > (con4m_alloc_hdr *)arena->heap_end) {
-	goto try_again;
+        goto try_again;
     }
 
     raw->guard     = gc_guard;
@@ -183,17 +181,21 @@ con4m_alloc_from_arena(con4m_arena_t **arena_ptr, size_t len,
     raw->alloc_len = wordlen;
     raw->ptr_map   = (uint64_t *)ptr_map;
 
-
     if (arena->heap_end < raw->next_addr) {
-	goto try_again;
+        goto try_again;
     }
     gc_trace("new_record:%p-%p:data:%p:len:%zu:arena:%p-%p",
-	     raw, raw->next_addr, raw->data, len, arena, arena->heap_end);
+             raw,
+             raw->next_addr,
+             raw->data,
+             len,
+             arena,
+             arena->heap_end);
 
     return (void *)(raw->data);
 }
 
-#define GC_SCAN_ALL        ((uint64_t *)0xffffffffffffffff)
+#define GC_SCAN_ALL ((uint64_t *)0xffffffffffffffff)
 
 // gc_malloc and gc_alloc_* should only be used for INTERNAL dynamic
 // allocations. Anything that would be exposed to the language user
@@ -206,7 +208,7 @@ con4m_gc_malloc(size_t len)
     return result;
 }
 
-#define gc_flex_alloc(fixed, var, numv, map)   \
+#define gc_flex_alloc(fixed, var, numv, map) \
     (con4m_gc_alloc((size_t)(sizeof(fixed)) + (sizeof(var)) * (numv), (map)))
 
 #define gc_alloc_mapped(typename, map) \
@@ -216,7 +218,7 @@ con4m_gc_malloc(size_t len)
     (con4m_gc_alloc(sizeof(typename), GC_SCAN_ALL))
 
 // Assumes it contains pointers. Call manually if you need otherwise.
-#define gc_array_alloc(typename, n)			\
+#define gc_array_alloc(typename, n) \
     con4m_gc_alloc((sizeof(typename) * n), GC_SCAN_ALL)
 
 #if defined(__linux__)
@@ -243,10 +245,10 @@ static inline void
 get_stack_bounds(uint64_t *top, uint64_t *bottom)
 {
     pthread_t self = pthread_self();
-    *bottom = (uint64_t)pthread_get_stackaddr_np(self);
-    *top    = *bottom - pthread_get_stacksize_np(self);
+    *bottom        = (uint64_t)pthread_get_stackaddr_np(self);
+    *top           = *bottom - pthread_get_stacksize_np(self);
 }
 #endif
 
-extern void get_stack_scan_region(uint64_t *top, uint64_t *bottom);
+extern void                              get_stack_scan_region(uint64_t *top, uint64_t *bottom);
 extern __attribute__((constructor)) void initialize_gc();

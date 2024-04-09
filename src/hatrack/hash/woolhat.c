@@ -330,7 +330,7 @@ woolhat_view(woolhat_t *self, uint64_t *out_num, bool sort)
     p     = view;
 
     while (cur < end) {
-	state = atomic_read(&cur->state);
+        state = atomic_read(&cur->state);
         rec   = state.head;
 
         if (rec) {
@@ -421,8 +421,8 @@ woolhat_view_epoch(woolhat_t *self, uint64_t *out_num, uint64_t epoch)
     p         = view;
 
     while (cur < end) {
-	state = atomic_read(&cur->state);
-	rec   = state.head;
+        state = atomic_read(&cur->state);
+        rec   = state.head;
 
         if (rec) {
             mmm_help_commit(rec);
@@ -522,9 +522,8 @@ found_history_bucket:
     head  = state.head;
 
     if (head && !head->deleted) {
-
 #ifndef WOOLHAT_DONT_LINEARIZE_GET
-	mmm_help_commit(head);
+        mmm_help_commit(head);
 #endif
 
         return hatrack_found(found, head->item);
@@ -648,9 +647,10 @@ found_history_bucket:
      * an unmarked deletion record.
      */
     if ((state.flags & WOOLHAT_F_DELETE_HELP) || (head && head->deleted)) {
-	deletion_below = true;
-    } else {
-	deletion_below = false;
+        deletion_below = true;
+    }
+    else {
+        deletion_below = false;
     }
 
     newhead         = mmm_alloc(sizeof(woolhat_record_t));
@@ -666,13 +666,11 @@ found_history_bucket:
             goto migrate_and_retry;
         }
 
-	return hatrack_found(found, item);
+        return hatrack_found(found, item);
     }
 
     mmm_commit_write(newhead);
     woolhat_set_ordering(newhead, deletion_below);
-
-
 
     if (top->cleanup_func) {
         mmm_add_cleanup_handler(newhead, top->cleanup_func, top->cleanup_aux);
@@ -680,19 +678,19 @@ found_history_bucket:
 
     if (!head) {
         atomic_fetch_add(&top->item_count, 1);
-	return hatrack_not_found(found);
+        return hatrack_not_found(found);
     }
 
     mmm_retire(head);
 
     if (deletion_below) {
-	/* We 'helped' delete, but we don't need to bump
-	 * the length, because we re-inserted in the same breath.
-	 */
-	if (!(state.flags & WOOLHAT_F_DELETE_HELP)) {
-	    atomic_fetch_add(&top->item_count, 1);
-	}
-	return hatrack_not_found(found);
+        /* We 'helped' delete, but we don't need to bump
+         * the length, because we re-inserted in the same breath.
+         */
+        if (!(state.flags & WOOLHAT_F_DELETE_HELP)) {
+            atomic_fetch_add(&top->item_count, 1);
+        }
+        return hatrack_not_found(found);
     }
 
     return hatrack_found(found, head->item);
@@ -755,7 +753,7 @@ found_history_bucket:
      * there's a migration in progress or not, we can short-circuit.
      */
     if (head->deleted) {
-	return hatrack_not_found(found);
+        return hatrack_not_found(found);
     }
 
     if (state.flags & WOOLHAT_F_MOVING) {
@@ -780,43 +778,43 @@ migrate_and_retry:
     }
 
     if (state.flags & WOOLHAT_F_DELETE_HELP) {
-	/* We need to attempt to help this delete out; we will always
-	 * order ourselves immediately after the delete, as long as we
-	 * know the delete succeeded before a migration happened.
-	 *
-	 * If we fail, either there's a migration in progress where
-	 * everyone is helping, or someone successfully managed to
-	 * install the deletion, in which case we will linearize
-	 * ourselves to the successful deletion, meaning we will
-	 * return failure.
-	 */
+        /* We need to attempt to help this delete out; we will always
+         * order ourselves immediately after the delete, as long as we
+         * know the delete succeeded before a migration happened.
+         *
+         * If we fail, either there's a migration in progress where
+         * everyone is helping, or someone successfully managed to
+         * install the deletion, in which case we will linearize
+         * ourselves to the successful deletion, meaning we will
+         * return failure.
+         */
 
-	newhead          = mmm_alloc(sizeof(woolhat_record_t));
-	newhead->next    = head;
-	newhead->deleted = true;
-	candidate.head   = newhead;
-	candidate.flags  = 0;
+        newhead          = mmm_alloc(sizeof(woolhat_record_t));
+        newhead->next    = head;
+        newhead->deleted = true;
+        candidate.head   = newhead;
+        candidate.flags  = 0;
 
-	if (!CAS(&bucket->state, &state, candidate)) {
-	    if (state.flags & WOOLHAT_F_MOVING) {
-		goto migrate_and_retry;
-	    }
-	    /* Here, we got beaten to installing the delete,
-	     * whether it was an explicit deletion via a call to
-	     * store_delete, or an implicit call because a put or add
-	     * noticed the need for help, and helped.
-	     *
-	     * Still, we linearize ourselves to the time of the delete.
-	     *
-	     * That is, if a delete was pending, and our 'replace' and
-	     * an 'add' were also competing, the sequence becomes the
-	     * 'delete', the 'replace' (which fails), and then the
-	     * 'add'.
-	     */
-	    mmm_retire_unused(newhead);
-	}
+        if (!CAS(&bucket->state, &state, candidate)) {
+            if (state.flags & WOOLHAT_F_MOVING) {
+                goto migrate_and_retry;
+            }
+            /* Here, we got beaten to installing the delete,
+             * whether it was an explicit deletion via a call to
+             * store_delete, or an implicit call because a put or add
+             * noticed the need for help, and helped.
+             *
+             * Still, we linearize ourselves to the time of the delete.
+             *
+             * That is, if a delete was pending, and our 'replace' and
+             * an 'add' were also competing, the sequence becomes the
+             * 'delete', the 'replace' (which fails), and then the
+             * 'add'.
+             */
+            mmm_retire_unused(newhead);
+        }
 
-	return hatrack_not_found(found);
+        return hatrack_not_found(found);
     }
 
     if (head->deleted) {
@@ -933,7 +931,7 @@ found_history_bucket:
     head  = state.head;
 
     if (head) {
-	mmm_help_commit(head);
+        mmm_help_commit(head);
     }
 
     if (state.flags & WOOLHAT_F_MOVING) {
@@ -955,24 +953,23 @@ found_history_bucket:
 
     if (!CAS(&bucket->state, &state, candidate)) {
         mmm_retire_unused(newhead);
-	/* If our 'add' lost, the possible cases are:
-	 *
-	 * 1) There was a migration, in which case we retry.
-	 * 2) We attempted to overwrite a deletion record, in which
-	 *    case, someone beat us to it, so we consider the failed CAS
-	 *    the linearization point, ordering ourselves after whatever
-	 *    overwrote the deletion record, thus returning failure.
-	 * 3) The help bit was set (so we were attempting to 'help' via
-	 *    overwriting while skipping the deletion record), but
-	 *    some thread managed to overwrite with a deletion record.
-	 *    In this case, we linearize ourself BEFORE the deletion, and
-	 *    return failure.
-	 * 4) The help bit was set, and another thread succeeded by
-	 *    adding their own item, but implicitly deleting.
-	 *    In this case, we will also linearize ourself BEFORE the
-	 *    deletion, and return failure.
-	 */
-
+        /* If our 'add' lost, the possible cases are:
+         *
+         * 1) There was a migration, in which case we retry.
+         * 2) We attempted to overwrite a deletion record, in which
+         *    case, someone beat us to it, so we consider the failed CAS
+         *    the linearization point, ordering ourselves after whatever
+         *    overwrote the deletion record, thus returning failure.
+         * 3) The help bit was set (so we were attempting to 'help' via
+         *    overwriting while skipping the deletion record), but
+         *    some thread managed to overwrite with a deletion record.
+         *    In this case, we linearize ourself BEFORE the deletion, and
+         *    return failure.
+         * 4) The help bit was set, and another thread succeeded by
+         *    adding their own item, but implicitly deleting.
+         *    In this case, we will also linearize ourself BEFORE the
+         *    deletion, and return failure.
+         */
 
         if (state.flags & WOOLHAT_F_MOVING) {
             goto migrate_and_retry;
@@ -983,7 +980,7 @@ found_history_bucket:
 
     atomic_fetch_add(&top->item_count, 1);
 
-    mmm_commit_write     (newhead);
+    mmm_commit_write(newhead);
     woolhat_new_insertion(newhead);
 
     if (head) {
@@ -1014,8 +1011,8 @@ woolhat_store_remove(woolhat_store_t *self,
     bool               deleting_for_ourselves;
 
     union {
-	generic_2x64_u  kludge;
-	woolhat_state_t state;
+        generic_2x64_u  kludge;
+        woolhat_state_t state;
     } state;
 
     bix = hatrack_bucket_index(hv1, self->last_slot);
@@ -1048,7 +1045,7 @@ found_history_bucket:
     head        = state.state.head;
 
     if (head) {
-	mmm_help_commit(head);
+        mmm_help_commit(head);
     }
 
     if (!head || head->deleted) {
@@ -1078,118 +1075,115 @@ migrate_and_retry:
     }
 
     if (state.state.flags & WOOLHAT_F_DELETE_HELP) {
-	deleting_for_ourselves = false;
+        deleting_for_ourselves = false;
     }
     else {
-	deleting_for_ourselves = true;
+        deleting_for_ourselves = true;
     }
 
-    newhead            = mmm_alloc(sizeof(woolhat_record_t));
-    newhead->next      = head;
-    newhead->deleted   = true; // ->item is 0'd out by mmm_alloc.
-    candidate.head     = newhead;
-    candidate.flags    = 0;
+    newhead          = mmm_alloc(sizeof(woolhat_record_t));
+    newhead->next    = head;
+    newhead->deleted = true; // ->item is 0'd out by mmm_alloc.
+    candidate.head   = newhead;
+    candidate.flags  = 0;
 
     if (!CAS(&bucket->state, &state.state, candidate)) {
-
         if (state.state.flags & WOOLHAT_F_MOVING) {
-	    mmm_retire_unused(newhead);
+            mmm_retire_unused(newhead);
             goto migrate_and_retry;
         }
 
-	/* If the deletion we were helping occured in another thread,
-	 * or if another deletion operation beat us, then we order
-	 * ourselves right after that helped deletion.
-	 */
-	if (!deleting_for_ourselves || state.state.head->deleted) {
-	    mmm_retire_unused(newhead);
+        /* If the deletion we were helping occured in another thread,
+         * or if another deletion operation beat us, then we order
+         * ourselves right after that helped deletion.
+         */
+        if (!deleting_for_ourselves || state.state.head->deleted) {
+            mmm_retire_unused(newhead);
             goto empty_bucket;
         }
 
-	/* Otherwise, our own "deletion" didn't work, because
-	 * something else got written here.
-	 *
-	 * We can either keep retrying (lock-free without a helping
-	 * mechanism), or linearize ourselves BEFORE the re-insertion,
-	 * in which case we'd have a potential race condition with the
-	 * insertion time.  That might be livable for most
-	 * applications, but since we're interested in correctness, we
-	 * will go ahead and add a help mechanism.
-	 *
-	 * And since we'll mostly pay the price of our help mechanism
-	 * whether or not we're using it, we go ahead and implement it
-	 * on the first fail.
-	 *
-	 * Basically, when we hit our threshold (which again, is just
-	 * one fail), we'll set a bit in the head flags, asking the
-	 * writes to linearize themselves in around the unseen delete.
-	 *
+        /* Otherwise, our own "deletion" didn't work, because
+         * something else got written here.
+         *
+         * We can either keep retrying (lock-free without a helping
+         * mechanism), or linearize ourselves BEFORE the re-insertion,
+         * in which case we'd have a potential race condition with the
+         * insertion time.  That might be livable for most
+         * applications, but since we're interested in correctness, we
+         * will go ahead and add a help mechanism.
+         *
+         * And since we'll mostly pay the price of our help mechanism
+         * whether or not we're using it, we go ahead and implement it
+         * on the first fail.
+         *
+         * Basically, when we hit our threshold (which again, is just
+         * one fail), we'll set a bit in the head flags, asking the
+         * writes to linearize themselves in around the unseen delete.
+         *
          * If that item is a 'replace', then it should also try to
          * write a delete out on our behalf.
-	 *
-	 * Meanwhile, we'll attempt to install ourselves again, but
-	 * only if no write came in and cleared the help bit.
-	 *
-	 * Note that if we get help deleting, it doesn't linearize until
+         *
+         * Meanwhile, we'll attempt to install ourselves again, but
+         * only if no write came in and cleared the help bit.
+         *
+         * Note that if we get help deleting, it doesn't linearize until
          * the point where one of our competing threads successfully writes
-	 * out a record.  So get operations can ignore the help bit, as
-	 * can migrations.
-	 */
+         * out a record.  So get operations can ignore the help bit, as
+         * can migrations.
+         */
 
-	state.kludge = OR2X64L(&bucket->state, WOOLHAT_F_DELETE_HELP);
+        state.kludge = OR2X64L(&bucket->state, WOOLHAT_F_DELETE_HELP);
 
-	if (state.state.flags & WOOLHAT_F_DELETE_HELP) {
-	    deleting_for_ourselves = false;
-	}
-	else {
-	    state.state.flags |= WOOLHAT_F_DELETE_HELP;
-	}
+        if (state.state.flags & WOOLHAT_F_DELETE_HELP) {
+            deleting_for_ourselves = false;
+        }
+        else {
+            state.state.flags |= WOOLHAT_F_DELETE_HELP;
+        }
 
-	/* We asked for help, but we raced with another deletion
-	 * that actually SUCCEEDED, so we linearize ourselves after
-	 * it.
-	 *
-	 * Since the head record is a deletion bit, the help flag
-	 * will get ignored.
-	 */
-	if (state.state.head->deleted) {
-	    return hatrack_not_found(found);
-	}
+        /* We asked for help, but we raced with another deletion
+         * that actually SUCCEEDED, so we linearize ourselves after
+         * it.
+         *
+         * Since the head record is a deletion bit, the help flag
+         * will get ignored.
+         */
+        if (state.state.head->deleted) {
+            return hatrack_not_found(found);
+        }
 
-	newhead->next = state.state.head;
+        newhead->next = state.state.head;
 
-	if (CAS(&bucket->state, &state.state, candidate)) {
-	    /* We managed to install a deletion record ourselves.
-	     * Whether we succeeded depends on if we were deleting
-	     * for ourselves or not.
-	     *
-	     * But either way, we tick down the item count.
-	     */
-	    mmm_commit_write(newhead);
-	    mmm_retire(state.state.head);
-	    atomic_fetch_sub(&top->item_count, 1);
+        if (CAS(&bucket->state, &state.state, candidate)) {
+            /* We managed to install a deletion record ourselves.
+             * Whether we succeeded depends on if we were deleting
+             * for ourselves or not.
+             *
+             * But either way, we tick down the item count.
+             */
+            mmm_commit_write(newhead);
+            mmm_retire(state.state.head);
+            atomic_fetch_sub(&top->item_count, 1);
 
-	    if (deleting_for_ourselves) {
-		return hatrack_found(found, NULL);
-	    }
-	    return hatrack_not_found(found);
-	}
+            if (deleting_for_ourselves) {
+                return hatrack_found(found, NULL);
+            }
+            return hatrack_not_found(found);
+        }
 
-	/* If the CAS failed and the state is the same,
-	 * except for the migration bit being set, then
-	 * our help request has not been serviced yet.
-	 *
-	 * Otherwise, it will have been serviced.
-	 */
-	if ((state.state.flags & WOOLHAT_F_DELETE_HELP) &&
-	    (state.state.head == newhead->next) &&
-	    (state.state.flags & WOOLHAT_F_MOVING)) {
-	    goto migrate_and_retry;
-	}
+        /* If the CAS failed and the state is the same,
+         * except for the migration bit being set, then
+         * our help request has not been serviced yet.
+         *
+         * Otherwise, it will have been serviced.
+         */
+        if ((state.state.flags & WOOLHAT_F_DELETE_HELP) && (state.state.head == newhead->next) && (state.state.flags & WOOLHAT_F_MOVING)) {
+            goto migrate_and_retry;
+        }
 
-	mmm_retire_unused(newhead);
+        mmm_retire_unused(newhead);
 
-	return hatrack_found(found, NULL);
+        return hatrack_found(found, NULL);
     }
 
     // Here, the initial delete was successful.
@@ -1218,10 +1212,9 @@ woolhat_store_migrate(woolhat_store_t *self, woolhat_t *top)
     uint64_t           expected_used;
 
     union {
-	generic_2x64_u  kludge;
-	woolhat_state_t state;
+        generic_2x64_u  kludge;
+        woolhat_state_t state;
     } state;
-
 
     new_store = atomic_read(&top->store_current);
 
@@ -1233,28 +1226,28 @@ woolhat_store_migrate(woolhat_store_t *self, woolhat_t *top)
 
     for (i = 0; i <= self->last_slot; i++) {
         cur         = &self->hist_buckets[i];
-	state.state = atomic_read(&cur->state);
+        state.state = atomic_read(&cur->state);
 
-	if (state.state.flags & WOOLHAT_F_MOVING) {
-	    goto skip_some;
-	}
-	state.kludge = OR2X64L(&cur->state, WOOLHAT_F_MOVING);
+        if (state.state.flags & WOOLHAT_F_MOVING) {
+            goto skip_some;
+        }
+        state.kludge = OR2X64L(&cur->state, WOOLHAT_F_MOVING);
 
-	if ((!state.state.head) || state.state.head->deleted) {
-	    state.kludge = OR2X64L(&cur->state, WOOLHAT_F_MOVED);
+        if ((!state.state.head) || state.state.head->deleted) {
+            state.kludge = OR2X64L(&cur->state, WOOLHAT_F_MOVED);
 
-	    /* Only the first thread that successfully sets the MOVED
-	     * bit on the state should retire the old record.
-	     */
-	    if (state.state.head && !(state.state.flags & WOOLHAT_F_MOVED)) {
-		mmm_help_commit(state.state.head);
-		mmm_retire_fast(state.state.head);
-	    }
+            /* Only the first thread that successfully sets the MOVED
+             * bit on the state should retire the old record.
+             */
+            if (state.state.head && !(state.state.flags & WOOLHAT_F_MOVED)) {
+                mmm_help_commit(state.state.head);
+                mmm_retire_fast(state.state.head);
+            }
 
-	    continue;
-	}
+            continue;
+        }
 
-    skip_some:
+skip_some:
         if (state.state.head && !state.state.head->deleted) {
             new_used++;
         }
@@ -1293,8 +1286,8 @@ woolhat_store_migrate(woolhat_store_t *self, woolhat_t *top)
         candidate_store = woolhat_store_new(new_size);
 
         if (!CAS(&self->store_next,
-                  &new_store,
-		 candidate_store)) {
+                 &new_store,
+                 candidate_store)) {
             mmm_retire_unused(candidate_store);
         }
         else {
@@ -1303,12 +1296,12 @@ woolhat_store_migrate(woolhat_store_t *self, woolhat_t *top)
     }
 
     for (i = 0; i <= self->last_slot; i++) {
-        cur   = &self->hist_buckets[i];
+        cur         = &self->hist_buckets[i];
         state.state = atomic_read(&cur->state);
 
-	if (state.state.flags & WOOLHAT_F_MOVED) {
-	    continue;
-	}
+        if (state.state.flags & WOOLHAT_F_MOVED) {
+            continue;
+        }
 
         hv  = atomic_read(&cur->hv);
         bix = hatrack_bucket_index(hv, new_store->last_slot);
@@ -1329,12 +1322,12 @@ woolhat_store_migrate(woolhat_store_t *self, woolhat_t *top)
         }
 
         expected_state.head  = NULL;
-	expected_state.flags = 0;
+        expected_state.flags = 0;
         candidate            = state.state;
-	candidate.flags      = 0;
+        candidate.flags      = 0;
 
         CAS(&bucket->state, &expected_state, candidate);
-	OR2X64L(&cur->state, WOOLHAT_F_MOVED);
+        OR2X64L(&cur->state, WOOLHAT_F_MOVED);
     }
 
     expected_used = 0;

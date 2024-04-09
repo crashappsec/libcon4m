@@ -23,7 +23,6 @@
 
 #include <hatrack.h>
 
-
 typedef struct hatrack_set_st hatrack_set_t;
 
 struct hatrack_set_st {
@@ -33,8 +32,6 @@ struct hatrack_set_st {
     hatrack_mem_hook_t  pre_return_hook;
     hatrack_mem_hook_t  free_handler;
 };
-
-
 
 // clang-format off
 hatrack_set_t  *hatrack_set_new             (uint32_t);

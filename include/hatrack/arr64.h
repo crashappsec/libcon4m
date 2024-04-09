@@ -28,7 +28,6 @@
 #include <stdatomic.h>
 #include <hatrack/hatrack_config.h>
 
-
 #define ARR64_MIN_STORE_SZ_LOG 4
 
 // clang-format off

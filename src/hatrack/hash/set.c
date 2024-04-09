@@ -22,9 +22,9 @@
 #include <hatrack.h>
 
 static hatrack_hash_t hatrack_set_get_hash_value(hatrack_set_t *, void *);
-static void hatrack_set_record_eject(woolhat_record_t *, hatrack_set_t *);
-static int  hatrack_set_hv_sort_cmp(const void *, const void *);
-static int  hatrack_set_epoch_sort_cmp(const void *, const void *);
+static void           hatrack_set_record_eject(woolhat_record_t *, hatrack_set_t *);
+static int            hatrack_set_hv_sort_cmp(const void *, const void *);
+static int            hatrack_set_epoch_sort_cmp(const void *, const void *);
 
 hatrack_set_t *
 hatrack_set_new(uint32_t item_type)

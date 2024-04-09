@@ -16,8 +16,8 @@
 #include <con4m.h>
 
 typedef struct {
-    _Atomic int64_t  refcount;
-    char             data[];
+    _Atomic int64_t refcount;
+    char            data[];
 } refcount_alloc_t;
 
 static inline void *
@@ -44,7 +44,7 @@ rc_free(void *ptr)
 {
     refcount_alloc_t *raw = ptr - sizeof(refcount_alloc_t);
     if (atomic_fetch_add(&(raw->refcount), -1) == 0) {
-	free(raw);
+        free(raw);
     }
 }
 
@@ -55,8 +55,8 @@ rc_free_and_cleanup(void *ptr, cleanup_fn callback)
 {
     refcount_alloc_t *raw = ptr - sizeof(refcount_alloc_t);
     if (atomic_fetch_add(&(raw->refcount), -1) == 0) {
-	callback(raw);
-	free(raw);
+        callback(raw);
+        free(raw);
     }
 }
 

@@ -5,7 +5,7 @@ typedef struct exception_st       exception_t;
 typedef struct exception_frame_st exception_frame_t;
 
 struct exception_st {
-    utf8_t       *msg;
+    utf8_t      *msg;
     object_t    *context;
     exception_t *previous;
     int64_t      code;

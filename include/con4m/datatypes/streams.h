@@ -10,7 +10,6 @@ typedef size_t (*stream_write_fn)(cookie_t *, char *, int64_t);
 typedef void (*stream_close_fn)(cookie_t *);
 typedef _Bool (*stream_seek_fn)(cookie_t *, int64_t);
 
-
 typedef struct cookie_t {
     object_t        object;
     char           *extra; // Whatever the implementation wants.
@@ -26,10 +25,10 @@ typedef struct cookie_t {
 
 typedef struct {
     union {
-	FILE     *f;
-	cookie_t *cookie;
+        FILE     *f;
+        cookie_t *cookie;
     } contents;
-    int64_t   flags;
+    int64_t flags;
 } stream_t;
 
 #define F_STREAM_READ         0x0001

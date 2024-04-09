@@ -22,17 +22,16 @@
 #include <hatrack.h>
 
 static vector_store_t *vector_new_store(int64_t, int64_t);
-static void            vector_migrate  (vector_store_t *, vector_t *);
-
+static void            vector_migrate(vector_store_t *, vector_t *);
 
 // Ops in the help vtable.
-static void            help_push  (help_manager_t *, help_record_t *, int64_t);
-static void            help_pop   (help_manager_t *, help_record_t *, int64_t);
-static void            help_peek  (help_manager_t *, help_record_t *, int64_t);
-static void            help_grow  (help_manager_t *, help_record_t *, int64_t);
-static void            help_shrink(help_manager_t *, help_record_t *, int64_t);
-static void            help_set   (help_manager_t *, help_record_t *, int64_t);
-static void            help_view  (help_manager_t *, help_record_t *, int64_t);
+static void help_push(help_manager_t *, help_record_t *, int64_t);
+static void help_pop(help_manager_t *, help_record_t *, int64_t);
+static void help_peek(help_manager_t *, help_record_t *, int64_t);
+static void help_grow(help_manager_t *, help_record_t *, int64_t);
+static void help_shrink(help_manager_t *, help_record_t *, int64_t);
+static void help_set(help_manager_t *, help_record_t *, int64_t);
+static void help_view(help_manager_t *, help_record_t *, int64_t);
 
 static helper_func vtable[] = {
     (helper_func)help_push,
@@ -41,8 +40,7 @@ static helper_func vtable[] = {
     (helper_func)help_grow,
     (helper_func)help_shrink,
     (helper_func)help_set,
-    (helper_func)help_view
-};
+    (helper_func)help_view};
 
 /* The size parameter is the one larger than the largest allowable index.
  * The underlying store may be bigger-- it will be sized up to the next
@@ -68,7 +66,7 @@ vector_init(vector_t *vec, int64_t store_size, bool zero)
     store_size          = hatrack_round_up_to_power_of_2(store_size);
 
     if (store_size < (1 << VECTOR_MIN_STORE_SZ_LOG)) {
-	store_size = 1 << VECTOR_MIN_STORE_SZ_LOG;
+        store_size = 1 << VECTOR_MIN_STORE_SZ_LOG;
     }
 
     atomic_store(&vec->store, vector_new_store(0, store_size));
@@ -103,12 +101,12 @@ vector_cleanup(vector_t *self)
     si    = atomic_load(&store->array_size_info);
 
     if (self->eject_callback) {
-	for (i = 0; i < si.array_size; i++) {
-	    item = atomic_load(&store->cells[i]);
-	    if (item.state) {
-		(*self->eject_callback)(item.item);
-	    }
-	}
+        for (i = 0; i < si.array_size; i++) {
+            item = atomic_load(&store->cells[i]);
+            if (item.state) {
+                (*self->eject_callback)(item.item);
+            }
+        }
     }
 
     mmm_retire_unused(self->store);
@@ -139,36 +137,36 @@ vector_get(vector_t *self, int64_t index, int *status)
     si    = atomic_load(&store->array_size_info);
 
     if (index >= si.array_size) {
-	if (status) {
-	    *status = VECTOR_OOB;
-	}
-	return NULL;
+        if (status) {
+            *status = VECTOR_OOB;
+        }
+        return NULL;
     }
 
     if (index >= store->store_size) {
-	if (status) {
-	    *status = VECTOR_UNINITIALIZED;
-	}
-	return NULL;
+        if (status) {
+            *status = VECTOR_UNINITIALIZED;
+        }
+        return NULL;
     }
 
     current = atomic_load(&store->cells[index]);
 
     if (!(current.state & VECTOR_USED)) {
-	if (status) {
-	    *status = VECTOR_UNINITIALIZED;
-	}
-	return NULL;
+        if (status) {
+            *status = VECTOR_UNINITIALIZED;
+        }
+        return NULL;
     }
 
     if (self->ret_callback && current.item) {
-	(*self->ret_callback)(current.item);
+        (*self->ret_callback)(current.item);
     }
 
     mmm_end_op();
 
     if (status) {
-	*status = VECTOR_OK;
+        *status = VECTOR_OK;
     }
 
     return current.item;
@@ -187,61 +185,61 @@ vector_set(vector_t *self, int64_t index, void *item)
 
     mmm_start_basic_op();
 
-    store      = atomic_load(&self->store);
-    si         = atomic_load(&store->array_size_info);
+    store = atomic_load(&self->store);
+    si    = atomic_load(&store->array_size_info);
 
     if (index >= si.array_size) {
-	mmm_end_op();
-	return false;
+        mmm_end_op();
+        return false;
     }
 
     // This is messed up.  Need to pass in item and ix.
     if ((index + 1) == si.array_size) {
-	hatrack_perform_wf_op(&self->help_manager,
-			      VECTOR_OP_SLOW_SET,
-			      item,
-			      (void *)index,
-			      &found);
-	mmm_end_op();
+        hatrack_perform_wf_op(&self->help_manager,
+                              VECTOR_OP_SLOW_SET,
+                              item,
+                              (void *)index,
+                              &found);
+        mmm_end_op();
 
-	return found;
+        return found;
     }
 
     if (index >= store->store_size) {
-	vector_migrate(store, self);
-	mmm_end_op();
-	return vector_set(self, index, item);
+        vector_migrate(store, self);
+        mmm_end_op();
+        return vector_set(self, index, item);
     }
 
     cellptr = &store->cells[index];
     current = atomic_load(cellptr);
 
     if (current.state & VECTOR_MOVING) {
-	vector_migrate(store, self);
-	mmm_end_op();
-	return vector_set(self, index, item);
+        vector_migrate(store, self);
+        mmm_end_op();
+        return vector_set(self, index, item);
     }
 
     if (current.state & VECTOR_POPPED) {
-	mmm_end_op();
-	return false;
+        mmm_end_op();
+        return false;
     }
 
     candidate.item  = item;
     candidate.state = current.state | VECTOR_USED;
 
     if (CAS(cellptr, &current, candidate)) {
-	if (self->eject_callback && current.state == VECTOR_USED) {
-	    (*self->eject_callback)(current.item);
-	}
-	mmm_end_op();
-	return true;
+        if (self->eject_callback && current.state == VECTOR_USED) {
+            (*self->eject_callback)(current.item);
+        }
+        mmm_end_op();
+        return true;
     }
 
     if (current.state & VECTOR_MOVING) {
-	vector_migrate(store, self);
-	mmm_end_op();
-	return vector_set(self, index, item);
+        vector_migrate(store, self);
+        mmm_end_op();
+        return vector_set(self, index, item);
     }
 
     /* Otherwise, someone beat us to the CAS. It could be another set,
@@ -254,10 +252,10 @@ vector_set(vector_t *self, int64_t index, void *item)
      * try again. We go ahead and use the slow path to do so.
      */
     hatrack_perform_wf_op(&self->help_manager,
-			  VECTOR_OP_SLOW_SET,
-			  item,
-			  NULL,
-			  &found);
+                          VECTOR_OP_SLOW_SET,
+                          item,
+                          NULL,
+                          &found);
 
     mmm_end_op();
     return found;
@@ -268,10 +266,10 @@ vector_grow(vector_t *self, int64_t size)
 {
     mmm_start_basic_op();
     hatrack_perform_wf_op(&self->help_manager,
-			  VECTOR_OP_GROW,
-			  (void *)size,
-			  NULL,
-			  NULL);
+                          VECTOR_OP_GROW,
+                          (void *)size,
+                          NULL,
+                          NULL);
     mmm_end_op();
 
     return;
@@ -282,10 +280,10 @@ vector_shrink(vector_t *self, int64_t size)
 {
     mmm_start_basic_op();
     hatrack_perform_wf_op(&self->help_manager,
-			  VECTOR_OP_SHRINK,
-			  (void *)size,
-			  NULL,
-			  NULL);
+                          VECTOR_OP_SHRINK,
+                          (void *)size,
+                          NULL,
+                          NULL);
     mmm_end_op();
 
     return;
@@ -296,10 +294,10 @@ vector_push(vector_t *self, void *item)
 {
     mmm_start_basic_op();
     hatrack_perform_wf_op(&self->help_manager,
-			  VECTOR_OP_PUSH,
-			  item,
-			  NULL,
-			  NULL);
+                          VECTOR_OP_PUSH,
+                          item,
+                          NULL,
+                          NULL);
     mmm_end_op();
 
     return;
@@ -320,17 +318,17 @@ vector_pop(vector_t *self, bool *found)
     store = atomic_load(&self->store);
     si    = atomic_load(&store->array_size_info);
     if (!si.array_size) {
-	if (found) {
-	    *found = false;
-	}
-	mmm_end_op();
-	return NULL;
+        if (found) {
+            *found = false;
+        }
+        mmm_end_op();
+        return NULL;
     }
     ret = hatrack_perform_wf_op(&self->help_manager,
-				VECTOR_OP_POP,
-				NULL,
-				NULL,
-				found);
+                                VECTOR_OP_POP,
+                                NULL,
+                                NULL,
+                                found);
 
     mmm_end_op();
 
@@ -344,10 +342,10 @@ vector_peek(vector_t *self, bool *found)
 
     mmm_start_basic_op();
     ret = hatrack_perform_wf_op(&self->help_manager,
-				VECTOR_OP_PEEK,
-				NULL,
-				NULL,
-				found);
+                                VECTOR_OP_PEEK,
+                                NULL,
+                                NULL,
+                                found);
     mmm_end_op();
 
     return ret;
@@ -368,20 +366,20 @@ vector_view(vector_t *self)
     mmm_start_basic_op();
 
     store     = hatrack_perform_wf_op(&self->help_manager,
-				      VECTOR_OP_VIEW,
-				      NULL,
-				      NULL,
-				      NULL);
+                                  VECTOR_OP_VIEW,
+                                  NULL,
+                                  NULL,
+                                  NULL);
     si        = atomic_load(&store->array_size_info);
     ret->size = si.array_size;
 
     if (self->ret_callback) {
-	for (i = 0; i < si.array_size; i++) {
-	    item = atomic_load(&store->cells[i]);
-	    if (item.state & FLEX_ARRAY_USED) {
-		(*self->ret_callback)(item.item);
-	    }
-	}
+        for (i = 0; i < si.array_size; i++) {
+            item = atomic_load(&store->cells[i]);
+            if (item.state & FLEX_ARRAY_USED) {
+                (*self->ret_callback)(item.item);
+            }
+        }
     }
 
     ret->contents       = store;
@@ -398,21 +396,21 @@ vector_view_next(vector_view_t *view, bool *found)
     vector_item_t item;
 
     while (true) {
-	if (view->next_ix >= view->size) {
-	    if (found) {
-		*found = false;
-	    }
-	    return NULL;
-	}
+        if (view->next_ix >= view->size) {
+            if (found) {
+                *found = false;
+            }
+            return NULL;
+        }
 
-	item = atomic_load(&view->contents->cells[view->next_ix++]);
+        item = atomic_load(&view->contents->cells[view->next_ix++]);
 
-	if (item.state & VECTOR_USED) {
-	    if (found) {
-		*found = true;
-	    }
-	    return item.item;
-	}
+        if (item.state & VECTOR_USED) {
+            if (found) {
+                *found = true;
+            }
+            return item.item;
+        }
     }
 }
 
@@ -423,14 +421,14 @@ vector_view_delete(vector_view_t *view)
     bool  found;
 
     if (view->eject_callback) {
-	while (true) {
-	    item = vector_view_next(view, &found);
-	    if (!found) {
-		break;
-	    }
+        while (true) {
+            item = vector_view_next(view, &found);
+            if (!found) {
+                break;
+            }
 
-	    (*view->eject_callback)(item);
-	}
+            (*view->eject_callback)(item);
+        }
     }
 
     mmm_retire(view->contents);
@@ -474,92 +472,91 @@ vector_migrate(vector_store_t *store, vector_t *top)
     int64_t         new_store_len;
     vec_size_info_t si;
 
-
     if (atomic_load(&top->store) != store) {
-	return;
+        return;
     }
 
     next_store = atomic_load(&store->next);
 
     if (next_store) {
         si            = atomic_load(&next_store->array_size_info);
-	new_array_len = si.array_size;
-	goto help_move;
+        new_array_len = si.array_size;
+        goto help_move;
     }
 
     // Set those migration bits!
     for (i = 0; i < store->store_size; i++) {
-	expected_item = atomic_load(&store->cells[i]);
+        expected_item = atomic_load(&store->cells[i]);
 
-	while (true) {
-	    if (expected_item.state & VECTOR_MOVING) {
-		break;
-	    }
-	    if (expected_item.state & VECTOR_USED) {
-		candidate_item.state = VECTOR_MOVING | VECTOR_USED;
-		candidate_item.item  = expected_item.item;
-	    }
-	    else {
-		candidate_item.state = VECTOR_MOVING | VECTOR_MOVED;
-		candidate_item.item  = NULL;
-	    }
-	    if (CAS(&store->cells[i], &expected_item, candidate_item)) {
-		break;
-	    }
-	}
+        while (true) {
+            if (expected_item.state & VECTOR_MOVING) {
+                break;
+            }
+            if (expected_item.state & VECTOR_USED) {
+                candidate_item.state = VECTOR_MOVING | VECTOR_USED;
+                candidate_item.item  = expected_item.item;
+            }
+            else {
+                candidate_item.state = VECTOR_MOVING | VECTOR_MOVED;
+                candidate_item.item  = NULL;
+            }
+            if (CAS(&store->cells[i], &expected_item, candidate_item)) {
+                break;
+            }
+        }
     }
 
     /* Now, fight to install the store.  The +1 for new_array_len
      * ensures that, if the migration is the result of a push, that we
      * actually always allocate enough room to hold that push.
      */
-    expected_next    = 0;
-    si               = atomic_load(&store->array_size_info);
-    new_array_len    = si.array_size;
-    new_store_len    = hatrack_round_up_to_power_of_2(new_array_len + 1);
-    next_store       = vector_new_store(new_array_len, new_store_len);
+    expected_next = 0;
+    si            = atomic_load(&store->array_size_info);
+    new_array_len = si.array_size;
+    new_store_len = hatrack_round_up_to_power_of_2(new_array_len + 1);
+    next_store    = vector_new_store(new_array_len, new_store_len);
 
     if (!CAS(&store->next, &expected_next, next_store)) {
-	mmm_retire_unused(next_store);
-	next_store = expected_next;
+        mmm_retire_unused(next_store);
+        next_store = expected_next;
     }
 
     // Now, help move items that are moving.
- help_move:
+help_move:
     for (i = 0; i < store->store_size; i++) {
-	candidate_item = atomic_load(&store->cells[i]);
-	if (candidate_item.state & VECTOR_MOVED) {
-	    continue;
-	}
+        candidate_item = atomic_load(&store->cells[i]);
+        if (candidate_item.state & VECTOR_MOVED) {
+            continue;
+        }
 
-	if (i < new_array_len) {
-	    expected_item.item   = NULL;
-	    expected_item.state  = 0;
-	    candidate_item.state = VECTOR_USED;
-	    CAS(&next_store->cells[i], &expected_item, candidate_item);
-	    expected_item.item   = candidate_item.item;
-	    expected_item.state  = VECTOR_USED|VECTOR_MOVING;
-	    CAS(&store->cells[i], &expected_item, candidate_item);
-	    continue;
-	}
+        if (i < new_array_len) {
+            expected_item.item   = NULL;
+            expected_item.state  = 0;
+            candidate_item.state = VECTOR_USED;
+            CAS(&next_store->cells[i], &expected_item, candidate_item);
+            expected_item.item  = candidate_item.item;
+            expected_item.state = VECTOR_USED | VECTOR_MOVING;
+            CAS(&store->cells[i], &expected_item, candidate_item);
+            continue;
+        }
 
-	// If there are any items left in the current array, we
-	// eject them, if the callback is set, and we win the CAS.
-	expected_item         = candidate_item;
-	candidate_item.state |= VECTOR_MOVED;
+        // If there are any items left in the current array, we
+        // eject them, if the callback is set, and we win the CAS.
+        expected_item = candidate_item;
+        candidate_item.state |= VECTOR_MOVED;
 
-	if (CAS(&store->cells[i], &expected_item, candidate_item)) {
-	    if (top->eject_callback) {
-		(*top->eject_callback)(candidate_item.item);
-	    }
-	}
+        if (CAS(&store->cells[i], &expected_item, candidate_item)) {
+            if (top->eject_callback) {
+                (*top->eject_callback)(candidate_item.item);
+            }
+        }
     }
 
     // Okay, now swing the store pointer, and free if needed.
     if (CAS(&top->store, &store, next_store)) {
-	if (!store->claimed) {
-	    mmm_retire(store);
-	}
+        if (!store->claimed) {
+            mmm_retire(store);
+        }
     }
 
     return;
@@ -606,53 +603,53 @@ help_push(help_manager_t *manager, help_record_t *record, int64_t jobid)
     si    = atomic_load(&store->array_size_info);
 
     if (si.job_id > jobid) {
-	return;
+        return;
     }
 
     if (si.job_id < jobid) {
-	csi.job_id     = jobid;
-	slot           = si.array_size;
-	csi.array_size = slot + 1;
+        csi.job_id     = jobid;
+        slot           = si.array_size;
+        csi.array_size = slot + 1;
 
-	if (slot == store->store_size) {
-	    vector_migrate(store, vec);
+        if (slot == store->store_size) {
+            vector_migrate(store, vec);
 
-	    store = atomic_load(&vec->store);
-	    si    = atomic_load(&store->array_size_info);
-	    if (si.job_id > jobid) {
-		return;
-	    }
-	    if (si.job_id == jobid) {
-		if (si.array_size == csi.array_size) {
-		    hatrack_complete_help(manager, record, jobid, NULL, true);
-		    return;
-		}
-	    }
-	}
+            store = atomic_load(&vec->store);
+            si    = atomic_load(&store->array_size_info);
+            if (si.job_id > jobid) {
+                return;
+            }
+            if (si.job_id == jobid) {
+                if (si.array_size == csi.array_size) {
+                    hatrack_complete_help(manager, record, jobid, NULL, true);
+                    return;
+                }
+            }
+        }
 
-	expected  = atomic_load(&store->cells[slot]);
-	found_job = expected.state & VECTOR_JOB_MASK;
-	if (found_job > jobid) {
-	    return;
-	}
-	if (found_job < jobid) {
-	    candidate.item  = record->input;
-	    candidate.state = VECTOR_USED | jobid;
+        expected  = atomic_load(&store->cells[slot]);
+        found_job = expected.state & VECTOR_JOB_MASK;
+        if (found_job > jobid) {
+            return;
+        }
+        if (found_job < jobid) {
+            candidate.item  = record->input;
+            candidate.state = VECTOR_USED | jobid;
 
-	    CAS(&store->cells[si.array_size], &expected, candidate);
-	    DEBUG3(jobid, record->input, slot, "Job $1: PUSH $2 (index $3)");
-	}
-	if((si.array_size + 1) != (csi.array_size)) {
-	    DEBUG3(si.array_size, csi.array_size, jobid, "WTF??");
-	}
-	while (!CAS(&store->array_size_info, &si, csi)) {
-	    if (si.job_id > jobid) {
-		return;
-	    }
-	    if (si.job_id == jobid) {
-		break;
-	    }
-	}
+            CAS(&store->cells[si.array_size], &expected, candidate);
+            DEBUG3(jobid, record->input, slot, "Job $1: PUSH $2 (index $3)");
+        }
+        if ((si.array_size + 1) != (csi.array_size)) {
+            DEBUG3(si.array_size, csi.array_size, jobid, "WTF??");
+        }
+        while (!CAS(&store->array_size_info, &si, csi)) {
+            if (si.job_id > jobid) {
+                return;
+            }
+            if (si.job_id == jobid) {
+                break;
+            }
+        }
     }
     hatrack_complete_help(manager, record, jobid, NULL, true);
 
@@ -666,7 +663,7 @@ help_pop(help_manager_t *manager, help_record_t *record, int64_t jobid)
     vector_store_t *store;
     vec_size_info_t si;
     vec_size_info_t csi;
-    int64_t        index;
+    int64_t         index;
     vector_item_t   expected;
     vector_item_t   candidate;
     void           *ret;
@@ -676,24 +673,23 @@ help_pop(help_manager_t *manager, help_record_t *record, int64_t jobid)
     si    = atomic_load(&store->array_size_info);
 
     if (si.job_id > jobid) {
-	return; // This request was definitely already serviced.
+        return; // This request was definitely already serviced.
     }
 
     if (si.job_id == jobid) {
-	index = si.array_size;
+        index = si.array_size;
     }
     else {
-	if (!(si.array_size)) {
-	    DEBUG_PTR(jobid, "Pop of empty stack, JID = $1");
-	    hatrack_complete_help(manager, record, jobid, NULL, false);
-	    return;
-	}
-	index = si.array_size - 1;
+        if (!(si.array_size)) {
+            DEBUG_PTR(jobid, "Pop of empty stack, JID = $1");
+            hatrack_complete_help(manager, record, jobid, NULL, false);
+            return;
+        }
+        index = si.array_size - 1;
     }
 
-
-    expected  = atomic_load(&store->cells[index]);
-    ret       = expected.item;
+    expected        = atomic_load(&store->cells[index]);
+    ret             = expected.item;
     candidate.item  = expected.item;
     candidate.state = VECTOR_POPPED | jobid;
 
@@ -713,34 +709,32 @@ help_pop(help_manager_t *manager, help_record_t *record, int64_t jobid)
      * this slot that *wouldn't* recognize it as the last slot.
      */
     while ((expected.state & (VECTOR_POPPED | VECTOR_JOB_MASK))
-	   < (uint64_t)jobid) {
+           < (uint64_t)jobid) {
+        if (CAS(&store->cells[index], &expected, candidate)) {
+            goto complete_op;
+        }
 
-	if (CAS(&store->cells[index], &expected, candidate)) {
-	    goto complete_op;
-	}
-
-	ret             = expected.item;
-	candidate.item  = expected.item;
+        ret            = expected.item;
+        candidate.item = expected.item;
     }
 
     if ((expected.state & VECTOR_JOB_MASK) > (uint64_t)jobid) {
-	return;
+        return;
     }
 
- complete_op:
+complete_op:
     if (si.job_id < jobid) {
-	csi.array_size = index;
-	csi.job_id     = jobid;
-	CAS(&store->array_size_info, &si, csi);
+        csi.array_size = index;
+        csi.job_id     = jobid;
+        CAS(&store->array_size_info, &si, csi);
     }
 
     if (expected.state & VECTOR_USED) {
-	DEBUG3(jobid, ret, index, "Job $1 POP $2 (index $3)");
+        DEBUG3(jobid, ret, index, "Job $1 POP $2 (index $3)");
     }
 
     hatrack_complete_help(manager, record, jobid, ret, true);
     return;
-
 }
 
 /* We really only need peek to use the help manager to make sure that
@@ -770,29 +764,28 @@ help_peek(help_manager_t *manager, help_record_t *record, int64_t jobid)
     vec_size_info_t si;
     vector_item_t   item;
 
-
     vec   = (vector_t *)manager->parent;
     store = atomic_load(&vec->store);
     si    = atomic_load(&store->array_size_info);
 
     if (si.job_id > jobid) {
-	return; // This request was definitely already serviced.
+        return; // This request was definitely already serviced.
     }
 
     if (!(si.array_size)) {
-    bottom:
-	hatrack_complete_help(manager, record, jobid, NULL, false);
-	return;
+bottom:
+        hatrack_complete_help(manager, record, jobid, NULL, false);
+        return;
     }
 
     item = atomic_load(&store->cells[si.array_size - 1]);
 
     if ((item.state & VECTOR_JOB_MASK) > (uint64_t)jobid) {
-	return; // Already serviced.
+        return; // Already serviced.
     }
 
     if (!(item.state & VECTOR_USED)) {
-	goto bottom;
+        goto bottom;
     }
 
     hatrack_complete_help(manager, record, jobid, item.item, true);
@@ -817,45 +810,46 @@ help_grow(help_manager_t *manager, help_record_t *record, int64_t jobid)
     old_size = expected.array_size;
 
     if (store != atomic_load(&vec->store)) {
-	hatrack_complete_help(manager, record, jobid, NULL, true);
-	return;
+        hatrack_complete_help(manager, record, jobid, NULL, true);
+        return;
     }
 
     if (expected.job_id > jobid) {
-	return;
+        return;
     }
 
     if (expected.job_id < jobid) {
-	candidate.job_id = jobid;
-	if (old_size >= size) {
-	    candidate.array_size = old_size;
-	    already_grown        = true;
-	}
-	else {
-	    candidate.array_size = size;
-	    already_grown        = false;
-	}
+        candidate.job_id = jobid;
+        if (old_size >= size) {
+            candidate.array_size = old_size;
+            already_grown        = true;
+        }
+        else {
+            candidate.array_size = size;
+            already_grown        = false;
+        }
 
-	if (!CAS(&store->array_size_info, &expected, candidate)) {
-	    /* If we got here, some other thread succeeded, so we just
-	     * need to make sure we weren't suspended for too long.
-	     */
-	    if (expected.job_id > jobid) {
-		return;
-	    }
-	}
-    } else {
-	if (old_size >= size) {
-	    already_grown = true;
-	}
-	else {
-	    already_grown = false;
-	}
+        if (!CAS(&store->array_size_info, &expected, candidate)) {
+            /* If we got here, some other thread succeeded, so we just
+             * need to make sure we weren't suspended for too long.
+             */
+            if (expected.job_id > jobid) {
+                return;
+            }
+        }
+    }
+    else {
+        if (old_size >= size) {
+            already_grown = true;
+        }
+        else {
+            already_grown = false;
+        }
     }
 
     if (already_grown) {
-	hatrack_complete_help(manager, record, jobid, NULL, true);
-	return;
+        hatrack_complete_help(manager, record, jobid, NULL, true);
+        return;
     }
 
     /* At this point, if the new size is less than the store size,
@@ -865,7 +859,7 @@ help_grow(help_manager_t *manager, help_record_t *record, int64_t jobid)
      * Otherwise, we need to kick off a migration.
      */
     if (size > store->store_size) {
-	vector_migrate(store, vec);
+        vector_migrate(store, vec);
     }
 
     hatrack_complete_help(manager, record, jobid, NULL, true);
@@ -884,7 +878,7 @@ help_shrink(help_manager_t *manager, help_record_t *record, int64_t jobid)
     int64_t         size;
     int64_t         old_size;
     int64_t         i;
-    int64_t        found_job;
+    int64_t         found_job;
     bool            already_shrunk;
 
     vec      = (vector_t *)manager->parent;
@@ -894,40 +888,41 @@ help_shrink(help_manager_t *manager, help_record_t *record, int64_t jobid)
     old_size = expected.array_size;
 
     if (expected.job_id > jobid) {
-	return;
+        return;
     }
 
     if (expected.job_id < jobid) {
-	candidate.job_id = jobid;
-	if (old_size <= size) {
-	    candidate.array_size = old_size;
-	    already_shrunk       = true;
-	}
-	else {
-	    candidate.array_size = size;
-	    already_shrunk       = false;
-	}
+        candidate.job_id = jobid;
+        if (old_size <= size) {
+            candidate.array_size = old_size;
+            already_shrunk       = true;
+        }
+        else {
+            candidate.array_size = size;
+            already_shrunk       = false;
+        }
 
-	if (!CAS(&store->array_size_info, &expected, candidate)) {
-	    /* If we got here, some other thread succeeded, so we just
-	     * need to make sure we weren't suspended for too long.
-	     */
-	    if (expected.job_id > jobid) {
-		return;
-	    }
-	}
-    } else {
-	if (old_size <= size) {
-	    already_shrunk = true;
-	}
-	else {
-	    already_shrunk = false;
-	}
+        if (!CAS(&store->array_size_info, &expected, candidate)) {
+            /* If we got here, some other thread succeeded, so we just
+             * need to make sure we weren't suspended for too long.
+             */
+            if (expected.job_id > jobid) {
+                return;
+            }
+        }
+    }
+    else {
+        if (old_size <= size) {
+            already_shrunk = true;
+        }
+        else {
+            already_shrunk = false;
+        }
     }
 
     if (already_shrunk) {
-	hatrack_complete_help(manager, record, jobid, NULL, true);
-	return;
+        hatrack_complete_help(manager, record, jobid, NULL, true);
+        return;
     }
 
     /* Otherwise, instead of migrating, we can simply set the flags
@@ -938,15 +933,15 @@ help_shrink(help_manager_t *manager, help_record_t *record, int64_t jobid)
     candidate_item.state = VECTOR_POPPED | jobid;
 
     for (i = size; i < old_size; i++) {
-	expected_item  = atomic_load(&store->cells[i]);
-	found_job = expected_item.state & VECTOR_JOB_MASK;
-	if (found_job == jobid) {
-	    continue;
-	}
-	if (found_job > jobid) {
-	    return;
-	}
-	CAS(&store->cells[i], &expected_item, candidate_item);
+        expected_item = atomic_load(&store->cells[i]);
+        found_job     = expected_item.state & VECTOR_JOB_MASK;
+        if (found_job == jobid) {
+            continue;
+        }
+        if (found_job > jobid) {
+            return;
+        }
+        CAS(&store->cells[i], &expected_item, candidate_item);
     }
 
     hatrack_complete_help(manager, record, jobid, NULL, true);
@@ -971,7 +966,6 @@ help_set(help_manager_t *manager, help_record_t *record, int64_t jobid)
     int64_t         found_job;
     void           *item;
 
-
     item  = record->input;
     ix    = (int64_t)record->aux;
     vec   = (vector_t *)manager->parent;
@@ -979,32 +973,32 @@ help_set(help_manager_t *manager, help_record_t *record, int64_t jobid)
     si    = atomic_load(&store->array_size_info);
 
     if (si.job_id > jobid) {
-	return;
+        return;
     }
 
     if (si.array_size >= ix) {
-	hatrack_complete_help(manager, record, jobid, NULL, false);
-	return;
+        hatrack_complete_help(manager, record, jobid, NULL, false);
+        return;
     }
 
     expected  = atomic_load(&store->cells[ix]);
     found_job = expected.state & VECTOR_JOB_MASK;
 
     if (found_job > jobid) {
-	return;
+        return;
     }
 
     if (found_job == jobid) {
-	hatrack_complete_help(manager, record, jobid, NULL, true);
+        hatrack_complete_help(manager, record, jobid, NULL, true);
     }
 
     candidate.item  = item;
     candidate.state = VECTOR_USED | jobid;
 
     if (!CAS(&store->cells[ix], &expected, candidate)) {
-	if ((expected.state & VECTOR_JOB_MASK) > (uint64_t)jobid) {
-	    return;
-	}
+        if ((expected.state & VECTOR_JOB_MASK) > (uint64_t)jobid) {
+            return;
+        }
     }
 
     hatrack_complete_help(manager, record, jobid, NULL, true);
@@ -1037,7 +1031,7 @@ help_set(help_manager_t *manager, help_record_t *record, int64_t jobid)
 static void
 help_view(help_manager_t *manager, help_record_t *record, int64_t jobid)
 {
-    #if 0
+#if 0
     vector_t       *vec;
     vector_store_t *store;
     vector_store_t *possible_store;

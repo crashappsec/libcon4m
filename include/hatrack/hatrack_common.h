@@ -33,7 +33,6 @@
  * comparing keys.
  */
 
-
 // clang-format off
 #ifdef HAVE___INT128_T
 typedef __int128_t hatrack_hash_t;

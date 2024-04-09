@@ -46,16 +46,16 @@
  * an atomic_compare_exchange_strong() only.
  */
 
-#define CAS(target, expected, desired)                                         \
+#define CAS(target, expected, desired) \
     atomic_compare_exchange_strong(target, expected, desired)
 
 #ifdef HATRACK_COUNTERS
-#define LCAS_DEBUG(target, expected, desired, id)                              \
+#define LCAS_DEBUG(target, expected, desired, id) \
     HATRACK_YN_CTR(CAS(target, expected, desired), id)
 #else
 #define LCAS_DEBUG(target, expected, desired, id) CAS(target, expected, desired)
 #endif
 
-#define LCAS(target, expected, desired, id)                                    \
+#define LCAS(target, expected, desired, id) \
     LCAS_DEBUG(target, expected, desired, id)
 #define LCAS_SKIP(target, expected, desired, id) CAS(target, expected, desired)

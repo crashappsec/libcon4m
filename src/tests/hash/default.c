@@ -14,32 +14,32 @@
 
 #include <test/testhat.h>
 
-#define basictest(name, g, p, a, r, d, v, o, sz, pf, range, num, ops)          \
-    {                                                                          \
-        name, g, p, a, r, d, v, o, sz, pf, range, num, ops, true, 0, NULL      \
+#define basictest(name, g, p, a, r, d, v, o, sz, pf, range, num, ops)     \
+    {                                                                     \
+        name, g, p, a, r, d, v, o, sz, pf, range, num, ops, true, 0, NULL \
     }
 
-#define threadset(name, g, p, a, r, d, v, o, sz, pf, range, ops)               \
-    basictest(name, g, p, a, r, d, v, o, sz, pf, range, 1, ops),               \
-        basictest(name, g, p, a, r, d, v, o, sz, pf, range, 2, ops),           \
-        basictest(name, g, p, a, r, d, v, o, sz, pf, range, 3, ops),           \
-        basictest(name, g, p, a, r, d, v, o, sz, pf, range, 4, ops),           \
-        basictest(name, g, p, a, r, d, v, o, sz, pf, range, 8, ops),           \
-        basictest(name, g, p, a, r, d, v, o, sz, pf, range, 20, ops),          \
+#define threadset(name, g, p, a, r, d, v, o, sz, pf, range, ops)      \
+    basictest(name, g, p, a, r, d, v, o, sz, pf, range, 1, ops),      \
+        basictest(name, g, p, a, r, d, v, o, sz, pf, range, 2, ops),  \
+        basictest(name, g, p, a, r, d, v, o, sz, pf, range, 3, ops),  \
+        basictest(name, g, p, a, r, d, v, o, sz, pf, range, 4, ops),  \
+        basictest(name, g, p, a, r, d, v, o, sz, pf, range, 8, ops),  \
+        basictest(name, g, p, a, r, d, v, o, sz, pf, range, 20, ops), \
         basictest(name, g, p, a, r, d, v, o, sz, pf, range, 100, ops)
 
-#define viewset(name, g, p, a, r, d, v, o, pf, num)                            \
-    basictest(name, g, p, a, r, d, v, o, 5, pf, 10, num, 5000000),             \
-        basictest(name, g, p, a, r, d, v, o, 8, pf, 100, num, 1500000),        \
-        basictest(name, g, p, a, r, d, v, o, 11, pf, 1000, num, 250000),       \
-        basictest(name, g, p, a, r, d, v, o, 15, pf, 10000, num, 10000),       \
+#define viewset(name, g, p, a, r, d, v, o, pf, num)                      \
+    basictest(name, g, p, a, r, d, v, o, 5, pf, 10, num, 5000000),       \
+        basictest(name, g, p, a, r, d, v, o, 8, pf, 100, num, 1500000),  \
+        basictest(name, g, p, a, r, d, v, o, 11, pf, 1000, num, 250000), \
+        basictest(name, g, p, a, r, d, v, o, 15, pf, 10000, num, 10000), \
         basictest(name, g, p, a, r, d, v, o, 18, pf, 100000, num, 1000)
 
-#define sortset(name, g, p, a, r, d, v, o, pf, num)                            \
-    basictest(name, g, p, a, r, d, v, o, 5, pf, 10, num, 5000000),             \
-        basictest(name, g, p, a, r, d, v, o, 8, pf, 100, num, 1000000),        \
-        basictest(name, g, p, a, r, d, v, o, 11, pf, 1000, num, 50000),        \
-        basictest(name, g, p, a, r, d, v, o, 15, pf, 10000, num, 3000),        \
+#define sortset(name, g, p, a, r, d, v, o, pf, num)                     \
+    basictest(name, g, p, a, r, d, v, o, 5, pf, 10, num, 5000000),      \
+        basictest(name, g, p, a, r, d, v, o, 8, pf, 100, num, 1000000), \
+        basictest(name, g, p, a, r, d, v, o, 11, pf, 1000, num, 50000), \
+        basictest(name, g, p, a, r, d, v, o, 15, pf, 10000, num, 3000), \
         basictest(name, g, p, a, r, d, v, o, 18, pf, 100000, num, 300)
 
 /* Right now, I've picked all op counts so that most tests take around
