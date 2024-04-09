@@ -47,7 +47,7 @@ c4m_style_debug(char *prefix, const any_str_t *p)
         printf("debug (%s): len: %lld # styles: %lld\n",
                prefix,
                (long long)c4m_str_codepoint_len(p),
-               p->styling->num_entries);
+               (long long)p->styling->num_entries);
     }
     for (int i = 0; i < p->styling->num_entries; i++) {
         style_entry_t entry = p->styling->styles[i];

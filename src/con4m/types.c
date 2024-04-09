@@ -216,7 +216,7 @@ internal_type_hash(type_spec_t *node, type_hash_ctx *ctx)
     type_details_t *deets = node->details;
     uint64_t        num_tvars;
 
-    c4m_sha_int_update(ctx->sha, deets->base_type->typeid);
+    c4m_sha_int_update(ctx->sha, (uint64_t)deets->base_type->typeid);
 
     switch (node->details->base_type->base) {
         // Currently not hashing for future things.
