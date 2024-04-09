@@ -1,7 +1,7 @@
 #include "con4m.h"
 
 static void
-con4m_set_init(set_t *set, va_list args)
+c4m_set_init(set_t *set, va_list args)
 {
     size_t key_type = (uint32_t)va_arg(args, size_t);
     assert(!(uint64_t)va_arg(args, uint64_t));
@@ -28,7 +28,7 @@ con4m_set_init(set_t *set, va_list args)
 // for strings at some point soon though.
 
 static void
-con4m_set_marshal(set_t *d, stream_t *s, dict_t *memos, int64_t *mid)
+c4m_set_marshal(set_t *d, stream_t *s, dict_t *memos, int64_t *mid)
 {
     uint64_t length;
     uint8_t  kt   = (uint8_t)d->item_type;
@@ -41,7 +41,7 @@ con4m_set_marshal(set_t *d, stream_t *s, dict_t *memos, int64_t *mid)
         switch (kt) {
         case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
         case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
-            con4m_sub_marshal(view[i], s, memos, mid);
+            c4m_sub_marshal(view[i], s, memos, mid);
             break;
         case HATRACK_DICT_KEY_TYPE_CSTR:
             marshal_cstring(view[i], s);
@@ -54,7 +54,7 @@ con4m_set_marshal(set_t *d, stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 static void
-con4m_set_unmarshal(set_t *d, stream_t *s, dict_t *memos)
+c4m_set_unmarshal(set_t *d, stream_t *s, dict_t *memos)
 {
     uint32_t length;
     uint8_t  kt;
@@ -81,7 +81,7 @@ con4m_set_unmarshal(set_t *d, stream_t *s, dict_t *memos)
         switch (kt) {
         case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
         case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
-            key = con4m_sub_unmarshal(s, memos);
+            key = c4m_sub_unmarshal(s, memos);
             break;
         case HATRACK_DICT_KEY_TYPE_CSTR:
             key = unmarshal_cstring(s);
@@ -95,12 +95,13 @@ con4m_set_unmarshal(set_t *d, stream_t *s, dict_t *memos)
     }
 }
 
-const con4m_vtable set_vtable = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable set_vtable = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (con4m_vtable_entry)con4m_set_init,
+        (c4m_vtable_entry)c4m_set_init,
         NULL,
         NULL,
-        (con4m_vtable_entry)con4m_set_marshal,
-        (con4m_vtable_entry)con4m_set_unmarshal,
-    }};
+        (c4m_vtable_entry)c4m_set_marshal,
+        (c4m_vtable_entry)c4m_set_unmarshal,
+    },
+};

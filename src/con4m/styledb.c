@@ -306,7 +306,7 @@ lookup_cell_style(char *name)
 }
 
 void
-con4m_style_init(render_style_t *style, va_list args)
+c4m_style_init(render_style_t *style, va_list args)
 {
     color_t fg_color        = -1;
     color_t bg_color        = -1;
@@ -554,7 +554,7 @@ layer_styles(const render_style_t *base, render_style_t *cur)
 }
 
 static void
-con4m_style_marshal(render_style_t *obj, stream_t *s, dict_t *memos, int64_t *mid)
+c4m_style_marshal(render_style_t *obj, stream_t *s, dict_t *memos, int64_t *mid)
 {
     uint8_t flags = 0;
 
@@ -577,7 +577,7 @@ con4m_style_marshal(render_style_t *obj, stream_t *s, dict_t *memos, int64_t *mi
 }
 
 static void
-con4m_style_unmarshal(render_style_t *obj, stream_t *s, dict_t *memos)
+c4m_style_unmarshal(render_style_t *obj, stream_t *s, dict_t *memos)
 {
     uint8_t flags;
     char   *theme;
@@ -645,13 +645,14 @@ install_default_styles()
     set_style("flow", (render_style_t *)&default_flow);
 }
 
-const con4m_vtable render_style_vtable = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable render_style_vtable = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (con4m_vtable_entry)con4m_style_init,
+        (c4m_vtable_entry)c4m_style_init,
         NULL,
         NULL,
-        (con4m_vtable_entry)con4m_style_marshal,
-        (con4m_vtable_entry)con4m_style_unmarshal,
+        (c4m_vtable_entry)c4m_style_marshal,
+        (c4m_vtable_entry)c4m_style_unmarshal,
         NULL,
-    }};
+    },
+};

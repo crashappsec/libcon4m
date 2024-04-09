@@ -7,7 +7,7 @@ static void
 mem_stream_setup(cookie_t *c)
 {
     if (c->object == NULL) {
-        c->object = con4m_new(tspec_buffer());
+        c->object = c4m_new(tspec_buffer());
         c->extra  = NULL;
         return;
     }
@@ -130,18 +130,18 @@ new_mem_cookie()
 static void
 stream_init(stream_t *stream, va_list args)
 {
-    any_str_t      *filename      = NULL;
-    any_str_t      *instring      = NULL;
-    buffer_t       *buffer        = NULL;
-    cookie_t       *cookie        = NULL;
-    FILE           *fstream       = NULL;
-    int             fd            = -1;
-    bool            read          = true;
-    bool            write         = false;
-    bool            append        = false;
-    bool            no_create     = false;
-    bool            close_on_exec = true;
-    con4m_builtin_t out_type      = T_UTF8;
+    any_str_t    *filename      = NULL;
+    any_str_t    *instring      = NULL;
+    buffer_t     *buffer        = NULL;
+    cookie_t     *cookie        = NULL;
+    FILE         *fstream       = NULL;
+    int           fd            = -1;
+    bool          read          = true;
+    bool          write         = false;
+    bool          append        = false;
+    bool          no_create     = false;
+    bool          close_on_exec = true;
+    c4m_builtin_t out_type      = T_UTF8;
 
     karg_va_init(args);
 
@@ -300,20 +300,20 @@ static object_t
 stream_bytes_to_output(int64_t flags, char *buf, int64_t len)
 {
     if (flags & F_STREAM_UTF8_OUT) {
-        return con4m_new(tspec_utf8(), kw("cstring", ka(buf), "length", ka(len)));
+        return c4m_new(tspec_utf8(), kw("cstring", ka(buf), "length", ka(len)));
     }
 
     if (flags & F_STREAM_UTF32_OUT) {
-        return con4m_new(tspec_utf32(), kw("cstring", ka(buf), "codepoints", ka(len / 4)));
+        return c4m_new(tspec_utf32(), kw("cstring", ka(buf), "codepoints", ka(len / 4)));
     }
 
     else {
         // Else, it's going to a buffer.
-        return con4m_new(tspec_buffer(), kw("raw", ka(buf), "length", ka(len)));
+        return c4m_new(tspec_buffer(), kw("raw", ka(buf), "length", ka(len)));
     }
 }
 
-// We generally assume con4m is passing around 64 bit sizes, but when
+// We generally assume c4m is passing around 64 bit sizes, but when
 // dealing w/ the C API, things are often 32 bits (e.g., size_t).
 // Therefore, for the internal API, we accept a 64-bit value in, but
 // expect the write length to be a size_t because that's what fread()
@@ -428,7 +428,7 @@ _stream_write_object(stream_t *stream, object_t obj, bool ansi)
         C4M_CRAISE("Stream is already closed.");
     }
 
-    any_str_t *s = con4m_value_obj_repr(obj);
+    any_str_t *s = c4m_value_obj_repr(obj);
     if (ansi) {
         c4m_ansi_render(s, stream);
     }
@@ -648,9 +648,10 @@ _print(object_t first, ...)
     va_end(args);
 }
 
-const con4m_vtable stream_vtable = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable stream_vtable = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (con4m_vtable_entry)stream_init,
+        (c4m_vtable_entry)stream_init,
         NULL, // Aboslutelty nothing else.
-    }};
+    },
+};

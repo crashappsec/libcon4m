@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 // Temporary.
 typedef int32_t color_t;
 

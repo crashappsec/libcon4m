@@ -11,13 +11,13 @@
 // shutdown lock we need to add, that stops all threads to marshal
 // state.
 
-static hatrack_dict_t             *global_roots;
-uint64_t                           c4m_gc_guard = 0;
-static _Atomic uint64_t            num_arenas   = 0;
-static thread_local con4m_arena_t *current_heap = NULL;
-static uint64_t                    page_bytes;
-static uint64_t                    page_modulus;
-static uint64_t                    modulus_mask;
+static hatrack_dict_t           *global_roots;
+uint64_t                         c4m_gc_guard = 0;
+static _Atomic uint64_t          num_arenas   = 0;
+static thread_local c4m_arena_t *current_heap = NULL;
+static uint64_t                  page_bytes;
+static uint64_t                  page_modulus;
+static uint64_t                  modulus_mask;
 
 // This puts a junk call frame on we scan, which on yhr mac seems
 // to be 256 bytes. Playing it safe and not subtracking it out, though.
@@ -35,7 +35,7 @@ c4m_initialize_gc()
     static bool once = false;
 
     if (!once) {
-        c4m_gc_guard = con4m_rand64();
+        c4m_gc_guard = c4m_rand64();
         global_roots = calloc(sizeof(hatrack_dict_t), 1);
         once         = true;
         page_bytes   = getpagesize();
@@ -76,7 +76,7 @@ raw_arena_alloc(uint64_t len)
 }
 
 void
-c4m_expand_arena(size_t num_words, con4m_arena_t **cur_ptr)
+c4m_expand_arena(size_t num_words, c4m_arena_t **cur_ptr)
 {
     // Convert words to bytes.
     uint64_t allocation = ((uint64_t)num_words) * 8;
@@ -89,15 +89,15 @@ c4m_expand_arena(size_t num_words, con4m_arena_t **cur_ptr)
         num_words  = allocation >> 3;
     }
 
-    con4m_arena_t *new_arena = raw_arena_alloc(allocation);
+    c4m_arena_t *new_arena = raw_arena_alloc(allocation);
 
     uint64_t arena_id = atomic_fetch_add(&num_arenas, 1);
     // Really this creates another linked arena. We'll call it
     // a 'sub-arena' for now.
 
-    con4m_arena_t *current = *cur_ptr;
+    c4m_arena_t *current = *cur_ptr;
 
-    new_arena->next_alloc     = (con4m_alloc_hdr *)new_arena->data;
+    new_arena->next_alloc     = (c4m_alloc_hdr *)new_arena->data;
     new_arena->previous       = current;
     new_arena->heap_end       = (uint64_t *)(&(new_arena->data[num_words]));
     new_arena->arena_id       = arena_id;
@@ -111,10 +111,10 @@ c4m_expand_arena(size_t num_words, con4m_arena_t **cur_ptr)
     }
 }
 
-con4m_arena_t *
+c4m_arena_t *
 c4m_new_arena(size_t num_words)
 {
-    con4m_arena_t *result = NULL;
+    c4m_arena_t *result = NULL;
 
     c4m_expand_arena(num_words, &result);
 
@@ -140,7 +140,7 @@ c4m_gc_resize(void *ptr, size_t len)
     if (ptr == NULL) {
         return c4m_gc_raw_alloc(len, GC_SCAN_ALL);
     }
-    con4m_alloc_hdr *hdr = &((con4m_alloc_hdr *)ptr)[-1];
+    c4m_alloc_hdr *hdr = &((c4m_alloc_hdr *)ptr)[-1];
 
     assert(hdr->guard = c4m_gc_guard);
 
@@ -158,13 +158,13 @@ c4m_gc_resize(void *ptr, size_t len)
 }
 
 void
-c4m_delete_arena(con4m_arena_t *arena)
+c4m_delete_arena(c4m_arena_t *arena)
 {
     // TODO-- allocations need to have an arena pointer or thread id
     // for cross-thread to work.
     //
     // TODO-- need to make this use mmap now.
-    con4m_arena_t *prev_active;
+    c4m_arena_t *prev_active;
 
     c4m_gc_trace("arena:skip_unmap");
 
@@ -185,7 +185,7 @@ c4m_delete_arena(con4m_arena_t *arena)
 }
 
 void
-c4m_arena_register_root(con4m_arena_t *arena, void *ptr, uint64_t len)
+c4m_arena_register_root(c4m_arena_t *arena, void *ptr, uint64_t len)
 {
     // Len is measured in 64 bit words and must be at least 1.
 
@@ -197,19 +197,17 @@ c4m_arena_register_root(con4m_arena_t *arena, void *ptr, uint64_t len)
 }
 
 static void
-process_traced_pointer(uint64_t     **addr,
-                       uint64_t      *ptr,
-                       uint64_t      *arena_start,
-                       uint64_t      *arena_end,
-                       con4m_arena_t *new_arena);
-
-#include "con4m/hex.h"
+process_traced_pointer(uint64_t   **addr,
+                       uint64_t    *ptr,
+                       uint64_t    *arena_start,
+                       uint64_t    *arena_end,
+                       c4m_arena_t *new_arena);
 
 static inline void
-update_internal_allocation_pointers(con4m_alloc_hdr *hdr,
-                                    uint64_t        *arena_start,
-                                    uint64_t        *arena_end,
-                                    con4m_arena_t   *new_arena)
+update_internal_allocation_pointers(c4m_alloc_hdr *hdr,
+                                    uint64_t      *arena_start,
+                                    uint64_t      *arena_end,
+                                    c4m_arena_t   *new_arena)
 {
     if (((uint64_t *)hdr) == arena_end) {
         return;
@@ -288,7 +286,7 @@ update_traced_pointer(uint64_t **addr, uint64_t **expected, uint64_t *new)
     /* assert(CAS(atomic_root, expected, new)); */
 }
 
-static inline con4m_alloc_hdr *
+static inline c4m_alloc_hdr *
 header_scan(uint64_t *ptr, uint64_t *stop_location, uint64_t *offset)
 {
     // First go back by the length of an alloc_hdr, as this is the
@@ -297,7 +295,7 @@ header_scan(uint64_t *ptr, uint64_t *stop_location, uint64_t *offset)
 
     while (p >= stop_location) {
         if (*p == c4m_gc_guard) {
-            con4m_alloc_hdr *result = (con4m_alloc_hdr *)p;
+            c4m_alloc_hdr *result = (c4m_alloc_hdr *)p;
             c4m_gc_trace("find_alloc:%p-%p:start:%p:data:%p:len:%d:total:%d",
                          p,
                          result->next_addr,
@@ -318,11 +316,11 @@ header_scan(uint64_t *ptr, uint64_t *stop_location, uint64_t *offset)
 }
 
 static void
-process_traced_pointer(uint64_t     **addr,
-                       uint64_t      *ptr,
-                       uint64_t      *start,
-                       uint64_t      *end,
-                       con4m_arena_t *new_arena)
+process_traced_pointer(uint64_t   **addr,
+                       uint64_t    *ptr,
+                       uint64_t    *start,
+                       uint64_t    *end,
+                       c4m_arena_t *new_arena)
 {
     if (ptr < start || ptr > end) {
         return;
@@ -332,8 +330,8 @@ process_traced_pointer(uint64_t     **addr,
 
     c4m_gc_trace("ptr_check_start:%p:@%p", ptr, addr);
 
-    con4m_alloc_hdr *hdr         = header_scan(ptr, start, &offset);
-    uint32_t         found_flags = atomic_load(&hdr->flags);
+    c4m_alloc_hdr *hdr         = header_scan(ptr, start, &offset);
+    uint32_t       found_flags = atomic_load(&hdr->flags);
 
     if (found_flags & GC_FLAG_REACHED) {
         c4m_gc_trace("ptr_check_dupe:%p:@%p:record:%p", ptr, addr, hdr);
@@ -392,7 +390,7 @@ process_traced_pointer(uint64_t     **addr,
         ptr,
         new_ptr,
         hdr,
-        &(((con4m_alloc_hdr *)forward)[-1]),
+        &(((c4m_alloc_hdr *)forward)[-1]),
         new_arena);
 
     update_traced_pointer(addr, (uint64_t **)ptr, new_ptr);
@@ -405,8 +403,8 @@ process_traced_pointer(uint64_t     **addr,
 }
 
 static void
-c4m_collect_sub_arena(con4m_arena_t *old,
-                      con4m_arena_t *new,
+c4m_collect_sub_arena(c4m_arena_t *old,
+                      c4m_arena_t *new,
                       hatrack_dict_item_t *roots,
                       uint64_t             num_roots,
                       uint64_t            *stack_top,
@@ -448,10 +446,10 @@ c4m_collect_sub_arena(con4m_arena_t *old,
 }
 
 void
-c4m_collect_arena(con4m_arena_t **ptr_loc)
+c4m_collect_arena(c4m_arena_t **ptr_loc)
 {
-    con4m_arena_t *cur = *ptr_loc;
-    uint64_t       len = 0;
+    c4m_arena_t *cur = *ptr_loc;
+    uint64_t     len = 0;
 
     while (cur != NULL) {
         uint64_t arena_size = cur->heap_end - cur->data;
@@ -459,7 +457,7 @@ c4m_collect_arena(con4m_arena_t **ptr_loc)
         cur = cur->previous;
     }
 
-    con4m_arena_t *new = c4m_new_arena((size_t)len);
+    c4m_arena_t *new = c4m_new_arena((size_t)len);
 
     cur = *ptr_loc;
 
@@ -478,7 +476,7 @@ c4m_collect_arena(con4m_arena_t **ptr_loc)
     c4m_get_stack_scan_region(&stack_top, &stack_bottom);
 
     while (cur != NULL) {
-        con4m_arena_t *prior_sub_arena = cur->previous;
+        c4m_arena_t *prior_sub_arena = cur->previous;
         c4m_collect_sub_arena(cur,
                               new,
                               roots,

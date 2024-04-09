@@ -53,15 +53,15 @@ typedef struct {
     // The actual exposed data.
     uint64_t data[];
 
-} con4m_alloc_hdr;
+} c4m_alloc_hdr;
 
-typedef struct con4m_arena_t {
+typedef struct c4m_arena_t {
     alignas(8)
-        con4m_alloc_hdr *next_alloc;
-    struct dict_t        *roots;
-    struct con4m_arena_t *previous;
-    queue_t              *late_mutations;
-    uint64_t             *heap_end;
-    uint64_t              arena_id;
-    uint64_t              data[];
-} con4m_arena_t;
+        c4m_alloc_hdr *next_alloc;
+    struct dict_t      *roots;
+    struct c4m_arena_t *previous;
+    queue_t            *late_mutations;
+    uint64_t           *heap_end;
+    uint64_t            arena_id;
+    uint64_t            data[];
+} c4m_arena_t;

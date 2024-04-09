@@ -45,7 +45,7 @@ c4m_sha_init(sha_ctx *ctx, va_list args)
         abort();
     }
 
-    ctx->digest = con4m_new(tspec_buffer(), kw("length", ka(bits / 8)));
+    ctx->digest = c4m_new(tspec_buffer(), kw("length", ka(bits / 8)));
     version -= 2;
     bits               = (bits >> 7) - 2; // Maps the bit sizes to 0, 1 and 2,
                                           // by dividing by 128, then - 2.
@@ -103,9 +103,9 @@ c4m_sha_finish(sha_ctx *ctx)
     return result;
 }
 
-const con4m_vtable sha_vtable = {
+const c4m_vtable sha_vtable = {
     .num_entries = 1,
     .methods     = {
-        (con4m_vtable_entry)c4m_sha_init,
+        (c4m_vtable_entry)c4m_sha_init,
     },
 };

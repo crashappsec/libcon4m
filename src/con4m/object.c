@@ -1,6 +1,6 @@
 #include "con4m.h"
 
-const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
+const dt_info builtin_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name   = "error",
         .typeid = T_TYPE_ERROR,
@@ -384,14 +384,14 @@ const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
     }};
 
 object_t
-_con4m_new(type_spec_t *type, ...)
+_c4m_new(type_spec_t *type, ...)
 {
-    con4m_obj_t       *obj;
-    object_t           result;
-    va_list            args;
-    dt_info           *tinfo     = type->details->base_type;
-    uint64_t           alloc_len = tinfo->alloc_len + sizeof(con4m_obj_t);
-    con4m_vtable_entry init_fn   = tinfo->vtable->methods[CON4M_BI_CONSTRUCTOR];
+    c4m_obj_t       *obj;
+    object_t         result;
+    va_list          args;
+    dt_info         *tinfo     = type->details->base_type;
+    uint64_t         alloc_len = tinfo->alloc_len + sizeof(c4m_obj_t);
+    c4m_vtable_entry init_fn   = tinfo->vtable->methods[C4M_BI_CONSTRUCTOR];
 
     obj = c4m_gc_raw_alloc(alloc_len, (uint64_t *)tinfo->ptr_info);
 
@@ -419,7 +419,7 @@ _con4m_new(type_spec_t *type, ...)
 }
 
 uint64_t *
-gc_get_ptr_info(con4m_builtin_t dtid)
+gc_get_ptr_info(c4m_builtin_t dtid)
 {
     return (uint64_t *)builtin_type_info[dtid].ptr_info;
 }
@@ -427,10 +427,10 @@ gc_get_ptr_info(con4m_builtin_t dtid)
 static const char *repr_err = "Held type does not have a __repr__ function.";
 
 any_str_t *
-con4m_value_obj_repr(object_t obj)
+c4m_value_obj_repr(object_t obj)
 {
     // This does NOT work on direct values.
-    repr_fn ptr = (repr_fn)get_vtable(obj)->methods[CON4M_BI_TO_STR];
+    repr_fn ptr = (repr_fn)get_vtable(obj)->methods[C4M_BI_TO_STR];
     if (!ptr) {
         C4M_CRAISE(repr_err);
     }
@@ -438,10 +438,10 @@ con4m_value_obj_repr(object_t obj)
 }
 
 any_str_t *
-con4m_repr(void *item, type_spec_t *t, to_str_use_t how)
+c4m_repr(void *item, type_spec_t *t, to_str_use_t how)
 {
     uint64_t x = tspec_get_data_type_info(t)->typeid;
-    repr_fn  p = (repr_fn)builtin_type_info[x].vtable->methods[CON4M_BI_TO_STR];
+    repr_fn  p = (repr_fn)builtin_type_info[x].vtable->methods[C4M_BI_TO_STR];
 
     if (!p) {
         C4M_CRAISE(repr_err);
@@ -451,9 +451,9 @@ con4m_repr(void *item, type_spec_t *t, to_str_use_t how)
 }
 
 object_t
-con4m_copy_object(object_t obj)
+c4m_copy_object(object_t obj)
 {
-    copy_fn ptr = (copy_fn)get_vtable(obj)->methods[CON4M_BI_COPY];
+    copy_fn ptr = (copy_fn)get_vtable(obj)->methods[C4M_BI_COPY];
 
     if (ptr == NULL) {
         C4M_CRAISE("Copying for this object type not currently supported.");
@@ -463,9 +463,9 @@ con4m_copy_object(object_t obj)
 }
 
 object_t
-con4m_add(object_t lhs, object_t rhs)
+c4m_add(object_t lhs, object_t rhs)
 {
-    binop_fn ptr = (binop_fn)get_vtable(lhs)->methods[CON4M_BI_ADD];
+    binop_fn ptr = (binop_fn)get_vtable(lhs)->methods[C4M_BI_ADD];
 
     if (ptr == NULL) {
         C4M_CRAISE("Addition not supported for this object type.");
@@ -475,9 +475,9 @@ con4m_add(object_t lhs, object_t rhs)
 }
 
 object_t
-con4m_sub(object_t lhs, object_t rhs)
+c4m_sub(object_t lhs, object_t rhs)
 {
-    binop_fn ptr = (binop_fn)get_vtable(lhs)->methods[CON4M_BI_SUB];
+    binop_fn ptr = (binop_fn)get_vtable(lhs)->methods[C4M_BI_SUB];
 
     if (ptr == NULL) {
         C4M_CRAISE("Subtraction not supported for this object type.");
@@ -487,9 +487,9 @@ con4m_sub(object_t lhs, object_t rhs)
 }
 
 object_t
-con4m_mul(object_t lhs, object_t rhs)
+c4m_mul(object_t lhs, object_t rhs)
 {
-    binop_fn ptr = (binop_fn)get_vtable(lhs)->methods[CON4M_BI_MUL];
+    binop_fn ptr = (binop_fn)get_vtable(lhs)->methods[C4M_BI_MUL];
 
     if (ptr == NULL) {
         C4M_CRAISE("Multiplication not supported for this object type.");
@@ -499,9 +499,9 @@ con4m_mul(object_t lhs, object_t rhs)
 }
 
 object_t
-con4m_div(object_t lhs, object_t rhs)
+c4m_div(object_t lhs, object_t rhs)
 {
-    binop_fn ptr = (binop_fn)get_vtable(lhs)->methods[CON4M_BI_DIV];
+    binop_fn ptr = (binop_fn)get_vtable(lhs)->methods[C4M_BI_DIV];
 
     if (ptr == NULL) {
         C4M_CRAISE("Division not supported for this object type.");
@@ -511,9 +511,9 @@ con4m_div(object_t lhs, object_t rhs)
 }
 
 object_t
-con4m_mod(object_t lhs, object_t rhs)
+c4m_mod(object_t lhs, object_t rhs)
 {
-    binop_fn ptr = (binop_fn)get_vtable(lhs)->methods[CON4M_BI_MOD];
+    binop_fn ptr = (binop_fn)get_vtable(lhs)->methods[C4M_BI_MOD];
 
     if (ptr == NULL) {
         C4M_CRAISE("Modulus not supported for this object type.");
@@ -523,9 +523,9 @@ con4m_mod(object_t lhs, object_t rhs)
 }
 
 int64_t
-con4m_len(object_t container)
+c4m_len(object_t container)
 {
-    len_fn ptr = (len_fn)get_vtable(container)->methods[CON4M_BI_LEN];
+    len_fn ptr = (len_fn)get_vtable(container)->methods[C4M_BI_LEN];
 
     if (ptr == NULL) {
         C4M_CRAISE("Cannot call len on a non-container.");
@@ -535,11 +535,11 @@ con4m_len(object_t container)
 }
 
 object_t
-con4m_index_get(object_t container, object_t index)
+c4m_index_get(object_t container, object_t index)
 {
     index_get_fn ptr;
 
-    ptr = (index_get_fn)get_vtable(container)->methods[CON4M_BI_INDEX_GET];
+    ptr = (index_get_fn)get_vtable(container)->methods[C4M_BI_INDEX_GET];
 
     if (ptr == NULL) {
         C4M_CRAISE("No index operation available.");
@@ -549,11 +549,11 @@ con4m_index_get(object_t container, object_t index)
 }
 
 void
-con4m_index_set(object_t container, object_t index, object_t value)
+c4m_index_set(object_t container, object_t index, object_t value)
 {
     index_set_fn ptr;
 
-    ptr = (index_set_fn)get_vtable(container)->methods[CON4M_BI_INDEX_SET];
+    ptr = (index_set_fn)get_vtable(container)->methods[C4M_BI_INDEX_SET];
 
     if (ptr == NULL) {
         C4M_CRAISE("No index assignment operation available.");
@@ -563,11 +563,11 @@ con4m_index_set(object_t container, object_t index, object_t value)
 }
 
 object_t
-con4m_slice_get(object_t container, int64_t start, int64_t end)
+c4m_slice_get(object_t container, int64_t start, int64_t end)
 {
     slice_get_fn ptr;
 
-    ptr = (slice_get_fn)get_vtable(container)->methods[CON4M_BI_SLICE_GET];
+    ptr = (slice_get_fn)get_vtable(container)->methods[C4M_BI_SLICE_GET];
 
     if (ptr == NULL) {
         C4M_CRAISE("No slice operation available.");
@@ -577,11 +577,11 @@ con4m_slice_get(object_t container, int64_t start, int64_t end)
 }
 
 void
-con4m_slice_set(object_t container, int64_t start, int64_t end, object_t o)
+c4m_slice_set(object_t container, int64_t start, int64_t end, object_t o)
 {
     slice_set_fn ptr;
 
-    ptr = (slice_set_fn)get_vtable(container)->methods[CON4M_BI_SLICE_SET];
+    ptr = (slice_set_fn)get_vtable(container)->methods[C4M_BI_SLICE_SET];
 
     if (ptr == NULL) {
         C4M_CRAISE("No slice assignment operation available.");
@@ -591,15 +591,15 @@ con4m_slice_set(object_t container, int64_t start, int64_t end, object_t o)
 }
 
 bool
-con4m_can_coerce(type_spec_t *t1, type_spec_t *t2)
+c4m_can_coerce(type_spec_t *t1, type_spec_t *t2)
 {
     if (tspecs_are_compat(t1, t2)) {
         return true;
     }
 
     dt_info      *info = tspec_get_data_type_info(t1);
-    con4m_vtable *vtbl = (con4m_vtable *)info->vtable;
-    can_coerce_fn ptr  = (can_coerce_fn)vtbl->methods[CON4M_BI_COERCIBLE];
+    c4m_vtable   *vtbl = (c4m_vtable *)info->vtable;
+    can_coerce_fn ptr  = (can_coerce_fn)vtbl->methods[C4M_BI_COERCIBLE];
 
     if (ptr == NULL) {
         return false;
@@ -609,14 +609,14 @@ con4m_can_coerce(type_spec_t *t1, type_spec_t *t2)
 }
 
 void *
-con4m_coerce(void *data, type_spec_t *t1, type_spec_t *t2)
+c4m_coerce(void *data, type_spec_t *t1, type_spec_t *t2)
 {
     // TODO-- if it's not a primitive type in t1, we should
     // use data's type for extra precaution.
 
-    dt_info      *info = tspec_get_data_type_info(t1);
-    con4m_vtable *vtbl = (con4m_vtable *)info->vtable;
-    coerce_fn     ptr  = (coerce_fn)vtbl->methods[CON4M_BI_COERCE];
+    dt_info    *info = tspec_get_data_type_info(t1);
+    c4m_vtable *vtbl = (c4m_vtable *)info->vtable;
+    coerce_fn   ptr  = (coerce_fn)vtbl->methods[C4M_BI_COERCE];
 
     if (ptr == NULL) {
         C4M_CRAISE("Invalid conversion between types.");
@@ -626,11 +626,11 @@ con4m_coerce(void *data, type_spec_t *t1, type_spec_t *t2)
 }
 
 bool
-con4m_eq(type_spec_t *t, object_t o1, object_t o2)
+c4m_eq(type_spec_t *t, object_t o1, object_t o2)
 {
-    dt_info      *info = tspec_get_data_type_info(t);
-    con4m_vtable *vtbl = (con4m_vtable *)info->vtable;
-    cmp_fn        ptr  = (cmp_fn)vtbl->methods[CON4M_BI_EQ];
+    dt_info    *info = tspec_get_data_type_info(t);
+    c4m_vtable *vtbl = (c4m_vtable *)info->vtable;
+    cmp_fn      ptr  = (cmp_fn)vtbl->methods[C4M_BI_EQ];
 
     if (!ptr) {
         return o1 == o2;
@@ -640,11 +640,11 @@ con4m_eq(type_spec_t *t, object_t o1, object_t o2)
 }
 
 bool
-con4m_lt(type_spec_t *t, object_t o1, object_t o2)
+c4m_lt(type_spec_t *t, object_t o1, object_t o2)
 {
-    dt_info      *info = tspec_get_data_type_info(t);
-    con4m_vtable *vtbl = (con4m_vtable *)info->vtable;
-    cmp_fn        ptr  = (cmp_fn)vtbl->methods[CON4M_BI_LT];
+    dt_info    *info = tspec_get_data_type_info(t);
+    c4m_vtable *vtbl = (c4m_vtable *)info->vtable;
+    cmp_fn      ptr  = (cmp_fn)vtbl->methods[C4M_BI_LT];
 
     if (!ptr) {
         return o1 < o2;
@@ -654,11 +654,11 @@ con4m_lt(type_spec_t *t, object_t o1, object_t o2)
 }
 
 bool
-con4m_gt(type_spec_t *t, object_t o1, object_t o2)
+c4m_gt(type_spec_t *t, object_t o1, object_t o2)
 {
-    dt_info      *info = tspec_get_data_type_info(t);
-    con4m_vtable *vtbl = (con4m_vtable *)info->vtable;
-    cmp_fn        ptr  = (cmp_fn)vtbl->methods[CON4M_BI_GT];
+    dt_info    *info = tspec_get_data_type_info(t);
+    c4m_vtable *vtbl = (c4m_vtable *)info->vtable;
+    cmp_fn      ptr  = (cmp_fn)vtbl->methods[C4M_BI_GT];
 
     if (!ptr) {
         return o1 > o2;

@@ -1,7 +1,7 @@
 #include "con4m.h"
 
 static void
-con4m_dict_init(hatrack_dict_t *dict, va_list args)
+c4m_dict_init(hatrack_dict_t *dict, va_list args)
 {
     size_t       hash_fn;
     xlist_t     *type_params;
@@ -38,7 +38,7 @@ con4m_dict_init(hatrack_dict_t *dict, va_list args)
 }
 
 static void
-con4m_dict_marshal(dict_t *d, stream_t *s, dict_t *memos, int64_t *mid)
+c4m_dict_marshal(dict_t *d, stream_t *s, dict_t *memos, int64_t *mid)
 {
     uint64_t     length;
     type_spec_t *dict_type = get_my_type(d);
@@ -66,20 +66,20 @@ con4m_dict_marshal(dict_t *d, stream_t *s, dict_t *memos, int64_t *mid)
             marshal_u64((uint64_t)view[i].key, s);
         }
         else {
-            con4m_sub_marshal(view[i].key, s, memos, mid);
+            c4m_sub_marshal(view[i].key, s, memos, mid);
         }
 
         if (val_by_val) {
             marshal_u64((uint64_t)view[i].value, s);
         }
         else {
-            con4m_sub_marshal(view[i].value, s, memos, mid);
+            c4m_sub_marshal(view[i].value, s, memos, mid);
         }
     }
 }
 
 static void
-con4m_dict_unmarshal(dict_t *d, stream_t *s, dict_t *memos)
+c4m_dict_unmarshal(dict_t *d, stream_t *s, dict_t *memos)
 {
     uint32_t     length      = unmarshal_u32(s);
     type_spec_t *dict_type   = get_my_type(d);
@@ -114,14 +114,14 @@ con4m_dict_unmarshal(dict_t *d, stream_t *s, dict_t *memos)
             key = (void *)unmarshal_u64(s);
         }
         else {
-            key = con4m_sub_unmarshal(s, memos);
+            key = c4m_sub_unmarshal(s, memos);
         }
 
         if (val_by_val) {
             val = (void *)unmarshal_u64(s);
         }
         else {
-            val = con4m_sub_unmarshal(s, memos);
+            val = c4m_sub_unmarshal(s, memos);
         }
 
         hatrack_dict_put(d, key, val);
@@ -137,14 +137,14 @@ dict_repr(dict_t *dict, to_str_use_t how)
     type_spec_t         *key_type    = xlist_get(type_params, 0, NULL);
     type_spec_t         *val_type    = xlist_get(type_params, 1, NULL);
     hatrack_dict_item_t *view        = hatrack_dict_items_sort(dict, &view_len);
-    xlist_t             *items       = con4m_new(tspec_xlist(tspec_utf32()),
-                               kw("length", ka(view_len)));
-    xlist_t             *one_item    = con4m_new(tspec_xlist(tspec_utf32()));
+    xlist_t             *items       = c4m_new(tspec_xlist(tspec_utf32()),
+                             kw("length", ka(view_len)));
+    xlist_t             *one_item    = c4m_new(tspec_xlist(tspec_utf32()));
     utf8_t              *colon       = c4m_get_colon_const();
 
     for (uint64_t i = 0; i < view_len; i++) {
-        xlist_set(one_item, 0, con4m_repr(view[i].key, key_type, how));
-        xlist_set(one_item, 1, con4m_repr(view[i].value, val_type, how));
+        xlist_set(one_item, 0, c4m_repr(view[i].key, key_type, how));
+        xlist_set(one_item, 1, c4m_repr(view[i].value, val_type, how));
         xlist_append(items, string_join(one_item, colon));
     }
 
@@ -166,7 +166,7 @@ dict_coerce_to(dict_t *dict, type_spec_t *dst_type)
 {
     uint64_t             len;
     hatrack_dict_item_t *view     = hatrack_dict_items_sort(dict, &len);
-    dict_t              *res      = con4m_new(dst_type);
+    dict_t              *res      = c4m_new(dst_type);
     type_spec_t         *src_type = get_my_type(dict);
     type_spec_t         *kt_src   = tspec_get_param(src_type, 0);
     type_spec_t         *kt_dst   = tspec_get_param(dst_type, 0);
@@ -174,8 +174,8 @@ dict_coerce_to(dict_t *dict, type_spec_t *dst_type)
     type_spec_t         *vt_dst   = tspec_get_param(dst_type, 1);
 
     for (uint64_t i = 0; i < len; i++) {
-        void *key_copy = con4m_coerce(view[i].key, kt_src, kt_dst);
-        void *val_copy = con4m_coerce(view[i].value, vt_src, vt_dst);
+        void *key_copy = c4m_coerce(view[i].key, kt_src, kt_dst);
+        void *val_copy = c4m_coerce(view[i].value, vt_src, vt_dst);
 
         hatrack_dict_put(res, key_copy, val_copy);
     }
@@ -206,7 +206,7 @@ dict_plus(dict_t *d1, dict_t *d2)
     hatrack_dict_item_t *v1 = hatrack_dict_items_sort(d1, &l1);
     hatrack_dict_item_t *v2 = hatrack_dict_items_sort(d2, &l2);
 
-    dict_t *result = con4m_new(get_my_type(d1));
+    dict_t *result = c4m_new(get_my_type(d1));
 
     for (uint64_t i = 0; i < l1; i++) {
         hatrack_dict_put(result, v1[i].key, v1[i].value);
@@ -233,19 +233,19 @@ dict_get(dict_t *d, void *k)
     return result;
 }
 
-const con4m_vtable dict_vtable = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable dict_vtable = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (con4m_vtable_entry)con4m_dict_init,
-        (con4m_vtable_entry)dict_repr,
+        (c4m_vtable_entry)c4m_dict_init,
+        (c4m_vtable_entry)dict_repr,
         NULL,
-        (con4m_vtable_entry)con4m_dict_marshal,
-        (con4m_vtable_entry)con4m_dict_unmarshal,
-        (con4m_vtable_entry)dict_can_coerce_to,
-        (con4m_vtable_entry)dict_coerce_to,
+        (c4m_vtable_entry)c4m_dict_marshal,
+        (c4m_vtable_entry)c4m_dict_unmarshal,
+        (c4m_vtable_entry)dict_can_coerce_to,
+        (c4m_vtable_entry)dict_coerce_to,
         NULL,
-        (con4m_vtable_entry)dict_copy,
-        (con4m_vtable_entry)dict_plus,
+        (c4m_vtable_entry)dict_copy,
+        (c4m_vtable_entry)dict_plus,
         NULL,
         NULL,
         NULL,
@@ -253,8 +253,10 @@ const con4m_vtable dict_vtable = {
         NULL, // EQ
         NULL, // LT
         NULL, // GT
-        (con4m_vtable_entry)dict_len,
-        (con4m_vtable_entry)dict_get,
-        (con4m_vtable_entry)hatrack_dict_put,
+        (c4m_vtable_entry)dict_len,
+        (c4m_vtable_entry)dict_get,
+        (c4m_vtable_entry)hatrack_dict_put,
         NULL, // No slices on dicts.
-        NULL}};
+        NULL,
+    },
+};

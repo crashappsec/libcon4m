@@ -36,6 +36,7 @@
 #ifdef __MACH__
 #include <mach/clock.h>
 #include <mach/mach.h>
+#endif
 
 typedef struct hatrack_queue_t queue_t;
 #ifndef NO_CON4M
@@ -108,5 +109,4 @@ free_libc_allocation(void *ptr)
 #include "hatrack/capq.h"
 #include "hatrack/vector.h"
 #include "hatrack/helpmanager.h"
-#endif
 #endif

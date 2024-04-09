@@ -91,21 +91,22 @@ ipaddr_repr(ipaddr_t *obj)
     }
 
     if (obj->port == 0) {
-        return con4m_new(tspec_utf8(), kw("cstring", ka(buf)));
+        return c4m_new(tspec_utf8(), kw("cstring", ka(buf)));
     }
 
-    return string_concat(con4m_new(tspec_utf8(), kw("cstring", ka(buf))),
+    return string_concat(c4m_new(tspec_utf8(), kw("cstring", ka(buf))),
                          string_concat(c4m_get_colon_no_space_const(),
                                        string_from_int((int64_t)obj->port)));
 }
 
-const con4m_vtable ipaddr_vtable = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable ipaddr_vtable = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (con4m_vtable_entry)ipaddr_init,
-        (con4m_vtable_entry)ipaddr_repr,
+        (c4m_vtable_entry)ipaddr_init,
+        (c4m_vtable_entry)ipaddr_repr,
         NULL,
-        (con4m_vtable_entry)ipaddr_marshal,
-        (con4m_vtable_entry)ipaddr_unmarshal,
+        (c4m_vtable_entry)ipaddr_marshal,
+        (c4m_vtable_entry)ipaddr_unmarshal,
         NULL,
-    }};
+    },
+};

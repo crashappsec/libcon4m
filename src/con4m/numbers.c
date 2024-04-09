@@ -32,7 +32,7 @@ signed_repr(int64_t item, to_str_use_t how)
     }
 
     if (item == 0) {
-        return con4m_new(tspec_utf8(), kw("cstring", ka("0")));
+        return c4m_new(tspec_utf8(), kw("cstring", ka("0")));
     }
 
     int i = 20;
@@ -46,7 +46,7 @@ signed_repr(int64_t item, to_str_use_t how)
         buf[--i] = '-';
     }
 
-    return con4m_new(tspec_utf8(), kw("cstring", ka(&buf[i])));
+    return c4m_new(tspec_utf8(), kw("cstring", ka(&buf[i])));
 }
 
 static any_str_t *
@@ -58,7 +58,7 @@ unsigned_repr(int64_t item, to_str_use_t how)
     };
 
     if (item == 0) {
-        return con4m_new(tspec_utf8(), kw("cstring", ka("0")));
+        return c4m_new(tspec_utf8(), kw("cstring", ka("0")));
     }
 
     int i = 20;
@@ -68,7 +68,7 @@ unsigned_repr(int64_t item, to_str_use_t how)
         item /= 10;
     }
 
-    return con4m_new(tspec_utf8(), kw("cstring", ka(&buf[i])));
+    return c4m_new(tspec_utf8(), kw("cstring", ka(&buf[i])));
 }
 
 __uint128_t
@@ -169,7 +169,7 @@ raw_hex_parse(char *s, lit_error_t *err)
 static object_t
 i8_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 {
-    char       *result = con4m_new(tspec_i8());
+    char       *result = c4m_new(tspec_i8());
     lit_error_t err    = {0, LE_NoError};
     bool        neg;
     __uint128_t val;
@@ -209,7 +209,7 @@ i8_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 object_t
 u8_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 {
-    uint8_t    *result = con4m_new(tspec_byte());
+    uint8_t    *result = c4m_new(tspec_byte());
     lit_error_t err    = {0, LE_NoError};
     bool        neg;
     __uint128_t val;
@@ -243,7 +243,7 @@ u8_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 object_t
 i32_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 {
-    int32_t    *result = con4m_new(tspec_i32());
+    int32_t    *result = c4m_new(tspec_i32());
     lit_error_t err    = {0, LE_NoError};
     bool        neg;
     __uint128_t val;
@@ -284,7 +284,7 @@ i32_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 object_t
 u32_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 {
-    uint32_t   *result = con4m_new(tspec_u32());
+    uint32_t   *result = c4m_new(tspec_u32());
     lit_error_t err    = {0, LE_NoError};
     bool        neg;
     __uint128_t val;
@@ -327,7 +327,7 @@ bool_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
     case 'T':
         if (!strcmp(s, "rue")) {
             if (true_lit == NULL) {
-                int32_t *lit = con4m_new(tspec_bool());
+                int32_t *lit = c4m_new(tspec_bool());
                 *lit         = 1;
                 true_lit     = (object_t)lit;
                 c4m_gc_register_root(&true_lit, 1);
@@ -339,7 +339,7 @@ bool_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
     case 'F':
         if (!strcmp(s, "alse")) {
             if (false_lit == NULL) {
-                int32_t *lit = con4m_new(tspec_bool());
+                int32_t *lit = c4m_new(tspec_bool());
                 *lit         = 0;
                 false_lit    = (object_t)lit;
                 c4m_gc_register_root(&false_lit, 1);
@@ -358,7 +358,7 @@ bool_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 object_t
 i64_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 {
-    int64_t    *result = con4m_new(tspec_int());
+    int64_t    *result = c4m_new(tspec_int());
     lit_error_t err    = {0, LE_NoError};
     bool        neg;
     __uint128_t val;
@@ -399,7 +399,7 @@ i64_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 object_t
 u64_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 {
-    uint64_t   *result = con4m_new(tspec_uint());
+    uint64_t   *result = c4m_new(tspec_uint());
     lit_error_t err    = {0, LE_NoError};
     bool        neg;
     __uint128_t val;
@@ -435,7 +435,7 @@ object_t
 f64_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 {
     char   *end;
-    double *lit = con4m_new(tspec_f64());
+    double *lit = c4m_new(tspec_f64());
     double  d   = strtod(s, &end);
 
     if (end == s || *end) {
@@ -503,13 +503,13 @@ bool_repr(bool *b, to_str_use_t how)
 {
     if (*b == false) {
         if (false_repr == NULL) {
-            false_repr = con4m_new(tspec_utf8(), kw("cstring", ka("false")));
+            false_repr = c4m_new(tspec_utf8(), kw("cstring", ka("false")));
             c4m_gc_register_root(&false_repr, 1);
         }
         return false_repr;
     }
     if (true_repr == NULL) {
-        true_repr = con4m_new(tspec_utf8(), kw("cstring", ka("true")));
+        true_repr = c4m_new(tspec_utf8(), kw("cstring", ka("true")));
         c4m_gc_register_root(&true_repr, 1);
     }
 
@@ -602,7 +602,7 @@ float_repr(const double *dp, to_str_use_t how)
     // snprintf includes null terminator in its count.
     snprintf(buf, 20, "%g", d);
 
-    return con4m_new(tspec_utf8(), kw("cstring", ka(buf)));
+    return c4m_new(tspec_utf8(), kw("cstring", ka(buf)));
 }
 
 void *
@@ -630,114 +630,122 @@ float_coerce_to(const double d, type_spec_t *target_type)
     }
 }
 
-const con4m_vtable u8_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable u8_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)u8_repr,
+        (c4m_vtable_entry)u8_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)any_int_coerce_to,
-        (con4m_vtable_entry)u8_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)any_int_coerce_to,
+        (c4m_vtable_entry)u8_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};
 
-const con4m_vtable i8_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable i8_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)i8_repr,
+        (c4m_vtable_entry)i8_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)any_int_coerce_to,
-        (con4m_vtable_entry)i8_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)any_int_coerce_to,
+        (c4m_vtable_entry)i8_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};
 
-const con4m_vtable u32_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable u32_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)u32_repr,
+        (c4m_vtable_entry)u32_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)any_int_coerce_to,
-        (con4m_vtable_entry)u32_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)any_int_coerce_to,
+        (c4m_vtable_entry)u32_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};
 
-const con4m_vtable i32_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable i32_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)i32_repr,
+        (c4m_vtable_entry)i32_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)any_int_coerce_to,
-        (con4m_vtable_entry)i32_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)any_int_coerce_to,
+        (c4m_vtable_entry)i32_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};
 
-const con4m_vtable u64_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable u64_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)u64_repr,
+        (c4m_vtable_entry)u64_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)any_int_coerce_to,
-        (con4m_vtable_entry)u64_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)any_int_coerce_to,
+        (c4m_vtable_entry)u64_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};
 
-const con4m_vtable i64_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable i64_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)i64_repr,
+        (c4m_vtable_entry)i64_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)any_int_coerce_to,
-        (con4m_vtable_entry)i64_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)any_int_coerce_to,
+        (c4m_vtable_entry)i64_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};
 
-const con4m_vtable bool_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable bool_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)bool_repr,
+        (c4m_vtable_entry)bool_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)bool_coerce_to,
-        (con4m_vtable_entry)bool_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)bool_coerce_to,
+        (c4m_vtable_entry)bool_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};
 
-const con4m_vtable float_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable float_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)float_repr,
+        (c4m_vtable_entry)float_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)float_coerce_to,
-        (con4m_vtable_entry)f64_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)float_coerce_to,
+        (c4m_vtable_entry)f64_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};

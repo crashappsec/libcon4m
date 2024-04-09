@@ -26,7 +26,7 @@ tree_get_parent(tree_node_t *t)
 
 // For use from Nim where we only instantiate w/ strings.
 static inline tree_node_t *
-con4m_tree(any_str_t *s)
+c4m_tree(any_str_t *s)
 {
-    return con4m_new(tspec_tree(tspec_utf32()), kw("contents", ka(s)));
+    return c4m_new(tspec_tree(tspec_utf32()), kw("contents", ka(s)));
 }

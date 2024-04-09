@@ -214,39 +214,39 @@ mixed_repr(mixed_t *mixed, to_str_use_t how)
 {
     // For the value types, we need to convert them to a 64-bit equiv
     // to send to the appropriate repr.
-    return con4m_repr((void *)mixed_as_word(mixed), mixed->held_type, how);
+    return c4m_repr((void *)mixed_as_word(mixed), mixed->held_type, how);
 }
 
 static void
 mixed_marshal_arts(mixed_t *m, stream_t *s, dict_t *memos, int64_t *mid)
 {
-    con4m_sub_marshal(m->held_type, s, memos, mid);
+    c4m_sub_marshal(m->held_type, s, memos, mid);
 
     if (tspec_get_data_type_info(m->held_type)->by_value) {
         marshal_i64((int64_t)m->held_value, s);
     }
     else {
-        con4m_sub_marshal(m->held_value, s, memos, mid);
+        c4m_sub_marshal(m->held_value, s, memos, mid);
     }
 }
 
 static void
 mixed_unmarshal_arts(mixed_t *m, stream_t *s, dict_t *memos)
 {
-    m->held_type = con4m_sub_unmarshal(s, memos);
+    m->held_type = c4m_sub_unmarshal(s, memos);
 
     if (tspec_get_data_type_info(m->held_type)->by_value) {
         m->held_value = (void *)unmarshal_i64(s);
     }
     else {
-        m->held_value = con4m_sub_unmarshal(s, memos);
+        m->held_value = c4m_sub_unmarshal(s, memos);
     }
 }
 
 static mixed_t *
 mixed_copy(mixed_t *m)
 {
-    mixed_t *result = con4m_new(tspec_mixed());
+    mixed_t *result = c4m_new(tspec_mixed());
 
     // Types are concrete whenever there is a value, so we don't need to
     // call copy, but we do it anyway.
@@ -257,23 +257,24 @@ mixed_copy(mixed_t *m)
         result->held_value = m->held_value;
     }
     else {
-        result->held_value = con4m_copy_object(m->held_value);
+        result->held_value = c4m_copy_object(m->held_value);
     }
 
     return result;
 }
 
-const con4m_vtable mixed_vtable = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable mixed_vtable = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (con4m_vtable_entry)mixed_init,
-        (con4m_vtable_entry)mixed_repr,
+        (c4m_vtable_entry)mixed_init,
+        (c4m_vtable_entry)mixed_repr,
         NULL, // finalizer
-        (con4m_vtable_entry)mixed_marshal_arts,
-        (con4m_vtable_entry)mixed_unmarshal_arts,
+        (c4m_vtable_entry)mixed_marshal_arts,
+        (c4m_vtable_entry)mixed_unmarshal_arts,
         NULL, // Mixed is not directly coercible statically.
         NULL, // NO! Call unbox_mixed() at runtime.
         NULL, // From lit,
-        (con4m_vtable_entry)mixed_copy,
+        (c4m_vtable_entry)mixed_copy,
         NULL, // Nothing else supported w/o unboxing.
-    }};
+    },
+};

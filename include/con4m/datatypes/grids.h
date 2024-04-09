@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
 /** Grid Layout objects.
 
@@ -200,6 +200,6 @@ struct grid_t {
     int8_t stripe;
 };
 
-#define GRID_TERMINAL_DIM  ((int16_t)-1)
-#define GRID_UNBOUNDED_DIM ((int16_t)-2)
-#define GRID_USE_STORED    ((int16_t)-3)
+#define GRID_TERMINAL_DIM  ((int16_t) - 1)
+#define GRID_UNBOUNDED_DIM ((int16_t) - 2)
+#define GRID_USE_STORED    ((int16_t) - 3)

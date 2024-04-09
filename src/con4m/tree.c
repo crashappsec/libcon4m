@@ -20,8 +20,8 @@ tree_add_node(tree_node_t *t, void *item)
     type_spec_t *tree_type   = get_my_type(t);
     xlist_t     *type_params = tspec_get_parameters(tree_type);
     type_spec_t *item_type   = xlist_get(type_params, 0, NULL);
-    tree_node_t *kid         = con4m_new(tspec_tree(item_type),
-                                 kw("contents", ka(item)));
+    tree_node_t *kid         = c4m_new(tspec_tree(item_type),
+                               kw("contents", ka(item)));
 
     kid->parent = t;
 
@@ -57,7 +57,7 @@ tree_children(tree_node_t *t)
     type_spec_t *item_type   = xlist_get(type_params, 0, NULL);
     xlist_t     *result;
 
-    result = con4m_new(tspec_list(item_type), kw("length", ka(t->num_kids)));
+    result = c4m_new(tspec_list(item_type), kw("length", ka(t->num_kids)));
 
     for (int i = 0; i < t->num_kids; i++) {
         xlist_append(result, t->children[i]);
@@ -77,17 +77,17 @@ tree_node_marshal(tree_node_t *t, stream_t *s, dict_t *memos, int64_t *mid)
 
     marshal_i32(t->alloced_kids, s);
     marshal_i32(t->num_kids, s);
-    con4m_sub_marshal(t->parent, s, memos, mid);
+    c4m_sub_marshal(t->parent, s, memos, mid);
 
     if (by_val) {
         marshal_u64((uint64_t)t->contents, s);
     }
     else {
-        con4m_sub_marshal(t->contents, s, memos, mid);
+        c4m_sub_marshal(t->contents, s, memos, mid);
     }
 
     for (int i = 0; i < t->num_kids; i++) {
-        con4m_sub_marshal(t->children[i], s, memos, mid);
+        c4m_sub_marshal(t->children[i], s, memos, mid);
     }
 }
 
@@ -102,27 +102,28 @@ tree_node_unmarshal(tree_node_t *t, stream_t *s, dict_t *memos)
 
     t->alloced_kids = unmarshal_i32(s);
     t->num_kids     = unmarshal_i32(s);
-    t->parent       = con4m_sub_unmarshal(s, memos);
+    t->parent       = c4m_sub_unmarshal(s, memos);
     t->children     = c4m_gc_array_alloc(tree_node_t **, t->alloced_kids);
 
     if (by_val) {
         t->contents = (object_t)unmarshal_u64(s);
     }
     else {
-        t->contents = con4m_sub_unmarshal(s, memos);
+        t->contents = c4m_sub_unmarshal(s, memos);
     }
 
     for (int i = 0; i < t->num_kids; i++) {
-        t->children[i] = con4m_sub_unmarshal(s, memos);
+        t->children[i] = c4m_sub_unmarshal(s, memos);
     }
 }
 
-const con4m_vtable tree_vtable = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable tree_vtable = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (con4m_vtable_entry)tree_node_init,
+        (c4m_vtable_entry)tree_node_init,
         NULL,
         NULL,
-        (con4m_vtable_entry)tree_node_marshal,
-        (con4m_vtable_entry)tree_node_unmarshal,
-    }};
+        (c4m_vtable_entry)tree_node_marshal,
+        (c4m_vtable_entry)tree_node_unmarshal,
+    },
+};

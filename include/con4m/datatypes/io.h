@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
 #define DEFAULT_HEAP_SIZE (256)
 #define SB_ALLOC_LEN      (PIPE_BUF + sizeof(struct sb_msg_t))

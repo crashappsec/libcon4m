@@ -25,7 +25,7 @@ callback_init(callback_t *cb, va_list args)
     funcinfo_t *info = NULL;
 
     if (bound_functions == NULL) {
-        bound_functions = con4m_new(tspec_dict(tspec_ref(), tspec_ref()));
+        bound_functions = c4m_new(tspec_dict(tspec_ref(), tspec_ref()));
         c4m_gc_register_root(&bound_functions, 1);
     }
 
@@ -70,12 +70,13 @@ callback_init(callback_t *cb, va_list args)
     cb->info = info;
 }
 
-const con4m_vtable callback_vtable = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable callback_vtable = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (con4m_vtable_entry)callback_init,
+        (c4m_vtable_entry)callback_init,
         NULL,
-        //(con4m_vtable_entry)callback_marshal,
-        //(con4m_vtable_entry)callback_unmarshal,
+        //(c4m_vtable_entry)callback_marshal,
+        //(c4m_vtable_entry)callback_unmarshal,
         NULL,
-    }};
+    },
+};

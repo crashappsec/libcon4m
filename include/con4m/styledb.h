@@ -9,7 +9,7 @@ extern void            install_default_styles();
 static inline render_style_t *
 copy_render_style(const render_style_t *style)
 {
-    render_style_t *result = con4m_new(tspec_render_style());
+    render_style_t *result = c4m_new(tspec_render_style());
 
     memcpy(result, style, sizeof(render_style_t));
 
@@ -327,7 +327,7 @@ get_border_theme(render_style_t *style)
 static inline render_style_t *
 new_render_style()
 {
-    return con4m_new(tspec_render_style());
+    return c4m_new(tspec_render_style());
 }
 
 extern bool style_exists(char *name);

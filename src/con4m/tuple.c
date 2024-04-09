@@ -43,7 +43,7 @@ tuple_marshal(tuple_t *tup, stream_t *s, dict_t *memos, int64_t *mid)
             marshal_u64((uint64_t)tup->items[i], s);
         }
         else {
-            con4m_sub_marshal(tup->items[i], s, memos, mid);
+            c4m_sub_marshal(tup->items[i], s, memos, mid);
         }
     }
 }
@@ -63,7 +63,7 @@ tuple_unmarshal(tuple_t *tup, stream_t *s, dict_t *memos)
             tup->items[i] = (void *)unmarshal_u64(s);
         }
         else {
-            tup->items[i] = con4m_sub_unmarshal(s, memos);
+            tup->items[i] = c4m_sub_unmarshal(s, memos);
         }
     }
 }
@@ -79,12 +79,12 @@ tuple_repr(tuple_t *tup, to_str_use_t how)
 {
     xlist_t *tparams = tspec_get_parameters(get_my_type(tup));
     int      len     = tup->num_items;
-    xlist_t *items   = con4m_new(tspec_xlist(tspec_utf32()));
+    xlist_t *items   = c4m_new(tspec_xlist(tspec_utf32()));
 
     for (int i = 0; i < len; i++) {
         type_spec_t *one_type = xlist_get(tparams, i, NULL);
 
-        xlist_append(items, con4m_repr(tup->items[i], one_type, how));
+        xlist_append(items, c4m_repr(tup->items[i], one_type, how));
     }
 
     any_str_t *sep    = c4m_get_comma_const();
@@ -110,13 +110,13 @@ tuple_coerce(tuple_t *tup, type_spec_t *dst)
     xlist_t *srcparams = tspec_get_parameters(get_my_type(tup));
     xlist_t *dstparams = tspec_get_parameters(dst);
     int      len       = tup->num_items;
-    tuple_t *res       = con4m_new(dst);
+    tuple_t *res       = c4m_new(dst);
 
     for (int i = 0; i < len; i++) {
         type_spec_t *src_type = xlist_get(srcparams, i, NULL);
         type_spec_t *dst_type = xlist_get(dstparams, i, NULL);
 
-        res->items[i] = con4m_coerce(tup->items[i], src_type, dst_type);
+        res->items[i] = c4m_coerce(tup->items[i], src_type, dst_type);
     }
 
     return res;
@@ -128,18 +128,18 @@ tuple_copy(tuple_t *tup)
     return tuple_coerce(tup, get_my_type(tup));
 }
 
-const con4m_vtable tuple_vtable = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable tuple_vtable = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (con4m_vtable_entry)tuple_init,
-        (con4m_vtable_entry)tuple_repr,
+        (c4m_vtable_entry)tuple_init,
+        (c4m_vtable_entry)tuple_repr,
         NULL,
-        (con4m_vtable_entry)tuple_marshal,
-        (con4m_vtable_entry)tuple_unmarshal,
-        (con4m_vtable_entry)tuple_can_coerce,
-        (con4m_vtable_entry)tuple_coerce,
+        (c4m_vtable_entry)tuple_marshal,
+        (c4m_vtable_entry)tuple_unmarshal,
+        (c4m_vtable_entry)tuple_can_coerce,
+        (c4m_vtable_entry)tuple_coerce,
         NULL,
-        (con4m_vtable_entry)tuple_copy,
+        (c4m_vtable_entry)tuple_copy,
         NULL, // Plus
         NULL, // Subtract
         NULL, // Mul
@@ -148,9 +148,10 @@ const con4m_vtable tuple_vtable = {
         NULL, // EQ
         NULL, // LT
         NULL, // GT
-        (con4m_vtable_entry)tuple_len,
-        (con4m_vtable_entry)tuple_get,
-        (con4m_vtable_entry)tuple_set,
+        (c4m_vtable_entry)tuple_len,
+        (c4m_vtable_entry)tuple_get,
+        (c4m_vtable_entry)tuple_set,
         NULL, // Slice get
         NULL, // Slice set
-    }};
+    },
+};

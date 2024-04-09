@@ -92,7 +92,7 @@ xlist_plus(xlist_t *l1, xlist_t *l2)
 
     type_spec_t *t      = get_my_type(l1);
     size_t       needed = l1->append_ix + l2->append_ix;
-    xlist_t     *result = con4m_new(t, kw("length", ka(needed)));
+    xlist_t     *result = c4m_new(t, kw("length", ka(needed)));
 
     for (int i = 0; i < l1->append_ix; i++) {
         result->data[i] = l1->data[i];
@@ -108,7 +108,7 @@ xlist_plus(xlist_t *l1, xlist_t *l2)
 }
 
 void
-con4m_xlist_marshal(xlist_t *r, stream_t *s, dict_t *memos, int64_t *mid)
+c4m_xlist_marshal(xlist_t *r, stream_t *s, dict_t *memos, int64_t *mid)
 {
     type_spec_t *list_type   = get_my_type(r);
     xlist_t     *type_params = tspec_get_parameters(list_type);
@@ -126,13 +126,13 @@ con4m_xlist_marshal(xlist_t *r, stream_t *s, dict_t *memos, int64_t *mid)
     }
     else {
         for (int i = 0; i < r->append_ix; i++) {
-            con4m_sub_marshal(r->data[i], s, memos, mid);
+            c4m_sub_marshal(r->data[i], s, memos, mid);
         }
     }
 }
 
 void
-con4m_xlist_unmarshal(xlist_t *r, stream_t *s, dict_t *memos)
+c4m_xlist_unmarshal(xlist_t *r, stream_t *s, dict_t *memos)
 {
     type_spec_t *list_type   = get_my_type(r);
     xlist_t     *type_params = tspec_get_parameters(list_type);
@@ -151,7 +151,7 @@ con4m_xlist_unmarshal(xlist_t *r, stream_t *s, dict_t *memos)
     }
     else {
         for (int i = 0; i < r->append_ix; i++) {
-            r->data[i] = con4m_sub_unmarshal(s, memos);
+            r->data[i] = c4m_sub_unmarshal(s, memos);
         }
     }
 }
@@ -166,9 +166,9 @@ xlist_len(const xlist_t *list)
 }
 
 xlist_t *
-con4m_xlist(type_spec_t *x)
+c4m_xlist(type_spec_t *x)
 {
-    return con4m_new(tspec_xlist(x));
+    return c4m_new(tspec_xlist(x));
 }
 
 static any_str_t *
@@ -178,7 +178,7 @@ xlist_repr(xlist_t *list, to_str_use_t how)
     xlist_t     *type_params = tspec_get_parameters(list_type);
     type_spec_t *item_type   = xlist_get(type_params, 0, NULL);
     int64_t      len         = xlist_len(list);
-    xlist_t     *items       = con4m_new(tspec_xlist(tspec_utf32()));
+    xlist_t     *items       = c4m_new(tspec_xlist(tspec_utf32()));
 
     for (int i = 0; i < len; i++) {
         bool  err  = false;
@@ -186,7 +186,7 @@ xlist_repr(xlist_t *list, to_str_use_t how)
         if (err) {
             continue;
         }
-        any_str_t *s = con4m_repr(item, item_type, how);
+        any_str_t *s = c4m_repr(item, item_type, how);
         xlist_append(items, s);
     }
 
@@ -214,21 +214,21 @@ xlist_coerce_to(xlist_t *list, type_spec_t *dst_type)
     }
 
     if (base == T_XLIST) {
-        xlist_t *res = con4m_new(dst_type, kw("length", ka(len)));
+        xlist_t *res = c4m_new(dst_type, kw("length", ka(len)));
 
         for (int i = 0; i < len; i++) {
             void *item = xlist_get(list, i, NULL);
-            xlist_set(res, i, con4m_coerce(item, src_item_type, dst_item_type));
+            xlist_set(res, i, c4m_coerce(item, src_item_type, dst_item_type));
         }
 
         return (object_t)res;
     }
 
-    flexarray_t *res = con4m_new(dst_type, kw("length", ka(len)));
+    flexarray_t *res = c4m_new(dst_type, kw("length", ka(len)));
 
     for (int i = 0; i < len; i++) {
         void *item = xlist_get(list, i, NULL);
-        flexarray_set(res, i, con4m_coerce(item, src_item_type, dst_item_type));
+        flexarray_set(res, i, c4m_coerce(item, src_item_type, dst_item_type));
     }
 
     return (object_t)res;
@@ -238,12 +238,12 @@ static xlist_t *
 xlist_copy(xlist_t *list)
 {
     int64_t  len = xlist_len(list);
-    xlist_t *res = con4m_new(get_my_type((object_t)list),
-                             kw("length", ka(len)));
+    xlist_t *res = c4m_new(get_my_type((object_t)list),
+                           kw("length", ka(len)));
 
     for (int i = 0; i < len; i++) {
         object_t item = xlist_get(list, i, NULL);
-        xlist_set(res, i, con4m_copy_object(item));
+        xlist_set(res, i, c4m_copy_object(item));
     }
 
     return res;
@@ -274,7 +274,7 @@ xlist_get_slice(xlist_t *list, int64_t start, int64_t end)
     }
     else {
         if (start >= len) {
-            return con4m_new(get_my_type(list), kw("length", ka(0)));
+            return c4m_new(get_my_type(list), kw("length", ka(0)));
         }
     }
     if (end < 0) {
@@ -287,11 +287,11 @@ xlist_get_slice(xlist_t *list, int64_t start, int64_t end)
     }
 
     if ((start | end) < 0 || start >= end) {
-        return con4m_new(get_my_type(list), kw("length", ka(0)));
+        return c4m_new(get_my_type(list), kw("length", ka(0)));
     }
 
     len = end - start;
-    res = con4m_new(get_my_type(list), kw("length", ka(len)));
+    res = c4m_new(get_my_type(list), kw("length", ka(len)));
 
     for (int i = 0; i < len; i++) {
         void *item = xlist_get(list, start + i, NULL);
@@ -360,7 +360,7 @@ xlist_contains(xlist_t *list, object_t item)
     type_spec_t *item_type = get_my_type(item);
 
     for (int i = 0; i < len; i++) {
-        if (con4m_eq(item_type, item, xlist_get(list, i, NULL))) {
+        if (c4m_eq(item_type, item, xlist_get(list, i, NULL))) {
             return true;
         }
     }
@@ -370,19 +370,19 @@ xlist_contains(xlist_t *list, object_t item)
 
 extern bool list_can_coerce_to(type_spec_t *, type_spec_t *);
 
-const con4m_vtable xlist_vtable = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable xlist_vtable = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (con4m_vtable_entry)xlist_init,
-        (con4m_vtable_entry)xlist_repr,
+        (c4m_vtable_entry)xlist_init,
+        (c4m_vtable_entry)xlist_repr,
         NULL,
-        (con4m_vtable_entry)con4m_xlist_marshal,
-        (con4m_vtable_entry)con4m_xlist_unmarshal,
-        (con4m_vtable_entry)list_can_coerce_to,
-        (con4m_vtable_entry)xlist_coerce_to,
+        (c4m_vtable_entry)c4m_xlist_marshal,
+        (c4m_vtable_entry)c4m_xlist_unmarshal,
+        (c4m_vtable_entry)list_can_coerce_to,
+        (c4m_vtable_entry)xlist_coerce_to,
         NULL,
-        (con4m_vtable_entry)xlist_copy,
-        (con4m_vtable_entry)xlist_plus,
+        (c4m_vtable_entry)xlist_copy,
+        (c4m_vtable_entry)xlist_plus,
         NULL, // Subtract
         NULL, // Mul
         NULL, // Div
@@ -390,8 +390,10 @@ const con4m_vtable xlist_vtable = {
         NULL, // EQ
         NULL, // LT
         NULL, // GT
-        (con4m_vtable_entry)xlist_len,
-        (con4m_vtable_entry)xlist_safe_get,
-        (con4m_vtable_entry)xlist_set,
-        (con4m_vtable_entry)xlist_get_slice,
-        (con4m_vtable_entry)xlist_set_slice}};
+        (c4m_vtable_entry)xlist_len,
+        (c4m_vtable_entry)xlist_safe_get,
+        (c4m_vtable_entry)xlist_set,
+        (c4m_vtable_entry)xlist_get_slice,
+        (c4m_vtable_entry)xlist_set_slice,
+    },
+};

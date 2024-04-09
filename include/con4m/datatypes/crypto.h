@@ -1,5 +1,5 @@
 #pragma once
-#include <con4m.h>
+#include "con4m.h"
 
 typedef void *EVP_MD_CTX;
 typedef void *EVP_MD;

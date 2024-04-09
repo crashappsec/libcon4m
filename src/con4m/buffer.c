@@ -137,7 +137,7 @@ buffer_repr(buffer_t *buf, to_str_use_t how)
     utf8_t *result;
 
     if (how == TO_STR_USE_QUOTED) {
-        result  = con4m_new(tspec_utf8(), kw("length", ka(buf->byte_len * 4 + 2)));
+        result  = c4m_new(tspec_utf8(), kw("length", ka(buf->byte_len * 4 + 2)));
         char *p = result->data;
 
         *p++ = '"';
@@ -152,7 +152,7 @@ buffer_repr(buffer_t *buf, to_str_use_t how)
         *p++ = '"';
     }
     else {
-        result  = con4m_new(tspec_utf8(), kw("length", ka(buf->byte_len * 2)));
+        result  = c4m_new(tspec_utf8(), kw("length", ka(buf->byte_len * 2)));
         char *p = result->data;
 
         for (int i = 0; i < buf->byte_len; i++) {
@@ -173,7 +173,7 @@ c4m_buffer_add(buffer_t *b1, buffer_t *b2)
     int64_t   l1     = max(c4m_buffer_len(b1), 0);
     int64_t   l2     = max(c4m_buffer_len(b2), 0);
     int64_t   lnew   = l1 + l2;
-    buffer_t *result = con4m_new(tspec_buffer(), kw("length", ka(lnew)));
+    buffer_t *result = c4m_new(tspec_buffer(), kw("length", ka(lnew)));
 
     if (l1 > 0) {
         memcpy(result->data, b1->data, l1);
@@ -205,7 +205,7 @@ c4m_buffer_join(xlist_t *list, buffer_t *joiner)
         new_len += jlen * (num_items - 1);
     }
 
-    buffer_t *result = con4m_new(tspec_buffer(), kw("length", ka(new_len)));
+    buffer_t *result = c4m_new(tspec_buffer(), kw("length", ka(new_len)));
     char     *p      = result->data;
     buffer_t *cur    = xlist_get(list, 0, NULL);
     int       clen   = c4m_buffer_len(cur);
@@ -239,8 +239,8 @@ c4m_buffer_len(buffer_t *buffer)
 utf8_t *
 c4m_buffer_to_utf8_string(buffer_t *buffer)
 {
-    utf8_t *result = con4m_new(tspec_utf8(),
-                               kw("cstring", ka(buffer->data), "length", ka(buffer->byte_len)));
+    utf8_t *result = c4m_new(tspec_utf8(),
+                             kw("cstring", ka(buffer->data), "length", ka(buffer->byte_len)));
 
     if (utf8_validate(result) < 0) {
         C4M_CRAISE("Buffer contains invalid UTF-8.");
@@ -250,7 +250,7 @@ c4m_buffer_to_utf8_string(buffer_t *buffer)
 }
 
 static void
-con4m_buffer_marshal(buffer_t *b, stream_t *s, dict_t *memos, int64_t *mid)
+c4m_buffer_marshal(buffer_t *b, stream_t *s, dict_t *memos, int64_t *mid)
 {
     marshal_u32(b->byte_len, s);
     marshal_u32(b->flags, s); // Not currently used btw.
@@ -258,7 +258,7 @@ con4m_buffer_marshal(buffer_t *b, stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 static void
-con4m_buffer_unmarshal(buffer_t *b, stream_t *s, dict_t *memos)
+c4m_buffer_unmarshal(buffer_t *b, stream_t *s, dict_t *memos)
 {
     b->byte_len = unmarshal_u32(s);
     b->flags    = unmarshal_u32(s); // Not currently used btw.
@@ -310,8 +310,8 @@ buffer_coerce_to(const buffer_t *b, type_spec_t *target_type)
             p += cplen;
         }
 
-        utf8_t *result     = con4m_new(target_type,
-                                   kw("length", ka(b->byte_len)));
+        utf8_t *result     = c4m_new(target_type,
+                                 kw("length", ka(b->byte_len)));
         result->codepoints = count;
 
         memcpy(result->data, b->data, b->byte_len);
@@ -366,7 +366,7 @@ buffer_get_slice(const buffer_t *b, int64_t start, int64_t end)
     }
     else {
         if (start >= len) {
-            return con4m_new(tspec_buffer(), kw("length", ka(0)));
+            return c4m_new(tspec_buffer(), kw("length", ka(0)));
         }
     }
     if (end < 0) {
@@ -378,11 +378,11 @@ buffer_get_slice(const buffer_t *b, int64_t start, int64_t end)
         }
     }
     if ((start | end) < 0 || start >= end) {
-        return con4m_new(tspec_buffer(), kw("length", ka(0)));
+        return c4m_new(tspec_buffer(), kw("length", ka(0)));
     }
 
     int64_t   slice_len = end - start;
-    buffer_t *result    = con4m_new(tspec_buffer(), kw("length", ka(slice_len)));
+    buffer_t *result    = c4m_new(tspec_buffer(), kw("length", ka(slice_len)));
 
     memcpy(result->data, b->data + start, slice_len);
     return result;
@@ -461,37 +461,37 @@ buffer_lit(char *s, syntax_t st, char *litmod, lit_error_t *err)
             err->code = LE_WrongNumDigits;
             return NULL;
         }
-        return con4m_new(tspec_buffer(),
-                         kw("length", ka(length), "hex", ka(s)));
+        return c4m_new(tspec_buffer(),
+                       kw("length", ka(length), "hex", ka(s)));
     }
 
-    return con4m_new(tspec_buffer(), kw("raw", ka(s)));
+    return c4m_new(tspec_buffer(), kw("raw", ka(s)));
 }
 
 static buffer_t *
 buffer_copy(buffer_t *inbuf)
 {
-    buffer_t *outbuf = con4m_new(tspec_buffer(),
-                                 kw("length", ka(inbuf->byte_len)));
+    buffer_t *outbuf = c4m_new(tspec_buffer(),
+                               kw("length", ka(inbuf->byte_len)));
 
     memcpy(outbuf->data, inbuf->data, inbuf->byte_len);
 
     return outbuf;
 }
 
-const con4m_vtable buffer_vtable = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable buffer_vtable = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (con4m_vtable_entry)buffer_init,
-        (con4m_vtable_entry)buffer_repr,
+        (c4m_vtable_entry)buffer_init,
+        (c4m_vtable_entry)buffer_repr,
         NULL, // finalizer
-        (con4m_vtable_entry)con4m_buffer_marshal,
-        (con4m_vtable_entry)con4m_buffer_unmarshal,
-        (con4m_vtable_entry)buffer_can_coerce_to,
-        (con4m_vtable_entry)buffer_coerce_to,
-        (con4m_vtable_entry)buffer_lit,
-        (con4m_vtable_entry)buffer_copy,
-        (con4m_vtable_entry)c4m_buffer_add,
+        (c4m_vtable_entry)c4m_buffer_marshal,
+        (c4m_vtable_entry)c4m_buffer_unmarshal,
+        (c4m_vtable_entry)buffer_can_coerce_to,
+        (c4m_vtable_entry)buffer_coerce_to,
+        (c4m_vtable_entry)buffer_lit,
+        (c4m_vtable_entry)buffer_copy,
+        (c4m_vtable_entry)c4m_buffer_add,
         NULL, // Subtract
         NULL, // Mul
         NULL, // Div
@@ -499,11 +499,11 @@ const con4m_vtable buffer_vtable = {
         NULL, // EQ
         NULL, // LT
         NULL, // GT
-        (con4m_vtable_entry)c4m_buffer_len,
-        (con4m_vtable_entry)buffer_get_index,
-        (con4m_vtable_entry)buffer_set_index,
-        (con4m_vtable_entry)buffer_get_slice,
-        (con4m_vtable_entry)buffer_set_slice,
+        (c4m_vtable_entry)c4m_buffer_len,
+        (c4m_vtable_entry)buffer_get_index,
+        (c4m_vtable_entry)buffer_set_index,
+        (c4m_vtable_entry)buffer_get_slice,
+        (c4m_vtable_entry)buffer_set_slice,
     },
 };
 

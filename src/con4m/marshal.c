@@ -141,7 +141,7 @@ marshal_compact_type(type_spec_t *t, stream_t *s)
     case BT_list:
     case BT_dict:
     case BT_tuple:
-        param_count = (uint16_t)con4m_len(t->details->items);
+        param_count = (uint16_t)c4m_len(t->details->items);
         marshal_u16(param_count, s);
         for (int i = 0; i < param_count; i++) {
             marshal_compact_type(xlist_get(t->details->items, i, NULL), s);
@@ -154,12 +154,12 @@ extern type_t type_hash(type_spec_t *node, type_env_t *env);
 type_spec_t *
 unmarshal_compact_type(stream_t *s)
 {
-    con4m_builtin_t base = (con4m_builtin_t)unmarshal_u16(s);
-    uint64_t        tid  = unmarshal_u64(s);
-    type_spec_t    *result;
-    uint8_t         flags = 0;
-    uint16_t        param_count;
-    dt_info        *dtinfo = (dt_info *)&builtin_type_info[base];
+    c4m_builtin_t base = (c4m_builtin_t)unmarshal_u16(s);
+    uint64_t      tid  = unmarshal_u64(s);
+    type_spec_t  *result;
+    uint8_t       flags = 0;
+    uint16_t      param_count;
+    dt_info      *dtinfo = (dt_info *)&builtin_type_info[base];
 
     switch (dtinfo->base) {
     case BT_nil:
@@ -171,7 +171,7 @@ unmarshal_compact_type(stream_t *s)
         result = get_builtin_type(base);
         return result;
     case BT_type_var:
-        result                     = con4m_new(tspec_typespec(), NULL, NULL, NULL);
+        result                     = c4m_new(tspec_typespec(), NULL, NULL, NULL);
         result->details->base_type = (dt_info *)&builtin_type_info[base];
         result->typeid             = tid;
         result->details->name      = unmarshal_cstring(s);
@@ -183,7 +183,7 @@ unmarshal_compact_type(stream_t *s)
     case BT_dict:
     case BT_tuple:
         param_count            = unmarshal_u16(s);
-        result                 = con4m_new(tspec_typespec(), NULL, NULL, 1UL);
+        result                 = c4m_new(tspec_typespec(), NULL, NULL, 1UL);
         result->typeid         = tid;
         result->details->flags = flags;
 
@@ -198,7 +198,7 @@ unmarshal_compact_type(stream_t *s)
 }
 
 void
-con4m_sub_marshal(object_t obj, stream_t *s, dict_t *memos, int64_t *mid)
+c4m_sub_marshal(object_t obj, stream_t *s, dict_t *memos, int64_t *mid)
 {
     if (obj == NULL) {
         marshal_u64(0ull, s);
@@ -223,10 +223,10 @@ con4m_sub_marshal(object_t obj, stream_t *s, dict_t *memos, int64_t *mid)
     marshal_u64(memo, s);
     hatrack_dict_put(memos, obj, (void *)memo);
 
-    con4m_obj_t *hdr = get_object_header(obj);
-    marshal_fn   ptr;
+    c4m_obj_t *hdr = get_object_header(obj);
+    marshal_fn ptr;
 
-    ptr = (marshal_fn)hdr->base_data_type->vtable->methods[CON4M_BI_MARSHAL];
+    ptr = (marshal_fn)hdr->base_data_type->vtable->methods[C4M_BI_MARSHAL];
 
     if (ptr == NULL) {
         utf8_t *type_name = new_utf8(hdr->base_data_type->name);
@@ -242,11 +242,15 @@ con4m_sub_marshal(object_t obj, stream_t *s, dict_t *memos, int64_t *mid)
     // And now, the concrete type.
     marshal_compact_type(hdr->concrete_type, s);
 
-    return (*ptr)(obj, s, memos, mid);
+    (*ptr)(obj, s, memos, mid);
+    return;
 }
 
 void *
-unmarshal_unmanaged_object(size_t len, stream_t *s, dict_t *memos, unmarshal_fn fn)
+unmarshal_unmanaged_object(size_t       len,
+                           stream_t    *s,
+                           dict_t      *memos,
+                           unmarshal_fn fn)
 {
     bool     found = false;
     uint64_t memo;
@@ -273,11 +277,11 @@ unmarshal_unmanaged_object(size_t len, stream_t *s, dict_t *memos, unmarshal_fn 
 }
 
 object_t
-con4m_sub_unmarshal(stream_t *s, dict_t *memos)
+c4m_sub_unmarshal(stream_t *s, dict_t *memos)
 {
-    bool         found = false;
-    uint64_t     memo;
-    con4m_obj_t *obj;
+    bool       found = false;
+    uint64_t   memo;
+    c4m_obj_t *obj;
 
     memo = unmarshal_u64(s);
 
@@ -291,19 +295,19 @@ con4m_sub_unmarshal(stream_t *s, dict_t *memos)
         return obj->data;
     }
 
-    con4m_builtin_t base_type_id = (con4m_builtin_t)unmarshal_u16(s);
-    dt_info        *dt_entry;
-    uint64_t        alloc_len;
-    unmarshal_fn    ptr;
+    c4m_builtin_t base_type_id = (c4m_builtin_t)unmarshal_u16(s);
+    dt_info      *dt_entry;
+    uint64_t      alloc_len;
+    unmarshal_fn  ptr;
 
-    if (base_type_id > CON4M_NUM_BUILTIN_DTS) {
+    if (base_type_id > C4M_NUM_BUILTIN_DTS) {
         C4M_CRAISE("Invalid marshal format (got invalid data type ID)");
     }
     dt_entry  = (dt_info *)&builtin_type_info[base_type_id];
-    alloc_len = sizeof(con4m_obj_t) + dt_entry->alloc_len;
+    alloc_len = sizeof(c4m_obj_t) + dt_entry->alloc_len;
 
-    obj = (con4m_obj_t *)c4m_gc_raw_alloc(alloc_len,
-                                          (uint64_t *)dt_entry->ptr_info);
+    obj = (c4m_obj_t *)c4m_gc_raw_alloc(alloc_len,
+                                        (uint64_t *)dt_entry->ptr_info);
 
     // Now that we've allocated the object, we need to fill in the memo
     // before we unmarshal, because cycles happen.
@@ -311,7 +315,7 @@ con4m_sub_unmarshal(stream_t *s, dict_t *memos)
 
     obj->base_data_type = dt_entry;
     obj->concrete_type  = unmarshal_compact_type(s);
-    ptr                 = (unmarshal_fn)dt_entry->vtable->methods[CON4M_BI_UNMARSHAL];
+    ptr                 = (unmarshal_fn)dt_entry->vtable->methods[C4M_BI_UNMARSHAL];
 
     if (ptr == NULL) {
         utf8_t *type_name = new_utf8(dt_entry->name);
@@ -327,12 +331,12 @@ con4m_sub_unmarshal(stream_t *s, dict_t *memos)
 thread_local int marshaling = 0;
 
 void
-con4m_marshal(object_t obj, stream_t *s)
+c4m_marshal(object_t obj, stream_t *s)
 {
     if (marshaling) {
         C4M_CRAISE(
-            "Do not recursively call con4m_marshal; "
-            "call con4m_sub_marshal.");
+            "Do not recursively call c4m_marshal; "
+            "call c4m_sub_marshal.");
     }
 
     marshaling = 1;
@@ -341,17 +345,17 @@ con4m_marshal(object_t obj, stream_t *s)
     int64_t next_memo = 1;
     dict_t *memos     = alloc_marshal_memos();
 
-    con4m_sub_marshal(obj, s, memos, &next_memo);
+    c4m_sub_marshal(obj, s, memos, &next_memo);
     marshaling = 0;
 }
 
 object_t
-con4m_unmarshal(stream_t *s)
+c4m_unmarshal(stream_t *s)
 {
     if (marshaling) {
         C4M_CRAISE(
-            "Do not recursively call con4m_unmarshal; "
-            "call con4m_sub_unmarshal.");
+            "Do not recursively call c4m_unmarshal; "
+            "call c4m_sub_unmarshal.");
     }
 
     dict_t  *memos = alloc_unmarshal_memos();
@@ -359,7 +363,7 @@ con4m_unmarshal(stream_t *s)
 
     marshaling = 1;
 
-    result = con4m_sub_unmarshal(s, memos);
+    result = c4m_sub_unmarshal(s, memos);
 
     marshaling = 0;
 
@@ -369,18 +373,18 @@ con4m_unmarshal(stream_t *s)
 void
 dump_c_static_instance_code(object_t obj, char *symbol_name, utf8_t *filename)
 {
-    buffer_t *b = con4m_new(tspec_buffer(), kw("length", ka(1)));
-    stream_t *s = con4m_new(tspec_stream(),
-                            kw("buffer", ka(b), "write", ka(1)));
+    buffer_t *b = c4m_new(tspec_buffer(), kw("length", ka(1)));
+    stream_t *s = c4m_new(tspec_stream(),
+                          kw("buffer", ka(b), "write", ka(1)));
 
-    con4m_marshal(obj, s);
+    c4m_marshal(obj, s);
     stream_close(s);
 
-    s = con4m_new(tspec_stream(), kw("filename", ka(filename), "write", ka(1), "read", ka(0)));
+    s = c4m_new(tspec_stream(), kw("filename", ka(filename), "write", ka(1), "read", ka(0)));
 
     static int   char_per_line = 12;
     static char *decl_start =
-        "#include \"con4m.h\"\n\n"
+        "#include \"c4m.h\"\n\n"
         "static unsigned char _marshaled_";
     static char *mdecl_end   = "\n};\n\n";
     static char *array_start = "[] = {";
@@ -393,18 +397,18 @@ dump_c_static_instance_code(object_t obj, char *symbol_name, utf8_t *filename)
     static char *fn_part1    = "()\n{\n    if (";
     static char *fn_part2 =
         " == NULL) {\n"
-        "        stream_t *s = con4m_new(tspec_stream(), \n"
+        "        stream_t *s = c4m_new(tspec_stream(), \n"
         "                                kw(\"buffer\", "
-        "con4m_new(tspec_buffer(),  \"raw\", _marshaled_";
+        "c4m_new(tspec_buffer(),  \"raw\", _marshaled_";
     static char *fn_part3 =
         ", \n"
         "                                             \"length\", ka(";
     static char *fn_part4 =
         "))));\n        "
-        "        con4m_gc_register_root(&";
+        "        c4m_gc_register_root(&";
     static char *fn_part5 = ", 1);\n        ";
     static char *fn_part6 =
-        " = con4m_unmarshal(s);\n    }\n"
+        " = c4m_unmarshal(s);\n    }\n"
         "    return ";
     static char *fn_end = ";\n}\n";
 

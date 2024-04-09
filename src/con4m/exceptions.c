@@ -32,7 +32,7 @@ exception_t *
 _c4m_alloc_exception(const char *msg, ...)
 {
     exception_t *ret = c4m_gc_alloc(sizeof(exception_t));
-    ret->msg         = con4m_new(tspec_utf8(), kw("cstring", ka(msg)));
+    ret->msg         = c4m_new(tspec_utf8(), kw("cstring", ka(msg)));
 
     return ret;
 }
@@ -121,9 +121,9 @@ c4m_exception_raise(exception_t *exception, char *filename, int line)
     longjmp(*(frame->buf), 1);
 }
 
-const con4m_vtable exception_vtable = {
+const c4m_vtable exception_vtable = {
     .num_entries = 1,
     .methods     = {
-        (con4m_vtable_entry)exception_init,
+        (c4m_vtable_entry)exception_init,
     },
 };

@@ -1,5 +1,4 @@
 #include "con4m.h"
-
 #include "./static/colors.c"
 
 static dict_t *color_table = NULL;
@@ -8,14 +7,14 @@ static inline dict_t *
 get_color_table()
 {
     if (color_table == NULL) {
-        buffer_t *b = con4m_new(tspec_buffer(),
-                                kw("raw",
-                                   ka(_marshaled_color_table),
-                                   "length",
-                                   ka(44237)));
-        stream_t *s = con4m_new(tspec_stream(), kw("buffer", ka(b)));
+        buffer_t *b = c4m_new(tspec_buffer(),
+                              kw("raw",
+                                 ka(_marshaled_color_table),
+                                 "length",
+                                 ka(44237)));
+        stream_t *s = c4m_new(tspec_stream(), kw("buffer", ka(b)));
         c4m_gc_register_root(&color_table, 1);
-        color_table = con4m_unmarshal(s);
+        color_table = c4m_unmarshal(s);
     }
     return color_table;
 }

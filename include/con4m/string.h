@@ -20,8 +20,8 @@ extern any_str_t  *_string_truncate(const any_str_t *s, int64_t, ...);
 extern utf32_t    *_string_join(const xlist_t *l, const any_str_t *joiner, ...);
 extern utf8_t     *string_from_int(int64_t n);
 extern int64_t     _string_find(any_str_t *, any_str_t *, ...);
-extern utf8_t     *con4m_cstring(char *s, int64_t len);
-extern utf8_t     *con4m_rich(utf8_t *, utf8_t *style);
+extern utf8_t     *c4m_cstring(char *s, int64_t len);
+extern utf8_t     *c4m_rich(utf8_t *, utf8_t *style);
 extern codepoint_t utf8_index(const utf8_t *, int64_t);
 extern codepoint_t utf32_index(const utf32_t *, int64_t);
 extern bool        string_can_coerce_to(type_spec_t *, type_spec_t *);
@@ -99,7 +99,7 @@ string_crlf()
 static inline utf8_t *
 new_utf8(const char *to_copy)
 {
-    return con4m_new(tspec_utf8(), kw("cstring", ka(to_copy)));
+    return c4m_new(tspec_utf8(), kw("cstring", ka(to_copy)));
 }
 
 static inline char *

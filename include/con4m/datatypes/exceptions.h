@@ -1,5 +1,5 @@
 #pragma once
-#include <con4m.h>
+#include "con4m.h"
 
 typedef struct exception_st       exception_t;
 typedef struct exception_frame_st exception_frame_t;

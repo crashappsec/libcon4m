@@ -5,7 +5,7 @@
 extern type_spec_t *resolve_type_aliases(type_spec_t *, type_env_t *);
 extern bool         type_spec_is_concrete(type_spec_t *);
 extern type_spec_t *type_spec_copy(type_spec_t *node, type_env_t *env);
-extern type_spec_t *get_builtin_type(con4m_builtin_t);
+extern type_spec_t *get_builtin_type(c4m_builtin_t);
 extern type_spec_t *unify(type_spec_t *, type_spec_t *, type_env_t *);
 extern type_spec_t *lookup_type_spec(type_t tid, type_env_t *env);
 extern type_spec_t *tspec_list(type_spec_t *);
@@ -142,7 +142,7 @@ tspec_get_data_type_info(type_spec_t *t)
 static inline type_spec_t *
 get_my_type(const object_t user_object)
 {
-    con4m_obj_t *hdr = get_object_header(user_object);
+    c4m_obj_t *hdr = get_object_header(user_object);
 
     return hdr->concrete_type;
 }
@@ -153,13 +153,13 @@ get_base_type_id(const object_t obj)
     return tspec_get_data_type_info(get_my_type(obj))->typeid;
 }
 
-static inline con4m_builtin_t
+static inline c4m_builtin_t
 tspec_get_base_tid(type_spec_t *n)
 {
     return n->details->base_type->typeid;
 }
 
-extern type_spec_t *builtin_types[CON4M_NUM_BUILTIN_DTS];
+extern type_spec_t *builtin_types[C4M_NUM_BUILTIN_DTS];
 
 static inline type_spec_t *
 tspec_error()
@@ -404,7 +404,7 @@ tspec_kargs()
 static inline type_spec_t *
 type_spec_new_typevar(type_env_t *env)
 {
-    type_spec_t *result = con4m_new(tspec_typespec(), env, T_GENERIC);
+    type_spec_t *result = c4m_new(tspec_typespec(), env, T_GENERIC);
 
     return result;
 }
@@ -433,7 +433,7 @@ tspecs_are_compat(type_spec_t *t1, type_spec_t *t2)
 static inline type_spec_t *
 tspec_tuple_from_xlist(xlist_t *item_types)
 {
-    type_spec_t *result   = con4m_new(tspec_typespec(), global_type_env, T_TUPLE);
+    type_spec_t *result   = c4m_new(tspec_typespec(), global_type_env, T_TUPLE);
     xlist_t     *res_list = result->details->items;
 
     int n = xlist_len(item_types);

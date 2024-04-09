@@ -5,26 +5,26 @@ static dict_t *mod_map[ST_MAX] = {
 };
 
 void
-register_literal(syntax_t st, char *mod, con4m_builtin_t bi)
+register_literal(syntax_t st, char *mod, c4m_builtin_t bi)
 {
     if (!hatrack_dict_add(mod_map[st], mod, (void *)(int64_t)bi)) {
         C4M_CRAISE("Duplicate literal modifier for this syntax type.");
     }
 }
 
-static con4m_builtin_t
+static c4m_builtin_t
 base_type_from_litmod(syntax_t st, char *mod)
 {
-    con4m_builtin_t bi;
-    bool            found;
+    c4m_builtin_t bi;
+    bool          found;
 
-    bi = (con4m_builtin_t)(int64_t)hatrack_dict_get(mod_map[st], mod, &found);
+    bi = (c4m_builtin_t)(int64_t)hatrack_dict_get(mod_map[st], mod, &found);
 
     if (found) {
         return bi;
     }
 
-    bi = (con4m_builtin_t)(int64_t)hatrack_dict_get(mod_map[st], "*", &found);
+    bi = (c4m_builtin_t)(int64_t)hatrack_dict_get(mod_map[st], "*", &found);
 
     if (found) {
         return bi;
@@ -40,7 +40,7 @@ init_literal_handling()
         type_spec_t *ts = tspec_dict(tspec_utf8(), tspec_int());
 
         for (int i = 0; i < ST_MAX; i++) {
-            mod_map[i] = con4m_new(ts);
+            mod_map[i] = c4m_new(ts);
         }
 
         c4m_gc_register_root(&mod_map[0], ST_MAX);
@@ -124,19 +124,19 @@ init_literal_handling()
 }
 
 object_t
-con4m_simple_lit(char *raw, syntax_t syntax, char *lit_mod, lit_error_t *err)
+c4m_simple_lit(char *raw, syntax_t syntax, char *lit_mod, lit_error_t *err)
 {
     init_literal_handling();
 
-    con4m_builtin_t base_type = base_type_from_litmod(syntax, lit_mod);
+    c4m_builtin_t base_type = base_type_from_litmod(syntax, lit_mod);
 
     if (base_type == T_TYPE_ERROR) {
         err->code = LE_NoLitmodMatch;
         return NULL;
     }
 
-    con4m_vtable *vtbl = (con4m_vtable *)builtin_type_info[base_type].vtable;
-    literal_fn    fn   = (literal_fn)vtbl->methods[CON4M_BI_FROM_LITERAL];
+    c4m_vtable *vtbl = (c4m_vtable *)builtin_type_info[base_type].vtable;
+    literal_fn  fn   = (literal_fn)vtbl->methods[C4M_BI_FROM_LITERAL];
 
     if (!fn) {
         err->code = LE_NoLitmodMatch;

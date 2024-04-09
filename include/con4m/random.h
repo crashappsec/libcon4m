@@ -5,7 +5,7 @@
 #if defined(__APPLE__) || defined(BSD)
 
 static inline uint64_t
-con4m_rand64()
+c4m_rand64()
 {
     uint64_t res;
 
@@ -17,7 +17,7 @@ con4m_rand64()
 #elif defined(__linux__)
 
 static inline uint64_t
-con4m_rand64()
+c4m_rand64()
 {
     uint64_t res;
 

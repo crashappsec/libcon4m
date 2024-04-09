@@ -11,12 +11,22 @@ extern int32_t unmarshal_i32(stream_t *);
 extern void    marshal_i16(int16_t, stream_t *);
 extern int16_t unmarshal_i16(stream_t *);
 
-extern void     con4m_sub_marshal(object_t, stream_t *, struct dict_t *, int64_t *);
-extern object_t con4m_sub_unmarshal(stream_t *, struct dict_t *);
-extern void     con4m_marshal(object_t, stream_t *);
-extern object_t con4m_unmarshal(stream_t *);
-extern void     marshal_unmanaged_object(void *, stream_t *, struct dict_t *, int64_t *, marshal_fn);
-extern void    *unmarshal_unmanaged_object(size_t, stream_t *, struct dict_t *, unmarshal_fn);
+extern void     c4m_sub_marshal(object_t,
+                                stream_t *,
+                                struct dict_t *,
+                                int64_t *);
+extern object_t c4m_sub_unmarshal(stream_t *, struct dict_t *);
+extern void     c4m_marshal(object_t, stream_t *);
+extern object_t c4m_unmarshal(stream_t *);
+extern void     marshal_unmanaged_object(void *,
+                                         stream_t *,
+                                         struct dict_t *,
+                                         int64_t *,
+                                         marshal_fn);
+extern void    *unmarshal_unmanaged_object(size_t,
+                                           stream_t *,
+                                           struct dict_t *,
+                                           unmarshal_fn);
 extern void     dump_c_static_instance_code(object_t, char *, utf8_t *);
 static inline void
 marshal_i8(int8_t c, stream_t *s)
@@ -95,24 +105,24 @@ unmarshal_u8(stream_t *s)
 }
 
 static inline buffer_t *
-con4m_marshal_to_buf(object_t obj)
+c4m_marshal_to_buf(object_t obj)
 {
-    buffer_t *b = con4m_new(tspec_buffer(), kw("length", ka(16)));
-    stream_t *s = con4m_new(tspec_stream(), kw("buffer", ka(b), "write", ka(1), "read", ka(0)));
+    buffer_t *b = c4m_new(tspec_buffer(), kw("length", ka(16)));
+    stream_t *s = c4m_new(tspec_stream(), kw("buffer", ka(b), "write", ka(1), "read", ka(0)));
 
-    con4m_marshal(obj, s);
+    c4m_marshal(obj, s);
     stream_close(s);
 
     return b;
 }
 
 static inline object_t
-con4m_mem_unmarshal(char *mem, int64_t len)
+c4m_mem_unmarshal(char *mem, int64_t len)
 {
-    buffer_t *b = con4m_new(tspec_buffer(), kw("length", ka(len), "ptr", mem));
-    stream_t *s = con4m_new(tspec_stream(), kw("buffer", ka(b)));
+    buffer_t *b = c4m_new(tspec_buffer(), kw("length", ka(len), "ptr", mem));
+    stream_t *s = c4m_new(tspec_stream(), kw("buffer", ka(b)));
 
-    object_t result = con4m_unmarshal(s);
+    object_t result = c4m_unmarshal(s);
 
     stream_close(s);
     return result;
@@ -121,11 +131,11 @@ con4m_mem_unmarshal(char *mem, int64_t len)
 static inline struct dict_t *
 alloc_marshal_memos()
 {
-    return con4m_new(tspec_dict(tspec_ref(), tspec_u64()));
+    return c4m_new(tspec_dict(tspec_ref(), tspec_u64()));
 }
 
 static inline struct dict_t *
 alloc_unmarshal_memos()
 {
-    return con4m_new(tspec_dict(tspec_u64(), tspec_ref()));
+    return c4m_new(tspec_dict(tspec_u64(), tspec_ref()));
 }

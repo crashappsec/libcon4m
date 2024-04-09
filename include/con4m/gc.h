@@ -69,11 +69,11 @@
 #define ALLOW_POINTER_MAPS
 #endif
 
-#ifndef CON4M_DEFAULT_ARENA_SIZE
+#ifndef C4M_DEFAULT_ARENA_SIZE
 // 4 Meg
-#define CON4M_DEFAULT_ARENA_SIZE (1 << 26)
+#define C4M_DEFAULT_ARENA_SIZE (1 << 26)
 // Was previously using 1 << 19
-// #define CON4M_DEFAULT_ARENA_SIZE 64 // Was using this for extreme tests
+// #define C4M_DEFAULT_ARENA_SIZE 64 // Was using this for extreme tests
 #endif
 
 // In the future, we would expect that a writer seeing the
@@ -101,18 +101,18 @@
 // Shouldn't be accessed by developer, but allows us to inline.
 extern uint64_t c4m_gc_guard;
 
-extern con4m_arena_t *c4m_new_arena(size_t);
-extern void           c4m_delete_arena(con4m_arena_t *);
-extern void           c4m_expand_arena(size_t, con4m_arena_t **);
-extern void           c4m_collect_arena(con4m_arena_t **);
-extern void          *c4m_gc_raw_alloc(size_t, uint64_t *);
-extern void          *c4m_gc_resize(void *ptr, size_t len);
-extern void           c4m_gc_thread_collect();
-extern void           c4m_arena_register_root(con4m_arena_t *,
-                                              void *,
-                                              uint64_t);
-extern void           c4m_gc_register_root(void *ptr, uint64_t num_words);
-extern _Bool          c4m_is_read_only_memory(volatile void *);
+extern c4m_arena_t *c4m_new_arena(size_t);
+extern void         c4m_delete_arena(c4m_arena_t *);
+extern void         c4m_expand_arena(size_t, c4m_arena_t **);
+extern void         c4m_collect_arena(c4m_arena_t **);
+extern void        *c4m_gc_raw_alloc(size_t, uint64_t *);
+extern void        *c4m_gc_resize(void *ptr, size_t len);
+extern void         c4m_gc_thread_collect();
+extern void         c4m_arena_register_root(c4m_arena_t *,
+                                            void *,
+                                            uint64_t);
+extern void         c4m_gc_register_root(void *ptr, uint64_t num_words);
+extern _Bool        c4m_is_read_only_memory(volatile void *);
 
 // #define GC_TRACE
 #ifdef GC_TRACE
@@ -150,29 +150,29 @@ c4m_round_up_to_given_power_of_2(uint64_t power, uint64_t n)
 
 // This currently assumes ptr_map doesn't need more than 64 entries.
 static inline void *
-c4m_alloc_from_arena(con4m_arena_t **arena_ptr,
+c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
                      size_t          len,
                      const uint64_t *ptr_map)
 {
     // Round up to aligned length.
-    size_t         wordlen = c4m_round_up_to_given_power_of_2(16, len);
-    con4m_arena_t *arena   = *arena_ptr;
+    size_t       wordlen = c4m_round_up_to_given_power_of_2(16, len);
+    c4m_arena_t *arena   = *arena_ptr;
 
     if (arena == 0) {
 try_again:
-        c4m_expand_arena(max(CON4M_DEFAULT_ARENA_SIZE, wordlen * 2),
+        c4m_expand_arena(max(C4M_DEFAULT_ARENA_SIZE, wordlen * 2),
                          arena_ptr);
         arena = *arena_ptr;
     }
 
-    con4m_alloc_hdr *raw = arena->next_alloc;
+    c4m_alloc_hdr *raw = arena->next_alloc;
 
-    if (raw >= (con4m_alloc_hdr *)arena->heap_end) {
+    if (raw >= (c4m_alloc_hdr *)arena->heap_end) {
         goto try_again;
     }
-    arena->next_alloc = (con4m_alloc_hdr *)&(raw->data[wordlen]);
+    arena->next_alloc = (c4m_alloc_hdr *)&(raw->data[wordlen]);
 
-    if (arena->next_alloc > (con4m_alloc_hdr *)arena->heap_end) {
+    if (arena->next_alloc > (c4m_alloc_hdr *)arena->heap_end) {
         goto try_again;
     }
 

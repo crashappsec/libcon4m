@@ -34,7 +34,7 @@ pass_kargs(int nargs, ...)
 
     nargs >>= 1;
 
-    karg_info_t *kargs = con4m_new(tspec_kargs(), nargs);
+    karg_info_t *kargs = c4m_new(tspec_kargs(), nargs);
 
     for (int i = 0; i < nargs; i++) {
         kargs->args[i].kw    = va_arg(args, char *);
@@ -97,9 +97,9 @@ get_kargs_and_count(va_list args, int *nargs)
     return NULL;
 }
 
-const con4m_vtable kargs_vtable = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable kargs_vtable = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (con4m_vtable_entry)kargs_init,
+        (c4m_vtable_entry)kargs_init,
         NULL, // Aboslutelty nothing else.
     }};
