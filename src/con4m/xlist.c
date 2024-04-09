@@ -7,8 +7,8 @@ xlist_init(xlist_t *list, va_list args)
 {
     int64_t length = 16;
 
-    karg_va_init(args);
-    kw_int64("length", length);
+    c4m_karg_va_init(args);
+    c4m_kw_int64("length", length);
 
     list->append_ix = 0;
     list->length    = max(length, 16);
@@ -92,7 +92,7 @@ xlist_plus(xlist_t *l1, xlist_t *l2)
 
     type_spec_t *t      = get_my_type(l1);
     size_t       needed = l1->append_ix + l2->append_ix;
-    xlist_t     *result = c4m_new(t, kw("length", ka(needed)));
+    xlist_t     *result = c4m_new(t, c4m_kw("length", c4m_ka(needed)));
 
     for (int i = 0; i < l1->append_ix; i++) {
         result->data[i] = l1->data[i];
@@ -214,7 +214,7 @@ xlist_coerce_to(xlist_t *list, type_spec_t *dst_type)
     }
 
     if (base == T_XLIST) {
-        xlist_t *res = c4m_new(dst_type, kw("length", ka(len)));
+        xlist_t *res = c4m_new(dst_type, c4m_kw("length", c4m_ka(len)));
 
         for (int i = 0; i < len; i++) {
             void *item = xlist_get(list, i, NULL);
@@ -224,7 +224,7 @@ xlist_coerce_to(xlist_t *list, type_spec_t *dst_type)
         return (object_t)res;
     }
 
-    flexarray_t *res = c4m_new(dst_type, kw("length", ka(len)));
+    flexarray_t *res = c4m_new(dst_type, c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {
         void *item = xlist_get(list, i, NULL);
@@ -239,7 +239,7 @@ xlist_copy(xlist_t *list)
 {
     int64_t  len = xlist_len(list);
     xlist_t *res = c4m_new(get_my_type((object_t)list),
-                           kw("length", ka(len)));
+                           c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {
         object_t item = xlist_get(list, i, NULL);
@@ -274,7 +274,7 @@ xlist_get_slice(xlist_t *list, int64_t start, int64_t end)
     }
     else {
         if (start >= len) {
-            return c4m_new(get_my_type(list), kw("length", ka(0)));
+            return c4m_new(get_my_type(list), c4m_kw("length", c4m_ka(0)));
         }
     }
     if (end < 0) {
@@ -287,11 +287,11 @@ xlist_get_slice(xlist_t *list, int64_t start, int64_t end)
     }
 
     if ((start | end) < 0 || start >= end) {
-        return c4m_new(get_my_type(list), kw("length", ka(0)));
+        return c4m_new(get_my_type(list), c4m_kw("length", c4m_ka(0)));
     }
 
     len = end - start;
-    res = c4m_new(get_my_type(list), kw("length", ka(len)));
+    res = c4m_new(get_my_type(list), c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {
         void *item = xlist_get(list, start + i, NULL);

@@ -33,11 +33,10 @@ ipaddr_init(ipaddr_t *obj, va_list args)
     int32_t    port    = -1;
     bool       ipv6    = false;
 
-    karg_va_init(args);
-
-    kw_ptr("address", address);
-    kw_int32("port", port);
-    kw_bool("ipv6", ipv6);
+    c4m_karg_va_init(args);
+    c4m_kw_ptr("address", address);
+    c4m_kw_int32("port", port);
+    c4m_kw_bool("ipv6", ipv6);
 
     if (ipv6) {
         obj->af = AF_INET6;
@@ -91,10 +90,10 @@ ipaddr_repr(ipaddr_t *obj)
     }
 
     if (obj->port == 0) {
-        return c4m_new(tspec_utf8(), kw("cstring", ka(buf)));
+        return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(buf)));
     }
 
-    return string_concat(c4m_new(tspec_utf8(), kw("cstring", ka(buf))),
+    return string_concat(c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(buf))),
                          string_concat(c4m_get_colon_no_space_const(),
                                        string_from_int((int64_t)obj->port)));
 }

@@ -143,20 +143,19 @@ stream_init(stream_t *stream, va_list args)
     bool          close_on_exec = true;
     c4m_builtin_t out_type      = T_UTF8;
 
-    karg_va_init(args);
-
-    kw_ptr("filename", filename);
-    kw_ptr("instring", instring);
-    kw_ptr("buffer", buffer);
-    kw_ptr("cookie", cookie);
-    kw_ptr("cstream", fstream);
-    kw_int32("fd", fd);
-    kw_bool("read", read);
-    kw_bool("write", write);
-    kw_bool("append", append);
-    kw_bool("no_create", no_create);
-    kw_bool("close_on_exec", close_on_exec);
-    kw_int64("out_type", out_type);
+    c4m_karg_va_init(args);
+    c4m_kw_ptr("filename", filename);
+    c4m_kw_ptr("instring", instring);
+    c4m_kw_ptr("buffer", buffer);
+    c4m_kw_ptr("cookie", cookie);
+    c4m_kw_ptr("cstream", fstream);
+    c4m_kw_int32("fd", fd);
+    c4m_kw_bool("read", read);
+    c4m_kw_bool("write", write);
+    c4m_kw_bool("append", append);
+    c4m_kw_bool("no_create", no_create);
+    c4m_kw_bool("close_on_exec", close_on_exec);
+    c4m_kw_int64("out_type", out_type);
 
     int64_t src_count = 0;
     char    buf[10]   = {
@@ -300,16 +299,22 @@ static object_t
 stream_bytes_to_output(int64_t flags, char *buf, int64_t len)
 {
     if (flags & F_STREAM_UTF8_OUT) {
-        return c4m_new(tspec_utf8(), kw("cstring", ka(buf), "length", ka(len)));
+        return c4m_new(tspec_utf8(),
+                       c4m_kw("cstring", c4m_ka(buf), "length", c4m_ka(len)));
     }
 
     if (flags & F_STREAM_UTF32_OUT) {
-        return c4m_new(tspec_utf32(), kw("cstring", ka(buf), "codepoints", ka(len / 4)));
+        return c4m_new(tspec_utf32(),
+                       c4m_kw("cstring",
+                              c4m_ka(buf),
+                              "codepoints",
+                              c4m_ka(len / 4)));
     }
 
     else {
         // Else, it's going to a buffer.
-        return c4m_new(tspec_buffer(), kw("raw", ka(buf), "length", ka(len)));
+        return c4m_new(tspec_buffer(),
+                       c4m_kw("raw", c4m_ka(buf), "length", c4m_ka(len)));
     }
 }
 
@@ -560,14 +565,14 @@ void
 _print(object_t first, ...)
 {
     va_list      args;
-    object_t     cur     = first;
-    karg_info_t *_karg   = NULL;
-    stream_t    *stream  = NULL;
-    codepoint_t  sep     = ' ';
-    codepoint_t  end     = '\n';
-    bool         flush   = false;
-    bool         force   = false;
-    bool         nocolor = false;
+    object_t     cur       = first;
+    karg_info_t *_c4m_karg = NULL;
+    stream_t    *stream    = NULL;
+    codepoint_t  sep       = ' ';
+    codepoint_t  end       = '\n';
+    bool         flush     = false;
+    bool         force     = false;
+    bool         nocolor   = false;
     int          numargs;
     bool         ansi;
 
@@ -579,29 +584,30 @@ _print(object_t first, ...)
     }
 
     if (get_my_type(first) == tspec_kargs()) {
-        _karg   = first;
-        numargs = 0;
+        _c4m_karg = first;
+        numargs   = 0;
     }
     else {
-        _karg = get_kargs_and_count(args, &numargs);
+        _c4m_karg = c4m_get_kargs_and_count(args, &numargs);
         numargs++;
     }
 
-    if (_karg != NULL) {
-        if (!kw_ptr("stream", stream)) {
+    if (_c4m_karg != NULL) {
+        if (!c4m_kw_ptr("stream", stream)) {
             stream = get_stdout();
         }
-        kw_codepoint("sep", sep);
+        c4m_kw_codepoint("sep", sep);
+        c4m_kw_codepoint("end", end);
+        c4m_kw_bool("flush", flush);
 
-        kw_codepoint("end", end);
-        kw_bool("flush", flush);
-
-        if (!kw_bool("force_color", force)) {
-            kw_bool("no_color", nocolor);
+        if (!c4m_kw_bool("force_color", force)) {
+            c4m_kw_bool("no_color", nocolor);
         }
         else {
-            if (kw_bool("no_color", nocolor)) {
-                C4M_CRAISE("Cannot specify `force_color` and `no_color` together.");
+            if (c4m_kw_bool("no_color", nocolor)) {
+                C4M_CRAISE(
+                    "Cannot specify `force_color` and `no_color` "
+                    "together.");
             }
         }
     }

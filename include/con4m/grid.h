@@ -48,7 +48,7 @@ c4m_grid_add_col_span(grid_t       *grid,
 static inline renderable_t *
 c4m_to_str_renderable(any_str_t *s, char *tag)
 {
-    return c4m_new(tspec_renderable(), kw("obj", ka(s), "tag", ka(tag)));
+    return c4m_new(tspec_renderable(), c4m_kw("obj", c4m_ka(s), "tag", c4m_ka(tag)));
 }
 
 static inline void
@@ -144,7 +144,10 @@ c4m_grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
         }
 
         cell = c4m_new(tspec_renderable(),
-                       kw("tag", ka(tag), "obj", ka(item)));
+                       c4m_kw("tag",
+                              c4m_ka(tag),
+                              "obj",
+                              c4m_ka(item)));
         break;
     }
     default:

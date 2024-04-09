@@ -96,10 +96,9 @@ mixed_init(mixed_t *m, va_list args)
     type_spec_t *type = NULL;
     void        *ptr  = NULL;
 
-    karg_va_init(args);
-
-    kw_ptr("type", type);
-    kw_ptr("value", ptr);
+    c4m_karg_va_init(args);
+    c4m_kw_ptr("type", type);
+    c4m_kw_ptr("value", ptr);
 
     c4m_mixed_set_value(m, type, ptr);
 }

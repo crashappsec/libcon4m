@@ -222,7 +222,9 @@ internal_type_hash(type_spec_t *node, type_hash_ctx *ctx)
 
         if (num_tvars == 0) {
             num_tvars = ++ctx->tv_count;
-            hatrack_dict_put(ctx->memos, (void *)node->typeid, (void *)num_tvars);
+            hatrack_dict_put(ctx->memos,
+                             (void *)node->typeid,
+                             (void *)num_tvars);
         }
 
         c4m_sha_int_update(ctx->sha, num_tvars);
@@ -427,7 +429,10 @@ type_spec_copy(type_spec_t *node, type_env_t *env)
     }
 
     type_spec_t    *result  = c4m_new(tspec_typespec(),
-                                  kw("name", ka(ts_from->name), "base_id", ka(ts_from->base_type->typeid)));
+                                  c4m_kw("name",
+                                         c4m_ka(ts_from->name),
+                                         "base_id",
+                                         c4m_ka(ts_from->base_type->typeid)));
     int             n       = type_spec_get_num_params(node);
     xlist_t        *to_copy = type_spec_get_params(node);
     type_details_t *ts_to   = result->details;
@@ -587,7 +592,7 @@ unify_sub_nodes:
         p1       = type_spec_get_params(t1);
         p2       = type_spec_get_params(t2);
         new_subs = c4m_new(tspec_xlist(tspec_typespec()),
-                           kw("length", ka(num_params)));
+                           c4m_kw("length", c4m_ka(num_params)));
 
         for (int i = 0; i < num_params; i++) {
             sub1       = xlist_get(p1, i, NULL);
@@ -651,7 +656,7 @@ unify_sub_nodes:
         p1       = type_spec_get_params(t1);
         p2       = type_spec_get_params(t2);
         new_subs = c4m_new(tspec_xlist(tspec_typespec()),
-                           kw("length", ka(num_params)));
+                           c4m_kw("length", c4m_ka(num_params)));
 
         for (int i = 0; i < f1_params - 2; i++) {
             sub1       = xlist_get(p1, i, NULL);
@@ -720,7 +725,7 @@ create_typevar_name(int64_t num)
         num >>= 4;
     }
 
-    return c4m_new(tspec_utf8(), kw("cstring", ka(buf)));
+    return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(buf)));
 }
 
 static inline any_str_t *
@@ -733,7 +738,7 @@ internal_repr_tv(type_spec_t *t, dict_t *memos, int64_t *nexttv)
     }
 
     if (t->details->name != NULL) {
-        s = c4m_new(tspec_utf8(), kw("cstring", ka(t->details->name)));
+        s = c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(t->details->name)));
     }
     else {
         int64_t v = *nexttv;
@@ -759,8 +764,8 @@ internal_repr_container(type_details_t *info, dict_t *memos, int64_t *nexttv)
 
     xlist_append(to_join,
                  c4m_new(tspec_utf8(),
-                         kw("cstring",
-                            ka(info->base_type->name))));
+                         c4m_kw("cstring",
+                                c4m_ka(info->base_type->name))));
     xlist_append(to_join, c4m_get_lbrak_const());
     goto first_loop_start;
 
@@ -836,7 +841,7 @@ internal_type_repr(type_spec_t *t, dict_t *memos, int64_t *nexttv)
     case BT_nil:
     case BT_primitive:
         return c4m_new(tspec_utf8(),
-                       kw("cstring", ka(info->base_type->name)));
+                       c4m_kw("cstring", c4m_ka(info->base_type->name)));
     case BT_type_var:
         return internal_repr_tv(t, memos, nexttv);
     case BT_list:

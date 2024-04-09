@@ -18,12 +18,12 @@ buffer_init(buffer_t *obj, va_list args)
     any_str_t *hex    = NULL;
     char      *ptr    = NULL;
 
-    karg_va_init(args);
+    c4m_karg_va_init(args);
 
-    kw_int64("length", length);
-    kw_ptr("raw", raw);
-    kw_ptr("hex", hex);
-    kw_ptr("ptr", ptr);
+    c4m_kw_int64("length", length);
+    c4m_kw_ptr("raw", raw);
+    c4m_kw_ptr("hex", hex);
+    c4m_kw_ptr("ptr", ptr);
 
     if (raw == NULL && hex == NULL && ptr == NULL) {
         if (length < 0) {
@@ -137,7 +137,8 @@ buffer_repr(buffer_t *buf, to_str_use_t how)
     utf8_t *result;
 
     if (how == TO_STR_USE_QUOTED) {
-        result  = c4m_new(tspec_utf8(), kw("length", ka(buf->byte_len * 4 + 2)));
+        result  = c4m_new(tspec_utf8(),
+                         c4m_kw("length", c4m_ka(buf->byte_len * 4 + 2)));
         char *p = result->data;
 
         *p++ = '"';
@@ -152,7 +153,8 @@ buffer_repr(buffer_t *buf, to_str_use_t how)
         *p++ = '"';
     }
     else {
-        result  = c4m_new(tspec_utf8(), kw("length", ka(buf->byte_len * 2)));
+        result  = c4m_new(tspec_utf8(),
+                         c4m_kw("length", c4m_ka(buf->byte_len * 2)));
         char *p = result->data;
 
         for (int i = 0; i < buf->byte_len; i++) {
@@ -173,7 +175,8 @@ c4m_buffer_add(buffer_t *b1, buffer_t *b2)
     int64_t   l1     = max(c4m_buffer_len(b1), 0);
     int64_t   l2     = max(c4m_buffer_len(b2), 0);
     int64_t   lnew   = l1 + l2;
-    buffer_t *result = c4m_new(tspec_buffer(), kw("length", ka(lnew)));
+    buffer_t *result = c4m_new(tspec_buffer(),
+                               c4m_kw("length", c4m_ka(lnew)));
 
     if (l1 > 0) {
         memcpy(result->data, b1->data, l1);
@@ -205,7 +208,8 @@ c4m_buffer_join(xlist_t *list, buffer_t *joiner)
         new_len += jlen * (num_items - 1);
     }
 
-    buffer_t *result = c4m_new(tspec_buffer(), kw("length", ka(new_len)));
+    buffer_t *result = c4m_new(tspec_buffer(),
+                               c4m_kw("length", c4m_ka(new_len)));
     char     *p      = result->data;
     buffer_t *cur    = xlist_get(list, 0, NULL);
     int       clen   = c4m_buffer_len(cur);
@@ -240,7 +244,10 @@ utf8_t *
 c4m_buffer_to_utf8_string(buffer_t *buffer)
 {
     utf8_t *result = c4m_new(tspec_utf8(),
-                             kw("cstring", ka(buffer->data), "length", ka(buffer->byte_len)));
+                             c4m_kw("cstring",
+                                    c4m_ka(buffer->data),
+                                    "length",
+                                    c4m_ka(buffer->byte_len)));
 
     if (utf8_validate(result) < 0) {
         C4M_CRAISE("Buffer contains invalid UTF-8.");
@@ -311,7 +318,7 @@ buffer_coerce_to(const buffer_t *b, type_spec_t *target_type)
         }
 
         utf8_t *result     = c4m_new(target_type,
-                                 kw("length", ka(b->byte_len)));
+                                 c4m_kw("length", c4m_ka(b->byte_len)));
         result->codepoints = count;
 
         memcpy(result->data, b->data, b->byte_len);
@@ -366,7 +373,7 @@ buffer_get_slice(const buffer_t *b, int64_t start, int64_t end)
     }
     else {
         if (start >= len) {
-            return c4m_new(tspec_buffer(), kw("length", ka(0)));
+            return c4m_new(tspec_buffer(), c4m_kw("length", c4m_ka(0)));
         }
     }
     if (end < 0) {
@@ -378,11 +385,12 @@ buffer_get_slice(const buffer_t *b, int64_t start, int64_t end)
         }
     }
     if ((start | end) < 0 || start >= end) {
-        return c4m_new(tspec_buffer(), kw("length", ka(0)));
+        return c4m_new(tspec_buffer(), c4m_kw("length", c4m_ka(0)));
     }
 
     int64_t   slice_len = end - start;
-    buffer_t *result    = c4m_new(tspec_buffer(), kw("length", ka(slice_len)));
+    buffer_t *result    = c4m_new(tspec_buffer(),
+                               c4m_kw("length", c4m_ka(slice_len)));
 
     memcpy(result->data, b->data + start, slice_len);
     return result;
@@ -462,17 +470,17 @@ buffer_lit(char *s, syntax_t st, char *litmod, lit_error_t *err)
             return NULL;
         }
         return c4m_new(tspec_buffer(),
-                       kw("length", ka(length), "hex", ka(s)));
+                       c4m_kw("length", c4m_ka(length), "hex", c4m_ka(s)));
     }
 
-    return c4m_new(tspec_buffer(), kw("raw", ka(s)));
+    return c4m_new(tspec_buffer(), c4m_kw("raw", c4m_ka(s)));
 }
 
 static buffer_t *
 buffer_copy(buffer_t *inbuf)
 {
     buffer_t *outbuf = c4m_new(tspec_buffer(),
-                               kw("length", ka(inbuf->byte_len)));
+                               c4m_kw("length", c4m_ka(inbuf->byte_len)));
 
     memcpy(outbuf->data, inbuf->data, inbuf->byte_len);
 

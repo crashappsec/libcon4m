@@ -17,11 +17,10 @@ exception_init(exception_t *exception, va_list args)
     object_t context    = NULL;
     int64_t  error_code = -1;
 
-    karg_va_init(args);
-
-    kw_ptr("message", message);
-    kw_ptr("context", context);
-    kw_int64("error_code", error_code);
+    c4m_karg_va_init(args);
+    c4m_kw_ptr("message", message);
+    c4m_kw_ptr("context", context);
+    c4m_kw_int64("error_code", error_code);
 
     exception->msg     = message;
     exception->context = context;
@@ -32,7 +31,7 @@ exception_t *
 _c4m_alloc_exception(const char *msg, ...)
 {
     exception_t *ret = c4m_gc_alloc(sizeof(exception_t));
-    ret->msg         = c4m_new(tspec_utf8(), kw("cstring", ka(msg)));
+    ret->msg         = c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(msg)));
 
     return ret;
 }

@@ -107,8 +107,14 @@ unmarshal_u8(stream_t *s)
 static inline buffer_t *
 c4m_marshal_to_buf(object_t obj)
 {
-    buffer_t *b = c4m_new(tspec_buffer(), kw("length", ka(16)));
-    stream_t *s = c4m_new(tspec_stream(), kw("buffer", ka(b), "write", ka(1), "read", ka(0)));
+    buffer_t *b = c4m_new(tspec_buffer(), c4m_kw("length", c4m_ka(16)));
+    stream_t *s = c4m_new(tspec_stream(),
+                          c4m_kw("buffer",
+                                 c4m_ka(b),
+                                 "write",
+                                 c4m_ka(1),
+                                 "read",
+                                 c4m_ka(0)));
 
     c4m_marshal(obj, s);
     stream_close(s);
@@ -119,8 +125,12 @@ c4m_marshal_to_buf(object_t obj)
 static inline object_t
 c4m_mem_unmarshal(char *mem, int64_t len)
 {
-    buffer_t *b = c4m_new(tspec_buffer(), kw("length", ka(len), "ptr", mem));
-    stream_t *s = c4m_new(tspec_stream(), kw("buffer", ka(b)));
+    buffer_t *b = c4m_new(tspec_buffer(),
+                          c4m_kw("length",
+                                 c4m_ka(len),
+                                 "ptr",
+                                 mem));
+    stream_t *s = c4m_new(tspec_stream(), c4m_kw("buffer", c4m_ka(b)));
 
     object_t result = c4m_unmarshal(s);
 

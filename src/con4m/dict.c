@@ -138,7 +138,7 @@ dict_repr(dict_t *dict, to_str_use_t how)
     type_spec_t         *val_type    = xlist_get(type_params, 1, NULL);
     hatrack_dict_item_t *view        = hatrack_dict_items_sort(dict, &view_len);
     xlist_t             *items       = c4m_new(tspec_xlist(tspec_utf32()),
-                             kw("length", ka(view_len)));
+                             c4m_kw("length", c4m_ka(view_len)));
     xlist_t             *one_item    = c4m_new(tspec_xlist(tspec_utf32()));
     utf8_t              *colon       = c4m_get_colon_const();
 

@@ -99,7 +99,7 @@ string_crlf()
 static inline utf8_t *
 new_utf8(const char *to_copy)
 {
-    return c4m_new(tspec_utf8(), kw("cstring", ka(to_copy)));
+    return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(to_copy)));
 }
 
 static inline char *

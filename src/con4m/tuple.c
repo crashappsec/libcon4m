@@ -5,8 +5,8 @@ tuple_init(tuple_t *tup, va_list args)
 {
     void **ptr = NULL;
 
-    karg_va_init(args);
-    kw_ptr("contents", ptr);
+    c4m_karg_va_init(args);
+    c4m_kw_ptr("contents", ptr);
 
     tup->num_items = xlist_len(tspec_get_parameters(get_my_type(tup)));
 

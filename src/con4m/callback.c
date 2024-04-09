@@ -13,14 +13,13 @@ callback_init(callback_t *cb, va_list args)
     bool         ffi         = false;
     //    bool         bind_now    = false;
 
-    karg_va_init(args);
-
-    kw_ptr("type", type);
-    kw_ptr("address", address);
-    kw_ptr("symbol_name", symbol_name);
-    kw_int32("static_linking", static_link);
-    kw_bool("ffi", ffi);
-    // kw_bool("bind_now", bind_now);
+    c4m_karg_va_init(args);
+    c4m_kw_ptr("type", type);
+    c4m_kw_ptr("address", address);
+    c4m_kw_ptr("symbol_name", symbol_name);
+    c4m_kw_int32("static_linking", static_link);
+    c4m_kw_bool("ffi", ffi);
+    // c4m_kw_bool("bind_now", bind_now);
 
     funcinfo_t *info = NULL;
 

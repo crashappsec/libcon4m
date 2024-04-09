@@ -5,8 +5,8 @@ tree_node_init(tree_node_t *t, va_list args)
 {
     object_t contents = NULL;
 
-    karg_va_init(args);
-    kw_ptr("contents", contents);
+    c4m_karg_va_init(args);
+    c4m_kw_ptr("contents", contents);
 
     t->children     = c4m_gc_array_alloc(tree_node_t **, 4);
     t->alloced_kids = 4;
@@ -21,7 +21,7 @@ tree_add_node(tree_node_t *t, void *item)
     xlist_t     *type_params = tspec_get_parameters(tree_type);
     type_spec_t *item_type   = xlist_get(type_params, 0, NULL);
     tree_node_t *kid         = c4m_new(tspec_tree(item_type),
-                               kw("contents", ka(item)));
+                               c4m_kw("contents", c4m_ka(item)));
 
     kid->parent = t;
 
@@ -57,7 +57,8 @@ tree_children(tree_node_t *t)
     type_spec_t *item_type   = xlist_get(type_params, 0, NULL);
     xlist_t     *result;
 
-    result = c4m_new(tspec_list(item_type), kw("length", ka(t->num_kids)));
+    result = c4m_new(tspec_list(item_type),
+                     c4m_kw("length", c4m_ka(t->num_kids)));
 
     for (int i = 0; i < t->num_kids; i++) {
         xlist_append(result, t->children[i]);

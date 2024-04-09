@@ -34,11 +34,11 @@ init_style_keywords()
 {
     if (style_keywords == NULL) {
         buffer_t *b = c4m_new(tspec_buffer(),
-                              kw("raw",
-                                 ka(_marshaled_style_keywords),
-                                 "length",
-                                 ka(1426)));
-        stream_t *s = c4m_new(tspec_stream(), kw("buffer", ka(b)));
+                              c4m_kw("raw",
+                                     c4m_ka(_marshaled_style_keywords),
+                                     "length",
+                                     c4m_ka(1426)));
+        stream_t *s = c4m_new(tspec_stream(), c4m_kw("buffer", c4m_ka(b)));
 
         c4m_gc_register_root(&style_keywords, 1);
         style_keywords = c4m_unmarshal(s);
@@ -339,9 +339,14 @@ check_color: {
 utf8_t *
 rich_lit(char *instr)
 {
-    buffer_t    *b = c4m_new(tspec_buffer(), kw("length", ka(1)));
+    buffer_t    *b = c4m_new(tspec_buffer(), c4m_kw("length", c4m_ka(1)));
     stream_t    *s = c4m_new(tspec_stream(),
-                          kw("buffer", ka(b), "write", ka(1), "read", ka(0)));
+                          c4m_kw("buffer",
+                                 c4m_ka(b),
+                                 "write",
+                                 c4m_ka(1),
+                                 "read",
+                                 c4m_ka(0)));
     fmt_frame_t *style_next;
     fmt_frame_t *style_top = NULL;
     fmt_frame_t *style_cur = NULL;
@@ -439,17 +444,18 @@ not_eof:
 
     // If style blobs, parse them. (otherwise, return the whole string).
     if (style_top == NULL) {
-        return c4m_new(tspec_utf8(), kw("cstring", ka(instr)));
+        return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(instr)));
     }
 
     fmt_frame_t *f          = style_top;
     int          num_styles = 0;
     while (f != NULL) {
-        utf8_t *s = c4m_new(tspec_utf8(),
-                            kw("cstring",
-                               ka(instr + f->absolute_start),
-                               "length",
-                               ka(f->absolute_end - f->absolute_start)));
+        utf8_t *s = c4m_new(
+            tspec_utf8(),
+            c4m_kw("cstring",
+                   c4m_ka(instr + f->absolute_start),
+                   "length",
+                   c4m_ka(f->absolute_end - f->absolute_start)));
         parse_style_lit(f, s);
 
         if (f->style != 0) {

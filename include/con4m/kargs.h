@@ -17,12 +17,12 @@
 
 #include "con4m.h"
 
-karg_info_t *get_kargs(va_list);
-karg_info_t *pass_kargs(int, ...);
-karg_info_t *get_kargs_and_count(va_list, int *);
+karg_info_t *c4m_get_kargs(va_list);
+karg_info_t *c4m_pass_kargs(int, ...);
+karg_info_t *c4m_get_kargs_and_count(va_list, int *);
 
 static inline bool
-_kw_int64(karg_info_t *provided, char *name, int64_t *ptr)
+_c4m_kw_int64(karg_info_t *provided, char *name, int64_t *ptr)
 {
     if (!provided) {
         return false;
@@ -41,13 +41,13 @@ _kw_int64(karg_info_t *provided, char *name, int64_t *ptr)
 }
 
 static inline bool
-_kw_ptr(karg_info_t *provided, char *name, void *ptr)
+_c4m_kw_ptr(karg_info_t *provided, char *name, void *ptr)
 {
-    return _kw_int64(provided, name, (int64_t *)ptr);
+    return _c4m_kw_int64(provided, name, (int64_t *)ptr);
 }
 
 static inline bool
-_kw_int32(karg_info_t *provided, char *name, int32_t *ptr)
+_c4m_kw_int32(karg_info_t *provided, char *name, int32_t *ptr)
 {
     if (!provided) {
         return false;
@@ -69,7 +69,7 @@ _kw_int32(karg_info_t *provided, char *name, int32_t *ptr)
 }
 
 static inline bool
-_kw_int16(karg_info_t *provided, char *name, int16_t *ptr)
+_c4m_kw_int16(karg_info_t *provided, char *name, int16_t *ptr)
 {
     if (!provided) {
         return false;
@@ -91,7 +91,7 @@ _kw_int16(karg_info_t *provided, char *name, int16_t *ptr)
 }
 
 static inline bool
-_kw_int8(karg_info_t *provided, char *name, int8_t *ptr)
+_c4m_kw_int8(karg_info_t *provided, char *name, int8_t *ptr)
 {
     if (!provided) {
         return false;
@@ -113,7 +113,7 @@ _kw_int8(karg_info_t *provided, char *name, int8_t *ptr)
 }
 
 static inline bool
-_kw_bool(karg_info_t *provided, char *name, bool *ptr)
+_c4m_kw_bool(karg_info_t *provided, char *name, bool *ptr)
 {
     if (!provided) {
         return false;
@@ -135,7 +135,7 @@ _kw_bool(karg_info_t *provided, char *name, bool *ptr)
 }
 
 static inline bool
-_kw_float(karg_info_t *provided, char *name, double *ptr)
+_c4m_kw_float(karg_info_t *provided, char *name, double *ptr)
 {
     if (!provided) {
         return false;
@@ -156,29 +156,29 @@ _kw_float(karg_info_t *provided, char *name, double *ptr)
     return false;
 }
 
-#define kw_int64(a, b)     _kw_int64(_karg, a, &b)
-#define kw_uint64(a, b)    _kw_int64(_karg, a, (int64_t *)&b)
-#define kw_ptr(a, b)       _kw_ptr(_karg, a, &b)
-#define kw_int32(a, b)     _kw_int32(_karg, a, &b)
-#define kw_uint32(a, b)    _kw_int32(_karg, a, (int32_t *)&b)
-#define kw_codepoint(a, b) _kw_int32(_karg, a, &b)
-#define kw_int16(a, b)     _kw_int16(_karg, a, &b)
-#define kw_uint16(a, b)    _kw_int16(_karg, a, (int16_t *)&b)
-#define kw_char(a, b)      _kw_int8(_karg, a, &b)
-#define kw_int8(a, b)      _kw_int8(_karg, a, &b)
-#define kw_unt8(a, b)      _kw_int8(_karg, a, (int8_t *)&b)
-#define kw_bool(a, b)      _kw_bool(_karg, a, &b)
-#define kw_float(a, b)     _kw_float(_karg, a, &b)
+#define c4m_kw_int64(a, b)     _c4m_kw_int64(_c4m_karg, a, &b)
+#define c4m_kw_uint64(a, b)    _c4m_kw_int64(_c4m_karg, a, (int64_t *)&b)
+#define c4m_kw_ptr(a, b)       _c4m_kw_ptr(_c4m_karg, a, &b)
+#define c4m_kw_int32(a, b)     _c4m_kw_int32(_c4m_karg, a, &b)
+#define c4m_kw_uint32(a, b)    _c4m_kw_int32(_c4m_karg, a, (int32_t *)&b)
+#define c4m_kw_codepoint(a, b) _c4m_kw_int32(_c4m_karg, a, &b)
+#define c4m_kw_int16(a, b)     _c4m_kw_int16(_c4m_karg, a, &b)
+#define c4m_kw_uint16(a, b)    _c4m_kw_int16(_c4m_karg, a, (int16_t *)&b)
+#define c4m_kw_char(a, b)      _c4m_kw_int8(_c4m_karg, a, &b)
+#define c4m_kw_int8(a, b)      _c4m_kw_int8(_c4m_karg, a, &b)
+#define c4m_kw_unt8(a, b)      _c4m_kw_int8(_c4m_karg, a, (int8_t *)&b)
+#define c4m_kw_bool(a, b)      _c4m_kw_bool(_c4m_karg, a, &b)
+#define c4m_kw_float(a, b)     _c4m_kw_float(_c4m_karg, a, &b)
 
 // print(foo, bar, boz, kw("file", stdin, "sep", ' ', "end", '\n',
 //                         "flush", false ));
 
-#define ka(x)   ((int64_t)x)
-#define kw(...) pass_kargs(PP_NARG(__VA_ARGS__), __VA_ARGS__), NULL
-#define karg_only_init(last)                      \
-    va_list _args;                                \
-    va_start(_args, last);                        \
-    karg_info_t *_karg = va_arg(_args, object_t); \
+#define c4m_ka(x)   ((int64_t)x)
+#define c4m_kw(...) c4m_pass_kargs(PP_NARG(__VA_ARGS__), __VA_ARGS__), NULL
+#define c4m_karg_only_init(last)                      \
+    va_list _args;                                    \
+    va_start(_args, last);                            \
+    karg_info_t *_c4m_karg = va_arg(_args, object_t); \
     va_end(_args);
 
-#define karg_va_init(list) karg_info_t *_karg = va_arg(list, object_t)
+#define c4m_karg_va_init(list) karg_info_t *_c4m_karg = va_arg(list, object_t)

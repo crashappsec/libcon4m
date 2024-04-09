@@ -84,7 +84,8 @@ string_slice(const any_str_t *instr, int64_t start, int64_t end)
     }
 
     int64_t  slice_len = end - start;
-    utf32_t *res       = c4m_new(tspec_utf32(), kw("length", ka(slice_len)));
+    utf32_t *res       = c4m_new(tspec_utf32(),
+                           c4m_kw("length", c4m_ka(slice_len)));
     res->codepoints    = ~(slice_len);
 
     codepoint_t *src = (codepoint_t *)s->data;
@@ -220,13 +221,13 @@ _string_strip(const any_str_t *s, ...)
 {
     // TODO: this is needlessly slow for u8 since we convert it to u32
     // twice, both here and in slice.
-    karg_only_init(s);
 
     bool front = true;
     bool back  = true;
 
-    kw_bool("front", front);
-    kw_bool("back", back);
+    c4m_karg_only_init(s);
+    c4m_kw_bool("front", front);
+    c4m_kw_bool("back", back);
 
     utf32_t     *as32  = force_utf32(s);
     codepoint_t *p     = (codepoint_t *)as32->data;
@@ -264,7 +265,7 @@ string_copy(const any_str_t *s)
     bool       u8  = string_is_u8(s);
     uint64_t   l   = u8 ? s->byte_len : ~s->codepoints;
     any_str_t *res = c4m_new(u8 ? tspec_utf8() : tspec_utf32(),
-                             kw("length", ka(l)));
+                             c4m_kw("length", c4m_ka(l)));
 
     res->codepoints = s->codepoints;
     memcpy(res->data, s->data, s->byte_len);
@@ -281,7 +282,7 @@ string_concat(const any_str_t *p1, const any_str_t *p2)
     int64_t  s1_len      = string_codepoint_len(s1);
     int64_t  s2_len      = string_codepoint_len(s2);
     int64_t  n           = s1_len + s2_len;
-    utf32_t *r           = c4m_new(tspec_utf32(), kw("length", ka(n)));
+    utf32_t *r           = c4m_new(tspec_utf32(), c4m_kw("length", c4m_ka(n)));
     uint64_t num_entries = style_num_entries(s1) + style_num_entries(s2);
 
     if (!s1_len) {
@@ -327,11 +328,11 @@ string_concat(const any_str_t *p1, const any_str_t *p2)
 utf32_t *
 _string_join(const xlist_t *l, const any_str_t *joiner, ...)
 {
-    karg_only_init(joiner);
+    c4m_karg_only_init(joiner);
 
     bool add_trailing = false;
 
-    kw_bool("add_trailing", add_trailing);
+    c4m_kw_bool("add_trailing", add_trailing);
 
     int64_t n_parts  = xlist_len(l);
     int64_t n_styles = 0;
@@ -344,7 +345,8 @@ _string_join(const xlist_t *l, const any_str_t *joiner, ...)
         n_styles += style_num_entries(line);
     }
 
-    utf32_t     *result   = c4m_new(tspec_utf32(), kw("length", ka(len)));
+    utf32_t     *result   = c4m_new(tspec_utf32(),
+                              c4m_kw("length", c4m_ka(len)));
     codepoint_t *p        = (codepoint_t *)result->data;
     int          txt_ix   = 0;
     int          style_ix = 0;
@@ -395,7 +397,7 @@ utf32_to_utf8(const utf32_t *inp)
     // cases where UTF8 codepoints are above U+00ff. But nbd.
 
     utf8_t      *res    = c4m_new(tspec_utf8(),
-                          kw("length", ka(inp->byte_len)));
+                          c4m_kw("length", c4m_ka(inp->byte_len)));
     codepoint_t *p      = (codepoint_t *)inp->data;
     uint8_t     *outloc = (uint8_t *)res->data;
     int          l;
@@ -420,7 +422,7 @@ utf8_to_utf32(const utf8_t *instr)
     }
 
     int64_t      len    = (int64_t)string_codepoint_len(instr);
-    utf32_t     *outstr = c4m_new(tspec_utf32(), kw("length", ka(len)));
+    utf32_t     *outstr = c4m_new(tspec_utf32(), c4m_kw("length", c4m_ka(len)));
     uint8_t     *inp    = (uint8_t *)(instr->data);
     codepoint_t *outp   = (codepoint_t *)(outstr->data);
 
@@ -445,13 +447,13 @@ utf8_init(utf8_t *s, va_list args)
     bool    replace_style = true;
     char   *tag           = NULL;
 
-    karg_va_init(args);
-    kw_int64("length", length);
-    kw_int64("start", start);
-    kw_ptr("cstring", cstring);
-    kw_uint64("style", style);
-    kw_bool("replace_style", replace_style);
-    kw_ptr("tag", tag);
+    c4m_karg_va_init(args);
+    c4m_kw_int64("length", length);
+    c4m_kw_int64("start", start);
+    c4m_kw_ptr("cstring", cstring);
+    c4m_kw_uint64("style", style);
+    c4m_kw_bool("replace_style", replace_style);
+    c4m_kw_ptr("tag", tag);
 
     if (cstring != NULL) {
         if (length < 0) {
@@ -501,14 +503,14 @@ utf32_init(utf32_t *s, va_list args)
     bool         replace_style = true;
     char        *tag           = NULL;
 
-    karg_va_init(args);
-    kw_int64("length", length);
-    kw_int64("start", start);
-    kw_ptr("cstring", cstring);
-    kw_uint64("style", style);
-    kw_ptr("codepoints", codepoints);
-    kw_bool("replace_style", replace_style);
-    kw_ptr("tag", tag);
+    c4m_karg_va_init(args);
+    c4m_kw_int64("length", length);
+    c4m_kw_int64("start", start);
+    c4m_kw_ptr("cstring", cstring);
+    c4m_kw_uint64("style", style);
+    c4m_kw_ptr("codepoints", codepoints);
+    c4m_kw_bool("replace_style", replace_style);
+    c4m_kw_ptr("tag", tag);
 
     if (codepoints != NULL && cstring != NULL) {
         C4M_CRAISE("Cannot specify both 'codepoints' and 'cstring' keywords.");
@@ -602,7 +604,7 @@ string_from_int(int64_t n)
         *--p = '-';
     }
 
-    return c4m_new(tspec_utf8(), kw("cstring", ka(p)));
+    return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(p)));
 }
 
 // For repeat, we leave an extra alloc'd character to ensure we
@@ -616,7 +618,7 @@ utf8_repeat(codepoint_t cp, int64_t num)
     int     buf_ix = 0;
     int     l      = utf8proc_encode_char(cp, &buf[0]);
     int     blen   = l * num;
-    utf8_t *res    = c4m_new(tspec_utf8(), kw("length", ka(blen + 1)));
+    utf8_t *res    = c4m_new(tspec_utf8(), c4m_kw("length", c4m_ka(blen + 1)));
     char   *p      = res->data;
 
     res->codepoints = l;
@@ -636,7 +638,7 @@ utf32_repeat(codepoint_t cp, int64_t num)
         return empty_string();
     }
 
-    utf32_t     *res = c4m_new(tspec_utf8(), kw("length", ka(num + 1)));
+    utf32_t     *res = c4m_new(tspec_utf8(), c4m_kw("length", c4m_ka(num + 1)));
     codepoint_t *p   = (codepoint_t *)res->data;
 
     res->codepoints = ~num;
@@ -676,11 +678,11 @@ string_render_len(const any_str_t *s)
 any_str_t *
 _string_truncate(const any_str_t *s, int64_t len, ...)
 {
-    karg_only_init(len);
+    c4m_karg_only_init(len);
 
     bool use_render_width = false;
 
-    kw_bool("use_render_width", use_render_width);
+    c4m_kw_bool("use_render_width", use_render_width);
 
     int64_t n = string_codepoint_len(s);
     int64_t c = 0;
@@ -732,7 +734,7 @@ u8_slice:
                         uint8_t *start = (uint8_t *)s->data;
                         int64_t  blen  = p - start;
                         utf8_t  *res   = c4m_new(tspec_utf8(),
-                                              kw("length", ka(blen)));
+                                              c4m_kw("length", c4m_ka(blen)));
 
                         memcpy(res->data, start, blen);
                         copy_style_info(s, res);
@@ -787,7 +789,7 @@ err:
         goto err;
     }
 
-    utf8_t *result = c4m_new(tspec_utf8(), kw("length", ka(len)));
+    utf8_t *result = c4m_new(tspec_utf8(), c4m_kw("length", c4m_ka(len)));
     char   *p      = result->data;
 
     while (1) {
@@ -816,10 +818,10 @@ _string_find(any_str_t *str, any_str_t *sub, ...)
     int64_t start = 0;
     int64_t end   = -1;
 
-    karg_only_init(sub);
+    c4m_karg_only_init(sub);
 
-    kw_int64("start", start);
-    kw_int64("end", end);
+    c4m_kw_int64("start", start);
+    c4m_kw_int64("end", end);
 
     str = force_utf32(str);
     sub = force_utf32(sub);
@@ -877,7 +879,7 @@ string_split(any_str_t *str, any_str_t *sub)
     uint64_t subcp = string_codepoint_len(sub);
 
     flexarray_t *result = c4m_new(tspec_list(tspec_utf32()),
-                                  kw("length", ka(strcp)));
+                                  c4m_kw("length", c4m_ka(strcp)));
 
     if (!subcp) {
         for (uint64_t i = 0; i < strcp; i++) {
@@ -887,13 +889,13 @@ string_split(any_str_t *str, any_str_t *sub)
     }
 
     int64_t start = 0;
-    int64_t ix    = string_find(str, sub, kw("start", ka(start)));
+    int64_t ix    = string_find(str, sub, c4m_kw("start", c4m_ka(start)));
     int     n     = 0;
 
     while (ix != -1) {
         flexarray_set(result, n++, string_slice(str, start, ix));
         start = ix + subcp;
-        ix    = string_find(str, sub, kw("start", ka(start)));
+        ix    = string_find(str, sub, c4m_kw("start", c4m_ka(start)));
     }
 
     if ((uint64_t)start != strcp) {
@@ -923,12 +925,12 @@ string_xsplit(any_str_t *str, any_str_t *sub)
     }
 
     int64_t start = 0;
-    int64_t ix    = string_find(str, sub, kw("start", ka(start)));
+    int64_t ix    = string_find(str, sub, c4m_kw("start", c4m_ka(start)));
 
     while (ix != -1) {
         xlist_append(result, string_slice(str, start, ix));
         start = ix + subcp;
-        ix    = string_find(str, sub, kw("start", ka(start)));
+        ix    = string_find(str, sub, c4m_kw("start", c4m_ka(start)));
     }
 
     if ((uint64_t)start != strcp) {
@@ -987,7 +989,8 @@ c4m_string_unmarshal(any_str_t *s, stream_t *in, dict_t *memos)
 utf8_t *
 c4m_cstring(char *s, int64_t len)
 {
-    return c4m_new(tspec_utf8(), kw("cstring", ka(s), "length", ka(len)));
+    return c4m_new(tspec_utf8(),
+                   c4m_kw("cstring", c4m_ka(s), "length", c4m_ka(len)));
 }
 
 utf8_t *
@@ -1008,7 +1011,7 @@ string_repr(any_str_t *str, to_str_use_t how)
 {
     // TODO: actually implement string quoting.
     if (how == TO_STR_USE_QUOTED) {
-        utf32_t *q = c4m_new(tspec_utf32(), kw("cstring", ka("\"")));
+        utf32_t *q = c4m_new(tspec_utf32(), c4m_kw("cstring", c4m_ka("\"")));
         return string_concat(string_concat(q, str), q);
     }
     else {
@@ -1061,11 +1064,11 @@ static object_t
 string_lit(char *s, syntax_t st, char *litmod, lit_error_t *err)
 {
     if (*litmod == 0 || !strcmp(litmod, "u8") || !strcmp(litmod, "utf8")) {
-        return c4m_new(tspec_utf8(), kw("cstring", ka(s)));
+        return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(s)));
     }
 
     if (!strcmp(litmod, "u32") || !strcmp(litmod, "utf32")) {
-        return c4m_new(tspec_utf32(), kw("cstring", ka(s)));
+        return c4m_new(tspec_utf32(), c4m_kw("cstring", c4m_ka(s)));
     }
 
     return rich_lit(s);

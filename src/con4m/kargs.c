@@ -20,7 +20,7 @@ kargs_init(karg_info_t *kargs, va_list args)
 }
 
 karg_info_t *
-pass_kargs(int nargs, ...)
+c4m_pass_kargs(int nargs, ...)
 {
     va_list args;
 
@@ -47,7 +47,7 @@ pass_kargs(int nargs, ...)
 }
 
 karg_info_t *
-get_kargs(va_list args)
+c4m_get_kargs(va_list args)
 {
     object_t cur;
     va_list  arg_copy;
@@ -71,7 +71,7 @@ get_kargs(va_list args)
 
 // This is for varargs functions, so it def needs to copy the va_list.
 karg_info_t *
-get_kargs_and_count(va_list args, int *nargs)
+c4m_get_kargs_and_count(va_list args, int *nargs)
 {
     va_list  arg_copy;
     object_t cur;

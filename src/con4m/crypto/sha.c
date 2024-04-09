@@ -34,9 +34,9 @@ c4m_sha_init(sha_ctx *ctx, va_list args)
     int64_t version = 2;
     int64_t bits    = 256;
 
-    karg_va_init(args);
-    kw_int64("version", version);
-    kw_int64("bits", bits);
+    c4m_karg_va_init(args);
+    c4m_kw_int64("version", version);
+    c4m_kw_int64("bits", bits);
 
     if (bits != 256 && bits != 384 && bits != 512) {
         abort();
@@ -45,7 +45,7 @@ c4m_sha_init(sha_ctx *ctx, va_list args)
         abort();
     }
 
-    ctx->digest = c4m_new(tspec_buffer(), kw("length", ka(bits / 8)));
+    ctx->digest = c4m_new(tspec_buffer(), c4m_kw("length", c4m_ka(bits / 8)));
     version -= 2;
     bits               = (bits >> 7) - 2; // Maps the bit sizes to 0, 1 and 2,
                                           // by dividing by 128, then - 2.

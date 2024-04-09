@@ -32,7 +32,7 @@ signed_repr(int64_t item, to_str_use_t how)
     }
 
     if (item == 0) {
-        return c4m_new(tspec_utf8(), kw("cstring", ka("0")));
+        return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka("0")));
     }
 
     int i = 20;
@@ -46,7 +46,7 @@ signed_repr(int64_t item, to_str_use_t how)
         buf[--i] = '-';
     }
 
-    return c4m_new(tspec_utf8(), kw("cstring", ka(&buf[i])));
+    return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(&buf[i])));
 }
 
 static any_str_t *
@@ -58,7 +58,7 @@ unsigned_repr(int64_t item, to_str_use_t how)
     };
 
     if (item == 0) {
-        return c4m_new(tspec_utf8(), kw("cstring", ka("0")));
+        return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka("0")));
     }
 
     int i = 20;
@@ -68,7 +68,7 @@ unsigned_repr(int64_t item, to_str_use_t how)
         item /= 10;
     }
 
-    return c4m_new(tspec_utf8(), kw("cstring", ka(&buf[i])));
+    return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(&buf[i])));
 }
 
 __uint128_t
@@ -503,13 +503,14 @@ bool_repr(bool *b, to_str_use_t how)
 {
     if (*b == false) {
         if (false_repr == NULL) {
-            false_repr = c4m_new(tspec_utf8(), kw("cstring", ka("false")));
+            false_repr = c4m_new(tspec_utf8(),
+                                 c4m_kw("cstring", c4m_ka("false")));
             c4m_gc_register_root(&false_repr, 1);
         }
         return false_repr;
     }
     if (true_repr == NULL) {
-        true_repr = c4m_new(tspec_utf8(), kw("cstring", ka("true")));
+        true_repr = c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka("true")));
         c4m_gc_register_root(&true_repr, 1);
     }
 
@@ -602,7 +603,7 @@ float_repr(const double *dp, to_str_use_t how)
     // snprintf includes null terminator in its count.
     snprintf(buf, 20, "%g", d);
 
-    return c4m_new(tspec_utf8(), kw("cstring", ka(buf)));
+    return c4m_new(tspec_utf8(), c4m_kw("cstring", c4m_ka(buf)));
 }
 
 void *

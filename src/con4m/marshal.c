@@ -373,14 +373,20 @@ c4m_unmarshal(stream_t *s)
 void
 dump_c_static_instance_code(object_t obj, char *symbol_name, utf8_t *filename)
 {
-    buffer_t *b = c4m_new(tspec_buffer(), kw("length", ka(1)));
+    buffer_t *b = c4m_new(tspec_buffer(), c4m_kw("length", c4m_ka(1)));
     stream_t *s = c4m_new(tspec_stream(),
-                          kw("buffer", ka(b), "write", ka(1)));
+                          c4m_kw("buffer", c4m_ka(b), "write", c4m_ka(1)));
 
     c4m_marshal(obj, s);
     stream_close(s);
 
-    s = c4m_new(tspec_stream(), kw("filename", ka(filename), "write", ka(1), "read", ka(0)));
+    s = c4m_new(tspec_stream(),
+                c4m_kw("filename",
+                       c4m_ka(filename),
+                       "write",
+                       c4m_ka(1),
+                       "read",
+                       c4m_ka(0)));
 
     static int   char_per_line = 12;
     static char *decl_start =
@@ -398,11 +404,11 @@ dump_c_static_instance_code(object_t obj, char *symbol_name, utf8_t *filename)
     static char *fn_part2 =
         " == NULL) {\n"
         "        stream_t *s = c4m_new(tspec_stream(), \n"
-        "                                kw(\"buffer\", "
+        "                                c4m_kw(\"buffer\", "
         "c4m_new(tspec_buffer(),  \"raw\", _marshaled_";
     static char *fn_part3 =
         ", \n"
-        "                                             \"length\", ka(";
+        "                                             \"length\", c4m_ka(";
     static char *fn_part4 =
         "))));\n        "
         "        c4m_gc_register_root(&";
