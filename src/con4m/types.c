@@ -903,8 +903,8 @@ const con4m_vtable type_spec_vtable = {
         // Nothing else is appropriate.
     }};
 
-__attribute__((constructor)) void
-initialize_global_types()
+void
+c4m_initialize_global_types()
 {
     if (global_type_env == NULL) {
         dt_info        *tspec = (dt_info *)&builtin_type_info[T_TYPESPEC];

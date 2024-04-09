@@ -1,5 +1,7 @@
 #pragma once
 
+#include "con4m.h"
+
 extern void    marshal_cstring(char *, stream_t *);
 extern char   *unmarshal_cstring(stream_t *);
 extern void    marshal_i64(int64_t, stream_t *);

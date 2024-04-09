@@ -2,14 +2,6 @@
 
 static hatrack_dict_t *style_dictionary = NULL;
 
-__attribute__((constructor)) void
-register_style_w_collector()
-{
-    initialize_gc();
-
-    con4m_gc_register_root(&style_dictionary, 1);
-}
-
 const border_theme_t border_ascii = {
     .name            = "ascii",
     .horizontal_rule = '-',
@@ -284,6 +276,7 @@ init_style_db()
     if (style_dictionary == NULL) {
         style_dictionary = gc_alloc(hatrack_dict_t);
         hatrack_dict_init(style_dictionary, HATRACK_DICT_KEY_TYPE_CSTR);
+        con4m_gc_register_root(&style_dictionary, 1);
     }
 }
 

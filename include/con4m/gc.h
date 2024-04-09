@@ -250,5 +250,5 @@ get_stack_bounds(uint64_t *top, uint64_t *bottom)
 }
 #endif
 
-extern void                              get_stack_scan_region(uint64_t *top, uint64_t *bottom);
-extern __attribute__((constructor)) void initialize_gc();
+extern void get_stack_scan_region(uint64_t *top, uint64_t *bottom);
+extern void c4m_initialize_gc();

@@ -6,7 +6,7 @@ typedef void *object_t;
 // due to interdependencies, though they can always be solved via
 // prototyping.
 #include "con4m/base.h"
-
+#include "con4m/init.h"
 #include "con4m/macros.h" // Helper macros, mostly 3rd party stuff.
 #include "con4m/kargs.h"  // Keyword arguments.
 #include "con4m/random.h"

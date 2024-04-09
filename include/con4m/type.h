@@ -25,6 +25,7 @@ extern type_spec_t *global_copy(type_spec_t *);
 extern type_spec_t *global_type_check(type_spec_t *, type_spec_t *);
 extern void         lock_type(type_spec_t *);
 extern type_spec_t *get_promotion_type(type_spec_t *, type_spec_t *, int *);
+extern void         c4m_initialize_global_types();
 
 static inline bool
 typeid_is_concrete(type_t tid)

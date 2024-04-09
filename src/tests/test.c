@@ -486,6 +486,8 @@ main(int argc, char **argv, char **envp)
 {
     uint64_t top, bottom;
 
+    c4m_init();
+
     sout = get_stdout();
     serr = get_stderr();
 
