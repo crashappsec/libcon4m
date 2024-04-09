@@ -66,6 +66,7 @@ mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
         int64_t   n = (int64_t)v;
 
         m->held_value = (void *)n;
+        return;
     }
     case T_INT:
     case T_UINT:

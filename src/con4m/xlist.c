@@ -209,11 +209,11 @@ xlist_coerce_to(xlist_t *list, type_spec_t *dst_type)
     type_spec_t *dst_item_type = tspec_get_param(dst_type, 0);
     int64_t      len           = xlist_len(list);
 
-    if (base == T_BOOL) {
+    if (base == (base_t)T_BOOL) {
         return (object_t)(int64_t)(xlist_len(list) != 0);
     }
 
-    if (base == T_XLIST) {
+    if (base == (base_t)T_XLIST) {
         xlist_t *res = con4m_new(dst_type, kw("length", ka(len)));
 
         for (int i = 0; i < len; i++) {
