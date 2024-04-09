@@ -525,8 +525,7 @@ found_history_bucket:
      * which stores that information.
      */
     if (head && !head->deleted) {
-
-	mmm_help_commit(head);
+        mmm_help_commit(head);
 
         return hatrack_found(found, head->item);
     }
@@ -941,16 +940,15 @@ migrate_and_retry:
     candidate->deleted = true;
 
     while (!LCAS(&bucket->head, &head, candidate, LOHAT_CTR_DEL)) {
-
         // Moving flag got set before our CAS.
         if (hatrack_pflag_test(head, LOHAT_F_MOVING)) {
-	    mmm_retire_unused(candidate);
+            mmm_retire_unused(candidate);
             goto migrate_and_retry;
         }
 
         if (head->deleted) {
             // We got beat to the delete;
-	    mmm_retire_unused(candidate);
+            mmm_retire_unused(candidate);
             goto empty_bucket;
         }
 
@@ -1152,10 +1150,10 @@ didnt_win:
         LCAS(&bucket->head, &expected_head, candidate, LOHAT_CTR_MIG_REC);
 
         /* Whether we won or not, assume the winner might have
-	 * stalled.  Every thread updates the source bucket, to denote
-	 * that the move was successful.
-	 */
-	ORPTR(&cur->head, LOHAT_F_MOVED);
+         * stalled.  Every thread updates the source bucket, to denote
+         * that the move was successful.
+         */
+        ORPTR(&cur->head, LOHAT_F_MOVED);
     }
 
     /* All buckets are migrated. Attempt to write to the new table how

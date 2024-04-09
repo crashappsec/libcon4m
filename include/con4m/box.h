@@ -4,7 +4,7 @@ static inline i64_box *
 box_i64(int64_t n)
 {
     int64_t *result = con4m_new(tspec_i64());
-    *result = n;
+    *result         = n;
 
     return result;
 }
@@ -19,7 +19,7 @@ static inline u64_box *
 box_u64(uint64_t n)
 {
     uint64_t *result = con4m_new(tspec_u64());
-    *result = n;
+    *result          = n;
 
     return result;
 }
@@ -34,7 +34,7 @@ static inline i32_box *
 box_i32(int32_t n)
 {
     int32_t *result = con4m_new(tspec_i32());
-    *result = n;
+    *result         = n;
 
     return result;
 }
@@ -49,7 +49,7 @@ static inline u32_box *
 box_u32(uint32_t n)
 {
     uint32_t *result = con4m_new(tspec_u32());
-    *result = n;
+    *result          = n;
 
     return result;
 }
@@ -98,7 +98,7 @@ static inline i8_box *
 box_i8(int8_t n)
 {
     int8_t *result = con4m_new(tspec_i8());
-    *result = n;
+    *result        = n;
 
     return result;
 }
@@ -113,7 +113,7 @@ static inline u8_box *
 box_u8(uint8_t n)
 {
     uint8_t *result = con4m_new(tspec_u8());
-    *result = n;
+    *result         = n;
 
     return result;
 }

@@ -11,9 +11,9 @@ tuple_init(tuple_t *tup, va_list args)
     tup->num_items = xlist_len(tspec_get_parameters(get_my_type(tup)));
 
     if (ptr != NULL) {
-	for (int i = 0; i < tup->num_items; i++) {
-	    tup->items[i] = ptr[i];
-	}
+        for (int i = 0; i < tup->num_items; i++) {
+            tup->items[i] = ptr[i];
+        }
     }
 }
 
@@ -36,15 +36,15 @@ tuple_marshal(tuple_t *tup, stream_t *s, dict_t *memos, int64_t *mid)
     xlist_t *tparams = tspec_get_parameters(get_my_type(tup));
 
     for (int i = 0; i < tup->num_items; i++) {
-	type_spec_t *param   = xlist_get(tparams, i, NULL);
-	dt_info     *dt_info = tspec_get_data_type_info(param);
+        type_spec_t *param   = xlist_get(tparams, i, NULL);
+        dt_info     *dt_info = tspec_get_data_type_info(param);
 
-	if (dt_info->by_value) {
-	    marshal_u64((uint64_t)tup->items[i], s);
-	}
-	else {
-	    con4m_sub_marshal(tup->items[i], s, memos, mid);
-	}
+        if (dt_info->by_value) {
+            marshal_u64((uint64_t)tup->items[i], s);
+        }
+        else {
+            con4m_sub_marshal(tup->items[i], s, memos, mid);
+        }
     }
 }
 
@@ -56,15 +56,15 @@ tuple_unmarshal(tuple_t *tup, stream_t *s, dict_t *memos)
     tup->num_items = xlist_len(tparams);
 
     for (int i = 0; i < tup->num_items; i++) {
-	type_spec_t *param   = xlist_get(tparams, i, NULL);
-	dt_info     *dt_info = tspec_get_data_type_info(param);
+        type_spec_t *param   = xlist_get(tparams, i, NULL);
+        dt_info     *dt_info = tspec_get_data_type_info(param);
 
-	if (dt_info->by_value) {
-	    tup->items[i] = (void *)unmarshal_u64(s);
-	}
-	else {
-	    tup->items[i] = con4m_sub_unmarshal(s, memos);
-	}
+        if (dt_info->by_value) {
+            tup->items[i] = (void *)unmarshal_u64(s);
+        }
+        else {
+            tup->items[i] = con4m_sub_unmarshal(s, memos);
+        }
     }
 }
 
@@ -82,17 +82,17 @@ tuple_repr(tuple_t *tup, to_str_use_t how)
     xlist_t *items   = con4m_new(tspec_xlist(tspec_utf32()));
 
     for (int i = 0; i < len; i++) {
-	type_spec_t *one_type = xlist_get(tparams, i, NULL);
+        type_spec_t *one_type = xlist_get(tparams, i, NULL);
 
-	xlist_append(items, con4m_repr(tup->items[i], one_type, how));
+        xlist_append(items, con4m_repr(tup->items[i], one_type, how));
     }
 
     any_str_t *sep    = get_comma_const();
     any_str_t *result = string_join(items, sep);
 
     if (how == TO_STR_USE_QUOTED) {
-	result = string_concat(get_lparen_const(),
-			       string_concat(result, get_rparen_const()));
+        result = string_concat(get_lparen_const(),
+                               string_concat(result, get_rparen_const()));
     }
 
     return result;
@@ -113,10 +113,10 @@ tuple_coerce(tuple_t *tup, type_spec_t *dst)
     tuple_t *res       = con4m_new(dst);
 
     for (int i = 0; i < len; i++) {
-	type_spec_t *src_type = xlist_get(srcparams, i, NULL);
-	type_spec_t *dst_type = xlist_get(dstparams, i, NULL);
+        type_spec_t *src_type = xlist_get(srcparams, i, NULL);
+        type_spec_t *dst_type = xlist_get(dstparams, i, NULL);
 
-	res->items[i] = con4m_coerce(tup->items[i], src_type, dst_type);
+        res->items[i] = con4m_coerce(tup->items[i], src_type, dst_type);
     }
 
     return res;
@@ -131,27 +131,26 @@ tuple_copy(tuple_t *tup)
 const con4m_vtable tuple_vtable = {
     .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
-	(con4m_vtable_entry)tuple_init,
-	(con4m_vtable_entry)tuple_repr,
-	NULL,
-	(con4m_vtable_entry)tuple_marshal,
-	(con4m_vtable_entry)tuple_unmarshal,
-	(con4m_vtable_entry)tuple_can_coerce,
-	(con4m_vtable_entry)tuple_coerce,
-	NULL,
-	(con4m_vtable_entry)tuple_copy,
-	NULL, // Plus
-	NULL, // Subtract
-	NULL, // Mul
-	NULL, // Div
-	NULL, // MOD
-	NULL, // EQ
-	NULL, // LT
-	NULL, // GT
-	(con4m_vtable_entry)tuple_len,
-	(con4m_vtable_entry)tuple_get,
-	(con4m_vtable_entry)tuple_set,
-	NULL, // Slice get
-	NULL, // Slice set
-    }
-};
+        (con4m_vtable_entry)tuple_init,
+        (con4m_vtable_entry)tuple_repr,
+        NULL,
+        (con4m_vtable_entry)tuple_marshal,
+        (con4m_vtable_entry)tuple_unmarshal,
+        (con4m_vtable_entry)tuple_can_coerce,
+        (con4m_vtable_entry)tuple_coerce,
+        NULL,
+        (con4m_vtable_entry)tuple_copy,
+        NULL, // Plus
+        NULL, // Subtract
+        NULL, // Mul
+        NULL, // Div
+        NULL, // MOD
+        NULL, // EQ
+        NULL, // LT
+        NULL, // GT
+        (con4m_vtable_entry)tuple_len,
+        (con4m_vtable_entry)tuple_get,
+        (con4m_vtable_entry)tuple_set,
+        NULL, // Slice get
+        NULL, // Slice set
+    }};

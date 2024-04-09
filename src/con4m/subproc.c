@@ -29,12 +29,9 @@ subproc_init(subprocess_t *ctx, char *cmd, char *argv[], bool proxy_stdin_close)
     ctx->passthrough       = 0;
     ctx->proxy_stdin_close = proxy_stdin_close;
 
-    sb_init_party_fd(&ctx->sb, &ctx->parent_stdin,  0, O_RDONLY,
-		     false, false, false);
-    sb_init_party_fd(&ctx->sb, &ctx->parent_stdout, 1, O_WRONLY,
-		     false, false, false);
-    sb_init_party_fd(&ctx->sb, &ctx->parent_stderr, 2, O_WRONLY,
-		     false, false, false);
+    sb_init_party_fd(&ctx->sb, &ctx->parent_stdin, 0, O_RDONLY, false, false, false);
+    sb_init_party_fd(&ctx->sb, &ctx->parent_stdout, 1, O_WRONLY, false, false, false);
+    sb_init_party_fd(&ctx->sb, &ctx->parent_stderr, 2, O_WRONLY, false, false, false);
 }
 
 /*
@@ -71,12 +68,12 @@ subproc_pass_to_stdin(subprocess_t *ctx, char *str, size_t len, bool close_fd)
         return false;
     }
 
-    sb_init_party_input_buf(&ctx->sb, &ctx->str_stdin, str, len, true, true,
-                            close_fd);
+    sb_init_party_input_buf(&ctx->sb, &ctx->str_stdin, str, len, true, true, close_fd);
 
     if (ctx->run) {
         return sb_route(&ctx->sb, &ctx->str_stdin, &ctx->subproc_stdin);
-    } else {
+    }
+    else {
         ctx->str_waiting = true;
 
         if (close_fd) {
@@ -148,8 +145,7 @@ subproc_set_capture(subprocess_t *ctx, unsigned char which, bool combine)
 }
 
 bool
-subproc_set_io_callback(subprocess_t *ctx, unsigned char which,
-                        switchboard_cb_t cb)
+subproc_set_io_callback(subprocess_t *ctx, unsigned char which, switchboard_cb_t cb)
 {
     if (ctx->run || which > SP_IO_ALL) {
         return false;
@@ -161,7 +157,7 @@ subproc_set_io_callback(subprocess_t *ctx, unsigned char which,
     cbinfo->which = which;
     cbinfo->cb    = cb;
 
-    ctx->deferred_cbs =  cbinfo;
+    ctx->deferred_cbs = cbinfo;
 
     return true;
 }
@@ -237,7 +233,8 @@ pause_passthrough(subprocess_t *ctx, unsigned char which)
     if (which & SP_IO_STDIN) {
         if (ctx->pty_fd) {
             sb_pause_route(&ctx->sb, &ctx->parent_stdin, &ctx->subproc_stdout);
-        } else {
+        }
+        else {
             sb_pause_route(&ctx->sb, &ctx->parent_stdin, &ctx->subproc_stdin);
         }
     }
@@ -265,7 +262,8 @@ resume_passthrough(subprocess_t *ctx, unsigned char which)
     if (which & SP_IO_STDIN) {
         if (ctx->pty_fd) {
             sb_resume_route(&ctx->sb, &ctx->parent_stdin, &ctx->subproc_stdout);
-        } else {
+        }
+        else {
             sb_resume_route(&ctx->sb, &ctx->parent_stdin, &ctx->subproc_stdin);
         }
     }
@@ -342,20 +340,16 @@ setup_subscriptions(subprocess_t *ctx, bool pty)
 
     if (ctx->capture) {
         if (ctx->capture & SP_IO_STDIN) {
-            sb_init_party_output_buf(&ctx->sb, &ctx->capture_stdin,
-                                     "stdin",  CAP_ALLOC);
+            sb_init_party_output_buf(&ctx->sb, &ctx->capture_stdin, "stdin", CAP_ALLOC);
         }
         if (ctx->capture & SP_IO_STDOUT) {
-            sb_init_party_output_buf(&ctx->sb, &ctx->capture_stdout,
-                                     "stdout", CAP_ALLOC);
+            sb_init_party_output_buf(&ctx->sb, &ctx->capture_stdout, "stdout", CAP_ALLOC);
         }
 
         if (ctx->combine_captures) {
-            if (!(ctx->capture & SP_IO_STDOUT) &&
-                ctx->capture & SP_IO_STDERR) {
+            if (!(ctx->capture & SP_IO_STDOUT) && ctx->capture & SP_IO_STDERR) {
                 if (ctx->capture & SP_IO_STDOUT) {
-                    sb_init_party_output_buf(&ctx->sb, &ctx->capture_stdout,
-                                             "stdout", CAP_ALLOC);
+                    sb_init_party_output_buf(&ctx->sb, &ctx->capture_stdout, "stdout", CAP_ALLOC);
                 }
             }
 
@@ -363,8 +357,7 @@ setup_subscriptions(subprocess_t *ctx, bool pty)
         }
         else {
             if (!pty && ctx->capture & SP_IO_STDERR) {
-                sb_init_party_output_buf(&ctx->sb, &ctx->capture_stderr,
-                                         "stderr", CAP_ALLOC);
+                sb_init_party_output_buf(&ctx->sb, &ctx->capture_stderr, "stderr", CAP_ALLOC);
             }
 
             stderr_dst = &ctx->capture_stderr;
@@ -413,13 +406,12 @@ subproc_new_party_callback(switchboard_t *ctx, switchboard_cb_t cb)
     return result;
 }
 
-
 static void
 subproc_install_callbacks(subprocess_t *ctx)
 {
     deferred_cb_t *entry = ctx->deferred_cbs;
 
-    while(entry) {
+    while (entry) {
         entry->to_free = subproc_new_party_callback(&ctx->sb, entry->cb);
         if (entry->which & SP_IO_STDIN) {
             sb_route(&ctx->sb, &ctx->parent_stdin, entry->to_free);
@@ -445,10 +437,10 @@ run_startup_callback(subprocess_t *ctx)
 static void
 subproc_spawn_fork(subprocess_t *ctx)
 {
-    pid_t           pid;
-    int             stdin_pipe[2];
-    int             stdout_pipe[2];
-    int             stderr_pipe[2];
+    pid_t pid;
+    int   stdin_pipe[2];
+    int   stdout_pipe[2];
+    int   stderr_pipe[2];
 
     pipe(stdin_pipe);
     pipe(stdout_pipe);
@@ -461,23 +453,20 @@ subproc_spawn_fork(subprocess_t *ctx)
         close(stdout_pipe[1]);
         close(stderr_pipe[1]);
 
-        sb_init_party_fd(&ctx->sb, &ctx->subproc_stdin, stdin_pipe[1],
-                         O_WRONLY, false, true, ctx->proxy_stdin_close);
-        sb_init_party_fd(&ctx->sb, &ctx->subproc_stdout, stdout_pipe[0],
-                         O_RDONLY, false, true, false);
-        sb_init_party_fd(&ctx->sb, &ctx->subproc_stderr, stderr_pipe[0],
-                         O_RDONLY, false, true, false);
+        sb_init_party_fd(&ctx->sb, &ctx->subproc_stdin, stdin_pipe[1], O_WRONLY, false, true, ctx->proxy_stdin_close);
+        sb_init_party_fd(&ctx->sb, &ctx->subproc_stdout, stdout_pipe[0], O_RDONLY, false, true, false);
+        sb_init_party_fd(&ctx->sb, &ctx->subproc_stderr, stderr_pipe[0], O_RDONLY, false, true, false);
 
-        sb_monitor_pid(&ctx->sb, pid, &ctx->subproc_stdin, &ctx->subproc_stdout,
-                       &ctx->subproc_stderr, true);
+        sb_monitor_pid(&ctx->sb, pid, &ctx->subproc_stdin, &ctx->subproc_stdout, &ctx->subproc_stderr, true);
         subproc_install_callbacks(ctx);
         setup_subscriptions(ctx, false);
         run_startup_callback(ctx);
-    } else {
+    }
+    else {
         close(stdin_pipe[1]);
         close(stdout_pipe[0]);
         close(stderr_pipe[0]);
-        dup2(stdin_pipe[0],  0);
+        dup2(stdin_pipe[0], 0);
         dup2(stdout_pipe[1], 1);
         dup2(stderr_pipe[1], 2);
 
@@ -488,13 +477,12 @@ subproc_spawn_fork(subprocess_t *ctx)
 static void
 subproc_spawn_forkpty(subprocess_t *ctx)
 {
-    struct winsize wininfo;
+    struct winsize  wininfo;
     struct termios *term_ptr = ctx->child_termcap;
     struct winsize *win_ptr  = &wininfo;
     pid_t           pid;
     int             pty_fd;
     int             stdin_pipe[2];
-
 
     tcgetattr(0, &ctx->saved_termcap);
 
@@ -511,9 +499,10 @@ subproc_spawn_forkpty(subprocess_t *ctx)
     //
     // Note that this means the child process will see isatty() return
     // true for stdin and stdout, but not stderr.
-    if(!isatty(0)) {
-        win_ptr  = NULL;
-    } else {
+    if (!isatty(0)) {
+        win_ptr = NULL;
+    }
+    else {
         ioctl(0, TIOCGWINSZ, win_ptr);
     }
 
@@ -522,17 +511,14 @@ subproc_spawn_forkpty(subprocess_t *ctx)
     if (pid != 0) {
         if (ctx->pty_stdin_pipe) {
             close(stdin_pipe[0]);
-            sb_init_party_fd(&ctx->sb, &ctx->subproc_stdin, stdin_pipe[1],
-                             O_WRONLY, false, true, ctx->proxy_stdin_close);
+            sb_init_party_fd(&ctx->sb, &ctx->subproc_stdin, stdin_pipe[1], O_WRONLY, false, true, ctx->proxy_stdin_close);
         }
 
         ctx->pty_fd = pty_fd;
 
-        sb_init_party_fd(&ctx->sb, &ctx->subproc_stdout,
-                         pty_fd, O_RDWR, true, true, false);
+        sb_init_party_fd(&ctx->sb, &ctx->subproc_stdout, pty_fd, O_RDWR, true, true, false);
 
-        sb_monitor_pid(&ctx->sb, pid, &ctx->subproc_stdout,
-                       &ctx->subproc_stdout, NULL, true);
+        sb_monitor_pid(&ctx->sb, pid, &ctx->subproc_stdout, &ctx->subproc_stdout, NULL, true);
         subproc_install_callbacks(ctx);
         setup_subscriptions(ctx, true);
 
@@ -545,45 +531,46 @@ subproc_spawn_forkpty(subprocess_t *ctx)
         int flags = fcntl(pty_fd, F_GETFL, 0) | O_NONBLOCK;
         fcntl(pty_fd, F_SETFL, flags);
         run_startup_callback(ctx);
-
-    } else {
-
-        setvbuf(stdout, NULL, _IONBF, (size_t) 0);
-        setvbuf(stdin, NULL, _IONBF, (size_t) 0);
+    }
+    else {
+        setvbuf(stdout, NULL, _IONBF, (size_t)0);
+        setvbuf(stdin, NULL, _IONBF, (size_t)0);
 
         if (ctx->pty_stdin_pipe) {
             close(stdin_pipe[1]);
             dup2(stdin_pipe[0], 0);
         }
 
-        signal(SIGHUP,   SIG_DFL);
-        signal(SIGINT,   SIG_DFL);
-        signal(SIGILL,   SIG_DFL);
-        signal(SIGABRT,  SIG_DFL);
-        signal(SIGFPE,   SIG_DFL);
-        signal(SIGKILL,  SIG_DFL);
-        signal(SIGSEGV,  SIG_DFL);
-        signal(SIGPIPE,  SIG_DFL);
-        signal(SIGALRM,  SIG_DFL);
-        signal(SIGTERM,  SIG_DFL);
-        signal(SIGCHLD,  SIG_DFL);
-        signal(SIGCONT,  SIG_DFL);
-        signal(SIGSTOP,  SIG_DFL);
-        signal(SIGTSTP,  SIG_DFL);
-        signal(SIGTTIN,  SIG_DFL);
-        signal(SIGTTOU,  SIG_DFL);
+        signal(SIGHUP, SIG_DFL);
+        signal(SIGINT, SIG_DFL);
+        signal(SIGILL, SIG_DFL);
+        signal(SIGABRT, SIG_DFL);
+        signal(SIGFPE, SIG_DFL);
+        signal(SIGKILL, SIG_DFL);
+        signal(SIGSEGV, SIG_DFL);
+        signal(SIGPIPE, SIG_DFL);
+        signal(SIGALRM, SIG_DFL);
+        signal(SIGTERM, SIG_DFL);
+        signal(SIGCHLD, SIG_DFL);
+        signal(SIGCONT, SIG_DFL);
+        signal(SIGSTOP, SIG_DFL);
+        signal(SIGTSTP, SIG_DFL);
+        signal(SIGTTIN, SIG_DFL);
+        signal(SIGTTOU, SIG_DFL);
         signal(SIGWINCH, SIG_DFL);
         subproc_do_exec(ctx);
     }
 }
 
 void
-termcap_get(struct termios *termcap) {
+termcap_get(struct termios *termcap)
+{
     tcgetattr(0, termcap);
 }
 
 void
-termcap_set(struct termios *termcap) {
+termcap_set(struct termios *termcap)
+{
     tcsetattr(0, TCSANOW, termcap);
 }
 
@@ -630,12 +617,12 @@ subproc_run(subprocess_t *ctx)
     sb_operate_switchboard(&ctx->sb, true);
 }
 
-
 void
-subproc_reset_terminal(subprocess_t *ctx) {
+subproc_reset_terminal(subprocess_t *ctx)
+{
     // Post-run cleanup.
     if (ctx->use_pty) {
-       tcsetattr(0, TCSANOW, &ctx->saved_termcap);
+        tcsetattr(0, TCSANOW, &ctx->saved_termcap);
     }
 }
 /*
@@ -772,7 +759,6 @@ subproc_get_extra(subprocess_t *ctx)
     return sb_get_extra(&ctx->sb);
 }
 
-
 #ifdef SB_TEST
 void
 capture_tty_data(switchboard_t *sb, party_t *party, char *data, size_t len)
@@ -781,12 +767,13 @@ capture_tty_data(switchboard_t *sb, party_t *party, char *data, size_t len)
 }
 
 int
-test1() {
-    char        *cmd    = "/bin/cat";
-    char        *args[] = { "/bin/cat", "../aes.nim", 0 };
-    subprocess_t ctx;
-    sb_result_t *result;
-    struct timeval timeout = {.tv_sec = 0, .tv_usec = 1000 };
+test1()
+{
+    char          *cmd    = "/bin/cat";
+    char          *args[] = {"/bin/cat", "../aes.nim", 0};
+    subprocess_t   ctx;
+    sb_result_t   *result;
+    struct timeval timeout = {.tv_sec = 0, .tv_usec = 1000};
 
     subproc_init(&ctx, cmd, args, true);
     subproc_use_pty(&ctx);
@@ -797,7 +784,7 @@ test1() {
 
     result = subproc_run(&ctx);
 
-    while(result) {
+    while (result) {
         if (result->tag) {
             print_hex(result->contents, result->content_len, result->tag);
         }
@@ -811,13 +798,14 @@ test1() {
 }
 
 int
-test2() {
-    char        *cmd    = "/bin/cat";
-    char        *args[] = { "/bin/cat", "-", 0 };
+test2()
+{
+    char *cmd    = "/bin/cat";
+    char *args[] = {"/bin/cat", "-", 0};
 
-    subprocess_t ctx;
-    sb_result_t *result;
-    struct timeval timeout = {.tv_sec = 0, .tv_usec = 1000 };
+    subprocess_t   ctx;
+    sb_result_t   *result;
+    struct timeval timeout = {.tv_sec = 0, .tv_usec = 1000};
 
     subproc_init(&ctx, cmd, args, true);
     subproc_set_passthrough(&ctx, SP_IO_ALL, false);
@@ -828,7 +816,7 @@ test2() {
 
     result = subproc_run(&ctx);
 
-    while(result) {
+    while (result) {
         if (result->tag) {
             print_hex(result->contents, result->content_len, result->tag);
         }
@@ -842,12 +830,13 @@ test2() {
 }
 
 int
-test3() {
-    char        *cmd    = "/usr/bin/less";
-    char        *args[] = { "/usr/bin/less", "../aes.nim", 0 };
-    subprocess_t ctx;
-    sb_result_t *result;
-    struct timeval timeout = {.tv_sec = 0, .tv_usec = 1000 };
+test3()
+{
+    char          *cmd    = "/usr/bin/less";
+    char          *args[] = {"/usr/bin/less", "../aes.nim", 0};
+    subprocess_t   ctx;
+    sb_result_t   *result;
+    struct timeval timeout = {.tv_sec = 0, .tv_usec = 1000};
 
     subproc_init(&ctx, cmd, args, true);
     subproc_use_pty(&ctx);
@@ -858,7 +847,7 @@ test3() {
 
     result = subproc_run(&ctx);
 
-    while(result) {
+    while (result) {
         if (result->tag) {
             print_hex(result->contents, result->content_len, result->tag);
         }
@@ -872,13 +861,14 @@ test3() {
 }
 
 int
-test4() {
-    char        *cmd    = "/bin/cat";
-    char        *args[] = { "/bin/cat", "-", 0 };
+test4()
+{
+    char *cmd    = "/bin/cat";
+    char *args[] = {"/bin/cat", "-", 0};
 
-    subprocess_t ctx;
-    sb_result_t *result;
-    struct timeval timeout = {.tv_sec = 0, .tv_usec = 1000 };
+    subprocess_t   ctx;
+    sb_result_t   *result;
+    struct timeval timeout = {.tv_sec = 0, .tv_usec = 1000};
 
     subproc_init(&ctx, cmd, args, true);
     subproc_use_pty(&ctx);
@@ -889,7 +879,7 @@ test4() {
 
     result = subproc_run(&ctx);
 
-    while(result) {
+    while (result) {
         if (result->tag) {
             print_hex(result->contents, result->content_len, result->tag);
         }
@@ -902,8 +892,9 @@ test4() {
     return 0;
 }
 
-
-int main() {
+int
+main()
+{
     test1();
     test2();
     test3();

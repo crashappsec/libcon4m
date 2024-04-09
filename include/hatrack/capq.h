@@ -49,7 +49,6 @@
 
 #include <hatrack.h>
 
-
 // clang-format off
 typedef struct {
     void    *item;

@@ -2,10 +2,9 @@
 
 #include <con4m.h>
 
-extern const int str_header_size;
+extern const int      str_header_size;
 extern const uint64_t pmap_str[2];
 #define PMAP_STR ((uint64_t *)&pmap_str[0])
-
 
 extern any_str_t  *string_copy(const any_str_t *s);
 extern utf32_t    *string_concat(const any_str_t *, const any_str_t *);
@@ -29,14 +28,13 @@ extern bool        string_can_coerce_to(type_spec_t *, type_spec_t *);
 extern object_t    string_coerce_to(const any_str_t *, type_spec_t *);
 extern xlist_t    *string_xsplit(any_str_t *, any_str_t *);
 
-
 extern struct flexarray_t *string_split(any_str_t *, any_str_t *);
 
-#define force_utf8(x) utf32_to_utf8(x)
-#define force_utf32(x) utf8_to_utf32(x)
-#define string_strip(s, ...) _string_strip(s, KFUNC(__VA_ARGS__))
-#define string_truncate(s, n, ...) _string_truncate(s, n,  KFUNC(__VA_ARGS__))
-#define string_join(l, s, ...) _string_join(l, s, KFUNC(__VA_ARGS__))
+#define force_utf8(x)              utf32_to_utf8(x)
+#define force_utf32(x)             utf8_to_utf32(x)
+#define string_strip(s, ...)       _string_strip(s, KFUNC(__VA_ARGS__))
+#define string_truncate(s, n, ...) _string_truncate(s, n, KFUNC(__VA_ARGS__))
+#define string_join(l, s, ...)     _string_join(l, s, KFUNC(__VA_ARGS__))
 #define string_find(str, sub, ...) _string_find(str, sub, KFUNC(__VA_ARGS__))
 
 extern const utf8_t *empty_string_const;
@@ -59,13 +57,13 @@ static inline int64_t
 string_codepoint_len(const any_str_t *s)
 {
     if (!s) {
-	return 0;
+        return 0;
     }
     if (s->codepoints < 0) {
-	return ~(s->codepoints);
+        return ~(s->codepoints);
     }
     else {
-	return s->codepoints;
+        return s->codepoints;
     }
 }
 
@@ -111,4 +109,4 @@ to_cstring(any_str_t *s)
 }
 
 // This is in richlit.c
-extern utf8_t * rich_lit(char *);
+extern utf8_t *rich_lit(char *);

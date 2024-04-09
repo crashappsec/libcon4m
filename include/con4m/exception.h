@@ -66,67 +66,61 @@
 // You MUST NOT put the try/except block code in curly braces!
 //
 
-#define TRY                                                                    \
-    jmp_buf            __xh_jmpbuf;                                            \
-    int                __xh_setjmp_val;                                        \
-    exception_stack_t *__xh_stack;                                             \
-    exception_frame_t *__xh_frame;                                             \
-    int                __xh_exception_state   = EXCEPTION_OK;                  \
-    exception_t       *__xh_current_exception = NULL;                          \
-                                                                               \
-    __xh_stack      = exception_push_frame(&__xh_jmpbuf);                      \
-    __xh_frame      = __xh_stack->top;                                         \
-    __xh_setjmp_val = setjmp(__xh_jmpbuf);                                     \
-                                                                               \
+#define TRY                                                   \
+    jmp_buf            __xh_jmpbuf;                           \
+    int                __xh_setjmp_val;                       \
+    exception_stack_t *__xh_stack;                            \
+    exception_frame_t *__xh_frame;                            \
+    int                __xh_exception_state   = EXCEPTION_OK; \
+    exception_t       *__xh_current_exception = NULL;         \
+                                                              \
+    __xh_stack      = exception_push_frame(&__xh_jmpbuf);     \
+    __xh_frame      = __xh_stack->top;                        \
+    __xh_setjmp_val = setjmp(__xh_jmpbuf);                    \
+                                                              \
     if (!__xh_setjmp_val) {
-
-
-#define EXCEPT                                                                 \
-    }									       \
-    else                                                                       \
-    {                                                                          \
-        __xh_current_exception = __xh_stack->top->exception;                   \
-        __xh_setjmp_val        = setjmp(__xh_jmpbuf);                          \
+#define EXCEPT                                               \
+    }                                                        \
+    else                                                     \
+    {                                                        \
+        __xh_current_exception = __xh_stack->top->exception; \
+        __xh_setjmp_val        = setjmp(__xh_jmpbuf);        \
         if (!__xh_setjmp_val) {
-
-
-#define LFINALLY(user_label)                                                   \
-    }                                                                          \
-    else                                                                       \
-    {                                                                          \
-        __xh_exception_state            = EXCEPTION_IN_HANDLER;                \
-        __xh_frame->exception->previous = __xh_current_exception;              \
-        __xh_current_exception          = __xh_stack->top->exception;          \
-    }                                                                          \
-    }                                                                          \
-    __xh_finally_##user_label:                                                 \
-    {                                                                          \
+#define LFINALLY(user_label)                                          \
+    }                                                                 \
+    else                                                              \
+    {                                                                 \
+        __xh_exception_state            = EXCEPTION_IN_HANDLER;       \
+        __xh_frame->exception->previous = __xh_current_exception;     \
+        __xh_current_exception          = __xh_stack->top->exception; \
+    }                                                                 \
+    }                                                                 \
+    __xh_finally_##user_label:                                        \
+    {                                                                 \
         if (!setjmp(__xh_jmpbuf)) {
-
-
 // The goto here avoids strict checking for unused labels.
-#define LTRY_END(user_label)                                                   \
-    goto __xh_try_end_##user_label;                                            \
-    }                                                                          \
-    else                                                                       \
-    {                                                                          \
-        __xh_exception_state            = EXCEPTION_IN_HANDLER;                \
-        __xh_frame->exception->previous = __xh_current_exception;              \
-        __xh_current_exception          = __xh_stack->top->exception;          \
-    }                                                                          \
-    }                                                                          \
-    __xh_try_end_##user_label : __xh_stack->top = __xh_frame->next;            \
-    if (__xh_exception_state == EXCEPTION_IN_HANDLER                           \
-        || __xh_exception_state == EXCEPTION_NOT_HANDLED) {                    \
-        if (!__xh_frame->next) {                                               \
-            exception_uncaught(__xh_current_exception);                        \
-        }                                                                      \
-        exception_free_frame(__xh_frame, __xh_stack);                          \
-        __xh_stack->top->exception = __xh_current_exception;                   \
-        __xh_frame                 = __xh_stack->top;                          \
-        __xh_frame->exception      = __xh_current_exception;                   \
-        longjmp(*(__xh_frame->buf), 1);                                        \
-    }                                                                          \
+#define LTRY_END(user_label)                                          \
+    goto __xh_try_end_##user_label;                                   \
+    }                                                                 \
+    else                                                              \
+    {                                                                 \
+        __xh_exception_state            = EXCEPTION_IN_HANDLER;       \
+        __xh_frame->exception->previous = __xh_current_exception;     \
+        __xh_current_exception          = __xh_stack->top->exception; \
+    }                                                                 \
+    }                                                                 \
+    __xh_try_end_##user_label : __xh_stack->top = __xh_frame->next;   \
+    if (__xh_exception_state == EXCEPTION_IN_HANDLER                  \
+        || __xh_exception_state == EXCEPTION_NOT_HANDLED) {           \
+        if (!__xh_frame->next) {                                      \
+            exception_uncaught(__xh_current_exception);               \
+        }                                                             \
+        exception_free_frame(__xh_frame, __xh_stack);                 \
+        __xh_stack->top->exception = __xh_current_exception;          \
+        __xh_frame                 = __xh_stack->top;                 \
+        __xh_frame->exception      = __xh_current_exception;          \
+        longjmp(*(__xh_frame->buf), 1);                               \
+    }                                                                 \
     exception_free_frame(__xh_frame, __xh_stack);
 
 #define LJUMP_TO_FINALLY(user_label) goto __xh_finally_##user_label
@@ -137,14 +131,18 @@
 #define FINALLY           LFINALLY(default_label)
 #define TRY_END           LTRY_END(default_label)
 
-#define CRAISE(s, ...) exception_raise(alloc_exception(s,                      \
-        IF(ISEMPTY(__VA_ARGS__))(EMPTY(), __VA_ARGS__)) , __FILE__, __LINE__)
+#define CRAISE(s, ...) exception_raise(alloc_exception(s,                                               \
+                                                       IF(ISEMPTY(__VA_ARGS__))(EMPTY(), __VA_ARGS__)), \
+                                       __FILE__,                                                        \
+                                       __LINE__)
 
-#define RAISE(s, ...) exception_raise(alloc_str_exception(s,                   \
-        IF(ISEMPTY(__VA_ARGS__))(EMPTY(), __VA_ARGS__)) , __FILE__, __LINE__)
+#define RAISE(s, ...) exception_raise(alloc_str_exception(s,                                               \
+                                                          IF(ISEMPTY(__VA_ARGS__))(EMPTY(), __VA_ARGS__)), \
+                                      __FILE__,                                                            \
+                                      __LINE__)
 
-#define RERAISE()							       \
-    __xh_exception_state = EXCEPTION_NOT_HANDLED;                              \
+#define RERAISE()                                 \
+    __xh_exception_state = EXCEPTION_NOT_HANDLED; \
     longjmp(*(__xh_current_frame->buf), 1)
 
 #define X_CUR() __xh_current_exception
@@ -155,8 +153,7 @@ exception_t *_alloc_exception(const char *s, ...);
 exception_t *_alloc_str_exception(utf8_t *s, ...);
 #define alloc_str_exception(s, ...) _alloc_str_exception(s, KFUNC(__VA_ARGS__))
 
-enum : int64_t
-{
+enum : int64_t {
     EXCEPTION_OK,
     EXCEPTION_IN_HANDLER,
     EXCEPTION_NOT_HANDLED
@@ -164,10 +161,9 @@ enum : int64_t
 
 exception_stack_t *exception_push_frame(jmp_buf *);
 void               exception_free_frame(exception_frame_t *,
-					exception_stack_t *);
+                                        exception_stack_t *);
 void               exception_uncaught(exception_t *);
-void               exception_raise(exception_t *, char *,
-				   int) __attribute((__noreturn__));
+void               exception_raise(exception_t *, char *, int) __attribute((__noreturn__));
 
 static inline utf8_t *
 exception_get_file(exception_t *exception)
@@ -189,25 +185,29 @@ exception_get_message(exception_t *exception)
 
 void exception_register_uncaught_handler(void (*)(exception_t *));
 
-#define RAISE_SYS()                                                            \
-    {                                                                          \
-        char buf[BUFSIZ];                                                      \
-        strerror_r(errno, buf, BUFSIZ);                                        \
-        RAISE(con4m_new(tspec_utf8(), kw("cstring", ka(buf))),                 \
-	      kw("error_code", ka(errno)));				       \
+#define RAISE_SYS()                                            \
+    {                                                          \
+        char buf[BUFSIZ];                                      \
+        strerror_r(errno, buf, BUFSIZ);                        \
+        RAISE(con4m_new(tspec_utf8(), kw("cstring", ka(buf))), \
+              kw("error_code", ka(errno)));                    \
     }
 
 extern __thread exception_stack_t __exception_stack;
 
 static inline void
-raise_errcode(int code) {
-    char msg[2048] = {0, };
+raise_errcode(int code)
+{
+    char msg[2048] = {
+        0,
+    };
 
     strerror_r(code, msg, 2048);
     RAISE(con4m_new(tspec_utf8(), kw("cstring", ka(msg))));
 }
 
-static inline void raise_errno()
+static inline void
+raise_errno()
 {
     raise_errcode(errno);
 }

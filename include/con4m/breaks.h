@@ -16,7 +16,7 @@ alloc_break_structure(const any_str_t *s, int shift)
 {
     break_info_t *result;
     int32_t       alloc_slots = max(string_codepoint_len(s) >> shift,
-				    minimum_break_slots);
+                              minimum_break_slots);
 
     result = gc_flex_alloc(break_info_t, int32_t, alloc_slots, NULL);
 
@@ -49,7 +49,7 @@ add_break(break_info_t **listp, int32_t br)
     break_info_t *breaks = *listp;
 
     if (breaks->num_slots == breaks->num_breaks) {
-	breaks = grow_break_structure(breaks);
+        breaks = grow_break_structure(breaks);
         *listp = breaks;
     }
 

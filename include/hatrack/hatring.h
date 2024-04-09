@@ -44,7 +44,6 @@
 
 #include <hatrack.h>
 
-
 typedef struct {
     void    *item;
     uint64_t state;
@@ -55,18 +54,17 @@ typedef _Atomic hatring_item_t hatring_cell_t;
 typedef void (*hatring_drop_handler)(void *);
 
 typedef struct {
-    uint64_t  next_ix;
-    uint64_t  num_items;
-    void     *cells[];
+    uint64_t next_ix;
+    uint64_t num_items;
+    void    *cells[];
 } hatring_view_t;
 
 typedef struct {
-    alignas(16)
-    _Atomic uint64_t             epochs;
-    hatring_drop_handler         drop_handler;
-    uint64_t                     last_slot;
-    uint64_t                     size;
-    hatring_cell_t               cells[];
+    alignas(16) _Atomic uint64_t epochs;
+    hatring_drop_handler drop_handler;
+    uint64_t             last_slot;
+    uint64_t             size;
+    hatring_cell_t       cells[];
 } hatring_t;
 
 enum {
@@ -79,7 +77,7 @@ static inline bool
 hatring_is_lagging(uint32_t read_epoch, uint32_t write_epoch, uint64_t size)
 {
     if (read_epoch + size < write_epoch) {
-	return true;
+        return true;
     }
 
     return false;
@@ -110,7 +108,8 @@ hatring_cell_epoch(uint64_t state)
 }
 
 static inline bool
-hatring_is_enqueued(uint64_t state) {
+hatring_is_enqueued(uint64_t state)
+{
     return state & HATRING_ENQUEUED;
 }
 
@@ -120,14 +119,14 @@ hatring_fixed_epoch(uint32_t write_epoch, uint64_t store_size)
     return (((uint64_t)write_epoch) << 32) | (write_epoch - store_size);
 }
 
-hatring_t      *hatring_new             (uint64_t);
-void            hatring_init            (hatring_t *, uint64_t);
-void            hatring_cleanup         (hatring_t *);
-void            hatring_delete          (hatring_t *);
-uint32_t        hatring_enqueue         (hatring_t *, void *);
-void           *hatring_dequeue         (hatring_t *, bool *);
-void           *hatring_dequeue_w_epoch (hatring_t *, bool *, uint32_t *);
-hatring_view_t *hatring_view            (hatring_t *);
-void           *hatring_view_next       (hatring_view_t *, bool *);
-void            hatring_view_delete     (hatring_view_t *);
+hatring_t      *hatring_new(uint64_t);
+void            hatring_init(hatring_t *, uint64_t);
+void            hatring_cleanup(hatring_t *);
+void            hatring_delete(hatring_t *);
+uint32_t        hatring_enqueue(hatring_t *, void *);
+void           *hatring_dequeue(hatring_t *, bool *);
+void           *hatring_dequeue_w_epoch(hatring_t *, bool *, uint32_t *);
+hatring_view_t *hatring_view(hatring_t *);
+void           *hatring_view_next(hatring_view_t *, bool *);
+void            hatring_view_delete(hatring_view_t *);
 void            hatring_set_drop_handler(hatring_t *, hatring_drop_handler);

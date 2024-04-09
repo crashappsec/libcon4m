@@ -39,19 +39,19 @@
 #include <hatrack.h>
 
 #ifdef __MACH__
-extern _Bool clock_service_inited;
+extern _Bool        clock_service_inited;
 extern clock_serv_t clock_service;
 
 typedef mach_timespec_t duration_t;
-#define get_timestamp(x) if(!clock_service_inited) {                           \
-    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &clock_service);  \
-  }                                                                            \
+#define get_timestamp(x)                                                          \
+    if (!clock_service_inited) {                                                  \
+        host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &clock_service); \
+    }                                                                             \
     clock_get_time(clock_service, (x))
 #else
 typedef struct timespec duration_t;
 #define get_timestamp(x) clock_gettime(CLOCK_MONOTONIC, (x))
 #endif
-
 
 typedef struct {
     _Atomic int64_t count;
@@ -116,7 +116,7 @@ gate_thread_ready(gate_t *gate)
     atomic_fetch_add(&gate->count, 1);
 
     while (atomic_read(&gate->count) != (int64_t)GATE_OPEN)
-	;
+        ;
 
     return;
 }
@@ -133,7 +133,7 @@ static inline void
 gate_open(gate_t *gate, int64_t num_threads)
 {
     while (atomic_read(&gate->count) != num_threads)
-	;
+        ;
 
     atomic_signal_fence(memory_order_seq_cst);
     get_timestamp(&gate->start_time);
@@ -156,19 +156,19 @@ gate_close(gate_t *gate)
     n     = 0;
 
     for (i = 0; i < gate->max_threads; i++) {
-	if (gate->end_times[i].tv_sec || gate->end_times[i].tv_nsec) {
-	    cur    = gate_time_diff(&gate->end_times[i], &gate->start_time);
-	    total += cur;
+        if (gate->end_times[i].tv_sec || gate->end_times[i].tv_nsec) {
+            cur = gate_time_diff(&gate->end_times[i], &gate->start_time);
+            total += cur;
 
-	    n++;
+            n++;
 
-	    if (!min || cur < min) {
-		min = cur;
-	    }
-	    if (!max || cur > max) {
-		max = cur;
-	    }
-	}
+            if (!min || cur < min) {
+                min = cur;
+            }
+            if (!max || cur > max) {
+                max = cur;
+            }
+        }
     }
 
     gate->elapsed_time = max;
@@ -203,16 +203,16 @@ basic_gate_init(basic_gate_t *gate)
 }
 
 static inline void
-basic_gate_open(basic_gate_t  *gate,
-                int64_t        num_threads,
-		duration_t    *ts)
+basic_gate_open(basic_gate_t *gate,
+                int64_t       num_threads,
+                duration_t   *ts)
 {
     while (atomic_read(gate) != num_threads)
-	;
+        ;
 
     atomic_signal_fence(memory_order_seq_cst);
     if (ts) {
-	get_timestamp(ts);
+        get_timestamp(ts);
     }
     atomic_signal_fence(memory_order_seq_cst);
     atomic_store(gate, -1);
@@ -221,11 +221,12 @@ basic_gate_open(basic_gate_t  *gate,
 }
 
 static inline void
-basic_gate_thread_ready(basic_gate_t *gate) {
+basic_gate_thread_ready(basic_gate_t *gate)
+{
     atomic_fetch_add(gate, 1);
 
     while (atomic_read(gate) != -1)
-	;
+        ;
 
     return;
 }

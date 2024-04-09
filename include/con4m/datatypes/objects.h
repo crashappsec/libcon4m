@@ -7,7 +7,7 @@ typedef struct con4m_obj_t con4m_obj_t;
 typedef enum {
     BT_nil,
     BT_primitive,
-    BT_internal,   // Internal primitives.
+    BT_internal, // Internal primitives.
     BT_type_var,
     BT_list,
     BT_dict,
@@ -40,14 +40,14 @@ typedef struct {
 
 typedef struct {
     alignas(8)
-    // The base ID for the data type. For now, this is redundant while we
-    // don't have user-defined types, since we're caching data type info
-    // in a fixed array. But once we add user-defined types, they'll
-    // get their IDs from a hash function, and that won't work for
-    // everything.
-    const char         *name;
-    const uint64_t      typeid;
-    const uint64_t      alloc_len;  // How much space to allocate.
+        // The base ID for the data type. For now, this is redundant while we
+        // don't have user-defined types, since we're caching data type info
+        // in a fixed array. But once we add user-defined types, they'll
+        // get their IDs from a hash function, and that won't work for
+        // everything.
+        const char *name;
+    const uint64_t typeid;
+    const uint64_t      alloc_len; // How much space to allocate.
     const uint64_t     *ptr_info;  // Shows GC u64 offsets to examine for ptrs.
     const con4m_vtable *vtable;
     const base_t        base;
@@ -75,7 +75,7 @@ struct con4m_obj_t {
     struct type_spec_t *concrete_type;
     __uint128_t         cached_hash;
     // The exposed object data.
-    uint64_t data[];
+    uint64_t            data[];
 };
 
 // A lot of these are placeholders; most are implemented in the
@@ -112,11 +112,11 @@ typedef enum {
     //
     // If the function isn't provided, we assume it must be the same
     // as the operand.
-    CON4M_BI_ADD,    // `t + `t -> `t
-    CON4M_BI_SUB,    // `t - `t -> `t
-    CON4M_BI_MUL,    // `t * `t -> `v -- requires return type
-    CON4M_BI_DIV,    // `t / `t -> `v -- requires return type
-    CON4M_BI_MOD,    // `t % `t -> `v
+    CON4M_BI_ADD, // `t + `t -> `t
+    CON4M_BI_SUB, // `t - `t -> `t
+    CON4M_BI_MUL, // `t * `t -> `v -- requires return type
+    CON4M_BI_DIV, // `t / `t -> `v -- requires return type
+    CON4M_BI_MOD, // `t % `t -> `v
     CON4M_BI_EQ,
     CON4M_BI_LT,
     CON4M_BI_GT,

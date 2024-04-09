@@ -43,10 +43,9 @@ typedef struct hatrack_queue_t queue_t;
 
 static inline void *con4m_gc_malloc(size_t);
 
-
-#define malloc(x) con4m_gc_malloc(x)
-#define free(x) x // In case it has side effects.
-#define realloc(x, y) con4m_gc_resize(x, y)
+#define malloc(x)        con4m_gc_malloc(x)
+#define free(x)          x // In case it has side effects.
+#define realloc(x, y)    con4m_gc_resize(x, y)
 #define zero_alloc(x, y) con4m_gc_malloc((x) * (y))
 #else
 #define zero_alloc(x, y) calloc(x, y)
@@ -71,11 +70,10 @@ free_libc_allocation(void *ptr)
 #include <hatrack/hatrack_common.h>
 #include <hatrack/lohat_common.h>
 
-
 // Our dictionary algorithms
 #include <hatrack/crown.h>
 #include <hatrack/woolhat.h>
-#include <hatrack/refhat.h>  // single threaded hash.
+#include <hatrack/refhat.h> // single threaded hash.
 
 // Dict algorithms that should only be used for reference.
 #ifdef HATRACK_REFERENCE_ALGORITHMS
@@ -93,7 +91,6 @@ free_libc_allocation(void *ptr)
 #include <hatrack/tophat.h>
 #endif
 
-
 #include <hatrack/dict.h>
 #include <hatrack/set.h>
 #include <hatrack/flexarray.h>
@@ -103,7 +100,6 @@ free_libc_allocation(void *ptr)
 #include <hatrack/hatring.h>
 #include <hatrack/logring.h>
 #include <hatrack/crown.h>
-
 
 // These aren't fully finished.
 #ifdef HATRACK_UNFINISHED_ALGORITHMS

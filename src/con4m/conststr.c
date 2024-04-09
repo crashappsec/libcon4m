@@ -17,28 +17,30 @@ enum {
     PUNC_MAX  = 13
 };
 
-static any_str_t *type_punct[PUNC_MAX] = {0, };
+static any_str_t *type_punct[PUNC_MAX] = {
+    0,
+};
 
 static inline void
 init_punctuation()
 {
     if (type_punct[0] == NULL) {
-	type_punct[LBRAK_IX]  = utf8_repeat('[', 1);
-	type_punct[COMMA_IX]  = con4m_new(tspec_utf8(),
-					  kw("cstring", ka(", ")));
-	type_punct[RBRAK_IX]  = utf8_repeat(']', 1);
-	type_punct[LPAREN_IX] = utf8_repeat('(', 1);
-	type_punct[RPAREN_IX] = utf8_repeat(')', 1);
-	type_punct[ARROW_IX]  = con4m_new(tspec_utf8(),
-					  kw("cstring", ka(" -> ")));
-	type_punct[BTICK_IX]  = utf8_repeat('`', 1);
-	type_punct[STAR_IX]   = utf8_repeat('*', 1);
-	type_punct[SPACE_IX]  = utf8_repeat(' ', 1);
-	type_punct[LBRACE_IX] = utf8_repeat('{', 1);
-	type_punct[RBRACE_IX] = utf8_repeat('}', 1);
-	type_punct[COLON_IX]  = con4m_new(tspec_utf8(),
-					  kw("cstring", ka(" : ")));
-	type_punct[COLON_NSP] = utf8_repeat(':', 1);
+        type_punct[LBRAK_IX]  = utf8_repeat('[', 1);
+        type_punct[COMMA_IX]  = con4m_new(tspec_utf8(),
+                                         kw("cstring", ka(", ")));
+        type_punct[RBRAK_IX]  = utf8_repeat(']', 1);
+        type_punct[LPAREN_IX] = utf8_repeat('(', 1);
+        type_punct[RPAREN_IX] = utf8_repeat(')', 1);
+        type_punct[ARROW_IX]  = con4m_new(tspec_utf8(),
+                                         kw("cstring", ka(" -> ")));
+        type_punct[BTICK_IX]  = utf8_repeat('`', 1);
+        type_punct[STAR_IX]   = utf8_repeat('*', 1);
+        type_punct[SPACE_IX]  = utf8_repeat(' ', 1);
+        type_punct[LBRACE_IX] = utf8_repeat('{', 1);
+        type_punct[RBRACE_IX] = utf8_repeat('}', 1);
+        type_punct[COLON_IX]  = con4m_new(tspec_utf8(),
+                                         kw("cstring", ka(" : ")));
+        type_punct[COLON_NSP] = utf8_repeat(':', 1);
     }
     con4m_gc_register_root(&type_punct[0], PUNC_MAX);
 }
@@ -112,7 +114,6 @@ get_lbrace_const()
     init_punctuation();
     return type_punct[LBRACE_IX];
 }
-
 
 utf8_t *
 get_rbrace_const()

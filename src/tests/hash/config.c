@@ -318,7 +318,7 @@ try_parse_seed_arg(char *p, char *flag_name, bool *b, __int128_t *seedp)
     }
 
     if (*p++ != '=') {
-	printf("Bad seed; no arg to flag");
+        printf("Bad seed; no arg to flag");
         usage();
     }
 
@@ -327,7 +327,7 @@ try_parse_seed_arg(char *p, char *flag_name, bool *b, __int128_t *seedp)
     do {
         switch (*p) {
         case 0:
-	    printf("Bad seed value, must be hex.\n");
+            printf("Bad seed value, must be hex.\n");
             usage(); // Only runs for the first iteration.
         case '0':
         case '1':
@@ -458,20 +458,20 @@ try_parse_flag_arg(char *p, char *flag_name, bool *b)
     return false;
 }
 
-#define try_parse_int(p, flag_name, bool_name, var)                            \
-    if (try_parse_int_arg(p, flag_name, &bool_name, var)) {                    \
-        continue;                                                              \
+#define try_parse_int(p, flag_name, bool_name, var)         \
+    if (try_parse_int_arg(p, flag_name, &bool_name, var)) { \
+        continue;                                           \
     }
 
-#define try_parse_seed(p, flag_name, bool_name, var)                           \
-    if (try_parse_seed_arg(p, flag_name, &bool_name, var)) {                   \
-        continue;                                                              \
+#define try_parse_seed(p, flag_name, bool_name, var)         \
+    if (try_parse_seed_arg(p, flag_name, &bool_name, var)) { \
+        continue;                                            \
     }
 
-#define try_parse_flag(p, flag_name, bool_name, var)                           \
-    if (try_parse_flag_arg(p, flag_name, &bool_name)) {                        \
-        *var = true;                                                           \
-        continue;                                                              \
+#define try_parse_flag(p, flag_name, bool_name, var)    \
+    if (try_parse_flag_arg(p, flag_name, &bool_name)) { \
+        *var = true;                                    \
+        continue;                                       \
     }
 
 config_info_t *
@@ -519,7 +519,7 @@ parse_args(int argc, char *argv[])
                 usage();
             }
             if (cur_len < 3 || cur[1] != '-') {
-		fprintf(stderr, "Long flags require a double dash.");
+                fprintf(stderr, "Long flags require a double dash.");
                 usage();
             }
             p          = &cur[2];

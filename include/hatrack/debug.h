@@ -386,12 +386,12 @@ hatrack_debug_assert_w_params(bool        expression_result,
     return;
 }
 
-#define DEBUG(x)        hatrack_debug(x)
-#define DEBUG_PTR(x, y) hatrack_debug_ptr((void *)(x), y)
-#define DEBUG2(x, y, m) hatrack_debug2((void *)(x), (void *)(y), m)
-#define DEBUG3(x,y,z,m) hatrack_debug3((void *)(x),(void *)(y),(void *)(z),m)
-#define ASSERT(x)       hatrack_debug_assert(x, #x, __FUNCTION__, __FILE__, __LINE__)
-#define XASSERT(x, n, b)                                                       \
+#define DEBUG(x)           hatrack_debug(x)
+#define DEBUG_PTR(x, y)    hatrack_debug_ptr((void *)(x), y)
+#define DEBUG2(x, y, m)    hatrack_debug2((void *)(x), (void *)(y), m)
+#define DEBUG3(x, y, z, m) hatrack_debug3((void *)(x), (void *)(y), (void *)(z), m)
+#define ASSERT(x)          hatrack_debug_assert(x, #x, __FUNCTION__, __FILE__, __LINE__)
+#define XASSERT(x, n, b) \
     hatrack_debug_assert_w_params(x, #x, __FUNCTION__, __FILE__, __LINE__, n, b)
 
 #else

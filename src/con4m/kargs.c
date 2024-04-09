@@ -10,7 +10,6 @@
 
 #include <con4m.h>
 
-
 static void
 kargs_init(karg_info_t *kargs, va_list args)
 {
@@ -28,7 +27,7 @@ pass_kargs(int nargs, ...)
     va_start(args, nargs);
 
     if (nargs & 1) {
-	CRAISE("Got an odd number of parameters to kw() keyword decl macro.");
+        CRAISE("Got an odd number of parameters to kw() keyword decl macro.");
     }
 
     nargs >>= 1;
@@ -36,8 +35,8 @@ pass_kargs(int nargs, ...)
     karg_info_t *kargs = con4m_new(tspec_kargs(), nargs);
 
     for (int i = 0; i < nargs; i++) {
-	kargs->args[i].kw    = va_arg(args, char *);
-	kargs->args[i].value = va_arg(args, void *);
+        kargs->args[i].kw    = va_arg(args, char *);
+        kargs->args[i].value = va_arg(args, void *);
     }
 
     va_end(args);
@@ -56,12 +55,12 @@ get_kargs(va_list args)
     cur = va_arg(arg_copy, object_t);
 
     while (cur != NULL) {
-	if (get_my_type(cur) == tspec_kargs()) {
-	    va_end(arg_copy);
-	    return cur;
-	}
+        if (get_my_type(cur) == tspec_kargs()) {
+            va_end(arg_copy);
+            return cur;
+        }
 
-	cur = va_arg(arg_copy, object_t);
+        cur = va_arg(arg_copy, object_t);
     }
 
     va_end(arg_copy);
@@ -77,18 +76,18 @@ get_kargs_and_count(va_list args, int *nargs)
     int      count = 0;
 
     va_copy(arg_copy, args);
-  
+
     cur = va_arg(arg_copy, object_t);
 
     while (cur != NULL) {
-	      if (get_my_type(cur) == tspec_kargs()) {
-	          *nargs = count;
-	          va_end(arg_copy);
-	          return cur;
-      	}
+        if (get_my_type(cur) == tspec_kargs()) {
+            *nargs = count;
+            va_end(arg_copy);
+            return cur;
+        }
 
-	      count++;
-	      cur = va_arg(arg_copy, object_t);
+        count++;
+        cur = va_arg(arg_copy, object_t);
     }
 
     *nargs = count;
@@ -99,7 +98,6 @@ get_kargs_and_count(va_list args, int *nargs)
 const con4m_vtable kargs_vtable = {
     .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
-	(con4m_vtable_entry)kargs_init,
-	NULL, // Aboslutelty nothing else.
-    }
-};
+        (con4m_vtable_entry)kargs_init,
+        NULL, // Aboslutelty nothing else.
+    }};

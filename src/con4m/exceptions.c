@@ -2,7 +2,9 @@
 
 static void (*uncaught_handler)(exception_t *) = exception_uncaught;
 
-__thread exception_stack_t __exception_stack = {0,};
+__thread exception_stack_t __exception_stack = {
+    0,
+};
 static pthread_once_t exceptions_inited = PTHREAD_ONCE_INIT;
 
 // Skip the 4 GC header words, then the first 3 words are heap pointers.
@@ -21,7 +23,6 @@ exception_init(exception_t *exception, va_list args)
     kw_ptr("context", context);
     kw_int64("error_code", error_code);
 
-
     exception->msg     = message;
     exception->context = context;
     exception->code    = error_code;
@@ -31,7 +32,7 @@ exception_t *
 _alloc_exception(const char *msg, ...)
 {
     exception_t *ret = gc_alloc(sizeof(exception_t));
-    ret->msg = con4m_new(tspec_utf8(), kw("cstring", ka(msg)));
+    ret->msg         = con4m_new(tspec_utf8(), kw("cstring", ka(msg)));
 
     return ret;
 }
@@ -40,7 +41,7 @@ exception_t *
 _alloc_str_exception(utf8_t *msg, ...)
 {
     exception_t *ret = gc_alloc(sizeof(exception_t));
-    ret->msg = msg;
+    ret->msg         = msg;
 
     return ret;
 }
@@ -54,7 +55,7 @@ exception_register_uncaught_handler(void (*handler)(exception_t *))
 static void
 exception_thread_start(void)
 {
-    con4m_gc_register_root(&__exception_stack, sizeof(__exception_stack)/8);
+    con4m_gc_register_root(&__exception_stack, sizeof(__exception_stack) / 8);
 }
 
 exception_stack_t *
@@ -71,8 +72,8 @@ exception_push_frame(jmp_buf *jbuf)
     else {
         frame = gc_alloc(exception_frame_t);
     }
-    frame->buf             = jbuf;
-    frame->next            = __exception_stack.top;
+    frame->buf            = jbuf;
+    frame->next           = __exception_stack.top;
     __exception_stack.top = frame;
 
     return &__exception_stack;
@@ -117,13 +118,10 @@ exception_raise(exception_t *exception, char *filename, int line)
         abort();
     }
 
-
     longjmp(*(frame->buf), 1);
 }
 
 const con4m_vtable exception_vtable = {
     .num_entries = 1,
     .methods     = {
-	(con4m_vtable_entry)exception_init
-    }
-};
+        (con4m_vtable_entry)exception_init}};

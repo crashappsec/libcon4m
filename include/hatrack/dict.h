@@ -23,8 +23,7 @@
 
 #include <hatrack.h>
 
-enum
-{
+enum {
     HATRACK_DICT_KEY_TYPE_INT,
     HATRACK_DICT_KEY_TYPE_REAL,
     HATRACK_DICT_KEY_TYPE_CSTR,
@@ -36,8 +35,7 @@ enum
     HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM
 };
 
-enum
-{
+enum {
     HATRACK_DICT_NO_CACHE = 0xffffffff
 };
 
@@ -51,7 +49,6 @@ typedef struct {
     void *value;
 } hatrack_dict_item_t;
 
-
 typedef struct dict_t hatrack_dict_t;
 
 typedef void *hatrack_dict_key_t;
@@ -63,14 +60,14 @@ typedef union {
 } hatrack_hash_info_t;
 
 struct dict_t {
-    crown_t               crown_instance;
-    hatrack_hash_info_t   hash_info;
-    hatrack_mem_hook_t    free_handler;
-    hatrack_mem_hook_t    key_return_hook;
-    hatrack_mem_hook_t    val_return_hook;
-    uint32_t              key_type;
-    bool                  slow_views;
-    bool                  sorted_views;
+    crown_t             crown_instance;
+    hatrack_hash_info_t hash_info;
+    hatrack_mem_hook_t  free_handler;
+    hatrack_mem_hook_t  key_return_hook;
+    hatrack_mem_hook_t  val_return_hook;
+    uint32_t            key_type;
+    bool                slow_views;
+    bool                sorted_views;
 };
 
 // clang-format off

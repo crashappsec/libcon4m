@@ -80,7 +80,7 @@ refhat_init_size(refhat_t *self, char size)
     self->item_count = 0;
     self->next_epoch = 1;
     self->buckets    = (refhat_bucket_t *)zero_alloc(len,
-						     sizeof(refhat_bucket_t));
+                                                  sizeof(refhat_bucket_t));
 
     return;
 }

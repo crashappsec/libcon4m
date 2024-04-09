@@ -30,8 +30,7 @@
 
 #ifdef HATRACK_32_BIT_HOP_TABLE
 
-
-#define CROWN_HOME_BIT  0x80000000
+#define CROWN_HOME_BIT 0x80000000
 
 typedef uint32_t hop_t;
 
@@ -39,7 +38,7 @@ typedef uint32_t hop_t;
 
 #else
 
-#define CROWN_HOME_BIT  0x8000000000000000
+#define CROWN_HOME_BIT 0x8000000000000000
 
 typedef uint64_t hop_t;
 
@@ -63,9 +62,9 @@ typedef struct {
     _Atomic crown_record_t record;
 
 #ifdef HATRACK_32_BIT_HOP_TABLE
-    _Atomic uint32_t       neighbor_map;
+    _Atomic uint32_t neighbor_map;
 #else
-    _Atomic uint64_t       neighbor_map;
+    _Atomic uint64_t neighbor_map;
 #endif
 } crown_bucket_t;
 

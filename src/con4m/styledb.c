@@ -23,8 +23,7 @@ const border_theme_t border_ascii = {
     .bottom_t        = '-',
     .left_t          = '|',
     .right_t         = '|',
-    .next_style      = NULL
-};
+    .next_style      = NULL};
 
 const border_theme_t border_asterisk = {
     .name            = "asterisk",
@@ -39,8 +38,7 @@ const border_theme_t border_asterisk = {
     .bottom_t        = '*',
     .left_t          = '*',
     .right_t         = '*',
-    .next_style      = (border_theme_t *)&border_ascii
-};
+    .next_style      = (border_theme_t *)&border_ascii};
 
 const border_theme_t border_bold_dash2 = {
     .name            = "bold_dash2",
@@ -55,8 +53,7 @@ const border_theme_t border_bold_dash2 = {
     .bottom_t        = 0x253b,
     .left_t          = 0x2523,
     .right_t         = 0x252b,
-    .next_style      = (border_theme_t *)&border_asterisk
-};
+    .next_style      = (border_theme_t *)&border_asterisk};
 
 const border_theme_t border_dash2 = {
     .name            = "dash2",
@@ -71,9 +68,7 @@ const border_theme_t border_dash2 = {
     .bottom_t        = 0x2534,
     .left_t          = 0x251c,
     .right_t         = 0x2524,
-    .next_style      = (border_theme_t *)&border_bold_dash2
-};
-
+    .next_style      = (border_theme_t *)&border_bold_dash2};
 
 const border_theme_t border_bold_dash = {
     .name            = "bold_dash",
@@ -88,10 +83,9 @@ const border_theme_t border_bold_dash = {
     .bottom_t        = 0x253b,
     .left_t          = 0x2523,
     .right_t         = 0x252b,
-    .next_style      = (border_theme_t *)&border_dash2
-};
+    .next_style      = (border_theme_t *)&border_dash2};
 
-const border_theme_t border_dash =  {
+const border_theme_t border_dash = {
     .name            = "dash",
     .horizontal_rule = 0x2504,
     .vertical_rule   = 0x2506,
@@ -104,8 +98,7 @@ const border_theme_t border_dash =  {
     .bottom_t        = 0x2534,
     .left_t          = 0x251c,
     .right_t         = 0x2524,
-    .next_style      = (border_theme_t *)&border_bold_dash
-};
+    .next_style      = (border_theme_t *)&border_bold_dash};
 
 const border_theme_t border_double = {
     .name            = "double",
@@ -120,10 +113,9 @@ const border_theme_t border_double = {
     .bottom_t        = 0x2569,
     .left_t          = 0x2560,
     .right_t         = 0x2563,
-    .next_style      = (border_theme_t *)&border_dash
-};
+    .next_style      = (border_theme_t *)&border_dash};
 
-const border_theme_t border_bold =  {
+const border_theme_t border_bold = {
     .name            = "bold",
     .horizontal_rule = 0x2501,
     .vertical_rule   = 0x2503,
@@ -136,8 +128,7 @@ const border_theme_t border_bold =  {
     .bottom_t        = 0x253b,
     .left_t          = 0x2523,
     .right_t         = 0x252b,
-    .next_style      = (border_theme_t *)&border_double
-};
+    .next_style      = (border_theme_t *)&border_double};
 
 const border_theme_t border_plain = {
     .name            = "plain",
@@ -152,20 +143,17 @@ const border_theme_t border_plain = {
     .bottom_t        = 0x2534,
     .left_t          = 0x251c,
     .right_t         = 0x2524,
-    .next_style      = (border_theme_t *)&border_bold
-};
+    .next_style      = (border_theme_t *)&border_bold};
 
 const border_theme_t *registered_borders = (border_theme_t *)&border_plain;
 
 // Used for border drawing and background (pad color).
 static const render_style_t default_table = {
     .name         = "table",
-    .borders      = BORDER_TOP | BORDER_BOTTOM | BORDER_LEFT |  BORDER_RIGHT |
-                    INTERIOR_HORIZONTAL | INTERIOR_VERTICAL,
+    .borders      = BORDER_TOP | BORDER_BOTTOM | BORDER_LEFT | BORDER_RIGHT | INTERIOR_HORIZONTAL | INTERIOR_VERTICAL,
     .border_theme = (border_theme_t *)&border_bold_dash,
     .dim_kind     = DIM_AUTO,
-    .alignment    = ALIGN_MID_LEFT
-};
+    .alignment    = ALIGN_MID_LEFT};
 
 static const render_style_t default_tr = {
     .name       = "tr",
@@ -199,13 +187,11 @@ static const render_style_t default_td = {
     .name       = "td",
     .base_style = 0,
     .left_pad   = 1,
-    .right_pad  = 1
-};
+    .right_pad  = 1};
 
 static const render_style_t default_tcol = {
     .name     = "tcol",
-    .dim_kind = DIM_AUTO
-};
+    .dim_kind = DIM_AUTO};
 
 static const render_style_t default_list_grid = {
     .name       = "ul",
@@ -233,57 +219,51 @@ static const render_style_t default_bullet_column = {
 };
 
 static const render_style_t default_list_text_column = {
-    .name       = "li",
+    .name      = "li",
     //.base_style = 0x2f3f3ff8f8fful | BG_COLOR_ON | FG_COLOR_ON,
-    .dim_kind   = DIM_AUTO,
-    .left_pad   = 1,
-    .right_pad  = 1,
-    .alignment  = ALIGN_TOP_LEFT,
+    .dim_kind  = DIM_AUTO,
+    .left_pad  = 1,
+    .right_pad = 1,
+    .alignment = ALIGN_TOP_LEFT,
 };
 
 static const render_style_t default_h1 = {
-    .name    = "h1",
-    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON | BOLD_ON |
-                  0x3434340ff2f8eUL,
-    .top_pad = 2,
-    .alignment = ALIGN_BOTTOM_CENTER,
+    .name       = "h1",
+    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON | BOLD_ON | 0x3434340ff2f8eUL,
+    .top_pad    = 2,
+    .alignment  = ALIGN_BOTTOM_CENTER,
 };
 
 static const render_style_t default_h2 = {
-    .name    = "h2",
-    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON | BOLD_ON |
-                  0x606060b3ff00UL,
-    .top_pad = 1,
-    .alignment = ALIGN_BOTTOM_CENTER,
+    .name       = "h2",
+    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON | BOLD_ON | 0x606060b3ff00UL,
+    .top_pad    = 1,
+    .alignment  = ALIGN_BOTTOM_CENTER,
 };
 
 static const render_style_t default_h3 = {
-    .name    = "h3",
-    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON | BOLD_ON |
-                  0x454545ee82eeUL,
-    .top_pad = 1,
-    .alignment = ALIGN_BOTTOM_CENTER,
+    .name       = "h3",
+    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON | BOLD_ON | 0x454545ee82eeUL,
+    .top_pad    = 1,
+    .alignment  = ALIGN_BOTTOM_CENTER,
 };
 
 static const render_style_t default_h4 = {
     .name       = "h4",
-    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON | UL_ON |
-                     (0xff2f8eUL << 24),
+    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON | UL_ON | (0xff2f8eUL << 24),
     .alignment  = ALIGN_BOTTOM_LEFT,
 
 };
 
 static const render_style_t default_h5 = {
     .name       = "h5",
-    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON |  UL_ON |
-                  (0xb3ff00UL << 24),
+    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON | UL_ON | (0xb3ff00UL << 24),
     .alignment  = ALIGN_BOTTOM_LEFT,
 };
 
 static const render_style_t default_h6 = {
     .name       = "h6",
-    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON |  UL_ON |
-                  (0xee82eeUL << 24),
+    .base_style = ITALIC_ON | FG_COLOR_ON | BG_COLOR_ON | UL_ON | (0xee82eeUL << 24),
     .alignment  = ALIGN_BOTTOM_LEFT,
 };
 
@@ -296,14 +276,14 @@ static const render_style_t default_flow = {
 };
 
 // Third word of render styles is a pointer.
-const uint64_t rs_pmap[2] = { 0x1, 0x0b00000000000000 };
+const uint64_t rs_pmap[2] = {0x1, 0x0b00000000000000};
 
 static inline void
 init_style_db()
 {
     if (style_dictionary == NULL) {
-	style_dictionary = gc_alloc(hatrack_dict_t);
-	hatrack_dict_init(style_dictionary, HATRACK_DICT_KEY_TYPE_CSTR);
+        style_dictionary = gc_alloc(hatrack_dict_t);
+        hatrack_dict_init(style_dictionary, HATRACK_DICT_KEY_TYPE_CSTR);
     }
 }
 
@@ -321,10 +301,10 @@ lookup_cell_style(char *name)
 {
     init_style_db();
 
-    render_style_t *entry  = hatrack_dict_get(style_dictionary, name, NULL);
+    render_style_t *entry = hatrack_dict_get(style_dictionary, name, NULL);
 
     if (!entry) {
-	return NULL;
+        return NULL;
     }
 
     render_style_t *result = gc_alloc_mapped(render_style_t, &rs_pmap[0]);
@@ -386,116 +366,113 @@ con4m_style_init(render_style_t *style, va_list args)
     kw_ptr("border_theme", border_theme);
     kw_ptr("tag", tag);
 
-    style->name = tag;
+    style->name     = tag;
     // Use basic math to make sure overlaping cell sizing strategies
     // aren't requested in one call.
     int32_t sz_test = width_pct + flex_units + min_size + max_size + fit_text;
 
     if (sz_test != -5) {
-	if ((width_pct != -1 &&
-	     (flex_units + min_size + max_size + fit_text) != -3) ||
-	    (flex_units != -1 && (min_size + max_size + (int)fit_text) != -2) ||
-	    (fit_text && (min_size + max_size) != -2)) {
-              CRAISE("Can't specify two cell sizing strategies.");
-	}
+        if ((width_pct != -1 && (flex_units + min_size + max_size + fit_text) != -3) || (flex_units != -1 && (min_size + max_size + (int)fit_text) != -2) || (fit_text && (min_size + max_size) != -2)) {
+            CRAISE("Can't specify two cell sizing strategies.");
+        }
     }
 
     if (wrap_hang != -1 && disable_wrap) {
-	printf("Cannot set 'wrap_hang' and 'disable_wrap' at once.\n");
-	abort();
+        printf("Cannot set 'wrap_hang' and 'disable_wrap' at once.\n");
+        abort();
     }
 
     if (fg_color != -1) {
-	set_render_style_fg_color(style, fg_color);
+        set_render_style_fg_color(style, fg_color);
     }
     if (bg_color != -1) {
-	set_render_style_bg_color(style, bg_color);
+        set_render_style_bg_color(style, bg_color);
     }
     if (bold) {
-	bold_on(style);
+        bold_on(style);
     }
     if (italic) {
-	italic_on(style);
+        italic_on(style);
     }
     if (strikethru) {
-	strikethru_on(style);
+        strikethru_on(style);
     }
     if (duline) {
-	double_underline_on(style);
+        double_underline_on(style);
     }
     else {
-	if (underline) {
-	    underline_on(style);
-	}
+        if (underline) {
+            underline_on(style);
+        }
     }
     if (inverse) {
-	inverse_on(style);
+        inverse_on(style);
     }
 
     if (border_theme != NULL) {
-	set_border_theme(style, border_theme);
+        set_border_theme(style, border_theme);
     }
 
     if (width_pct != -1) {
-	set_size_as_percent(style, width_pct, true);
+        set_size_as_percent(style, width_pct, true);
     }
 
     if (flex_units != -1) {
-	set_flex_size(style, flex_units);
+        set_flex_size(style, flex_units);
     }
 
     if (min_size >= 0 || max_size >= 0) {
-	if (min_size < 0) {
-	    min_size = 0;
-	}
-	if (max_size < 0) {
-	    max_size = 0x7fffffff;
-	}
-	set_size_range(style, min_size, max_size);
+        if (min_size < 0) {
+            min_size = 0;
+        }
+        if (max_size < 0) {
+            max_size = 0x7fffffff;
+        }
+        set_size_range(style, min_size, max_size);
     }
 
     if (fit_text) {
-	set_fit_to_text(style);
+        set_fit_to_text(style);
     }
 
     if (top_pad != -1) {
-	set_top_pad(style, top_pad);
+        set_top_pad(style, top_pad);
     }
 
     if (bottom_pad != -1) {
-	set_bottom_pad(style, bottom_pad);
+        set_bottom_pad(style, bottom_pad);
     }
 
     if (left_pad != -1) {
-	set_left_pad(style, left_pad);
+        set_left_pad(style, left_pad);
     }
 
     if (right_pad != -1) {
-	set_right_pad(style, right_pad);
+        set_right_pad(style, right_pad);
     }
 
     if (wrap_hang != -1) {
-	set_wrap_hang(style, wrap_hang);
+        set_wrap_hang(style, wrap_hang);
     }
 
     if (disable_wrap) {
-	disable_line_wrap(style);
+        disable_line_wrap(style);
     }
 
     if (pad_color != -1) {
-	set_pad_color(style, pad_color);
+        set_pad_color(style, pad_color);
     }
 
     if (alignment != -1) {
-	set_alignment(style, (alignment_t)alignment);
+        set_alignment(style, (alignment_t)alignment);
     }
 
     if (enabled_borders != -1) {
-	set_borders(style, (border_set_t)enabled_borders);
+        set_borders(style, (border_set_t)enabled_borders);
     }
 
     if (tag != NULL) {
-	set_style(tag, style);
+        set_style(tag, style);
     }
 }
 
@@ -504,94 +481,91 @@ layer_styles(const render_style_t *base, render_style_t *cur)
 {
     // Anything not explicitly set in 'cur' will get set from base.
     if (!(cur->base_style & FG_COLOR_ON) && base->base_style & FG_COLOR_ON) {
-	set_render_style_fg_color(cur, base->base_style & ~FG_COLOR_MASK);
+        set_render_style_fg_color(cur, base->base_style & ~FG_COLOR_MASK);
     }
     if (!(cur->base_style & BG_COLOR_ON) && base->base_style & BG_COLOR_ON) {
-	set_render_style_bg_color(cur,
-			  (color_t)((base->base_style & ~BG_COLOR_MASK) >> 24));
+        set_render_style_bg_color(cur,
+                                  (color_t)((base->base_style & ~BG_COLOR_MASK) >> 24));
     }
     if (base->base_style & BOLD_ON) {
-	cur->base_style |= BOLD_ON;
+        cur->base_style |= BOLD_ON;
     }
     if (base->base_style & ITALIC_ON) {
-	cur->base_style |= ITALIC_ON;
+        cur->base_style |= ITALIC_ON;
     }
     if (base->base_style & ST_ON) {
-	cur->base_style |= ST_ON;
+        cur->base_style |= ST_ON;
     }
     if (base->base_style & UL_ON) {
-	cur->base_style |= UL_ON;
+        cur->base_style |= UL_ON;
     }
     if (base->base_style & UL_DOUBLE) {
-	cur->base_style |= UL_DOUBLE;
+        cur->base_style |= UL_DOUBLE;
     }
     if (base->base_style & INV_ON) {
-	cur->base_style |= INV_ON;
+        cur->base_style |= INV_ON;
     }
     if (base->base_style & LOWER_CASE) {
-	cur->base_style |= LOWER_CASE;
+        cur->base_style |= LOWER_CASE;
     }
     if (base->base_style & UPPER_CASE) {
-	cur->base_style |= UPPER_CASE;
+        cur->base_style |= UPPER_CASE;
     }
 
     if (cur->border_theme == NULL && base->border_theme != NULL) {
-	cur->border_theme = base->border_theme;
+        cur->border_theme = base->border_theme;
     }
 
     if (!cur->pad_color_set && base->pad_color_set) {
-	set_pad_color(cur, base->pad_color);
+        set_pad_color(cur, base->pad_color);
     }
 
     if (cur->dim_kind == DIM_UNSET && base->dim_kind != DIM_UNSET) {
-	cur->dim_kind = base->dim_kind;
-	cur->dims     = base->dims;
+        cur->dim_kind = base->dim_kind;
+        cur->dims     = base->dims;
     }
 
     if (!cur->top_pad && !cur->tpad_set && base->tpad_set) {
-	cur->top_pad  = base->top_pad;
-	cur->tpad_set = 1;
+        cur->top_pad  = base->top_pad;
+        cur->tpad_set = 1;
     }
 
     if (!cur->bottom_pad && !cur->bpad_set && base->bpad_set) {
-	cur->bottom_pad = base->bottom_pad;
-	cur->bpad_set   = 1;
+        cur->bottom_pad = base->bottom_pad;
+        cur->bpad_set   = 1;
     }
 
     if (!cur->left_pad && !cur->lpad_set && base->lpad_set) {
-	cur->left_pad = base->left_pad;
-	cur->lpad_set = 1;
+        cur->left_pad = base->left_pad;
+        cur->lpad_set = 1;
     }
 
     if (!cur->right_pad && !cur->rpad_set && base->rpad_set) {
-	cur->right_pad = base->right_pad;
-	cur->rpad_set  = 1;
+        cur->right_pad = base->right_pad;
+        cur->rpad_set  = 1;
     }
 
     if (!cur->hang_set && base->hang_set) {
-	cur->wrap         = base->wrap;
-	cur->disable_wrap = base->disable_wrap;
-	cur->hang_set     = 1;
+        cur->wrap         = base->wrap;
+        cur->disable_wrap = base->disable_wrap;
+        cur->hang_set     = 1;
     }
 
     if (!cur->alignment) {
-	cur->alignment = base->alignment;
+        cur->alignment = base->alignment;
     }
 
     if (!cur->borders) {
-	cur->borders = base->borders;
+        cur->borders = base->borders;
     }
 }
 
 static void
-con4m_style_marshal(render_style_t *obj, stream_t *s, dict_t *memos,
-		    int64_t *mid)
+con4m_style_marshal(render_style_t *obj, stream_t *s, dict_t *memos, int64_t *mid)
 {
     uint8_t flags = 0;
 
-    flags = (obj->pad_color_set << 6) | (obj->disable_wrap << 5) |
-	(obj->tpad_set << 4) |	(obj->bpad_set << 3) |	(obj->lpad_set << 2) |
-	(obj->rpad_set << 1) |	obj->hang_set;
+    flags = (obj->pad_color_set << 6) | (obj->disable_wrap << 5) | (obj->tpad_set << 4) | (obj->bpad_set << 3) | (obj->lpad_set << 2) | (obj->rpad_set << 1) | obj->hang_set;
 
     marshal_cstring(obj->name, s);
     marshal_cstring(obj->border_theme->name, s);
@@ -645,7 +619,7 @@ bool
 style_exists(char *name)
 {
     if (name == NULL) {
-	return 0;
+        return 0;
     }
 
     return hatrack_dict_get(style_dictionary, name, NULL) != NULL;
@@ -681,11 +655,10 @@ install_default_styles()
 const con4m_vtable render_style_vtable = {
     .num_entries = CON4M_BI_NUM_FUNCS,
     .methods     = {
-	(con4m_vtable_entry)con4m_style_init,
-	NULL,
-	NULL,
-	(con4m_vtable_entry)con4m_style_marshal,
-	(con4m_vtable_entry)con4m_style_unmarshal,
-	NULL,
-    }
-};
+        (con4m_vtable_entry)con4m_style_init,
+        NULL,
+        NULL,
+        (con4m_vtable_entry)con4m_style_marshal,
+        (con4m_vtable_entry)con4m_style_unmarshal,
+        NULL,
+    }};

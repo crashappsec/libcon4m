@@ -432,7 +432,7 @@
 // #define HATRACK_ALWAYS_USE_INSSORT
 
 #if defined(HATRACK_ALWAYS_USE_INSSORT) && defined(HATRACK_ALWAYS_USE_QSORT)
-#error                                                                         \
+#error \
     "Cannot have both HATRACK_ALWAYS_USE_INSSORT and "                         \
        "HATRACK_ALWAYS_USE_QSORT"
 #endif
@@ -575,7 +575,7 @@
  * By default, we inline XXH-128.  Defining this will skip the inlining, and
  * we will end up with a bunch of symbols in the binary.
  */
-//#define HATRACK_SKIP_XXH_INLINING
+// #define HATRACK_SKIP_XXH_INLINING
 
 #ifndef HATRACK_SKIP_XXH_INLINING
 #define XXH_INLINE_ALL
@@ -651,7 +651,7 @@
  * This is the number of times a push operation needs to retry before
  * we ask pops to perform backoff.
  */
-#define HATSTACK_RETRY_THRESHOLD  7
+#define HATSTACK_RETRY_THRESHOLD 7
 
 /* HATSTACK_MAX_BACKOFF
  *
@@ -720,16 +720,14 @@
 #endif
 
 #ifdef HAVE_C11_ENUMS
-#define enum64(x, ...)                                                         \
-    typedef enum : uint64_t                                                    \
-    {                                                                          \
-        __VA_ARGS__                                                            \
+#define enum64(x, ...)        \
+    typedef enum : uint64_t { \
+        __VA_ARGS__           \
     } x
 #else
-#define enum64(x, ...)                                                         \
-    typedef enum                                                               \
-    {                                                                          \
-        __VA_ARGS__,                                                           \
-        HACK_TO_MAKE_64_BIT_##x = 0xffffffffffffffff                           \
+#define enum64(x, ...)                               \
+    typedef enum {                                   \
+        __VA_ARGS__,                                 \
+        HACK_TO_MAKE_64_BIT_##x = 0xffffffffffffffff \
     } x
 #endif
