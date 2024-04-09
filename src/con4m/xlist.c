@@ -12,14 +12,14 @@ xlist_init(xlist_t *list, va_list args)
 
     list->append_ix = 0;
     list->length    = max(length, 16);
-    list->data      = gc_array_alloc(uint64_t *, length);
+    list->data      = c4m_gc_array_alloc(uint64_t *, length);
 }
 
 static inline void
 xlist_resize(xlist_t *list, size_t len)
 {
     int64_t **old = list->data;
-    int64_t **new = gc_array_alloc(uint64_t *, len);
+    int64_t **new = c4m_gc_array_alloc(uint64_t *, len);
 
     for (int i = 0; i < list->length; i++) {
         new[i] = old[i];
@@ -142,7 +142,7 @@ con4m_xlist_unmarshal(xlist_t *r, stream_t *s, dict_t *memos)
 
     r->append_ix = unmarshal_i32(s);
     r->length    = unmarshal_i32(s);
-    r->data      = gc_array_alloc(int64_t *, r->length);
+    r->data      = c4m_gc_array_alloc(int64_t *, r->length);
 
     if (by_val) {
         for (int i = 0; i < r->append_ix; i++) {
@@ -190,12 +190,12 @@ xlist_repr(xlist_t *list, to_str_use_t how)
         xlist_append(items, s);
     }
 
-    any_str_t *sep    = get_comma_const();
+    any_str_t *sep    = c4m_get_comma_const();
     any_str_t *result = string_join(items, sep);
 
     if (how == TO_STR_USE_QUOTED) {
-        result = string_concat(get_lbrak_const(),
-                               string_concat(result, get_rbrak_const()));
+        result = string_concat(c4m_get_lbrak_const(),
+                               string_concat(result, c4m_get_rbrak_const()));
     }
 
     return result;
@@ -257,7 +257,7 @@ xlist_safe_get(xlist_t *list, int64_t ix)
     object_t result = xlist_get(list, ix, &err);
 
     if (err) {
-        CRAISE("Index out of bounds error.");
+        C4M_CRAISE("Index out of bounds error.");
     }
 
     return result;
@@ -312,7 +312,7 @@ xlist_set_slice(xlist_t *list, int64_t start, int64_t end, xlist_t *new)
     }
     else {
         if (start >= len1) {
-            CRAISE("Out of bounds slice.");
+            C4M_CRAISE("Out of bounds slice.");
         }
     }
     if (end < 0) {
@@ -325,13 +325,13 @@ xlist_set_slice(xlist_t *list, int64_t start, int64_t end, xlist_t *new)
     }
 
     if ((start | end) < 0 || start >= end) {
-        CRAISE("Out of bounds slice.");
+        C4M_CRAISE("Out of bounds slice.");
     }
 
     int64_t slicelen = end - start;
     int64_t newlen   = len1 + len2 - slicelen;
 
-    void **newdata = gc_array_alloc(void *, newlen);
+    void **newdata = c4m_gc_array_alloc(void *, newlen);
 
     if (start > 0) {
         for (int i = 0; i < start; i++) {

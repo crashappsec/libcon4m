@@ -171,12 +171,12 @@ utf8_index(const utf8_t *s, int64_t n)
         n += l;
 
         if (n < 0) {
-            CRAISE("Index would be before the start of the string.");
+            C4M_CRAISE("Index would be before the start of the string.");
         }
     }
 
     if (n >= l) {
-        CRAISE("Index out of bounds.");
+        C4M_CRAISE("Index out of bounds.");
     }
 
     char       *p = (char *)s->data;
@@ -202,12 +202,12 @@ utf32_index(const utf32_t *s, int64_t i)
         i += l;
 
         if (i < 0) {
-            CRAISE("Index would be before the start of the string.");
+            C4M_CRAISE("Index would be before the start of the string.");
         }
     }
 
     if (i >= l) {
-        CRAISE("Index out of bounds.");
+        C4M_CRAISE("Index out of bounds.");
     }
 
     codepoint_t *p = (codepoint_t *)s->data;
@@ -235,13 +235,13 @@ _string_strip(const any_str_t *s, ...)
     int          end   = len;
 
     if (front) {
-        while (start < end && codepoint_is_space(p[start]))
+        while (start < end && c4m_codepoint_is_space(p[start]))
             start++;
     }
 
     if (back) {
         while (--end != start) {
-            if (!codepoint_is_space(p[end])) {
+            if (!c4m_codepoint_is_space(p[end])) {
                 break;
             }
         }
@@ -459,12 +459,12 @@ utf8_init(utf8_t *s, va_list args)
         }
 
         if (start > length) {
-            CRAISE(
+            C4M_CRAISE(
                 "Invalid string constructor call: "
                 "len(cstring) is less than the start index");
         }
 
-        s->data     = con4m_gc_alloc(length + 1, NULL);
+        s->data     = c4m_gc_raw_alloc(length + 1, NULL);
         s->byte_len = length;
 
         memcpy(s->data, cstring, length);
@@ -473,9 +473,9 @@ utf8_init(utf8_t *s, va_list args)
     else {
         if (length < 0) {
             s->data = 0;
-            CRAISE("length cannot be < 0 for string initialization");
+            C4M_CRAISE("length cannot be < 0 for string initialization");
         }
-        s->data = con4m_gc_alloc(length + 1, NULL);
+        s->data = c4m_gc_raw_alloc(length + 1, NULL);
     }
 
     if (style != STYLE_INVALID) {
@@ -511,23 +511,23 @@ utf32_init(utf32_t *s, va_list args)
     kw_ptr("tag", tag);
 
     if (codepoints != NULL && cstring != NULL) {
-        CRAISE("Cannot specify both 'codepoints' and 'cstring' keywords.");
+        C4M_CRAISE("Cannot specify both 'codepoints' and 'cstring' keywords.");
     }
     if (codepoints != NULL) {
         if (length == 0) {
             s->byte_len   = 4;
-            s->data       = con4m_gc_alloc(s->byte_len, NULL);
+            s->data       = c4m_gc_raw_alloc(s->byte_len, NULL);
             s->codepoints = ~0;
             return;
         }
 
         if (length < 0) {
-            CRAISE(
+            C4M_CRAISE(
                 "When specifying 'codepoints', must provide a valid "
                 "'length' containing the number of codepoints.");
         }
         s->byte_len = (length + 1) * 4;
-        s->data     = con4m_gc_alloc(s->byte_len, NULL);
+        s->data     = c4m_gc_raw_alloc(s->byte_len, NULL);
 
         codepoint_t *local = (codepoint_t *)s->data;
 
@@ -544,12 +544,12 @@ utf32_init(utf32_t *s, va_list args)
             }
 
             if (start > length) {
-                CRAISE(
+                C4M_CRAISE(
                     "Invalid string constructor call: "
                     "len(cstring) is less than the start index");
             }
             s->byte_len = (length + 1) * 4;
-            s->data     = con4m_gc_alloc(s->byte_len, NULL);
+            s->data     = c4m_gc_raw_alloc(s->byte_len, NULL);
 
             for (int64_t i = 0; i < length; i++) {
                 ((uint32_t *)s->data)[i] = (uint32_t)(cstring[i]);
@@ -558,12 +558,12 @@ utf32_init(utf32_t *s, va_list args)
         }
         else {
             if (length < 0) {
-                CRAISE(
+                C4M_CRAISE(
                     "Must specify a valid length if not initializing "
                     "with a null-terminated cstring.");
             }
             s->byte_len = (length + 1) * 4;
-            s->data     = con4m_gc_alloc(s->byte_len, NULL);
+            s->data     = c4m_gc_raw_alloc(s->byte_len, NULL);
         }
     }
 
@@ -658,7 +658,7 @@ string_render_len(const any_str_t *s)
         codepoint_t *p = (codepoint_t *)s->data;
 
         for (int i = 0; i < n; i++) {
-            result += codepoint_width(p[i]);
+            result += c4m_codepoint_width(p[i]);
         }
     }
     else {
@@ -667,7 +667,7 @@ string_render_len(const any_str_t *s)
 
         for (int i = 0; i < n; i++) {
             p += utf8proc_iterate(p, 4, &cp);
-            result += codepoint_width(cp);
+            result += c4m_codepoint_width(cp);
         }
     }
     return result;
@@ -690,7 +690,7 @@ _string_truncate(const any_str_t *s, int64_t len, ...)
 
         if (use_render_width) {
             for (int i = 0; i < n; i++) {
-                int w = codepoint_width(p[i]);
+                int w = c4m_codepoint_width(p[i]);
                 if (c + w > len) {
                     return string_slice(s, 0, i);
                 }
@@ -711,7 +711,7 @@ _string_truncate(const any_str_t *s, int64_t len, ...)
         if (use_render_width) {
             for (int i = 0; i < n; i++) {
                 next  = p + utf8proc_iterate(p, 4, &cp);
-                int w = codepoint_width(cp);
+                int w = c4m_codepoint_width(cp);
                 if (c + w > len) {
                     goto u8_slice;
                 }
@@ -979,7 +979,7 @@ con4m_string_unmarshal(any_str_t *s, stream_t *in, dict_t *memos)
     }
 
     if (s->byte_len) {
-        s->data = con4m_gc_alloc(s->byte_len + 1, NULL);
+        s->data = c4m_gc_raw_alloc(s->byte_len + 1, NULL);
         stream_raw_read(in, s->byte_len, s->data);
     }
 }
@@ -1054,7 +1054,7 @@ string_coerce_to(const any_str_t *s, type_spec_t *target_type)
         }
     }
 
-    CRAISE("Invalid coersion.");
+    C4M_CRAISE("Invalid coersion.");
 }
 
 static object_t

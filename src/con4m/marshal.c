@@ -32,7 +32,7 @@ unmarshal_cstring(stream_t *stream)
         return 0;
     }
 
-    result = con4m_gc_alloc(len + 1, NULL);
+    result = c4m_gc_raw_alloc(len + 1, NULL);
 
     stream_raw_read(stream, len, result);
 
@@ -232,7 +232,7 @@ con4m_sub_marshal(object_t obj, stream_t *s, dict_t *memos, int64_t *mid)
         utf8_t *type_name = new_utf8(hdr->base_data_type->name);
         utf8_t *msg       = force_utf8(string_concat(marshal_err, type_name));
 
-        RAISE(msg);
+        C4M_RAISE(msg);
     }
 
     // This captures the actual index of the base type.
@@ -264,7 +264,7 @@ unmarshal_unmanaged_object(size_t len, stream_t *s, dict_t *memos, unmarshal_fn 
         return addr;
     }
 
-    addr = gc_alloc(len);
+    addr = c4m_gc_alloc(len);
     hatrack_dict_put(memos, (void *)memo, addr);
 
     (*fn)(addr, s, memos);
@@ -297,13 +297,13 @@ con4m_sub_unmarshal(stream_t *s, dict_t *memos)
     unmarshal_fn    ptr;
 
     if (base_type_id > CON4M_NUM_BUILTIN_DTS) {
-        CRAISE("Invalid marshal format (got invalid data type ID)");
+        C4M_CRAISE("Invalid marshal format (got invalid data type ID)");
     }
     dt_entry  = (dt_info *)&builtin_type_info[base_type_id];
     alloc_len = sizeof(con4m_obj_t) + dt_entry->alloc_len;
 
-    obj = (con4m_obj_t *)con4m_gc_alloc(alloc_len,
-                                        (uint64_t *)dt_entry->ptr_info);
+    obj = (con4m_obj_t *)c4m_gc_raw_alloc(alloc_len,
+                                          (uint64_t *)dt_entry->ptr_info);
 
     // Now that we've allocated the object, we need to fill in the memo
     // before we unmarshal, because cycles happen.
@@ -316,7 +316,7 @@ con4m_sub_unmarshal(stream_t *s, dict_t *memos)
     if (ptr == NULL) {
         utf8_t *type_name = new_utf8(dt_entry->name);
 
-        RAISE(force_utf8(string_concat(marshal_err, type_name)));
+        C4M_RAISE(force_utf8(string_concat(marshal_err, type_name)));
     }
 
     (*ptr)(obj->data, s, memos);
@@ -330,7 +330,7 @@ void
 con4m_marshal(object_t obj, stream_t *s)
 {
     if (marshaling) {
-        CRAISE(
+        C4M_CRAISE(
             "Do not recursively call con4m_marshal; "
             "call con4m_sub_marshal.");
     }
@@ -349,7 +349,7 @@ object_t
 con4m_unmarshal(stream_t *s)
 {
     if (marshaling) {
-        CRAISE(
+        C4M_CRAISE(
             "Do not recursively call con4m_unmarshal; "
             "call con4m_sub_unmarshal.");
     }

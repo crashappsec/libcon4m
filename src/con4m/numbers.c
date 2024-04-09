@@ -330,7 +330,7 @@ bool_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
                 int32_t *lit = con4m_new(tspec_bool());
                 *lit         = 1;
                 true_lit     = (object_t)lit;
-                con4m_gc_register_root(&true_lit, 1);
+                c4m_gc_register_root(&true_lit, 1);
             }
             return true_lit;
         }
@@ -342,7 +342,7 @@ bool_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
                 int32_t *lit = con4m_new(tspec_bool());
                 *lit         = 0;
                 false_lit    = (object_t)lit;
-                con4m_gc_register_root(&false_lit, 1);
+                c4m_gc_register_root(&false_lit, 1);
             }
             return false_lit;
         }
@@ -504,13 +504,13 @@ bool_repr(bool *b, to_str_use_t how)
     if (*b == false) {
         if (false_repr == NULL) {
             false_repr = con4m_new(tspec_utf8(), kw("cstring", ka("false")));
-            con4m_gc_register_root(&false_repr, 1);
+            c4m_gc_register_root(&false_repr, 1);
         }
         return false_repr;
     }
     if (true_repr == NULL) {
         true_repr = con4m_new(tspec_utf8(), kw("cstring", ka("true")));
-        con4m_gc_register_root(&true_repr, 1);
+        c4m_gc_register_root(&true_repr, 1);
     }
 
     return true_repr;
@@ -554,9 +554,9 @@ any_int_coerce_to(const int64_t data, type_spec_t *target_type)
     case T_F32:
     case T_F64:
         d = (double)(data);
-        return double_to_ptr(d);
+        return c4m_double_to_ptr(d);
     default:
-        CRAISE("Invalid type conversion.");
+        C4M_CRAISE("Invalid type conversion.");
     }
 }
 
@@ -581,13 +581,13 @@ bool_coerce_to(const int64_t data, type_spec_t *target_type)
     case T_F32:
     case T_F64:
         if (data) {
-            return double_to_ptr(1.0);
+            return c4m_double_to_ptr(1.0);
         }
         else {
-            return double_to_ptr(0.0);
+            return c4m_double_to_ptr(0.0);
         }
     default:
-        CRAISE("Invalid type conversion.");
+        C4M_CRAISE("Invalid type conversion.");
     }
 }
 
@@ -624,9 +624,9 @@ float_coerce_to(const double d, type_spec_t *target_type)
         return (void *)i;
     case T_F32:
     case T_F64:
-        return double_to_ptr(d);
+        return c4m_double_to_ptr(d);
     default:
-        CRAISE("Invalid type conversion.");
+        C4M_CRAISE("Invalid type conversion.");
     }
 }
 

@@ -15,7 +15,7 @@ ipaddr_set_address(ipaddr_t *obj, any_str_t *s, uint16_t port)
     obj->port = port;
 
     if (inet_pton(obj->af, s->data, (void *)obj->addr) <= 0) {
-        CRAISE("Invalid ip address");
+        C4M_CRAISE("Invalid ip address");
     }
 
     if (obj->af == AF_INET) {
@@ -48,7 +48,7 @@ ipaddr_init(ipaddr_t *obj, va_list args)
 
     if (address != NULL) {
         if (port < 0 || port > 0xffff) {
-            CRAISE("Invalid port for IP address.");
+            C4M_CRAISE("Invalid port for IP address.");
         }
         ipaddr_set_address(obj, address, (uint16_t)port);
     }
@@ -71,7 +71,7 @@ ipaddr_unmarshal(ipaddr_t *obj, stream_t *s, dict_t *memos)
     uint32_t struct_sz = unmarshal_u32(s);
 
     if (struct_sz != sizeof(struct sockaddr_in6)) {
-        CRAISE("Cannot unmarshal ipaddr on different platform.");
+        C4M_CRAISE("Cannot unmarshal ipaddr on different platform.");
     }
 
     stream_raw_read(s, struct_sz, obj->addr);
@@ -87,7 +87,7 @@ ipaddr_repr(ipaddr_t *obj)
     };
 
     if (!inet_ntop(obj->af, &obj->addr, buf, sizeof(struct sockaddr_in6))) {
-        CRAISE("Unable to format ip address");
+        C4M_CRAISE("Unable to format ip address");
     }
 
     if (obj->port == 0) {
@@ -95,7 +95,7 @@ ipaddr_repr(ipaddr_t *obj)
     }
 
     return string_concat(con4m_new(tspec_utf8(), kw("cstring", ka(buf))),
-                         string_concat(get_colon_no_space_const(),
+                         string_concat(c4m_get_colon_no_space_const(),
                                        string_from_int((int64_t)obj->port)));
 }
 

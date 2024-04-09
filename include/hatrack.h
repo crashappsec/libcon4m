@@ -41,12 +41,12 @@ typedef struct hatrack_queue_t queue_t;
 #ifndef NO_CON4M
 #include "con4m.h"
 
-static inline void *con4m_gc_malloc(size_t);
+static inline void *c4m_gc_malloc(size_t);
 
-#define malloc(x)        con4m_gc_malloc(x)
+#define malloc(x)        c4m_gc_malloc(x)
 #define free(x)          x // In case it has side effects.
-#define realloc(x, y)    con4m_gc_resize(x, y)
-#define zero_alloc(x, y) con4m_gc_malloc((x) * (y))
+#define realloc(x, y)    c4m_gc_resize(x, y)
+#define zero_alloc(x, y) c4m_gc_malloc((x) * (y))
 #else
 #define zero_alloc(x, y) calloc(x, y)
 #endif

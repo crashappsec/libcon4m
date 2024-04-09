@@ -2,7 +2,7 @@
 
 #include "con4m.h"
 
-#define use_truecolor() (1)
+#define c4m_use_truecolor() (1)
 
-extern color_t lookup_color(utf8_t *);
-extern color_t to_vga(color_t truecolor);
+extern color_t c4m_lookup_color(utf8_t *);
+extern color_t c4m_to_vga(color_t truecolor);

@@ -5,7 +5,7 @@ style_t default_style = 0;
 style_t
 apply_bg_color(style_t style, utf8_t *name)
 {
-    int64_t color = (int64_t)lookup_color(name);
+    int64_t color = (int64_t)c4m_lookup_color(name);
 
     if (color & ~0xffffffUL) {
         return style;
@@ -17,7 +17,7 @@ apply_bg_color(style_t style, utf8_t *name)
 style_t
 apply_fg_color(style_t style, utf8_t *name)
 {
-    int64_t color = (int64_t)lookup_color(name);
+    int64_t color = (int64_t)c4m_lookup_color(name);
 
     if (color & ~0xffffffUL) {
         return style;

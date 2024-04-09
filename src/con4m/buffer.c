@@ -27,12 +27,12 @@ buffer_init(buffer_t *obj, va_list args)
 
     if (raw == NULL && hex == NULL && ptr == NULL) {
         if (length < 0) {
-            CRAISE("Invalid buffer initializer.");
+            C4M_CRAISE("Invalid buffer initializer.");
         }
     }
     if (length < 0) {
         if (hex == NULL) {
-            CRAISE("Must specify length for raw / ptr initializer.");
+            C4M_CRAISE("Must specify length for raw / ptr initializer.");
         }
         else {
             length = string_codepoint_len(hex) >> 1;
@@ -42,16 +42,16 @@ buffer_init(buffer_t *obj, va_list args)
     if (length > 0) {
         int64_t alloc_len = hatrack_round_up_to_power_of_2(length);
 
-        obj->data      = con4m_gc_alloc(alloc_len, NULL);
+        obj->data      = c4m_gc_raw_alloc(alloc_len, NULL);
         obj->alloc_len = alloc_len;
     }
 
     if (raw != NULL) {
         if (hex != NULL) {
-            CRAISE("Cannot set both 'hex' and 'raw' fields.");
+            C4M_CRAISE("Cannot set both 'hex' and 'raw' fields.");
         }
         if (ptr != NULL) {
-            CRAISE("Cannot set both 'ptr' and 'raw' fields.");
+            C4M_CRAISE("Cannot set both 'ptr' and 'raw' fields.");
         }
 
         memcpy(obj->data, raw, length);
@@ -59,7 +59,7 @@ buffer_init(buffer_t *obj, va_list args)
 
     if (ptr != NULL) {
         if (hex != NULL) {
-            CRAISE("Cannot set both 'hex' and 'ptr' fields.");
+            C4M_CRAISE("Cannot set both 'hex' and 'ptr' fields.");
         }
 
         obj->data = ptr;
@@ -111,7 +111,7 @@ buffer_init(buffer_t *obj, va_list args)
 }
 
 void
-buffer_resize(buffer_t *buffer, uint64_t new_sz)
+c4m_buffer_resize(buffer_t *buffer, uint64_t new_sz)
 {
     if ((int64_t)new_sz <= buffer->alloc_len) {
         buffer->byte_len = new_sz;
@@ -120,7 +120,7 @@ buffer_resize(buffer_t *buffer, uint64_t new_sz)
 
     // Resize up, copying old data and leaving the rest zero'd.
     uint64_t new_alloc_sz = hatrack_round_up_to_power_of_2(new_sz);
-    char    *new_data     = con4m_gc_alloc(new_alloc_sz, NULL);
+    char    *new_data     = c4m_gc_raw_alloc(new_alloc_sz, NULL);
 
     memcpy(new_data, buffer->data, buffer->byte_len);
 
@@ -131,7 +131,7 @@ buffer_resize(buffer_t *buffer, uint64_t new_sz)
 
 static char to_hex_map[] = "0123456789abcdef";
 
-utf8_t *
+static utf8_t *
 buffer_repr(buffer_t *buf, to_str_use_t how)
 {
     utf8_t *result;
@@ -168,10 +168,10 @@ buffer_repr(buffer_t *buf, to_str_use_t how)
 }
 
 buffer_t *
-buffer_add(buffer_t *b1, buffer_t *b2)
+c4m_buffer_add(buffer_t *b1, buffer_t *b2)
 {
-    int64_t   l1     = max(buffer_len(b1), 0);
-    int64_t   l2     = max(buffer_len(b2), 0);
+    int64_t   l1     = max(c4m_buffer_len(b1), 0);
+    int64_t   l2     = max(c4m_buffer_len(b2), 0);
     int64_t   lnew   = l1 + l2;
     buffer_t *result = con4m_new(tspec_buffer(), kw("length", ka(lnew)));
 
@@ -188,7 +188,7 @@ buffer_add(buffer_t *b1, buffer_t *b2)
 }
 
 buffer_t *
-buffer_join(xlist_t *list, buffer_t *joiner)
+c4m_buffer_join(xlist_t *list, buffer_t *joiner)
 {
     int64_t num_items = xlist_len(list);
     int64_t new_len   = 0;
@@ -197,18 +197,18 @@ buffer_join(xlist_t *list, buffer_t *joiner)
     for (int i = 0; i < num_items; i++) {
         buffer_t *n = xlist_get(list, i, NULL);
 
-        new_len += buffer_len(n);
+        new_len += c4m_buffer_len(n);
     }
 
     if (joiner != NULL) {
-        jlen = buffer_len(joiner);
+        jlen = c4m_buffer_len(joiner);
         new_len += jlen * (num_items - 1);
     }
 
     buffer_t *result = con4m_new(tspec_buffer(), kw("length", ka(new_len)));
     char     *p      = result->data;
     buffer_t *cur    = xlist_get(list, 0, NULL);
-    int       clen   = buffer_len(cur);
+    int       clen   = c4m_buffer_len(cur);
 
     memcpy(p, cur->data, clen);
 
@@ -221,7 +221,7 @@ buffer_join(xlist_t *list, buffer_t *joiner)
         }
 
         cur  = xlist_get(list, i, NULL);
-        clen = buffer_len(cur);
+        clen = c4m_buffer_len(cur);
         memcpy(p, cur->data, clen);
     }
 
@@ -231,19 +231,19 @@ buffer_join(xlist_t *list, buffer_t *joiner)
 }
 
 int64_t
-buffer_len(buffer_t *buffer)
+c4m_buffer_len(buffer_t *buffer)
 {
     return (int64_t)buffer->byte_len;
 }
 
 utf8_t *
-buffer_to_utf8_string(buffer_t *buffer)
+c4m_buffer_to_utf8_string(buffer_t *buffer)
 {
     utf8_t *result = con4m_new(tspec_utf8(),
                                kw("cstring", ka(buffer->data), "length", ka(buffer->byte_len)));
 
     if (utf8_validate(result) < 0) {
-        CRAISE("Buffer contains invalid UTF-8.");
+        C4M_CRAISE("Buffer contains invalid UTF-8.");
     }
 
     return result;
@@ -263,7 +263,7 @@ con4m_buffer_unmarshal(buffer_t *b, stream_t *s, dict_t *memos)
     b->byte_len = unmarshal_u32(s);
     b->flags    = unmarshal_u32(s); // Not currently used btw.
     if (b->byte_len) {
-        b->data = con4m_gc_alloc(b->byte_len, NULL);
+        b->data = c4m_gc_raw_alloc(b->byte_len, NULL);
         stream_raw_read(s, b->byte_len, b->data);
     }
 }
@@ -278,7 +278,7 @@ buffer_can_coerce_to(type_spec_t *my_type, type_spec_t *target_type)
     return false;
 }
 
-object_t
+static object_t
 buffer_coerce_to(const buffer_t *b, type_spec_t *target_type)
 {
     if (tspecs_are_compat(target_type, tspec_buffer())) {
@@ -305,7 +305,7 @@ buffer_coerce_to(const buffer_t *b, type_spec_t *target_type)
             count++;
             cplen = utf8proc_iterate(p, 4, &cp);
             if (cplen < 0) {
-                CRAISE("Buffer contains invalid UTF-8");
+                C4M_CRAISE("Buffer contains invalid UTF-8");
             }
             p += cplen;
         }
@@ -317,46 +317,46 @@ buffer_coerce_to(const buffer_t *b, type_spec_t *target_type)
         memcpy(result->data, b->data, b->byte_len);
     }
 
-    CRAISE("Invalid conversion from buffer type");
+    C4M_CRAISE("Invalid conversion from buffer type");
 }
 
-uint8_t
+static uint8_t
 buffer_get_index(const buffer_t *b, int64_t n)
 {
     if (n < 0) {
         n += b->byte_len;
 
         if (n < 0) {
-            CRAISE("Index would be before the start of the buffer.");
+            C4M_CRAISE("Index would be before the start of the buffer.");
         }
     }
 
     if (n >= b->byte_len) {
-        CRAISE("Index out of bounds.");
+        C4M_CRAISE("Index out of bounds.");
     }
 
     return b->data[n];
 }
 
-void
+static void
 buffer_set_index(buffer_t *b, int64_t n, int8_t c)
 {
     if (n < 0) {
         n += b->byte_len;
 
         if (n < 0) {
-            CRAISE("Index would be before the start of the buffer.");
+            C4M_CRAISE("Index would be before the start of the buffer.");
         }
     }
 
     if (n >= b->byte_len) {
-        CRAISE("Index out of bounds.");
+        C4M_CRAISE("Index out of bounds.");
     }
 
     b->data[n] = c;
 }
 
-buffer_t *
+static buffer_t *
 buffer_get_slice(const buffer_t *b, int64_t start, int64_t end)
 {
     int64_t len = b->byte_len;
@@ -388,7 +388,7 @@ buffer_get_slice(const buffer_t *b, int64_t start, int64_t end)
     return result;
 }
 
-void
+static void
 buffer_set_slice(buffer_t *b, int64_t start, int64_t end, buffer_t *val)
 {
     int64_t len = b->byte_len;
@@ -398,7 +398,7 @@ buffer_set_slice(buffer_t *b, int64_t start, int64_t end, buffer_t *val)
     }
     else {
         if (start >= len) {
-            CRAISE("Slice out-of-bounds.");
+            C4M_CRAISE("Slice out-of-bounds.");
         }
     }
     if (end < 0) {
@@ -410,7 +410,7 @@ buffer_set_slice(buffer_t *b, int64_t start, int64_t end, buffer_t *val)
         }
     }
     if ((start | end) < 0 || start >= end) {
-        CRAISE("Slice out-of-bounds.");
+        C4M_CRAISE("Slice out-of-bounds.");
     }
 
     int64_t slice_len   = end - start;
@@ -434,7 +434,7 @@ buffer_set_slice(buffer_t *b, int64_t start, int64_t end, buffer_t *val)
         }
     }
     else {
-        char *new_buf = con4m_gc_alloc(new_len, NULL);
+        char *new_buf = c4m_gc_raw_alloc(new_len, NULL);
         if (start > 0) {
             memcpy(new_buf, b->data, start);
         }
@@ -461,13 +461,14 @@ buffer_lit(char *s, syntax_t st, char *litmod, lit_error_t *err)
             err->code = LE_WrongNumDigits;
             return NULL;
         }
-        return con4m_new(tspec_buffer(), kw("length", ka(length), "hex", ka(s)));
+        return con4m_new(tspec_buffer(),
+                         kw("length", ka(length), "hex", ka(s)));
     }
 
     return con4m_new(tspec_buffer(), kw("raw", ka(s)));
 }
 
-buffer_t *
+static buffer_t *
 buffer_copy(buffer_t *inbuf)
 {
     buffer_t *outbuf = con4m_new(tspec_buffer(),
@@ -490,7 +491,7 @@ const con4m_vtable buffer_vtable = {
         (con4m_vtable_entry)buffer_coerce_to,
         (con4m_vtable_entry)buffer_lit,
         (con4m_vtable_entry)buffer_copy,
-        (con4m_vtable_entry)buffer_add,
+        (con4m_vtable_entry)c4m_buffer_add,
         NULL, // Subtract
         NULL, // Mul
         NULL, // Div
@@ -498,12 +499,13 @@ const con4m_vtable buffer_vtable = {
         NULL, // EQ
         NULL, // LT
         NULL, // GT
-        (con4m_vtable_entry)buffer_len,
+        (con4m_vtable_entry)c4m_buffer_len,
         (con4m_vtable_entry)buffer_get_index,
         (con4m_vtable_entry)buffer_set_index,
         (con4m_vtable_entry)buffer_get_slice,
         (con4m_vtable_entry)buffer_set_slice,
-    }};
+    },
+};
 
 // First word really means 5th word due to the GC header.
 const uint64_t pmap_first_word[2] = {0x1, 0x0800000000000000};

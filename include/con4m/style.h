@@ -38,15 +38,24 @@ style_debug(char *prefix, const any_str_t *p)
         return;
 
     if (p->styling == NULL) {
-        printf("debug (%s): len: %lld styles: nil\n", prefix, string_codepoint_len(p));
+        printf("debug (%s): len: %lld styles: nil\n",
+               prefix,
+               string_codepoint_len(p));
         return;
     }
     else {
-        printf("debug (%s): len: %lld # styles: %lld\n", prefix, string_codepoint_len(p), p->styling->num_entries);
+        printf("debug (%s): len: %lld # styles: %lld\n",
+               prefix,
+               string_codepoint_len(p),
+               p->styling->num_entries);
     }
     for (int i = 0; i < p->styling->num_entries; i++) {
         style_entry_t entry = p->styling->styles[i];
-        printf("%d: %llx (%d:%d)\n", i + 1, p->styling->styles[i].info, entry.start, entry.end);
+        printf("%d: %llx (%d:%d)\n",
+               i + 1,
+               p->styling->styles[i].info,
+               entry.start,
+               entry.end);
     }
 }
 
@@ -78,11 +87,17 @@ static inline void
 alloc_styles(any_str_t *s, int n)
 {
     if (n <= 0) {
-        s->styling              = gc_flex_alloc(style_info_t, style_entry_t, 0, NULL);
+        s->styling              = c4m_gc_flex_alloc(style_info_t,
+                                       style_entry_t,
+                                       0,
+                                       NULL);
         s->styling->num_entries = 0;
     }
     else {
-        s->styling              = gc_flex_alloc(style_info_t, style_entry_t, n, NULL);
+        s->styling              = c4m_gc_flex_alloc(style_info_t,
+                                       style_entry_t,
+                                       n,
+                                       NULL);
         s->styling->num_entries = n;
     }
 }
@@ -115,7 +130,10 @@ string_set_style(any_str_t *s, style_t style)
 }
 
 static inline int
-copy_and_offset_styles(any_str_t *from_str, any_str_t *to_str, int dst_style_ix, int offset)
+copy_and_offset_styles(any_str_t *from_str,
+                       any_str_t *to_str,
+                       int        dst_style_ix,
+                       int        offset)
 {
     if (from_str->styling == NULL || from_str->styling->num_entries == 0) {
         return dst_style_ix;
@@ -131,7 +149,8 @@ copy_and_offset_styles(any_str_t *from_str, any_str_t *to_str, int dst_style_ix,
         style.start += offset;
         style.end += offset;
         to_str->styling->styles[dst_style_ix++] = style;
-        style                                   = to_str->styling->styles[dst_style_ix - 1];
+
+        style = to_str->styling->styles[dst_style_ix - 1];
     }
 
     return dst_style_ix;

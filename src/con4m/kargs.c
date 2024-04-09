@@ -16,7 +16,7 @@ kargs_init(karg_info_t *kargs, va_list args)
     int nargs = va_arg(args, int);
 
     kargs->num_provided = nargs;
-    kargs->args         = con4m_gc_alloc(sizeof(one_karg_t) * nargs, NULL);
+    kargs->args         = c4m_gc_raw_alloc(sizeof(one_karg_t) * nargs, NULL);
 }
 
 karg_info_t *
@@ -27,7 +27,9 @@ pass_kargs(int nargs, ...)
     va_start(args, nargs);
 
     if (nargs & 1) {
-        CRAISE("Got an odd number of parameters to kw() keyword decl macro.");
+        C4M_CRAISE(
+            "Got an odd number of parameters to kw() keyword decl"
+            "macro.");
     }
 
     nargs >>= 1;

@@ -87,12 +87,12 @@ tuple_repr(tuple_t *tup, to_str_use_t how)
         xlist_append(items, con4m_repr(tup->items[i], one_type, how));
     }
 
-    any_str_t *sep    = get_comma_const();
+    any_str_t *sep    = c4m_get_comma_const();
     any_str_t *result = string_join(items, sep);
 
     if (how == TO_STR_USE_QUOTED) {
-        result = string_concat(get_lparen_const(),
-                               string_concat(result, get_rparen_const()));
+        result = string_concat(c4m_get_lparen_const(),
+                               string_concat(result, c4m_get_rparen_const()));
     }
 
     return result;

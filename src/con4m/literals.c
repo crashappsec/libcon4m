@@ -8,7 +8,7 @@ void
 register_literal(syntax_t st, char *mod, con4m_builtin_t bi)
 {
     if (!hatrack_dict_add(mod_map[st], mod, (void *)(int64_t)bi)) {
-        CRAISE("Duplicate literal modifier for this syntax type.");
+        C4M_CRAISE("Duplicate literal modifier for this syntax type.");
     }
 }
 
@@ -43,7 +43,7 @@ init_literal_handling()
             mod_map[i] = con4m_new(ts);
         }
 
-        con4m_gc_register_root(&mod_map[0], ST_MAX);
+        c4m_gc_register_root(&mod_map[0], ST_MAX);
 
         register_literal(ST_Base10, "", T_INT);
         register_literal(ST_Base10, "int", T_INT);

@@ -1,11 +1,11 @@
 #pragma once
 #include "con4m.h"
 
-extern void mixed_set_value(mixed_t *, type_spec_t *, void **);
-extern void unbox_mixed(mixed_t *, type_spec_t *, void **);
+extern void c4m_mixed_set_value(mixed_t *, type_spec_t *, void **);
+extern void c4m_unbox_mixed(mixed_t *, type_spec_t *, void **);
 
 static inline void *
-double_to_ptr(double d)
+c4m_double_to_ptr(double d)
 {
     union {
         double  d;
@@ -18,7 +18,7 @@ double_to_ptr(double d)
 }
 
 static inline double
-ptr_to_double(void *p)
+c4m_ptr_to_double(void *p)
 {
     union {
         double  d;

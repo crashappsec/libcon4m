@@ -99,44 +99,43 @@
 #define GC_FLAG_GLOBAL_STOP 0x00000020
 
 // Shouldn't be accessed by developer, but allows us to inline.
-extern uint64_t gc_guard;
+extern uint64_t c4m_gc_guard;
 
-extern con4m_arena_t *con4m_new_arena(size_t);
-extern void           con4m_delete_arena(con4m_arena_t *);
-extern void           con4m_expand_arena(size_t, con4m_arena_t **);
-extern void           con4m_collect_arena(con4m_arena_t **);
-extern void          *con4m_gc_alloc(size_t, uint64_t *);
-extern void          *con4m_gc_resize(void *ptr, size_t len);
-extern void           con4m_gc_thread_collect();
-extern void           con4m_arena_register_root(con4m_arena_t *, void *, uint64_t);
-extern void           con4m_gc_register_root(void *ptr, uint64_t num_words);
-extern _Bool          is_read_only_memory(volatile void *);
+extern con4m_arena_t *c4m_new_arena(size_t);
+extern void           c4m_delete_arena(con4m_arena_t *);
+extern void           c4m_expand_arena(size_t, con4m_arena_t **);
+extern void           c4m_collect_arena(con4m_arena_t **);
+extern void          *c4m_gc_raw_alloc(size_t, uint64_t *);
+extern void          *c4m_gc_resize(void *ptr, size_t len);
+extern void           c4m_gc_thread_collect();
+extern void           c4m_arena_register_root(con4m_arena_t *,
+                                              void *,
+                                              uint64_t);
+extern void           c4m_gc_register_root(void *ptr, uint64_t num_words);
+extern _Bool          c4m_is_read_only_memory(volatile void *);
 
 // #define GC_TRACE
 #ifdef GC_TRACE
-extern int con4m_gc_trace;
+extern int c4m_gc_trace;
 
-extern void trace_on();
-extern void trace_off();
-
-#define gc_trace(...)                                   \
+#define gcm_gc_trace(...)                               \
     {                                                   \
-        if (con4m_gc_trace) {                           \
+        if (c4m_gc_trace) {                             \
             fprintf(stderr, "gc_trace:%s: ", __func__); \
             fprintf(stderr, __VA_ARGS__);               \
             fputc('\n', stderr);                        \
         }                                               \
     }
 
-#define trace_on()  con4m_gc_trace = 1
-#define trace_off() con4m_gc_trace = 0
+#define c4m_trace_on()  c4m_gc_trace = 1
+#define c4m_trace_off() c4m_gc_trace = 0
 
 #else
-#define gc_trace(...)
+#define c4m_gc_trace(...)
 #endif
 
 static inline uint64_t
-round_up_to_given_power_of_2(uint64_t power, uint64_t n)
+c4m_round_up_to_given_power_of_2(uint64_t power, uint64_t n)
 {
     uint64_t modulus   = (power - 1);
     uint64_t remainder = n & modulus;
@@ -151,16 +150,18 @@ round_up_to_given_power_of_2(uint64_t power, uint64_t n)
 
 // This currently assumes ptr_map doesn't need more than 64 entries.
 static inline void *
-con4m_alloc_from_arena(con4m_arena_t **arena_ptr, size_t len, const uint64_t *ptr_map)
+c4m_alloc_from_arena(con4m_arena_t **arena_ptr,
+                     size_t          len,
+                     const uint64_t *ptr_map)
 {
     // Round up to aligned length.
-    size_t         wordlen = round_up_to_given_power_of_2(16, len);
+    size_t         wordlen = c4m_round_up_to_given_power_of_2(16, len);
     con4m_arena_t *arena   = *arena_ptr;
 
     if (arena == 0) {
 try_again:
-        con4m_expand_arena(max(CON4M_DEFAULT_ARENA_SIZE, wordlen * 2),
-                           arena_ptr);
+        c4m_expand_arena(max(CON4M_DEFAULT_ARENA_SIZE, wordlen * 2),
+                         arena_ptr);
         arena = *arena_ptr;
     }
 
@@ -175,7 +176,7 @@ try_again:
         goto try_again;
     }
 
-    raw->guard     = gc_guard;
+    raw->guard     = c4m_gc_guard;
     raw->arena     = arena->arena_id;
     raw->next_addr = (uint64_t *)arena->next_alloc;
     raw->alloc_len = wordlen;
@@ -184,13 +185,13 @@ try_again:
     if (arena->heap_end < raw->next_addr) {
         goto try_again;
     }
-    gc_trace("new_record:%p-%p:data:%p:len:%zu:arena:%p-%p",
-             raw,
-             raw->next_addr,
-             raw->data,
-             len,
-             arena,
-             arena->heap_end);
+    c4m_gc_trace("new_record:%p-%p:data:%p:len:%zu:arena:%p-%p",
+                 raw,
+                 raw->next_addr,
+                 raw->data,
+                 len,
+                 arena,
+                 arena->heap_end);
 
     return (void *)(raw->data);
 }
@@ -202,28 +203,28 @@ try_again:
 // should be allocated via `gc_new()`, because there's an expectation
 // of an `object` header.
 static inline void *
-con4m_gc_malloc(size_t len)
+c4m_gc_malloc(size_t len)
 {
-    void *result = con4m_gc_alloc(len, GC_SCAN_ALL);
+    void *result = c4m_gc_raw_alloc(len, GC_SCAN_ALL);
     return result;
 }
 
-#define gc_flex_alloc(fixed, var, numv, map) \
-    (con4m_gc_alloc((size_t)(sizeof(fixed)) + (sizeof(var)) * (numv), (map)))
+#define c4m_gc_flex_alloc(fixed, var, numv, map) \
+    (c4m_gc_raw_alloc((size_t)(sizeof(fixed)) + (sizeof(var)) * (numv), (map)))
 
-#define gc_alloc_mapped(typename, map) \
-    (con4m_gc_alloc(sizeof(typename), (uint64_t *)map))
+#define c4m_gc_alloc_mapped(typename, map) \
+    (c4m_gc_raw_alloc(sizeof(typename), (uint64_t *)map))
 
-#define gc_alloc(typename) \
-    (con4m_gc_alloc(sizeof(typename), GC_SCAN_ALL))
+#define c4m_gc_alloc(typename) \
+    (c4m_gc_raw_alloc(sizeof(typename), GC_SCAN_ALL))
 
 // Assumes it contains pointers. Call manually if you need otherwise.
-#define gc_array_alloc(typename, n) \
-    con4m_gc_alloc((sizeof(typename) * n), GC_SCAN_ALL)
+#define c4m_gc_array_alloc(typename, n) \
+    c4m_gc_raw_alloc((sizeof(typename) * n), GC_SCAN_ALL)
 
 #if defined(__linux__)
 static inline void
-get_stack_bounds(uint64_t *top, uint64_t *bottom)
+c4m_get_stack_bounds(uint64_t *top, uint64_t *bottom)
 {
     pthread_t      self = pthread_self();
     pthread_attr_t attrs;
@@ -242,7 +243,7 @@ get_stack_bounds(uint64_t *top, uint64_t *bottom)
 // I can find. But it does provide an API to get at the same data.
 #if defined(__APPLE__) || defined(BSD)
 static inline void
-get_stack_bounds(uint64_t *top, uint64_t *bottom)
+c4m_get_stack_bounds(uint64_t *top, uint64_t *bottom)
 {
     pthread_t self = pthread_self();
     *bottom        = (uint64_t)pthread_get_stackaddr_np(self);
@@ -250,5 +251,5 @@ get_stack_bounds(uint64_t *top, uint64_t *bottom)
 }
 #endif
 
-extern void get_stack_scan_region(uint64_t *top, uint64_t *bottom);
+extern void c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom);
 extern void c4m_initialize_gc();

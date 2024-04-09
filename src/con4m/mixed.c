@@ -8,11 +8,11 @@ static const char *err2 =
     "extracting the value from a mixed-type object";
 
 void
-mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
+c4m_mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
 {
     if (type == NULL) {
         if (ptr != NULL) {
-            CRAISE((char *)err1);
+            C4M_CRAISE((char *)err1);
         }
 
         m->held_type  = NULL;
@@ -21,7 +21,7 @@ mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
     }
 
     if (!type_spec_is_concrete(type)) {
-        CRAISE((char *)err1);
+        C4M_CRAISE((char *)err1);
     }
 
     m->held_type = type;
@@ -75,13 +75,13 @@ mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
         float *p      = (float *)ptr;
         float  f      = *p;
         double d      = (double)f;
-        m->held_value = double_to_ptr(d);
+        m->held_value = c4m_double_to_ptr(d);
         return;
     }
     case T_F64: {
         double *p     = (double *)ptr;
         double  d     = *p;
-        m->held_value = double_to_ptr(d);
+        m->held_value = c4m_double_to_ptr(d);
         return;
     }
     default:
@@ -101,14 +101,14 @@ mixed_init(mixed_t *m, va_list args)
     kw_ptr("type", type);
     kw_ptr("value", ptr);
 
-    mixed_set_value(m, type, ptr);
+    c4m_mixed_set_value(m, type, ptr);
 }
 
 void
-unbox_mixed(mixed_t *m, type_spec_t *expected_type, void **ptr)
+c4m_unbox_mixed(mixed_t *m, type_spec_t *expected_type, void **ptr)
 {
     if (!tspecs_are_compat(m->held_type, expected_type)) {
-        CRAISE((char *)err2);
+        C4M_CRAISE((char *)err2);
     }
 
     switch (tspec_get_data_type_info(m->held_type)->typeid) {
@@ -153,13 +153,13 @@ unbox_mixed(mixed_t *m, type_spec_t *expected_type, void **ptr)
         *(uint64_t *)ptr = (uint64_t)m->held_value;
         return;
     case T_F32: {
-        double d = ptr_to_double(m->held_value);
+        double d = c4m_ptr_to_double(m->held_value);
 
         *(float *)ptr = (float)d;
         return;
     }
     case T_F64: {
-        *(double *)ptr = ptr_to_double(m->held_value);
+        *(double *)ptr = c4m_ptr_to_double(m->held_value);
         return;
     }
     default:
@@ -183,25 +183,25 @@ mixed_as_word(mixed_t *m)
     case T_I8: {
         char b;
 
-        unbox_mixed(m, m->held_type, (void **)&b);
+        c4m_unbox_mixed(m, m->held_type, (void **)&b);
         return (int64_t)b;
     }
     case T_BYTE: {
         uint8_t b;
 
-        unbox_mixed(m, m->held_type, (void **)&b);
+        c4m_unbox_mixed(m, m->held_type, (void **)&b);
         return (int64_t)b;
     }
     case T_I32: {
         int32_t n;
 
-        unbox_mixed(m, m->held_type, (void **)&n);
+        c4m_unbox_mixed(m, m->held_type, (void **)&n);
         return (int64_t)n;
     }
     case T_CHAR:
     case T_U32: {
         uint32_t n;
-        unbox_mixed(m, m->held_type, (void **)&n);
+        c4m_unbox_mixed(m, m->held_type, (void **)&n);
         return (int64_t)n;
     }
     default:

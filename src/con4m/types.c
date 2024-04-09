@@ -208,12 +208,12 @@ internal_type_hash(type_spec_t *node, type_hash_ctx *ctx)
     type_details_t *deets = node->details;
     uint64_t        num_tvars;
 
-    sha_int_update(ctx->sha, deets->base_type->typeid);
+    c4m_sha_int_update(ctx->sha, deets->base_type->typeid);
 
     switch (node->details->base_type->base) {
         // Currently not hashing for future things.
     case BT_func:
-        sha_int_update(ctx->sha, (uint64_t)deets->flags);
+        c4m_sha_int_update(ctx->sha, (uint64_t)deets->flags);
 
     case BT_type_var:
         num_tvars = (uint64_t)hatrack_dict_get(ctx->memos,
@@ -225,14 +225,14 @@ internal_type_hash(type_spec_t *node, type_hash_ctx *ctx)
             hatrack_dict_put(ctx->memos, (void *)node->typeid, (void *)num_tvars);
         }
 
-        sha_int_update(ctx->sha, num_tvars);
+        c4m_sha_int_update(ctx->sha, num_tvars);
         break;
     default:; // Do nothing.
     }
 
     size_t n = xlist_len(deets->items);
 
-    sha_int_update(ctx->sha, n);
+    c4m_sha_int_update(ctx->sha, n);
 
     for (size_t i = 0; i < n; i++) {
         internal_type_hash(xlist_get(deets->items, i, NULL), ctx);
@@ -266,7 +266,7 @@ type_hash_and_dedupe(type_spec_t **nodeptr, type_env_t *env)
 
         internal_type_hash(node, &ctx);
 
-        buf    = sha_finish(ctx.sha);
+        buf    = c4m_sha_finish(ctx.sha);
         result = ((uint64_t *)buf->data)[0];
 
         little_64(result);
@@ -329,12 +329,13 @@ void
 internal_add_items_array(type_spec_t *n)
 {
     // Avoid infinite recursion by manually constructing the list.
-    con4m_obj_t *alloc = con4m_gc_alloc(sizeof(con4m_obj_t) + sizeof(xlist_t), GC_SCAN_ALL);
+    size_t       sz    = sizeof(con4m_obj_t) + sizeof(xlist_t);
+    con4m_obj_t *alloc = c4m_gc_raw_alloc(sz, GC_SCAN_ALL);
 
     xlist_t *items        = (xlist_t *)alloc->data;
     alloc->base_data_type = (dt_info *)&builtin_type_info[T_XLIST];
     alloc->concrete_type  = type_node_for_list_of_type_objects;
-    items->data           = gc_array_alloc(uint64_t *, 16);
+    items->data           = c4m_gc_array_alloc(uint64_t *, 16);
     items->length         = 16;
 
     n->details->items = items;
@@ -346,7 +347,7 @@ con4m_type_spec_init(type_spec_t *n, va_list args)
     type_env_t     *env     = va_arg(args, type_env_t *);
     con4m_builtin_t base_id = va_arg(args, con4m_builtin_t);
 
-    n->details = gc_alloc(type_details_t);
+    n->details = c4m_gc_alloc(type_details_t);
 
     if (env == NULL && base_id == 0) {
         // This short circuit should be used when unmarshaling only.
@@ -360,7 +361,7 @@ con4m_type_spec_init(type_spec_t *n, va_list args)
     }
 
     if (base_id > T_GENERIC || base_id < T_TYPE_ERROR) {
-        CRAISE("Invalid type ID.");
+        C4M_CRAISE("Invalid type ID.");
     }
 
     if (base_id == T_GENERIC) {
@@ -377,7 +378,7 @@ con4m_type_spec_init(type_spec_t *n, va_list args)
     case BT_internal:
         n->typeid = base_id;
         if (hatrack_dict_get(env->store, (void *)base_id, NULL)) {
-            CRAISE("Call get_builtin_type(), not con4m_new().");
+            C4M_CRAISE("Call get_builtin_type(), not con4m_new().");
         }
         if ((n->typeid = info->typeid) == T_TYPESPEC) {
             internal_add_items_array(n);
@@ -740,7 +741,7 @@ internal_repr_tv(type_spec_t *t, dict_t *memos, int64_t *nexttv)
         *nexttv   = v;
     }
 
-    s = string_concat(get_backtick_const(), s);
+    s = string_concat(c4m_get_backtick_const(), s);
 
     hatrack_dict_put(memos, t, s);
 
@@ -756,23 +757,25 @@ internal_repr_container(type_details_t *info, dict_t *memos, int64_t *nexttv)
     type_spec_t *subnode;
     any_str_t   *substr;
 
-    xlist_append(to_join, con4m_new(tspec_utf8(), kw("cstring", ka(info->base_type->name))));
-    xlist_append(to_join, get_lbrak_const());
+    xlist_append(to_join,
+                 con4m_new(tspec_utf8(),
+                           kw("cstring",
+                              ka(info->base_type->name))));
+    xlist_append(to_join, c4m_get_lbrak_const());
     goto first_loop_start;
 
     for (; i < num_types; i++) {
-        xlist_append(to_join, get_comma_const());
+        xlist_append(to_join, c4m_get_comma_const());
 
 first_loop_start:
         subnode = xlist_get(info->items, i, NULL);
 
-        printf("subnode addr: %p\n", subnode);
         substr = internal_type_repr(subnode, memos, nexttv);
 
         xlist_append(to_join, substr);
     }
 
-    xlist_append(to_join, get_rbrak_const());
+    xlist_append(to_join, c4m_get_rbrak_const());
 
     return string_join(to_join, NULL);
 }
@@ -788,7 +791,7 @@ internal_repr_func(type_details_t *info, dict_t *memos, int64_t *nexttv)
     type_spec_t *subnode;
     any_str_t   *substr;
 
-    xlist_append(to_join, get_lparen_const());
+    xlist_append(to_join, c4m_get_lparen_const());
 
     // num_types - 1 will be 0 if there are no args, but there is a
     // return value. So the below loop won't run in all cases.  But
@@ -799,12 +802,12 @@ internal_repr_func(type_details_t *info, dict_t *memos, int64_t *nexttv)
         goto first_loop_start;
 
         for (; i < num_types - 1; i++) {
-            xlist_append(to_join, get_comma_const());
+            xlist_append(to_join, c4m_get_comma_const());
 
 first_loop_start:
 
             if ((i == num_types - 2) && info->flags & FN_TY_VARARGS) {
-                xlist_append(to_join, get_asterisk_const());
+                xlist_append(to_join, c4m_get_asterisk_const());
             }
 
             subnode = xlist_get(info->items, i, NULL);
@@ -813,8 +816,8 @@ first_loop_start:
         }
     }
 
-    xlist_append(to_join, get_rparen_const());
-    xlist_append(to_join, get_arrow_const());
+    xlist_append(to_join, c4m_get_rparen_const());
+    xlist_append(to_join, c4m_get_arrow_const());
 
     subnode = xlist_get(info->items, num_types - 1, NULL);
     substr  = internal_type_repr(subnode, memos, nexttv);
@@ -909,9 +912,9 @@ c4m_initialize_global_types()
     if (global_type_env == NULL) {
         dt_info        *tspec = (dt_info *)&builtin_type_info[T_TYPESPEC];
         int             tslen = tspec->alloc_len + sizeof(con4m_obj_t);
-        con4m_obj_t    *tobj  = con4m_gc_alloc(tslen,
-                                           (uint64_t *)tspec->ptr_info);
-        type_details_t *info  = gc_alloc(type_details_t);
+        con4m_obj_t    *tobj  = c4m_gc_raw_alloc(tslen,
+                                             (uint64_t *)tspec->ptr_info);
+        type_details_t *info  = c4m_gc_alloc(type_details_t);
         con4m_obj_t    *one;
         type_spec_t    *ts;
 
@@ -937,9 +940,10 @@ c4m_initialize_global_types()
             case BT_nil:
             case BT_primitive:
             case BT_internal:
-                one         = con4m_gc_alloc(tslen, (uint64_t *)tspec->ptr_info);
+                one         = c4m_gc_raw_alloc(tslen,
+                                       (uint64_t *)tspec->ptr_info);
                 ts          = (type_spec_t *)one->data;
-                info        = gc_alloc(type_details_t);
+                info        = c4m_gc_alloc(type_details_t);
                 ts->details = info;
 
                 one->base_data_type = tspec;
@@ -959,9 +963,9 @@ c4m_initialize_global_types()
         con4m_obj_t *envobj;
         con4m_obj_t *envstore;
         // This needs to not be con4m_new'd.
-        envobj   = con4m_gc_alloc(sizeof(type_env_t) + sizeof(con4m_obj_t),
-                                GC_SCAN_ALL);
-        envstore = gc_alloc(dict_t);
+        envobj   = c4m_gc_raw_alloc(sizeof(type_env_t) + sizeof(con4m_obj_t),
+                                  GC_SCAN_ALL);
+        envstore = c4m_gc_alloc(dict_t);
 
         global_type_env = (type_env_t *)envobj->data;
         dict_t *store   = (dict_t *)envstore->data;
@@ -971,17 +975,17 @@ c4m_initialize_global_types()
         // We don't set the heading info up fully, so this dict
         // won't be directly marshalable unless / until we do.
         hatrack_dict_init(store, HATRACK_DICT_KEY_TYPE_INT);
-        con4m_gc_register_root(&global_type_env, 1);
+        c4m_gc_register_root(&global_type_env, 1);
 
         // Set up the type we need internally for containers.
 
-        tobj = con4m_gc_alloc(tslen, (uint64_t *)tspec->ptr_info);
+        tobj = c4m_gc_raw_alloc(tslen, (uint64_t *)tspec->ptr_info);
 
         tobj->base_data_type = tspec;
         tobj->concrete_type  = builtin_types[T_TYPESPEC];
 
         ts                     = (type_spec_t *)tobj->data;
-        ts->details            = gc_alloc(type_details_t);
+        ts->details            = c4m_gc_alloc(type_details_t);
         ts->details->base_type = (dt_info *)&builtin_type_info[T_XLIST];
         ts->details->name      = (char *)ts->details->base_type->name;
 
@@ -998,12 +1002,12 @@ c4m_initialize_global_types()
         envstore->concrete_type  = tspec_dict(tspec_int(), tspec_typespec());
 
         // Now, we have to manually set up an xlist.
-        con4m_obj_t *xobj    = con4m_gc_alloc(sizeof(xlist_t) + sizeof(con4m_obj_t),
-                                           GC_SCAN_ALL);
+        size_t       sz      = sizeof(xlist_t) + sizeof(con4m_obj_t);
+        con4m_obj_t *xobj    = c4m_gc_raw_alloc(sz, GC_SCAN_ALL);
         xobj->base_data_type = ts->details->base_type;
 
         xlist_t *list      = (xlist_t *)xobj->data;
-        list->data         = gc_alloc(int64_t *);
+        list->data         = c4m_gc_alloc(int64_t *);
         list->data[0]      = (int64_t *)ts;
         list->append_ix    = 1;
         list->length       = 1;
@@ -1128,7 +1132,7 @@ tspec_tuple(int64_t nitems, ...)
     va_start(args, nitems);
 
     if (nitems <= 1) {
-        CRAISE("Tuples must contain 2 or more items.");
+        C4M_CRAISE("Tuples must contain 2 or more items.");
     }
 
     for (int i = 0; i < nitems; i++) {
@@ -1171,7 +1175,7 @@ tspec_varargs_fn(type_spec_t *return_type, int64_t nparams, ...)
     va_start(args, nparams);
 
     if (nparams < 1) {
-        CRAISE("Varargs functions require at least one argument.");
+        C4M_CRAISE("Varargs functions require at least one argument.");
     }
 
     for (int i = 0; i < nparams; i++) {

@@ -1,6 +1,6 @@
 #include "con4m.h"
 
-static void (*uncaught_handler)(exception_t *) = exception_uncaught;
+static void (*uncaught_handler)(exception_t *) = c4m_exception_uncaught;
 
 __thread exception_stack_t __exception_stack = {
     0,
@@ -29,25 +29,25 @@ exception_init(exception_t *exception, va_list args)
 }
 
 exception_t *
-_alloc_exception(const char *msg, ...)
+_c4m_alloc_exception(const char *msg, ...)
 {
-    exception_t *ret = gc_alloc(sizeof(exception_t));
+    exception_t *ret = c4m_gc_alloc(sizeof(exception_t));
     ret->msg         = con4m_new(tspec_utf8(), kw("cstring", ka(msg)));
 
     return ret;
 }
 
 exception_t *
-_alloc_str_exception(utf8_t *msg, ...)
+_c4m_alloc_str_exception(utf8_t *msg, ...)
 {
-    exception_t *ret = gc_alloc(sizeof(exception_t));
+    exception_t *ret = c4m_gc_alloc(sizeof(exception_t));
     ret->msg         = msg;
 
     return ret;
 }
 
 void
-exception_register_uncaught_handler(void (*handler)(exception_t *))
+c4m_exception_register_uncaught_handler(void (*handler)(exception_t *))
 {
     uncaught_handler = handler;
 }
@@ -55,11 +55,11 @@ exception_register_uncaught_handler(void (*handler)(exception_t *))
 static void
 exception_thread_start(void)
 {
-    con4m_gc_register_root(&__exception_stack, sizeof(__exception_stack) / 8);
+    c4m_gc_register_root(&__exception_stack, sizeof(__exception_stack) / 8);
 }
 
 exception_stack_t *
-exception_push_frame(jmp_buf *jbuf)
+c4m_exception_push_frame(jmp_buf *jbuf)
 {
     exception_frame_t *frame;
 
@@ -70,7 +70,7 @@ exception_push_frame(jmp_buf *jbuf)
         __exception_stack.free_frames = frame->next;
     }
     else {
-        frame = gc_alloc(exception_frame_t);
+        frame = c4m_gc_alloc(exception_frame_t);
     }
     frame->buf            = jbuf;
     frame->next           = __exception_stack.top;
@@ -80,7 +80,7 @@ exception_push_frame(jmp_buf *jbuf)
 }
 
 void
-exception_free_frame(exception_frame_t *frame, exception_stack_t *stack)
+c4m_exception_free_frame(exception_frame_t *frame, exception_stack_t *stack)
 {
     if (frame == stack->top) {
         stack->top = NULL;
@@ -91,7 +91,7 @@ exception_free_frame(exception_frame_t *frame, exception_stack_t *stack)
 }
 
 void
-exception_uncaught(exception_t *exception)
+c4m_exception_uncaught(exception_t *exception)
 {
     // Basic for now.
     stream_t *s = get_stderr();
@@ -100,12 +100,12 @@ exception_uncaught(exception_t *exception)
     stream_putc(s, ':');
     stream_puti(s, exception->line);
 
-    ansi_render(exception->msg, s);
+    c4m_ansi_render(exception->msg, s);
     stream_putc(s, '\n');
 }
 
 void
-exception_raise(exception_t *exception, char *filename, int line)
+c4m_exception_raise(exception_t *exception, char *filename, int line)
 {
     exception_frame_t *frame = __exception_stack.top;
 
@@ -124,4 +124,6 @@ exception_raise(exception_t *exception, char *filename, int line)
 const con4m_vtable exception_vtable = {
     .num_entries = 1,
     .methods     = {
-        (con4m_vtable_entry)exception_init}};
+        (con4m_vtable_entry)exception_init,
+    },
+};

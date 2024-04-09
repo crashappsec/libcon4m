@@ -44,7 +44,7 @@ con4m_dict_marshal(dict_t *d, stream_t *s, dict_t *memos, int64_t *mid)
     type_spec_t *dict_type = get_my_type(d);
 
     if (dict_type == NULL) {
-        CRAISE("Cannot marshal untyped dictionaries.");
+        C4M_CRAISE("Cannot marshal untyped dictionaries.");
     }
 
     xlist_t             *type_params = tspec_get_parameters(dict_type);
@@ -140,7 +140,7 @@ dict_repr(dict_t *dict, to_str_use_t how)
     xlist_t             *items       = con4m_new(tspec_xlist(tspec_utf32()),
                                kw("length", ka(view_len)));
     xlist_t             *one_item    = con4m_new(tspec_xlist(tspec_utf32()));
-    utf8_t              *colon       = get_colon_const();
+    utf8_t              *colon       = c4m_get_colon_const();
 
     for (uint64_t i = 0; i < view_len; i++) {
         xlist_set(one_item, 0, con4m_repr(view[i].key, key_type, how));
@@ -148,11 +148,11 @@ dict_repr(dict_t *dict, to_str_use_t how)
         xlist_append(items, string_join(one_item, colon));
     }
 
-    xlist_set(one_item, 0, get_lbrace_const());
-    xlist_set(one_item, 1, string_join(items, get_comma_const()));
-    xlist_append(one_item, get_rbrace_const());
+    xlist_set(one_item, 0, c4m_get_lbrace_const());
+    xlist_set(one_item, 1, string_join(items, c4m_get_comma_const()));
+    xlist_append(one_item, c4m_get_rbrace_const());
 
-    return string_join(one_item, get_comma_const());
+    return string_join(one_item, c4m_get_comma_const());
 }
 
 static bool
@@ -227,7 +227,7 @@ dict_get(dict_t *d, void *k)
     void *result = hatrack_dict_get(d, k, &found);
 
     if (found == false) {
-        CRAISE("Dictionary key not found.");
+        C4M_CRAISE("Dictionary key not found.");
     }
 
     return result;

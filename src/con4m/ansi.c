@@ -91,7 +91,7 @@ ansi_render_style_start(uint64_t info, stream_t *outstream)
     if (info & FG_COLOR_ON) {
         remaining &= ~FG_COLOR_ON;
 
-        if (use_truecolor()) {
+        if (c4m_use_truecolor()) {
             uint8_t r = (uint8_t)((info & ~FG_COLOR_MASK) >> OFFSET_FG_RED);
             uint8_t g = (uint8_t)((info & ~FG_COLOR_MASK) >> OFFSET_FG_GREEN);
             uint8_t b = (uint8_t)((info & ~FG_COLOR_MASK) >> OFFSET_FG_BLUE);
@@ -104,7 +104,8 @@ ansi_render_style_start(uint64_t info, stream_t *outstream)
         }
         else {
             stream_puts(outstream, "38;5;");
-            stream_puti(outstream, to_vga((int32_t)(info & ~(FG_COLOR_MASK))));
+            int32_t color = (int32_t)(info & ~(FG_COLOR_MASK));
+            stream_puti(outstream, c4m_to_vga(color));
         }
         if (remaining) {
             stream_putc(outstream, ';');
@@ -114,7 +115,7 @@ ansi_render_style_start(uint64_t info, stream_t *outstream)
     if (info & BG_COLOR_ON) {
         info &= ~BG_COLOR_ON;
 
-        if (use_truecolor()) {
+        if (c4m_use_truecolor()) {
             uint8_t r = (uint8_t)((info & ~BG_COLOR_MASK) >> OFFSET_BG_RED);
             uint8_t g = (uint8_t)((info & ~BG_COLOR_MASK) >> OFFSET_BG_GREEN);
             uint8_t b = (uint8_t)((info & ~BG_COLOR_MASK) >> OFFSET_BG_BLUE);
@@ -127,8 +128,8 @@ ansi_render_style_start(uint64_t info, stream_t *outstream)
         }
         else {
             stream_puts(outstream, "38;5;");
-            stream_puti(outstream,
-                        to_vga((int32_t)(info & ~(BG_COLOR_MASK) >> OFFSET_BG_BLUE)));
+            int32_t toand = (int32_t) ~(BG_COLOR_MASK) >> OFFSET_BG_BLUE;
+            stream_puti(outstream, c4m_to_vga(info & toand));
         }
     }
     stream_putc(outstream, 'm');
@@ -184,11 +185,11 @@ ansi_render_one_codepoint_title(codepoint_t cp, bool go_up, stream_t *outstream)
         return 0;
     }
     ansi_render_one_codepoint_plain(cp, outstream);
-    return codepoint_is_space(cp);
+    return c4m_codepoint_is_space(cp);
 }
 
 void
-utf8_ansi_render(const utf8_t *s, stream_t *outstream)
+c4m_utf8_ansi_render(const utf8_t *s, stream_t *outstream)
 {
     if (!s) {
         return;
@@ -321,7 +322,11 @@ utf8_ansi_render(const utf8_t *s, stream_t *outstream)
 // This will have to convert characters to utf-8, since terminals
 // generally do not support other encodings.
 static void
-ansi_render_u32_region(const utf32_t *s, int32_t from, int32_t to, style_t style, stream_t *outstream)
+ansi_render_u32_region(const utf32_t *s,
+                       int32_t        from,
+                       int32_t        to,
+                       style_t        style,
+                       stream_t      *outstream)
 {
     codepoint_t *p   = (codepoint_t *)(s->data);
     bool         cap = true;
@@ -357,7 +362,10 @@ ansi_render_u32_region(const utf32_t *s, int32_t from, int32_t to, style_t style
 }
 
 void
-utf32_ansi_render(const utf32_t *s, int32_t start_ix, int32_t end_ix, stream_t *outstream)
+c4m_utf32_ansi_render(const utf32_t *s,
+                      int32_t        start_ix,
+                      int32_t        end_ix,
+                      stream_t      *outstream)
 {
     if (!s) {
         return;
@@ -411,22 +419,25 @@ utf32_ansi_render(const utf32_t *s, int32_t start_ix, int32_t end_ix, stream_t *
 }
 
 void
-ansi_render(const any_str_t *s, stream_t *out)
+c4m_ansi_render(const any_str_t *s, stream_t *out)
 {
     if (!s) {
         return;
     }
 
     if (string_is_u32(s)) {
-        utf32_ansi_render(s, 0, 0, out);
+        c4m_utf32_ansi_render(s, 0, 0, out);
     }
     else {
-        utf8_ansi_render(s, out);
+        c4m_utf8_ansi_render(s, out);
     }
 }
 
 void
-ansi_render_to_width(const any_str_t *s, int32_t width, int32_t hang, stream_t *out)
+c4m_ansi_render_to_width(const any_str_t *s,
+                         int32_t          width,
+                         int32_t          hang,
+                         stream_t        *out)
 {
     if (!s) {
         return;
@@ -439,15 +450,21 @@ ansi_render_to_width(const any_str_t *s, int32_t width, int32_t hang, stream_t *
         width = 20;
     }
 
-    break_info_t *line_starts = wrap_text(as_u32, width, hang);
+    break_info_t *line_starts = c4m_wrap_text(as_u32, width, hang);
 
     for (i = 0; i < line_starts->num_breaks - 1; i++) {
-        utf32_ansi_render(as_u32, line_starts->breaks[i], line_starts->breaks[i + 1], out);
+        c4m_utf32_ansi_render(as_u32,
+                              line_starts->breaks[i],
+                              line_starts->breaks[i + 1],
+                              out);
         stream_putc(out, '\n');
     }
 
     if (i == line_starts->num_breaks - 1) {
-        utf32_ansi_render(as_u32, line_starts->breaks[i], string_codepoint_len(as_u32), out);
+        c4m_utf32_ansi_render(as_u32,
+                              line_starts->breaks[i],
+                              string_codepoint_len(as_u32),
+                              out);
     }
 }
 
@@ -482,7 +499,7 @@ internal_render_len_u8(const utf8_t *s)
 }
 
 size_t
-ansi_render_len(const any_str_t *s)
+c4m_ansi_render_len(const any_str_t *s)
 {
     if (!s) {
         return 0;

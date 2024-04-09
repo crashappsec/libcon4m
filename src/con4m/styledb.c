@@ -274,9 +274,9 @@ static inline void
 init_style_db()
 {
     if (style_dictionary == NULL) {
-        style_dictionary = gc_alloc(hatrack_dict_t);
+        style_dictionary = c4m_gc_alloc(hatrack_dict_t);
         hatrack_dict_init(style_dictionary, HATRACK_DICT_KEY_TYPE_CSTR);
-        con4m_gc_register_root(&style_dictionary, 1);
+        c4m_gc_register_root(&style_dictionary, 1);
     }
 }
 
@@ -300,7 +300,7 @@ lookup_cell_style(char *name)
         return NULL;
     }
 
-    render_style_t *result = gc_alloc_mapped(render_style_t, &rs_pmap[0]);
+    render_style_t *result = c4m_gc_alloc_mapped(render_style_t, &rs_pmap[0]);
     memcpy(result, entry, sizeof(render_style_t));
     return result;
 }
@@ -366,7 +366,7 @@ con4m_style_init(render_style_t *style, va_list args)
 
     if (sz_test != -5) {
         if ((width_pct != -1 && (flex_units + min_size + max_size + fit_text) != -3) || (flex_units != -1 && (min_size + max_size + (int)fit_text) != -2) || (fit_text && (min_size + max_size) != -2)) {
-            CRAISE("Can't specify two cell sizing strategies.");
+            C4M_CRAISE("Can't specify two cell sizing strategies.");
         }
     }
 

@@ -78,7 +78,7 @@ mem_stream_write(cookie_t *c, char *buf, int64_t request)
 
     if (c->position + request > c->eof) {
         c->eof = c->position + request;
-        buffer_resize(b, c->eof);
+        c4m_buffer_resize(b, c->eof);
         c->extra = b->data + c->position;
     }
 
@@ -116,7 +116,7 @@ mem_stream_seek(cookie_t *c, int64_t pos)
 static inline cookie_t *
 new_mem_cookie()
 {
-    cookie_t *result = gc_alloc(cookie_t);
+    cookie_t *result = c4m_gc_alloc(cookie_t);
 
     result->ptr_setup = mem_stream_setup;
     result->ptr_read  = mem_stream_read;
@@ -182,16 +182,16 @@ stream_init(stream_t *stream, va_list args)
     case T_BUFFER:
         break;
     default:
-        CRAISE("Invalid output type for streams.");
+        C4M_CRAISE("Invalid output type for streams.");
     }
 
     switch (src_count) {
     case 0:
-        CRAISE("No stream source provided.");
+        C4M_CRAISE("No stream source provided.");
     case 1:
         break;
     default:
-        CRAISE("Cannot provide multiple stream sources.");
+        C4M_CRAISE("Cannot provide multiple stream sources.");
     }
 
     if (append) {
@@ -244,7 +244,7 @@ stream_init(stream_t *stream, va_list args)
 
 err_check:
         if (stream->contents.f == NULL) {
-            raise_errno();
+            c4m_raise_errno();
         }
 
         return;
@@ -264,17 +264,17 @@ err_check:
 
     if (cookie == NULL) {
         if (instring && write) {
-            CRAISE("Cannot open string for writing (they are non-mutable).");
+            C4M_CRAISE("Cannot open string for writing (they are non-mutable).");
         }
 
         cookie = new_mem_cookie();
     }
     else {
         if (read && !cookie->ptr_read) {
-            CRAISE("Custom stream implementation does not support reading.");
+            C4M_CRAISE("Custom stream implementation does not support reading.");
         }
         if ((write || append) && !cookie->ptr_write) {
-            CRAISE("Custom stream implementation does not support writing.");
+            C4M_CRAISE("Custom stream implementation does not support writing.");
         }
     }
 
@@ -331,7 +331,7 @@ stream_raw_read(stream_t *stream, int64_t len, char *buf)
     bool return_len = (buf != NULL);
 
     if (stream->flags & F_STREAM_CLOSED) {
-        CRAISE("Stream is already closed.");
+        C4M_CRAISE("Stream is already closed.");
     }
 
     if (!len) {
@@ -349,7 +349,7 @@ stream_raw_read(stream_t *stream, int64_t len, char *buf)
     }
 
     if (!(flags & F_STREAM_READ)) {
-        CRAISE("Cannot read; stream was not opened with read enabled.");
+        C4M_CRAISE("Cannot read; stream was not opened with read enabled.");
     }
 
     if (flags & F_STREAM_UTF32_OUT) {
@@ -381,7 +381,7 @@ stream_raw_write(stream_t *stream, int64_t len, char *buf)
     cookie_t *cookie = NULL;
 
     if (stream->flags & F_STREAM_CLOSED) {
-        CRAISE("Stream is already closed.");
+        C4M_CRAISE("Stream is already closed.");
     }
 
     if (len <= 0) {
@@ -405,16 +405,16 @@ stream_raw_write(stream_t *stream, int64_t len, char *buf)
 
     if (cookie != NULL) {
         if (cookie->eof == cookie->position) {
-            CRAISE("Custom stream implementation could write past EOF.");
+            C4M_CRAISE("Custom stream implementation could write past EOF.");
         }
         else {
-            CRAISE("Custom stream implementation could not complete write.");
+            C4M_CRAISE("Custom stream implementation could not complete write.");
         }
     }
 
     else {
         if (!feof(stream->contents.f)) {
-            raise_errcode(ferror(stream->contents.f));
+            c4m_raise_errcode(ferror(stream->contents.f));
         }
     }
 
@@ -425,12 +425,12 @@ void
 _stream_write_object(stream_t *stream, object_t obj, bool ansi)
 {
     if (stream->flags & F_STREAM_CLOSED) {
-        CRAISE("Stream is already closed.");
+        C4M_CRAISE("Stream is already closed.");
     }
 
     any_str_t *s = con4m_value_obj_repr(obj);
     if (ansi) {
-        ansi_render(s, stream);
+        c4m_ansi_render(s, stream);
     }
     else {
         s = force_utf8(s);
@@ -458,7 +458,7 @@ int64_t
 stream_get_location(stream_t *stream)
 {
     if (stream->flags & F_STREAM_CLOSED) {
-        CRAISE("Stream is already closed.");
+        C4M_CRAISE("Stream is already closed.");
     }
 
     if (stream->flags & F_STREAM_USING_COOKIE) {
@@ -472,7 +472,7 @@ void
 stream_set_location(stream_t *stream, int64_t offset)
 {
     if (stream->flags & F_STREAM_CLOSED) {
-        CRAISE("Stream is already closed.");
+        C4M_CRAISE("Stream is already closed.");
     }
 
     if (stream->flags & F_STREAM_USING_COOKIE) {
@@ -485,11 +485,11 @@ stream_set_location(stream_t *stream, int64_t offset)
         stream_seek_fn fn = cookie->ptr_seek;
 
         if (fn == NULL) {
-            CRAISE("Custom stream does not have the ability to seek.");
+            C4M_CRAISE("Custom stream does not have the ability to seek.");
         }
 
         if ((*fn)(cookie, offset) == false) {
-            CRAISE("Seek position out of bounds for stream.");
+            C4M_CRAISE("Seek position out of bounds for stream.");
         }
     }
 
@@ -507,7 +507,7 @@ stream_set_location(stream_t *stream, int64_t offset)
 
         if (result != 0) {
             stream->flags = F_STREAM_CLOSED;
-            raise_errno();
+            c4m_raise_errno();
         }
     }
 }
@@ -543,7 +543,7 @@ void
 stream_flush(stream_t *stream)
 {
     if (stream->flags & F_STREAM_CLOSED) {
-        CRAISE("Stream is already closed.");
+        C4M_CRAISE("Stream is already closed.");
     }
 
     if (stream->flags & F_STREAM_USING_COOKIE) {
@@ -552,7 +552,7 @@ stream_flush(stream_t *stream)
 
     if (fflush(stream->contents.f)) {
         stream->flags = F_STREAM_CLOSED;
-        raise_errno();
+        c4m_raise_errno();
     }
 }
 
@@ -601,7 +601,7 @@ _print(object_t first, ...)
         }
         else {
             if (kw_bool("no_color", nocolor)) {
-                CRAISE("Cannot specify `force_color` and `no_color` together.");
+                C4M_CRAISE("Cannot specify `force_color` and `no_color` together.");
             }
         }
     }

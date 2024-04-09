@@ -26,12 +26,12 @@ callback_init(callback_t *cb, va_list args)
 
     if (bound_functions == NULL) {
         bound_functions = con4m_new(tspec_dict(tspec_ref(), tspec_ref()));
-        con4m_gc_register_root(&bound_functions, 1);
+        c4m_gc_register_root(&bound_functions, 1);
     }
 
     if (address == NULL) {
         if (!symbol_name) {
-            CRAISE("Not enough information for callback.");
+            C4M_CRAISE("Not enough information for callback.");
         }
 
         address = dlsym(RTLD_DEFAULT, symbol_name->data);
@@ -53,7 +53,7 @@ callback_init(callback_t *cb, va_list args)
     }
 
     if (info == NULL) {
-        info       = gc_alloc(funcinfo_t);
+        info       = c4m_gc_alloc(funcinfo_t);
         info->fn   = address;
         info->name = symbol_name->data;
         info->type = type;

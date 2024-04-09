@@ -8,7 +8,7 @@ tree_node_init(tree_node_t *t, va_list args)
     karg_va_init(args);
     kw_ptr("contents", contents);
 
-    t->children     = gc_array_alloc(tree_node_t **, 4);
+    t->children     = c4m_gc_array_alloc(tree_node_t **, 4);
     t->alloced_kids = 4;
     t->num_kids     = 0;
     t->contents     = contents;
@@ -27,8 +27,8 @@ tree_add_node(tree_node_t *t, void *item)
 
     if (t->num_kids == t->alloced_kids) {
         t->alloced_kids *= 2;
-        tree_node_t **new_kids = gc_array_alloc(tree_node_t **,
-                                                t->alloced_kids);
+        tree_node_t **new_kids = c4m_gc_array_alloc(tree_node_t **,
+                                                    t->alloced_kids);
         for (int i = 0; i < t->num_kids; i++) {
             new_kids[i] = t->children[i];
         }
@@ -43,7 +43,7 @@ tree_node_t *
 tree_get_child(tree_node_t *t, int64_t i)
 {
     if (i < 0 || i >= t->num_kids) {
-        CRAISE("Index out of bounds.");
+        C4M_CRAISE("Index out of bounds.");
     }
 
     return t->children[i];
@@ -103,7 +103,7 @@ tree_node_unmarshal(tree_node_t *t, stream_t *s, dict_t *memos)
     t->alloced_kids = unmarshal_i32(s);
     t->num_kids     = unmarshal_i32(s);
     t->parent       = con4m_sub_unmarshal(s, memos);
-    t->children     = gc_array_alloc(tree_node_t **, t->alloced_kids);
+    t->children     = c4m_gc_array_alloc(tree_node_t **, t->alloced_kids);
 
     if (by_val) {
         t->contents = (object_t)unmarshal_u64(s);

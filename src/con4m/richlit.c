@@ -34,10 +34,13 @@ init_style_keywords()
 {
     if (style_keywords == NULL) {
         buffer_t *b = con4m_new(tspec_buffer(),
-                                kw("raw", ka(_marshaled_style_keywords), "length", ka(1426)));
+                                kw("raw",
+                                   ka(_marshaled_style_keywords),
+                                   "length",
+                                   ka(1426)));
         stream_t *s = con4m_new(tspec_stream(), kw("buffer", ka(b)));
 
-        con4m_gc_register_root(&style_keywords, 1);
+        c4m_gc_register_root(&style_keywords, 1);
         style_keywords = con4m_unmarshal(s);
     }
 }
@@ -61,7 +64,7 @@ static void
 parse_style_lit(fmt_frame_t *f, utf8_t *instr)
 {
     uint64_t        seen         = 0;
-    utf8_t         *space        = get_space_const();
+    utf8_t         *space        = c4m_get_space_const();
     xlist_t        *parts        = string_xsplit(instr, space);
     int             len          = xlist_len(parts);
     int             color_start  = -1;
@@ -100,7 +103,7 @@ parse_style_lit(fmt_frame_t *f, utf8_t *instr)
         l = string_codepoint_len(s);
         switch (l) {
         case 0:
-            CRAISE("Empty style block not allowed.");
+            C4M_CRAISE("Empty style block not allowed.");
         case 1:
             if (s->data[0] == '/') {
                 f->style = 0;
@@ -158,7 +161,7 @@ skip_first_load:
         if (n == 0) {
             if (color_start == -1) {
                 if (color_done) {
-                    RAISE(string_concat(
+                    C4M_RAISE(string_concat(
                         new_utf8("Invalid element in style block: "),
                         s));
                 }
@@ -168,7 +171,7 @@ skip_first_load:
         }
         else {
             if (expect_color && color_start == -1) {
-                CRAISE("Expected a color after the 'on' keyword.");
+                C4M_CRAISE("Expected a color after the 'on' keyword.");
             }
 
             on_ok = false;
@@ -181,11 +184,11 @@ check_color: {
 
     xlist_t *slice = xlist_get_slice(parts, color_start, i);
     utf8_t  *cname = force_utf8(string_join(slice, space));
-    color_t  color = lookup_color(cname);
+    color_t  color = c4m_lookup_color(cname);
 
     if (color == -1) {
-        RAISE(string_concat(new_utf8("Color not found: "),
-                            cname));
+        C4M_RAISE(string_concat(new_utf8("Color not found: "),
+                                cname));
     }
 
     color_start = -1;
@@ -214,7 +217,7 @@ check_color: {
             if (seen & F_NEG) {
                 switch (n) {
                 case 1:
-                    CRAISE("Double negation in one style tag.");
+                    C4M_CRAISE("Double negation in one style tag.");
                 case 2:
                     result = remove_bold(result);
                     break;
@@ -237,7 +240,7 @@ check_color: {
                     result = remove_case(result);
                     break;
                 case 11:
-                    CRAISE("Use the 'on' keyword to set color, not clear it.");
+                    C4M_CRAISE("Use the 'on' keyword to set color, not clear it.");
                 case 12:
                     result = remove_fg_color(result);
                     break;
@@ -282,7 +285,7 @@ check_color: {
                     break;
                 case 11:
                     if (!on_ok) {
-                        CRAISE(
+                        C4M_CRAISE(
                             "'on' keyword in style tag must appear after "
                             "a valid color.");
                     }
@@ -290,12 +293,13 @@ check_color: {
                     expect_color = true;
                     break;
                 default:
-                    RAISE(string_concat(s,
-                                        new_utf8(": style keyword is for "
-                                                 "turning off colors. Either "
-                                                 "add a / to the block before "
-                                                 "this keyword, or the "
-                                                 "word 'no'. ")));
+                    C4M_RAISE(
+                        string_concat(s,
+                                      new_utf8(": style keyword is for "
+                                               "turning off colors. Either "
+                                               "add a / to the block before "
+                                               "this keyword, or the "
+                                               "word 'no'. ")));
                 }
             }
 
@@ -306,7 +310,7 @@ check_color: {
             n = 1 << n;
 
             if (seen & n) {
-                RAISE(string_concat(
+                C4M_RAISE(string_concat(
                     new_utf8("Duplicate param in style tag: "),
                     s));
             }
@@ -352,7 +356,7 @@ rich_lit(char *instr)
     while (p < end) {
         one_len = utf8proc_iterate((uint8_t *)p, 4, &cp);
         if (one_len < 0) {
-            RAISE(string_from_int(-1 * ((int64_t)(p - one_len) + 1)));
+            C4M_RAISE(string_from_int(-1 * ((int64_t)(p - one_len) + 1)));
         }
 
         switch (cp) {
@@ -360,11 +364,11 @@ rich_lit(char *instr)
             p += one_len;
 
             if (p >= end) {
-                CRAISE("Last character was an escape (not allowed.");
+                C4M_CRAISE("Last character was an escape (not allowed.");
             }
             one_len = utf8proc_iterate((uint8_t *)p, 4, &cp);
             if (one_len < 0) {
-                RAISE(string_from_int(-1 * ((int64_t)(p - one_len) + 1)));
+                C4M_RAISE(string_from_int(-1 * ((int64_t)(p - one_len) + 1)));
             }
 
             switch (cp) {
@@ -407,14 +411,15 @@ rich_lit(char *instr)
             while (p < end) {
                 one_len = utf8proc_iterate((uint8_t *)p, 4, &cp);
                 if (one_len < 0) {
-                    RAISE(string_from_int(-1 * ((int64_t)(p - one_len) + 1)));
+                    C4M_RAISE(
+                        string_from_int(-1 * ((int64_t)(p - one_len) + 1)));
                 }
                 p += one_len;
                 if (cp == ']') {
                     goto not_eof;
                 }
             }
-            CRAISE("EOF in style marker");
+            C4M_CRAISE("EOF in style marker");
 
 not_eof:
             style_cur->absolute_end = p - instr - 1;
@@ -430,7 +435,7 @@ not_eof:
 
     stream_close(s);
 
-    utf8_t *result = buffer_to_utf8_string(b);
+    utf8_t *result = c4m_buffer_to_utf8_string(b);
 
     // If style blobs, parse them. (otherwise, return the whole string).
     if (style_top == NULL) {

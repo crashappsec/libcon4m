@@ -19,40 +19,43 @@ test1()
     style2 = add_upper_case(style2);
 
     any_str_t *s1 = con4m_new(tspec_utf8(),
-                              kw("cstring", ka("\ehello,"), "style", ka(style1)));
+                              kw("cstring",
+                                 ka("\ehello,"),
+                                 "style",
+                                 ka(style1)));
 
     any_str_t *s2 = con4m_new(tspec_utf8(), kw("cstring", ka(" world!")));
     any_str_t *s3 = con4m_new(tspec_utf8(), kw("cstring", ka(" magic?\n")));
 
-    // con4m_gc_register_root(&s1, 1);
-    // con4m_gc_register_root(&s2, 1);
-    // con4m_gc_register_root(&s3, 1);
+    // c4m_gc_register_root(&s1, 1);
+    // c4m_gc_register_root(&s2, 1);
+    // c4m_gc_register_root(&s3, 1);
 
-    ansi_render(s1, sout);
-    ansi_render(s2, sout);
-    ansi_render(s3, sout);
+    c4m_ansi_render(s1, sout);
+    c4m_ansi_render(s2, sout);
+    c4m_ansi_render(s3, sout);
 
     s1 = force_utf32(s1);
     string_set_style(s3, style2);
     s2 = force_utf32(s2);
     s3 = force_utf32(s3);
 
-    ansi_render(s1, sout);
-    ansi_render(s2, sout);
-    ansi_render(s3, sout);
+    c4m_ansi_render(s1, sout);
+    c4m_ansi_render(s2, sout);
+    c4m_ansi_render(s3, sout);
 
     utf32_t *s = string_concat(s1, s2);
     s          = string_concat(s, s3);
 
-    ansi_render(s, sout);
+    c4m_ansi_render(s, sout);
     printf("That was at %p\n", s);
 
     break_info_t *g;
 
-    // con4m_gc_register_root(&s, 1);
-    // con4m_gc_register_root(&g, 1);
+    // c4m_gc_register_root(&s, 1);
+    // c4m_gc_register_root(&g, 1);
 
-    g = get_grapheme_breaks(s, 1, 10);
+    g = c4m_get_grapheme_breaks(s, 1, 10);
 
     for (int i = 0; i < g->num_breaks; i++) {
         printf("%d ", g->breaks[i]);
@@ -60,24 +63,24 @@ test1()
 
     printf("\n");
 
-    g = get_all_line_break_ops(s);
+    g = c4m_get_all_line_break_ops(s);
     for (int i = 0; i < g->num_breaks; i++) {
         printf("%d ", g->breaks[i]);
     }
 
     printf("\n");
 
-    g = get_line_breaks(s);
+    g = c4m_get_line_breaks(s);
     for (int i = 0; i < g->num_breaks; i++) {
         printf("%d ", g->breaks[i]);
     }
 
     printf("\n");
 
-    con4m_gc_thread_collect();
+    c4m_gc_thread_collect();
 
     printf("s is now at: %p\n Let's render s again.\n", s);
-    ansi_render(s, sout);
+    c4m_ansi_render(s, sout);
 }
 
 any_str_t *
@@ -117,17 +120,27 @@ test2()
 
     utf8_t *dump1 = hex_dump(to_wrap->styling,
                              alloc_style_len(to_wrap),
-                             kw("start_offset", ka(to_wrap->styling), "width", ka(80), "prefix", ka("Style dump\n")));
+                             kw("start_offset",
+                                ka(to_wrap->styling),
+                                "width",
+                                ka(80),
+                                "prefix",
+                                ka("Style dump\n")));
 
     utf8_t *dump2 = hex_dump(to_wrap,
                              to_wrap->byte_len,
-                             kw("start_offset", ka((uint64_t)to_wrap), "width", ka(80), "prefix", ka("String Dump\n")));
+                             kw("start_offset",
+                                ka((uint64_t)to_wrap),
+                                "width",
+                                ka(80),
+                                "prefix",
+                                ka("String Dump\n")));
 
-    ansi_render(dump1, serr);
-    ansi_render(dump2, serr);
+    c4m_ansi_render(dump1, serr);
+    c4m_ansi_render(dump2, serr);
 
-    ansi_render_to_width(to_wrap, term_width, 0, sout);
-    con4m_gc_thread_collect();
+    c4m_ansi_render_to_width(to_wrap, term_width, 0, sout);
+    c4m_gc_thread_collect();
     return to_wrap;
 }
 
@@ -144,10 +157,16 @@ test_rand64()
 void
 test3(any_str_t *to_slice)
 {
-    // ansi_render(string_slice(to_slice, 10, 50), sout);
-    ansi_render_to_width(string_slice(to_slice, 10, 50), term_width, 0, sout);
+    // c4m_ansi_render(string_slice(to_slice, 10, 50), sout);
+    c4m_ansi_render_to_width(string_slice(to_slice, 10, 50),
+                             term_width,
+                             0,
+                             sout);
     printf("\n");
-    ansi_render_to_width(string_slice(to_slice, 40, 100), term_width, 0, sout);
+    c4m_ansi_render_to_width(string_slice(to_slice, 40, 100),
+                             term_width,
+                             0,
+                             sout);
     printf("\n");
 }
 
@@ -171,7 +190,7 @@ test4()
 
     hatrack_dict_t *d = con4m_new(tspec_dict(tspec_utf8(), tspec_ref()));
 
-    con4m_gc_register_root(&d, 1);
+    c4m_gc_register_root(&d, 1);
 
     hatrack_dict_put(d, w1, "w1");
     hatrack_dict_put(d, w2, "w2");
@@ -185,10 +204,10 @@ test4()
     hatrack_dict_item_t *view = hatrack_dict_items_sort(d, &num);
 
     for (uint64_t i = 0; i < num; i++) {
-        ansi_render((any_str_t *)(view[i].key), serr);
+        c4m_ansi_render((any_str_t *)(view[i].key), serr);
     }
 
-    con4m_gc_thread_collect();
+    c4m_gc_thread_collect();
 }
 
 void
@@ -261,7 +280,7 @@ table_test()
 
     grid_t *flow = grid_flow(3, g, ul, ol);
     grid_add_cell(flow, test1);
-    ansi_render(con4m_value_obj_repr(flow), sout);
+    c4m_ansi_render(con4m_value_obj_repr(flow), sout);
 }
 
 void
@@ -273,11 +292,11 @@ sha_test()
                                                " some reynolds' wrap.")));
 
     sha_ctx *ctx = con4m_new(tspec_hash());
-    sha_string_update(ctx, test1);
-    buffer_t *b = sha_finish(ctx);
+    c4m_sha_string_update(ctx, test1);
+    buffer_t *b = c4m_sha_finish(ctx);
 
     printf("Sha256 is: ");
-    ansi_render(con4m_value_obj_repr(b), sout);
+    c4m_ansi_render(con4m_value_obj_repr(b), sout);
     printf("\n");
 }
 
@@ -288,16 +307,16 @@ type_tests()
     type_spec_t *t2 = tspec_grid();
     type_spec_t *t3 = tspec_dict(t1, t2);
 
-    ansi_render(con4m_value_obj_repr(t3), sout);
+    c4m_ansi_render(con4m_value_obj_repr(t3), sout);
     printf("\n");
 
     type_spec_t *t4 = type_spec_new_typevar(global_type_env);
     type_spec_t *t5 = type_spec_new_typevar(global_type_env);
     type_spec_t *t6 = tspec_dict(t4, t5);
 
-    ansi_render(con4m_value_obj_repr(t6), sout);
+    c4m_ansi_render(con4m_value_obj_repr(t6), sout);
     printf("\n");
-    ansi_render(con4m_value_obj_repr(merge_types(t3, t6)), sout);
+    c4m_ansi_render(con4m_value_obj_repr(merge_types(t3, t6)), sout);
     printf("\n");
 }
 
@@ -321,7 +340,7 @@ stream_tests()
     }
 
     print(hex_dump(b->data, b->byte_len));
-    utf8_t *s = buffer_to_utf8_string(b);
+    utf8_t *s = c4m_buffer_to_utf8_string(b);
 
     string_set_style(s, sty);
     print(s);
@@ -346,7 +365,7 @@ marshal_test()
 
     utf8_t *new_str = con4m_unmarshal(s);
 
-    ansi_render(new_str, sout);
+    c4m_ansi_render(new_str, sout);
 }
 
 #if 0
@@ -379,7 +398,7 @@ marshal_test2()
 	    continue;
 	}
 	utf8_t *key  = con4m_new(tspec_utf8(), kw("cstring", karg(ckey)));
-	int64_t val  = lookup_color(key);
+	int64_t val  = c4m_lookup_color(key);
 	printf("%s: %06llx\n", key->data, val);
     }
 }
@@ -491,17 +510,17 @@ main(int argc, char **argv, char **envp)
     sout = get_stdout();
     serr = get_stderr();
 
-    TRY
+    C4M_TRY
     {
         install_default_styles();
         terminal_dimensions(&term_width, NULL);
-        ansi_render_to_width(str_test, term_width, 0, sout);
+        c4m_ansi_render_to_width(str_test, term_width, 0, sout);
         test_rand64();
         // Test basic string and single threaded GC.
         test1();
         // style1 = apply_bg_color(style1, "alice blue");
         any_str_t *to_slice = test2();
-        // con4m_gc_register_root(&to_slice, 1);
+        // c4m_gc_register_root(&to_slice, 1);
         test3(to_slice);
         to_slice = NULL;
         test4();
@@ -516,32 +535,32 @@ main(int argc, char **argv, char **envp)
         // marshal_test2();
         create_dict_lit();
         rich_lit_test();
-        print(box_u32((int32_t)-1));
-        print(box_i32((int32_t)-1));
+        print(c4m_box_u32((int32_t)-1));
+        print(c4m_box_i32((int32_t)-1));
         STATIC_ASCII_STR(local_test, "Goodbye!");
-        // ansi_render(local_test, sout);
+        // c4m_ansi_render(local_test, sout);
         print((object_t *)local_test);
-        CRAISE("Except maybe not!");
+        C4M_CRAISE("Except maybe not!");
     }
-    EXCEPT
+    C4M_EXCEPT
     {
-        exception_t *e = X_CUR();
+        exception_t *e = C4M_X_CUR();
         printf("Just kidding. An exception was raised before exit:\n");
         switch (e->code) {
         default:
-            stream_puts(serr, exception_get_file(e)->data);
-            stream_puti(serr, exception_get_line(e));
+            stream_puts(serr, c4m_exception_get_file(e)->data);
+            stream_puti(serr, c4m_exception_get_line(e));
             stream_puts(serr, ": Caught you, exception man: ");
-            ansi_render(exception_get_message(X_CUR()), serr);
+            c4m_ansi_render(c4m_exception_get_message(C4M_X_CUR()), serr);
             stream_putc(serr, '\n');
-            JUMP_TO_TRY_END();
+            C4M_JUMP_TO_TRY_END();
         };
     }
-    TRY_END;
+    C4M_TRY_END;
     stream_puts(serr, "This theoretically should run.\n");
 
     if (argc > 1) {
-        get_stack_scan_region(&top, &bottom);
+        c4m_get_stack_scan_region(&top, &bottom);
 
         uint64_t q = bottom - top;
 
@@ -552,6 +571,9 @@ main(int argc, char **argv, char **envp)
         stream_putc(sout, '\n');
 
         bottom = top + q;
-        printf("(start) = %p; (end) = %p (%llu bytes)\n", (void *)top, (void *)bottom, q);
+        printf("(start) = %p; (end) = %p (%llu bytes)\n",
+               (void *)top,
+               (void *)bottom,
+               q);
     }
 }

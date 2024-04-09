@@ -191,7 +191,7 @@ list_get(flexarray_t *list, int64_t index)
         index += len;
 
         if (index < 0) {
-            CRAISE("Array index out of bounds.");
+            C4M_CRAISE("Array index out of bounds.");
         }
 
         result = flexarray_view_get(view, index, &status);
@@ -205,10 +205,10 @@ list_get(flexarray_t *list, int64_t index)
     }
 
     if (status == FLEX_UNINITIALIZED) {
-        CRAISE("Array access is for uninitialized value.");
+        C4M_CRAISE("Array access is for uninitialized value.");
     }
     else {
-        CRAISE("Array index out of bounds.");
+        C4M_CRAISE("Array index out of bounds.");
     }
 }
 
@@ -216,7 +216,7 @@ static void
 list_set(flexarray_t *list, int64_t ix, void *item)
 {
     if (!flexarray_set(list, ix, item)) {
-        CRAISE("Array index out of bounds.");
+        C4M_CRAISE("Array index out of bounds.");
     }
 }
 
@@ -275,7 +275,7 @@ list_set_slice(flexarray_t *list, int64_t start, int64_t end, flexarray_t *new)
     }
     else {
         if (start >= len1) {
-            CRAISE("Out of bounds slice.");
+            C4M_CRAISE("Out of bounds slice.");
         }
     }
     if (end < 0) {
@@ -288,7 +288,7 @@ list_set_slice(flexarray_t *list, int64_t start, int64_t end, flexarray_t *new)
     }
 
     if ((start | end) < 0 || start >= end) {
-        CRAISE("Out of bounds slice.");
+        C4M_CRAISE("Out of bounds slice.");
     }
 
     int64_t slicelen = end - start;
@@ -336,12 +336,12 @@ list_repr(flexarray_t *list, to_str_use_t how)
         xlist_append(items, s);
     }
 
-    any_str_t *sep    = get_comma_const();
+    any_str_t *sep    = c4m_get_comma_const();
     any_str_t *result = string_join(items, sep);
 
     if (how == TO_STR_USE_QUOTED) {
-        result = string_concat(get_lbrak_const(),
-                               string_concat(result, get_rbrak_const()));
+        result = string_concat(c4m_get_lbrak_const(),
+                               string_concat(result, c4m_get_rbrak_const()));
     }
 
     return result;

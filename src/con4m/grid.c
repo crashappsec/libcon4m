@@ -170,8 +170,8 @@ void
 expand_columns(grid_t *grid, uint64_t num)
 {
     uint16_t       new_cols = grid->num_cols + num;
-    renderable_t **cells    = gc_array_alloc(renderable_t *,
-                                          new_cols * (grid->num_rows + grid->spare_rows));
+    renderable_t **cells    = c4m_gc_array_alloc(renderable_t *,
+                                              new_cols * (grid->num_rows + grid->spare_rows));
     renderable_t **p        = grid->cells;
 
     for (int i = 0; i < grid->num_rows; i++) {
@@ -180,7 +180,7 @@ expand_columns(grid_t *grid, uint64_t num)
         }
     }
 
-    render_style_t **col_props = gc_array_alloc(render_style_t *, new_cols);
+    render_style_t **col_props = c4m_gc_array_alloc(render_style_t *, new_cols);
 
     for (int i = 0; i < grid->num_cols; i++) {
         col_props[i] = grid->col_props[i];
@@ -202,12 +202,12 @@ grid_expand_rows(grid_t *grid, uint64_t num)
 
     int            old_num  = grid->num_rows * grid->num_cols;
     uint16_t       new_rows = grid->num_rows + num;
-    renderable_t **cells    = gc_array_alloc(renderable_t *, grid->num_cols * (new_rows + grid->spare_rows));
+    renderable_t **cells    = c4m_gc_array_alloc(renderable_t *, grid->num_cols * (new_rows + grid->spare_rows));
     for (int i = 0; i < old_num; i++) {
         cells[i] = grid->cells[i];
     }
 
-    render_style_t **row_props = gc_array_alloc(render_style_t *, new_rows);
+    render_style_t **row_props = c4m_gc_array_alloc(render_style_t *, new_rows);
 
     for (int i = 0; i < grid->num_rows; i++) {
         row_props[i] = grid->row_props[i];
@@ -268,7 +268,7 @@ grid_add_row(grid_t *grid, object_t container)
         return;
 
     default:
-        CRAISE("Invalid item type for grid.");
+        C4M_CRAISE("Invalid item type for grid.");
     }
 }
 
@@ -330,7 +330,7 @@ grid_init(grid_t *grid, va_list args)
         grid->num_rows   = (uint16_t)start_rows;
         grid->num_cols   = (uint16_t)start_cols;
         size_t num_cells = (start_rows + spare_rows) * start_cols;
-        grid->cells      = gc_array_alloc(renderable_t *, num_cells);
+        grid->cells      = c4m_gc_array_alloc(renderable_t *, num_cells);
     }
 
     if (!style_exists(container_tag)) {
@@ -349,8 +349,8 @@ grid_init(grid_t *grid, va_list args)
                                    kw("tag", ka(container_tag), "obj", ka(grid)));
     grid->self         = self;
 
-    grid->col_props = gc_array_alloc(render_style_t *, grid->num_cols);
-    grid->row_props = gc_array_alloc(render_style_t *, grid->num_rows + spare_rows);
+    grid->col_props = c4m_gc_array_alloc(render_style_t *, grid->num_cols);
+    grid->row_props = c4m_gc_array_alloc(render_style_t *, grid->num_rows + spare_rows);
 
     for (int i = 0; i < min(header_rows, start_rows); i++) {
         set_row_style(grid, i, "th");
@@ -403,8 +403,8 @@ grid_set_all_contents(grid_t *g, flexarray_t *contents)
 {
     flex_view_t  *rows     = flexarray_view(contents);
     uint64_t      nrows    = flexarray_view_len(rows);
-    flex_view_t **rowviews = (flex_view_t **)gc_array_alloc(flex_view_t *,
-                                                            nrows);
+    flex_view_t **rowviews = (flex_view_t **)c4m_gc_array_alloc(flex_view_t *,
+                                                                nrows);
     uint64_t      ncols    = 0;
     int           stop     = false;
 
@@ -420,7 +420,7 @@ grid_set_all_contents(grid_t *g, flexarray_t *contents)
     }
 
     size_t num_cells = (nrows + g->spare_rows) * ncols;
-    g->cells         = gc_array_alloc(renderable_t *, num_cells);
+    g->cells         = c4m_gc_array_alloc(renderable_t *, num_cells);
     g->num_rows      = nrows;
     g->num_cols      = ncols;
 
@@ -542,7 +542,7 @@ static int16_t *
 calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
 {
     size_t          term_width;
-    int16_t        *result = gc_array_alloc(uint16_t, grid->num_cols);
+    int16_t        *result = c4m_gc_array_alloc(uint16_t, grid->num_cols);
     int16_t         sum    = get_column_render_overhead(grid);
     render_style_t *props;
 
@@ -562,7 +562,7 @@ calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
     }
 
     if (width == GRID_UNBOUNDED_DIM) {
-        result = gc_array_alloc(uint16_t, grid->num_cols);
+        result = c4m_gc_array_alloc(uint16_t, grid->num_cols);
 
         for (int i = 0; i < grid->num_cols; i++) {
             props = get_col_props(grid, i);
@@ -577,7 +577,7 @@ calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
                 sum += result[i];
                 break;
             default:
-                CRAISE("Invalid col spec for unbounded width.");
+                C4M_CRAISE("Invalid col spec for unbounded width.");
             }
         }
 
@@ -839,7 +839,7 @@ str_render_cell(grid_t *grid, utf32_t *s, renderable_t *cell, int16_t width, int
         }
     }
     else {
-        line_starts = wrap_text(s, width - pad, cs->wrap);
+        line_starts = c4m_wrap_text(s, width - pad, cs->wrap);
         for (i = 0; i < line_starts->num_breaks - 1; i++) {
             line = string_slice(s, line_starts->breaks[i], line_starts->breaks[i + 1]);
             line = string_strip(line);
@@ -888,7 +888,7 @@ render_to_cache(grid_t *grid, renderable_t *cell, int16_t width, int16_t height)
         return xlist_len(cell->render_cache);
 
     default:
-        CRAISE("Type is not grid-renderable.");
+        C4M_CRAISE("Type is not grid-renderable.");
     }
 
     return 0;
@@ -907,7 +907,7 @@ grid_add_blank_cell(grid_t *grid, uint16_t row, uint16_t col, int16_t width, int
 static inline int16_t *
 grid_pre_render(grid_t *grid, int16_t *col_widths)
 {
-    int16_t        *row_heights = gc_array_alloc(int16_t *, grid->num_rows);
+    int16_t        *row_heights = c4m_gc_array_alloc(int16_t *, grid->num_rows);
     render_style_t *gs          = grid_style(grid);
 
     // Run through and tell the individual items to render.
@@ -1763,9 +1763,9 @@ con4m_grid_unmarshal(grid_t *grid, stream_t *s, dict_t *memos)
     grid->th_tag_name = unmarshal_cstring(s);
 
     size_t num_cells = (grid->num_rows + grid->spare_rows) * grid->num_cols;
-    grid->cells      = gc_array_alloc(renderable_t *, num_cells);
-    grid->col_props  = gc_array_alloc(render_style_t *, grid->num_cols);
-    grid->row_props  = gc_array_alloc(render_style_t *, grid->num_rows + grid->spare_rows);
+    grid->cells      = c4m_gc_array_alloc(renderable_t *, num_cells);
+    grid->col_props  = c4m_gc_array_alloc(render_style_t *, grid->num_cols);
+    grid->row_props  = c4m_gc_array_alloc(render_style_t *, grid->num_rows + grid->spare_rows);
 
     num_cells = grid->num_rows * grid->num_cols;
 
@@ -1856,9 +1856,13 @@ build_tree_output(tree_node_t *node, tree_fmt_t *info)
         line = utf32_repeat(0x2026, 1);
     }
 
-    utf32_t *pad = con4m_new(tspec_utf32(), kw("length", ka(info->pad_ix), "codepoints", ka(info->padstr)));
-    line         = string_concat(pad, line);
+    utf32_t *pad = con4m_new(tspec_utf32(),
+                             kw("length",
+                                ka(info->pad_ix),
+                                "codepoints",
+                                ka(info->padstr)));
 
+    line               = string_concat(pad, line);
     renderable_t *item = to_str_renderable(line, info->tag);
 
     grid_add_row(info->grid, item);
@@ -1874,7 +1878,7 @@ build_tree_output(tree_node_t *node, tree_fmt_t *info)
     int          i;
 
     info->pad_ix = last_len + info->vpad + info->ipad + 1;
-    info->padstr = gc_array_alloc(codepoint_t, info->pad_ix);
+    info->padstr = c4m_gc_array_alloc(codepoint_t, info->pad_ix);
 
     for (i = 0; i < last_len; i++) {
         if (prev_pad[i] == info->tchar || prev_pad[i] == info->vchar) {
@@ -1947,7 +1951,11 @@ _grid_tree(tree_node_t *tree, ...)
         ipad = 1;
     }
 
-    grid_t *result = con4m_new(tspec_grid(), kw("container_tag", ka("flow"), "td_tag", ka(tag)));
+    grid_t *result = con4m_new(tspec_grid(),
+                               kw("container_tag",
+                                  ka("flow"),
+                                  "td_tag",
+                                  ka(tag)));
 
     tree_fmt_t fmt_info = {
         .pad    = pad,
@@ -2005,4 +2013,5 @@ const con4m_vtable renderable_vtable = {
         (con4m_vtable_entry)con4m_renderable_marshal,
         (con4m_vtable_entry)con4m_renderable_unmarshal,
         NULL,
-    }};
+    },
+};
