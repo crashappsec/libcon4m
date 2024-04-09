@@ -159,7 +159,7 @@ test_rand64()
     uint64_t random = 0;
 
     random = c4m_rand64();
-    printf("Random value: %16llx\n", random);
+    printf("Random value: %16llx\n", (unsigned long long)random);
     assert(random != 0);
 }
 
@@ -576,7 +576,7 @@ main(int argc, char **argv, char **envp)
         test4();
         table_test();
 
-        printf("Sample style: %.16llx\n", style1);
+        printf("Sample style: %.16llx\n", (unsigned long long)style1);
         sha_test();
 
         type_tests();
@@ -624,6 +624,6 @@ main(int argc, char **argv, char **envp)
         printf("(start) = %p; (end) = %p (%llu bytes)\n",
                (void *)top,
                (void *)bottom,
-               q);
+               (unsigned long long)q);
     }
 }

@@ -200,6 +200,8 @@ c4m_unmarshal_compact_type(stream_t *s)
         c4m_type_hash(result, c4m_global_type_env);
         return result;
     }
+    // unreachable
+    abort();
 }
 
 void

@@ -113,11 +113,11 @@ list_can_coerce_to(type_spec_t *my_type, type_spec_t *dst_type)
 {
     base_t base = c4m_tspec_get_base(dst_type);
 
-    if (base == T_BOOL) {
+    if (base == (base_t)T_BOOL) {
         return true;
     }
 
-    if (base == T_LIST || base == T_XLIST) {
+    if (base == (base_t)T_LIST || base == (base_t)T_XLIST) {
         type_spec_t *my_item  = c4m_tspec_get_param(my_type, 0);
         type_spec_t *dst_item = c4m_tspec_get_param(dst_type, 0);
 
@@ -136,11 +136,11 @@ list_coerce_to(flexarray_t *list, type_spec_t *dst_type)
     type_spec_t *src_item_type = c4m_tspec_get_param(c4m_get_my_type(list), 0);
     type_spec_t *dst_item_type = c4m_tspec_get_param(dst_type, 0);
 
-    if (base == T_BOOL) {
+    if (base == (base_t)T_BOOL) {
         return (object_t)(int64_t)(flexarray_view_len(view) != 0);
     }
 
-    if (base == T_LIST) {
+    if (base == (base_t)T_LIST) {
         flexarray_t *res = c4m_new(dst_type, c4m_kw("length", c4m_ka(len)));
 
         for (int i = 0; i < len; i++) {

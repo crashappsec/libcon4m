@@ -748,7 +748,7 @@ calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
             if (units == 0) {
                 continue;
             }
-            /* fallthrough; */
+            /* fallthrough */
         case DIM_UNSET:
         case DIM_AUTO:
             if (--num_flex == 0) {

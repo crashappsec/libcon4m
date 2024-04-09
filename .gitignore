@@ -1,4 +1,5 @@
 .DS_Store
 subprojects/*/
 .meson_last
+.vscode
 

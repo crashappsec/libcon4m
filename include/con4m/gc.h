@@ -232,7 +232,7 @@ c4m_get_stack_bounds(uint64_t *top, uint64_t *bottom)
     uint64_t       addr;
 
     pthread_getattr_np(self, &attrs);
-    pthread_attr_getstack(&attrs, &addr, &size);
+    pthread_attr_getstack(&attrs, (void **)&addr, &size);
 
     *bottom = (uint64_t)addr;
     *top    = size + (uint64_t)addr;

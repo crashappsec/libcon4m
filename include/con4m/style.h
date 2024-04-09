@@ -40,20 +40,20 @@ c4m_style_debug(char *prefix, const any_str_t *p)
     if (p->styling == NULL) {
         printf("debug (%s): len: %lld styles: nil\n",
                prefix,
-               c4m_str_codepoint_len(p));
+               (long long)c4m_str_codepoint_len(p));
         return;
     }
     else {
         printf("debug (%s): len: %lld # styles: %lld\n",
                prefix,
-               c4m_str_codepoint_len(p),
+               (long long)c4m_str_codepoint_len(p),
                p->styling->num_entries);
     }
     for (int i = 0; i < p->styling->num_entries; i++) {
         style_entry_t entry = p->styling->styles[i];
         printf("%d: %llx (%d:%d)\n",
                i + 1,
-               p->styling->styles[i].info,
+               (long long)p->styling->styles[i].info,
                entry.start,
                entry.end);
     }
