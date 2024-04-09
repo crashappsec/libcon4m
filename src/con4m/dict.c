@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 static void
 con4m_dict_init(hatrack_dict_t *dict, va_list args)

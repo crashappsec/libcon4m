@@ -1,6 +1,11 @@
-#include <con4m.h>
+#include "con4m.h"
 
-const uint8_t hex_map[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+const uint8_t hex_map[16] = {
+    // clang-format off
+    '0', '1', '2', '3', '4', '5', '6', '7',
+    '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+    // clang-format on
+};
 
 #define MIN_DUMP_WIDTH 36
 

@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 // The object header has 4 words that we don't need to scan (there is
 // a heap pointer in there, but it points to something definitely

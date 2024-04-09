@@ -1,5 +1,5 @@
 #pragma once
-#include <con4m.h>
+#include "con4m.h"
 
 /**
  ** For UTF-32, we actually store in the codepoints field the bitwise

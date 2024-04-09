@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
 extern utf8_t *get_lbrak_const();
 extern utf8_t *get_comma_const();

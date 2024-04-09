@@ -11,7 +11,7 @@ int debug = 0;
 // 3. Also not soon, but should consider allowing style info to "resolve"
 //    as a better way to fix issues w/ split.
 
-#include <con4m.h>
+#include "con4m.h"
 
 #define SPAN_NONE  0
 #define SPAN_HERE  1

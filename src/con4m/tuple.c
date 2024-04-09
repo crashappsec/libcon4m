@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 static void
 tuple_init(tuple_t *tup, va_list args)

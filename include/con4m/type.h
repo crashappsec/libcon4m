@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
 extern type_spec_t *resolve_type_aliases(type_spec_t *, type_env_t *);
 extern bool         type_spec_is_concrete(type_spec_t *);

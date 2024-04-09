@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 static void *
 openssl_m_proxy(size_t sz, const char *file, int line)

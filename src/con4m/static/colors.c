@@ -884,7 +884,7 @@ const color_info_t color_data[] = {
 /* } */
 #else
 
-#include <con4m.h>
+#include "con4m.h"
 
 static unsigned char _marshaled_color_table[] = {
     // clang-format off

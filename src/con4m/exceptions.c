@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 static void (*uncaught_handler)(exception_t *) = exception_uncaught;
 

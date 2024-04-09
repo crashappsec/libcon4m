@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 const dt_info builtin_type_info[CON4M_NUM_BUILTIN_DTS] = {
     {

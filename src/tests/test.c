@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 style_t style1;
 style_t style2;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
 extern void   utf8_ansi_render(const utf8_t *s, stream_t *outstream);
 extern void   utf32_ansi_render(const utf32_t *s, int32_t start_ix, int32_t end_ix, stream_t *outstream);

@@ -30,21 +30,20 @@
 #define __TESTHAT_H__
 
 // Pull in the various implementations.
-#include <hatrack/hatvtable.h>
-#include <hatrack/refhat.h>
-#include <hatrack/duncecap.h>
-#include <hatrack/swimcap.h>
-#include <hatrack/newshat.h>
-#include <hatrack/ballcap.h>
-#include <hatrack/hihat.h>
-#include <hatrack/oldhat.h>
-#include <hatrack/tiara.h>
-#include <hatrack/lohat.h>
-#include <hatrack/lohat-a.h>
-#include <hatrack/witchhat.h>
-#include <hatrack/woolhat.h>
-#include <hatrack/tophat.h>
-#include <hatrack/crown.h>
+#include "hatrack/refhat.h"
+#include "hatrack/duncecap.h"
+#include "hatrack/swimcap.h"
+#include "hatrack/newshat.h"
+#include "hatrack/ballcap.h"
+#include "hatrack/hihat.h"
+#include "hatrack/oldhat.h"
+#include "hatrack/tiara.h"
+#include "hatrack/lohat.h"
+#include "hatrack/lohat-a.h"
+#include "hatrack/witchhat.h"
+#include "hatrack/woolhat.h"
+#include "hatrack/tophat.h"
+#include "hatrack/crown.h"
 
 typedef struct {
     hatrack_vtable_t vtable;

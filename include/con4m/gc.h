@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 /*
  * This is not necessarily the final algorithm, just initial notes
  * that aren't yet fully consistent, since this is a work in progress.

@@ -1,7 +1,7 @@
 /*
  * Currently, we're using select() here, not epoll(), etc.
  */
-#include <con4m.h>
+#include "con4m.h"
 
 /* The way we use the below two IO functions assumes that, while they
  * may be interrupted, they won't be blocked.

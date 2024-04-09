@@ -1,5 +1,5 @@
 #pragma once
-#include <con4m.h>
+#include "con4m.h"
 
 typedef uint64_t style_t;
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
 #define codepoint_category(c) utf8proc_category(c)
 #define codepoint_valid(c)    utf8proc_codepoint_valid(c)

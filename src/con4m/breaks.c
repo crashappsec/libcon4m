@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 // Assume a possible break every 2^n codepoints when allocating, but
 // be prepared to alloc extra if needed.

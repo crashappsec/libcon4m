@@ -1,5 +1,5 @@
 #pragma once
-#include <con4m.h>
+#include "con4m.h"
 
 extern void mixed_set_value(mixed_t *, type_spec_t *, void **);
 extern void unbox_mixed(mixed_t *, type_spec_t *, void **);

@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 // I realize some of this is redundant, but it's just easier.
 typedef struct {

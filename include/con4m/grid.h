@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 static inline renderable_t **
 cell_address(grid_t *g, int row, int col)
 {

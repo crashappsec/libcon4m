@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 enum {
     HATRACK_DICT_KEY_TYPE_INT,

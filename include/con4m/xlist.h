@@ -1,5 +1,7 @@
 #pragma once
 
+#include "con4m.h"
+
 // The 'x' stands for exclusive; this is meant to be exclusive to
 // a single thread.
 

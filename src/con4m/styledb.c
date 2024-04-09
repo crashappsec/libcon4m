@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 static hatrack_dict_t *style_dictionary = NULL;
 

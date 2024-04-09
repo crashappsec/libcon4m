@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 // The lock-free dictionary for roots ensures that threads can add
 // roots in parallel. However, we currently make an implicit
@@ -200,7 +200,7 @@ con4m_arena_register_root(con4m_arena_t *arena, void *ptr, uint64_t len)
 static void
 process_traced_pointer(uint64_t **addr, uint64_t *ptr, uint64_t *arena_start, uint64_t *arena_end, con4m_arena_t *new_arena);
 
-#include <con4m/hex.h>
+#include "con4m/hex.h"
 
 static inline void
 update_internal_allocation_pointers(con4m_alloc_hdr *hdr,

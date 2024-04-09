@@ -8,7 +8,7 @@
  * Author:        John Viega, john@zork.org
  */
 
-#include <con4m.h>
+#include "con4m.h"
 
 static void
 kargs_init(karg_info_t *kargs, va_list args)

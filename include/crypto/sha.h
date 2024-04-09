@@ -1,5 +1,5 @@
 #pragma once
-#include <con4m.h>
+#include "con4m.h"
 
 int CRYPTO_set_mem_functions(
     void *(*m)(size_t, const char *, int),

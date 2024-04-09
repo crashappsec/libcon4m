@@ -1,5 +1,5 @@
 #pragma once
-#include <con4m.h>
+#include "con4m.h"
 
 // This exception handling mechanism is not meant to fully simulate a
 // high-level language mechanism by itself.  Particularly, the EXCEPT

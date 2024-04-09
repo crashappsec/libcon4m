@@ -26,7 +26,7 @@
  *
  */
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 // clang-format off
 static void             tophat_init_base     (tophat_t *, char);

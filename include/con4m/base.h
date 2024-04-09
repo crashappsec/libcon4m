@@ -53,9 +53,9 @@ forkpty(int *, char *, struct termios *, struct winsize *);
 #define max(a, b) ({ __typeof__ (a) _a = (a); __typeof__ (b) _b = (b); \
                     _a > _b ? _a : _b; })
 
-#include <vendor.h>
-#include <hatrack.h>
-#include <con4m/datatypes.h>
+#include "vendor.h"
+#include "hatrack.h"
+#include "con4m/datatypes.h"
 
 #if defined(__LITTLE_ENDIAN__)
 #define little_64(x)

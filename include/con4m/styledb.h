@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
 extern void            set_style(char *name, render_style_t *style);
 extern render_style_t *lookup_cell_style(char *name);

@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 static void
 tree_node_init(tree_node_t *t, va_list args)

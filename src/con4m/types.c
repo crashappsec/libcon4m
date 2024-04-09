@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 // Hashing a tree-based data structure down to a single integer can
 // save a lot of work if the user does want to do any dynamic type

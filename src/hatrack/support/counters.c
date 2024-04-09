@@ -20,7 +20,7 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 #ifdef HATRACK_COUNTERS
 
@@ -40,7 +40,7 @@ char *hatrack_counter_names[HATRACK_COUNTERS_NUM] = {
     "mmm unused retires",
     "stores shrunk",
     "hi-a sleep 1 worked",
-    "hi-a sleep 1 failed",    
+    "hi-a sleep 1 failed",
     "hi-a sleep 2 worked",
     "hi-a sleep 2 failed",
     "wh help requests"

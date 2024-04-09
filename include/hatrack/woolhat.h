@@ -23,7 +23,7 @@
 
 #pragma once
 
-#include <hatrack/hatrack_common.h>
+#include "hatrack/hatrack_common.h"
 
 typedef struct woolhat_record_st woolhat_record_t;
 

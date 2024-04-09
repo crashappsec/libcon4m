@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 static inline i64_box *
 box_i64(int64_t n)

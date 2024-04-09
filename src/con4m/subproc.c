@@ -2,7 +2,7 @@
  * Currently, we're using select() here, not epoll(), etc.
  */
 
-#include <con4m.h>
+#include "con4m.h"
 
 /*
  * Initializes a `subprocess` context, setting the process to spawn.

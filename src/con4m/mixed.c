@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 static const char *err1 =
     "Cannot set mixed object contents with a "

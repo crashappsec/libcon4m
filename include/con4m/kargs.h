@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
 karg_info_t *get_kargs(va_list);
 karg_info_t *pass_kargs(int, ...);

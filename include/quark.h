@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include <hatrack/hatrack_config.h>
+#include "hatrack/hatrack_config.h"
 
 extern _Bool __atomic_compare_exchange_16(__int128_t *address,
                                           __int128_t *expected_value,

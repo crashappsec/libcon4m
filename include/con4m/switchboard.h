@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
 extern ssize_t  read_one(int, char *, size_t);
 extern bool     write_data(int, char *, size_t);

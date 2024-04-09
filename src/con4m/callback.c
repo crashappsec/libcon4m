@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 static dict_t *bound_functions = NULL;
 

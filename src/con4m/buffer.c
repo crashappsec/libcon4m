@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 /*
  * Note that, unlike strings, buffers are intended to be mutable.

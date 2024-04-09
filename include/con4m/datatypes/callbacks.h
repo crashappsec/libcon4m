@@ -27,7 +27,7 @@ typedef struct {
     unsigned   flags;
 } ffi_cif;
 
-#include <con4m.h>
+#include "con4m.h"
 
 typedef struct {
     ffi_cif      call_interface;

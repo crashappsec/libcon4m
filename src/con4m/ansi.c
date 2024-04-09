@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 static inline bool
 ignore_for_printing(codepoint_t cp)

@@ -19,7 +19,7 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 // clang-format off
 static hatrack_hash_t hatrack_dict_get_hash_value(hatrack_dict_t *, void *);

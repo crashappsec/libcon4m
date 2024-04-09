@@ -1,6 +1,6 @@
 // "Exclusive" array, meaning not shared across threads. It's dynamic,
 // and supports resizing.
-#include <con4m.h>
+#include "con4m.h"
 
 static void
 xlist_init(xlist_t *list, va_list args)

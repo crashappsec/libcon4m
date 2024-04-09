@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 // Currently, for strings, this does NOT inject ANSI codes.  It's a
 // TODO to add an ansi streaming mode for strings.  I also want to add

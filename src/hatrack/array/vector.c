@@ -19,7 +19,7 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 static vector_store_t *vector_new_store(int64_t, int64_t);
 static void            vector_migrate(vector_store_t *, vector_t *);

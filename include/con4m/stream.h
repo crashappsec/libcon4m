@@ -1,5 +1,5 @@
 #pragma once
-#include <con4m.h>
+#include "con4m.h"
 
 object_t stream_raw_read(stream_t *, int64_t, char *);
 size_t   stream_raw_write(stream_t *, int64_t, char *);

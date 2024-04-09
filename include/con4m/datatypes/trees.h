@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
 typedef struct tree_node_t {
     int32_t              alloced_kids;

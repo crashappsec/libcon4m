@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
 typedef struct {
     // Actually, since objects already contain the full type, this really

@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 static void
 con4m_set_init(set_t *set, va_list args)

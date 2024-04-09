@@ -102,7 +102,7 @@ extern "C" {
  */
 #pragma once
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 #if (defined(XXH_INLINE_ALL) || defined(XXH_PRIVATE_API)) \
     && !defined(XXH_INLINE_ALL_31684351384)
@@ -1043,9 +1043,9 @@ struct XXH32_state_s {
     XXH32_hash_t memsize;      /*!< Amount of data in @ref mem32 */
     XXH32_hash_t reserved;     /*!< Reserved field. Do not read or write to it, it
                                   may be removed. */
-};                             /* typedef'd to XXH32_state_t */
+}; /* typedef'd to XXH32_state_t */
 
-#ifndef XXH_NO_LONG_LONG       /* defined when there is no 64-bit support */
+#ifndef XXH_NO_LONG_LONG /* defined when there is no 64-bit support */
 
 /*!
  * @internal
@@ -1060,18 +1060,18 @@ struct XXH32_state_s {
  * @see XXH32_state_s, XXH3_state_s
  */
 struct XXH64_state_s {
-    XXH64_hash_t total_len;                                    /*!< Total length hashed. This is always 64-bit. */
-    XXH64_hash_t v1;                                           /*!< First accumulator lane */
-    XXH64_hash_t v2;                                           /*!< Second accumulator lane */
-    XXH64_hash_t v3;                                           /*!< Third accumulator lane */
-    XXH64_hash_t v4;                                           /*!< Fourth accumulator lane */
-    XXH64_hash_t mem64[4];                                     /*!< Internal buffer for partial reads. Treated as
-                                                                  unsigned char[32]. */
-    XXH32_hash_t memsize;                                      /*!< Amount of data in @ref mem64 */
-    XXH32_hash_t reserved32;                                   /*!< Reserved field, needed for padding anyways*/
-    XXH64_hash_t reserved64;                                   /*!< Reserved field. Do not read or write to it, it
-                                                                  may be removed. */
-};                                                             /* typedef'd to XXH64_state_t */
+    XXH64_hash_t total_len;  /*!< Total length hashed. This is always 64-bit. */
+    XXH64_hash_t v1;         /*!< First accumulator lane */
+    XXH64_hash_t v2;         /*!< Second accumulator lane */
+    XXH64_hash_t v3;         /*!< Third accumulator lane */
+    XXH64_hash_t v4;         /*!< Fourth accumulator lane */
+    XXH64_hash_t mem64[4];   /*!< Internal buffer for partial reads. Treated as
+                                unsigned char[32]. */
+    XXH32_hash_t memsize;    /*!< Amount of data in @ref mem64 */
+    XXH32_hash_t reserved32; /*!< Reserved field, needed for padding anyways*/
+    XXH64_hash_t reserved64; /*!< Reserved field. Do not read or write to it, it
+                                may be removed. */
+}; /* typedef'd to XXH64_state_t */
 
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* >= C11 */
 #include <stdalign.h>

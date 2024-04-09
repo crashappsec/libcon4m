@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 #include "./static/colors.c"
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
 static inline con4m_obj_t *
 get_object_header(const object_t user_object)

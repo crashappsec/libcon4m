@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 typedef struct fmt_frame_t {
     int32_t             absolute_start;
@@ -290,9 +290,12 @@ check_color: {
                     expect_color = true;
                     break;
                 default:
-                    RAISE(string_concat(s, new_utf8(": style keyword is for turning off colors. Either "
-                                                    "add a / to the block before this keyword, or the "
-                                                    "word 'no'. ")));
+                    RAISE(string_concat(s,
+                                        new_utf8(": style keyword is for "
+                                                 "turning off colors. Either "
+                                                 "add a / to the block before "
+                                                 "this keyword, or the "
+                                                 "word 'no'. ")));
                 }
             }
 
@@ -438,7 +441,10 @@ not_eof:
     int          num_styles = 0;
     while (f != NULL) {
         utf8_t *s = con4m_new(tspec_utf8(),
-                              kw("cstring", ka(instr + f->absolute_start), "length", ka(f->absolute_end - f->absolute_start)));
+                              kw("cstring",
+                                 ka(instr + f->absolute_start),
+                                 "length",
+                                 ka(f->absolute_end - f->absolute_start)));
         parse_style_lit(f, s);
 
         if (f->style != 0) {

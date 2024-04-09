@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
 // Flags in the style `info` bitfield.
 #define FG_COLOR_ON   (0x0002000000000000UL)

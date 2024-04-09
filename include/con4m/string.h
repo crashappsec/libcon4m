@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
 extern const int      str_header_size;
 extern const uint64_t pmap_str[2];

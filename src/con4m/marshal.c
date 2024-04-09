@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 STATIC_ASCII_STR(marshal_err,
                  "No marshal implementation is defined for the "
@@ -380,7 +380,7 @@ dump_c_static_instance_code(object_t obj, char *symbol_name, utf8_t *filename)
 
     static int   char_per_line = 12;
     static char *decl_start =
-        "#include <con4m.h>\n\n"
+        "#include \"con4m.h\"\n\n"
         "static unsigned char _marshaled_";
     static char *mdecl_end   = "\n};\n\n";
     static char *array_start = "[] = {";

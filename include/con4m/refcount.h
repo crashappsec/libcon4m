@@ -13,7 +13,7 @@
 //
 // Instead, this is intended to be used to manage arenas,
 
-#include <con4m.h>
+#include "con4m.h"
 
 typedef struct {
     _Atomic int64_t refcount;

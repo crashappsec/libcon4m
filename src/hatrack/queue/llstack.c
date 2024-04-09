@@ -24,7 +24,7 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 llstack_t *
 llstack_new(void)

@@ -1,5 +1,5 @@
 #pragma once
-#include <con4m.h>
+#include "con4m.h"
 
 extern __uint128_t raw_int_parse(char *, lit_error_t *, bool *);
 extern __uint128_t raw_hex_parse(char *, lit_error_t *);
