@@ -14,13 +14,17 @@ typedef struct {
     c4m_style_info_t *styling;
     char             *data;
     // clang-format on
-} c4m_str_t;
+} c4m_base_str_t;
 
 typedef struct break_info_st {
     int32_t num_slots;
     int32_t num_breaks;
     int32_t breaks[];
-} c4m_break_info_t;
+} break_info_t;
+
+typedef c4m_base_str_t utf8_t;
+typedef c4m_base_str_t utf32_t;
+typedef c4m_base_str_t any_str_t;
 
 // Only used for the static macro.
 struct c4m_internal_string_st {
@@ -49,4 +53,4 @@ typedef enum {
         .s.styling      = NULL,                                             \
         .s.data         = val,                                              \
     };                                                                      \
-    const c4m_str_t *id = (c4m_str_t *)&(_static_##id.s)
+    const c4m_base_str_t *id = (c4m_base_str_t *)&(_static_##id.s)
