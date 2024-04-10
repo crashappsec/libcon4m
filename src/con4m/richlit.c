@@ -33,12 +33,12 @@ static inline void
 init_style_keywords()
 {
     if (style_keywords == NULL) {
-        buffer_t *b = c4m_new(c4m_tspec_buffer(),
-                              c4m_kw("raw",
-                                     c4m_ka(_marshaled_style_keywords),
-                                     "length",
-                                     c4m_ka(1426)));
-        stream_t *s = c4m_new(c4m_tspec_stream(), c4m_kw("buffer", c4m_ka(b)));
+        c4m_buf_t    *b = c4m_new(c4m_tspec_buffer(),
+                               c4m_kw("raw",
+                                      c4m_ka(_marshaled_style_keywords),
+                                      "length",
+                                      c4m_ka(1426)));
+        c4m_stream_t *s = c4m_new(c4m_tspec_stream(), c4m_kw("buffer", c4m_ka(b)));
 
         c4m_gc_register_root(&style_keywords, 1);
         style_keywords = c4m_unmarshal(s);
@@ -61,11 +61,11 @@ init_style_keywords()
 #define F_CUR    (1 << 12)
 
 static void
-parse_style_lit(fmt_frame_t *f, utf8_t *instr)
+parse_style_lit(fmt_frame_t *f, c4m_utf8_t *instr)
 {
     uint64_t            seen         = 0;
-    utf8_t             *space        = c4m_get_space_const();
-    xlist_t            *parts        = c4m_str_xsplit(instr, space);
+    c4m_utf8_t         *space        = c4m_get_space_const();
+    c4m_xlist_t        *parts        = c4m_str_xsplit(instr, space);
     int                 len          = c4m_xlist_len(parts);
     int                 color_start  = -1;
     c4m_style_t         result       = f->style;
@@ -76,7 +76,7 @@ parse_style_lit(fmt_frame_t *f, utf8_t *instr)
     int64_t             l;                    // used for a string length.
     int64_t             n;                    // Used to count how many styles
                                               // a string will end up w
-    utf8_t             *s;
+    c4m_utf8_t         *s;
     c4m_render_style_t *rs;
     int                 i; // Loop variable needs to survive after loop.
 
@@ -183,9 +183,9 @@ check_color: {
     // we jump back up here to reuse the code, then
     // jump back down to where we calculate the style.
 
-    xlist_t    *slice = c4m_xlist_get_slice(parts, color_start, i);
-    utf8_t     *cname = c4m_to_utf8(c4m_str_join(slice, space));
-    c4m_color_t color = c4m_lookup_color(cname);
+    c4m_xlist_t *slice = c4m_xlist_get_slice(parts, color_start, i);
+    c4m_utf8_t  *cname = c4m_to_utf8(c4m_str_join(slice, space));
+    c4m_color_t  color = c4m_lookup_color(cname);
 
     if (color == -1) {
         C4M_RAISE(c4m_str_concat(c4m_new_utf8("Color not found: "),
@@ -340,18 +340,18 @@ check_color: {
     return;
 }
 
-utf8_t *
+c4m_utf8_t *
 c4m_rich_lit(char *instr)
 {
-    buffer_t       *b = c4m_new(c4m_tspec_buffer(),
-                          c4m_kw("length", c4m_ka(1)));
-    stream_t       *s = c4m_new(c4m_tspec_stream(),
-                          c4m_kw("buffer",
-                                 c4m_ka(b),
-                                 "write",
-                                 c4m_ka(1),
-                                 "read",
-                                 c4m_ka(0)));
+    c4m_buf_t      *b = c4m_new(c4m_tspec_buffer(),
+                           c4m_kw("length", c4m_ka(1)));
+    c4m_stream_t   *s = c4m_new(c4m_tspec_stream(),
+                              c4m_kw("buffer",
+                                     c4m_ka(b),
+                                     "write",
+                                     c4m_ka(1),
+                                     "read",
+                                     c4m_ka(0)));
     fmt_frame_t    *style_next;
     fmt_frame_t    *style_top = NULL;
     fmt_frame_t    *style_cur = NULL;
@@ -445,7 +445,7 @@ not_eof:
 
     c4m_stream_close(s);
 
-    utf8_t *result = c4m_buffer_to_utf8_string(b);
+    c4m_utf8_t *result = c4m_c4m_buf_to_utf8_string(b);
 
     // If style blobs, parse them. (otherwise, return the whole string).
     if (style_top == NULL) {
@@ -455,7 +455,7 @@ not_eof:
     fmt_frame_t *f          = style_top;
     int          num_styles = 0;
     while (f != NULL) {
-        utf8_t *s = c4m_new(
+        c4m_utf8_t *s = c4m_new(
             c4m_tspec_utf8(),
             c4m_kw("cstring",
                    c4m_ka(instr + f->absolute_start),

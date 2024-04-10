@@ -17,17 +17,17 @@
 
 const int c4m_minimum_break_slots = 16;
 
-break_info_t *
-c4m_get_grapheme_breaks(const any_str_t *s, int32_t start_ix, int32_t end_ix)
+c4m_break_info_t *
+c4m_get_grapheme_breaks(const c4m_str_t *s, int32_t start_ix, int32_t end_ix)
 {
     if (!s) {
         return NULL;
     }
 
-    break_info_t *res   = c4m_alloc_break_structure(s, 1);
-    int32_t       state = 0;
-    int32_t       cps   = c4m_str_codepoint_len(s);
-    int32_t       len;
+    c4m_break_info_t *res   = c4m_alloc_break_structure(s, 1);
+    int32_t           state = 0;
+    int32_t           cps   = c4m_str_codepoint_len(s);
+    int32_t           len;
 
     if (start_ix < 0) {
         start_ix += cps;
@@ -99,15 +99,15 @@ internal_is_line_break(int32_t cp)
     }
 }
 
-break_info_t *
-c4m_get_line_breaks(const any_str_t *s)
+c4m_break_info_t *
+c4m_get_line_breaks(const c4m_str_t *s)
 {
     if (!s) {
         return NULL;
     }
 
-    break_info_t *res = c4m_alloc_break_structure(s, 6); // 2^6 = 64.
-    int32_t       l   = c4m_str_codepoint_len(s);
+    c4m_break_info_t *res = c4m_alloc_break_structure(s, 6); // 2^6 = 64.
+    int32_t           l   = c4m_str_codepoint_len(s);
 
     if (c4m_str_is_u32(s)) {
         int32_t *p = (int32_t *)(s->data);
@@ -131,16 +131,16 @@ c4m_get_line_breaks(const any_str_t *s)
     return res;
 }
 
-break_info_t *
-c4m_get_all_line_break_ops(const any_str_t *s)
+c4m_break_info_t *
+c4m_get_all_line_break_ops(const c4m_str_t *s)
 {
     if (!s) {
         return NULL;
     }
 
-    int32_t       l   = c4m_str_codepoint_len(s);
-    break_info_t *res = c4m_alloc_break_structure(s, 0);
-    char         *br_raw;
+    int32_t           l   = c4m_str_codepoint_len(s);
+    c4m_break_info_t *res = c4m_alloc_break_structure(s, 0);
+    char             *br_raw;
 
     if (c4m_str_is_u32(s)) {
         br_raw = (char *)c4m_gc_raw_alloc(l, NULL);
@@ -164,11 +164,11 @@ c4m_get_all_line_break_ops(const any_str_t *s)
 }
 
 static int32_t
-c4m_find_hwrap(const any_str_t *s, int32_t offset, int32_t width)
+c4m_find_hwrap(const c4m_str_t *s, int32_t offset, int32_t width)
 {
-    utf32_t  *str = c4m_to_utf32(s);
-    uint32_t *u32 = (uint32_t *)str->data;
-    int       l   = c4m_str_codepoint_len(str);
+    c4m_utf32_t *str = c4m_to_utf32(s);
+    uint32_t    *u32 = (uint32_t *)str->data;
+    int          l   = c4m_str_codepoint_len(str);
 
     for (int i = offset; i < l; i++) {
         width -= c4m_codepoint_width(u32[i]);
@@ -190,25 +190,25 @@ c4m_find_hwrap(const any_str_t *s, int32_t offset, int32_t width)
  ** returned, which can lead to short lines. This is done because we
  ** expect this to represent a paragraph break.
  **/
-break_info_t *
-c4m_wrap_text(const any_str_t *s, int32_t width, int32_t hang)
+c4m_break_info_t *
+c4m_wrap_text(const c4m_str_t *s, int32_t width, int32_t hang)
 {
     if (width <= 0) {
         width = max(20, c4m_terminal_width());
     }
 
-    break_info_t *line_breaks  = c4m_get_line_breaks(s);
-    break_info_t *break_ops    = c4m_get_all_line_break_ops(s);
-    int32_t       n            = 32 - __builtin_clz(width);
-    int32_t       l            = c4m_str_codepoint_len(s);
-    break_info_t *res          = c4m_alloc_break_structure(s, n);
-    int32_t       cur_start    = 0;
-    int32_t       last_ok_br   = 0;
-    int32_t       lb_ix        = 0;
-    int32_t       bo_ix        = 0;
-    int32_t       hard_wrap_ix = c4m_find_hwrap(s, 0, width);
-    int32_t       hang_width   = width - hang;
-    int32_t       next_lb;
+    c4m_break_info_t *line_breaks  = c4m_get_line_breaks(s);
+    c4m_break_info_t *break_ops    = c4m_get_all_line_break_ops(s);
+    int32_t           n            = 32 - __builtin_clz(width);
+    int32_t           l            = c4m_str_codepoint_len(s);
+    c4m_break_info_t *res          = c4m_alloc_break_structure(s, n);
+    int32_t           cur_start    = 0;
+    int32_t           last_ok_br   = 0;
+    int32_t           lb_ix        = 0;
+    int32_t           bo_ix        = 0;
+    int32_t           hard_wrap_ix = c4m_find_hwrap(s, 0, width);
+    int32_t           hang_width   = width - hang;
+    int32_t           next_lb;
 
     if (line_breaks->num_breaks == 0) {
         next_lb = l;

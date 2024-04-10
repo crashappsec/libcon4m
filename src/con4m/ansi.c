@@ -35,7 +35,7 @@ internal_char_render_width(c4m_codepoint_t cp)
 }
 
 static void
-ansi_render_style_start(uint64_t info, stream_t *outstream)
+ansi_render_style_start(uint64_t info, c4m_stream_t *outstream)
 {
     uint64_t remaining = (~C4M_STY_CLEAR_FLAGS) & info;
 
@@ -136,7 +136,7 @@ ansi_render_style_start(uint64_t info, stream_t *outstream)
 }
 
 static inline void
-ansi_render_style_end(stream_t *outstream)
+ansi_render_style_end(c4m_stream_t *outstream)
 {
     c4m_stream_putc(outstream, '\e');
     c4m_stream_putc(outstream, '[');
@@ -145,14 +145,14 @@ ansi_render_style_end(stream_t *outstream)
 }
 
 static inline void
-ansi_render_style_final(stream_t *outstream)
+ansi_render_style_final(c4m_stream_t *outstream)
 {
     c4m_stream_puts(outstream, "\e[0m\e[K");
     c4m_stream_flush(outstream);
 }
 
 static inline void
-ansi_render_one_codepoint_plain(c4m_codepoint_t cp, stream_t *outstream)
+ansi_render_one_codepoint_plain(c4m_codepoint_t cp, c4m_stream_t *outstream)
 {
     uint8_t tmp[4];
     int     len;
@@ -166,19 +166,19 @@ ansi_render_one_codepoint_plain(c4m_codepoint_t cp, stream_t *outstream)
 }
 
 static inline void
-ansi_render_one_codepoint_lower(c4m_codepoint_t cp, stream_t *outstream)
+ansi_render_one_codepoint_lower(c4m_codepoint_t cp, c4m_stream_t *outstream)
 {
     ansi_render_one_codepoint_plain(utf8proc_tolower(cp), outstream);
 }
 
 static inline void
-ansi_render_one_codepoint_upper(c4m_codepoint_t cp, stream_t *outstream)
+ansi_render_one_codepoint_upper(c4m_codepoint_t cp, c4m_stream_t *outstream)
 {
     ansi_render_one_codepoint_plain(utf8proc_toupper(cp), outstream);
 }
 
 static inline bool
-ansi_render_one_c4m_codepoint_title(c4m_codepoint_t cp, bool go_up, stream_t *outstream)
+ansi_render_one_c4m_codepoint_title(c4m_codepoint_t cp, bool go_up, c4m_stream_t *outstream)
 {
     if (go_up) {
         ansi_render_one_codepoint_upper(cp, outstream);
@@ -189,7 +189,7 @@ ansi_render_one_c4m_codepoint_title(c4m_codepoint_t cp, bool go_up, stream_t *ou
 }
 
 void
-c4m_utf8_ansi_render(const utf8_t *s, stream_t *outstream)
+c4m_utf8_ansi_render(const c4m_utf8_t *s, c4m_stream_t *outstream)
 {
     if (!s) {
         return;
@@ -322,11 +322,11 @@ c4m_utf8_ansi_render(const utf8_t *s, stream_t *outstream)
 // This will have to convert characters to utf-8, since terminals
 // generally do not support other encodings.
 static void
-ansi_render_u32_region(const utf32_t *s,
-                       int32_t        from,
-                       int32_t        to,
-                       c4m_style_t    style,
-                       stream_t      *outstream)
+ansi_render_u32_region(const c4m_utf32_t *s,
+                       int32_t            from,
+                       int32_t            to,
+                       c4m_style_t        style,
+                       c4m_stream_t      *outstream)
 {
     c4m_codepoint_t *p   = (c4m_codepoint_t *)(s->data);
     bool             cap = true;
@@ -362,10 +362,10 @@ ansi_render_u32_region(const utf32_t *s,
 }
 
 void
-c4m_utf32_ansi_render(const utf32_t *s,
-                      int32_t        start_ix,
-                      int32_t        end_ix,
-                      stream_t      *outstream)
+c4m_utf32_ansi_render(const c4m_utf32_t *s,
+                      int32_t            start_ix,
+                      int32_t            end_ix,
+                      c4m_stream_t      *outstream)
 {
     if (!s) {
         return;
@@ -419,7 +419,7 @@ c4m_utf32_ansi_render(const utf32_t *s,
 }
 
 void
-c4m_ansi_render(const any_str_t *s, stream_t *out)
+c4m_ansi_render(const c4m_str_t *s, c4m_stream_t *out)
 {
     if (!s) {
         return;
@@ -434,23 +434,23 @@ c4m_ansi_render(const any_str_t *s, stream_t *out)
 }
 
 void
-c4m_ansi_render_to_width(const any_str_t *s,
+c4m_ansi_render_to_width(const c4m_str_t *s,
                          int32_t          width,
                          int32_t          hang,
-                         stream_t        *out)
+                         c4m_stream_t    *out)
 {
     if (!s) {
         return;
     }
 
-    utf32_t *as_u32 = c4m_to_utf32(s);
-    int32_t  i;
+    c4m_utf32_t *as_u32 = c4m_to_utf32(s);
+    int32_t      i;
 
     if (width <= 0) {
         width = 20;
     }
 
-    break_info_t *line_starts = c4m_wrap_text(as_u32, width, hang);
+    c4m_break_info_t *line_starts = c4m_wrap_text(as_u32, width, hang);
 
     for (i = 0; i < line_starts->num_breaks - 1; i++) {
         c4m_utf32_ansi_render(as_u32,
@@ -469,7 +469,7 @@ c4m_ansi_render_to_width(const any_str_t *s,
 }
 
 static inline size_t
-internal_render_len_u32(const utf32_t *s)
+internal_render_len_u32(const c4m_utf32_t *s)
 {
     c4m_codepoint_t *p     = (c4m_codepoint_t *)s->data;
     int32_t          len   = c4m_str_codepoint_len(s);
@@ -483,7 +483,7 @@ internal_render_len_u32(const utf32_t *s)
 }
 
 static inline size_t
-internal_render_len_u8(const utf8_t *s)
+internal_render_len_u8(const c4m_utf8_t *s)
 {
     uint8_t        *p   = (uint8_t *)s->data;
     uint8_t        *end = p + s->byte_len;
@@ -499,7 +499,7 @@ internal_render_len_u8(const utf8_t *s)
 }
 
 size_t
-c4m_ansi_render_len(const any_str_t *s)
+c4m_ansi_render_len(const c4m_str_t *s)
 {
     if (!s) {
         return 0;

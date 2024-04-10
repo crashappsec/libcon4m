@@ -104,7 +104,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name      = "utf8",
         .typeid    = C4M_T_UTF8,
-        .alloc_len = sizeof(any_str_t),
+        .alloc_len = sizeof(c4m_str_t),
         .ptr_info  = (uint64_t *)c4m_pmap_str,
         .vtable    = &c4m_u8str_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
@@ -113,7 +113,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name      = "buffer",
         .typeid    = C4M_T_BUFFER,
-        .alloc_len = sizeof(buffer_t),
+        .alloc_len = sizeof(c4m_buf_t),
         .ptr_info  = (uint64_t *)c4m_pmap_first_word,
         .vtable    = &c4m_buffer_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
@@ -122,7 +122,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name      = "utf32",
         .typeid    = C4M_T_UTF32,
-        .alloc_len = sizeof(any_str_t),
+        .alloc_len = sizeof(c4m_str_t),
         .ptr_info  = (uint64_t *)c4m_pmap_str,
         .vtable    = &c4m_u32str_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
@@ -131,7 +131,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name      = "grid",
         .typeid    = C4M_T_GRID,
-        .alloc_len = sizeof(grid_t),
+        .alloc_len = sizeof(c4m_grid_t),
         .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_grid_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
@@ -149,7 +149,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name      = "tuple",
         .typeid    = C4M_T_TUPLE,
-        .alloc_len = sizeof(tuple_t),
+        .alloc_len = sizeof(c4m_tuple_t),
         .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_tuple_vtable,
         .dt_kind   = C4M_DT_KIND_tuple,
@@ -176,7 +176,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name      = "typespec",
         .typeid    = C4M_T_TYPESPEC,
-        .alloc_len = sizeof(type_spec_t),
+        .alloc_len = sizeof(c4m_type_t),
         .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_type_spec_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
@@ -281,7 +281,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name      = "renderable",
         .typeid    = C4M_T_RENDERABLE,
-        .alloc_len = sizeof(renderable_t),
+        .alloc_len = sizeof(c4m_renderable_t),
         .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_renderable_vtable,
         .dt_kind   = C4M_DT_KIND_internal,
@@ -290,7 +290,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name      = "xlist",
         .typeid    = C4M_T_XLIST,
-        .alloc_len = sizeof(xlist_t),
+        .alloc_len = sizeof(c4m_xlist_t),
         .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_xlist_vtable,
         .dt_kind   = C4M_DT_KIND_list,
@@ -308,7 +308,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name      = "hash",
         .typeid    = C4M_T_SHA,
-        .alloc_len = sizeof(sha_ctx),
+        .alloc_len = sizeof(c4m_sha_t),
         .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_sha_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
@@ -317,7 +317,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name      = "exception",
         .typeid    = C4M_T_EXCEPTION,
-        .alloc_len = sizeof(exception_t),
+        .alloc_len = sizeof(c4m_exception_t),
         .ptr_info  = (uint64_t *)&c4m_exception_pmap,
         .vtable    = &c4m_exception_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
@@ -326,7 +326,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name      = "type_env",
         .typeid    = C4M_T_TYPE_ENV,
-        .alloc_len = sizeof(type_env_t),
+        .alloc_len = sizeof(c4m_type_env_t),
         .ptr_info  = (uint64_t *)c4m_pmap_first_word,
         .vtable    = &c4m_type_env_vtable,
         .dt_kind   = C4M_DT_KIND_internal,
@@ -335,7 +335,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name      = "tree",
         .typeid    = C4M_T_TREE,
-        .alloc_len = sizeof(tree_node_t),
+        .alloc_len = sizeof(c4m_tree_node_t),
         .ptr_info  = GC_SCAN_ALL, // TODO: set to 6, 7, 8
         .vtable    = &c4m_tree_vtable,
         .dt_kind   = C4M_DT_KIND_list,
@@ -358,7 +358,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name      = "mixed",
         .typeid    = C4M_T_GENERIC,
-        .alloc_len = sizeof(mixed_t),
+        .alloc_len = sizeof(c4m_mixed_t),
         .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_mixed_vtable,
         .dt_kind   = C4M_DT_KIND_type_var,
@@ -367,7 +367,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name      = "stream",
         .typeid    = C4M_T_STREAM,
-        .alloc_len = sizeof(stream_t),
+        .alloc_len = sizeof(c4m_stream_t),
         .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_stream_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
@@ -383,11 +383,11 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     }};
 
-object_t
-_c4m_new(type_spec_t *type, ...)
+c4m_obj_t
+_c4m_new(c4m_type_t *type, ...)
 {
-    c4m_obj_t       *obj;
-    object_t         result;
+    c4m_base_obj_t  *obj;
+    c4m_obj_t        result;
     va_list          args;
     c4m_dt_info_t   *tinfo     = type->details->base_type;
     uint64_t         alloc_len = tinfo->alloc_len + sizeof(c4m_obj_t);
@@ -428,8 +428,8 @@ c4m_gc_ptr_info(c4m_builtin_t dtid)
 
 static const char *repr_err = "Held type does not have a __repr__ function.";
 
-any_str_t *
-c4m_value_obj_repr(object_t obj)
+c4m_str_t *
+c4m_value_obj_repr(c4m_obj_t obj)
 {
     // This does NOT work on direct values.
     c4m_repr_fn ptr = (c4m_repr_fn)c4m_vtable(obj)->methods[C4M_BI_TO_STR];
@@ -439,8 +439,8 @@ c4m_value_obj_repr(object_t obj)
     return (*ptr)(obj, C4M_REPR_VALUE);
 }
 
-any_str_t *
-c4m_repr(void *item, type_spec_t *t, to_str_use_t how)
+c4m_str_t *
+c4m_repr(void *item, c4m_type_t *t, to_str_use_t how)
 {
     uint64_t    x = c4m_tspec_get_data_type_info(t)->typeid;
     c4m_repr_fn p = (c4m_repr_fn)c4m_base_type_info[x].vtable->methods[C4M_BI_TO_STR];
@@ -452,8 +452,8 @@ c4m_repr(void *item, type_spec_t *t, to_str_use_t how)
     return (*p)(item, how);
 }
 
-object_t
-c4m_copy_object(object_t obj)
+c4m_obj_t
+c4m_copy_object(c4m_obj_t obj)
 {
     c4m_copy_fn ptr = (c4m_copy_fn)c4m_vtable(obj)->methods[C4M_BI_COPY];
 
@@ -464,8 +464,8 @@ c4m_copy_object(object_t obj)
     return (*ptr)(obj);
 }
 
-object_t
-c4m_add(object_t lhs, object_t rhs)
+c4m_obj_t
+c4m_add(c4m_obj_t lhs, c4m_obj_t rhs)
 {
     c4m_binop_fn ptr = (c4m_binop_fn)c4m_vtable(lhs)->methods[C4M_BI_ADD];
 
@@ -476,8 +476,8 @@ c4m_add(object_t lhs, object_t rhs)
     return (*ptr)(lhs, rhs);
 }
 
-object_t
-c4m_sub(object_t lhs, object_t rhs)
+c4m_obj_t
+c4m_sub(c4m_obj_t lhs, c4m_obj_t rhs)
 {
     c4m_binop_fn ptr = (c4m_binop_fn)c4m_vtable(lhs)->methods[C4M_BI_SUB];
 
@@ -488,8 +488,8 @@ c4m_sub(object_t lhs, object_t rhs)
     return (*ptr)(lhs, rhs);
 }
 
-object_t
-c4m_mul(object_t lhs, object_t rhs)
+c4m_obj_t
+c4m_mul(c4m_obj_t lhs, c4m_obj_t rhs)
 {
     c4m_binop_fn ptr = (c4m_binop_fn)c4m_vtable(lhs)->methods[C4M_BI_MUL];
 
@@ -500,8 +500,8 @@ c4m_mul(object_t lhs, object_t rhs)
     return (*ptr)(lhs, rhs);
 }
 
-object_t
-c4m_div(object_t lhs, object_t rhs)
+c4m_obj_t
+c4m_div(c4m_obj_t lhs, c4m_obj_t rhs)
 {
     c4m_binop_fn ptr = (c4m_binop_fn)c4m_vtable(lhs)->methods[C4M_BI_DIV];
 
@@ -512,8 +512,8 @@ c4m_div(object_t lhs, object_t rhs)
     return (*ptr)(lhs, rhs);
 }
 
-object_t
-c4m_mod(object_t lhs, object_t rhs)
+c4m_obj_t
+c4m_mod(c4m_obj_t lhs, c4m_obj_t rhs)
 {
     c4m_binop_fn ptr = (c4m_binop_fn)c4m_vtable(lhs)->methods[C4M_BI_MOD];
 
@@ -525,7 +525,7 @@ c4m_mod(object_t lhs, object_t rhs)
 }
 
 int64_t
-c4m_len(object_t container)
+c4m_len(c4m_obj_t container)
 {
     c4m_len_fn ptr = (c4m_len_fn)c4m_vtable(container)->methods[C4M_BI_LEN];
 
@@ -536,8 +536,8 @@ c4m_len(object_t container)
     return (*ptr)(container);
 }
 
-object_t
-c4m_index_get(object_t container, object_t index)
+c4m_obj_t
+c4m_index_get(c4m_obj_t container, c4m_obj_t index)
 {
     c4m_index_get_fn ptr;
 
@@ -551,7 +551,7 @@ c4m_index_get(object_t container, object_t index)
 }
 
 void
-c4m_index_set(object_t container, object_t index, object_t value)
+c4m_index_set(c4m_obj_t container, c4m_obj_t index, c4m_obj_t value)
 {
     c4m_index_set_fn ptr;
 
@@ -564,8 +564,8 @@ c4m_index_set(object_t container, object_t index, object_t value)
     (*ptr)(container, index, value);
 }
 
-object_t
-c4m_slice_get(object_t container, int64_t start, int64_t end)
+c4m_obj_t
+c4m_slice_get(c4m_obj_t container, int64_t start, int64_t end)
 {
     c4m_slice_get_fn ptr;
 
@@ -579,7 +579,7 @@ c4m_slice_get(object_t container, int64_t start, int64_t end)
 }
 
 void
-c4m_slice_set(object_t container, int64_t start, int64_t end, object_t o)
+c4m_slice_set(c4m_obj_t container, int64_t start, int64_t end, c4m_obj_t o)
 {
     c4m_slice_set_fn ptr;
 
@@ -593,7 +593,7 @@ c4m_slice_set(object_t container, int64_t start, int64_t end, object_t o)
 }
 
 bool
-c4m_can_coerce(type_spec_t *t1, type_spec_t *t2)
+c4m_can_coerce(c4m_type_t *t1, c4m_type_t *t2)
 {
     if (c4m_tspecs_are_compat(t1, t2)) {
         return true;
@@ -611,7 +611,7 @@ c4m_can_coerce(type_spec_t *t1, type_spec_t *t2)
 }
 
 void *
-c4m_coerce(void *data, type_spec_t *t1, type_spec_t *t2)
+c4m_coerce(void *data, c4m_type_t *t1, c4m_type_t *t2)
 {
     // TODO-- if it's not a primitive type in t1, we should
     // use data's type for extra precaution.
@@ -628,7 +628,7 @@ c4m_coerce(void *data, type_spec_t *t1, type_spec_t *t2)
 }
 
 bool
-c4m_eq(type_spec_t *t, object_t o1, object_t o2)
+c4m_eq(c4m_type_t *t, c4m_obj_t o1, c4m_obj_t o2)
 {
     c4m_dt_info_t *info = c4m_tspec_get_data_type_info(t);
     c4m_vtable_t  *vtbl = (c4m_vtable_t *)info->vtable;
@@ -642,7 +642,7 @@ c4m_eq(type_spec_t *t, object_t o1, object_t o2)
 }
 
 bool
-c4m_lt(type_spec_t *t, object_t o1, object_t o2)
+c4m_lt(c4m_type_t *t, c4m_obj_t o1, c4m_obj_t o2)
 {
     c4m_dt_info_t *info = c4m_tspec_get_data_type_info(t);
     c4m_vtable_t  *vtbl = (c4m_vtable_t *)info->vtable;
@@ -656,7 +656,7 @@ c4m_lt(type_spec_t *t, object_t o1, object_t o2)
 }
 
 bool
-c4m_gt(type_spec_t *t, object_t o1, object_t o2)
+c4m_gt(c4m_type_t *t, c4m_obj_t o1, c4m_obj_t o2)
 {
     c4m_dt_info_t *info = c4m_tspec_get_data_type_info(t);
     c4m_vtable_t  *vtbl = (c4m_vtable_t *)info->vtable;

@@ -8,7 +8,7 @@ typedef struct {
 } ipaddr_t;
 
 void
-ipaddr_set_address(ipaddr_t *obj, any_str_t *s, uint16_t port)
+ipaddr_set_address(ipaddr_t *obj, c4m_str_t *s, uint16_t port)
 {
     s = c4m_to_utf8(s);
 
@@ -29,7 +29,7 @@ ipaddr_set_address(ipaddr_t *obj, any_str_t *s, uint16_t port)
 static void
 ipaddr_init(ipaddr_t *obj, va_list args)
 {
-    any_str_t *address = NULL;
+    c4m_str_t *address = NULL;
     int32_t    port    = -1;
     bool       ipv6    = false;
 
@@ -56,7 +56,7 @@ ipaddr_init(ipaddr_t *obj, va_list args)
 // TODO: currently this isn't at all portable across platforms.
 // Too quick and dirty.
 static void
-ipaddr_marshal(ipaddr_t *obj, stream_t *s, dict_t *memos, int64_t *mid)
+ipaddr_marshal(ipaddr_t *obj, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 {
     c4m_marshal_u32(sizeof(struct sockaddr_in6), s);
     c4m_stream_raw_write(s, sizeof(struct sockaddr_in6), obj->addr);
@@ -65,7 +65,7 @@ ipaddr_marshal(ipaddr_t *obj, stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 static void
-ipaddr_unmarshal(ipaddr_t *obj, stream_t *s, dict_t *memos)
+ipaddr_unmarshal(ipaddr_t *obj, c4m_stream_t *s, dict_t *memos)
 {
     uint32_t struct_sz = c4m_unmarshal_u32(s);
 
@@ -78,7 +78,7 @@ ipaddr_unmarshal(ipaddr_t *obj, stream_t *s, dict_t *memos)
     obj->af   = c4m_unmarshal_i32(s);
 }
 
-static any_str_t *
+static c4m_str_t *
 ipaddr_repr(ipaddr_t *obj)
 {
     char buf[INET6_ADDRSTRLEN + 1] = {

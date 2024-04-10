@@ -25,11 +25,20 @@ c4m_gc_openssl()
 }
 
 static const EVP_MD init_map[2][3] = {
-    {EVP_sha256, EVP_sha384, EVP_sha512},
-    {EVP_sha3_256, EVP_sha3_384, EVP_sha3_512}};
+    {
+        EVP_sha256,
+        EVP_sha384,
+        EVP_sha512,
+    },
+    {
+        EVP_sha3_256,
+        EVP_sha3_384,
+        EVP_sha3_512,
+    },
+};
 
 void
-c4m_sha_init(sha_ctx *ctx, va_list args)
+c4m_sha_init(c4m_sha_t *ctx, va_list args)
 {
     int64_t version = 2;
     int64_t bits    = 256;
@@ -57,7 +66,7 @@ c4m_sha_init(sha_ctx *ctx, va_list args)
 }
 
 void
-c4m_sha_cc4m_str_update(sha_ctx *ctx, char *str)
+c4m_sha_cc4m_str_update(c4m_sha_t *ctx, char *str)
 {
     size_t len = strlen(str);
     if (len > 0) {
@@ -66,7 +75,7 @@ c4m_sha_cc4m_str_update(sha_ctx *ctx, char *str)
 }
 
 void
-c4m_sha_int_update(sha_ctx *ctx, uint64_t n)
+c4m_sha_int_update(c4m_sha_t *ctx, uint64_t n)
 {
     little_64(n);
     EVP_DigestUpdate(ctx->openssl_ctx, &n, sizeof(uint64_t));
@@ -76,7 +85,7 @@ c4m_sha_int_update(sha_ctx *ctx, uint64_t n)
 // we overestimate so that this doesn't seem nondeterministic when it
 // hashes extra 0's.
 void
-c4m_sha_string_update(sha_ctx *ctx, any_str_t *str)
+c4m_sha_string_update(c4m_sha_t *ctx, c4m_str_t *str)
 {
     int64_t len = c4m_str_byte_len(str);
 
@@ -86,7 +95,7 @@ c4m_sha_string_update(sha_ctx *ctx, any_str_t *str)
 }
 
 void
-c4m_sha_buffer_update(sha_ctx *ctx, buffer_t *buffer)
+c4m_sha_buffer_update(c4m_sha_t *ctx, c4m_buf_t *buffer)
 {
     int32_t len = buffer->byte_len;
     if (len > 1) {
@@ -94,12 +103,12 @@ c4m_sha_buffer_update(sha_ctx *ctx, buffer_t *buffer)
     }
 }
 
-buffer_t *
-c4m_sha_finish(sha_ctx *ctx)
+c4m_buf_t *
+c4m_sha_finish(c4m_sha_t *ctx)
 {
     EVP_DigestFinal_ex(ctx->openssl_ctx, ctx->digest->data, NULL);
-    buffer_t *result = ctx->digest;
-    ctx->digest      = NULL;
+    c4m_buf_t *result = ctx->digest;
+    ctx->digest       = NULL;
 
     return result;
 }

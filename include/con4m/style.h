@@ -26,13 +26,13 @@
 #define C4M_OFFSET_FG_GREEN 8
 #define C4M_OFFSET_FG_BLUE  0
 
-extern c4m_style_t c4m_apply_bg_color(c4m_style_t style, utf8_t *name);
-extern c4m_style_t c4m_apply_fg_color(c4m_style_t style, utf8_t *name);
-extern void        c4m_style_gaps(any_str_t *, c4m_style_t);
-extern void        c4m_str_layer_style(any_str_t *, c4m_style_t, c4m_style_t);
+extern c4m_style_t c4m_apply_bg_color(c4m_style_t style, c4m_utf8_t *name);
+extern c4m_style_t c4m_apply_fg_color(c4m_style_t style, c4m_utf8_t *name);
+extern void        c4m_style_gaps(c4m_str_t *, c4m_style_t);
+extern void        c4m_str_layer_style(c4m_str_t *, c4m_style_t, c4m_style_t);
 
 static inline void
-c4m_style_debug(char *prefix, const any_str_t *p)
+c4m_style_debug(char *prefix, const c4m_str_t *p)
 {
     if (!p)
         return;
@@ -69,13 +69,13 @@ c4m_style_size(uint64_t num_entries)
 }
 
 static inline size_t
-c4m_alloc_style_len(any_str_t *s)
+c4m_alloc_style_len(c4m_str_t *s)
 {
     return sizeof(c4m_style_info_t) + s->styling->num_entries * sizeof(c4m_style_entry_t);
 }
 
 static inline int64_t
-c4m_style_num_entries(any_str_t *s)
+c4m_style_num_entries(c4m_str_t *s)
 {
     if (s->styling == NULL) {
         return 0;
@@ -84,7 +84,7 @@ c4m_style_num_entries(any_str_t *s)
 }
 
 static inline void
-c4m_alloc_styles(any_str_t *s, int n)
+c4m_alloc_styles(c4m_str_t *s, int n)
 {
     if (n <= 0) {
         s->styling              = c4m_gc_flex_alloc(c4m_style_info_t,
@@ -103,7 +103,7 @@ c4m_alloc_styles(any_str_t *s, int n)
 }
 
 static inline void
-c4m_copy_style_info(const any_str_t *from_str, any_str_t *to_str)
+c4m_copy_style_info(const c4m_str_t *from_str, c4m_str_t *to_str)
 {
     if (from_str->styling == NULL) {
         return;
@@ -121,7 +121,7 @@ c4m_copy_style_info(const any_str_t *from_str, any_str_t *to_str)
 }
 
 static inline void
-c4m_str_set_style(any_str_t *s, c4m_style_t style)
+c4m_str_set_style(c4m_str_t *s, c4m_style_t style)
 {
     c4m_alloc_styles(s, 1);
     s->styling->styles[0].start = 0;
@@ -130,8 +130,8 @@ c4m_str_set_style(any_str_t *s, c4m_style_t style)
 }
 
 static inline int
-c4m_copy_and_offset_styles(any_str_t *from_str,
-                           any_str_t *to_str,
+c4m_copy_and_offset_styles(c4m_str_t *from_str,
+                           c4m_str_t *to_str,
                            int        dst_style_ix,
                            int        offset)
 {
@@ -157,7 +157,7 @@ c4m_copy_and_offset_styles(any_str_t *from_str,
 }
 
 static inline void
-c4m_str_apply_style(any_str_t *s, c4m_style_t style, bool replace)
+c4m_str_apply_style(c4m_str_t *s, c4m_style_t style, bool replace)
 {
     if (replace) {
         c4m_str_set_style(s, style);
@@ -310,7 +310,7 @@ c4m_remove_all_color(c4m_style_t style)
 // After the slice, remove dead styles.
 // This isn't being used, but it's a reasonable debugging tool.
 static inline void
-c4m_clean_styles(any_str_t *s)
+c4m_clean_styles(c4m_str_t *s)
 {
     if (!s->styling) {
         return;

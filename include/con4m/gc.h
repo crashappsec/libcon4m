@@ -112,7 +112,7 @@ extern void         c4m_arena_register_root(c4m_arena_t *,
                                             void *,
                                             uint64_t);
 extern void         c4m_gc_register_root(void *ptr, uint64_t num_words);
-extern _Bool        c4m_is_read_only_memory(volatile void *);
+extern bool         c4m_is_read_only_memory(volatile void *);
 
 // #define GC_TRACE
 #ifdef GC_TRACE

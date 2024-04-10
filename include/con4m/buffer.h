@@ -2,8 +2,8 @@
 
 #include "con4m.h"
 
-extern buffer_t *c4m_buffer_add(buffer_t *, buffer_t *);
-extern buffer_t *c4m_buffer_join(xlist_t *, buffer_t *);
-extern int64_t   c4m_buffer_len(buffer_t *);
-extern void      c4m_buffer_resize(buffer_t *, uint64_t);
-extern utf8_t   *c4m_buffer_to_utf8_string(buffer_t *);
+extern c4m_buf_t  *c4m_buffer_add(c4m_buf_t *, c4m_buf_t *);
+extern c4m_buf_t  *c4m_buffer_join(c4m_xlist_t *, c4m_buf_t *);
+extern int64_t     c4m_buffer_len(c4m_buf_t *);
+extern void        c4m_buffer_resize(c4m_buf_t *, uint64_t);
+extern c4m_utf8_t *c4m_c4m_buf_to_utf8_string(c4m_buf_t *);

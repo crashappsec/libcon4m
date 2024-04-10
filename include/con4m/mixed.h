@@ -1,8 +1,8 @@
 #pragma once
 #include "con4m.h"
 
-extern void c4m_mixed_set_value(mixed_t *, type_spec_t *, void **);
-extern void c4m_unbox_mixed(mixed_t *, type_spec_t *, void **);
+extern void c4m_mixed_set_value(c4m_mixed_t *, c4m_type_t *, void **);
+extern void c4m_unbox_mixed(c4m_mixed_t *, c4m_type_t *, void **);
 
 static inline void *
 c4m_double_to_ptr(double d)

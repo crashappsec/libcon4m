@@ -19,10 +19,13 @@
  * anything passed into this API until the process is done.
  */
 void
-c4m_subproc_init(subprocess_t *ctx, char *cmd, char *argv[], bool proxy_stdin_close)
+c4m_subproc_init(c4m_subproc_t *ctx,
+                 char          *cmd,
+                 char          *argv[],
+                 bool           proxy_stdin_close)
 {
-    memset(ctx, 0, sizeof(subprocess_t));
-    c4m_sb_init(&ctx->sb, DEFAULT_HEAP_SIZE);
+    memset(ctx, 0, sizeof(c4m_subproc_t));
+    c4m_sb_init(&ctx->sb, C4M_IO_HEAP_SZ);
     ctx->cmd               = cmd;
     ctx->argv              = argv;
     ctx->capture           = 0;
@@ -57,7 +60,7 @@ c4m_subproc_init(subprocess_t *ctx, char *cmd, char *argv[], bool proxy_stdin_cl
  * environment.
  */
 bool
-c4m_subproc_set_envp(subprocess_t *ctx, char *envp[])
+c4m_subproc_set_envp(c4m_subproc_t *ctx, char *envp[])
 {
     if (ctx->run) {
         return false;
@@ -76,10 +79,10 @@ c4m_subproc_set_envp(subprocess_t *ctx, char *envp[])
  * file descriptor hasn't been closed.
  */
 bool
-c4m_subproc_pass_to_stdin(subprocess_t *ctx,
-                          char         *str,
-                          size_t        len,
-                          bool          close_fd)
+c4m_subproc_pass_to_stdin(c4m_subproc_t *ctx,
+                          char          *str,
+                          size_t         len,
+                          bool           close_fd)
 {
     if (ctx->str_waiting || ctx->sb.done) {
         return false;
@@ -118,21 +121,22 @@ c4m_subproc_pass_to_stdin(subprocess_t *ctx,
  * The `which` parameter should be some combination of the following
  * flags:
  *
- * SP_IO_STDIN   (what you type goes to subproc stdin)
- * SP_IO_STDOUT  (subproc's stdout gets written to your stdout)
- * SP_IO_STDERR
+ * C4M_SP_IO_STDIN   (what you type goes to subproc stdin)
+ * C4M_SP_IO_STDOUT  (subproc's stdout gets written to your stdout)
+ * C4M_SP_IO_STDERR
  *
- * SP_IO_ALL proxies everything. It's fine to use this even if no pty is used.
+ * C4M_SP_IO_ALL proxies everything.
+ * It's fine to use this even if no pty is used.
  *
  * If `combine` is true, then all subproc output for any proxied streams
  * will go to STDOUT.
  */
 bool
-c4m_subproc_set_passthrough(subprocess_t *ctx,
-                            unsigned char which,
-                            bool          combine)
+c4m_subproc_set_passthrough(c4m_subproc_t *ctx,
+                            unsigned char  which,
+                            bool           combine)
 {
-    if (ctx->run || which > SP_IO_ALL) {
+    if (ctx->run || which > C4M_SP_IO_ALL) {
         return false;
     }
 
@@ -150,20 +154,21 @@ c4m_subproc_set_passthrough(subprocess_t *ctx,
  * The `which` parameter should be some combination of the following
  * flags:
  *
- * SP_IO_STDIN   (what you type); reference for string is "stdin"
- * SP_IO_STDOUT  reference for string is "stdout"
- * SP_IO_STDERR  reference for string is "stderr"
+ * C4M_SP_IO_STDIN   (what you type); reference for string is "stdin"
+ * C4M_SP_IO_STDOUT  reference for string is "stdout"
+ * C4M_SP_IO_STDERR  reference for string is "stderr"
  *
- * SP_IO_ALL captures everything. It's fine to use this even if no pty is used.
+ * C4M_SP_IO_ALL captures everything.
+ It's fine to use this even if no pty is used.
  *
  * If `combine` is true, then all subproc output for any streams will
- * be combined into "stdout".  Retrieve from the `sb_result_t` object
+ * be combined into "stdout".  Retrieve from the `c4m_capture_result_t` object
  * returned from `c4m_subproc_run()`, using the sp_result_...() api.
  */
 bool
-c4m_subproc_set_capture(subprocess_t *ctx, unsigned char which, bool combine)
+c4m_subproc_set_capture(c4m_subproc_t *ctx, unsigned char which, bool combine)
 {
-    if (ctx->run || which > SP_IO_ALL) {
+    if (ctx->run || which > C4M_SP_IO_ALL) {
         return false;
     }
 
@@ -174,15 +179,15 @@ c4m_subproc_set_capture(subprocess_t *ctx, unsigned char which, bool combine)
 }
 
 bool
-c4m_subproc_set_io_callback(subprocess_t    *ctx,
-                            unsigned char    which,
-                            switchboard_cb_t cb)
+c4m_subproc_set_io_callback(c4m_subproc_t *ctx,
+                            unsigned char  which,
+                            c4m_sb_cb_t    cb)
 {
-    if (ctx->run || which > SP_IO_ALL) {
+    if (ctx->run || which > C4M_SP_IO_ALL) {
         return false;
     }
 
-    deferred_cb_t *cbinfo = (deferred_cb_t *)malloc(sizeof(deferred_cb_t));
+    c4m_deferred_cb_t *cbinfo = malloc(sizeof(c4m_deferred_cb_t));
 
     cbinfo->next  = ctx->deferred_cbs;
     cbinfo->which = which;
@@ -208,7 +213,7 @@ c4m_subproc_set_io_callback(subprocess_t    *ctx,
  * switchboard will exit.
  */
 void
-c4m_subproc_set_timeout(subprocess_t *ctx, struct timeval *timeout)
+c4m_subproc_set_timeout(c4m_subproc_t *ctx, struct timeval *timeout)
 {
     c4m_sb_set_io_timeout(&ctx->sb, timeout);
 }
@@ -217,7 +222,7 @@ c4m_subproc_set_timeout(subprocess_t *ctx, struct timeval *timeout)
  * Removes any set timeout.
  */
 void
-c4m_subproc_clear_timeout(subprocess_t *ctx)
+c4m_subproc_clear_timeout(c4m_subproc_t *ctx)
 {
     c4m_sb_clear_io_timeout(&ctx->sb);
 }
@@ -227,7 +232,7 @@ c4m_subproc_clear_timeout(subprocess_t *ctx)
  * a pseudo-terminal.
  */
 bool
-c4m_subproc_use_pty(subprocess_t *ctx)
+c4m_subproc_use_pty(c4m_subproc_t *ctx)
 {
     if (ctx->run) {
         return false;
@@ -237,20 +242,20 @@ c4m_subproc_use_pty(subprocess_t *ctx)
 }
 
 bool
-c4m_subproc_set_startup_callback(subprocess_t *ctx, void (*cb)(void *))
+c4m_subproc_set_startup_callback(c4m_subproc_t *ctx, void (*cb)(void *))
 {
     ctx->startup_callback = cb;
     return true;
 }
 
 int
-c4m_subproc_get_pty_fd(subprocess_t *ctx)
+c4m_subproc_get_pty_fd(c4m_subproc_t *ctx)
 {
     return ctx->pty_fd;
 }
 
 void
-c4m_subproc_pause_passthrough(subprocess_t *ctx, unsigned char which)
+c4m_subproc_pause_passthrough(c4m_subproc_t *ctx, unsigned char which)
 {
     /*
      * Since there's no real consequence to trying to pause a
@@ -261,25 +266,35 @@ c4m_subproc_pause_passthrough(subprocess_t *ctx, unsigned char which)
      * combined or not here..
      */
 
-    if (which & SP_IO_STDIN) {
+    if (which & C4M_SP_IO_STDIN) {
         if (ctx->pty_fd) {
-            c4m_sb_pause_route(&ctx->sb, &ctx->parent_stdin, &ctx->subproc_stdout);
+            c4m_sb_pause_route(&ctx->sb,
+                               &ctx->parent_stdin,
+                               &ctx->subproc_stdout);
         }
         else {
-            c4m_sb_pause_route(&ctx->sb, &ctx->parent_stdin, &ctx->subproc_stdin);
+            c4m_sb_pause_route(&ctx->sb,
+                               &ctx->parent_stdin,
+                               &ctx->subproc_stdin);
         }
     }
-    if (which & SP_IO_STDOUT) {
-        c4m_sb_pause_route(&ctx->sb, &ctx->subproc_stdout, &ctx->parent_stdout);
+    if (which & C4M_SP_IO_STDOUT) {
+        c4m_sb_pause_route(&ctx->sb,
+                           &ctx->subproc_stdout,
+                           &ctx->parent_stdout);
     }
-    if (!ctx->pty_fd && (which & SP_IO_STDERR)) {
-        c4m_sb_pause_route(&ctx->sb, &ctx->subproc_stderr, &ctx->parent_stdout);
-        c4m_sb_pause_route(&ctx->sb, &ctx->subproc_stderr, &ctx->parent_stderr);
+    if (!ctx->pty_fd && (which & C4M_SP_IO_STDERR)) {
+        c4m_sb_pause_route(&ctx->sb,
+                           &ctx->subproc_stderr,
+                           &ctx->parent_stdout);
+        c4m_sb_pause_route(&ctx->sb,
+                           &ctx->subproc_stderr,
+                           &ctx->parent_stderr);
     }
 }
 
 void
-c4m_subproc_resume_passthrough(subprocess_t *ctx, unsigned char which)
+c4m_subproc_resume_passthrough(c4m_subproc_t *ctx, unsigned char which)
 {
     /*
      * Since there's no real consequence to trying to pause a
@@ -290,129 +305,163 @@ c4m_subproc_resume_passthrough(subprocess_t *ctx, unsigned char which)
      * combined or not here..
      */
 
-    if (which & SP_IO_STDIN) {
+    if (which & C4M_SP_IO_STDIN) {
         if (ctx->pty_fd) {
-            c4m_sb_resume_route(&ctx->sb, &ctx->parent_stdin, &ctx->subproc_stdout);
+            c4m_sb_resume_route(&ctx->sb,
+                                &ctx->parent_stdin,
+                                &ctx->subproc_stdout);
         }
         else {
-            c4m_sb_resume_route(&ctx->sb, &ctx->parent_stdin, &ctx->subproc_stdin);
+            c4m_sb_resume_route(&ctx->sb,
+                                &ctx->parent_stdin,
+                                &ctx->subproc_stdin);
         }
     }
-    if (which & SP_IO_STDOUT) {
-        c4m_sb_resume_route(&ctx->sb, &ctx->subproc_stdout, &ctx->parent_stdout);
+    if (which & C4M_SP_IO_STDOUT) {
+        c4m_sb_resume_route(&ctx->sb,
+                            &ctx->subproc_stdout,
+                            &ctx->parent_stdout);
     }
-    if (!ctx->pty_fd && (which & SP_IO_STDERR)) {
-        c4m_sb_resume_route(&ctx->sb, &ctx->subproc_stderr, &ctx->parent_stdout);
-        c4m_sb_resume_route(&ctx->sb, &ctx->subproc_stderr, &ctx->parent_stderr);
-    }
-}
-
-void
-c4m_subproc_pause_capture(subprocess_t *ctx, unsigned char which)
-{
-    if (which & SP_IO_STDIN) {
-        c4m_sb_pause_route(&ctx->sb, &ctx->parent_stdin, &ctx->capture_stdin);
-    }
-
-    if (which & SP_IO_STDOUT) {
-        c4m_sb_pause_route(&ctx->sb, &ctx->subproc_stdout, &ctx->capture_stdout);
-    }
-
-    if ((which & SP_IO_STDERR) && !ctx->pty_fd) {
-        c4m_sb_pause_route(&ctx->sb, &ctx->subproc_stderr, &ctx->capture_stdout);
-        c4m_sb_pause_route(&ctx->sb, &ctx->subproc_stderr, &ctx->capture_stderr);
+    if (!ctx->pty_fd && (which & C4M_SP_IO_STDERR)) {
+        c4m_sb_resume_route(&ctx->sb,
+                            &ctx->subproc_stderr,
+                            &ctx->parent_stdout);
+        c4m_sb_resume_route(&ctx->sb,
+                            &ctx->subproc_stderr,
+                            &ctx->parent_stderr);
     }
 }
 
 void
-c4m_subproc_resume_capture(subprocess_t *ctx, unsigned char which)
+c4m_subproc_pause_capture(c4m_subproc_t *ctx, unsigned char which)
 {
-    if (which & SP_IO_STDIN) {
-        c4m_sb_resume_route(&ctx->sb, &ctx->parent_stdin, &ctx->capture_stdin);
+    if (which & C4M_SP_IO_STDIN) {
+        c4m_sb_pause_route(&ctx->sb,
+                           &ctx->parent_stdin,
+                           &ctx->capture_stdin);
     }
 
-    if (which & SP_IO_STDOUT) {
-        c4m_sb_resume_route(&ctx->sb, &ctx->subproc_stdout, &ctx->capture_stdout);
+    if (which & C4M_SP_IO_STDOUT) {
+        c4m_sb_pause_route(&ctx->sb,
+                           &ctx->subproc_stdout,
+                           &ctx->capture_stdout);
     }
 
-    if ((which & SP_IO_STDERR) && !ctx->pty_fd) {
-        c4m_sb_resume_route(&ctx->sb, &ctx->subproc_stderr, &ctx->capture_stdout);
-        c4m_sb_resume_route(&ctx->sb, &ctx->subproc_stderr, &ctx->capture_stderr);
+    if ((which & C4M_SP_IO_STDERR) && !ctx->pty_fd) {
+        c4m_sb_pause_route(&ctx->sb,
+                           &ctx->subproc_stderr,
+                           &ctx->capture_stdout);
+        c4m_sb_pause_route(&ctx->sb,
+                           &ctx->subproc_stderr,
+                           &ctx->capture_stderr);
+    }
+}
+
+void
+c4m_subproc_resume_capture(c4m_subproc_t *ctx, unsigned char which)
+{
+    if (which & C4M_SP_IO_STDIN) {
+        c4m_sb_resume_route(&ctx->sb,
+                            &ctx->parent_stdin,
+                            &ctx->capture_stdin);
+    }
+
+    if (which & C4M_SP_IO_STDOUT) {
+        c4m_sb_resume_route(&ctx->sb,
+                            &ctx->subproc_stdout,
+                            &ctx->capture_stdout);
+    }
+
+    if ((which & C4M_SP_IO_STDERR) && !ctx->pty_fd) {
+        c4m_sb_resume_route(&ctx->sb,
+                            &ctx->subproc_stderr,
+                            &ctx->capture_stdout);
+        c4m_sb_resume_route(&ctx->sb,
+                            &ctx->subproc_stderr,
+                            &ctx->capture_stderr);
     }
 }
 
 static void
-setup_subscriptions(subprocess_t *ctx, bool pty)
+setup_subscriptions(c4m_subproc_t *ctx, bool pty)
 {
-    party_t *stderr_dst = &ctx->parent_stderr;
+    c4m_party_t *stderr_dst = &ctx->parent_stderr;
 
     if (ctx->pt_all_to_stdout) {
         stderr_dst = &ctx->parent_stdout;
     }
 
     if (ctx->passthrough) {
-        if (ctx->passthrough & SP_IO_STDIN) {
+        if (ctx->passthrough & C4M_SP_IO_STDIN) {
             if (pty) {
                 // in pty, ctx->subproc_stdout is the same FD used for stdin
                 // as its the same r/w FD for both
-                c4m_sb_route(&ctx->sb, &ctx->parent_stdin, &ctx->subproc_stdout);
+                c4m_sb_route(&ctx->sb,
+                             &ctx->parent_stdin,
+                             &ctx->subproc_stdout);
             }
             else {
-                c4m_sb_route(&ctx->sb, &ctx->parent_stdin, &ctx->subproc_stdin);
+                c4m_sb_route(&ctx->sb,
+                             &ctx->parent_stdin,
+                             &ctx->subproc_stdin);
             }
         }
-        if (ctx->passthrough & SP_IO_STDOUT) {
-            c4m_sb_route(&ctx->sb, &ctx->subproc_stdout, &ctx->parent_stdout);
+        if (ctx->passthrough & C4M_SP_IO_STDOUT) {
+            c4m_sb_route(&ctx->sb,
+                         &ctx->subproc_stdout,
+                         &ctx->parent_stdout);
         }
-        if (!pty && ctx->passthrough & SP_IO_STDERR) {
-            c4m_sb_route(&ctx->sb, &ctx->subproc_stderr, stderr_dst);
+        if (!pty && ctx->passthrough & C4M_SP_IO_STDERR) {
+            c4m_sb_route(&ctx->sb,
+                         &ctx->subproc_stderr,
+                         stderr_dst);
         }
     }
 
     if (ctx->capture) {
-        if (ctx->capture & SP_IO_STDIN) {
+        if (ctx->capture & C4M_SP_IO_STDIN) {
             c4m_sb_init_party_output_buf(&ctx->sb,
                                          &ctx->capture_stdin,
                                          "stdin",
-                                         CAP_ALLOC);
+                                         C4M_CAP_ALLOC);
         }
-        if (ctx->capture & SP_IO_STDOUT) {
+        if (ctx->capture & C4M_SP_IO_STDOUT) {
             c4m_sb_init_party_output_buf(&ctx->sb,
                                          &ctx->capture_stdout,
                                          "stdout",
-                                         CAP_ALLOC);
+                                         C4M_CAP_ALLOC);
         }
 
         if (ctx->combine_captures) {
-            if (!(ctx->capture & SP_IO_STDOUT) && ctx->capture & SP_IO_STDERR) {
-                if (ctx->capture & SP_IO_STDOUT) {
+            if (!(ctx->capture & C4M_SP_IO_STDOUT) && ctx->capture & C4M_SP_IO_STDERR) {
+                if (ctx->capture & C4M_SP_IO_STDOUT) {
                     c4m_sb_init_party_output_buf(&ctx->sb,
                                                  &ctx->capture_stdout,
                                                  "stdout",
-                                                 CAP_ALLOC);
+                                                 C4M_CAP_ALLOC);
                 }
             }
 
             stderr_dst = &ctx->capture_stdout;
         }
         else {
-            if (!pty && ctx->capture & SP_IO_STDERR) {
+            if (!pty && ctx->capture & C4M_SP_IO_STDERR) {
                 c4m_sb_init_party_output_buf(&ctx->sb,
                                              &ctx->capture_stderr,
                                              "stderr",
-                                             CAP_ALLOC);
+                                             C4M_CAP_ALLOC);
             }
 
             stderr_dst = &ctx->capture_stderr;
         }
 
-        if (ctx->capture & SP_IO_STDIN) {
+        if (ctx->capture & C4M_SP_IO_STDIN) {
             c4m_sb_route(&ctx->sb, &ctx->parent_stdin, &ctx->capture_stdin);
         }
-        if (ctx->capture & SP_IO_STDOUT) {
+        if (ctx->capture & C4M_SP_IO_STDOUT) {
             c4m_sb_route(&ctx->sb, &ctx->subproc_stdout, &ctx->capture_stdout);
         }
-        if (!pty && ctx->capture & SP_IO_STDERR) {
+        if (!pty && ctx->capture & C4M_SP_IO_STDERR) {
             c4m_sb_route(&ctx->sb, &ctx->subproc_stderr, stderr_dst);
         }
     }
@@ -427,7 +476,7 @@ setup_subscriptions(subprocess_t *ctx, bool pty)
 }
 
 static void
-c4m_subproc_do_exec(subprocess_t *ctx)
+c4m_subproc_do_exec(c4m_subproc_t *ctx)
 {
     if (ctx->envp) {
         execve(ctx->cmd, ctx->argv, ctx->envp);
@@ -440,29 +489,29 @@ c4m_subproc_do_exec(subprocess_t *ctx)
     abort();
 }
 
-party_t *
-c4m_subproc_new_party_callback(switchboard_t *ctx, switchboard_cb_t cb)
+c4m_party_t *
+c4m_subproc_new_party_callback(c4m_switchboard_t *ctx, c4m_sb_cb_t cb)
 {
-    party_t *result = (party_t *)calloc(sizeof(party_t), 1);
+    c4m_party_t *result = (c4m_party_t *)calloc(sizeof(c4m_party_t), 1);
     c4m_sb_init_party_callback(ctx, result, cb);
 
     return result;
 }
 
 static void
-c4m_subproc_install_callbacks(subprocess_t *ctx)
+c4m_subproc_install_callbacks(c4m_subproc_t *ctx)
 {
-    deferred_cb_t *entry = ctx->deferred_cbs;
+    c4m_deferred_cb_t *entry = ctx->deferred_cbs;
 
     while (entry) {
         entry->to_free = c4m_subproc_new_party_callback(&ctx->sb, entry->cb);
-        if (entry->which & SP_IO_STDIN) {
+        if (entry->which & C4M_SP_IO_STDIN) {
             c4m_sb_route(&ctx->sb, &ctx->parent_stdin, entry->to_free);
         }
-        if (entry->which & SP_IO_STDOUT) {
+        if (entry->which & C4M_SP_IO_STDOUT) {
             c4m_sb_route(&ctx->sb, &ctx->subproc_stdout, entry->to_free);
         }
-        if (entry->which & SP_IO_STDERR) {
+        if (entry->which & C4M_SP_IO_STDERR) {
             c4m_sb_route(&ctx->sb, &ctx->subproc_stderr, entry->to_free);
         }
         entry = entry->next;
@@ -470,7 +519,7 @@ c4m_subproc_install_callbacks(subprocess_t *ctx)
 }
 
 static void
-run_startup_callback(subprocess_t *ctx)
+run_startup_callback(c4m_subproc_t *ctx)
 {
     if (ctx->startup_callback) {
         (*ctx->startup_callback)(ctx);
@@ -478,7 +527,7 @@ run_startup_callback(subprocess_t *ctx)
 }
 
 static void
-c4m_subproc_spawn_fork(subprocess_t *ctx)
+c4m_subproc_spawn_fork(c4m_subproc_t *ctx)
 {
     pid_t pid;
     int   stdin_pipe[2];
@@ -541,7 +590,7 @@ c4m_subproc_spawn_fork(subprocess_t *ctx)
 }
 
 static void
-c4m_subproc_spawn_forkpty(subprocess_t *ctx)
+c4m_subproc_spawn_forkpty(c4m_subproc_t *ctx)
 {
     struct winsize  wininfo;
     struct termios *term_ptr = ctx->child_termcap;
@@ -653,7 +702,7 @@ c4m_subproc_spawn_forkpty(subprocess_t *ctx)
  * If you use this, call c4m_subproc_poll() until it returns false
  */
 void
-c4m_subproc_start(subprocess_t *ctx)
+c4m_subproc_start(c4m_subproc_t *ctx)
 {
     if (ctx->use_pty) {
         c4m_subproc_spawn_forkpty(ctx);
@@ -669,7 +718,7 @@ c4m_subproc_start(subprocess_t *ctx)
  * c4m_subproc_run, don't use this interface!
  */
 bool
-c4m_subproc_poll(subprocess_t *ctx)
+c4m_subproc_poll(c4m_subproc_t *ctx)
 {
     return c4m_sb_operate_switchboard(&ctx->sb, false);
 }
@@ -682,14 +731,14 @@ c4m_subproc_poll(subprocess_t *ctx)
  * The results can be queried via the `c4m_subproc_get_*()` API.
  */
 void
-c4m_subproc_run(subprocess_t *ctx)
+c4m_subproc_run(c4m_subproc_t *ctx)
 {
     c4m_subproc_start(ctx);
     c4m_sb_operate_switchboard(&ctx->sb, true);
 }
 
 void
-c4m_subproc_reset_terminal(subprocess_t *ctx)
+c4m_subproc_reset_terminal(c4m_subproc_t *ctx)
 {
     // Post-run cleanup.
     if (ctx->use_pty) {
@@ -698,22 +747,22 @@ c4m_subproc_reset_terminal(subprocess_t *ctx)
 }
 /*
  * This destroys any allocated memory inside a `subproc` object.  You
- * should *not* call this until you're done with the `sb_result_t`
+ * should *not* call this until you're done with the `c4m_capture_result_t`
  * object, as any dynamic memory (like string captures) that you
  * haven't taken ownership of will get freed when you call this.
  *
- * This call *will* destroy to sb_result_t object.
+ * This call *will* destroy to c4m_capture_result_t object.
  *
- * However, this does *not* free the `subprocess_t` object itself.
+ * However, this does *not* free the `c4m_subproc_t` object itself.
  */
 void
-c4m_subproc_close(subprocess_t *ctx)
+c4m_subproc_close(c4m_subproc_t *ctx)
 {
     c4m_subproc_reset_terminal(ctx);
     c4m_sb_destroy(&ctx->sb, false);
 
-    deferred_cb_t *cbs = ctx->deferred_cbs;
-    deferred_cb_t *next;
+    c4m_deferred_cb_t *cbs = ctx->deferred_cbs;
+    c4m_deferred_cb_t *next;
 
     while (cbs) {
         next = cbs->next;
@@ -728,9 +777,9 @@ c4m_subproc_close(subprocess_t *ctx)
  * subprocess hasn't been launched.
  */
 pid_t
-c4m_subproc_get_pid(subprocess_t *ctx)
+c4m_subproc_get_pid(c4m_subproc_t *ctx)
 {
-    monitor_t *subproc = ctx->sb.pid_watch_list;
+    c4m_monitor_t *subproc = ctx->sb.pid_watch_list;
 
     if (!subproc) {
         return -1;
@@ -747,7 +796,7 @@ c4m_subproc_get_pid(subprocess_t *ctx)
  * `malloc()` and you will be responsible for calling `free()`.
  */
 char *
-c4m_sp_result_capture(sp_result_t *ctx, char *tag, size_t *outlen)
+c4m_sp_result_capture(c4m_capture_result_t *ctx, char *tag, size_t *outlen)
 {
     for (int i = 0; i < ctx->num_captures; i++) {
         if (!strcmp(tag, ctx->captures[i].tag)) {
@@ -761,16 +810,16 @@ c4m_sp_result_capture(sp_result_t *ctx, char *tag, size_t *outlen)
 }
 
 char *
-c4m_subproc_get_capture(subprocess_t *ctx, char *tag, size_t *outlen)
+c4m_subproc_get_capture(c4m_subproc_t *ctx, char *tag, size_t *outlen)
 {
     c4m_sb_get_results(&ctx->sb, &ctx->result);
     return c4m_sp_result_capture(&ctx->result, tag, outlen);
 }
 
 int
-c4m_subproc_get_exit(subprocess_t *ctx, bool wait_for_exit)
+c4m_subproc_get_exit(c4m_subproc_t *ctx, bool wait_for_exit)
 {
-    monitor_t *subproc = ctx->sb.pid_watch_list;
+    c4m_monitor_t *subproc = ctx->sb.pid_watch_list;
 
     if (!subproc) {
         return -1;
@@ -781,9 +830,9 @@ c4m_subproc_get_exit(subprocess_t *ctx, bool wait_for_exit)
 }
 
 int
-c4m_subproc_get_errno(subprocess_t *ctx, bool wait_for_exit)
+c4m_subproc_get_errno(c4m_subproc_t *ctx, bool wait_for_exit)
 {
-    monitor_t *subproc = ctx->sb.pid_watch_list;
+    c4m_monitor_t *subproc = ctx->sb.pid_watch_list;
 
     if (!subproc) {
         return -1;
@@ -794,9 +843,9 @@ c4m_subproc_get_errno(subprocess_t *ctx, bool wait_for_exit)
 }
 
 int
-c4m_subproc_get_signal(subprocess_t *ctx, bool wait_for_exit)
+c4m_subproc_get_signal(c4m_subproc_t *ctx, bool wait_for_exit)
 {
-    monitor_t *subproc = ctx->sb.pid_watch_list;
+    c4m_monitor_t *subproc = ctx->sb.pid_watch_list;
 
     if (!subproc) {
         return -1;
@@ -807,32 +856,35 @@ c4m_subproc_get_signal(subprocess_t *ctx, bool wait_for_exit)
 }
 
 void
-c4m_subproc_set_parent_termcap(subprocess_t *ctx, struct termios *tc)
+c4m_subproc_set_parent_termcap(c4m_subproc_t *ctx, struct termios *tc)
 {
     ctx->parent_termcap = tc;
 }
 
 void
-c4m_subproc_set_child_termcap(subprocess_t *ctx, struct termios *tc)
+c4m_subproc_set_child_termcap(c4m_subproc_t *ctx, struct termios *tc)
 {
     ctx->child_termcap = tc;
 }
 
 void
-c4m_subproc_set_extra(subprocess_t *ctx, void *extra)
+c4m_subproc_set_extra(c4m_subproc_t *ctx, void *extra)
 {
     c4m_sb_set_extra(&ctx->sb, extra);
 }
 
 void *
-c4m_subproc_get_extra(subprocess_t *ctx)
+c4m_subproc_get_extra(c4m_subproc_t *ctx)
 {
     return c4m_sb_get_extra(&ctx->sb);
 }
 
-#ifdef c4m_SB_TEST
+#ifdef C4M_SB_TEST
 void
-c4m_capture_tty_data(switchboard_t *sb, party_t *party, char *data, size_t len)
+c4m_capture_tty_data(c4m_switchboard_t *sb,
+                     c4m_party_t       *party,
+                     char              *data,
+                     size_t             len)
 {
     printf("Callback got %d bytes from fd %d\n", len, c4m_sb_party_fd(party));
 }
@@ -840,18 +892,18 @@ c4m_capture_tty_data(switchboard_t *sb, party_t *party, char *data, size_t len)
 int
 test1()
 {
-    char          *cmd    = "/bin/cat";
-    char          *args[] = {"/bin/cat", "../aes.nim", 0};
-    subprocess_t   ctx;
-    sb_result_t   *result;
-    struct timeval timeout = {.tv_sec = 0, .tv_usec = 1000};
+    char                 *cmd    = "/bin/cat";
+    char                 *args[] = {"/bin/cat", "../aes.nim", 0};
+    c4m_subproc_t         ctx;
+    c4m_capture_result_t *result;
+    struct timeval        timeout = {.tv_sec = 0, .tv_usec = 1000};
 
     c4m_subproc_init(&ctx, cmd, args, true);
     c4m_subproc_use_pty(&ctx);
-    c4m_subproc_set_passthrough(&ctx, SP_IO_ALL, false);
-    c4m_subproc_set_capture(&ctx, SP_IO_ALL, false);
+    c4m_subproc_set_passthrough(&ctx, C4M_SP_IO_ALL, false);
+    c4m_subproc_set_capture(&ctx, C4M_SP_IO_ALL, false);
     c4m_subproc_set_timeout(&ctx, &timeout);
-    c4m_subproc_set_io_callback(&ctx, SP_IO_STDOUT, capture_tty_data);
+    c4m_subproc_set_io_callback(&ctx, C4M_SP_IO_STDOUT, capture_tty_data);
 
     result = c4m_subproc_run(&ctx);
 
@@ -874,16 +926,16 @@ test2()
     char *cmd    = "/bin/cat";
     char *args[] = {"/bin/cat", "-", 0};
 
-    subprocess_t   ctx;
-    sb_result_t   *result;
-    struct timeval timeout = {.tv_sec = 0, .tv_usec = 1000};
+    c4m_subproc_t         ctx;
+    c4m_capture_result_t *result;
+    struct timeval        timeout = {.tv_sec = 0, .tv_usec = 1000};
 
     c4m_subproc_init(&ctx, cmd, args, true);
-    c4m_subproc_set_passthrough(&ctx, SP_IO_ALL, false);
-    c4m_subproc_set_capture(&ctx, SP_IO_ALL, false);
+    c4m_subproc_set_passthrough(&ctx, C4M_SP_IO_ALL, false);
+    c4m_subproc_set_capture(&ctx, C4M_SP_IO_ALL, false);
     c4m_subproc_pass_to_stdin(&ctx, test_txt, strlen(test_txt), true);
     c4m_subproc_set_timeout(&ctx, &timeout);
-    c4m_subproc_set_io_callback(&ctx, SP_IO_STDOUT, capture_tty_data);
+    c4m_subproc_set_io_callback(&ctx, C4M_SP_IO_STDOUT, capture_tty_data);
 
     result = c4m_subproc_run(&ctx);
 
@@ -903,18 +955,18 @@ test2()
 int
 test3()
 {
-    char          *cmd    = "/usr/bin/less";
-    char          *args[] = {"/usr/bin/less", "../aes.nim", 0};
-    subprocess_t   ctx;
-    sb_result_t   *result;
-    struct timeval timeout = {.tv_sec = 0, .tv_usec = 1000};
+    char                 *cmd    = "/usr/bin/less";
+    char                 *args[] = {"/usr/bin/less", "../aes.nim", 0};
+    c4m_subproc_t         ctx;
+    c4m_capture_result_t *result;
+    struct timeval        timeout = {.tv_sec = 0, .tv_usec = 1000};
 
     c4m_subproc_init(&ctx, cmd, args, true);
     c4m_subproc_use_pty(&ctx);
-    c4m_subproc_set_passthrough(&ctx, SP_IO_ALL, false);
-    c4m_subproc_set_capture(&ctx, SP_IO_ALL, false);
+    c4m_subproc_set_passthrough(&ctx, C4M_SP_IO_ALL, false);
+    c4m_subproc_set_capture(&ctx, C4M_SP_IO_ALL, false);
     c4m_subproc_set_timeout(&ctx, &timeout);
-    c4m_subproc_set_io_callback(&ctx, SP_IO_STDOUT, capture_tty_data);
+    c4m_subproc_set_io_callback(&ctx, C4M_SP_IO_STDOUT, capture_tty_data);
 
     result = c4m_subproc_run(&ctx);
 
@@ -937,16 +989,16 @@ test4()
     char *cmd    = "/bin/cat";
     char *args[] = {"/bin/cat", "-", 0};
 
-    subprocess_t   ctx;
-    sb_result_t   *result;
-    struct timeval timeout = {.tv_sec = 0, .tv_usec = 1000};
+    c4m_subproc_t         ctx;
+    c4m_capture_result_t *result;
+    struct timeval        timeout = {.tv_sec = 0, .tv_usec = 1000};
 
     c4m_subproc_init(&ctx, cmd, args, true);
     c4m_subproc_use_pty(&ctx);
-    c4m_subproc_set_passthrough(&ctx, SP_IO_ALL, false);
-    c4m_subproc_set_capture(&ctx, SP_IO_ALL, false);
+    c4m_subproc_set_passthrough(&ctx, C4M_SP_IO_ALL, false);
+    c4m_subproc_set_capture(&ctx, C4M_SP_IO_ALL, false);
     c4m_subproc_set_timeout(&ctx, &timeout);
-    c4m_subproc_set_io_callback(&ctx, SP_IO_STDOUT, capture_tty_data);
+    c4m_subproc_set_io_callback(&ctx, C4M_SP_IO_STDOUT, capture_tty_data);
 
     result = c4m_subproc_run(&ctx);
 

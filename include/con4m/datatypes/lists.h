@@ -9,7 +9,7 @@ typedef struct {
         int32_t append_ix;
     int32_t   length; // The allocated length.
     int64_t **data;
-} xlist_t;
+} c4m_xlist_t;
 
 // This needs fw referencing, because this gets read before hatrack.
 // I think it's the build system's fault?

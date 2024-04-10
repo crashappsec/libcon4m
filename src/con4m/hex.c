@@ -262,7 +262,7 @@ c4m_hexl(void    *ptr,
     return ret;
 }
 
-utf8_t *
+c4m_utf8_t *
 _c4m_hex_dump(void *ptr, uint32_t len, ...)
 {
     int64_t start_offset = 0;
@@ -274,8 +274,9 @@ _c4m_hex_dump(void *ptr, uint32_t len, ...)
     c4m_kw_int32("width", width);
     c4m_kw_ptr("prefix", prefix);
 
-    char   *dump = c4m_hexl(ptr, len, start_offset, width, prefix);
-    utf8_t *res  = c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(dump)));
+    char       *dump = c4m_hexl(ptr, len, start_offset, width, prefix);
+    c4m_utf8_t *res  = c4m_new(c4m_tspec_utf8(),
+                              c4m_kw("cstring", c4m_ka(dump)));
 
     return res;
 }

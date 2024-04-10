@@ -5,7 +5,7 @@ C4M_STATIC_ASCII_STR(c4m_marshal_err,
                      "data type: ");
 
 void
-c4m_marshal_cstring(char *s, stream_t *stream)
+c4m_marshal_cstring(char *s, c4m_stream_t *stream)
 {
     uint32_t len = 0;
 
@@ -21,7 +21,7 @@ c4m_marshal_cstring(char *s, stream_t *stream)
 }
 
 char *
-c4m_unmarshal_cstring(stream_t *stream)
+c4m_unmarshal_cstring(c4m_stream_t *stream)
 {
     uint32_t len = 0;
     char    *result;
@@ -40,7 +40,7 @@ c4m_unmarshal_cstring(stream_t *stream)
 }
 
 void
-c4m_marshal_i64(int64_t i, stream_t *s)
+c4m_marshal_i64(int64_t i, c4m_stream_t *s)
 {
     little_64(i);
 
@@ -48,7 +48,7 @@ c4m_marshal_i64(int64_t i, stream_t *s)
 }
 
 int64_t
-c4m_unmarshal_i64(stream_t *s)
+c4m_unmarshal_i64(c4m_stream_t *s)
 {
     int64_t result;
 
@@ -59,7 +59,7 @@ c4m_unmarshal_i64(stream_t *s)
 }
 
 void
-c4m_marshal_i32(int32_t i, stream_t *s)
+c4m_marshal_i32(int32_t i, c4m_stream_t *s)
 {
     little_32(i);
 
@@ -67,7 +67,7 @@ c4m_marshal_i32(int32_t i, stream_t *s)
 }
 
 int32_t
-c4m_unmarshal_i32(stream_t *s)
+c4m_unmarshal_i32(c4m_stream_t *s)
 {
     int32_t result;
 
@@ -78,14 +78,14 @@ c4m_unmarshal_i32(stream_t *s)
 }
 
 void
-c4m_marshal_i16(int16_t i, stream_t *s)
+c4m_marshal_i16(int16_t i, c4m_stream_t *s)
 {
     little_16(i);
     c4m_stream_raw_write(s, sizeof(int16_t), (char *)&i);
 }
 
 int16_t
-c4m_unmarshal_i16(stream_t *s)
+c4m_unmarshal_i16(c4m_stream_t *s)
 {
     int16_t result;
 
@@ -96,7 +96,7 @@ c4m_unmarshal_i16(stream_t *s)
 
 void
 c4m_marshal_unmanaged_object(void          *addr,
-                             stream_t      *s,
+                             c4m_stream_t  *s,
                              dict_t        *memos,
                              int64_t       *mid,
                              c4m_marshal_fn fn)
@@ -122,7 +122,7 @@ c4m_marshal_unmanaged_object(void          *addr,
 }
 
 void
-c4m_marshal_compact_type(type_spec_t *t, stream_t *s)
+c4m_marshal_compact_type(c4m_type_t *t, c4m_stream_t *s)
 {
     uint16_t param_count;
 
@@ -153,12 +153,12 @@ c4m_marshal_compact_type(type_spec_t *t, stream_t *s)
     }
 }
 
-type_spec_t *
-c4m_unmarshal_compact_type(stream_t *s)
+c4m_type_t *
+c4m_unmarshal_compact_type(c4m_stream_t *s)
 {
     c4m_builtin_t  base = (c4m_builtin_t)c4m_unmarshal_u16(s);
     uint64_t       tid  = c4m_unmarshal_u64(s);
-    type_spec_t   *result;
+    c4m_type_t    *result;
     uint8_t        flags = 0;
     uint16_t       param_count;
     c4m_dt_info_t *dtinfo = (c4m_dt_info_t *)&c4m_base_type_info[base];
@@ -205,7 +205,7 @@ c4m_unmarshal_compact_type(stream_t *s)
 }
 
 void
-c4m_sub_marshal(object_t obj, stream_t *s, dict_t *memos, int64_t *mid)
+c4m_sub_marshal(c4m_obj_t obj, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 {
     if (obj == NULL) {
         c4m_marshal_u64(0ull, s);
@@ -230,15 +230,15 @@ c4m_sub_marshal(object_t obj, stream_t *s, dict_t *memos, int64_t *mid)
     c4m_marshal_u64(memo, s);
     hatrack_dict_put(memos, obj, (void *)memo);
 
-    c4m_obj_t     *hdr = c4m_object_header(obj);
-    c4m_marshal_fn ptr;
+    c4m_base_obj_t *hdr = c4m_object_header(obj);
+    c4m_marshal_fn  ptr;
 
     ptr = (c4m_marshal_fn)hdr->base_data_type->vtable->methods[C4M_BI_MARSHAL];
 
     if (ptr == NULL) {
-        utf8_t *type_name = c4m_new_utf8(hdr->base_data_type->name);
-        utf8_t *msg       = c4m_to_utf8(c4m_str_concat(c4m_marshal_err,
-                                                 type_name));
+        c4m_utf8_t *type_name = c4m_new_utf8(hdr->base_data_type->name);
+        c4m_utf8_t *msg       = c4m_to_utf8(c4m_str_concat(c4m_marshal_err,
+                                                     type_name));
 
         C4M_RAISE(msg);
     }
@@ -256,7 +256,7 @@ c4m_sub_marshal(object_t obj, stream_t *s, dict_t *memos, int64_t *mid)
 
 void *
 c4m_unmarshal_unmanaged_object(size_t           len,
-                               stream_t        *s,
+                               c4m_stream_t    *s,
                                dict_t          *memos,
                                c4m_unmarshal_fn fn)
 {
@@ -284,12 +284,12 @@ c4m_unmarshal_unmanaged_object(size_t           len,
     return addr;
 }
 
-object_t
-c4m_sub_unmarshal(stream_t *s, dict_t *memos)
+c4m_obj_t
+c4m_sub_unmarshal(c4m_stream_t *s, dict_t *memos)
 {
-    bool       found = false;
-    uint64_t   memo;
-    c4m_obj_t *obj;
+    bool            found = false;
+    uint64_t        memo;
+    c4m_base_obj_t *obj;
 
     memo = c4m_unmarshal_u64(s);
 
@@ -312,10 +312,10 @@ c4m_sub_unmarshal(stream_t *s, dict_t *memos)
         C4M_CRAISE("Invalid marshal format (got invalid data type ID)");
     }
     dt_entry  = (c4m_dt_info_t *)&c4m_base_type_info[base_type_id];
-    alloc_len = sizeof(c4m_obj_t) + dt_entry->alloc_len;
+    alloc_len = sizeof(c4m_base_obj_t) + dt_entry->alloc_len;
 
-    obj = (c4m_obj_t *)c4m_gc_raw_alloc(alloc_len,
-                                        (uint64_t *)dt_entry->ptr_info);
+    obj = (c4m_base_obj_t *)c4m_gc_raw_alloc(alloc_len,
+                                             (uint64_t *)dt_entry->ptr_info);
 
     // Now that we've allocated the object, we need to fill in the memo
     // before we unmarshal, because cycles happen.
@@ -327,7 +327,7 @@ c4m_sub_unmarshal(stream_t *s, dict_t *memos)
     ptr = (c4m_unmarshal_fn)dt_entry->vtable->methods[C4M_BI_UNMARSHAL];
 
     if (ptr == NULL) {
-        utf8_t *type_name = c4m_new_utf8(dt_entry->name);
+        c4m_utf8_t *type_name = c4m_new_utf8(dt_entry->name);
 
         C4M_RAISE(c4m_to_utf8(c4m_str_concat(c4m_marshal_err, type_name)));
     }
@@ -340,7 +340,7 @@ c4m_sub_unmarshal(stream_t *s, dict_t *memos)
 thread_local int c4m_marshaling = 0;
 
 void
-c4m_marshal(object_t obj, stream_t *s)
+c4m_marshal(c4m_obj_t obj, c4m_stream_t *s)
 {
     if (c4m_marshaling) {
         C4M_CRAISE(
@@ -358,8 +358,8 @@ c4m_marshal(object_t obj, stream_t *s)
     c4m_marshaling = 0;
 }
 
-object_t
-c4m_unmarshal(stream_t *s)
+c4m_obj_t
+c4m_unmarshal(c4m_stream_t *s)
 {
     if (c4m_marshaling) {
         C4M_CRAISE(
@@ -367,8 +367,8 @@ c4m_unmarshal(stream_t *s)
             "call c4m_sub_unmarshal.");
     }
 
-    dict_t  *memos = c4m_alloc_unmarshal_memos();
-    object_t result;
+    dict_t   *memos = c4m_alloc_unmarshal_memos();
+    c4m_obj_t result;
 
     c4m_marshaling = 1;
 
@@ -380,13 +380,13 @@ c4m_unmarshal(stream_t *s)
 }
 
 void
-c4m_dump_c_static_instance_code(object_t obj,
-                                char    *symbol_name,
-                                utf8_t  *filename)
+c4m_dump_c_static_instance_code(c4m_obj_t   obj,
+                                char       *symbol_name,
+                                c4m_utf8_t *filename)
 {
-    buffer_t *b = c4m_new(c4m_tspec_buffer(), c4m_kw("length", c4m_ka(1)));
-    stream_t *s = c4m_new(c4m_tspec_stream(),
-                          c4m_kw("buffer", c4m_ka(b), "write", c4m_ka(1)));
+    c4m_buf_t    *b = c4m_new(c4m_tspec_buffer(), c4m_kw("length", c4m_ka(1)));
+    c4m_stream_t *s = c4m_new(c4m_tspec_stream(),
+                              c4m_kw("buffer", c4m_ka(b), "write", c4m_ka(1)));
 
     c4m_marshal(obj, s);
     c4m_stream_close(s);
@@ -408,13 +408,13 @@ c4m_dump_c_static_instance_code(object_t obj,
     static char *linebreak   = "\n    ";
     static char *map         = "0123456789abcdef";
     static char *hex_prefix  = "0x";
-    static char *obj_type    = "object_t ";
+    static char *obj_type    = "c4m_obj_t ";
     static char *obj_init    = " = NULL;\n\n";
     static char *fn_prefix   = "\nget_";
     static char *fn_part1    = "()\n{\n    if (";
     static char *fn_part2 =
         " == NULL) {\n"
-        "        stream_t *s = c4m_new(c4m_tspec_stream(), \n"
+        "        c4m_stream_t *s = c4m_new(c4m_tspec_stream(), \n"
         "                                c4m_kw(\"buffer\", "
         "c4m_new(c4m_tspec_buffer(),  \"raw\", _marshaled_";
     static char *fn_part3 =

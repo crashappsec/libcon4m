@@ -7,4 +7,4 @@ typedef struct {
     int32_t flags;
     int32_t byte_len;
     int32_t alloc_len;
-} buffer_t;
+} c4m_buf_t;

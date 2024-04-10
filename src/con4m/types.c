@@ -140,31 +140,31 @@
 // Type hash requires a type environment.
 
 typedef struct {
-    type_env_t *env;
-    sha_ctx    *sha;
-    int         tv_count;
-    dict_t     *memos;
+    c4m_type_env_t *env;
+    c4m_sha_t      *sha;
+    int             tv_count;
+    dict_t         *memos;
 } type_hash_ctx;
 
 static inline bool
-typeid_is_concrete(type_t tid)
+typeid_is_concrete(c4m_type_hash_t tid)
 {
     return !(tid & (1ULL << 63));
 }
 
-type_env_t  *c4m_global_type_env               = NULL;
-type_spec_t *c4m_bi_types[C4M_NUM_BUILTIN_DTS] = {
+c4m_type_env_t *c4m_global_type_env               = NULL;
+c4m_type_t     *c4m_bi_types[C4M_NUM_BUILTIN_DTS] = {
     0,
 };
-type_spec_t *type_node_for_list_of_type_objects;
+c4m_type_t *type_node_for_list_of_type_objects;
 
-type_spec_t *
-c4m_resolve_type_aliases(type_spec_t *node, type_env_t *env)
+c4m_type_t *
+c4m_resolve_type_aliases(c4m_type_t *node, c4m_type_env_t *env)
 {
     while (true) {
-        type_spec_t *tmp = hatrack_dict_get(env->store,
-                                            (void *)node->typeid,
-                                            NULL);
+        c4m_type_t *tmp = hatrack_dict_get(env->store,
+                                           (void *)node->typeid,
+                                           NULL);
 
         if (tmp == NULL) {
             hatrack_dict_put(env->store, (void *)node->typeid, node);
@@ -180,32 +180,32 @@ c4m_resolve_type_aliases(type_spec_t *node, type_env_t *env)
     }
 }
 
-type_spec_t *
-c4m_global_resolve_type(type_spec_t *t)
+c4m_type_t *
+c4m_global_resolve_type(c4m_type_t *t)
 {
     return c4m_resolve_type_aliases(t, c4m_global_type_env);
 }
 
-type_spec_t *
-c4m_global_copy(type_spec_t *t)
+c4m_type_t *
+c4m_global_copy(c4m_type_t *t)
 {
     return c4m_tspec_copy(t, c4m_global_type_env);
 }
 
-type_spec_t *
-c4m_global_type_check(type_spec_t *t1, type_spec_t *t2)
+c4m_type_t *
+c4m_global_type_check(c4m_type_t *t1, c4m_type_t *t2)
 {
     return c4m_unify(t1, t2, c4m_global_type_env);
 }
 
 void
-c4m_lock_type(type_spec_t *t)
+c4m_lock_type(c4m_type_t *t)
 {
-    t->details->flags &= FN_TY_LOCK;
+    t->details->flags &= C4M_FN_TY_LOCK;
 }
 
 static void
-internal_type_hash(type_spec_t *node, type_hash_ctx *ctx)
+internal_type_hash(c4m_type_t *node, type_hash_ctx *ctx)
 {
     if (node == NULL) {
         return;
@@ -213,8 +213,8 @@ internal_type_hash(type_spec_t *node, type_hash_ctx *ctx)
 
     node = c4m_resolve_type_aliases(node, ctx->env);
 
-    type_details_t *deets = node->details;
-    uint64_t        num_tvars;
+    c4m_type_info_t *deets = node->details;
+    uint64_t         num_tvars;
 
     c4m_sha_int_update(ctx->sha, (uint64_t)deets->base_type->typeid);
 
@@ -249,12 +249,12 @@ internal_type_hash(type_spec_t *node, type_hash_ctx *ctx)
     }
 }
 
-static type_t
-type_hash_and_dedupe(type_spec_t **nodeptr, type_env_t *env)
+static c4m_type_hash_t
+type_hash_and_dedupe(c4m_type_t **nodeptr, c4m_type_env_t *env)
 {
-    buffer_t    *buf;
-    uint64_t     result;
-    type_spec_t *node = *nodeptr;
+    c4m_buf_t  *buf;
+    uint64_t    result;
+    c4m_type_t *node = *nodeptr;
 
     if (node->typeid != 0) {
         return node->typeid;
@@ -298,51 +298,51 @@ type_hash_and_dedupe(type_spec_t **nodeptr, type_env_t *env)
     return result;
 }
 
-type_t
-c4m_type_hash(type_spec_t *node, type_env_t *env)
+c4m_type_hash_t
+c4m_type_hash(c4m_type_t *node, c4m_type_env_t *env)
 {
     return type_hash_and_dedupe(&node, env);
 }
 
 static void
-c4m_type_env_init(type_env_t *env, va_list args)
+c4m_type_env_init(c4m_type_env_t *env, va_list args)
 {
     env->store = c4m_new(c4m_tspec_dict(c4m_tspec_u64(), c4m_tspec_typespec()));
     atomic_store(&env->next_tid, 1LLU << 63);
 
     for (int i = 0; i < C4M_NUM_BUILTIN_DTS; i++) {
-        type_spec_t *s = c4m_bi_types[i];
+        c4m_type_t *s = c4m_bi_types[i];
 
         if (s == NULL) {
             continue;
         }
-        type_t id = c4m_tspec_get_data_type_info(s)->typeid;
+        c4m_type_hash_t id = c4m_tspec_get_data_type_info(s)->typeid;
         hatrack_dict_put(env->store, (void *)id, s);
     }
 }
 
 static void
-c4m_type_env_marshal(type_env_t *env, stream_t *s, dict_t *memos, int64_t *mid)
+c4m_type_env_marshal(c4m_type_env_t *env, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 {
     c4m_sub_marshal(env->store, s, memos, mid);
     c4m_marshal_u64(atomic_load(&env->next_tid), s);
 }
 
 static void
-c4m_type_env_unmarshal(type_env_t *env, stream_t *s, dict_t *memos)
+c4m_type_env_unmarshal(c4m_type_env_t *env, c4m_stream_t *s, dict_t *memos)
 {
     env->store = c4m_sub_unmarshal(s, memos);
     atomic_store(&env->next_tid, c4m_unmarshal_u64(s));
 }
 
 static void
-internal_add_items_array(type_spec_t *n)
+internal_add_items_array(c4m_type_t *n)
 {
     // Avoid infinite recursion by manually constructing the list.
-    size_t     sz    = sizeof(c4m_obj_t) + sizeof(xlist_t);
-    c4m_obj_t *alloc = c4m_gc_raw_alloc(sz, GC_SCAN_ALL);
+    size_t          sz    = sizeof(c4m_base_obj_t) + sizeof(c4m_xlist_t);
+    c4m_base_obj_t *alloc = c4m_gc_raw_alloc(sz, GC_SCAN_ALL);
 
-    xlist_t *items        = (xlist_t *)alloc->data;
+    c4m_xlist_t *items    = (c4m_xlist_t *)alloc->data;
     alloc->base_data_type = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_XLIST];
     alloc->concrete_type  = type_node_for_list_of_type_objects;
     items->data           = c4m_gc_array_alloc(uint64_t *, 16);
@@ -352,12 +352,12 @@ internal_add_items_array(type_spec_t *n)
 }
 
 static void
-c4m_tspec_init(type_spec_t *n, va_list args)
+c4m_tspec_init(c4m_type_t *n, va_list args)
 {
-    type_env_t   *env     = va_arg(args, type_env_t *);
-    c4m_builtin_t base_id = va_arg(args, c4m_builtin_t);
+    c4m_type_env_t *env     = va_arg(args, c4m_type_env_t *);
+    c4m_builtin_t   base_id = va_arg(args, c4m_builtin_t);
 
-    n->details = c4m_gc_alloc(type_details_t);
+    n->details = c4m_gc_alloc(c4m_type_info_t);
 
     if (env == NULL && base_id == 0) {
         // This short circuit should be used when unmarshaling only.
@@ -402,11 +402,11 @@ c4m_tspec_init(type_spec_t *n, va_list args)
     case C4M_DT_KIND_dict:
     case C4M_DT_KIND_func:
         internal_add_items_array(n);
-        type_spec_t *arg = va_arg(args, type_spec_t *);
+        c4m_type_t *arg = va_arg(args, c4m_type_t *);
 
         while (arg != NULL) {
             c4m_xlist_append(n->details->items, arg);
-            arg = va_arg(args, type_spec_t *);
+            arg = va_arg(args, c4m_type_t *);
         }
 
         break;
@@ -418,8 +418,8 @@ c4m_tspec_init(type_spec_t *n, va_list args)
     assert(n->details != NULL && (((int64_t)n->details) & 0x07) == 0);
 }
 
-type_spec_t *
-c4m_tspec_copy(type_spec_t *node, type_env_t *env)
+c4m_type_t *
+c4m_tspec_copy(c4m_type_t *node, c4m_type_env_t *env)
 {
     // Copies, anything that might be mutated, returning an unlocked
     // instance where mutation is okay.
@@ -430,25 +430,25 @@ c4m_tspec_copy(type_spec_t *node, type_env_t *env)
         return node;
     }
 
-    type_details_t *ts_from = node->details;
+    c4m_type_info_t *ts_from = node->details;
 
     if (ts_from->base_type->dt_kind == C4M_DT_KIND_type_var) {
         return c4m_new_typevar(env);
     }
 
-    type_spec_t    *result  = c4m_new(c4m_tspec_typespec(),
-                                  c4m_kw("name",
-                                         c4m_ka(ts_from->name),
-                                         "base_id",
-                                         c4m_ka(ts_from->base_type->typeid)));
-    int             n       = c4m_tspec_get_num_params(node);
-    xlist_t        *to_copy = c4m_tspec_get_params(node);
-    type_details_t *ts_to   = result->details;
-    ts_to->flags            = ts_from->flags & ~FN_TY_LOCK;
+    c4m_type_t      *result  = c4m_new(c4m_tspec_typespec(),
+                                 c4m_kw("name",
+                                        c4m_ka(ts_from->name),
+                                        "base_id",
+                                        c4m_ka(ts_from->base_type->typeid)));
+    int              n       = c4m_tspec_get_num_params(node);
+    c4m_xlist_t     *to_copy = c4m_tspec_get_params(node);
+    c4m_type_info_t *ts_to   = result->details;
+    ts_to->flags             = ts_from->flags & ~C4M_FN_TY_LOCK;
 
     for (int i = 0; i < n; i++) {
-        type_spec_t *original = c4m_xlist_get(to_copy, i, NULL);
-        type_spec_t *copy     = c4m_tspec_copy(original, env);
+        c4m_type_t *original = c4m_xlist_get(to_copy, i, NULL);
+        c4m_type_t *copy     = c4m_tspec_copy(original, env);
 
         c4m_xlist_append(ts_to->items, copy);
     }
@@ -457,8 +457,8 @@ c4m_tspec_copy(type_spec_t *node, type_env_t *env)
     return result;
 }
 
-static type_spec_t *
-copy_if_needed(type_spec_t *t, type_env_t *env)
+static c4m_type_t *
+copy_if_needed(c4m_type_t *t, c4m_type_env_t *env)
 {
     if (c4m_tspec_is_concrete(t)) {
         return t;
@@ -472,10 +472,10 @@ copy_if_needed(type_spec_t *t, type_env_t *env)
 }
 
 bool
-c4m_tspec_is_concrete(type_spec_t *node)
+c4m_tspec_is_concrete(c4m_type_t *node)
 {
-    int      n;
-    xlist_t *param;
+    int          n;
+    c4m_xlist_t *param;
 
     // Fast path most of the time; just if we decide to check
     // before an initial tid is set, take the long road.
@@ -511,16 +511,16 @@ c4m_tspec_is_concrete(type_spec_t *node)
 // Just makes things a bit more clear.
 #define type_error c4m_tspec_error
 
-type_spec_t *
-c4m_unify(type_spec_t *t1, type_spec_t *t2, type_env_t *env)
+c4m_type_t *
+c4m_unify(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
 {
-    type_spec_t *result;
-    type_spec_t *sub1;
-    type_spec_t *sub2;
-    type_spec_t *sub_result;
-    xlist_t     *p1;
-    xlist_t     *p2;
-    xlist_t     *new_subs;
+    c4m_type_t  *result;
+    c4m_type_t  *sub1;
+    c4m_type_t  *sub2;
+    c4m_type_t  *sub_result;
+    c4m_xlist_t *p1;
+    c4m_xlist_t *p2;
+    c4m_xlist_t *new_subs;
     int          num_params;
 
     t1 = c4m_resolve_type_aliases(t1, env);
@@ -563,7 +563,7 @@ c4m_unify(type_spec_t *t1, type_spec_t *t2, type_env_t *env)
                 return type_error();
             }
 
-            type_spec_t  *tswap;
+            c4m_type_t   *tswap;
             c4m_dt_kind_t bswap;
 
             tswap = t1;
@@ -631,7 +631,7 @@ unify_sub_nodes:
         }
         // Actuals will never be varargs, so if we have two vararg
         // functions, it's only because we're trying to unify two formals.
-        if ((t1->details->flags ^ t2->details->flags) & FN_TY_VARARGS) {
+        if ((t1->details->flags ^ t2->details->flags) & C4M_FN_TY_VARARGS) {
             if (f1_params != f2_params) {
                 return type_error();
             }
@@ -641,8 +641,8 @@ unify_sub_nodes:
         }
 
         // Below here, we got varargs; put the vararg param on the left.
-        if ((t2->details->flags & FN_TY_VARARGS) != 0) {
-            type_spec_t *swap;
+        if ((t2->details->flags & C4M_FN_TY_VARARGS) != 0) {
+            c4m_type_t *swap;
 
             swap       = t1;
             t1         = t2;
@@ -715,12 +715,12 @@ unify_sub_nodes:
     return result;
 }
 
-static any_str_t *internal_type_repr(type_spec_t *, dict_t *, int64_t *);
+static c4m_str_t *internal_type_repr(c4m_type_t *, dict_t *, int64_t *);
 
 // This is just hex w/ a different char set; max size would be 18 digits.
 static const char tv_letters[] = "jtvwxyzabcdefghi";
 
-static inline any_str_t *
+static inline c4m_str_t *
 create_typevar_name(int64_t num)
 {
     char buf[19] = {
@@ -736,10 +736,10 @@ create_typevar_name(int64_t num)
     return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(buf)));
 }
 
-static inline any_str_t *
-internal_repr_tv(type_spec_t *t, dict_t *memos, int64_t *nexttv)
+static inline c4m_str_t *
+internal_repr_tv(c4m_type_t *t, dict_t *memos, int64_t *nexttv)
 {
-    any_str_t *s = hatrack_dict_get(memos, t, NULL);
+    c4m_str_t *s = hatrack_dict_get(memos, t, NULL);
 
     if (s != NULL) {
         return s;
@@ -763,14 +763,14 @@ internal_repr_tv(type_spec_t *t, dict_t *memos, int64_t *nexttv)
     return s;
 }
 
-static inline any_str_t *
-internal_repr_container(type_details_t *info, dict_t *memos, int64_t *nexttv)
+static inline c4m_str_t *
+internal_repr_container(c4m_type_info_t *info, dict_t *memos, int64_t *nexttv)
 {
     int          num_types = c4m_xlist_len(info->items);
-    xlist_t     *to_join   = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+    c4m_xlist_t *to_join   = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
     int          i         = 0;
-    type_spec_t *subnode;
-    any_str_t   *substr;
+    c4m_type_t  *subnode;
+    c4m_str_t   *substr;
 
     c4m_xlist_append(to_join,
                      c4m_new(c4m_tspec_utf8(),
@@ -797,14 +797,14 @@ first_loop_start:
 
 // This will get more complicated when we add keyword parameter sypport.
 
-static inline any_str_t *
-internal_repr_func(type_details_t *info, dict_t *memos, int64_t *nexttv)
+static inline c4m_str_t *
+internal_repr_func(c4m_type_info_t *info, dict_t *memos, int64_t *nexttv)
 {
     int          num_types = c4m_xlist_len(info->items);
-    xlist_t     *to_join   = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+    c4m_xlist_t *to_join   = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
     int          i         = 0;
-    type_spec_t *subnode;
-    any_str_t   *substr;
+    c4m_type_t  *subnode;
+    c4m_str_t   *substr;
 
     c4m_xlist_append(to_join, c4m_get_lparen_const());
 
@@ -821,7 +821,7 @@ internal_repr_func(type_details_t *info, dict_t *memos, int64_t *nexttv)
 
 first_loop_start:
 
-            if ((i == num_types - 2) && info->flags & FN_TY_VARARGS) {
+            if ((i == num_types - 2) && info->flags & C4M_FN_TY_VARARGS) {
                 c4m_xlist_append(to_join, c4m_get_asterisk_const());
             }
 
@@ -842,10 +842,10 @@ first_loop_start:
     return c4m_str_join(to_join, NULL);
 }
 
-static any_str_t *
-internal_type_repr(type_spec_t *t, dict_t *memos, int64_t *nexttv)
+static c4m_str_t *
+internal_type_repr(c4m_type_t *t, dict_t *memos, int64_t *nexttv)
 {
-    type_details_t *info = t->details;
+    c4m_type_info_t *info = t->details;
 
     switch (info->base_type->dt_kind) {
     case C4M_DT_KIND_nil:
@@ -867,8 +867,8 @@ internal_type_repr(type_spec_t *t, dict_t *memos, int64_t *nexttv)
     return NULL;
 }
 
-static any_str_t *
-c4m_tspec_repr(type_spec_t *t, to_str_use_t how)
+static c4m_str_t *
+c4m_tspec_repr(c4m_type_t *t, to_str_use_t how)
 {
     dict_t *memos = c4m_new(c4m_tspec_dict(c4m_tspec_ref(), c4m_tspec_utf8()));
     int64_t n     = 0;
@@ -876,19 +876,19 @@ c4m_tspec_repr(type_spec_t *t, to_str_use_t how)
     return internal_type_repr(t, memos, &n);
 }
 
-extern void         c4m_marshal_compact_type(type_spec_t *t, stream_t *s);
-extern type_spec_t *c4m_unmarshal_compact_type(stream_t *s);
+extern void        c4m_marshal_compact_type(c4m_type_t *t, c4m_stream_t *s);
+extern c4m_type_t *c4m_unmarshal_compact_type(c4m_stream_t *s);
 
 static void
-c4m_tspec_marshal(type_spec_t *n, stream_t *s, dict_t *m, int64_t *mid)
+c4m_tspec_marshal(c4m_type_t *n, c4m_stream_t *s, dict_t *m, int64_t *mid)
 {
     c4m_marshal_compact_type(n, s);
 }
 
 static void
-c4m_tspec_unmarshal(type_spec_t *n, stream_t *s, dict_t *m)
+c4m_tspec_unmarshal(c4m_type_t *n, c4m_stream_t *s, dict_t *m)
 {
-    type_spec_t *r = c4m_unmarshal_compact_type(s);
+    c4m_type_t *r = c4m_unmarshal_compact_type(s);
 
     n->details = r->details;
     n->typeid  = r->typeid;
@@ -925,15 +925,15 @@ void
 c4m_initialize_global_types()
 {
     if (c4m_global_type_env == NULL) {
-        c4m_dt_info_t  *tspec = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_TYPESPEC];
-        int             tslen = tspec->alloc_len + sizeof(c4m_obj_t);
-        c4m_obj_t      *tobj  = c4m_gc_raw_alloc(tslen,
-                                           (uint64_t *)tspec->ptr_info);
-        type_details_t *info  = c4m_gc_alloc(type_details_t);
-        c4m_obj_t      *one;
-        type_spec_t    *ts;
+        c4m_dt_info_t   *tspec = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_TYPESPEC];
+        int              tslen = tspec->alloc_len + sizeof(c4m_base_obj_t);
+        c4m_base_obj_t  *tobj  = c4m_gc_raw_alloc(tslen,
+                                                (uint64_t *)tspec->ptr_info);
+        c4m_type_info_t *info  = c4m_gc_alloc(c4m_type_info_t);
+        c4m_base_obj_t  *one;
+        c4m_type_t      *ts;
 
-        ts          = (type_spec_t *)tobj->data;
+        ts          = (c4m_type_t *)tobj->data;
         ts->typeid  = C4M_T_TYPESPEC;
         ts->details = info;
 
@@ -957,12 +957,12 @@ c4m_initialize_global_types()
             case C4M_DT_KIND_internal:
                 one         = c4m_gc_raw_alloc(tslen,
                                        (uint64_t *)tspec->ptr_info);
-                ts          = (type_spec_t *)one->data;
-                info        = c4m_gc_alloc(type_details_t);
+                ts          = (c4m_type_t *)one->data;
+                info        = c4m_gc_alloc(c4m_type_info_t);
                 ts->details = info;
 
                 one->base_data_type = tspec;
-                one->concrete_type  = (type_spec_t *)tobj->data;
+                one->concrete_type  = (c4m_type_t *)tobj->data;
 
                 info->name      = (char *)one_spec->name;
                 info->base_type = one_spec;
@@ -975,14 +975,15 @@ c4m_initialize_global_types()
             }
         }
 
-        c4m_obj_t *envobj;
-        c4m_obj_t *envstore;
+        c4m_base_obj_t *envobj;
+        c4m_base_obj_t *envstore;
         // This needs to not be c4m_new'd.
-        envobj   = c4m_gc_raw_alloc(sizeof(type_env_t) + sizeof(c4m_obj_t),
-                                  GC_SCAN_ALL);
+        envobj = c4m_gc_raw_alloc(
+            sizeof(c4m_type_env_t) + sizeof(c4m_base_obj_t),
+            GC_SCAN_ALL);
         envstore = c4m_gc_alloc(dict_t);
 
-        c4m_global_type_env = (type_env_t *)envobj->data;
+        c4m_global_type_env = (c4m_type_env_t *)envobj->data;
         dict_t *store       = (dict_t *)envstore->data;
 
         c4m_global_type_env->store = store;
@@ -999,8 +1000,8 @@ c4m_initialize_global_types()
         tobj->base_data_type = tspec;
         tobj->concrete_type  = c4m_bi_types[C4M_T_TYPESPEC];
 
-        ts                     = (type_spec_t *)tobj->data;
-        ts->details            = c4m_gc_alloc(type_details_t);
+        ts                     = (c4m_type_t *)tobj->data;
+        ts->details            = c4m_gc_alloc(c4m_type_info_t);
         ts->details->base_type = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_XLIST];
         ts->details->name      = (char *)ts->details->base_type->name;
 
@@ -1018,11 +1019,11 @@ c4m_initialize_global_types()
                                                  c4m_tspec_typespec());
 
         // Now, we have to manually set up an xlist.
-        size_t     sz        = sizeof(xlist_t) + sizeof(c4m_obj_t);
-        c4m_obj_t *xobj      = c4m_gc_raw_alloc(sz, GC_SCAN_ALL);
+        size_t          sz   = sizeof(c4m_xlist_t) + sizeof(c4m_base_obj_t);
+        c4m_base_obj_t *xobj = c4m_gc_raw_alloc(sz, GC_SCAN_ALL);
         xobj->base_data_type = ts->details->base_type;
 
-        xlist_t *list      = (xlist_t *)xobj->data;
+        c4m_xlist_t *list  = (c4m_xlist_t *)xobj->data;
         list->data         = c4m_gc_alloc(int64_t *);
         list->data[0]      = (int64_t *)ts;
         list->append_ix    = 1;
@@ -1033,13 +1034,13 @@ c4m_initialize_global_types()
     }
 }
 
-type_spec_t *
-c4m_tspec_list(type_spec_t *sub)
+c4m_type_t *
+c4m_tspec_list(c4m_type_t *sub)
 {
-    type_spec_t *result = c4m_new(c4m_tspec_typespec(),
-                                  c4m_global_type_env,
-                                  C4M_T_LIST);
-    xlist_t     *items  = result->details->items;
+    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_LIST);
+    c4m_xlist_t *items  = result->details->items;
 
     c4m_xlist_append(items, sub);
 
@@ -1048,13 +1049,13 @@ c4m_tspec_list(type_spec_t *sub)
     return result;
 }
 
-type_spec_t *
-c4m_tspec_xlist(type_spec_t *sub)
+c4m_type_t *
+c4m_tspec_xlist(c4m_type_t *sub)
 {
-    type_spec_t *result = c4m_new(c4m_tspec_typespec(),
-                                  c4m_global_type_env,
-                                  C4M_T_XLIST);
-    xlist_t     *items  = result->details->items;
+    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_XLIST);
+    c4m_xlist_t *items  = result->details->items;
 
     c4m_xlist_append(items, sub);
 
@@ -1063,13 +1064,13 @@ c4m_tspec_xlist(type_spec_t *sub)
     return result;
 }
 
-type_spec_t *
-c4m_tspec_tree(type_spec_t *sub)
+c4m_type_t *
+c4m_tspec_tree(c4m_type_t *sub)
 {
-    type_spec_t *result = c4m_new(c4m_tspec_typespec(),
-                                  c4m_global_type_env,
-                                  C4M_T_TREE);
-    xlist_t     *items  = result->details->items;
+    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_TREE);
+    c4m_xlist_t *items  = result->details->items;
 
     c4m_xlist_append(items, sub);
 
@@ -1078,13 +1079,13 @@ c4m_tspec_tree(type_spec_t *sub)
     return result;
 }
 
-type_spec_t *
-c4m_tspec_queue(type_spec_t *sub)
+c4m_type_t *
+c4m_tspec_queue(c4m_type_t *sub)
 {
-    type_spec_t *result = c4m_new(c4m_tspec_typespec(),
-                                  c4m_global_type_env,
-                                  C4M_T_QUEUE);
-    xlist_t     *items  = result->details->items;
+    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_QUEUE);
+    c4m_xlist_t *items  = result->details->items;
 
     c4m_xlist_append(items, sub);
 
@@ -1093,13 +1094,13 @@ c4m_tspec_queue(type_spec_t *sub)
     return result;
 }
 
-type_spec_t *
-c4m_tspec_ring(type_spec_t *sub)
+c4m_type_t *
+c4m_tspec_ring(c4m_type_t *sub)
 {
-    type_spec_t *result = c4m_new(c4m_tspec_typespec(),
-                                  c4m_global_type_env,
-                                  C4M_T_RING);
-    xlist_t     *items  = result->details->items;
+    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_RING);
+    c4m_xlist_t *items  = result->details->items;
 
     c4m_xlist_append(items, sub);
 
@@ -1108,13 +1109,13 @@ c4m_tspec_ring(type_spec_t *sub)
     return result;
 }
 
-type_spec_t *
-c4m_tspec_stack(type_spec_t *sub)
+c4m_type_t *
+c4m_tspec_stack(c4m_type_t *sub)
 {
-    type_spec_t *result = c4m_new(c4m_tspec_typespec(),
-                                  c4m_global_type_env,
-                                  C4M_T_STACK);
-    xlist_t     *items  = result->details->items;
+    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_STACK);
+    c4m_xlist_t *items  = result->details->items;
 
     c4m_xlist_append(items, sub);
 
@@ -1123,13 +1124,13 @@ c4m_tspec_stack(type_spec_t *sub)
     return result;
 }
 
-type_spec_t *
-c4m_tspec_dict(type_spec_t *sub1, type_spec_t *sub2)
+c4m_type_t *
+c4m_tspec_dict(c4m_type_t *sub1, c4m_type_t *sub2)
 {
-    type_spec_t *result = c4m_new(c4m_tspec_typespec(),
-                                  c4m_global_type_env,
-                                  C4M_T_DICT);
-    xlist_t     *items  = result->details->items;
+    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_DICT);
+    c4m_xlist_t *items  = result->details->items;
 
     c4m_xlist_append(items, sub1);
     c4m_xlist_append(items, sub2);
@@ -1139,13 +1140,13 @@ c4m_tspec_dict(type_spec_t *sub1, type_spec_t *sub2)
     return result;
 }
 
-type_spec_t *
-c4m_tspec_set(type_spec_t *sub1)
+c4m_type_t *
+c4m_tspec_set(c4m_type_t *sub1)
 {
-    type_spec_t *result = c4m_new(c4m_tspec_typespec(),
-                                  c4m_global_type_env,
-                                  C4M_T_SET);
-    xlist_t     *items  = result->details->items;
+    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_SET);
+    c4m_xlist_t *items  = result->details->items;
 
     c4m_xlist_append(items, sub1);
 
@@ -1154,14 +1155,14 @@ c4m_tspec_set(type_spec_t *sub1)
     return result;
 }
 
-type_spec_t *
+c4m_type_t *
 c4m_tspec_tuple(int64_t nitems, ...)
 {
     va_list      args;
-    type_spec_t *result = c4m_new(c4m_tspec_typespec(),
-                                  c4m_global_type_env,
-                                  C4M_T_TUPLE);
-    xlist_t     *items  = result->details->items;
+    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_TUPLE);
+    c4m_xlist_t *items  = result->details->items;
 
     va_start(args, nitems);
 
@@ -1170,7 +1171,7 @@ c4m_tspec_tuple(int64_t nitems, ...)
     }
 
     for (int i = 0; i < nitems; i++) {
-        type_spec_t *sub = va_arg(args, type_spec_t *);
+        c4m_type_t *sub = va_arg(args, c4m_type_t *);
         c4m_xlist_append(items, sub);
     }
 
@@ -1179,19 +1180,19 @@ c4m_tspec_tuple(int64_t nitems, ...)
     return result;
 }
 
-type_spec_t *
-c4m_tspec_fn_va(type_spec_t *return_type, int64_t nparams, ...)
+c4m_type_t *
+c4m_tspec_fn_va(c4m_type_t *return_type, int64_t nparams, ...)
 {
     va_list      args;
-    type_spec_t *result = c4m_new(c4m_tspec_typespec(),
-                                  c4m_global_type_env,
-                                  C4M_T_FUNCDEF);
-    xlist_t     *items  = result->details->items;
+    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_FUNCDEF);
+    c4m_xlist_t *items  = result->details->items;
 
     va_start(args, nparams);
 
     for (int i = 0; i < nparams; i++) {
-        type_spec_t *sub = va_arg(args, type_spec_t *);
+        c4m_type_t *sub = va_arg(args, c4m_type_t *);
         c4m_xlist_append(items, sub);
     }
     c4m_xlist_append(items, return_type);
@@ -1201,14 +1202,14 @@ c4m_tspec_fn_va(type_spec_t *return_type, int64_t nparams, ...)
     return result;
 }
 
-type_spec_t *
-c4m_tspec_varargs_fn(type_spec_t *return_type, int64_t nparams, ...)
+c4m_type_t *
+c4m_tspec_varargs_fn(c4m_type_t *return_type, int64_t nparams, ...)
 {
     va_list      args;
-    type_spec_t *result = c4m_new(c4m_tspec_typespec(),
-                                  c4m_global_type_env,
-                                  C4M_T_FUNCDEF);
-    xlist_t     *items  = result->details->items;
+    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_FUNCDEF);
+    c4m_xlist_t *items  = result->details->items;
 
     va_start(args, nparams);
 
@@ -1217,24 +1218,24 @@ c4m_tspec_varargs_fn(type_spec_t *return_type, int64_t nparams, ...)
     }
 
     for (int i = 0; i < nparams; i++) {
-        type_spec_t *sub = va_arg(args, type_spec_t *);
+        c4m_type_t *sub = va_arg(args, c4m_type_t *);
         c4m_xlist_append(items, sub);
     }
     c4m_xlist_append(items, return_type);
-    result->details->flags |= FN_TY_VARARGS;
+    result->details->flags |= C4M_FN_TY_VARARGS;
 
     type_hash_and_dedupe(&result, c4m_global_type_env);
 
     return result;
 }
 
-type_spec_t *
-c4m_tspec_fn(type_spec_t *ret, xlist_t *params, bool va)
+c4m_type_t *
+c4m_tspec_fn(c4m_type_t *ret, c4m_xlist_t *params, bool va)
 {
-    type_spec_t *result = c4m_new(c4m_tspec_typespec(),
-                                  c4m_global_type_env,
-                                  C4M_T_FUNCDEF);
-    xlist_t     *items  = result->details->items;
+    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_FUNCDEF);
+    c4m_xlist_t *items  = result->details->items;
     int          n      = c4m_xlist_len(params);
 
     for (int i = 0; i < n; i++) {
@@ -1243,17 +1244,17 @@ c4m_tspec_fn(type_spec_t *ret, xlist_t *params, bool va)
     c4m_xlist_append(items, ret);
 
     if (va) {
-        result->details->flags |= FN_TY_VARARGS;
+        result->details->flags |= C4M_FN_TY_VARARGS;
     }
     type_hash_and_dedupe(&result, c4m_global_type_env);
 
     return result;
 }
 
-type_spec_t *
-c4m_lookup_tspec(type_t tid, type_env_t *env)
+c4m_type_t *
+c4m_lookup_tspec(c4m_type_hash_t tid, c4m_type_env_t *env)
 {
-    type_spec_t *node = hatrack_dict_get(env->store, (void *)tid, NULL);
+    c4m_type_t *node = hatrack_dict_get(env->store, (void *)tid, NULL);
 
     if (!node || c4m_tspec_is_concrete(node)) {
         return node;
@@ -1262,22 +1263,22 @@ c4m_lookup_tspec(type_t tid, type_env_t *env)
     return c4m_resolve_type_aliases(node, env);
 }
 
-type_spec_t *
+c4m_type_t *
 c4m_get_builtin_type(c4m_builtin_t base_id)
 {
     return c4m_bi_types[base_id];
 }
 
-type_spec_t *
-c4m_get_promotion_type(type_spec_t *t1, type_spec_t *t2, int *warning)
+c4m_type_t *
+c4m_get_promotion_type(c4m_type_t *t1, c4m_type_t *t2, int *warning)
 {
     *warning = 0;
 
     t1 = c4m_resolve_type_aliases(t1, c4m_global_type_env);
     t2 = c4m_resolve_type_aliases(t2, c4m_global_type_env);
 
-    type_t id1 = c4m_tspec_get_data_type_info(t1)->typeid;
-    type_t id2 = c4m_tspec_get_data_type_info(t2)->typeid;
+    c4m_type_hash_t id1 = c4m_tspec_get_data_type_info(t1)->typeid;
+    c4m_type_hash_t id2 = c4m_tspec_get_data_type_info(t2)->typeid;
 
     if (id1 < C4M_T_I8 || id1 > C4M_T_UINT || id2 < C4M_T_I8 || id2 > C4M_T_UINT) {
         *warning = -1;
@@ -1285,9 +1286,9 @@ c4m_get_promotion_type(type_spec_t *t1, type_spec_t *t2, int *warning)
     }
 
     if (id2 > id1) {
-        type_t swap = id1;
-        id1         = id2;
-        id2         = swap;
+        c4m_type_hash_t swap = id1;
+        id1                  = id2;
+        id2                  = swap;
     }
 
     switch (id1) {

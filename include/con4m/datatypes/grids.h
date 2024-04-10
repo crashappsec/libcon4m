@@ -89,18 +89,18 @@
  *
  * When the grid asks cells for their rendering, the expectations are:
  *
- * 1) The item provides an array of `any_str_t *` objects, one for each
+ * 1) The item provides an array of `c4m_str_t *` objects, one for each
  *    row of the requested height (with no newline type characters).
  *
  * 2) Each item in that array is padded (generally with spaces, but
  *    with whatever 'pad' is set) to the requested width.
  *
  * 3) All alignment and coloring rules are respected in what is passed
- *    back. That means the any_str_t *'s styling info will be set
+ *    back. That means the c4m_str_t *'s styling info will be set
  *    appropriately, and that padd will be added based on any
  *    alignment properties.
  *
- * 4) To be clear, the returned array of any_str_t's returned will contain
+ * 4) To be clear, the returned array of c4m_str_t's returned will contain
  *    the number of rows asked for, even if some rows are 100% pad.
  *
  * Of course, for any property beyond render dimensions, the cell's
@@ -119,7 +119,7 @@
  * so as not to interfere with the rendering.
  */
 
-typedef struct grid_t grid_t;
+typedef struct c4m_grid_t c4m_grid_t;
 
 // The outer grid draws borders assembling cells, and does not draw
 // borders if they would go THROUGH a cell; that is left to the
@@ -160,21 +160,21 @@ typedef struct grid_t grid_t;
 // on subsequent lines.
 
 typedef struct {
-    object_t            raw_item; // Currently, must be a grid_t * or any_str_t *.
+    c4m_obj_t           raw_item; // Currently, must be a c4m_grid_t * or c4m_str_t *.
     char               *container_tag;
     c4m_render_style_t *current_style;
     uint16_t            start_col;
     uint16_t            start_row;
     uint16_t            end_col;
     uint16_t            end_row;
-    xlist_t            *render_cache;
+    c4m_xlist_t        *render_cache;
     uint16_t            render_width;
     uint16_t            render_height;
-} renderable_t;
+} c4m_renderable_t;
 
-struct grid_t {
-    renderable_t        *self;
-    renderable_t       **cells; // A 2d array of renderable_objects, by ref
+struct c4m_grid_t {
+    c4m_renderable_t    *self;
+    c4m_renderable_t   **cells; // A 2d array of renderable_objects, by ref
     uint16_t             num_cols;
     uint16_t             num_rows;
     uint16_t             spare_rows;
@@ -200,6 +200,6 @@ struct grid_t {
     int8_t stripe;
 };
 
-#define GRID_TERMINAL_DIM  ((int16_t) - 1)
-#define GRID_UNBOUNDED_DIM ((int16_t) - 2)
-#define GRID_USE_STORED    ((int16_t) - 3)
+#define C4M_GRID_TERMINAL_DIM  ((int16_t) - 1)
+#define C4M_GRID_UNBOUNDED_DIM ((int16_t) - 2)
+#define C4M_GRID_USE_STORED    ((int16_t) - 3)

@@ -7,5 +7,5 @@ typedef void *OSSL_PARAM;
 
 typedef struct {
     EVP_MD_CTX openssl_ctx;
-    buffer_t  *digest;
-} sha_ctx;
+    c4m_buf_t *digest;
+} c4m_sha_t;

@@ -3,7 +3,7 @@
 c4m_style_t default_style = 0;
 
 c4m_style_t
-c4m_apply_bg_color(c4m_style_t style, utf8_t *name)
+c4m_apply_bg_color(c4m_style_t style, c4m_utf8_t *name)
 {
     int64_t color = (int64_t)c4m_lookup_color(name);
 
@@ -15,7 +15,7 @@ c4m_apply_bg_color(c4m_style_t style, utf8_t *name)
 }
 
 c4m_style_t
-c4m_apply_fg_color(c4m_style_t style, utf8_t *name)
+c4m_apply_fg_color(c4m_style_t style, c4m_utf8_t *name)
 {
     int64_t color = (int64_t)c4m_lookup_color(name);
 
@@ -26,7 +26,7 @@ c4m_apply_fg_color(c4m_style_t style, utf8_t *name)
     return (style & C4M_STY_CLEAR_FG) | color | C4M_STY_FG;
 }
 void
-c4m_style_gaps(any_str_t *s, c4m_style_t gapstyle)
+c4m_style_gaps(c4m_str_t *s, c4m_style_t gapstyle)
 {
     if (!s->styling || !s->styling->num_entries) {
         c4m_str_apply_style(s, gapstyle, 0);
@@ -83,7 +83,7 @@ c4m_style_gaps(any_str_t *s, c4m_style_t gapstyle)
 }
 
 void
-c4m_str_layer_style(any_str_t  *s,
+c4m_str_layer_style(c4m_str_t  *s,
                     c4m_style_t additions,
                     c4m_style_t subtractions)
 {

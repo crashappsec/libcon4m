@@ -17,7 +17,7 @@ clz_u128(__uint128_t u)
     return 128;
 }
 
-static any_str_t *
+static c4m_str_t *
 signed_repr(int64_t item, to_str_use_t how)
 {
     // TODO, add hex as an option in how.
@@ -49,7 +49,7 @@ signed_repr(int64_t item, to_str_use_t how)
     return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(&buf[i])));
 }
 
-static any_str_t *
+static c4m_str_t *
 unsigned_repr(int64_t item, to_str_use_t how)
 {
     // TODO, add hex as an option in how.
@@ -166,7 +166,7 @@ raw_hex_parse(char *s, c4m_lit_error_t *err)
     return cur;
 }
 
-static object_t
+static c4m_obj_t
 i8_parse(char *s, c4m_lit_syntax_t st, char *litmod, c4m_lit_error_code_t *code)
 {
     char           *result = c4m_new(c4m_tspec_i8());
@@ -203,10 +203,10 @@ i8_parse(char *s, c4m_lit_syntax_t st, char *litmod, c4m_lit_error_code_t *code)
         *result = (char)val;
     }
 
-    return (object_t)result;
+    return (c4m_obj_t)result;
 }
 
-object_t
+c4m_obj_t
 u8_parse(char                 *s,
          c4m_lit_syntax_t      st,
          char                 *litmod,
@@ -240,10 +240,10 @@ u8_parse(char                 *s,
     }
     *result = (uint8_t)val;
 
-    return (object_t)result;
+    return (c4m_obj_t)result;
 }
 
-object_t
+c4m_obj_t
 i32_parse(char                 *s,
           c4m_lit_syntax_t      st,
           char                 *litmod,
@@ -284,10 +284,10 @@ i32_parse(char                 *s,
         *result = (int32_t)val;
     }
 
-    return (object_t)result;
+    return (c4m_obj_t)result;
 }
 
-object_t
+c4m_obj_t
 u32_parse(char                 *s,
           c4m_lit_syntax_t      st,
           char                 *litmod,
@@ -322,13 +322,13 @@ u32_parse(char                 *s,
 
     *result = (uint32_t)val;
 
-    return (object_t)result;
+    return (c4m_obj_t)result;
 }
 
-static object_t false_lit = NULL;
-static object_t true_lit  = NULL;
+static c4m_obj_t false_lit = NULL;
+static c4m_obj_t true_lit  = NULL;
 
-object_t
+c4m_obj_t
 bool_parse(char                 *s,
            c4m_lit_syntax_t      st,
            char                 *litmod,
@@ -341,7 +341,7 @@ bool_parse(char                 *s,
             if (true_lit == NULL) {
                 int32_t *lit = c4m_new(c4m_tspec_bool());
                 *lit         = 1;
-                true_lit     = (object_t)lit;
+                true_lit     = (c4m_obj_t)lit;
                 c4m_gc_register_root(&true_lit, 1);
             }
             return true_lit;
@@ -353,7 +353,7 @@ bool_parse(char                 *s,
             if (false_lit == NULL) {
                 int32_t *lit = c4m_new(c4m_tspec_bool());
                 *lit         = 0;
-                false_lit    = (object_t)lit;
+                false_lit    = (c4m_obj_t)lit;
                 c4m_gc_register_root(&false_lit, 1);
             }
             return false_lit;
@@ -367,7 +367,7 @@ bool_parse(char                 *s,
     return NULL;
 }
 
-object_t
+c4m_obj_t
 i64_parse(char                 *s,
           c4m_lit_syntax_t      st,
           char                 *litmod,
@@ -408,10 +408,10 @@ i64_parse(char                 *s,
         *result = (int64_t)val;
     }
 
-    return (object_t)result;
+    return (c4m_obj_t)result;
 }
 
-object_t
+c4m_obj_t
 u64_parse(char                 *s,
           c4m_lit_syntax_t      st,
           char                 *litmod,
@@ -446,10 +446,10 @@ u64_parse(char                 *s,
 
     *result = (uint64_t)val;
 
-    return (object_t)result;
+    return (c4m_obj_t)result;
 }
 
-object_t
+c4m_obj_t
 f64_parse(char *s, c4m_lit_syntax_t st, char *litmod, c4m_lit_error_code_t *code)
 {
     char   *end;
@@ -473,50 +473,50 @@ f64_parse(char *s, c4m_lit_syntax_t st, char *litmod, c4m_lit_error_code_t *code
     return lit;
 }
 
-static any_str_t *
+static c4m_str_t *
 i8_repr(i8_box *i8, to_str_use_t how)
 {
     int64_t n = *i8;
     return signed_repr(n, how);
 }
 
-static any_str_t *
+static c4m_str_t *
 u8_repr(u8_box *u8, to_str_use_t how)
 {
     uint64_t n = *u8;
     return unsigned_repr(n, how);
 }
 
-static any_str_t *
+static c4m_str_t *
 i32_repr(i32_box *i32, to_str_use_t how)
 {
     int64_t n = *i32;
     return signed_repr(n, how);
 }
 
-static any_str_t *
+static c4m_str_t *
 u32_repr(u32_box *u32, to_str_use_t how)
 {
     uint64_t n = *u32;
     return unsigned_repr(n, how);
 }
 
-static any_str_t *
+static c4m_str_t *
 i64_repr(i64_box *i64, to_str_use_t how)
 {
     return signed_repr(*i64, how);
 }
 
-static any_str_t *
+static c4m_str_t *
 u64_repr(u64_box *u64, to_str_use_t how)
 {
     return unsigned_repr(*u64, how);
 }
 
-static any_str_t *true_repr  = NULL;
-static any_str_t *false_repr = NULL;
+static c4m_str_t *true_repr  = NULL;
+static c4m_str_t *false_repr = NULL;
 
-static any_str_t *
+static c4m_str_t *
 bool_repr(bool *b, to_str_use_t how)
 {
     if (*b == false) {
@@ -536,7 +536,7 @@ bool_repr(bool *b, to_str_use_t how)
 }
 
 bool
-any_number_can_coerce_to(type_spec_t *my_type, type_spec_t *target_type)
+any_number_can_coerce_to(c4m_type_t *my_type, c4m_type_t *target_type)
 {
     switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
     case C4M_T_BOOL:
@@ -556,7 +556,7 @@ any_number_can_coerce_to(type_spec_t *my_type, type_spec_t *target_type)
 }
 
 void *
-any_int_coerce_to(const int64_t data, type_spec_t *target_type)
+any_int_coerce_to(const int64_t data, c4m_type_t *target_type)
 {
     double d;
 
@@ -580,7 +580,7 @@ any_int_coerce_to(const int64_t data, type_spec_t *target_type)
 }
 
 void *
-bool_coerce_to(const int64_t data, type_spec_t *target_type)
+bool_coerce_to(const int64_t data, c4m_type_t *target_type)
 {
     switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
     case C4M_T_BOOL:
@@ -610,7 +610,7 @@ bool_coerce_to(const int64_t data, type_spec_t *target_type)
     }
 }
 
-any_str_t *
+c4m_str_t *
 float_repr(const double *dp, to_str_use_t how)
 {
     double d       = *dp;
@@ -625,7 +625,7 @@ float_repr(const double *dp, to_str_use_t how)
 }
 
 void *
-float_coerce_to(const double d, type_spec_t *target_type)
+float_coerce_to(const double d, c4m_type_t *target_type)
 {
     int64_t i;
 

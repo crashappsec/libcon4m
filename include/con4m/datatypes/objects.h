@@ -2,7 +2,8 @@
 
 #include "con4m.h"
 
-typedef struct c4m_obj_t c4m_obj_t;
+typedef struct c4m_base_obj_t c4m_base_obj_t;
+typedef void                 *c4m_obj_t;
 
 typedef enum {
     C4M_DT_KIND_nil,
@@ -59,10 +60,10 @@ typedef struct {
 
 // Below, c4m_obj_t is the *internal* object type.
 //
-// For most uses, we use `object_t`, which is a promise that there's a
+// For most uses, we use `c4m_obj_t`, which is a promise that there's a
 // c4m_obj_t header behind the pointer.  Since generic objects will
 // always get passed around by pointer, we skip the '*' whenever using
-// object_t.
+// c4m_obj_t.
 //
 // This header is used for any allocations of non-primitive c4m
 // types, in case we need to do dynamic type checking or dynamic
@@ -72,12 +73,12 @@ typedef struct {
 // to distinguish whether the object has been freed; while I currently
 // do not have
 
-struct c4m_obj_t {
-    c4m_dt_info_t      *base_data_type;
-    struct type_spec_t *concrete_type;
-    __uint128_t         cached_hash;
+struct c4m_base_obj_t {
+    c4m_dt_info_t     *base_data_type;
+    struct c4m_type_t *concrete_type;
+    __uint128_t        cached_hash;
     // The exposed object data.
-    uint64_t            data[];
+    uint64_t           data[];
 };
 
 // A lot of these are placeholders; most are implemented in the

@@ -2,30 +2,30 @@
 
 #include "con4m.h"
 
-static inline c4m_obj_t *
-c4m_object_header(const object_t user_object)
+static inline c4m_base_obj_t *
+c4m_object_header(const c4m_obj_t *user_object)
 {
-    return &((c4m_obj_t *)user_object)[-1];
+    return &((c4m_base_obj_t *)user_object)[-1];
 }
 
 static inline c4m_vtable_t *
-c4m_vtable(const object_t user_object)
+c4m_vtable(const c4m_obj_t *user_object)
 {
-    c4m_obj_t *obj = c4m_object_header(user_object);
+    c4m_base_obj_t *obj = c4m_object_header(user_object);
     return (c4m_vtable_t *)obj->base_data_type->vtable;
 }
 
 static inline uint64_t
-c4m_base_type(const object_t user_object)
+c4m_base_type(const c4m_obj_t *user_object)
 {
-    c4m_obj_t *obj = c4m_object_header(user_object);
+    c4m_base_obj_t *obj = c4m_object_header(user_object);
     return obj->base_data_type->typeid;
 }
 
 static inline const char *
-c4m_base_type_name(const object_t user_object)
+c4m_base_type_name(const c4m_obj_t *user_object)
 {
-    c4m_obj_t *obj = c4m_object_header(user_object);
+    c4m_base_obj_t *obj = c4m_object_header(user_object);
     return obj->base_data_type->name;
 }
 
@@ -34,26 +34,26 @@ extern const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS];
 
 #define c4m_new(tid, ...) _c4m_new(tid, KFUNC(__VA_ARGS__))
 
-extern object_t   _c4m_new(type_spec_t *type, ...);
+extern c4m_obj_t  _c4m_new(c4m_type_t *type, ...);
 extern uint64_t  *c4m_gc_ptr_info(c4m_builtin_t);
-extern any_str_t *c4m_repr(void *, type_spec_t *, to_str_use_t);
-extern bool       c4m_can_coerce(type_spec_t *, type_spec_t *);
-extern object_t   c4m_coerce(void *, type_spec_t *, type_spec_t *);
-extern object_t   c4m_copy_object(object_t);
-extern object_t   c4m_add(object_t, object_t);
-extern object_t   c4m_sub(object_t, object_t);
-extern object_t   c4m_mul(object_t, object_t);
-extern object_t   c4m_div(object_t, object_t);
-extern object_t   c4m_mod(object_t, object_t);
-extern bool       c4m_eq(type_spec_t *, object_t, object_t);
-extern bool       c4m_lt(type_spec_t *, object_t, object_t);
-extern bool       c4m_gt(type_spec_t *, object_t, object_t);
-extern int64_t    c4m_len(object_t);
-extern object_t   c4m_index_get(object_t, object_t);
-extern void       c4m_index_set(object_t, object_t, object_t);
-extern object_t   c4m_slice_get(object_t, int64_t, int64_t);
-extern void       c4m_slice_set(object_t, int64_t, int64_t, object_t);
-extern any_str_t *c4m_value_obj_repr(object_t);
+extern c4m_str_t *c4m_repr(void *, c4m_type_t *, to_str_use_t);
+extern bool       c4m_can_coerce(c4m_type_t *, c4m_type_t *);
+extern c4m_obj_t  c4m_coerce(void *, c4m_type_t *, c4m_type_t *);
+extern c4m_obj_t  c4m_copy_object(c4m_obj_t);
+extern c4m_obj_t  c4m_add(c4m_obj_t, c4m_obj_t);
+extern c4m_obj_t  c4m_sub(c4m_obj_t, c4m_obj_t);
+extern c4m_obj_t  c4m_mul(c4m_obj_t, c4m_obj_t);
+extern c4m_obj_t  c4m_div(c4m_obj_t, c4m_obj_t);
+extern c4m_obj_t  c4m_mod(c4m_obj_t, c4m_obj_t);
+extern bool       c4m_eq(c4m_type_t *, c4m_obj_t, c4m_obj_t);
+extern bool       c4m_lt(c4m_type_t *, c4m_obj_t, c4m_obj_t);
+extern bool       c4m_gt(c4m_type_t *, c4m_obj_t, c4m_obj_t);
+extern int64_t    c4m_len(c4m_obj_t);
+extern c4m_obj_t  c4m_index_get(c4m_obj_t, c4m_obj_t);
+extern void       c4m_index_set(c4m_obj_t, c4m_obj_t, c4m_obj_t);
+extern c4m_obj_t  c4m_slice_get(c4m_obj_t, int64_t, int64_t);
+extern void       c4m_slice_set(c4m_obj_t, int64_t, int64_t, c4m_obj_t);
+extern c4m_str_t *c4m_value_obj_repr(c4m_obj_t);
 
 extern const uint64_t     str_ptr_info[];
 extern const c4m_vtable_t c4m_i8_type;

@@ -1,7 +1,7 @@
 #include "con4m.h"
 
 static void
-tuple_init(tuple_t *tup, va_list args)
+tuple_init(c4m_tuple_t *tup, va_list args)
 {
     void **ptr = NULL;
 
@@ -19,24 +19,24 @@ tuple_init(tuple_t *tup, va_list args)
 
 // This should always be statically checked.
 void
-c4m_tuple_set(tuple_t *tup, int64_t ix, void *item)
+c4m_tuple_set(c4m_tuple_t *tup, int64_t ix, void *item)
 {
     tup->items[ix] = item;
 }
 
 void *
-c4m_tuple_get(tuple_t *tup, int64_t ix)
+c4m_tuple_get(c4m_tuple_t *tup, int64_t ix)
 {
     return tup->items[ix];
 }
 
 static void
-tuple_marshal(tuple_t *tup, stream_t *s, dict_t *memos, int64_t *mid)
+tuple_marshal(c4m_tuple_t *tup, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 {
-    xlist_t *tparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
+    c4m_xlist_t *tparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
 
     for (int i = 0; i < tup->num_items; i++) {
-        type_spec_t   *param   = c4m_xlist_get(tparams, i, NULL);
+        c4m_type_t    *param   = c4m_xlist_get(tparams, i, NULL);
         c4m_dt_info_t *dt_info = c4m_tspec_get_data_type_info(param);
 
         if (dt_info->by_value) {
@@ -49,14 +49,14 @@ tuple_marshal(tuple_t *tup, stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 static void
-tuple_unmarshal(tuple_t *tup, stream_t *s, dict_t *memos)
+tuple_unmarshal(c4m_tuple_t *tup, c4m_stream_t *s, dict_t *memos)
 {
-    xlist_t *tparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
+    c4m_xlist_t *tparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
 
     tup->num_items = c4m_xlist_len(tparams);
 
     for (int i = 0; i < tup->num_items; i++) {
-        type_spec_t   *param   = c4m_xlist_get(tparams, i, NULL);
+        c4m_type_t    *param   = c4m_xlist_get(tparams, i, NULL);
         c4m_dt_info_t *dt_info = c4m_tspec_get_data_type_info(param);
 
         if (dt_info->by_value) {
@@ -69,26 +69,26 @@ tuple_unmarshal(tuple_t *tup, stream_t *s, dict_t *memos)
 }
 
 int64_t
-c4m_tuple_len(tuple_t *tup)
+c4m_tuple_len(c4m_tuple_t *tup)
 {
     return tup->num_items;
 }
 
-static any_str_t *
-tuple_repr(tuple_t *tup, to_str_use_t how)
+static c4m_str_t *
+tuple_repr(c4m_tuple_t *tup, to_str_use_t how)
 {
-    xlist_t *tparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
-    int      len     = tup->num_items;
-    xlist_t *items   = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
+    c4m_xlist_t *tparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
+    int          len     = tup->num_items;
+    c4m_xlist_t *items   = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
 
     for (int i = 0; i < len; i++) {
-        type_spec_t *one_type = c4m_xlist_get(tparams, i, NULL);
+        c4m_type_t *one_type = c4m_xlist_get(tparams, i, NULL);
 
         c4m_xlist_append(items, c4m_repr(tup->items[i], one_type, how));
     }
 
-    any_str_t *sep    = c4m_get_comma_const();
-    any_str_t *result = c4m_str_join(items, sep);
+    c4m_str_t *sep    = c4m_get_comma_const();
+    c4m_str_t *result = c4m_str_join(items, sep);
 
     if (how == C4M_REPR_QUOTED) {
         result = c4m_str_concat(c4m_get_lparen_const(),
@@ -99,22 +99,22 @@ tuple_repr(tuple_t *tup, to_str_use_t how)
 }
 
 static bool
-tuple_can_coerce(type_spec_t *src, type_spec_t *dst)
+tuple_can_coerce(c4m_type_t *src, c4m_type_t *dst)
 {
     return c4m_tspecs_are_compat(src, dst);
 }
 
-static tuple_t *
-tuple_coerce(tuple_t *tup, type_spec_t *dst)
+static c4m_tuple_t *
+tuple_coerce(c4m_tuple_t *tup, c4m_type_t *dst)
 {
-    xlist_t *srcparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
-    xlist_t *dstparams = c4m_tspec_get_parameters(dst);
-    int      len       = tup->num_items;
-    tuple_t *res       = c4m_new(dst);
+    c4m_xlist_t *srcparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
+    c4m_xlist_t *dstparams = c4m_tspec_get_parameters(dst);
+    int          len       = tup->num_items;
+    c4m_tuple_t *res       = c4m_new(dst);
 
     for (int i = 0; i < len; i++) {
-        type_spec_t *src_type = c4m_xlist_get(srcparams, i, NULL);
-        type_spec_t *dst_type = c4m_xlist_get(dstparams, i, NULL);
+        c4m_type_t *src_type = c4m_xlist_get(srcparams, i, NULL);
+        c4m_type_t *dst_type = c4m_xlist_get(dstparams, i, NULL);
 
         res->items[i] = c4m_coerce(tup->items[i], src_type, dst_type);
     }
@@ -122,8 +122,8 @@ tuple_coerce(tuple_t *tup, type_spec_t *dst)
     return res;
 }
 
-static tuple_t *
-tuple_copy(tuple_t *tup)
+static c4m_tuple_t *
+tuple_copy(c4m_tuple_t *tup)
 {
     return tuple_coerce(tup, c4m_get_my_type(tup));
 }

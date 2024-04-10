@@ -8,7 +8,7 @@ static const char *err2 =
     "extracting the value from a mixed-type object";
 
 void
-c4m_mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
+c4m_mixed_set_value(c4m_mixed_t *m, c4m_type_t *type, void **ptr)
 {
     if (type == NULL) {
         if (ptr != NULL) {
@@ -92,10 +92,10 @@ c4m_mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
 }
 
 static void
-mixed_init(mixed_t *m, va_list args)
+mixed_init(c4m_mixed_t *m, va_list args)
 {
-    type_spec_t *type = NULL;
-    void        *ptr  = NULL;
+    c4m_type_t *type = NULL;
+    void       *ptr  = NULL;
 
     c4m_karg_va_init(args);
     c4m_kw_ptr("type", type);
@@ -105,7 +105,7 @@ mixed_init(mixed_t *m, va_list args)
 }
 
 void
-c4m_unbox_mixed(mixed_t *m, type_spec_t *expected_type, void **ptr)
+c4m_unbox_mixed(c4m_mixed_t *m, c4m_type_t *expected_type, void **ptr)
 {
     if (!c4m_tspecs_are_compat(m->held_type, expected_type)) {
         C4M_CRAISE((char *)err2);
@@ -169,7 +169,7 @@ c4m_unbox_mixed(mixed_t *m, type_spec_t *expected_type, void **ptr)
 }
 
 static int64_t
-mixed_as_word(mixed_t *m)
+mixed_as_word(c4m_mixed_t *m)
 {
     switch (c4m_tspec_get_data_type_info(m->held_type)->typeid) {
     case C4M_T_BOOL:
@@ -209,8 +209,8 @@ mixed_as_word(mixed_t *m)
     }
 }
 
-static any_str_t *
-mixed_repr(mixed_t *mixed, to_str_use_t how)
+static c4m_str_t *
+mixed_repr(c4m_mixed_t *mixed, to_str_use_t how)
 {
     // For the value types, we need to convert them to a 64-bit equiv
     // to send to the appropriate repr.
@@ -218,7 +218,7 @@ mixed_repr(mixed_t *mixed, to_str_use_t how)
 }
 
 static void
-mixed_marshal_arts(mixed_t *m, stream_t *s, dict_t *memos, int64_t *mid)
+mixed_marshal_arts(c4m_mixed_t *m, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 {
     c4m_sub_marshal(m->held_type, s, memos, mid);
 
@@ -231,7 +231,7 @@ mixed_marshal_arts(mixed_t *m, stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 static void
-mixed_unmarshal_arts(mixed_t *m, stream_t *s, dict_t *memos)
+mixed_unmarshal_arts(c4m_mixed_t *m, c4m_stream_t *s, dict_t *memos)
 {
     m->held_type = c4m_sub_unmarshal(s, memos);
 
@@ -243,10 +243,10 @@ mixed_unmarshal_arts(mixed_t *m, stream_t *s, dict_t *memos)
     }
 }
 
-static mixed_t *
-mixed_copy(mixed_t *m)
+static c4m_mixed_t *
+mixed_copy(c4m_mixed_t *m)
 {
-    mixed_t *result = c4m_new(c4m_tspec_mixed());
+    c4m_mixed_t *result = c4m_new(c4m_tspec_mixed());
 
     // Types are concrete whenever there is a value, so we don't need to
     // call copy, but we do it anyway.

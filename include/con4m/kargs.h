@@ -175,11 +175,11 @@ _c4m_kw_float(c4m_karg_info_t *provided, char *name, double *ptr)
 
 #define c4m_ka(x)   ((int64_t)x)
 #define c4m_kw(...) c4m_pass_kargs(PP_NARG(__VA_ARGS__), __VA_ARGS__), NULL
-#define c4m_karg_only_init(last)                          \
-    va_list _args;                                        \
-    va_start(_args, last);                                \
-    c4m_karg_info_t *_c4m_karg = va_arg(_args, object_t); \
+#define c4m_karg_only_init(last)                           \
+    va_list _args;                                         \
+    va_start(_args, last);                                 \
+    c4m_karg_info_t *_c4m_karg = va_arg(_args, c4m_obj_t); \
     va_end(_args);
 
 #define c4m_karg_va_init(list) \
-    c4m_karg_info_t *_c4m_karg = va_arg(list, object_t)
+    c4m_karg_info_t *_c4m_karg = va_arg(list, c4m_obj_t)

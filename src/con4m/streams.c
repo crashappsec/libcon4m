@@ -4,7 +4,7 @@
 // TODO to add an ansi streaming mode for strings.  I also want to add
 // an ANSI parser to lift codes out of strings too.
 static void
-mem_stream_setup(cookie_t *c)
+mem_c4m_stream_setup(c4m_cookie_t *c)
 {
     if (c->object == NULL) {
         c->object = c4m_new(c4m_tspec_buffer());
@@ -15,15 +15,15 @@ mem_stream_setup(cookie_t *c)
         switch (c4m_get_base_type_id(c->object)) {
         case C4M_T_UTF8:
         case C4M_T_UTF32: {
-            any_str_t *s = (any_str_t *)c->object;
+            c4m_str_t *s = (c4m_str_t *)c->object;
             c->extra     = s->data;
             c->eof       = s->byte_len;
             return;
         }
         case C4M_T_BUFFER: {
-            buffer_t *b = (buffer_t *)c->object;
-            c->extra    = b->data;
-            c->eof      = b->byte_len;
+            c4m_buf_t *b = (c4m_buf_t *)c->object;
+            c->extra     = b->data;
+            c->eof       = b->byte_len;
             return;
         }
         default:
@@ -33,7 +33,7 @@ mem_stream_setup(cookie_t *c)
 }
 
 static size_t
-mem_stream_read(cookie_t *c, char *dst, int64_t request)
+mem_c4m_stream_read(c4m_cookie_t *c, char *dst, int64_t request)
 {
     // For buffers, which are mutable, this approach doesn't really
     // work when another thread can also be mutating the buffer.  So
@@ -41,8 +41,8 @@ mem_stream_read(cookie_t *c, char *dst, int64_t request)
     // reset the buffer length each call (again, without any locking
     // this is basically meaningless).
 
-    if (c->flags & F_STREAM_BUFFER_IN) {
-        buffer_t *b = (buffer_t *)c->object;
+    if (c->flags & C4M_F_STREAM_BUFFER_IN) {
+        c4m_buf_t *b = (c4m_buf_t *)c->object;
 
         c->eof = b->byte_len;
     }
@@ -66,13 +66,13 @@ mem_stream_read(cookie_t *c, char *dst, int64_t request)
 }
 
 static size_t
-mem_stream_write(cookie_t *c, char *buf, int64_t request)
+mem_c4m_stream_write(c4m_cookie_t *c, char *buf, int64_t request)
 {
     // Same comment on buffers as above.
-    buffer_t *b = (buffer_t *)c->object;
-    c->eof      = b->byte_len;
+    c4m_buf_t *b = (c4m_buf_t *)c->object;
+    c->eof       = b->byte_len;
 
-    if (c->flags & F_STREAM_APPEND) {
+    if (c->flags & C4M_F_STREAM_APPEND) {
         c->position = c->eof;
     }
 
@@ -90,15 +90,15 @@ mem_stream_write(cookie_t *c, char *buf, int64_t request)
 }
 
 static void
-mem_stream_close(cookie_t *c)
+mem_c4m_stream_close(c4m_cookie_t *c)
 {
     // Get rid of our heap pointers.
     c->object = NULL;
     c->extra  = NULL;
 }
 
-static _Bool
-mem_stream_seek(cookie_t *c, int64_t pos)
+static bool
+mem_c4m_stream_seek(c4m_cookie_t *c, int64_t pos)
 {
     if (pos < 0) {
         return false;
@@ -113,27 +113,27 @@ mem_stream_seek(cookie_t *c, int64_t pos)
     return true;
 }
 
-static inline cookie_t *
+static inline c4m_cookie_t *
 new_mem_cookie()
 {
-    cookie_t *result = c4m_gc_alloc(cookie_t);
+    c4m_cookie_t *result = c4m_gc_alloc(c4m_cookie_t);
 
-    result->ptr_setup = mem_stream_setup;
-    result->ptr_read  = mem_stream_read;
-    result->ptr_write = mem_stream_write;
-    result->ptr_close = mem_stream_close;
-    result->ptr_seek  = mem_stream_seek;
+    result->ptr_setup = mem_c4m_stream_setup;
+    result->ptr_read  = mem_c4m_stream_read;
+    result->ptr_write = mem_c4m_stream_write;
+    result->ptr_close = mem_c4m_stream_close;
+    result->ptr_seek  = mem_c4m_stream_seek;
 
     return result;
 }
 
 static void
-stream_init(stream_t *stream, va_list args)
+c4m_stream_init(c4m_stream_t *stream, va_list args)
 {
-    any_str_t    *filename      = NULL;
-    any_str_t    *instring      = NULL;
-    buffer_t     *buffer        = NULL;
-    cookie_t     *cookie        = NULL;
+    c4m_str_t    *filename      = NULL;
+    c4m_str_t    *instring      = NULL;
+    c4m_buf_t    *buffer        = NULL;
+    c4m_cookie_t *cookie        = NULL;
     FILE         *fstream       = NULL;
     int           fd            = -1;
     bool          read          = true;
@@ -173,10 +173,10 @@ stream_init(stream_t *stream, va_list args)
 
     switch (out_type) {
     case C4M_T_UTF8:
-        flags = F_STREAM_UTF8_OUT;
+        flags = C4M_F_STREAM_UTF8_OUT;
         break;
     case C4M_T_UTF32:
-        flags = F_STREAM_UTF32_OUT;
+        flags = C4M_F_STREAM_UTF32_OUT;
         break;
     case C4M_T_BUFFER:
         break;
@@ -227,13 +227,13 @@ stream_init(stream_t *stream, va_list args)
     }
 
     if (read) {
-        flags |= F_STREAM_READ;
+        flags |= C4M_F_STREAM_READ;
     }
     if (write) {
-        flags |= F_STREAM_WRITE;
+        flags |= C4M_F_STREAM_WRITE;
     }
     if (append) {
-        flags |= F_STREAM_APPEND;
+        flags |= C4M_F_STREAM_APPEND;
     }
 
     if (filename != NULL) {
@@ -259,31 +259,37 @@ err_check:
         goto err_check;
     }
 
-    flags |= F_STREAM_USING_COOKIE;
+    flags |= C4M_F_STREAM_USING_COOKIE;
 
     if (cookie == NULL) {
         if (instring && write) {
-            C4M_CRAISE("Cannot open string for writing (they are non-mutable).");
+            C4M_CRAISE(
+                "Cannot open string for writing "
+                "(they are non-mutable).");
         }
 
         cookie = new_mem_cookie();
     }
     else {
         if (read && !cookie->ptr_read) {
-            C4M_CRAISE("Custom stream implementation does not support reading.");
+            C4M_CRAISE(
+                "Custom stream implementation does not "
+                "support reading.");
         }
         if ((write || append) && !cookie->ptr_write) {
-            C4M_CRAISE("Custom stream implementation does not support writing.");
+            C4M_CRAISE(
+                "Custom stream implementation does not support "
+                "writing.");
         }
     }
 
     if (instring) {
         cookie->object = instring;
-        flags |= F_STREAM_STR_IN;
+        flags |= C4M_F_STREAM_STR_IN;
     }
     if (buffer) {
         cookie->object = buffer;
-        flags |= F_STREAM_BUFFER_IN;
+        flags |= C4M_F_STREAM_BUFFER_IN;
     }
 
     cookie->flags           = flags;
@@ -295,15 +301,15 @@ err_check:
     }
 }
 
-static object_t
-stream_bytes_to_output(int64_t flags, char *buf, int64_t len)
+static c4m_obj_t
+c4m_stream_bytes_to_output(int64_t flags, char *buf, int64_t len)
 {
-    if (flags & F_STREAM_UTF8_OUT) {
+    if (flags & C4M_F_STREAM_UTF8_OUT) {
         return c4m_new(c4m_tspec_utf8(),
                        c4m_kw("cstring", c4m_ka(buf), "length", c4m_ka(len)));
     }
 
-    if (flags & F_STREAM_UTF32_OUT) {
+    if (flags & C4M_F_STREAM_UTF32_OUT) {
         return c4m_new(c4m_tspec_utf32(),
                        c4m_kw("cstring",
                               c4m_ka(buf),
@@ -328,22 +334,22 @@ stream_bytes_to_output(int64_t flags, char *buf, int64_t len)
 // marshal, so we don't have to go through an object to read out
 // things like ints that we plan on returning.
 
-object_t
-c4m_stream_raw_read(stream_t *stream, int64_t len, char *buf)
+c4m_obj_t
+c4m_stream_raw_read(c4m_stream_t *stream, int64_t len, char *buf)
 {
     // If a buffer is provided, return the length and write into
     // the buffer.
     bool return_len = (buf != NULL);
 
-    if (stream->flags & F_STREAM_CLOSED) {
+    if (stream->flags & C4M_F_STREAM_CLOSED) {
         C4M_CRAISE("Stream is already closed.");
     }
 
     if (!len) {
         if (return_len) {
-            return (object_t)(0); // I.e., null
+            return (c4m_obj_t)(0); // I.e., null
         }
-        return stream_bytes_to_output(stream->flags, "", 0);
+        return c4m_stream_bytes_to_output(stream->flags, "", 0);
     }
 
     int64_t flags  = stream->flags;
@@ -353,17 +359,17 @@ c4m_stream_raw_read(stream_t *stream, int64_t len, char *buf)
         buf = alloca(len);
     }
 
-    if (!(flags & F_STREAM_READ)) {
+    if (!(flags & C4M_F_STREAM_READ)) {
         C4M_CRAISE("Cannot read; stream was not opened with read enabled.");
     }
 
-    if (flags & F_STREAM_UTF32_OUT) {
+    if (flags & C4M_F_STREAM_UTF32_OUT) {
         len *= 4;
     }
 
-    if (stream->flags & F_STREAM_USING_COOKIE) {
-        cookie_t      *cookie = stream->contents.cookie;
-        stream_read_fn f      = cookie->ptr_read;
+    if (stream->flags & C4M_F_STREAM_USING_COOKIE) {
+        c4m_cookie_t      *cookie = stream->contents.cookie;
+        c4m_stream_read_fn f      = cookie->ptr_read;
 
         actual = (*f)(cookie, buf, len);
     }
@@ -372,20 +378,20 @@ c4m_stream_raw_read(stream_t *stream, int64_t len, char *buf)
     }
 
     if (return_len) {
-        return (object_t)(actual);
+        return (c4m_obj_t)(actual);
     }
     else {
-        return stream_bytes_to_output(stream->flags, buf, actual);
+        return c4m_stream_bytes_to_output(stream->flags, buf, actual);
     }
 }
 
 size_t
-c4m_stream_raw_write(stream_t *stream, int64_t len, char *buf)
+c4m_stream_raw_write(c4m_stream_t *stream, int64_t len, char *buf)
 {
-    size_t    actual = 0;
-    cookie_t *cookie = NULL;
+    size_t        actual = 0;
+    c4m_cookie_t *cookie = NULL;
 
-    if (stream->flags & F_STREAM_CLOSED) {
+    if (stream->flags & C4M_F_STREAM_CLOSED) {
         C4M_CRAISE("Stream is already closed.");
     }
 
@@ -393,10 +399,10 @@ c4m_stream_raw_write(stream_t *stream, int64_t len, char *buf)
         return 0;
     }
 
-    if (stream->flags & F_STREAM_USING_COOKIE) {
+    if (stream->flags & C4M_F_STREAM_USING_COOKIE) {
         cookie = stream->contents.cookie;
 
-        stream_write_fn f = cookie->ptr_write;
+        c4m_stream_write_fn f = cookie->ptr_write;
 
         actual = (*f)(cookie, buf, len);
     }
@@ -413,7 +419,7 @@ c4m_stream_raw_write(stream_t *stream, int64_t len, char *buf)
             C4M_CRAISE("Custom stream implementation could write past EOF.");
         }
         else {
-            C4M_CRAISE("Custom stream implementation could not complete write.");
+            C4M_CRAISE("Custom stream implementation could not finish write.");
         }
     }
 
@@ -427,13 +433,13 @@ c4m_stream_raw_write(stream_t *stream, int64_t len, char *buf)
 }
 
 void
-_c4m_stream_write_object(stream_t *stream, object_t obj, bool ansi)
+_c4m_stream_write_object(c4m_stream_t *stream, c4m_obj_t obj, bool ansi)
 {
-    if (stream->flags & F_STREAM_CLOSED) {
+    if (stream->flags & C4M_F_STREAM_CLOSED) {
         C4M_CRAISE("Stream is already closed.");
     }
 
-    any_str_t *s = c4m_value_obj_repr(obj);
+    c4m_str_t *s = c4m_value_obj_repr(obj);
     if (ansi) {
         c4m_ansi_render(s, stream);
     }
@@ -444,14 +450,14 @@ _c4m_stream_write_object(stream_t *stream, object_t obj, bool ansi)
 }
 
 bool
-c4m_stream_at_eof(stream_t *stream)
+c4m_stream_at_eof(c4m_stream_t *stream)
 {
-    if (stream->flags & F_STREAM_CLOSED) {
+    if (stream->flags & C4M_F_STREAM_CLOSED) {
         return true;
     }
 
-    if (stream->flags & F_STREAM_USING_COOKIE) {
-        cookie_t *cookie = stream->contents.cookie;
+    if (stream->flags & C4M_F_STREAM_USING_COOKIE) {
+        c4m_cookie_t *cookie = stream->contents.cookie;
 
         return cookie->position >= cookie->eof;
     }
@@ -460,13 +466,13 @@ c4m_stream_at_eof(stream_t *stream)
 }
 
 int64_t
-c4m_stream_get_location(stream_t *stream)
+c4m_stream_get_location(c4m_stream_t *stream)
 {
-    if (stream->flags & F_STREAM_CLOSED) {
+    if (stream->flags & C4M_F_STREAM_CLOSED) {
         C4M_CRAISE("Stream is already closed.");
     }
 
-    if (stream->flags & F_STREAM_USING_COOKIE) {
+    if (stream->flags & C4M_F_STREAM_USING_COOKIE) {
         return stream->contents.cookie->position;
     }
 
@@ -474,20 +480,20 @@ c4m_stream_get_location(stream_t *stream)
 }
 
 void
-stream_set_location(stream_t *stream, int64_t offset)
+c4m_stream_set_location(c4m_stream_t *stream, int64_t offset)
 {
-    if (stream->flags & F_STREAM_CLOSED) {
+    if (stream->flags & C4M_F_STREAM_CLOSED) {
         C4M_CRAISE("Stream is already closed.");
     }
 
-    if (stream->flags & F_STREAM_USING_COOKIE) {
-        cookie_t *cookie = stream->contents.cookie;
+    if (stream->flags & C4M_F_STREAM_USING_COOKIE) {
+        c4m_cookie_t *cookie = stream->contents.cookie;
 
         if (offset < 0) {
             offset += cookie->eof;
         }
 
-        stream_seek_fn fn = cookie->ptr_seek;
+        c4m_stream_seek_fn fn = cookie->ptr_seek;
 
         if (fn == NULL) {
             C4M_CRAISE("Custom stream does not have the ability to seek.");
@@ -511,21 +517,21 @@ stream_set_location(stream_t *stream, int64_t offset)
         }
 
         if (result != 0) {
-            stream->flags = F_STREAM_CLOSED;
+            stream->flags = C4M_F_STREAM_CLOSED;
             c4m_raise_errno();
         }
     }
 }
 
 void
-c4m_stream_close(stream_t *stream)
+c4m_stream_close(c4m_stream_t *stream)
 {
-    if (stream->flags & F_STREAM_USING_COOKIE) {
-        cookie_t *cookie = stream->contents.cookie;
+    if (stream->flags & C4M_F_STREAM_USING_COOKIE) {
+        c4m_cookie_t *cookie = stream->contents.cookie;
 
-        stream_close_fn fn = cookie->ptr_close;
+        c4m_stream_close_fn fn = cookie->ptr_close;
 
-        cookie->flags = F_STREAM_CLOSED;
+        cookie->flags = C4M_F_STREAM_CLOSED;
 
         if (fn) {
             (*fn)(cookie);
@@ -541,33 +547,33 @@ c4m_stream_close(stream_t *stream)
     }
 
     stream->contents.f = NULL;
-    stream->flags      = F_STREAM_CLOSED;
+    stream->flags      = C4M_F_STREAM_CLOSED;
 }
 
 void
-c4m_stream_flush(stream_t *stream)
+c4m_stream_flush(c4m_stream_t *stream)
 {
-    if (stream->flags & F_STREAM_CLOSED) {
+    if (stream->flags & C4M_F_STREAM_CLOSED) {
         C4M_CRAISE("Stream is already closed.");
     }
 
-    if (stream->flags & F_STREAM_USING_COOKIE) {
+    if (stream->flags & C4M_F_STREAM_USING_COOKIE) {
         return; // Not actually buffering ATM.
     }
 
     if (fflush(stream->contents.f)) {
-        stream->flags = F_STREAM_CLOSED;
+        stream->flags = C4M_F_STREAM_CLOSED;
         c4m_raise_errno();
     }
 }
 
 void
-_c4m_print(object_t first, ...)
+_c4m_print(c4m_obj_t first, ...)
 {
     va_list          args;
-    object_t         cur       = first;
+    c4m_obj_t        cur       = first;
     c4m_karg_info_t *_c4m_karg = NULL;
-    stream_t        *stream    = NULL;
+    c4m_stream_t    *stream    = NULL;
     c4m_codepoint_t  sep       = ' ';
     c4m_codepoint_t  end       = '\n';
     bool             flush     = false;
@@ -640,7 +646,7 @@ _c4m_print(object_t first, ...)
         }
 
         c4m_stream_write_object(stream, cur, ansi);
-        cur = va_arg(args, object_t);
+        cur = va_arg(args, c4m_obj_t);
     }
 
     if (end) {
@@ -657,7 +663,7 @@ _c4m_print(object_t first, ...)
 const c4m_vtable_t c4m_stream_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)stream_init,
+        (c4m_vtable_entry)c4m_stream_init,
         NULL, // Aboslutelty nothing else.
     },
 };

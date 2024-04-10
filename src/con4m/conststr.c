@@ -17,7 +17,7 @@ enum {
     PUNC_MAX  = 13
 };
 
-static any_str_t *type_punct[PUNC_MAX] = {
+static c4m_str_t *type_punct[PUNC_MAX] = {
     0,
 };
 
@@ -45,91 +45,91 @@ init_punctuation()
     c4m_gc_register_root(&type_punct[0], PUNC_MAX);
 }
 
-utf8_t *
+c4m_utf8_t *
 c4m_get_lbrak_const()
 {
     init_punctuation();
     return type_punct[LBRAK_IX];
 }
 
-utf8_t *
+c4m_utf8_t *
 c4m_get_comma_const()
 {
     init_punctuation();
     return type_punct[COMMA_IX];
 }
 
-utf8_t *
+c4m_utf8_t *
 c4m_get_rbrak_const()
 {
     init_punctuation();
     return type_punct[RBRAK_IX];
 }
 
-utf8_t *
+c4m_utf8_t *
 c4m_get_lparen_const()
 {
     init_punctuation();
     return type_punct[LPAREN_IX];
 }
 
-utf8_t *
+c4m_utf8_t *
 c4m_get_rparen_const()
 {
     init_punctuation();
     return type_punct[RPAREN_IX];
 }
 
-utf8_t *
+c4m_utf8_t *
 c4m_get_arrow_const()
 {
     init_punctuation();
     return type_punct[ARROW_IX];
 }
 
-utf8_t *
+c4m_utf8_t *
 c4m_get_backtick_const()
 {
     init_punctuation();
     return type_punct[BTICK_IX];
 }
 
-utf8_t *
+c4m_utf8_t *
 c4m_get_asterisk_const()
 {
     init_punctuation();
     return type_punct[STAR_IX];
 }
 
-utf8_t *
+c4m_utf8_t *
 c4m_get_space_const()
 {
     init_punctuation();
     return type_punct[SPACE_IX];
 }
 
-utf8_t *
+c4m_utf8_t *
 c4m_get_lbrace_const()
 {
     init_punctuation();
     return type_punct[LBRACE_IX];
 }
 
-utf8_t *
+c4m_utf8_t *
 c4m_get_rbrace_const()
 {
     init_punctuation();
     return type_punct[RBRACE_IX];
 }
 
-utf8_t *
+c4m_utf8_t *
 c4m_get_colon_const()
 {
     init_punctuation();
     return type_punct[COLON_IX];
 }
 
-utf8_t *
+c4m_utf8_t *
 c4m_get_colon_no_space_const()
 {
     init_punctuation();

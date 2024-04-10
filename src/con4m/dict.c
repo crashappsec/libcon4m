@@ -4,10 +4,10 @@ static void
 c4m_dict_init(hatrack_dict_t *dict, va_list args)
 {
     size_t         hash_fn;
-    xlist_t       *type_params;
-    type_spec_t   *key_type;
+    c4m_xlist_t   *type_params;
+    c4m_type_t    *key_type;
     c4m_dt_info_t *info;
-    type_spec_t   *dict_type = c4m_get_my_type(dict);
+    c4m_type_t    *dict_type = c4m_get_my_type(dict);
 
     if (dict_type != NULL) {
         type_params = c4m_tspec_get_parameters(dict_type);
@@ -38,18 +38,18 @@ c4m_dict_init(hatrack_dict_t *dict, va_list args)
 }
 
 static void
-c4m_dict_marshal(dict_t *d, stream_t *s, dict_t *memos, int64_t *mid)
+c4m_dict_marshal(dict_t *d, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 {
-    uint64_t     length;
-    type_spec_t *dict_type = c4m_get_my_type(d);
+    uint64_t    length;
+    c4m_type_t *dict_type = c4m_get_my_type(d);
 
     if (dict_type == NULL) {
         C4M_CRAISE("Cannot marshal untyped dictionaries.");
     }
 
-    xlist_t             *type_params = c4m_tspec_get_parameters(dict_type);
-    type_spec_t         *key_type    = c4m_xlist_get(type_params, 0, NULL);
-    type_spec_t         *val_type    = c4m_xlist_get(type_params, 1, NULL);
+    c4m_xlist_t         *type_params = c4m_tspec_get_parameters(dict_type);
+    c4m_type_t          *key_type    = c4m_xlist_get(type_params, 0, NULL);
+    c4m_type_t          *val_type    = c4m_xlist_get(type_params, 1, NULL);
     hatrack_dict_item_t *view        = hatrack_dict_items_sort(d, &length);
     c4m_dt_info_t       *kinfo       = c4m_tspec_get_data_type_info(key_type);
     c4m_dt_info_t       *vinfo       = c4m_tspec_get_data_type_info(val_type);
@@ -79,13 +79,13 @@ c4m_dict_marshal(dict_t *d, stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 static void
-c4m_dict_unmarshal(dict_t *d, stream_t *s, dict_t *memos)
+c4m_dict_unmarshal(dict_t *d, c4m_stream_t *s, dict_t *memos)
 {
     uint32_t       length      = c4m_unmarshal_u32(s);
-    type_spec_t   *dict_type   = c4m_get_my_type(d);
-    xlist_t       *type_params = c4m_tspec_get_parameters(dict_type);
-    type_spec_t   *key_type    = c4m_xlist_get(type_params, 0, NULL);
-    type_spec_t   *val_type    = c4m_xlist_get(type_params, 1, NULL);
+    c4m_type_t    *dict_type   = c4m_get_my_type(d);
+    c4m_xlist_t   *type_params = c4m_tspec_get_parameters(dict_type);
+    c4m_type_t    *key_type    = c4m_xlist_get(type_params, 0, NULL);
+    c4m_type_t    *val_type    = c4m_xlist_get(type_params, 1, NULL);
     c4m_dt_info_t *kinfo       = c4m_tspec_get_data_type_info(key_type);
     c4m_dt_info_t *vinfo       = c4m_tspec_get_data_type_info(val_type);
     bool           key_by_val  = kinfo->by_value;
@@ -128,20 +128,20 @@ c4m_dict_unmarshal(dict_t *d, stream_t *s, dict_t *memos)
     }
 }
 
-static any_str_t *
+static c4m_str_t *
 dict_repr(dict_t *dict, to_str_use_t how)
 {
     uint64_t             view_len;
-    type_spec_t         *dict_type   = c4m_get_my_type(dict);
-    xlist_t             *type_params = c4m_tspec_get_parameters(dict_type);
-    type_spec_t         *key_type    = c4m_xlist_get(type_params, 0, NULL);
-    type_spec_t         *val_type    = c4m_xlist_get(type_params, 1, NULL);
+    c4m_type_t          *dict_type   = c4m_get_my_type(dict);
+    c4m_xlist_t         *type_params = c4m_tspec_get_parameters(dict_type);
+    c4m_type_t          *key_type    = c4m_xlist_get(type_params, 0, NULL);
+    c4m_type_t          *val_type    = c4m_xlist_get(type_params, 1, NULL);
     hatrack_dict_item_t *view        = hatrack_dict_items_sort(dict, &view_len);
 
-    xlist_t *items    = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()),
-                             c4m_kw("length", c4m_ka(view_len)));
-    xlist_t *one_item = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
-    utf8_t  *colon    = c4m_get_colon_const();
+    c4m_xlist_t *items    = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()),
+                                 c4m_kw("length", c4m_ka(view_len)));
+    c4m_xlist_t *one_item = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
+    c4m_utf8_t  *colon    = c4m_get_colon_const();
 
     for (uint64_t i = 0; i < view_len; i++) {
         c4m_xlist_set(one_item, 0, c4m_repr(view[i].key, key_type, how));
@@ -157,22 +157,22 @@ dict_repr(dict_t *dict, to_str_use_t how)
 }
 
 static bool
-dict_can_coerce_to(type_spec_t *my_type, type_spec_t *dst_type)
+dict_can_coerce_to(c4m_type_t *my_type, c4m_type_t *dst_type)
 {
     return c4m_tspecs_are_compat(my_type, dst_type);
 }
 
 static dict_t *
-dict_coerce_to(dict_t *dict, type_spec_t *dst_type)
+dict_coerce_to(dict_t *dict, c4m_type_t *dst_type)
 {
     uint64_t             len;
     hatrack_dict_item_t *view     = hatrack_dict_items_sort(dict, &len);
     dict_t              *res      = c4m_new(dst_type);
-    type_spec_t         *src_type = c4m_get_my_type(dict);
-    type_spec_t         *kt_src   = c4m_tspec_get_param(src_type, 0);
-    type_spec_t         *kt_dst   = c4m_tspec_get_param(dst_type, 0);
-    type_spec_t         *vt_src   = c4m_tspec_get_param(src_type, 1);
-    type_spec_t         *vt_dst   = c4m_tspec_get_param(dst_type, 1);
+    c4m_type_t          *src_type = c4m_get_my_type(dict);
+    c4m_type_t          *kt_src   = c4m_tspec_get_param(src_type, 0);
+    c4m_type_t          *kt_dst   = c4m_tspec_get_param(dst_type, 0);
+    c4m_type_t          *vt_src   = c4m_tspec_get_param(src_type, 1);
+    c4m_type_t          *vt_dst   = c4m_tspec_get_param(dst_type, 1);
 
     for (uint64_t i = 0; i < len; i++) {
         void *key_copy = c4m_coerce(view[i].key, kt_src, kt_dst);

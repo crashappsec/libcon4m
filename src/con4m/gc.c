@@ -511,7 +511,7 @@ c4m_gc_register_root(void *ptr, uint64_t num_words)
 __thread int  ro_test_pipe_fds[2] = {0, 0};
 __thread bool ro_test_pipe_inited = false;
 
-_Bool
+bool
 c4m_is_read_only_memory(volatile void *address)
 {
     // This works by creating a pipe we can always read from,

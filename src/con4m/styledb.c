@@ -566,7 +566,7 @@ c4m_layer_styles(const c4m_render_style_t *base, c4m_render_style_t *cur)
 }
 
 static void
-c4m_style_marshal(c4m_render_style_t *obj, stream_t *s, dict_t *memos, int64_t *mid)
+c4m_style_marshal(c4m_render_style_t *obj, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 {
     uint8_t flags = 0;
 
@@ -589,7 +589,7 @@ c4m_style_marshal(c4m_render_style_t *obj, stream_t *s, dict_t *memos, int64_t *
 }
 
 static void
-c4m_style_unmarshal(c4m_render_style_t *obj, stream_t *s, dict_t *memos)
+c4m_style_unmarshal(c4m_render_style_t *obj, c4m_stream_t *s, dict_t *memos)
 {
     uint8_t flags;
     char   *theme;

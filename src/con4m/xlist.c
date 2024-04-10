@@ -3,7 +3,7 @@
 #include "con4m.h"
 
 static void
-xlist_init(xlist_t *list, va_list args)
+xlist_init(c4m_xlist_t *list, va_list args)
 {
     int64_t length = 16;
 
@@ -16,7 +16,7 @@ xlist_init(xlist_t *list, va_list args)
 }
 
 static inline void
-xlist_resize(xlist_t *list, size_t len)
+xlist_resize(c4m_xlist_t *list, size_t len)
 {
     int64_t **old = list->data;
     int64_t **new = c4m_gc_array_alloc(uint64_t *, len);
@@ -30,13 +30,13 @@ xlist_resize(xlist_t *list, size_t len)
 }
 
 static inline void
-xlist_auto_resize(xlist_t *list)
+xlist_auto_resize(c4m_xlist_t *list)
 {
     xlist_resize(list, list->length << 1);
 }
 
 bool
-c4m_xlist_set(xlist_t *list, int64_t ix, void *item)
+c4m_xlist_set(c4m_xlist_t *list, int64_t ix, void *item)
 {
     if (ix < 0) {
         ix += list->append_ix;
@@ -59,7 +59,7 @@ c4m_xlist_set(xlist_t *list, int64_t ix, void *item)
 }
 
 void
-c4m_xlist_append(xlist_t *list, void *item)
+c4m_xlist_append(c4m_xlist_t *list, void *item)
 {
     if (list->append_ix >= list->length) {
         xlist_auto_resize(list);
@@ -71,7 +71,7 @@ c4m_xlist_append(xlist_t *list, void *item)
 }
 
 void
-c4m_xlist_plus_eq(xlist_t *l1, xlist_t *l2)
+c4m_xlist_plus_eq(c4m_xlist_t *l1, c4m_xlist_t *l2)
 {
     int needed = l1->append_ix + l2->append_ix;
 
@@ -84,15 +84,15 @@ c4m_xlist_plus_eq(xlist_t *l1, xlist_t *l2)
     }
 }
 
-xlist_t *
-c4m_xlist_plus(xlist_t *l1, xlist_t *l2)
+c4m_xlist_t *
+c4m_xlist_plus(c4m_xlist_t *l1, c4m_xlist_t *l2)
 {
     // This assumes type checking already happened statically.
     // You can make mistakes manually.
 
-    type_spec_t *t      = c4m_get_my_type(l1);
+    c4m_type_t  *t      = c4m_get_my_type(l1);
     size_t       needed = l1->append_ix + l2->append_ix;
-    xlist_t     *result = c4m_new(t, c4m_kw("length", c4m_ka(needed)));
+    c4m_xlist_t *result = c4m_new(t, c4m_kw("length", c4m_ka(needed)));
 
     for (int i = 0; i < l1->append_ix; i++) {
         result->data[i] = l1->data[i];
@@ -108,11 +108,11 @@ c4m_xlist_plus(xlist_t *l1, xlist_t *l2)
 }
 
 void
-c4m_xlist_marshal(xlist_t *r, stream_t *s, dict_t *memos, int64_t *mid)
+c4m_xlist_marshal(c4m_xlist_t *r, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 {
-    type_spec_t   *list_type   = c4m_get_my_type(r);
-    xlist_t       *type_params = c4m_tspec_get_parameters(list_type);
-    type_spec_t   *item_type   = c4m_xlist_get(type_params, 0, NULL);
+    c4m_type_t    *list_type   = c4m_get_my_type(r);
+    c4m_xlist_t   *type_params = c4m_tspec_get_parameters(list_type);
+    c4m_type_t    *item_type   = c4m_xlist_get(type_params, 0, NULL);
     c4m_dt_info_t *item_info   = c4m_tspec_get_data_type_info(item_type);
     bool           by_val      = item_info->by_value;
 
@@ -132,11 +132,11 @@ c4m_xlist_marshal(xlist_t *r, stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 void
-c4m_xlist_unmarshal(xlist_t *r, stream_t *s, dict_t *memos)
+c4m_xlist_unmarshal(c4m_xlist_t *r, c4m_stream_t *s, dict_t *memos)
 {
-    type_spec_t   *list_type   = c4m_get_my_type(r);
-    xlist_t       *type_params = c4m_tspec_get_parameters(list_type);
-    type_spec_t   *item_type   = c4m_xlist_get(type_params, 0, NULL);
+    c4m_type_t    *list_type   = c4m_get_my_type(r);
+    c4m_xlist_t   *type_params = c4m_tspec_get_parameters(list_type);
+    c4m_type_t    *item_type   = c4m_xlist_get(type_params, 0, NULL);
     c4m_dt_info_t *item_info   = item_type ? c4m_tspec_get_data_type_info(item_type) : NULL;
     bool           by_val      = item_info ? item_info->by_value : false;
 
@@ -157,7 +157,7 @@ c4m_xlist_unmarshal(xlist_t *r, stream_t *s, dict_t *memos)
 }
 
 int64_t
-c4m_xlist_len(const xlist_t *list)
+c4m_xlist_len(const c4m_xlist_t *list)
 {
     if (list == NULL) {
         return 0;
@@ -165,20 +165,20 @@ c4m_xlist_len(const xlist_t *list)
     return (int64_t)list->append_ix;
 }
 
-xlist_t *
-c4m_xlist(type_spec_t *x)
+c4m_xlist_t *
+c4m_xlist(c4m_type_t *x)
 {
     return c4m_new(c4m_tspec_xlist(x));
 }
 
-static any_str_t *
-xlist_repr(xlist_t *list, to_str_use_t how)
+static c4m_str_t *
+xlist_repr(c4m_xlist_t *list, to_str_use_t how)
 {
-    type_spec_t *list_type   = c4m_get_my_type(list);
-    xlist_t     *type_params = c4m_tspec_get_parameters(list_type);
-    type_spec_t *item_type   = c4m_xlist_get(type_params, 0, NULL);
+    c4m_type_t  *list_type   = c4m_get_my_type(list);
+    c4m_xlist_t *type_params = c4m_tspec_get_parameters(list_type);
+    c4m_type_t  *item_type   = c4m_xlist_get(type_params, 0, NULL);
     int64_t      len         = c4m_xlist_len(list);
-    xlist_t     *items       = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
+    c4m_xlist_t *items       = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
 
     for (int i = 0; i < len; i++) {
         bool  err  = false;
@@ -186,12 +186,12 @@ xlist_repr(xlist_t *list, to_str_use_t how)
         if (err) {
             continue;
         }
-        any_str_t *s = c4m_repr(item, item_type, how);
+        c4m_str_t *s = c4m_repr(item, item_type, how);
         c4m_xlist_append(items, s);
     }
 
-    any_str_t *sep    = c4m_get_comma_const();
-    any_str_t *result = c4m_str_join(items, sep);
+    c4m_str_t *sep    = c4m_get_comma_const();
+    c4m_str_t *result = c4m_str_join(items, sep);
 
     if (how == C4M_REPR_QUOTED) {
         result = c4m_str_concat(c4m_get_lbrak_const(),
@@ -201,27 +201,27 @@ xlist_repr(xlist_t *list, to_str_use_t how)
     return result;
 }
 
-static object_t
-xlist_coerce_to(xlist_t *list, type_spec_t *dst_type)
+static c4m_obj_t
+xlist_coerce_to(c4m_xlist_t *list, c4m_type_t *dst_type)
 {
     c4m_dt_kind_t base          = c4m_tspec_get_base(dst_type);
-    type_spec_t  *src_item_type = c4m_tspec_get_param(c4m_get_my_type(list), 0);
-    type_spec_t  *dst_item_type = c4m_tspec_get_param(dst_type, 0);
+    c4m_type_t   *src_item_type = c4m_tspec_get_param(c4m_get_my_type(list), 0);
+    c4m_type_t   *dst_item_type = c4m_tspec_get_param(dst_type, 0);
     int64_t       len           = c4m_xlist_len(list);
 
     if (base == (c4m_dt_kind_t)C4M_T_BOOL) {
-        return (object_t)(int64_t)(c4m_xlist_len(list) != 0);
+        return (c4m_obj_t)(int64_t)(c4m_xlist_len(list) != 0);
     }
 
     if (base == (c4m_dt_kind_t)C4M_T_XLIST) {
-        xlist_t *res = c4m_new(dst_type, c4m_kw("length", c4m_ka(len)));
+        c4m_xlist_t *res = c4m_new(dst_type, c4m_kw("length", c4m_ka(len)));
 
         for (int i = 0; i < len; i++) {
             void *item = c4m_xlist_get(list, i, NULL);
             c4m_xlist_set(res, i, c4m_coerce(item, src_item_type, dst_item_type));
         }
 
-        return (object_t)res;
+        return (c4m_obj_t)res;
     }
 
     flexarray_t *res = c4m_new(dst_type, c4m_kw("length", c4m_ka(len)));
@@ -231,30 +231,30 @@ xlist_coerce_to(xlist_t *list, type_spec_t *dst_type)
         flexarray_set(res, i, c4m_coerce(item, src_item_type, dst_item_type));
     }
 
-    return (object_t)res;
+    return (c4m_obj_t)res;
 }
 
-static xlist_t *
-xlist_copy(xlist_t *list)
+static c4m_xlist_t *
+xlist_copy(c4m_xlist_t *list)
 {
-    int64_t  len = c4m_xlist_len(list);
-    xlist_t *res = c4m_new(c4m_get_my_type((object_t)list),
-                           c4m_kw("length", c4m_ka(len)));
+    int64_t      len = c4m_xlist_len(list);
+    c4m_xlist_t *res = c4m_new(c4m_get_my_type((c4m_obj_t)list),
+                               c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {
-        object_t item = c4m_xlist_get(list, i, NULL);
+        c4m_obj_t item = c4m_xlist_get(list, i, NULL);
         c4m_xlist_set(res, i, c4m_copy_object(item));
     }
 
     return res;
 }
 
-static object_t
-xlist_safe_get(xlist_t *list, int64_t ix)
+static c4m_obj_t
+xlist_safe_get(c4m_xlist_t *list, int64_t ix)
 {
     bool err = false;
 
-    object_t result = c4m_xlist_get(list, ix, &err);
+    c4m_obj_t result = c4m_xlist_get(list, ix, &err);
 
     if (err) {
         C4M_CRAISE("Index out of bounds error.");
@@ -263,11 +263,11 @@ xlist_safe_get(xlist_t *list, int64_t ix)
     return result;
 }
 
-xlist_t *
-c4m_xlist_get_slice(xlist_t *list, int64_t start, int64_t end)
+c4m_xlist_t *
+c4m_xlist_get_slice(c4m_xlist_t *list, int64_t start, int64_t end)
 {
-    int64_t  len = c4m_xlist_len(list);
-    xlist_t *res;
+    int64_t      len = c4m_xlist_len(list);
+    c4m_xlist_t *res;
 
     if (start < 0) {
         start += len;
@@ -302,7 +302,7 @@ c4m_xlist_get_slice(xlist_t *list, int64_t start, int64_t end)
 }
 
 void
-c4m_xlist_set_slice(xlist_t *list, int64_t start, int64_t end, xlist_t *new)
+c4m_xlist_set_slice(c4m_xlist_t *list, int64_t start, int64_t end, c4m_xlist_t *new)
 {
     int64_t len1 = c4m_xlist_len(list);
     int64_t len2 = c4m_xlist_len(new);
@@ -354,10 +354,10 @@ c4m_xlist_set_slice(xlist_t *list, int64_t start, int64_t end, xlist_t *new)
 }
 
 bool
-c4m_xlist_contains(xlist_t *list, object_t item)
+c4m_xlist_contains(c4m_xlist_t *list, c4m_obj_t item)
 {
-    int64_t      len       = c4m_xlist_len(list);
-    type_spec_t *item_type = c4m_get_my_type(item);
+    int64_t     len       = c4m_xlist_len(list);
+    c4m_type_t *item_type = c4m_get_my_type(item);
 
     for (int i = 0; i < len; i++) {
         if (c4m_eq(item_type, item, c4m_xlist_get(list, i, NULL))) {
@@ -368,7 +368,7 @@ c4m_xlist_contains(xlist_t *list, object_t item)
     return false;
 }
 
-extern bool list_can_coerce_to(type_spec_t *, type_spec_t *);
+extern bool list_can_coerce_to(c4m_type_t *, c4m_type_t *);
 
 const c4m_vtable_t c4m_xlist_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,

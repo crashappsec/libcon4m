@@ -37,7 +37,7 @@ void
 c4m_init_literal_handling()
 {
     if (mod_map[0] != NULL) {
-        type_spec_t *ts = c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_int());
+        c4m_type_t *ts = c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_int());
 
         for (int i = 0; i < ST_MAX; i++) {
             mod_map[i] = c4m_new(ts);
@@ -123,7 +123,7 @@ c4m_init_literal_handling()
     }
 }
 
-object_t
+c4m_obj_t
 c4m_simple_lit(char            *raw,
                c4m_lit_syntax_t syntax,
                char            *lit_mod,

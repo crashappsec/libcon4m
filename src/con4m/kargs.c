@@ -50,12 +50,12 @@ c4m_pass_kargs(int nargs, ...)
 c4m_karg_info_t *
 c4m_get_kargs(va_list args)
 {
-    object_t cur;
-    va_list  arg_copy;
+    c4m_obj_t cur;
+    va_list   arg_copy;
 
     va_copy(arg_copy, args);
 
-    cur = va_arg(arg_copy, object_t);
+    cur = va_arg(arg_copy, c4m_obj_t);
 
     while (cur != NULL) {
         if (c4m_get_my_type(cur) == c4m_tspec_kargs()) {
@@ -63,7 +63,7 @@ c4m_get_kargs(va_list args)
             return cur;
         }
 
-        cur = va_arg(arg_copy, object_t);
+        cur = va_arg(arg_copy, c4m_obj_t);
     }
 
     va_end(arg_copy);
@@ -74,13 +74,13 @@ c4m_get_kargs(va_list args)
 c4m_karg_info_t *
 c4m_get_kargs_and_count(va_list args, int *nargs)
 {
-    va_list  arg_copy;
-    object_t cur;
-    int      count = 0;
+    va_list   arg_copy;
+    c4m_obj_t cur;
+    int       count = 0;
 
     va_copy(arg_copy, args);
 
-    cur = va_arg(arg_copy, object_t);
+    cur = va_arg(arg_copy, c4m_obj_t);
 
     while (cur != NULL) {
         if (c4m_get_my_type(cur) == c4m_tspec_kargs()) {
@@ -90,7 +90,7 @@ c4m_get_kargs_and_count(va_list args, int *nargs)
         }
 
         count++;
-        cur = va_arg(arg_copy, object_t);
+        cur = va_arg(arg_copy, c4m_obj_t);
     }
 
     *nargs = count;
