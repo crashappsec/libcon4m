@@ -20,7 +20,7 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 #define HATRING_MINIMUM_SIZE 16
 

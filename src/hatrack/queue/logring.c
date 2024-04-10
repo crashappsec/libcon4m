@@ -21,7 +21,7 @@
  *
  */
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 static void logring_view_help_if_needed(logring_t *);
 

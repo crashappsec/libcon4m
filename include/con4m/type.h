@@ -1,464 +1,432 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
-extern type_spec_t *resolve_type_aliases(type_spec_t *, type_env_t *);
-extern bool         type_spec_is_concrete(type_spec_t *);
-extern type_spec_t *type_spec_copy(type_spec_t *node, type_env_t *env);
-extern type_spec_t *get_builtin_type(con4m_builtin_t);
-extern type_spec_t *unify(type_spec_t *, type_spec_t *, type_env_t *);
-extern type_spec_t *lookup_type_spec(type_t tid, type_env_t *env);
-extern type_spec_t *tspec_list(type_spec_t *);
-extern type_spec_t *tspec_xlist(type_spec_t *);
-extern type_spec_t *tspec_tree(type_spec_t *);
-extern type_spec_t *tspec_queue(type_spec_t *);
-extern type_spec_t *tspec_ring(type_spec_t *);
-extern type_spec_t *tspec_stack(type_spec_t *);
-extern type_spec_t *tspec_dict(type_spec_t *, type_spec_t *);
-extern type_spec_t *tspec_set(type_spec_t *);
-extern type_spec_t *tspec_tuple(int64_t, ...);
-extern type_spec_t *tspec_fn(type_spec_t *, xlist_t *, bool);
-extern type_spec_t *tspec_varargs_fn_va(type_spec_t *, int64_t, ...);
-extern type_spec_t *tspec_varargs_fn(type_spec_t *, int64_t, ...);
-extern type_spec_t *global_resolve_type(type_spec_t *);
-extern type_spec_t *global_copy(type_spec_t *);
-extern type_spec_t *global_type_check(type_spec_t *, type_spec_t *);
-extern void         lock_type(type_spec_t *);
-extern type_spec_t *get_promotion_type(type_spec_t *, type_spec_t *, int *);
+extern c4m_type_t     *c4m_resolve_type_aliases(c4m_type_t *, c4m_type_env_t *);
+extern bool            c4m_tspec_is_concrete(c4m_type_t *);
+extern c4m_type_t     *c4m_tspec_copy(c4m_type_t *node, c4m_type_env_t *env);
+extern c4m_type_t     *c4m_get_builtin_type(c4m_builtin_t);
+extern c4m_type_t     *c4m_unify(c4m_type_t *, c4m_type_t *, c4m_type_env_t *);
+extern c4m_type_t     *c4m_lookup_tspec(c4m_type_hash_t tid, c4m_type_env_t *env);
+extern c4m_type_t     *c4m_tspec_list(c4m_type_t *);
+extern c4m_type_t     *c4m_tspec_xlist(c4m_type_t *);
+extern c4m_type_t     *c4m_tspec_tree(c4m_type_t *);
+extern c4m_type_t     *c4m_tspec_queue(c4m_type_t *);
+extern c4m_type_t     *c4m_tspec_ring(c4m_type_t *);
+extern c4m_type_t     *c4m_tspec_stack(c4m_type_t *);
+extern c4m_type_t     *c4m_tspec_dict(c4m_type_t *, c4m_type_t *);
+extern c4m_type_t     *c4m_tspec_set(c4m_type_t *);
+extern c4m_type_t     *c4m_tspec_tuple(int64_t, ...);
+extern c4m_type_t     *c4m_tspec_fn(c4m_type_t *, c4m_xlist_t *, bool);
+extern c4m_type_t     *c4m_tspec_varargs_fn_va(c4m_type_t *, int64_t, ...);
+extern c4m_type_t     *c4m_tspec_varargs_fn(c4m_type_t *, int64_t, ...);
+extern c4m_type_t     *c4m_global_resolve_type(c4m_type_t *);
+extern c4m_type_t     *c4m_global_copy(c4m_type_t *);
+extern c4m_type_t     *c4m_global_type_check(c4m_type_t *, c4m_type_t *);
+extern void            c4m_lock_type(c4m_type_t *);
+extern c4m_type_t     *c4m_get_promotion_type(c4m_type_t *,
+                                              c4m_type_t *,
+                                              int *);
+extern void            c4m_initialize_global_types();
+extern c4m_type_hash_t c4m_type_hash(c4m_type_t *node, c4m_type_env_t *env);
 
-static inline bool
-typeid_is_concrete(type_t tid)
+static inline c4m_dt_kind_t
+c4m_tspec_get_base(c4m_type_t *n)
 {
-    return !(tid & (1ULL << 63));
+    return n->details->base_type->dt_kind;
 }
 
-static inline bool
-typeid_is_generic(type_t tid)
+static inline c4m_dt_kind_t
+c4m_tspec_get_type_kind(c4m_type_t *n)
 {
-    return !(typeid_is_concrete(tid));
+    return n->details->base_type->dt_kind;
 }
 
-static inline base_t
-type_spec_get_base(type_spec_t *n)
-{
-    return n->details->base_type->base;
-}
-
-static inline base_t
-type_spec_get_type_kind(type_spec_t *n)
-{
-    return n->details->base_type->base;
-}
-
-static inline xlist_t *
-type_spec_get_params(type_spec_t *n)
+static inline c4m_xlist_t *
+c4m_tspec_get_params(c4m_type_t *n)
 {
     return n->details->items;
 }
 
 static inline int
-type_spec_get_num_params(type_spec_t *n)
+c4m_tspec_get_num_params(c4m_type_t *n)
 {
-    return xlist_len(n->details->items);
-}
-
-static inline int
-typeid_get_num_params(type_t tid, type_env_t *env)
-{
-    type_spec_t *t = lookup_type_spec(tid, env);
-    return type_spec_get_num_params(t);
-}
-
-static inline type_t
-typeid_get_param(type_t tid, int64_t ix, type_env_t *env)
-{
-    type_spec_t *n   = lookup_type_spec(tid, env);
-    type_spec_t *kid = xlist_get(n->details->items, ix, NULL);
-
-    if (kid == NULL) {
-        return T_TYPE_ERROR;
-    }
-
-    return kid->typeid;
+    return c4m_xlist_len(n->details->items);
 }
 
 static inline bool
-type_spec_is_error(type_spec_t *n)
+c4m_tspec_is_error(c4m_type_t *n)
 {
-    return n->typeid == T_TYPE_ERROR;
+    return n->typeid == C4M_T_ERROR;
 }
 
 static inline bool
-type_spec_is_locked(type_spec_t *t)
+c4m_tspec_is_locked(c4m_type_t *t)
 {
-    return t->details->flags & FN_TY_LOCK;
+    return t->details->flags & C4M_FN_TY_LOCK;
 }
 
 static inline void
-type_spec_lock(type_spec_t *t)
+c4m_tspec_lock(c4m_type_t *t)
 {
-    t->details->flags |= FN_TY_LOCK;
+    t->details->flags |= C4M_FN_TY_LOCK;
 }
 
 static inline void
-type_spec_unlock(type_spec_t *t)
+c4m_tspec_unlock(c4m_type_t *t)
 {
-    t->details->flags &= ~FN_TY_LOCK;
+    t->details->flags &= ~C4M_FN_TY_LOCK;
 }
 
-static inline type_t
-tenv_next_tid(type_env_t *env)
+static inline c4m_type_hash_t
+c4m_tenv_next_tid(c4m_type_env_t *env)
 {
     return atomic_fetch_add(&env->next_tid, 1);
 }
 
-extern type_env_t *global_type_env;
+extern c4m_type_env_t *c4m_global_type_env;
 
-static inline type_spec_t *
-merge_types(type_spec_t *t1, type_spec_t *t2)
+static inline c4m_type_t *
+c4m_merge_types(c4m_type_t *t1, c4m_type_t *t2)
 {
-    return unify(t1, t2, global_type_env);
+    return c4m_unify(t1, t2, c4m_global_type_env);
 }
 
-static inline xlist_t *
-tspec_get_parameters(type_spec_t *t)
+static inline c4m_xlist_t *
+c4m_tspec_get_parameters(c4m_type_t *t)
 {
     return t->details->items;
 }
 
-static inline type_spec_t *
-tspec_get_param(type_spec_t *t, int i)
+static inline c4m_type_t *
+c4m_tspec_get_param(c4m_type_t *t, int i)
 {
-    return xlist_get(t->details->items, i, NULL);
+    return c4m_xlist_get(t->details->items, i, NULL);
 }
 
-static inline dt_info *
-tspec_get_data_type_info(type_spec_t *t)
+static inline c4m_dt_info_t *
+c4m_tspec_get_data_type_info(c4m_type_t *t)
 {
     return t->details->base_type;
 }
 
-static inline type_spec_t *
-get_my_type(const object_t user_object)
+static inline c4m_type_t *
+c4m_get_my_type(const c4m_obj_t user_object)
 {
-    con4m_obj_t *hdr = get_object_header(user_object);
+    c4m_base_obj_t *hdr = c4m_object_header(user_object);
 
     return hdr->concrete_type;
 }
 
 static inline int64_t
-get_base_type_id(const object_t obj)
+c4m_get_base_type_id(const c4m_obj_t obj)
 {
-    return tspec_get_data_type_info(get_my_type(obj))->typeid;
+    return c4m_tspec_get_data_type_info(c4m_get_my_type(obj))->typeid;
 }
 
-static inline con4m_builtin_t
-tspec_get_base_tid(type_spec_t *n)
+static inline c4m_builtin_t
+c4m_tspec_get_base_tid(c4m_type_t *n)
 {
     return n->details->base_type->typeid;
 }
 
-extern type_spec_t *builtin_types[CON4M_NUM_BUILTIN_DTS];
+extern c4m_type_t *c4m_bi_types[C4M_NUM_BUILTIN_DTS];
 
-static inline type_spec_t *
-tspec_error()
+static inline c4m_type_t *
+c4m_tspec_error()
 {
-    return builtin_types[T_TYPE_ERROR];
+    return c4m_bi_types[C4M_T_ERROR];
 }
 
-static inline type_spec_t *
-tspec_void()
+static inline c4m_type_t *
+c4m_tspec_void()
 {
-    return builtin_types[T_VOID];
+    return c4m_bi_types[C4M_T_VOID];
 }
 
-static inline type_spec_t *
-tspec_bool()
+static inline c4m_type_t *
+c4m_tspec_bool()
 {
-    return builtin_types[T_BOOL];
+    return c4m_bi_types[C4M_T_BOOL];
 }
 
-static inline type_spec_t *
-tspec_i8()
+static inline c4m_type_t *
+c4m_tspec_i8()
 {
-    return builtin_types[T_I8];
+    return c4m_bi_types[C4M_T_I8];
 }
 
-static inline type_spec_t *
-tspec_u8()
+static inline c4m_type_t *
+c4m_tspec_u8()
 {
-    return builtin_types[T_BYTE];
+    return c4m_bi_types[C4M_T_BYTE];
 }
 
-static inline type_spec_t *
-tspec_byte()
+static inline c4m_type_t *
+c4m_tspec_byte()
 {
-    return builtin_types[T_BYTE];
+    return c4m_bi_types[C4M_T_BYTE];
 }
 
-static inline type_spec_t *
-tspec_i32()
+static inline c4m_type_t *
+c4m_tspec_i32()
 {
-    return builtin_types[T_I32];
+    return c4m_bi_types[C4M_T_I32];
 }
 
-static inline type_spec_t *
-tspec_u32()
+static inline c4m_type_t *
+c4m_tspec_u32()
 {
-    return builtin_types[T_CHAR];
+    return c4m_bi_types[C4M_T_CHAR];
 }
 
-static inline type_spec_t *
-tspec_char()
+static inline c4m_type_t *
+c4m_tspec_char()
 {
-    return builtin_types[T_CHAR];
+    return c4m_bi_types[C4M_T_CHAR];
 }
 
-static inline type_spec_t *
-tspec_i64()
+static inline c4m_type_t *
+c4m_tspec_i64()
 {
-    return builtin_types[T_INT];
+    return c4m_bi_types[C4M_T_INT];
 }
 
-static inline type_spec_t *
-tspec_int()
+static inline c4m_type_t *
+c4m_tspec_int()
 {
-    return builtin_types[T_INT];
+    return c4m_bi_types[C4M_T_INT];
 }
 
-static inline type_spec_t *
-tspec_u64()
+static inline c4m_type_t *
+c4m_tspec_u64()
 {
-    return builtin_types[T_UINT];
+    return c4m_bi_types[C4M_T_UINT];
 }
 
-static inline type_spec_t *
-tspec_uint()
+static inline c4m_type_t *
+c4m_tspec_uint()
 {
-    return builtin_types[T_UINT];
+    return c4m_bi_types[C4M_T_UINT];
 }
 
-static inline type_spec_t *
-tspec_f32()
+static inline c4m_type_t *
+c4m_tspec_f32()
 {
-    return builtin_types[T_F32];
+    return c4m_bi_types[C4M_T_F32];
 }
 
-static inline type_spec_t *
-tspec_f64()
+static inline c4m_type_t *
+c4m_tspec_f64()
 {
-    return builtin_types[T_F64];
+    return c4m_bi_types[C4M_T_F64];
 }
 
-static inline type_spec_t *
-tspec_float()
+static inline c4m_type_t *
+c4m_tspec_float()
 {
-    return builtin_types[T_F64];
+    return c4m_bi_types[C4M_T_F64];
 }
 
-static inline type_spec_t *
-tspec_utf8()
+static inline c4m_type_t *
+c4m_tspec_utf8()
 {
-    return builtin_types[T_UTF8];
+    return c4m_bi_types[C4M_T_UTF8];
 }
 
-static inline type_spec_t *
-tspec_buffer()
+static inline c4m_type_t *
+c4m_tspec_buffer()
 {
-    return builtin_types[T_BUFFER];
+    return c4m_bi_types[C4M_T_BUFFER];
 }
 
-static inline type_spec_t *
-tspec_utf32()
+static inline c4m_type_t *
+c4m_tspec_utf32()
 {
-    return builtin_types[T_UTF32];
+    return c4m_bi_types[C4M_T_UTF32];
 }
 
-static inline type_spec_t *
-tspec_grid()
+static inline c4m_type_t *
+c4m_tspec_grid()
 {
-    return builtin_types[T_GRID];
+    return c4m_bi_types[C4M_T_GRID];
 }
 
-static inline type_spec_t *
-tspec_typespec()
+static inline c4m_type_t *
+c4m_tspec_typespec()
 {
-    return builtin_types[T_TYPESPEC];
+    return c4m_bi_types[C4M_T_TYPESPEC];
 }
 
-static inline type_spec_t *
-tspec_ipv4()
+static inline c4m_type_t *
+c4m_tspec_ipv4()
 {
-    return builtin_types[T_IPV4];
+    return c4m_bi_types[C4M_T_IPV4];
 }
 
-static inline type_spec_t *
-tspec_ipv6()
+static inline c4m_type_t *
+c4m_tspec_ipv6()
 {
-    return builtin_types[T_IPV6];
+    return c4m_bi_types[C4M_T_IPV6];
 }
 
-static inline type_spec_t *
-tspec_duration()
+static inline c4m_type_t *
+c4m_tspec_duration()
 {
-    return builtin_types[T_DURATION];
+    return c4m_bi_types[C4M_T_DURATION];
 }
 
-static inline type_spec_t *
-tspec_size()
+static inline c4m_type_t *
+c4m_tspec_size()
 {
-    return builtin_types[T_SIZE];
+    return c4m_bi_types[C4M_T_SIZE];
 }
 
-static inline type_spec_t *
-tspec_datetime()
+static inline c4m_type_t *
+c4m_tspec_datetime()
 {
-    return builtin_types[T_DATETIME];
+    return c4m_bi_types[C4M_T_DATETIME];
 }
 
-static inline type_spec_t *
-tspec_date()
+static inline c4m_type_t *
+c4m_tspec_date()
 {
-    return builtin_types[T_DATE];
+    return c4m_bi_types[C4M_T_DATE];
 }
 
-static inline type_spec_t *
-tspec_time()
+static inline c4m_type_t *
+c4m_tspec_time()
 {
-    return builtin_types[T_TIME];
+    return c4m_bi_types[C4M_T_TIME];
 }
 
-static inline type_spec_t *
-tspec_url()
+static inline c4m_type_t *
+c4m_tspec_url()
 {
-    return builtin_types[T_URL];
+    return c4m_bi_types[C4M_T_URL];
 }
 
-static inline type_spec_t *
-tspec_callback()
+static inline c4m_type_t *
+c4m_tspec_callback()
 {
-    return builtin_types[T_CALLBACK];
+    return c4m_bi_types[C4M_T_CALLBACK];
 }
 
-static inline type_spec_t *
-tspec_renderable()
+static inline c4m_type_t *
+c4m_tspec_renderable()
 {
-    return builtin_types[T_RENDERABLE];
+    return c4m_bi_types[C4M_T_RENDERABLE];
 }
 
-static inline type_spec_t *
-tspec_render_style()
+static inline c4m_type_t *
+c4m_tspec_render_style()
 {
-    return builtin_types[T_RENDER_STYLE];
+    return c4m_bi_types[C4M_T_RENDER_STYLE];
 }
 
-static inline type_spec_t *
-tspec_hash()
+static inline c4m_type_t *
+c4m_tspec_hash()
 {
-    return builtin_types[T_SHA];
+    return c4m_bi_types[C4M_T_SHA];
 }
 
-static inline type_spec_t *
-tspec_exception()
+static inline c4m_type_t *
+c4m_tspec_exception()
 {
-    return builtin_types[T_EXCEPTION];
+    return c4m_bi_types[C4M_T_EXCEPTION];
 }
 
-static inline type_spec_t *
-tspec_type_env()
+static inline c4m_type_t *
+c4m_tspec_type_env()
 {
-    return builtin_types[T_TYPE_ENV];
+    return c4m_bi_types[C4M_T_TYPE_ENV];
 }
 
-static inline type_spec_t *
-tspec_logring()
+static inline c4m_type_t *
+c4m_tspec_logring()
 {
-    return builtin_types[T_LOGRING];
+    return c4m_bi_types[C4M_T_LOGRING];
 }
 
-static inline type_spec_t *
-tspec_mixed()
+static inline c4m_type_t *
+c4m_tspec_mixed()
 {
-    return builtin_types[T_GENERIC];
+    return c4m_bi_types[C4M_T_GENERIC];
 }
 
-static inline type_spec_t *
-tspec_ref()
+static inline c4m_type_t *
+c4m_tspec_ref()
 {
-    return builtin_types[T_REF];
+    return c4m_bi_types[C4M_T_REF];
 }
 
-static inline type_spec_t *
-tspec_stream()
+static inline c4m_type_t *
+c4m_tspec_stream()
 {
-    return builtin_types[T_STREAM];
+    return c4m_bi_types[C4M_T_STREAM];
 }
 
-static inline type_spec_t *
-tspec_kargs()
+static inline c4m_type_t *
+c4m_tspec_kargs()
 {
-    return builtin_types[T_KEYWORD];
+    return c4m_bi_types[C4M_T_KEYWORD];
 }
 
-static inline type_spec_t *
-type_spec_new_typevar(type_env_t *env)
+static inline c4m_type_t *
+c4m_new_typevar(c4m_type_env_t *env)
 {
-    type_spec_t *result = con4m_new(tspec_typespec(), env, T_GENERIC);
+    c4m_type_t *result = c4m_new(c4m_tspec_typespec(), env, C4M_T_GENERIC);
 
     return result;
 }
 
-static inline type_t
-type_new_typevar(type_env_t *env)
+static inline c4m_type_t *
+c4m_tspec_typevar()
 {
-    return type_spec_new_typevar(env)->typeid;
-}
-
-static inline type_spec_t *
-tspec_typevar()
-{
-    return type_spec_new_typevar(global_type_env);
+    return c4m_new_typevar(c4m_global_type_env);
 }
 
 static inline bool
-tspecs_are_compat(type_spec_t *t1, type_spec_t *t2)
+c4m_tspecs_are_compat(c4m_type_t *t1, c4m_type_t *t2)
 {
-    t1 = global_copy(t1);
-    t2 = global_copy(t2);
+    t1 = c4m_global_copy(t1);
+    t2 = c4m_global_copy(t2);
 
-    return !type_spec_is_error(global_type_check(t1, t2));
+    return !c4m_tspec_is_error(c4m_global_type_check(t1, t2));
 }
 
-static inline type_spec_t *
-tspec_tuple_from_xlist(xlist_t *item_types)
+static inline c4m_type_t *
+c4m_tspec_tuple_from_xlist(c4m_xlist_t *item_types)
 {
-    type_spec_t *result   = con4m_new(tspec_typespec(), global_type_env, T_TUPLE);
-    xlist_t     *res_list = result->details->items;
+    c4m_type_t  *result   = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_TUPLE);
+    c4m_xlist_t *res_list = result->details->items;
 
-    int n = xlist_len(item_types);
+    int n = c4m_xlist_len(item_types);
 
     for (int i = 0; i < n; i++) {
-        xlist_append(res_list, xlist_get(item_types, i, NULL));
+        c4m_xlist_append(res_list, c4m_xlist_get(item_types, i, NULL));
     }
 
     return result;
 }
 
 static inline bool
-tspec_is_int_type(type_spec_t *t)
+c4m_tspec_is_int_type(c4m_type_t *t)
 {
     if (t == NULL) {
         return false;
     }
 
     switch (t->typeid) {
-    case T_I8:
-    case T_BYTE:
-    case T_I32:
-    case T_CHAR:
-    case T_U32:
-    case T_INT:
-    case T_UINT:
+    case C4M_T_I8:
+    case C4M_T_BYTE:
+    case C4M_T_I32:
+    case C4M_T_CHAR:
+    case C4M_T_U32:
+    case C4M_T_INT:
+    case C4M_T_UINT:
         return true;
     default:
         return false;

@@ -1,76 +1,76 @@
-#include <con4m.h>
+#include "con4m.h"
 
-static void (*uncaught_handler)(exception_t *) = exception_uncaught;
+static void (*uncaught_handler)(c4m_exception_t *) = c4m_exception_uncaught;
 
-__thread exception_stack_t __exception_stack = {
+__thread c4m_exception_stack_t __exception_stack = {
     0,
 };
 static pthread_once_t exceptions_inited = PTHREAD_ONCE_INIT;
 
 // Skip the 4 GC header words, then the first 3 words are heap pointers.
-const uint64_t exception_pmap[2] = {1, 0x0e00000000000000};
+const uint64_t c4m_exception_pmap[2] = {1, 0x0e00000000000000};
 
 static void
-exception_init(exception_t *exception, va_list args)
+exception_init(c4m_exception_t *exception, va_list args)
 {
-    utf8_t  *message    = NULL;
-    object_t context    = NULL;
-    int64_t  error_code = -1;
+    c4m_utf8_t *message    = NULL;
+    c4m_obj_t   context    = NULL;
+    int64_t     error_code = -1;
 
-    karg_va_init(args);
-
-    kw_ptr("message", message);
-    kw_ptr("context", context);
-    kw_int64("error_code", error_code);
+    c4m_karg_va_init(args);
+    c4m_kw_ptr("message", message);
+    c4m_kw_ptr("context", context);
+    c4m_kw_int64("error_code", error_code);
 
     exception->msg     = message;
     exception->context = context;
     exception->code    = error_code;
 }
 
-exception_t *
-_alloc_exception(const char *msg, ...)
+c4m_exception_t *
+_c4m_alloc_exception(const char *msg, ...)
 {
-    exception_t *ret = gc_alloc(sizeof(exception_t));
-    ret->msg         = con4m_new(tspec_utf8(), kw("cstring", ka(msg)));
+    c4m_exception_t *ret = c4m_gc_alloc(sizeof(c4m_exception_t));
+    ret->msg             = c4m_new(c4m_tspec_utf8(),
+                       c4m_kw("cstring", c4m_ka(msg)));
 
     return ret;
 }
 
-exception_t *
-_alloc_str_exception(utf8_t *msg, ...)
+c4m_exception_t *
+_c4m_alloc_str_exception(c4m_utf8_t *msg, ...)
 {
-    exception_t *ret = gc_alloc(sizeof(exception_t));
-    ret->msg         = msg;
+    c4m_exception_t *ret = c4m_gc_alloc(sizeof(c4m_exception_t));
+    ret->msg             = msg;
 
     return ret;
 }
 
 void
-exception_register_uncaught_handler(void (*handler)(exception_t *))
+c4m_exception_register_uncaught_handler(void (*handler)(c4m_exception_t *))
 {
     uncaught_handler = handler;
 }
 
 static void
-exception_thread_start(void)
+c4m_exception_thread_start(void)
 {
-    con4m_gc_register_root(&__exception_stack, sizeof(__exception_stack) / 8);
+    c4m_gc_register_root(&__exception_stack, sizeof(__exception_stack) / 8);
 }
 
-exception_stack_t *
-exception_push_frame(jmp_buf *jbuf)
+c4m_exception_stack_t *
+c4m_exception_push_frame(jmp_buf *jbuf)
 {
-    exception_frame_t *frame;
+    c4m_exception_frame_t *frame;
 
-    pthread_once(&exceptions_inited, exception_thread_start);
+    pthread_once(&exceptions_inited, c4m_exception_thread_start);
 
     if (__exception_stack.free_frames) {
         frame                         = __exception_stack.free_frames;
         __exception_stack.free_frames = frame->next;
     }
     else {
-        frame = gc_alloc(exception_frame_t);
+        frame = c4m_gc_alloc(c4m_exception_frame_t);
     }
     frame->buf            = jbuf;
     frame->next           = __exception_stack.top;
@@ -80,34 +80,37 @@ exception_push_frame(jmp_buf *jbuf)
 }
 
 void
-exception_free_frame(exception_frame_t *frame, exception_stack_t *stack)
+c4m_exception_free_frame(c4m_exception_frame_t *frame,
+                         c4m_exception_stack_t *stack)
 {
     if (frame == stack->top) {
         stack->top = NULL;
     }
-    memset(frame, 0, sizeof(exception_frame_t) - sizeof(exception_frame_t *));
+    memset(frame,
+           0,
+           sizeof(c4m_exception_frame_t) - sizeof(c4m_exception_frame_t *));
     frame->next        = stack->free_frames;
     stack->free_frames = frame;
 }
 
 void
-exception_uncaught(exception_t *exception)
+c4m_exception_uncaught(c4m_exception_t *exception)
 {
     // Basic for now.
-    stream_t *s = get_stderr();
+    c4m_stream_t *s = c4m_get_stderr();
 
-    stream_puts(s, (char *)exception->file);
-    stream_putc(s, ':');
-    stream_puti(s, exception->line);
+    c4m_stream_puts(s, (char *)exception->file);
+    c4m_stream_putc(s, ':');
+    c4m_stream_puti(s, exception->line);
 
-    ansi_render(exception->msg, s);
-    stream_putc(s, '\n');
+    c4m_ansi_render(exception->msg, s);
+    c4m_stream_putc(s, '\n');
 }
 
 void
-exception_raise(exception_t *exception, char *filename, int line)
+c4m_exception_raise(c4m_exception_t *exception, char *filename, int line)
 {
-    exception_frame_t *frame = __exception_stack.top;
+    c4m_exception_frame_t *frame = __exception_stack.top;
 
     frame->exception = exception;
     exception->file  = filename;
@@ -121,7 +124,9 @@ exception_raise(exception_t *exception, char *filename, int line)
     longjmp(*(frame->buf), 1);
 }
 
-const con4m_vtable exception_vtable = {
+const c4m_vtable_t c4m_exception_vtable = {
     .num_entries = 1,
     .methods     = {
-        (con4m_vtable_entry)exception_init}};
+        (c4m_vtable_entry)exception_init,
+    },
+};

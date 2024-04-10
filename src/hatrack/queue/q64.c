@@ -20,7 +20,7 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 static const q64_item_t empty_cell      = Q64_EMPTY;
 static const q64_item_t too_slow_marker = Q64_TOOSLOW;

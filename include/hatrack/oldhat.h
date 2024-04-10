@@ -29,7 +29,7 @@
 
 #pragma once
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 /* oldhat_record_t
  *

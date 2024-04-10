@@ -13,7 +13,7 @@
 //
 // Instead, this is intended to be used to manage arenas,
 
-#include <con4m.h>
+#include "con4m.h"
 
 typedef struct {
     _Atomic int64_t refcount;
@@ -21,7 +21,7 @@ typedef struct {
 } refcount_alloc_t;
 
 static inline void *
-rc_alloc(size_t len)
+c4m_rc_alloc(size_t len)
 {
     refcount_alloc_t *raw;
 
@@ -32,7 +32,7 @@ rc_alloc(size_t len)
 }
 
 static inline void *
-rc_ref(void *ptr)
+c4m_rc_ref(void *ptr)
 {
     refcount_alloc_t *raw = ptr - sizeof(refcount_alloc_t);
     atomic_fetch_add(&(raw->refcount), 1);
@@ -40,7 +40,7 @@ rc_ref(void *ptr)
 }
 
 static inline void
-rc_free(void *ptr)
+c4m_rc_free(void *ptr)
 {
     refcount_alloc_t *raw = ptr - sizeof(refcount_alloc_t);
     if (atomic_fetch_add(&(raw->refcount), -1) == 0) {
@@ -51,7 +51,7 @@ rc_free(void *ptr)
 typedef void (*cleanup_fn)(void *);
 
 static inline void
-rc_free_and_cleanup(void *ptr, cleanup_fn callback)
+c4m_rc_free_and_cleanup(void *ptr, cleanup_fn callback)
 {
     refcount_alloc_t *raw = ptr - sizeof(refcount_alloc_t);
     if (atomic_fetch_add(&(raw->refcount), -1) == 0) {
@@ -61,16 +61,16 @@ rc_free_and_cleanup(void *ptr, cleanup_fn callback)
 }
 
 static inline void *
-zalloc(size_t len)
+c4m_zalloc(size_t len)
 {
-    return rc_alloc(len);
+    return c4m_rc_alloc(len);
 }
 
-#define zalloc_flex(fixed, variable, num_variable) \
-    (void *)rc_alloc((sizeof(fixed)) + (sizeof(variable)) * (num_variable))
+#define c4m_zalloc_flex(fixed, variable, num_variable) \
+    (void *)c4m_rc_alloc((sizeof(fixed)) + (sizeof(variable)) * (num_variable))
 
 static inline void
-zfree(void *ptr)
+c4m_zfree(void *ptr)
 {
-    rc_free(ptr);
+    c4m_rc_free(ptr);
 }

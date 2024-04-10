@@ -873,7 +873,7 @@ const color_info_t color_data[] = {
   { 0, },
 };
 
-/* color_t */
+/* c4m_color_t */
 /* lookup_color(char *name) { */
 /*     for(int i = 0; color_data[i].name != NULL; i++) { */
 /* 	if (!strcmp(color_data[i].name, name)) { */
@@ -884,7 +884,7 @@ const color_info_t color_data[] = {
 /* } */
 #else
 
-#include <con4m.h>
+#include "con4m.h"
 
 static unsigned char _marshaled_color_table[] = {
     // clang-format off

@@ -21,7 +21,7 @@
  */
 
 #pragma once
-#include <hatrack.h>
+#include "hatrack.h"
 
 /* hatrack_hash_t
  *

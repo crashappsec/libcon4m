@@ -24,7 +24,7 @@
  *
  */
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 #ifdef SANE_FETCH_ADD_PTR_SEMANTICS
 #define fa_ptr_incr(t) (1)

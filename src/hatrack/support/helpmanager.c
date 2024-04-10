@@ -22,7 +22,7 @@
  *
  */
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 void
 hatrack_help_init(help_manager_t *manager,

@@ -19,7 +19,7 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 static const queue_item_t empty_cell      = {NULL, QUEUE_EMPTY};
 static const queue_item_t too_slow_marker = {NULL, QUEUE_TOOSLOW};

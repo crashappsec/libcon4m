@@ -1,6 +1,6 @@
 #pragma once
 
-#include <con4m/base.h>
+#include "con4m/base.h"
 
 typedef enum {
   CP_CATEGORY_CN  = 0, /**< Other, not assigned */

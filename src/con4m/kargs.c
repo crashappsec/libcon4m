@@ -8,31 +8,34 @@
  * Author:        John Viega, john@zork.org
  */
 
-#include <con4m.h>
+#include "con4m.h"
 
 static void
-kargs_init(karg_info_t *kargs, va_list args)
+kargs_init(c4m_karg_info_t *kargs, va_list args)
 {
     int nargs = va_arg(args, int);
 
     kargs->num_provided = nargs;
-    kargs->args         = con4m_gc_alloc(sizeof(one_karg_t) * nargs, NULL);
+    kargs->args         = c4m_gc_raw_alloc(sizeof(c4m_one_karg_t) * nargs,
+                                   NULL);
 }
 
-karg_info_t *
-pass_kargs(int nargs, ...)
+c4m_karg_info_t *
+c4m_pass_kargs(int nargs, ...)
 {
     va_list args;
 
     va_start(args, nargs);
 
     if (nargs & 1) {
-        CRAISE("Got an odd number of parameters to kw() keyword decl macro.");
+        C4M_CRAISE(
+            "Got an odd number of parameters to kw() keyword decl"
+            "macro.");
     }
 
     nargs >>= 1;
 
-    karg_info_t *kargs = con4m_new(tspec_kargs(), nargs);
+    c4m_karg_info_t *kargs = c4m_new(c4m_tspec_kargs(), nargs);
 
     for (int i = 0; i < nargs; i++) {
         kargs->args[i].kw    = va_arg(args, char *);
@@ -44,23 +47,23 @@ pass_kargs(int nargs, ...)
     return kargs;
 }
 
-karg_info_t *
-get_kargs(va_list args)
+c4m_karg_info_t *
+c4m_get_kargs(va_list args)
 {
-    object_t cur;
-    va_list  arg_copy;
+    c4m_obj_t cur;
+    va_list   arg_copy;
 
     va_copy(arg_copy, args);
 
-    cur = va_arg(arg_copy, object_t);
+    cur = va_arg(arg_copy, c4m_obj_t);
 
     while (cur != NULL) {
-        if (get_my_type(cur) == tspec_kargs()) {
+        if (c4m_get_my_type(cur) == c4m_tspec_kargs()) {
             va_end(arg_copy);
             return cur;
         }
 
-        cur = va_arg(arg_copy, object_t);
+        cur = va_arg(arg_copy, c4m_obj_t);
     }
 
     va_end(arg_copy);
@@ -68,26 +71,26 @@ get_kargs(va_list args)
 }
 
 // This is for varargs functions, so it def needs to copy the va_list.
-karg_info_t *
-get_kargs_and_count(va_list args, int *nargs)
+c4m_karg_info_t *
+c4m_get_kargs_and_count(va_list args, int *nargs)
 {
-    va_list  arg_copy;
-    object_t cur;
-    int      count = 0;
+    va_list   arg_copy;
+    c4m_obj_t cur;
+    int       count = 0;
 
     va_copy(arg_copy, args);
 
-    cur = va_arg(arg_copy, object_t);
+    cur = va_arg(arg_copy, c4m_obj_t);
 
     while (cur != NULL) {
-        if (get_my_type(cur) == tspec_kargs()) {
+        if (c4m_get_my_type(cur) == c4m_tspec_kargs()) {
             *nargs = count;
             va_end(arg_copy);
             return cur;
         }
 
         count++;
-        cur = va_arg(arg_copy, object_t);
+        cur = va_arg(arg_copy, c4m_obj_t);
     }
 
     *nargs = count;
@@ -95,9 +98,9 @@ get_kargs_and_count(va_list args, int *nargs)
     return NULL;
 }
 
-const con4m_vtable kargs_vtable = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable_t c4m_kargs_vtable = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (con4m_vtable_entry)kargs_init,
+        (c4m_vtable_entry)kargs_init,
         NULL, // Aboslutelty nothing else.
     }};

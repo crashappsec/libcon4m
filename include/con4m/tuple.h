@@ -1,7 +1,7 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
 
-extern void    tuple_set(tuple_t *, int64_t, void *);
-extern void   *tuple_get(tuple_t *, int64_t);
-extern int64_t tuple_len(tuple_t *);
+extern void    c4m_tuple_set(c4m_tuple_t *, int64_t, void *);
+extern void   *c4m_tuple_get(c4m_tuple_t *, int64_t);
+extern int64_t c4m_tuple_len(c4m_tuple_t *);

@@ -36,7 +36,7 @@
 
 #pragma once
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 #ifdef __MACH__
 extern _Bool        clock_service_inited;

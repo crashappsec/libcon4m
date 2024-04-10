@@ -1,7 +1,7 @@
-#include <con4m.h>
+#include "con4m.h"
 
 void
-terminal_dimensions(size_t *cols, size_t *rows)
+c4m_terminal_dimensions(size_t *cols, size_t *rows)
 {
     struct winsize dims = {
         0,
@@ -18,7 +18,7 @@ terminal_dimensions(size_t *cols, size_t *rows)
 }
 
 void
-termcap_set_raw_mode(struct termios *termcap)
+c4m_termcap_set_raw_mode(struct termios *termcap)
 {
     termcap->c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     // termcap->c_oflag &= ~OPOST;

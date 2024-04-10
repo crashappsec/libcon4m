@@ -1,5 +1,5 @@
 #pragma once
-#include <con4m.h>
+#include "con4m.h"
 
 int CRYPTO_set_mem_functions(
     void *(*m)(size_t, const char *, int),
@@ -22,9 +22,10 @@ extern uint8_t *SHA224(const uint8_t *data, size_t count, uint8_t *md_buf);
 extern uint8_t *SHA256(const uint8_t *data, size_t count, uint8_t *md_buf);
 extern uint8_t *SHA512(const uint8_t *data, size_t count, uint8_t *md_buf);
 
-extern void      init_sha(sha_ctx *, va_list);
-extern void      sha_cstring_update(sha_ctx *, char *);
-extern void      sha_int_update(sha_ctx *, uint64_t);
-extern void      sha_string_update(sha_ctx *, any_str_t *);
-extern void      sha_buffer_update(sha_ctx *, buffer_t *);
-extern buffer_t *sha_finish(sha_ctx *);
+extern void       c4m_sha_init(c4m_sha_t *, va_list);
+extern void       c4m_sha_cstring_update(c4m_sha_t *, char *);
+extern void       c4m_sha_int_update(c4m_sha_t *, uint64_t);
+extern void       c4m_sha_string_update(c4m_sha_t *, c4m_str_t *);
+extern void       c4m_sha_buffer_update(c4m_sha_t *, c4m_buf_t *);
+extern c4m_buf_t *c4m_sha_finish(c4m_sha_t *);
+extern void       c4m_gc_openssl();

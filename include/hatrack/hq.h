@@ -33,7 +33,7 @@
 
 #pragma once
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 // clang-format off
 typedef struct {

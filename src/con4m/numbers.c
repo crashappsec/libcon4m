@@ -1,4 +1,5 @@
-#include <con4m.h>
+#include "con4m.h"
+
 inline int
 clz_u128(__uint128_t u)
 {
@@ -16,7 +17,7 @@ clz_u128(__uint128_t u)
     return 128;
 }
 
-static any_str_t *
+static c4m_str_t *
 signed_repr(int64_t item, to_str_use_t how)
 {
     // TODO, add hex as an option in how.
@@ -31,7 +32,7 @@ signed_repr(int64_t item, to_str_use_t how)
     }
 
     if (item == 0) {
-        return con4m_new(tspec_utf8(), kw("cstring", ka("0")));
+        return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka("0")));
     }
 
     int i = 20;
@@ -45,10 +46,10 @@ signed_repr(int64_t item, to_str_use_t how)
         buf[--i] = '-';
     }
 
-    return con4m_new(tspec_utf8(), kw("cstring", ka(&buf[i])));
+    return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(&buf[i])));
 }
 
-static any_str_t *
+static c4m_str_t *
 unsigned_repr(int64_t item, to_str_use_t how)
 {
     // TODO, add hex as an option in how.
@@ -57,7 +58,7 @@ unsigned_repr(int64_t item, to_str_use_t how)
     };
 
     if (item == 0) {
-        return con4m_new(tspec_utf8(), kw("cstring", ka("0")));
+        return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka("0")));
     }
 
     int i = 20;
@@ -67,11 +68,11 @@ unsigned_repr(int64_t item, to_str_use_t how)
         item /= 10;
     }
 
-    return con4m_new(tspec_utf8(), kw("cstring", ka(&buf[i])));
+    return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(&buf[i])));
 }
 
 __uint128_t
-raw_int_parse(char *s, lit_error_t *err, bool *neg)
+raw_int_parse(char *s, c4m_lit_error_t *err, bool *neg)
 {
     __uint128_t cur  = 0;
     __uint128_t last = 0;
@@ -106,7 +107,7 @@ raw_int_parse(char *s, lit_error_t *err, bool *neg)
 }
 
 __uint128_t
-raw_hex_parse(char *s, lit_error_t *err)
+raw_hex_parse(char *s, c4m_lit_error_t *err)
 {
     // Here we expect *s to point to the first
     // character after any leading '0x'.
@@ -165,13 +166,13 @@ raw_hex_parse(char *s, lit_error_t *err)
     return cur;
 }
 
-static object_t
-i8_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
+static c4m_obj_t
+i8_parse(char *s, c4m_lit_syntax_t st, char *litmod, c4m_lit_error_code_t *code)
 {
-    char       *result = con4m_new(tspec_i8());
-    lit_error_t err    = {0, LE_NoError};
-    bool        neg;
-    __uint128_t val;
+    char           *result = c4m_new(c4m_tspec_i8());
+    c4m_lit_error_t err    = {0, LE_NoError};
+    bool            neg;
+    __uint128_t     val;
 
     if (st == ST_Base10) {
         val = raw_int_parse(s, &err, &neg);
@@ -202,16 +203,19 @@ i8_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
         *result = (char)val;
     }
 
-    return (object_t)result;
+    return (c4m_obj_t)result;
 }
 
-object_t
-u8_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
+c4m_obj_t
+u8_parse(char                 *s,
+         c4m_lit_syntax_t      st,
+         char                 *litmod,
+         c4m_lit_error_code_t *code)
 {
-    uint8_t    *result = con4m_new(tspec_byte());
-    lit_error_t err    = {0, LE_NoError};
-    bool        neg;
-    __uint128_t val;
+    uint8_t        *result = c4m_new(c4m_tspec_byte());
+    c4m_lit_error_t err    = {0, LE_NoError};
+    bool            neg;
+    __uint128_t     val;
 
     if (st == ST_Base10) {
         val = raw_int_parse(s, &err, &neg);
@@ -236,16 +240,19 @@ u8_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
     }
     *result = (uint8_t)val;
 
-    return (object_t)result;
+    return (c4m_obj_t)result;
 }
 
-object_t
-i32_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
+c4m_obj_t
+i32_parse(char                 *s,
+          c4m_lit_syntax_t      st,
+          char                 *litmod,
+          c4m_lit_error_code_t *code)
 {
-    int32_t    *result = con4m_new(tspec_i32());
-    lit_error_t err    = {0, LE_NoError};
-    bool        neg;
-    __uint128_t val;
+    int32_t        *result = c4m_new(c4m_tspec_i32());
+    c4m_lit_error_t err    = {0, LE_NoError};
+    bool            neg;
+    __uint128_t     val;
 
     if (st == ST_Base10) {
         val = raw_int_parse(s, &err, &neg);
@@ -277,16 +284,19 @@ i32_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
         *result = (int32_t)val;
     }
 
-    return (object_t)result;
+    return (c4m_obj_t)result;
 }
 
-object_t
-u32_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
+c4m_obj_t
+u32_parse(char                 *s,
+          c4m_lit_syntax_t      st,
+          char                 *litmod,
+          c4m_lit_error_code_t *code)
 {
-    uint32_t   *result = con4m_new(tspec_u32());
-    lit_error_t err    = {0, LE_NoError};
-    bool        neg;
-    __uint128_t val;
+    uint32_t       *result = c4m_new(c4m_tspec_u32());
+    c4m_lit_error_t err    = {0, LE_NoError};
+    bool            neg;
+    __uint128_t     val;
 
     if (st == ST_Base10) {
         val = raw_int_parse(s, &err, &neg);
@@ -312,24 +322,27 @@ u32_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 
     *result = (uint32_t)val;
 
-    return (object_t)result;
+    return (c4m_obj_t)result;
 }
 
-static object_t false_lit = NULL;
-static object_t true_lit  = NULL;
+static c4m_obj_t false_lit = NULL;
+static c4m_obj_t true_lit  = NULL;
 
-object_t
-bool_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
+c4m_obj_t
+bool_parse(char                 *s,
+           c4m_lit_syntax_t      st,
+           char                 *litmod,
+           c4m_lit_error_code_t *code)
 {
     switch (*s++) {
     case 't':
     case 'T':
         if (!strcmp(s, "rue")) {
             if (true_lit == NULL) {
-                int32_t *lit = con4m_new(tspec_bool());
+                int32_t *lit = c4m_new(c4m_tspec_bool());
                 *lit         = 1;
-                true_lit     = (object_t)lit;
-                con4m_gc_register_root(&true_lit, 1);
+                true_lit     = (c4m_obj_t)lit;
+                c4m_gc_register_root(&true_lit, 1);
             }
             return true_lit;
         }
@@ -338,10 +351,10 @@ bool_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
     case 'F':
         if (!strcmp(s, "alse")) {
             if (false_lit == NULL) {
-                int32_t *lit = con4m_new(tspec_bool());
+                int32_t *lit = c4m_new(c4m_tspec_bool());
                 *lit         = 0;
-                false_lit    = (object_t)lit;
-                con4m_gc_register_root(&false_lit, 1);
+                false_lit    = (c4m_obj_t)lit;
+                c4m_gc_register_root(&false_lit, 1);
             }
             return false_lit;
         }
@@ -354,13 +367,16 @@ bool_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
     return NULL;
 }
 
-object_t
-i64_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
+c4m_obj_t
+i64_parse(char                 *s,
+          c4m_lit_syntax_t      st,
+          char                 *litmod,
+          c4m_lit_error_code_t *code)
 {
-    int64_t    *result = con4m_new(tspec_int());
-    lit_error_t err    = {0, LE_NoError};
-    bool        neg;
-    __uint128_t val;
+    int64_t        *result = c4m_new(c4m_tspec_int());
+    c4m_lit_error_t err    = {0, LE_NoError};
+    bool            neg;
+    __uint128_t     val;
 
     if (st == ST_Base10) {
         val = raw_int_parse(s, &err, &neg);
@@ -392,16 +408,19 @@ i64_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
         *result = (int64_t)val;
     }
 
-    return (object_t)result;
+    return (c4m_obj_t)result;
 }
 
-object_t
-u64_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
+c4m_obj_t
+u64_parse(char                 *s,
+          c4m_lit_syntax_t      st,
+          char                 *litmod,
+          c4m_lit_error_code_t *code)
 {
-    uint64_t   *result = con4m_new(tspec_uint());
-    lit_error_t err    = {0, LE_NoError};
-    bool        neg;
-    __uint128_t val;
+    uint64_t       *result = c4m_new(c4m_tspec_uint());
+    c4m_lit_error_t err    = {0, LE_NoError};
+    bool            neg;
+    __uint128_t     val;
 
     if (st == ST_Base10) {
         val = raw_int_parse(s, &err, &neg);
@@ -427,14 +446,14 @@ u64_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
 
     *result = (uint64_t)val;
 
-    return (object_t)result;
+    return (c4m_obj_t)result;
 }
 
-object_t
-f64_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
+c4m_obj_t
+f64_parse(char *s, c4m_lit_syntax_t st, char *litmod, c4m_lit_error_code_t *code)
 {
     char   *end;
-    double *lit = con4m_new(tspec_f64());
+    double *lit = c4m_new(c4m_tspec_f64());
     double  d   = strtod(s, &end);
 
     if (end == s || *end) {
@@ -454,81 +473,82 @@ f64_parse(char *s, syntax_t st, char *litmod, lit_error_code_t *code)
     return lit;
 }
 
-static any_str_t *
+static c4m_str_t *
 i8_repr(i8_box *i8, to_str_use_t how)
 {
     int64_t n = *i8;
     return signed_repr(n, how);
 }
 
-static any_str_t *
+static c4m_str_t *
 u8_repr(u8_box *u8, to_str_use_t how)
 {
     uint64_t n = *u8;
     return unsigned_repr(n, how);
 }
 
-static any_str_t *
+static c4m_str_t *
 i32_repr(i32_box *i32, to_str_use_t how)
 {
     int64_t n = *i32;
     return signed_repr(n, how);
 }
 
-static any_str_t *
+static c4m_str_t *
 u32_repr(u32_box *u32, to_str_use_t how)
 {
     uint64_t n = *u32;
     return unsigned_repr(n, how);
 }
 
-static any_str_t *
+static c4m_str_t *
 i64_repr(i64_box *i64, to_str_use_t how)
 {
     return signed_repr(*i64, how);
 }
 
-static any_str_t *
+static c4m_str_t *
 u64_repr(u64_box *u64, to_str_use_t how)
 {
     return unsigned_repr(*u64, how);
 }
 
-static any_str_t *true_repr  = NULL;
-static any_str_t *false_repr = NULL;
+static c4m_str_t *true_repr  = NULL;
+static c4m_str_t *false_repr = NULL;
 
-static any_str_t *
+static c4m_str_t *
 bool_repr(bool *b, to_str_use_t how)
 {
     if (*b == false) {
         if (false_repr == NULL) {
-            false_repr = con4m_new(tspec_utf8(), kw("cstring", ka("false")));
-            con4m_gc_register_root(&false_repr, 1);
+            false_repr = c4m_new(c4m_tspec_utf8(),
+                                 c4m_kw("cstring", c4m_ka("false")));
+            c4m_gc_register_root(&false_repr, 1);
         }
         return false_repr;
     }
     if (true_repr == NULL) {
-        true_repr = con4m_new(tspec_utf8(), kw("cstring", ka("true")));
-        con4m_gc_register_root(&true_repr, 1);
+        true_repr = c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka("true")));
+        c4m_gc_register_root(&true_repr, 1);
     }
 
     return true_repr;
 }
 
 bool
-any_number_can_coerce_to(type_spec_t *my_type, type_spec_t *target_type)
+any_number_can_coerce_to(c4m_type_t *my_type, c4m_type_t *target_type)
 {
-    switch (tspec_get_data_type_info(target_type)->typeid) {
-    case T_BOOL:
-    case T_I8:
-    case T_BYTE:
-    case T_I32:
-    case T_CHAR:
-    case T_U32:
-    case T_INT:
-    case T_UINT:
-    case T_F32:
-    case T_F64:
+    switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
+    case C4M_T_BOOL:
+    case C4M_T_I8:
+    case C4M_T_BYTE:
+    case C4M_T_I32:
+    case C4M_T_CHAR:
+    case C4M_T_U32:
+    case C4M_T_INT:
+    case C4M_T_UINT:
+    case C4M_T_F32:
+    case C4M_T_F64:
         return true;
     default:
         return false;
@@ -536,61 +556,61 @@ any_number_can_coerce_to(type_spec_t *my_type, type_spec_t *target_type)
 }
 
 void *
-any_int_coerce_to(const int64_t data, type_spec_t *target_type)
+any_int_coerce_to(const int64_t data, c4m_type_t *target_type)
 {
     double d;
 
-    switch (tspec_get_data_type_info(target_type)->typeid) {
-    case T_BOOL:
-    case T_I8:
-    case T_BYTE:
-    case T_I32:
-    case T_CHAR:
-    case T_U32:
-    case T_INT:
-    case T_UINT:
+    switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
+    case C4M_T_BOOL:
+    case C4M_T_I8:
+    case C4M_T_BYTE:
+    case C4M_T_I32:
+    case C4M_T_CHAR:
+    case C4M_T_U32:
+    case C4M_T_INT:
+    case C4M_T_UINT:
         return (void *)data;
-    case T_F32:
-    case T_F64:
+    case C4M_T_F32:
+    case C4M_T_F64:
         d = (double)(data);
-        return double_to_ptr(d);
+        return c4m_double_to_ptr(d);
     default:
-        CRAISE("Invalid type conversion.");
+        C4M_CRAISE("Invalid type conversion.");
     }
 }
 
 void *
-bool_coerce_to(const int64_t data, type_spec_t *target_type)
+bool_coerce_to(const int64_t data, c4m_type_t *target_type)
 {
-    switch (tspec_get_data_type_info(target_type)->typeid) {
-    case T_BOOL:
-    case T_I8:
-    case T_BYTE:
-    case T_I32:
-    case T_CHAR:
-    case T_U32:
-    case T_INT:
-    case T_UINT:
+    switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
+    case C4M_T_BOOL:
+    case C4M_T_I8:
+    case C4M_T_BYTE:
+    case C4M_T_I32:
+    case C4M_T_CHAR:
+    case C4M_T_U32:
+    case C4M_T_INT:
+    case C4M_T_UINT:
         if (data) {
             return (void *)NULL;
         }
         else {
             return NULL;
         }
-    case T_F32:
-    case T_F64:
+    case C4M_T_F32:
+    case C4M_T_F64:
         if (data) {
-            return double_to_ptr(1.0);
+            return c4m_double_to_ptr(1.0);
         }
         else {
-            return double_to_ptr(0.0);
+            return c4m_double_to_ptr(0.0);
         }
     default:
-        CRAISE("Invalid type conversion.");
+        C4M_CRAISE("Invalid type conversion.");
     }
 }
 
-any_str_t *
+c4m_str_t *
 float_repr(const double *dp, to_str_use_t how)
 {
     double d       = *dp;
@@ -601,142 +621,150 @@ float_repr(const double *dp, to_str_use_t how)
     // snprintf includes null terminator in its count.
     snprintf(buf, 20, "%g", d);
 
-    return con4m_new(tspec_utf8(), kw("cstring", ka(buf)));
+    return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(buf)));
 }
 
 void *
-float_coerce_to(const double d, type_spec_t *target_type)
+float_coerce_to(const double d, c4m_type_t *target_type)
 {
     int64_t i;
 
-    switch (tspec_get_data_type_info(target_type)->typeid) {
-    case T_BOOL:
-    case T_I8:
-    case T_BYTE:
-    case T_I32:
-    case T_CHAR:
-    case T_U32:
-    case T_INT:
-    case T_UINT:
+    switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
+    case C4M_T_BOOL:
+    case C4M_T_I8:
+    case C4M_T_BYTE:
+    case C4M_T_I32:
+    case C4M_T_CHAR:
+    case C4M_T_U32:
+    case C4M_T_INT:
+    case C4M_T_UINT:
         i = (int64_t)d;
 
         return (void *)i;
-    case T_F32:
-    case T_F64:
-        return double_to_ptr(d);
+    case C4M_T_F32:
+    case C4M_T_F64:
+        return c4m_double_to_ptr(d);
     default:
-        CRAISE("Invalid type conversion.");
+        C4M_CRAISE("Invalid type conversion.");
     }
 }
 
-const con4m_vtable u8_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable_t c4m_u8_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)u8_repr,
+        (c4m_vtable_entry)u8_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)any_int_coerce_to,
-        (con4m_vtable_entry)u8_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)any_int_coerce_to,
+        (c4m_vtable_entry)u8_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};
 
-const con4m_vtable i8_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable_t c4m_i8_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)i8_repr,
+        (c4m_vtable_entry)i8_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)any_int_coerce_to,
-        (con4m_vtable_entry)i8_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)any_int_coerce_to,
+        (c4m_vtable_entry)i8_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};
 
-const con4m_vtable u32_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable_t c4m_u32_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)u32_repr,
+        (c4m_vtable_entry)u32_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)any_int_coerce_to,
-        (con4m_vtable_entry)u32_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)any_int_coerce_to,
+        (c4m_vtable_entry)u32_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};
 
-const con4m_vtable i32_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable_t c4m_i32_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)i32_repr,
+        (c4m_vtable_entry)i32_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)any_int_coerce_to,
-        (con4m_vtable_entry)i32_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)any_int_coerce_to,
+        (c4m_vtable_entry)i32_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};
 
-const con4m_vtable u64_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable_t c4m_u64_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)u64_repr,
+        (c4m_vtable_entry)u64_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)any_int_coerce_to,
-        (con4m_vtable_entry)u64_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)any_int_coerce_to,
+        (c4m_vtable_entry)u64_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};
 
-const con4m_vtable i64_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable_t c4m_i64_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)i64_repr,
+        (c4m_vtable_entry)i64_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)any_int_coerce_to,
-        (con4m_vtable_entry)i64_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)any_int_coerce_to,
+        (c4m_vtable_entry)i64_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};
 
-const con4m_vtable bool_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable_t c4m_bool_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)bool_repr,
+        (c4m_vtable_entry)bool_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)bool_coerce_to,
-        (con4m_vtable_entry)bool_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)bool_coerce_to,
+        (c4m_vtable_entry)bool_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};
 
-const con4m_vtable float_type = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable_t c4m_float_type = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         NULL, // You have to get it through a reference or mixed.
-        (con4m_vtable_entry)float_repr,
+        (c4m_vtable_entry)float_repr,
         NULL, // finalizer
         NULL, // Not used for ints.
         NULL, // Not used for ints.
-        (con4m_vtable_entry)any_number_can_coerce_to,
-        (con4m_vtable_entry)float_coerce_to,
-        (con4m_vtable_entry)f64_parse,
+        (c4m_vtable_entry)any_number_can_coerce_to,
+        (c4m_vtable_entry)float_coerce_to,
+        (c4m_vtable_entry)f64_parse,
         NULL, // The rest are not implemented for value types.
-    }};
+    },
+};

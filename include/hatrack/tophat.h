@@ -95,7 +95,7 @@
 
 #pragma once
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 /* tophat_migration_t
  *

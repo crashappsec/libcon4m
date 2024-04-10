@@ -23,7 +23,7 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 static flex_store_t *flexarray_new_store(uint64_t, uint64_t);
 static void          flexarray_migrate(flex_store_t *, flexarray_t *);

@@ -1,6 +1,11 @@
-#include <con4m.h>
+#include "con4m.h"
 
-const uint8_t hex_map[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+const uint8_t c4m_hex_map[16] = {
+    // clang-format off
+    '0', '1', '2', '3', '4', '5', '6', '7',
+    '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+    // clang-format on
+};
 
 #define MIN_DUMP_WIDTH 36
 
@@ -23,7 +28,11 @@ calculate_size_prefix(uint64_t len, uint64_t start)
 }
 
 static void
-add_offset(char **optr, uint64_t start_offset, uint64_t offset_len, uint64_t line, uint64_t cpl)
+add_offset(char   **optr,
+           uint64_t start_offset,
+           uint64_t offset_len,
+           uint64_t line,
+           uint64_t cpl)
 {
     /*
     ** To not have to worry much about padding, we're going to add
@@ -43,7 +52,7 @@ add_offset(char **optr, uint64_t start_offset, uint64_t offset_len, uint64_t lin
     while (value) {
         chr       = (uint8_t)value & 0x0f;
         value     = value >> 4;
-        buf[--ix] = hex_map[chr];
+        buf[--ix] = c4m_hex_map[chr];
     }
 
     for (ix = 0; ix < offset_len; ix++) {
@@ -65,7 +74,11 @@ add_offset(char **optr, uint64_t start_offset, uint64_t offset_len, uint64_t lin
     *lineptr++
 
 char *
-chexl(void *ptr, int32_t len, uint64_t start_offset, int32_t width, char *prefix)
+c4m_hexl(void    *ptr,
+         int32_t  len,
+         uint64_t start_offset,
+         int32_t  width,
+         char    *prefix)
 {
     struct winsize ws;
     uint64_t       offset_len = calculate_size_prefix(len, start_offset);
@@ -140,7 +153,7 @@ chexl(void *ptr, int32_t len, uint64_t start_offset, int32_t width, char *prefix
     */
 
     alloc_len = (width + 1) * (num_lines + 1) + prefix_len + 1;
-    ret       = con4m_gc_alloc(alloc_len, NULL);
+    ret       = c4m_gc_raw_alloc(alloc_len, NULL);
 
     if (prefix_len) {
         strcpy(ret, prefix);
@@ -165,23 +178,23 @@ chexl(void *ptr, int32_t len, uint64_t start_offset, int32_t width, char *prefix
         int n = chars_per_line / 4;
         for (int j = 0; j < n; j++) {
             c         = *inptr++;
-            *outptr++ = hex_map[(c >> 4)];
-            *outptr++ = hex_map[c & 0x0f];
+            *outptr++ = c4m_hex_map[(c >> 4)];
+            *outptr++ = c4m_hex_map[c & 0x0f];
             *outptr++ = ' ';
 
             c         = *inptr++;
-            *outptr++ = hex_map[(c >> 4)];
-            *outptr++ = hex_map[c & 0x0f];
+            *outptr++ = c4m_hex_map[(c >> 4)];
+            *outptr++ = c4m_hex_map[c & 0x0f];
             *outptr++ = ' ';
 
             c         = *inptr++;
-            *outptr++ = hex_map[(c >> 4)];
-            *outptr++ = hex_map[c & 0x0f];
+            *outptr++ = c4m_hex_map[(c >> 4)];
+            *outptr++ = c4m_hex_map[c & 0x0f];
             *outptr++ = ' ';
 
             c         = *inptr++;
-            *outptr++ = hex_map[(c >> 4)];
-            *outptr++ = hex_map[c & 0x0f];
+            *outptr++ = c4m_hex_map[(c >> 4)];
+            *outptr++ = c4m_hex_map[c & 0x0f];
             *outptr++ = ' ';
             *outptr++ = ' ';
         }
@@ -207,28 +220,28 @@ chexl(void *ptr, int32_t len, uint64_t start_offset, int32_t width, char *prefix
         // Now, print any full groups of 4.
         for (uint64_t i = 0; i < remainder / 4; i++) {
             c         = *inptr++;
-            *outptr++ = hex_map[(c >> 4)];
-            *outptr++ = hex_map[c & 0x0f];
+            *outptr++ = c4m_hex_map[(c >> 4)];
+            *outptr++ = c4m_hex_map[c & 0x0f];
             *outptr++ = ' ';
             c         = *inptr++;
-            *outptr++ = hex_map[(c >> 4)];
-            *outptr++ = hex_map[c & 0x0f];
+            *outptr++ = c4m_hex_map[(c >> 4)];
+            *outptr++ = c4m_hex_map[c & 0x0f];
             *outptr++ = ' ';
             c         = *inptr++;
-            *outptr++ = hex_map[(c >> 4)];
-            *outptr++ = hex_map[c & 0x0f];
+            *outptr++ = c4m_hex_map[(c >> 4)];
+            *outptr++ = c4m_hex_map[c & 0x0f];
             *outptr++ = ' ';
             c         = *inptr++;
-            *outptr++ = hex_map[(c >> 4)];
-            *outptr++ = hex_map[c & 0x0f];
+            *outptr++ = c4m_hex_map[(c >> 4)];
+            *outptr++ = c4m_hex_map[c & 0x0f];
             *outptr++ = ' ';
             *outptr++ = ' ';
         }
         // Now, print any leftover chars.
         for (uint64_t i = 0; i < remainder % 4; i++) {
             c         = *inptr++;
-            *outptr++ = hex_map[(c >> 4)];
-            *outptr++ = hex_map[c & 0x0f];
+            *outptr++ = c4m_hex_map[(c >> 4)];
+            *outptr++ = c4m_hex_map[c & 0x0f];
             *outptr++ = ' ';
         }
 
@@ -249,21 +262,21 @@ chexl(void *ptr, int32_t len, uint64_t start_offset, int32_t width, char *prefix
     return ret;
 }
 
-utf8_t *
-_hex_dump(void *ptr, uint32_t len, ...)
+c4m_utf8_t *
+_c4m_hex_dump(void *ptr, uint32_t len, ...)
 {
     int64_t start_offset = 0;
     int32_t width        = -1;
     char   *prefix       = "";
 
-    karg_only_init(len);
+    c4m_karg_only_init(len);
+    c4m_kw_int64("start_offset", start_offset);
+    c4m_kw_int32("width", width);
+    c4m_kw_ptr("prefix", prefix);
 
-    kw_int64("start_offset", start_offset);
-    kw_int32("width", width);
-    kw_ptr("prefix", prefix);
-
-    char   *dump = chexl(ptr, len, start_offset, width, prefix);
-    utf8_t *res  = con4m_new(tspec_utf8(), kw("cstring", ka(dump)));
+    char       *dump = c4m_hexl(ptr, len, start_offset, width, prefix);
+    c4m_utf8_t *res  = c4m_new(c4m_tspec_utf8(),
+                              c4m_kw("cstring", c4m_ka(dump)));
 
     return res;
 }

@@ -1,6 +1,6 @@
 // Author: John Viega (just the wrapper)
 
-#include <quark.h>
+#include "quark.h"
 
 __int128_t
 __atomic_load_16(__int128_t *address)

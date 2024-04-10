@@ -113,7 +113,7 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include <hatrack.h>
+#include "hatrack.h"
 
 static const hq_item_t empty_cell = {NULL, HQ_EMPTY};
 

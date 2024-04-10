@@ -1,19 +1,21 @@
 #pragma once
 
-#include <con4m.h>
+#include "con4m.h"
+
 typedef struct {
+    // clang-format off
     alignas(8)
-        // A guard value added to every allocation so that cross-heap
-        // memory accesses can scan backwards (if needed) to determine if
-        // a write should be forwarded to a new location.
-        //
-        // It also tells us whether the cell has been allocated at all,
-        // as it is not set until we allocate.
-        //
-        // The guard value is picked once per runtime by reading from
-        // /dev/urandom, to make sure that we do not start adding
-        // references in memory to it.
-        uint64_t guard;
+    // A guard value added to every allocation so that cross-heap
+    // memory accesses can scan backwards (if needed) to determine if
+    // a write should be forwarded to a new location.
+    //
+    // It also tells us whether the cell has been allocated at all,
+    // as it is not set until we allocate.
+    //
+    // The guard value is picked once per runtime by reading from
+    // /dev/urandom, to make sure that we do not start adding
+    // references in memory to it.
+    uint64_t guard;
 
     // This is a pointer to the memory arena this allocation is from,
     // so that other threads can register their pointer with the arena
@@ -52,16 +54,16 @@ typedef struct {
 
     // The actual exposed data.
     uint64_t data[];
+    // clang-format on
+} c4m_alloc_hdr;
 
-} con4m_alloc_hdr;
-
-typedef struct con4m_arena_t {
+typedef struct c4m_arena_t {
     alignas(8)
-        con4m_alloc_hdr *next_alloc;
-    struct dict_t        *roots;
-    struct con4m_arena_t *previous;
-    queue_t              *late_mutations;
-    uint64_t             *heap_end;
-    uint64_t              arena_id;
-    uint64_t              data[];
-} con4m_arena_t;
+        c4m_alloc_hdr *next_alloc;
+    c4m_dict_t         *roots;
+    struct c4m_arena_t *previous;
+    queue_t            *late_mutations;
+    uint64_t           *heap_end;
+    uint64_t            arena_id;
+    uint64_t            data[];
+} c4m_arena_t;

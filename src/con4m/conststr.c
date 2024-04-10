@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 enum {
     LBRAK_IX  = 0,
@@ -17,7 +17,7 @@ enum {
     PUNC_MAX  = 13
 };
 
-static any_str_t *type_punct[PUNC_MAX] = {
+static c4m_str_t *type_punct[PUNC_MAX] = {
     0,
 };
 
@@ -25,112 +25,112 @@ static inline void
 init_punctuation()
 {
     if (type_punct[0] == NULL) {
-        type_punct[LBRAK_IX]  = utf8_repeat('[', 1);
-        type_punct[COMMA_IX]  = con4m_new(tspec_utf8(),
-                                         kw("cstring", ka(", ")));
-        type_punct[RBRAK_IX]  = utf8_repeat(']', 1);
-        type_punct[LPAREN_IX] = utf8_repeat('(', 1);
-        type_punct[RPAREN_IX] = utf8_repeat(')', 1);
-        type_punct[ARROW_IX]  = con4m_new(tspec_utf8(),
-                                         kw("cstring", ka(" -> ")));
-        type_punct[BTICK_IX]  = utf8_repeat('`', 1);
-        type_punct[STAR_IX]   = utf8_repeat('*', 1);
-        type_punct[SPACE_IX]  = utf8_repeat(' ', 1);
-        type_punct[LBRACE_IX] = utf8_repeat('{', 1);
-        type_punct[RBRACE_IX] = utf8_repeat('}', 1);
-        type_punct[COLON_IX]  = con4m_new(tspec_utf8(),
-                                         kw("cstring", ka(" : ")));
-        type_punct[COLON_NSP] = utf8_repeat(':', 1);
+        type_punct[LBRAK_IX]  = c4m_utf8_repeat('[', 1);
+        type_punct[COMMA_IX]  = c4m_new(c4m_tspec_utf8(),
+                                       c4m_kw("cstring", c4m_ka(", ")));
+        type_punct[RBRAK_IX]  = c4m_utf8_repeat(']', 1);
+        type_punct[LPAREN_IX] = c4m_utf8_repeat('(', 1);
+        type_punct[RPAREN_IX] = c4m_utf8_repeat(')', 1);
+        type_punct[ARROW_IX]  = c4m_new(c4m_tspec_utf8(),
+                                       c4m_kw("cstring", c4m_ka(" -> ")));
+        type_punct[BTICK_IX]  = c4m_utf8_repeat('`', 1);
+        type_punct[STAR_IX]   = c4m_utf8_repeat('*', 1);
+        type_punct[SPACE_IX]  = c4m_utf8_repeat(' ', 1);
+        type_punct[LBRACE_IX] = c4m_utf8_repeat('{', 1);
+        type_punct[RBRACE_IX] = c4m_utf8_repeat('}', 1);
+        type_punct[COLON_IX]  = c4m_new(c4m_tspec_utf8(),
+                                       c4m_kw("cstring", c4m_ka(" : ")));
+        type_punct[COLON_NSP] = c4m_utf8_repeat(':', 1);
     }
-    con4m_gc_register_root(&type_punct[0], PUNC_MAX);
+    c4m_gc_register_root(&type_punct[0], PUNC_MAX);
 }
 
-utf8_t *
-get_lbrak_const()
+c4m_utf8_t *
+c4m_get_lbrak_const()
 {
     init_punctuation();
     return type_punct[LBRAK_IX];
 }
 
-utf8_t *
-get_comma_const()
+c4m_utf8_t *
+c4m_get_comma_const()
 {
     init_punctuation();
     return type_punct[COMMA_IX];
 }
 
-utf8_t *
-get_rbrak_const()
+c4m_utf8_t *
+c4m_get_rbrak_const()
 {
     init_punctuation();
     return type_punct[RBRAK_IX];
 }
 
-utf8_t *
-get_lparen_const()
+c4m_utf8_t *
+c4m_get_lparen_const()
 {
     init_punctuation();
     return type_punct[LPAREN_IX];
 }
 
-utf8_t *
-get_rparen_const()
+c4m_utf8_t *
+c4m_get_rparen_const()
 {
     init_punctuation();
     return type_punct[RPAREN_IX];
 }
 
-utf8_t *
-get_arrow_const()
+c4m_utf8_t *
+c4m_get_arrow_const()
 {
     init_punctuation();
     return type_punct[ARROW_IX];
 }
 
-utf8_t *
-get_backtick_const()
+c4m_utf8_t *
+c4m_get_backtick_const()
 {
     init_punctuation();
     return type_punct[BTICK_IX];
 }
 
-utf8_t *
-get_asterisk_const()
+c4m_utf8_t *
+c4m_get_asterisk_const()
 {
     init_punctuation();
     return type_punct[STAR_IX];
 }
 
-utf8_t *
-get_space_const()
+c4m_utf8_t *
+c4m_get_space_const()
 {
     init_punctuation();
     return type_punct[SPACE_IX];
 }
 
-utf8_t *
-get_lbrace_const()
+c4m_utf8_t *
+c4m_get_lbrace_const()
 {
     init_punctuation();
     return type_punct[LBRACE_IX];
 }
 
-utf8_t *
-get_rbrace_const()
+c4m_utf8_t *
+c4m_get_rbrace_const()
 {
     init_punctuation();
     return type_punct[RBRACE_IX];
 }
 
-utf8_t *
-get_colon_const()
+c4m_utf8_t *
+c4m_get_colon_const()
 {
     init_punctuation();
     return type_punct[COLON_IX];
 }
 
-utf8_t *
-get_colon_no_space_const()
+c4m_utf8_t *
+c4m_get_colon_no_space_const()
 {
     init_punctuation();
     return type_punct[COLON_NSP];

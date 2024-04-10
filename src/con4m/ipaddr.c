@@ -1,4 +1,4 @@
-#include <con4m.h>
+#include "con4m.h"
 
 // I realize some of this is redundant, but it's just easier.
 typedef struct {
@@ -8,14 +8,14 @@ typedef struct {
 } ipaddr_t;
 
 void
-ipaddr_set_address(ipaddr_t *obj, any_str_t *s, uint16_t port)
+ipaddr_set_address(ipaddr_t *obj, c4m_str_t *s, uint16_t port)
 {
-    s = force_utf8(s);
+    s = c4m_to_utf8(s);
 
     obj->port = port;
 
     if (inet_pton(obj->af, s->data, (void *)obj->addr) <= 0) {
-        CRAISE("Invalid ip address");
+        C4M_CRAISE("Invalid ip address");
     }
 
     if (obj->af == AF_INET) {
@@ -29,15 +29,14 @@ ipaddr_set_address(ipaddr_t *obj, any_str_t *s, uint16_t port)
 static void
 ipaddr_init(ipaddr_t *obj, va_list args)
 {
-    any_str_t *address = NULL;
+    c4m_str_t *address = NULL;
     int32_t    port    = -1;
     bool       ipv6    = false;
 
-    karg_va_init(args);
-
-    kw_ptr("address", address);
-    kw_int32("port", port);
-    kw_bool("ipv6", ipv6);
+    c4m_karg_va_init(args);
+    c4m_kw_ptr("address", address);
+    c4m_kw_int32("port", port);
+    c4m_kw_bool("ipv6", ipv6);
 
     if (ipv6) {
         obj->af = AF_INET6;
@@ -48,7 +47,7 @@ ipaddr_init(ipaddr_t *obj, va_list args)
 
     if (address != NULL) {
         if (port < 0 || port > 0xffff) {
-            CRAISE("Invalid port for IP address.");
+            C4M_CRAISE("Invalid port for IP address.");
         }
         ipaddr_set_address(obj, address, (uint16_t)port);
     }
@@ -57,29 +56,29 @@ ipaddr_init(ipaddr_t *obj, va_list args)
 // TODO: currently this isn't at all portable across platforms.
 // Too quick and dirty.
 static void
-ipaddr_marshal(ipaddr_t *obj, stream_t *s, dict_t *memos, int64_t *mid)
+ipaddr_marshal(ipaddr_t *obj, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
 {
-    marshal_u32(sizeof(struct sockaddr_in6), s);
-    stream_raw_write(s, sizeof(struct sockaddr_in6), obj->addr);
-    marshal_u16(obj->port, s);
-    marshal_i32(obj->af, s);
+    c4m_marshal_u32(sizeof(struct sockaddr_in6), s);
+    c4m_stream_raw_write(s, sizeof(struct sockaddr_in6), obj->addr);
+    c4m_marshal_u16(obj->port, s);
+    c4m_marshal_i32(obj->af, s);
 }
 
 static void
-ipaddr_unmarshal(ipaddr_t *obj, stream_t *s, dict_t *memos)
+ipaddr_unmarshal(ipaddr_t *obj, c4m_stream_t *s, c4m_dict_t *memos)
 {
-    uint32_t struct_sz = unmarshal_u32(s);
+    uint32_t struct_sz = c4m_unmarshal_u32(s);
 
     if (struct_sz != sizeof(struct sockaddr_in6)) {
-        CRAISE("Cannot unmarshal ipaddr on different platform.");
+        C4M_CRAISE("Cannot unmarshal ipaddr on different platform.");
     }
 
-    stream_raw_read(s, struct_sz, obj->addr);
-    obj->port = unmarshal_u16(s);
-    obj->af   = unmarshal_i32(s);
+    c4m_stream_raw_read(s, struct_sz, obj->addr);
+    obj->port = c4m_unmarshal_u16(s);
+    obj->af   = c4m_unmarshal_i32(s);
 }
 
-static any_str_t *
+static c4m_str_t *
 ipaddr_repr(ipaddr_t *obj)
 {
     char buf[INET6_ADDRSTRLEN + 1] = {
@@ -87,25 +86,26 @@ ipaddr_repr(ipaddr_t *obj)
     };
 
     if (!inet_ntop(obj->af, &obj->addr, buf, sizeof(struct sockaddr_in6))) {
-        CRAISE("Unable to format ip address");
+        C4M_CRAISE("Unable to format ip address");
     }
 
     if (obj->port == 0) {
-        return con4m_new(tspec_utf8(), kw("cstring", ka(buf)));
+        return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(buf)));
     }
 
-    return string_concat(con4m_new(tspec_utf8(), kw("cstring", ka(buf))),
-                         string_concat(get_colon_no_space_const(),
-                                       string_from_int((int64_t)obj->port)));
+    return c4m_str_concat(c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(buf))),
+                          c4m_str_concat(c4m_get_colon_no_space_const(),
+                                         c4m_str_from_int((int64_t)obj->port)));
 }
 
-const con4m_vtable ipaddr_vtable = {
-    .num_entries = CON4M_BI_NUM_FUNCS,
+const c4m_vtable_t c4m_ipaddr_vtable = {
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (con4m_vtable_entry)ipaddr_init,
-        (con4m_vtable_entry)ipaddr_repr,
+        (c4m_vtable_entry)ipaddr_init,
+        (c4m_vtable_entry)ipaddr_repr,
         NULL,
-        (con4m_vtable_entry)ipaddr_marshal,
-        (con4m_vtable_entry)ipaddr_unmarshal,
+        (c4m_vtable_entry)ipaddr_marshal,
+        (c4m_vtable_entry)ipaddr_unmarshal,
         NULL,
-    }};
+    },
+};
