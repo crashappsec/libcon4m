@@ -218,7 +218,7 @@ mixed_repr(c4m_mixed_t *mixed, to_str_use_t how)
 }
 
 static void
-mixed_marshal_arts(c4m_mixed_t *m, c4m_stream_t *s, dict_t *memos, int64_t *mid)
+mixed_marshal_arts(c4m_mixed_t *m, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
 {
     c4m_sub_marshal(m->held_type, s, memos, mid);
 
@@ -231,7 +231,7 @@ mixed_marshal_arts(c4m_mixed_t *m, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 static void
-mixed_unmarshal_arts(c4m_mixed_t *m, c4m_stream_t *s, dict_t *memos)
+mixed_unmarshal_arts(c4m_mixed_t *m, c4m_stream_t *s, c4m_dict_t *memos)
 {
     m->held_type = c4m_sub_unmarshal(s, memos);
 

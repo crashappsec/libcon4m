@@ -241,7 +241,7 @@ c4m_buffer_len(c4m_buf_t *buffer)
 }
 
 c4m_utf8_t *
-c4m_c4m_buf_to_utf8_string(c4m_buf_t *buffer)
+c4m_buf_to_utf8_string(c4m_buf_t *buffer)
 {
     c4m_utf8_t *result = c4m_new(c4m_tspec_utf8(),
                                  c4m_kw("cstring",
@@ -257,7 +257,10 @@ c4m_c4m_buf_to_utf8_string(c4m_buf_t *buffer)
 }
 
 static void
-c4m_buffer_marshal(c4m_buf_t *b, c4m_stream_t *s, dict_t *memos, int64_t *mid)
+c4m_buffer_marshal(c4m_buf_t    *b,
+                   c4m_stream_t *s,
+                   c4m_dict_t   *memos,
+                   int64_t      *mid)
 {
     c4m_marshal_u32(b->byte_len, s);
     c4m_marshal_u32(b->flags, s); // Not currently used btw.
@@ -265,7 +268,7 @@ c4m_buffer_marshal(c4m_buf_t *b, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 static void
-c4m_buffer_unmarshal(c4m_buf_t *b, c4m_stream_t *s, dict_t *memos)
+c4m_buffer_unmarshal(c4m_buf_t *b, c4m_stream_t *s, c4m_dict_t *memos)
 {
     b->byte_len = c4m_unmarshal_u32(s);
     b->flags    = c4m_unmarshal_u32(s); // Not currently used btw.

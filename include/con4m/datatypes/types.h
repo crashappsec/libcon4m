@@ -21,7 +21,7 @@ typedef struct c4m_type_info_t {
     char          *name; // Obj type name or type var name
     c4m_dt_info_t *base_type;
     c4m_xlist_t   *items;
-    struct dict_t *props; // Object properties. maps name to type node.
+    c4m_dict_t    *props; // Object properties. maps name to type node.
     // 'Locked' means this type node cannot forward, even though it
     //  might have type variables. That causes the system to
     //  copy. That is used for function signatures for instance, to
@@ -37,6 +37,6 @@ typedef struct c4m_type_info_t {
 #define C4M_FN_TY_LOCK    2
 
 typedef struct {
-    struct dict_t   *store;
+    c4m_dict_t      *store;
     _Atomic uint64_t next_tid;
 } c4m_type_env_t;

@@ -13,19 +13,19 @@ extern int16_t c4m_unmarshal_i16(c4m_stream_t *);
 
 extern void      c4m_sub_marshal(c4m_obj_t,
                                  c4m_stream_t *,
-                                 struct dict_t *,
+                                 c4m_dict_t *,
                                  int64_t *);
-extern c4m_obj_t c4m_sub_unmarshal(c4m_stream_t *, struct dict_t *);
+extern c4m_obj_t c4m_sub_unmarshal(c4m_stream_t *, c4m_dict_t *);
 extern void      c4m_marshal(c4m_obj_t, c4m_stream_t *);
 extern c4m_obj_t c4m_unmarshal(c4m_stream_t *);
 extern void      c4m_marshal_unmanaged_object(void *,
                                               c4m_stream_t *,
-                                              struct dict_t *,
+                                              c4m_dict_t *,
                                               int64_t *,
                                               c4m_marshal_fn);
 extern void     *c4m_unmarshal_unmanaged_object(size_t,
                                                 c4m_stream_t *,
-                                                struct dict_t *,
+                                                c4m_dict_t *,
                                                 c4m_unmarshal_fn);
 extern void      c4m_dump_c_static_instance_code(c4m_obj_t,
                                                  char *,
@@ -141,13 +141,13 @@ c4m_mem_unmarshal(char *mem, int64_t len)
     return result;
 }
 
-static inline struct dict_t *
+static inline c4m_dict_t *
 c4m_alloc_marshal_memos()
 {
     return c4m_new(c4m_tspec_dict(c4m_tspec_ref(), c4m_tspec_u64()));
 }
 
-static inline struct dict_t *
+static inline c4m_dict_t *
 c4m_alloc_unmarshal_memos()
 {
     return c4m_new(c4m_tspec_dict(c4m_tspec_u64(), c4m_tspec_ref()));

@@ -56,7 +56,7 @@ ipaddr_init(ipaddr_t *obj, va_list args)
 // TODO: currently this isn't at all portable across platforms.
 // Too quick and dirty.
 static void
-ipaddr_marshal(ipaddr_t *obj, c4m_stream_t *s, dict_t *memos, int64_t *mid)
+ipaddr_marshal(ipaddr_t *obj, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
 {
     c4m_marshal_u32(sizeof(struct sockaddr_in6), s);
     c4m_stream_raw_write(s, sizeof(struct sockaddr_in6), obj->addr);
@@ -65,7 +65,7 @@ ipaddr_marshal(ipaddr_t *obj, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 static void
-ipaddr_unmarshal(ipaddr_t *obj, c4m_stream_t *s, dict_t *memos)
+ipaddr_unmarshal(ipaddr_t *obj, c4m_stream_t *s, c4m_dict_t *memos)
 {
     uint32_t struct_sz = c4m_unmarshal_u32(s);
 

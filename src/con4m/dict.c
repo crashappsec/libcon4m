@@ -1,16 +1,16 @@
 #include "con4m.h"
 
 static void
-c4m_dict_init(hatrack_dict_t *dict, va_list args)
+c4m_dict_init(c4m_dict_t *dict, va_list args)
 {
     size_t         hash_fn;
     c4m_xlist_t   *type_params;
     c4m_type_t    *key_type;
     c4m_dt_info_t *info;
-    c4m_type_t    *dict_type = c4m_get_my_type(dict);
+    c4m_type_t    *c4m_dict_type = c4m_get_my_type(dict);
 
-    if (dict_type != NULL) {
-        type_params = c4m_tspec_get_parameters(dict_type);
+    if (c4m_dict_type != NULL) {
+        type_params = c4m_tspec_get_parameters(c4m_dict_type);
         key_type    = c4m_xlist_get(type_params, 0, NULL);
         info        = c4m_tspec_get_data_type_info(key_type);
 
@@ -38,16 +38,19 @@ c4m_dict_init(hatrack_dict_t *dict, va_list args)
 }
 
 static void
-c4m_dict_marshal(dict_t *d, c4m_stream_t *s, dict_t *memos, int64_t *mid)
+c4m_dict_marshal(c4m_dict_t   *d,
+                 c4m_stream_t *s,
+                 c4m_dict_t   *memos,
+                 int64_t      *mid)
 {
     uint64_t    length;
-    c4m_type_t *dict_type = c4m_get_my_type(d);
+    c4m_type_t *c4m_dict_type = c4m_get_my_type(d);
 
-    if (dict_type == NULL) {
+    if (c4m_dict_type == NULL) {
         C4M_CRAISE("Cannot marshal untyped dictionaries.");
     }
 
-    c4m_xlist_t         *type_params = c4m_tspec_get_parameters(dict_type);
+    c4m_xlist_t         *type_params = c4m_tspec_get_parameters(c4m_dict_type);
     c4m_type_t          *key_type    = c4m_xlist_get(type_params, 0, NULL);
     c4m_type_t          *val_type    = c4m_xlist_get(type_params, 1, NULL);
     hatrack_dict_item_t *view        = hatrack_dict_items_sort(d, &length);
@@ -79,17 +82,17 @@ c4m_dict_marshal(dict_t *d, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 static void
-c4m_dict_unmarshal(dict_t *d, c4m_stream_t *s, dict_t *memos)
+c4m_dict_unmarshal(c4m_dict_t *d, c4m_stream_t *s, c4m_dict_t *memos)
 {
-    uint32_t       length      = c4m_unmarshal_u32(s);
-    c4m_type_t    *dict_type   = c4m_get_my_type(d);
-    c4m_xlist_t   *type_params = c4m_tspec_get_parameters(dict_type);
-    c4m_type_t    *key_type    = c4m_xlist_get(type_params, 0, NULL);
-    c4m_type_t    *val_type    = c4m_xlist_get(type_params, 1, NULL);
-    c4m_dt_info_t *kinfo       = c4m_tspec_get_data_type_info(key_type);
-    c4m_dt_info_t *vinfo       = c4m_tspec_get_data_type_info(val_type);
-    bool           key_by_val  = kinfo->by_value;
-    bool           val_by_val  = vinfo->by_value;
+    uint32_t       length        = c4m_unmarshal_u32(s);
+    c4m_type_t    *c4m_dict_type = c4m_get_my_type(d);
+    c4m_xlist_t   *type_params   = c4m_tspec_get_parameters(c4m_dict_type);
+    c4m_type_t    *key_type      = c4m_xlist_get(type_params, 0, NULL);
+    c4m_type_t    *val_type      = c4m_xlist_get(type_params, 1, NULL);
+    c4m_dt_info_t *kinfo         = c4m_tspec_get_data_type_info(key_type);
+    c4m_dt_info_t *vinfo         = c4m_tspec_get_data_type_info(val_type);
+    bool           key_by_val    = kinfo->by_value;
+    bool           val_by_val    = vinfo->by_value;
 
     hatrack_dict_init(d, kinfo->hash_fn);
 
@@ -129,14 +132,14 @@ c4m_dict_unmarshal(dict_t *d, c4m_stream_t *s, dict_t *memos)
 }
 
 static c4m_str_t *
-dict_repr(dict_t *dict, to_str_use_t how)
+dict_repr(c4m_dict_t *dict, to_str_use_t how)
 {
     uint64_t             view_len;
-    c4m_type_t          *dict_type   = c4m_get_my_type(dict);
-    c4m_xlist_t         *type_params = c4m_tspec_get_parameters(dict_type);
-    c4m_type_t          *key_type    = c4m_xlist_get(type_params, 0, NULL);
-    c4m_type_t          *val_type    = c4m_xlist_get(type_params, 1, NULL);
-    hatrack_dict_item_t *view        = hatrack_dict_items_sort(dict, &view_len);
+    c4m_type_t          *c4m_dict_type = c4m_get_my_type(dict);
+    c4m_xlist_t         *type_params   = c4m_tspec_get_parameters(c4m_dict_type);
+    c4m_type_t          *key_type      = c4m_xlist_get(type_params, 0, NULL);
+    c4m_type_t          *val_type      = c4m_xlist_get(type_params, 1, NULL);
+    hatrack_dict_item_t *view          = hatrack_dict_items_sort(dict, &view_len);
 
     c4m_xlist_t *items    = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()),
                                  c4m_kw("length", c4m_ka(view_len)));
@@ -162,12 +165,12 @@ dict_can_coerce_to(c4m_type_t *my_type, c4m_type_t *dst_type)
     return c4m_tspecs_are_compat(my_type, dst_type);
 }
 
-static dict_t *
-dict_coerce_to(dict_t *dict, c4m_type_t *dst_type)
+static c4m_dict_t *
+dict_coerce_to(c4m_dict_t *dict, c4m_type_t *dst_type)
 {
     uint64_t             len;
     hatrack_dict_item_t *view     = hatrack_dict_items_sort(dict, &len);
-    dict_t              *res      = c4m_new(dst_type);
+    c4m_dict_t          *res      = c4m_new(dst_type);
     c4m_type_t          *src_type = c4m_get_my_type(dict);
     c4m_type_t          *kt_src   = c4m_tspec_get_param(src_type, 0);
     c4m_type_t          *kt_dst   = c4m_tspec_get_param(dst_type, 0);
@@ -184,14 +187,14 @@ dict_coerce_to(dict_t *dict, c4m_type_t *dst_type)
     return res;
 }
 
-dict_t *
-dict_copy(dict_t *dict)
+c4m_dict_t *
+dict_copy(c4m_dict_t *dict)
 {
     return dict_coerce_to(dict, c4m_get_my_type(dict));
 }
 
 int64_t
-dict_len(dict_t *dict)
+dict_len(c4m_dict_t *dict)
 {
     uint64_t len;
     uint64_t view = (uint64_t)hatrack_dict_items_nosort(dict, &len);
@@ -199,15 +202,15 @@ dict_len(dict_t *dict)
     return (int64_t)len | (int64_t)(view ^ view);
 }
 
-dict_t *
-dict_plus(dict_t *d1, dict_t *d2)
+c4m_dict_t *
+dict_plus(c4m_dict_t *d1, c4m_dict_t *d2)
 {
     uint64_t             l1;
     uint64_t             l2;
     hatrack_dict_item_t *v1 = hatrack_dict_items_sort(d1, &l1);
     hatrack_dict_item_t *v2 = hatrack_dict_items_sort(d2, &l2);
 
-    dict_t *result = c4m_new(c4m_get_my_type(d1));
+    c4m_dict_t *result = c4m_new(c4m_get_my_type(d1));
 
     for (uint64_t i = 0; i < l1; i++) {
         hatrack_dict_put(result, v1[i].key, v1[i].value);
@@ -221,7 +224,7 @@ dict_plus(dict_t *d1, dict_t *d2)
 }
 
 void *
-dict_get(dict_t *d, void *k)
+dict_get(c4m_dict_t *d, void *k)
 {
     bool found = false;
 

@@ -60,7 +60,7 @@ typedef struct {
 typedef struct c4m_arena_t {
     alignas(8)
         c4m_alloc_hdr *next_alloc;
-    struct dict_t      *roots;
+    c4m_dict_t         *roots;
     struct c4m_arena_t *previous;
     queue_t            *late_mutations;
     uint64_t           *heap_end;

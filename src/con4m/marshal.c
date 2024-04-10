@@ -97,7 +97,7 @@ c4m_unmarshal_i16(c4m_stream_t *s)
 void
 c4m_marshal_unmanaged_object(void          *addr,
                              c4m_stream_t  *s,
-                             dict_t        *memos,
+                             c4m_dict_t    *memos,
                              int64_t       *mid,
                              c4m_marshal_fn fn)
 {
@@ -205,7 +205,7 @@ c4m_unmarshal_compact_type(c4m_stream_t *s)
 }
 
 void
-c4m_sub_marshal(c4m_obj_t obj, c4m_stream_t *s, dict_t *memos, int64_t *mid)
+c4m_sub_marshal(c4m_obj_t obj, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
 {
     if (obj == NULL) {
         c4m_marshal_u64(0ull, s);
@@ -257,7 +257,7 @@ c4m_sub_marshal(c4m_obj_t obj, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 void *
 c4m_unmarshal_unmanaged_object(size_t           len,
                                c4m_stream_t    *s,
-                               dict_t          *memos,
+                               c4m_dict_t      *memos,
                                c4m_unmarshal_fn fn)
 {
     bool     found = false;
@@ -285,7 +285,7 @@ c4m_unmarshal_unmanaged_object(size_t           len,
 }
 
 c4m_obj_t
-c4m_sub_unmarshal(c4m_stream_t *s, dict_t *memos)
+c4m_sub_unmarshal(c4m_stream_t *s, c4m_dict_t *memos)
 {
     bool            found = false;
     uint64_t        memo;
@@ -351,8 +351,8 @@ c4m_marshal(c4m_obj_t obj, c4m_stream_t *s)
     c4m_marshaling = 1;
 
     // Start w/ 1 as 0 represents the null pointer.
-    int64_t next_memo = 1;
-    dict_t *memos     = c4m_alloc_marshal_memos();
+    int64_t     next_memo = 1;
+    c4m_dict_t *memos     = c4m_alloc_marshal_memos();
 
     c4m_sub_marshal(obj, s, memos, &next_memo);
     c4m_marshaling = 0;
@@ -367,8 +367,8 @@ c4m_unmarshal(c4m_stream_t *s)
             "call c4m_sub_unmarshal.");
     }
 
-    dict_t   *memos = c4m_alloc_unmarshal_memos();
-    c4m_obj_t result;
+    c4m_dict_t *memos = c4m_alloc_unmarshal_memos();
+    c4m_obj_t   result;
 
     c4m_marshaling = 1;
 

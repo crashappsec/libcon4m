@@ -158,7 +158,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     {
         .name      = "dict",
         .typeid    = C4M_T_DICT,
-        .alloc_len = sizeof(dict_t),
+        .alloc_len = sizeof(c4m_dict_t),
         .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_dict_vtable,
         .dt_kind   = C4M_DT_KIND_dict,

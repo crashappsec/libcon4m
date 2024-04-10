@@ -141,7 +141,9 @@ c4m_str_slice(const c4m_str_t *instr, int64_t start, int64_t end)
             int64_t     sold = s->styling->styles[i + first].start;
             c4m_style_t info = s->styling->styles[i + first].info;
             int64_t     snew = max(sold - start, 0);
-            int64_t     enew = min(s->styling->styles[i + first].end, end) - start;
+            int64_t     enew = min(s->styling->styles[i + first].end,
+                               end)
+                         - start;
 
             if (enew > slice_len) {
                 enew = slice_len;
@@ -286,7 +288,8 @@ c4m_str_concat(const c4m_str_t *p1, const c4m_str_t *p2)
     int64_t      s1_len      = c4m_str_codepoint_len(s1);
     int64_t      s2_len      = c4m_str_codepoint_len(s2);
     int64_t      n           = s1_len + s2_len;
-    c4m_utf32_t *r           = c4m_new(c4m_tspec_utf32(), c4m_kw("length", c4m_ka(n)));
+    c4m_utf32_t *r           = c4m_new(c4m_tspec_utf32(),
+                             c4m_kw("length", c4m_ka(n)));
     uint64_t     num_entries = c4m_style_num_entries(s1) + c4m_style_num_entries(s2);
 
     if (!s1_len) {
@@ -364,7 +367,9 @@ _c4m_str_join(const c4m_xlist_t *l, const c4m_str_t *joiner, ...)
     }
 
     for (int i = 0; i < n_parts; i++) {
-        c4m_utf32_t *line = c4m_to_utf32((c4m_str_t *)c4m_xlist_get(l, i, NULL));
+        c4m_utf32_t *line = c4m_to_utf32((c4m_str_t *)c4m_xlist_get(l,
+                                                                    i,
+                                                                    NULL));
         int64_t      n_cp = c4m_str_codepoint_len(line);
 
         memcpy(p, line->data, n_cp * 4);
@@ -381,7 +386,9 @@ _c4m_str_join(const c4m_xlist_t *l, const c4m_str_t *joiner, ...)
     }
 
     if (!add_trailing) {
-        c4m_utf32_t *line = c4m_to_utf32((c4m_str_t *)c4m_xlist_get(l, n_parts, NULL));
+        c4m_utf32_t *line = c4m_to_utf32((c4m_str_t *)c4m_xlist_get(l,
+                                                                    n_parts,
+                                                                    NULL));
         int64_t      n_cp = c4m_str_codepoint_len(line);
 
         memcpy(p, line->data, n_cp * 4);
@@ -738,7 +745,8 @@ u8_slice:
                         uint8_t    *start = (uint8_t *)s->data;
                         int64_t     blen  = p - start;
                         c4m_utf8_t *res   = c4m_new(c4m_tspec_utf8(),
-                                                  c4m_kw("length", c4m_ka(blen)));
+                                                  c4m_kw("length",
+                                                         c4m_ka(blen)));
 
                         memcpy(res->data, start, blen);
                         c4m_copy_style_info(s, res);
@@ -945,7 +953,10 @@ c4m_str_xsplit(c4m_str_t *str, c4m_str_t *sub)
 }
 
 static void
-c4m_string_marshal(c4m_str_t *s, c4m_stream_t *out, dict_t *memos, int64_t *mid)
+c4m_string_marshal(c4m_str_t    *s,
+                   c4m_stream_t *out,
+                   c4m_dict_t   *memos,
+                   int64_t      *mid)
 {
     c4m_marshal_u32(s->codepoints, out);
     c4m_marshal_u32(s->byte_len, out);
@@ -967,7 +978,7 @@ c4m_string_marshal(c4m_str_t *s, c4m_stream_t *out, dict_t *memos, int64_t *mid)
 }
 
 static void
-c4m_string_unmarshal(c4m_str_t *s, c4m_stream_t *in, dict_t *memos)
+c4m_string_unmarshal(c4m_str_t *s, c4m_stream_t *in, c4m_dict_t *memos)
 {
     s->codepoints = c4m_unmarshal_u32(in);
     s->byte_len   = c4m_unmarshal_u32(in);

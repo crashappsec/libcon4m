@@ -28,7 +28,7 @@ c4m_set_init(set_t *set, va_list args)
 // for strings at some point soon though.
 
 static void
-c4m_set_marshal(set_t *d, c4m_stream_t *s, dict_t *memos, int64_t *mid)
+c4m_set_marshal(set_t *d, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
 {
     uint64_t length;
     uint8_t  kt   = (uint8_t)d->item_type;
@@ -54,7 +54,7 @@ c4m_set_marshal(set_t *d, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 static void
-c4m_set_unmarshal(set_t *d, c4m_stream_t *s, dict_t *memos)
+c4m_set_unmarshal(set_t *d, c4m_stream_t *s, c4m_dict_t *memos)
 {
     uint32_t length;
     uint8_t  kt;

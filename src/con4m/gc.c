@@ -11,7 +11,7 @@
 // shutdown lock we need to add, that stops all threads to marshal
 // state.
 
-static hatrack_dict_t           *global_roots;
+static c4m_dict_t               *global_roots;
 uint64_t                         c4m_gc_guard = 0;
 static _Atomic uint64_t          num_arenas   = 0;
 static thread_local c4m_arena_t *current_heap = NULL;
@@ -36,7 +36,7 @@ c4m_initialize_gc()
 
     if (!once) {
         c4m_gc_guard = c4m_rand64();
-        global_roots = calloc(sizeof(hatrack_dict_t), 1);
+        global_roots = calloc(sizeof(c4m_dict_t), 1);
         once         = true;
         page_bytes   = getpagesize();
         page_modulus = page_bytes - 1; // Page size is always a power of 2.

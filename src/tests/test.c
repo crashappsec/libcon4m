@@ -6,8 +6,9 @@ size_t      term_width;
 
 C4M_STATIC_ASCII_STR(str_test,
                      "Welcome to the testing center. First order of "
-                     "business: This is a static string, stored in static memory."
-                     "However, we have not set any styling information on it.\n");
+                     "business: This is a static string, stored in static "
+                     "memory. However, we have not set any styling "
+                     "information on it.\n");
 c4m_stream_t *sout;
 c4m_stream_t *serr;
 
@@ -88,32 +89,38 @@ test1()
 c4m_str_t *
 test2()
 {
-    c4m_utf8_t *w1 = c4m_new(c4m_tspec_utf8(),
-                             c4m_kw("cstring",
-                                    c4m_ka("Once upon a time, there was a ")));
-    c4m_utf8_t *w2 = c4m_new(c4m_tspec_utf8(),
-                             c4m_kw("cstring",
-                                    c4m_ka("thing I cared about. But then ")));
-    c4m_utf8_t *w3 = c4m_new(c4m_tspec_utf8(),
-                             c4m_kw("cstring",
-                                    c4m_ka("I stopped caring. I don't really "
-                                           "remember what it was, though. Do ")));
-    c4m_utf8_t *w4 = c4m_new(c4m_tspec_utf8(),
-                             c4m_kw("cstring",
-                                    c4m_ka("you? No, I didn't think so, because it "
-                                           "wasn't really all that "
-                                           "interesting, to be quite honest. "
-                                           "Maybe someday I'll find something "
-                                           "interesting to care about, besides my "
-                                           "family. Oh yeah, that's "
-                                           "what it was, my family! Oh, wait, no, "
-                                           "they're either not interesting, "
-                                           "or I don't care about them.\n")));
-    c4m_utf8_t *w5 = c4m_new(c4m_tspec_utf8(),
-                             c4m_kw("cstring",
-                                    c4m_ka("Basically AirTags for Software")));
-    c4m_utf8_t *w6 = c4m_new(c4m_tspec_utf8(),
-                             c4m_kw("cstring", c4m_ka("\n")));
+    c4m_utf8_t *w1 = c4m_new(
+        c4m_tspec_utf8(),
+        c4m_kw("cstring",
+               c4m_ka("Once upon a time, there was a ")));
+    c4m_utf8_t *w2 = c4m_new(
+        c4m_tspec_utf8(),
+        c4m_kw("cstring",
+               c4m_ka("thing I cared about. But then ")));
+    c4m_utf8_t *w3 = c4m_new(
+        c4m_tspec_utf8(),
+        c4m_kw("cstring",
+               c4m_ka("I stopped caring. I don't really "
+                      "remember what it was, though. Do ")));
+    c4m_utf8_t *w4 = c4m_new(
+        c4m_tspec_utf8(),
+        c4m_kw("cstring",
+               c4m_ka("you? No, I didn't think so, because it "
+                      "wasn't really all that "
+                      "interesting, to be quite honest. "
+                      "Maybe someday I'll find something "
+                      "interesting to care about, besides my "
+                      "family. Oh yeah, that's "
+                      "what it was, my family! Oh, wait, no, "
+                      "they're either not interesting, "
+                      "or I don't care about them.\n")));
+    c4m_utf8_t *w5 = c4m_new(
+        c4m_tspec_utf8(),
+        c4m_kw("cstring",
+               c4m_ka("Basically AirTags for Software")));
+    c4m_utf8_t *w6 = c4m_new(
+        c4m_tspec_utf8(),
+        c4m_kw("cstring", c4m_ka("\n")));
 
     c4m_str_set_style(w2, style1);
     c4m_str_set_style(w3, style2);
@@ -182,33 +189,38 @@ test3(c4m_str_t *to_slice)
 void
 test4()
 {
-    c4m_utf8_t *w1 = c4m_new(c4m_tspec_utf8(),
-                             c4m_kw("cstring",
-                                    c4m_ka("Once upon a time, there was a ")));
-    c4m_utf8_t *w2 = c4m_new(c4m_tspec_utf8(),
-                             c4m_kw("cstring",
-                                    c4m_ka("thing I cared about. But then ")));
-    c4m_utf8_t *w3 = c4m_new(c4m_tspec_utf8(),
-                             c4m_kw("cstring",
-                                    c4m_ka("I stopped caring. I don't really "
-                                           "remember what it was, though. Do ")));
-    c4m_utf8_t *w4 = c4m_new(c4m_tspec_utf8(),
-                             c4m_kw("cstring",
-                                    c4m_ka("you? No, I didn't think so, because it "
-                                           "wasn't really all that interesting, to "
-                                           "be quite honest. Maybe someday I'll "
-                                           "find something interesting to care "
-                                           "about, besides my family. Oh yeah, "
-                                           "that's what it was, my family! Oh, "
-                                           "wait, no, they're either not "
-                                           "interesting, or I don't care about "
-                                           "them.\n")));
+    c4m_utf8_t *w1 = c4m_new(
+        c4m_tspec_utf8(),
+        c4m_kw("cstring",
+               c4m_ka("Once upon a time, there was a ")));
+    c4m_utf8_t *w2 = c4m_new(
+        c4m_tspec_utf8(),
+        c4m_kw("cstring",
+               c4m_ka("thing I cared about. But then ")));
+    c4m_utf8_t *w3 = c4m_new(
+        c4m_tspec_utf8(),
+        c4m_kw("cstring",
+               c4m_ka("I stopped caring. I don't really "
+                      "remember what it was, though. Do ")));
+    c4m_utf8_t *w4 = c4m_new(
+        c4m_tspec_utf8(),
+        c4m_kw("cstring",
+               c4m_ka("you? No, I didn't think so, because it "
+                      "wasn't really all that interesting, to "
+                      "be quite honest. Maybe someday I'll "
+                      "find something interesting to care "
+                      "about, besides my family. Oh yeah, "
+                      "that's what it was, my family! Oh, "
+                      "wait, no, they're either not "
+                      "interesting, or I don't care about "
+                      "them.\n")));
     c4m_utf8_t *w5 = c4m_new(c4m_tspec_utf8(),
                              c4m_kw("cstring",
                                     c4m_ka("Basically AirTags for Software")));
     c4m_utf8_t *w6 = c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka("\n")));
 
-    hatrack_dict_t *d = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_ref()));
+    c4m_dict_t *d = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
+                                           c4m_tspec_ref()));
 
     c4m_gc_register_root(&d, 1);
 
@@ -236,17 +248,22 @@ table_test()
     c4m_utf8_t *test1 = c4m_new(c4m_tspec_utf8(),
                                 c4m_kw("cstring",
                                        c4m_ka("Some example 🤯 🤯 🤯"
-                                              " Let's make it a fairly long 🤯 "
-                                              "example, so it will be sure to need"
-                                              " some reynolds' wrap.")));
+                                              " Let's make it a fairly "
+                                              "long 🤯 example, so it will "
+                                              "be sure to need some reynolds' "
+                                              "wrap.")));
     c4m_utf8_t *test2 = c4m_new(c4m_tspec_utf8(),
-                                c4m_kw("cstring", c4m_ka("Some other example.")));
+                                c4m_kw("cstring",
+                                       c4m_ka("Some other example.")));
     c4m_utf8_t *test3 = c4m_new(c4m_tspec_utf8(),
-                                c4m_kw("cstring", c4m_ka("Example 3.")));
+                                c4m_kw("cstring",
+                                       c4m_ka("Example 3.")));
     c4m_utf8_t *test4 = c4m_new(c4m_tspec_utf8(),
-                                c4m_kw("cstring", c4m_ka("Defaults.")));
+                                c4m_kw("cstring",
+                                       c4m_ka("Defaults.")));
     c4m_utf8_t *test5 = c4m_new(c4m_tspec_utf8(),
-                                c4m_kw("cstring", c4m_ka("Last one.")));
+                                c4m_kw("cstring",
+                                       c4m_ka("Last one.")));
     c4m_grid_t *g     = c4m_new(c4m_tspec_grid(),
                             c4m_kw("start_rows",
                                    c4m_ka(4),
@@ -255,7 +272,8 @@ table_test()
                                    "header_rows",
                                    c4m_ka(1)));
     c4m_utf8_t *hdr   = c4m_new(c4m_tspec_utf8(),
-                              c4m_kw("cstring", c4m_ka("Yes, this is a table.")));
+                              c4m_kw("cstring",
+                                     c4m_ka("Yes, this is a table.")));
 
     c4m_grid_add_row(g, c4m_to_str_renderable(hdr, "td"));
     c4m_grid_add_cell(g, test1);
@@ -288,8 +306,8 @@ table_test()
                                              "haven't heard before.")));
     c4m_utf8_t  *ol2 = c4m_new(c4m_tspec_utf8(),
                               c4m_kw("cstring",
-                                     c4m_ka("This is a point that's just as valid, "
-                                             "but you already know it.")));
+                                     c4m_ka("This is a point that's also valid,"
+                                             " but you already know it.")));
     c4m_utf8_t  *ol3 = c4m_new(c4m_tspec_utf8(),
                               c4m_kw("cstring",
                                      c4m_ka("This is a small point.")));
@@ -364,11 +382,17 @@ void
 c4m_stream_tests()
 {
     c4m_utf8_t   *n  = c4m_new(c4m_tspec_utf8(),
-                            c4m_kw("cstring", c4m_ka("../meson.build")));
-    c4m_stream_t *s1 = c4m_new(c4m_tspec_stream(), c4m_kw("filename", c4m_ka(n)));
-    c4m_buf_t    *b  = c4m_new(c4m_tspec_buffer(), c4m_kw("length", c4m_ka(16)));
+                            c4m_kw("cstring",
+                                   c4m_ka("../meson.build")));
+    c4m_stream_t *s1 = c4m_new(c4m_tspec_stream(),
+                               c4m_kw("filename", c4m_ka(n)));
+    c4m_buf_t    *b  = c4m_new(c4m_tspec_buffer(),
+                           c4m_kw("length", c4m_ka(16)));
     c4m_stream_t *s2 = c4m_new(c4m_tspec_stream(),
-                               c4m_kw("buffer", c4m_ka(b), "write", c4m_ka(1)));
+                               c4m_kw("buffer",
+                                      c4m_ka(b),
+                                      "write",
+                                      c4m_ka(1)));
 
     c4m_style_t sty = c4m_add_bold(c4m_add_italic(c4m_new_style()));
 
@@ -383,7 +407,7 @@ c4m_stream_tests()
     }
 
     c4m_print(c4m_hex_dump(b->data, b->byte_len));
-    c4m_utf8_t *s = c4m_c4m_buf_to_utf8_string(b);
+    c4m_utf8_t *s = c4m_buf_to_utf8_string(b);
 
     c4m_str_set_style(s, sty);
     c4m_print(s);
@@ -397,7 +421,8 @@ marshal_test()
     c4m_utf8_t   *contents = c4m_new(c4m_tspec_utf8(),
                                    c4m_kw("cstring",
                                           c4m_ka("This is a test of marshal.\n")));
-    c4m_buf_t    *b        = c4m_new(c4m_tspec_buffer(), c4m_kw("length", c4m_ka(16)));
+    c4m_buf_t    *b        = c4m_new(c4m_tspec_buffer(),
+                           c4m_kw("length", c4m_ka(16)));
     c4m_stream_t *s        = c4m_new(c4m_tspec_stream(),
                               c4m_kw("buffer",
                                      c4m_ka(b),
@@ -423,7 +448,7 @@ marshal_test()
 void
 marshal_test2()
 {
-    dict_t *d = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_int()));
+    c4m_dict_t *d = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_int()));
     int n;
 
     for (n = 0; color_data[n].name != NULL; n++) {
@@ -446,7 +471,8 @@ marshal_test2()
 	if (ckey == NULL) {
 	    continue;
 	}
-	c4m_utf8_t *key  = c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", karg(ckey)));
+	c4m_utf8_t *key  = c4m_new(c4m_tspec_utf8(),
+				   c4m_kw("cstring", karg(ckey)));
 	int64_t val  = c4m_lookup_color(key);
 	printf("%s: %06llx\n", key->data, val);
     }
@@ -456,7 +482,7 @@ marshal_test2()
 void
 create_dict_lit()
 {
-    dict_t *d = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_int()));
+    c4m_dict_t *d = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_int()));
 
     hatrack_dict_add(d, c4m_new_utf8("no"), (void *)1LLU);
     hatrack_dict_add(d, c4m_new_utf8("b"), (void *)2LLU);

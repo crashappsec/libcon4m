@@ -68,7 +68,7 @@ c4m_tree_children(c4m_tree_node_t *t)
 }
 
 static void
-tree_node_marshal(c4m_tree_node_t *t, c4m_stream_t *s, dict_t *memos, int64_t *mid)
+tree_node_marshal(c4m_tree_node_t *t, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(t);
     c4m_xlist_t   *type_params = c4m_tspec_get_parameters(list_type);
@@ -93,7 +93,7 @@ tree_node_marshal(c4m_tree_node_t *t, c4m_stream_t *s, dict_t *memos, int64_t *m
 }
 
 static void
-tree_node_unmarshal(c4m_tree_node_t *t, c4m_stream_t *s, dict_t *memos)
+tree_node_unmarshal(c4m_tree_node_t *t, c4m_stream_t *s, c4m_dict_t *memos)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(t);
     c4m_xlist_t   *type_params = c4m_tspec_get_parameters(list_type);

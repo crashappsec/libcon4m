@@ -31,7 +31,7 @@ c4m_tuple_get(c4m_tuple_t *tup, int64_t ix)
 }
 
 static void
-tuple_marshal(c4m_tuple_t *tup, c4m_stream_t *s, dict_t *memos, int64_t *mid)
+tuple_marshal(c4m_tuple_t *tup, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
 {
     c4m_xlist_t *tparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
 
@@ -49,7 +49,7 @@ tuple_marshal(c4m_tuple_t *tup, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 static void
-tuple_unmarshal(c4m_tuple_t *tup, c4m_stream_t *s, dict_t *memos)
+tuple_unmarshal(c4m_tuple_t *tup, c4m_stream_t *s, c4m_dict_t *memos)
 {
     c4m_xlist_t *tparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
 

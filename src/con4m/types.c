@@ -143,7 +143,7 @@ typedef struct {
     c4m_type_env_t *env;
     c4m_sha_t      *sha;
     int             tv_count;
-    dict_t         *memos;
+    c4m_dict_t     *memos;
 } type_hash_ctx;
 
 static inline bool
@@ -322,14 +322,14 @@ c4m_type_env_init(c4m_type_env_t *env, va_list args)
 }
 
 static void
-c4m_type_env_marshal(c4m_type_env_t *env, c4m_stream_t *s, dict_t *memos, int64_t *mid)
+c4m_type_env_marshal(c4m_type_env_t *env, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
 {
     c4m_sub_marshal(env->store, s, memos, mid);
     c4m_marshal_u64(atomic_load(&env->next_tid), s);
 }
 
 static void
-c4m_type_env_unmarshal(c4m_type_env_t *env, c4m_stream_t *s, dict_t *memos)
+c4m_type_env_unmarshal(c4m_type_env_t *env, c4m_stream_t *s, c4m_dict_t *memos)
 {
     env->store = c4m_sub_unmarshal(s, memos);
     atomic_store(&env->next_tid, c4m_unmarshal_u64(s));
@@ -715,7 +715,7 @@ unify_sub_nodes:
     return result;
 }
 
-static c4m_str_t *internal_type_repr(c4m_type_t *, dict_t *, int64_t *);
+static c4m_str_t *internal_type_repr(c4m_type_t *, c4m_dict_t *, int64_t *);
 
 // This is just hex w/ a different char set; max size would be 18 digits.
 static const char tv_letters[] = "jtvwxyzabcdefghi";
@@ -737,7 +737,7 @@ create_typevar_name(int64_t num)
 }
 
 static inline c4m_str_t *
-internal_repr_tv(c4m_type_t *t, dict_t *memos, int64_t *nexttv)
+internal_repr_tv(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
 {
     c4m_str_t *s = hatrack_dict_get(memos, t, NULL);
 
@@ -764,7 +764,7 @@ internal_repr_tv(c4m_type_t *t, dict_t *memos, int64_t *nexttv)
 }
 
 static inline c4m_str_t *
-internal_repr_container(c4m_type_info_t *info, dict_t *memos, int64_t *nexttv)
+internal_repr_container(c4m_type_info_t *info, c4m_dict_t *memos, int64_t *nexttv)
 {
     int          num_types = c4m_xlist_len(info->items);
     c4m_xlist_t *to_join   = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
@@ -798,7 +798,7 @@ first_loop_start:
 // This will get more complicated when we add keyword parameter sypport.
 
 static inline c4m_str_t *
-internal_repr_func(c4m_type_info_t *info, dict_t *memos, int64_t *nexttv)
+internal_repr_func(c4m_type_info_t *info, c4m_dict_t *memos, int64_t *nexttv)
 {
     int          num_types = c4m_xlist_len(info->items);
     c4m_xlist_t *to_join   = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
@@ -843,7 +843,7 @@ first_loop_start:
 }
 
 static c4m_str_t *
-internal_type_repr(c4m_type_t *t, dict_t *memos, int64_t *nexttv)
+internal_type_repr(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
 {
     c4m_type_info_t *info = t->details;
 
@@ -870,8 +870,8 @@ internal_type_repr(c4m_type_t *t, dict_t *memos, int64_t *nexttv)
 static c4m_str_t *
 c4m_tspec_repr(c4m_type_t *t, to_str_use_t how)
 {
-    dict_t *memos = c4m_new(c4m_tspec_dict(c4m_tspec_ref(), c4m_tspec_utf8()));
-    int64_t n     = 0;
+    c4m_dict_t *memos = c4m_new(c4m_tspec_dict(c4m_tspec_ref(), c4m_tspec_utf8()));
+    int64_t     n     = 0;
 
     return internal_type_repr(t, memos, &n);
 }
@@ -880,13 +880,13 @@ extern void        c4m_marshal_compact_type(c4m_type_t *t, c4m_stream_t *s);
 extern c4m_type_t *c4m_unmarshal_compact_type(c4m_stream_t *s);
 
 static void
-c4m_tspec_marshal(c4m_type_t *n, c4m_stream_t *s, dict_t *m, int64_t *mid)
+c4m_tspec_marshal(c4m_type_t *n, c4m_stream_t *s, c4m_dict_t *m, int64_t *mid)
 {
     c4m_marshal_compact_type(n, s);
 }
 
 static void
-c4m_tspec_unmarshal(c4m_type_t *n, c4m_stream_t *s, dict_t *m)
+c4m_tspec_unmarshal(c4m_type_t *n, c4m_stream_t *s, c4m_dict_t *m)
 {
     c4m_type_t *r = c4m_unmarshal_compact_type(s);
 
@@ -981,10 +981,10 @@ c4m_initialize_global_types()
         envobj = c4m_gc_raw_alloc(
             sizeof(c4m_type_env_t) + sizeof(c4m_base_obj_t),
             GC_SCAN_ALL);
-        envstore = c4m_gc_alloc(dict_t);
+        envstore = c4m_gc_alloc(c4m_dict_t);
 
         c4m_global_type_env = (c4m_type_env_t *)envobj->data;
-        dict_t *store       = (dict_t *)envstore->data;
+        c4m_dict_t *store   = (c4m_dict_t *)envstore->data;
 
         c4m_global_type_env->store = store;
 

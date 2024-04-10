@@ -60,6 +60,9 @@ forkpty(int *, char *, struct termios *, struct winsize *);
 
 #include "vendor.h"
 #include "hatrack.h"
+
+typedef struct hatrack_dict_t c4m_dict_t;
+
 #include "con4m/datatypes.h"
 
 #if BYTE_ORDER == LITTLE_ENDIAN

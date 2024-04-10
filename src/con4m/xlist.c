@@ -108,7 +108,7 @@ c4m_xlist_plus(c4m_xlist_t *l1, c4m_xlist_t *l2)
 }
 
 void
-c4m_xlist_marshal(c4m_xlist_t *r, c4m_stream_t *s, dict_t *memos, int64_t *mid)
+c4m_xlist_marshal(c4m_xlist_t *r, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(r);
     c4m_xlist_t   *type_params = c4m_tspec_get_parameters(list_type);
@@ -132,7 +132,7 @@ c4m_xlist_marshal(c4m_xlist_t *r, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 void
-c4m_xlist_unmarshal(c4m_xlist_t *r, c4m_stream_t *s, dict_t *memos)
+c4m_xlist_unmarshal(c4m_xlist_t *r, c4m_stream_t *s, c4m_dict_t *memos)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(r);
     c4m_xlist_t   *type_params = c4m_tspec_get_parameters(list_type);

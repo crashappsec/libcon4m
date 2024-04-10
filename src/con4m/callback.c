@@ -1,6 +1,6 @@
 #include "con4m.h"
 
-static dict_t *bound_functions = NULL;
+static c4m_dict_t *bound_functions = NULL;
 
 static void
 callback_init(c4m_callback_t *cb, va_list args)

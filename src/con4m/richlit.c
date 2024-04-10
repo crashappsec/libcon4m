@@ -27,7 +27,7 @@ typedef struct fmt_frame_t {
 
 #include "static/richlit.c"
 
-static dict_t *style_keywords = NULL;
+static c4m_dict_t *style_keywords = NULL;
 
 static inline void
 init_style_keywords()
@@ -445,7 +445,7 @@ not_eof:
 
     c4m_stream_close(s);
 
-    c4m_utf8_t *result = c4m_c4m_buf_to_utf8_string(b);
+    c4m_utf8_t *result = c4m_buf_to_utf8_string(b);
 
     // If style blobs, parse them. (otherwise, return the whole string).
     if (style_top == NULL) {

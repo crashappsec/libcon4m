@@ -1,6 +1,6 @@
 #include "con4m.h"
 
-static hatrack_dict_t *style_dictionary = NULL;
+static c4m_dict_t *style_dictionary = NULL;
 
 static const c4m_border_theme_t border_ascii = {
     .name            = "ascii",
@@ -154,7 +154,8 @@ static const c4m_render_style_t default_table = {
     .borders      = C4M_BORDER_TOP | C4M_BORDER_BOTTOM | C4M_BORDER_LEFT | C4M_BORDER_RIGHT | C4M_INTERIOR_HORIZONTAL | C4M_INTERIOR_VERTICAL,
     .border_theme = (c4m_border_theme_t *)&border_bold_dash,
     .dim_kind     = C4M_DIM_AUTO,
-    .alignment    = C4M_ALIGN_MID_LEFT};
+    .alignment    = C4M_ALIGN_MID_LEFT,
+};
 
 static const c4m_render_style_t default_tr = {
     .name       = "tr",
@@ -277,13 +278,16 @@ static const c4m_render_style_t default_flow = {
 };
 
 // Third word of render styles is a pointer.
-const uint64_t c4m_rs_pmap[2] = {0x1, 0x0b00000000000000};
+const uint64_t c4m_rs_pmap[2] = {
+    0x1,
+    0x0b00000000000000,
+};
 
 static inline void
 init_style_db()
 {
     if (style_dictionary == NULL) {
-        style_dictionary = c4m_gc_alloc(hatrack_dict_t);
+        style_dictionary = c4m_gc_alloc(c4m_dict_t);
         hatrack_dict_init(style_dictionary, HATRACK_DICT_KEY_TYPE_CSTR);
         c4m_gc_register_root(&style_dictionary, 1);
     }
@@ -566,7 +570,10 @@ c4m_layer_styles(const c4m_render_style_t *base, c4m_render_style_t *cur)
 }
 
 static void
-c4m_style_marshal(c4m_render_style_t *obj, c4m_stream_t *s, dict_t *memos, int64_t *mid)
+c4m_style_marshal(c4m_render_style_t *obj,
+                  c4m_stream_t       *s,
+                  c4m_dict_t         *memos,
+                  int64_t            *mid)
 {
     uint8_t flags = 0;
 
@@ -589,7 +596,9 @@ c4m_style_marshal(c4m_render_style_t *obj, c4m_stream_t *s, dict_t *memos, int64
 }
 
 static void
-c4m_style_unmarshal(c4m_render_style_t *obj, c4m_stream_t *s, dict_t *memos)
+c4m_style_unmarshal(c4m_render_style_t *obj,
+                    c4m_stream_t       *s,
+                    c4m_dict_t         *memos)
 {
     uint8_t flags;
     char   *theme;

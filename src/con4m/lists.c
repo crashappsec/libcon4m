@@ -60,7 +60,10 @@ c4m_stack_init(hatstack_t *stack, va_list args)
 }
 
 static void
-c4m_list_marshal(flexarray_t *r, c4m_stream_t *s, dict_t *memos, int64_t *mid)
+c4m_list_marshal(flexarray_t  *r,
+                 c4m_stream_t *s,
+                 c4m_dict_t   *memos,
+                 int64_t      *mid)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(r);
     c4m_xlist_t   *type_params = c4m_tspec_get_parameters(list_type);
@@ -85,7 +88,7 @@ c4m_list_marshal(flexarray_t *r, c4m_stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 static void
-c4m_list_unmarshal(flexarray_t *r, c4m_stream_t *s, dict_t *memos)
+c4m_list_unmarshal(flexarray_t *r, c4m_stream_t *s, c4m_dict_t *memos)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(r);
     c4m_xlist_t   *type_params = c4m_tspec_get_parameters(list_type);
