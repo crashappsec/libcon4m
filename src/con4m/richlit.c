@@ -5,7 +5,7 @@ typedef struct fmt_frame_t {
     int32_t             absolute_end;
     int32_t             cp_start;
     int32_t             cp_end;
-    style_t             style;
+    c4m_style_t         style;
     struct fmt_frame_t *next;
 } fmt_frame_t;
 
@@ -63,21 +63,22 @@ init_style_keywords()
 static void
 parse_style_lit(fmt_frame_t *f, utf8_t *instr)
 {
-    uint64_t        seen         = 0;
-    utf8_t         *space        = c4m_get_space_const();
-    xlist_t        *parts        = c4m_str_xsplit(instr, space);
-    int             len          = c4m_xlist_len(parts);
-    int             color_start  = -1;
-    style_t         result       = f->style;
-    bool            saw_fg       = false;
-    bool            on_ok        = false;
-    bool            expect_color = false; // Used after the 'on' keyword.
-    bool            color_done   = false;
-    int64_t         l;                    // used for a string length.
-    int64_t         n;                    // Used to count how many styles a string will end up w
-    utf8_t         *s;
-    render_style_t *rs;
-    int             i; // Loop variable needs to survive after loop.
+    uint64_t            seen         = 0;
+    utf8_t             *space        = c4m_get_space_const();
+    xlist_t            *parts        = c4m_str_xsplit(instr, space);
+    int                 len          = c4m_xlist_len(parts);
+    int                 color_start  = -1;
+    c4m_style_t         result       = f->style;
+    bool                saw_fg       = false;
+    bool                on_ok        = false;
+    bool                expect_color = false; // Used after the 'on' keyword.
+    bool                color_done   = false;
+    int64_t             l;                    // used for a string length.
+    int64_t             n;                    // Used to count how many styles
+                                              // a string will end up w
+    utf8_t             *s;
+    c4m_render_style_t *rs;
+    int                 i; // Loop variable needs to survive after loop.
 
     init_style_keywords();
 
@@ -182,9 +183,9 @@ check_color: {
     // we jump back up here to reuse the code, then
     // jump back down to where we calculate the style.
 
-    xlist_t *slice = c4m_xlist_get_slice(parts, color_start, i);
-    utf8_t  *cname = c4m_to_utf8(c4m_str_join(slice, space));
-    color_t  color = c4m_lookup_color(cname);
+    xlist_t    *slice = c4m_xlist_get_slice(parts, color_start, i);
+    utf8_t     *cname = c4m_to_utf8(c4m_str_join(slice, space));
+    c4m_color_t color = c4m_lookup_color(cname);
 
     if (color == -1) {
         C4M_RAISE(c4m_str_concat(c4m_new_utf8("Color not found: "),
@@ -342,23 +343,24 @@ check_color: {
 utf8_t *
 c4m_rich_lit(char *instr)
 {
-    buffer_t    *b = c4m_new(c4m_tspec_buffer(), c4m_kw("length", c4m_ka(1)));
-    stream_t    *s = c4m_new(c4m_tspec_stream(),
+    buffer_t       *b = c4m_new(c4m_tspec_buffer(),
+                          c4m_kw("length", c4m_ka(1)));
+    stream_t       *s = c4m_new(c4m_tspec_stream(),
                           c4m_kw("buffer",
                                  c4m_ka(b),
                                  "write",
                                  c4m_ka(1),
                                  "read",
                                  c4m_ka(0)));
-    fmt_frame_t *style_next;
-    fmt_frame_t *style_top = NULL;
-    fmt_frame_t *style_cur = NULL;
-    char        *p         = instr;
-    char        *end       = p + strlen(instr);
-    int          cp_count  = 0;
-    int          i         = 0;
-    codepoint_t  cp;
-    int          one_len;
+    fmt_frame_t    *style_next;
+    fmt_frame_t    *style_top = NULL;
+    fmt_frame_t    *style_cur = NULL;
+    char           *p         = instr;
+    char           *end       = p + strlen(instr);
+    int             cp_count  = 0;
+    int             i         = 0;
+    c4m_codepoint_t cp;
+    int             one_len;
 
     // Phase 1, find all the style blocks.
     while (p < end) {
@@ -483,7 +485,7 @@ not_eof:
             if (f->cp_end == -1) {
                 f->cp_end = cp_count;
             }
-            style_entry_t entry = {
+            c4m_style_entry_t entry = {
                 .start = f->cp_start,
                 .end   = f->cp_end,
                 .info  = f->style};

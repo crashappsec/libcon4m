@@ -9,7 +9,7 @@
 #define c4m_codepoint_width(c)    utf8proc_charwidth(c)
 
 static inline bool
-c4m_codepoint_is_space(codepoint_t cp)
+c4m_codepoint_is_space(c4m_codepoint_t cp)
 {
     // Fast path.
     if (cp == ' ' || cp == '\n' || cp == '\r') {

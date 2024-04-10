@@ -21,18 +21,27 @@
 #include "con4m/datatypes/callbacks.h"
 #include "con4m/datatypes/streams.h"
 
-typedef any_str_t *(*repr_fn)(object_t, to_str_use_t);
-typedef void (*marshal_fn)(object_t, stream_t *, struct dict_t *, int64_t *);
-typedef void (*unmarshal_fn)(object_t, stream_t *, struct dict_t *);
-typedef object_t (*copy_fn)(object_t);
-typedef object_t (*binop_fn)(object_t, object_t);
-typedef int64_t (*len_fn)(object_t);
-typedef object_t (*index_get_fn)(object_t, object_t);
-typedef void (*index_set_fn)(object_t, object_t, object_t);
-typedef object_t (*slice_get_fn)(object_t, int64_t, int64_t);
-typedef void (*slice_set_fn)(object_t, int64_t, int64_t, object_t);
-typedef bool (*can_coerce_fn)(type_spec_t *, type_spec_t *);
-typedef void *(*coerce_fn)(void *, type_spec_t *);
-typedef bool (*cmp_fn)(object_t, object_t);
-typedef object_t (*literal_fn)(char *, syntax_t, char *, lit_error_t *);
-typedef object_t (*container_lit_fn)(type_spec_t *, object_t *, syntax_t, char *);
+typedef any_str_t *(*c4m_repr_fn)(object_t, to_str_use_t);
+typedef void (*c4m_marshal_fn)(object_t,
+                               stream_t *,
+                               struct dict_t *,
+                               int64_t *);
+typedef void (*c4m_unmarshal_fn)(object_t, stream_t *, struct dict_t *);
+typedef object_t (*c4m_copy_fn)(object_t);
+typedef object_t (*c4m_binop_fn)(object_t, object_t);
+typedef int64_t (*c4m_len_fn)(object_t);
+typedef object_t (*c4m_index_get_fn)(object_t, object_t);
+typedef void (*c4m_index_set_fn)(object_t, object_t, object_t);
+typedef object_t (*c4m_slice_get_fn)(object_t, int64_t, int64_t);
+typedef void (*c4m_slice_set_fn)(object_t, int64_t, int64_t, object_t);
+typedef bool (*c4m_can_coerce_fn)(type_spec_t *, type_spec_t *);
+typedef void *(*c4m_coerce_fn)(void *, type_spec_t *);
+typedef bool (*c4m_cmp_fn)(object_t, object_t);
+typedef object_t (*c4m_literal_fn)(char *,
+                                   c4m_lit_syntax_t,
+                                   char *,
+                                   c4m_lit_error_t *);
+typedef object_t (*c4m_container_lit_fn)(type_spec_t *,
+                                         object_t *,
+                                         c4m_lit_syntax_t,
+                                         char *);

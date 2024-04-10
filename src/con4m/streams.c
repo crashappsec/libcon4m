@@ -13,14 +13,14 @@ mem_stream_setup(cookie_t *c)
     }
     else {
         switch (c4m_get_base_type_id(c->object)) {
-        case T_UTF8:
-        case T_UTF32: {
+        case C4M_T_UTF8:
+        case C4M_T_UTF32: {
             any_str_t *s = (any_str_t *)c->object;
             c->extra     = s->data;
             c->eof       = s->byte_len;
             return;
         }
-        case T_BUFFER: {
+        case C4M_T_BUFFER: {
             buffer_t *b = (buffer_t *)c->object;
             c->extra    = b->data;
             c->eof      = b->byte_len;
@@ -141,7 +141,7 @@ stream_init(stream_t *stream, va_list args)
     bool          append        = false;
     bool          no_create     = false;
     bool          close_on_exec = true;
-    c4m_builtin_t out_type      = T_UTF8;
+    c4m_builtin_t out_type      = C4M_T_UTF8;
 
     c4m_karg_va_init(args);
     c4m_kw_ptr("filename", filename);
@@ -172,13 +172,13 @@ stream_init(stream_t *stream, va_list args)
     src_count += (fd >= 0);
 
     switch (out_type) {
-    case T_UTF8:
+    case C4M_T_UTF8:
         flags = F_STREAM_UTF8_OUT;
         break;
-    case T_UTF32:
+    case C4M_T_UTF32:
         flags = F_STREAM_UTF32_OUT;
         break;
-    case T_BUFFER:
+    case C4M_T_BUFFER:
         break;
     default:
         C4M_CRAISE("Invalid output type for streams.");
@@ -564,17 +564,17 @@ c4m_stream_flush(stream_t *stream)
 void
 _c4m_print(object_t first, ...)
 {
-    va_list      args;
-    object_t     cur       = first;
-    karg_info_t *_c4m_karg = NULL;
-    stream_t    *stream    = NULL;
-    codepoint_t  sep       = ' ';
-    codepoint_t  end       = '\n';
-    bool         flush     = false;
-    bool         force     = false;
-    bool         nocolor   = false;
-    int          numargs;
-    bool         ansi;
+    va_list          args;
+    object_t         cur       = first;
+    c4m_karg_info_t *_c4m_karg = NULL;
+    stream_t        *stream    = NULL;
+    c4m_codepoint_t  sep       = ' ';
+    c4m_codepoint_t  end       = '\n';
+    bool             flush     = false;
+    bool             force     = false;
+    bool             nocolor   = false;
+    int              numargs;
+    bool             ansi;
 
     va_start(args, first);
 

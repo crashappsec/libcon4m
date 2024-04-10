@@ -19,13 +19,14 @@ get_color_table()
     return color_table;
 }
 
-color_t
+c4m_color_t
 c4m_lookup_color(utf8_t *name)
 {
-    bool    found  = false;
-    color_t result = (color_t)(int64_t)hatrack_dict_get(get_color_table(),
-                                                        name,
-                                                        &found);
+    bool        found  = false;
+    c4m_color_t result = (c4m_color_t)(int64_t)hatrack_dict_get(
+        get_color_table(),
+        name,
+        &found);
 
     if (found == false) {
         return -1;
@@ -34,16 +35,16 @@ c4m_lookup_color(utf8_t *name)
     return result;
 }
 
-color_t
-c4m_to_vga(color_t truecolor)
+c4m_color_t
+c4m_to_vga(c4m_color_t truecolor)
 {
-    color_t r = (truecolor >> 16) & 0xff;
-    color_t g = (truecolor >> 8) & 0xff;
-    color_t b = (truecolor >> 0) & 0xff;
+    c4m_color_t r = (truecolor >> 16) & 0xff;
+    c4m_color_t g = (truecolor >> 8) & 0xff;
+    c4m_color_t b = (truecolor >> 0) & 0xff;
 
     // clang-format off
-    return ((color_t)(r * 7 / 255) << 5) |
-	((color_t)(g * 7 / 255) << 2) |
-	((color_t)(b * 3 / 255));
+    return ((c4m_color_t)(r * 7 / 255) << 5) |
+	((c4m_color_t)(g * 7 / 255) << 2) |
+	((c4m_color_t)(b * 3 / 255));
     // clang-format on
 }

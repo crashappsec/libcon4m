@@ -5,9 +5,9 @@
 typedef struct {
     char *kw;
     void *value;
-} one_karg_t;
+} c4m_one_karg_t;
 
 typedef struct {
-    int64_t     num_provided;
-    one_karg_t *args;
-} karg_info_t;
+    int64_t         num_provided;
+    c4m_one_karg_t *args;
+} c4m_karg_info_t;

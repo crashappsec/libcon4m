@@ -36,8 +36,8 @@ tuple_marshal(tuple_t *tup, stream_t *s, dict_t *memos, int64_t *mid)
     xlist_t *tparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
 
     for (int i = 0; i < tup->num_items; i++) {
-        type_spec_t *param   = c4m_xlist_get(tparams, i, NULL);
-        dt_info     *dt_info = c4m_tspec_get_data_type_info(param);
+        type_spec_t   *param   = c4m_xlist_get(tparams, i, NULL);
+        c4m_dt_info_t *dt_info = c4m_tspec_get_data_type_info(param);
 
         if (dt_info->by_value) {
             c4m_marshal_u64((uint64_t)tup->items[i], s);
@@ -56,8 +56,8 @@ tuple_unmarshal(tuple_t *tup, stream_t *s, dict_t *memos)
     tup->num_items = c4m_xlist_len(tparams);
 
     for (int i = 0; i < tup->num_items; i++) {
-        type_spec_t *param   = c4m_xlist_get(tparams, i, NULL);
-        dt_info     *dt_info = c4m_tspec_get_data_type_info(param);
+        type_spec_t   *param   = c4m_xlist_get(tparams, i, NULL);
+        c4m_dt_info_t *dt_info = c4m_tspec_get_data_type_info(param);
 
         if (dt_info->by_value) {
             tup->items[i] = (void *)c4m_unmarshal_u64(s);
@@ -90,7 +90,7 @@ tuple_repr(tuple_t *tup, to_str_use_t how)
     any_str_t *sep    = c4m_get_comma_const();
     any_str_t *result = c4m_str_join(items, sep);
 
-    if (how == TO_STR_USE_QUOTED) {
+    if (how == C4M_REPR_QUOTED) {
         result = c4m_str_concat(c4m_get_lparen_const(),
                                 c4m_str_concat(result, c4m_get_rparen_const()));
     }

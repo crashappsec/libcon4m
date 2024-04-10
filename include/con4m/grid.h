@@ -65,19 +65,19 @@ c4m_set_row_style(grid_t *grid, int row, char *tag)
 }
 
 static inline void
-c4m_set_column_props(grid_t *grid, int col, render_style_t *s)
+c4m_set_column_props(grid_t *grid, int col, c4m_render_style_t *s)
 {
     grid->col_props[col] = s;
 }
 
 static inline void
-c4m_set_row_props(grid_t *grid, int row, render_style_t *s)
+c4m_set_row_props(grid_t *grid, int row, c4m_render_style_t *s)
 {
     grid->row_props[row] = s;
 }
 
-static inline style_t
-c4m_grid_blend_color(style_t style1, style_t style2)
+static inline c4m_style_t
+c4m_grid_blend_color(c4m_style_t style1, c4m_style_t style2)
 {
     // We simply do a linear average of the colors.
     return ((style1 & ~C4M_STY_CLEAR_FG) + (style2 & ~C4M_STY_CLEAR_FG)) >> 1;
@@ -111,10 +111,10 @@ c4m_grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
     }
 
     switch (c4m_base_type(item)) {
-    case T_RENDERABLE:
+    case C4M_T_RENDERABLE:
         cell = (renderable_t *)item;
         break;
-    case T_GRID: {
+    case C4M_T_GRID: {
         grid_t *subobj = (grid_t *)item;
         int     tcells = subobj->num_rows * subobj->num_cols;
         cell           = subobj->self;
@@ -126,7 +126,7 @@ c4m_grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
             }
             object_t sub = item->raw_item;
 
-            if (c4m_base_type(sub) == T_GRID) {
+            if (c4m_base_type(sub) == C4M_T_GRID) {
                 c4m_layer_styles(g->self->current_style,
                                  ((grid_t *)sub)->self->current_style);
             }
@@ -134,8 +134,8 @@ c4m_grid_set_cell_contents(grid_t *g, int row, int col, object_t item)
 
         break;
     }
-    case T_UTF8:
-    case T_UTF32: {
+    case C4M_T_UTF8:
+    case C4M_T_UTF32: {
         char *tag;
         if (row < g->header_rows || col < g->header_cols) {
             tag = c4m_get_th_tag(g);

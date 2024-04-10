@@ -1,13 +1,13 @@
 #include "con4m.h"
 
-style_t style1;
-style_t style2;
-size_t  term_width;
+c4m_style_t style1;
+c4m_style_t style2;
+size_t      term_width;
 
-STATIC_ASCII_STR(str_test,
-                 "Welcome to the testing center. First order of "
-                 "business: This is a static string, stored in static memory."
-                 "However, we have not set any styling information on it.\n");
+C4M_STATIC_ASCII_STR(str_test,
+                     "Welcome to the testing center. First order of "
+                     "business: This is a static string, stored in static memory."
+                     "However, we have not set any styling information on it.\n");
 stream_t *sout;
 stream_t *serr;
 
@@ -363,13 +363,14 @@ type_tests()
 void
 stream_tests()
 {
-    utf8_t   *n   = c4m_new(c4m_tspec_utf8(),
+    utf8_t   *n  = c4m_new(c4m_tspec_utf8(),
                         c4m_kw("cstring", c4m_ka("../meson.build")));
-    stream_t *s1  = c4m_new(c4m_tspec_stream(), c4m_kw("filename", c4m_ka(n)));
-    buffer_t *b   = c4m_new(c4m_tspec_buffer(), c4m_kw("length", c4m_ka(16)));
-    stream_t *s2  = c4m_new(c4m_tspec_stream(),
+    stream_t *s1 = c4m_new(c4m_tspec_stream(), c4m_kw("filename", c4m_ka(n)));
+    buffer_t *b  = c4m_new(c4m_tspec_buffer(), c4m_kw("length", c4m_ka(16)));
+    stream_t *s2 = c4m_new(c4m_tspec_stream(),
                            c4m_kw("buffer", c4m_ka(b), "write", c4m_ka(1)));
-    style_t   sty = c4m_add_bold(c4m_add_italic(c4m_new_style()));
+
+    c4m_style_t sty = c4m_add_bold(c4m_add_italic(c4m_new_style()));
 
     while (true) {
         utf8_t *s = c4m_stream_read(s1, 16);
@@ -388,7 +389,7 @@ stream_tests()
     c4m_print(s);
 }
 
-extern color_info_t color_data[];
+extern c4m_color_info_t color_data[];
 
 void
 marshal_test()
@@ -587,7 +588,7 @@ main(int argc, char **argv, char **envp)
         c4m_rich_lit_test();
         c4m_print(c4m_box_u32((int32_t)-1));
         c4m_print(c4m_box_i32((int32_t)-1));
-        STATIC_ASCII_STR(local_test, "Goodbye!");
+        C4M_STATIC_ASCII_STR(local_test, "Goodbye!");
         // c4m_ansi_render(local_test, sout);
         c4m_print((object_t *)local_test);
         C4M_CRAISE("Except maybe not!");

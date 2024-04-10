@@ -28,16 +28,16 @@ extern type_spec_t *c4m_get_promotion_type(type_spec_t *, type_spec_t *, int *);
 extern void         c4m_initialize_global_types();
 extern type_t       c4m_type_hash(type_spec_t *node, type_env_t *env);
 
-static inline base_t
+static inline c4m_dt_kind_t
 c4m_tspec_get_base(type_spec_t *n)
 {
-    return n->details->base_type->base;
+    return n->details->base_type->dt_kind;
 }
 
-static inline base_t
+static inline c4m_dt_kind_t
 c4m_tspec_get_type_kind(type_spec_t *n)
 {
-    return n->details->base_type->base;
+    return n->details->base_type->dt_kind;
 }
 
 static inline xlist_t *
@@ -55,7 +55,7 @@ c4m_tspec_get_num_params(type_spec_t *n)
 static inline bool
 c4m_tspec_is_error(type_spec_t *n)
 {
-    return n->typeid == T_TYPE_ERROR;
+    return n->typeid == C4M_T_ERROR;
 }
 
 static inline bool
@@ -102,7 +102,7 @@ c4m_tspec_get_param(type_spec_t *t, int i)
     return c4m_xlist_get(t->details->items, i, NULL);
 }
 
-static inline dt_info *
+static inline c4m_dt_info_t *
 c4m_tspec_get_data_type_info(type_spec_t *t)
 {
     return t->details->base_type;
@@ -128,252 +128,252 @@ c4m_tspec_get_base_tid(type_spec_t *n)
     return n->details->base_type->typeid;
 }
 
-extern type_spec_t *builtin_types[C4M_NUM_BUILTIN_DTS];
+extern type_spec_t *c4m_bi_types[C4M_NUM_BUILTIN_DTS];
 
 static inline type_spec_t *
 c4m_tspec_error()
 {
-    return builtin_types[T_TYPE_ERROR];
+    return c4m_bi_types[C4M_T_ERROR];
 }
 
 static inline type_spec_t *
 c4m_tspec_void()
 {
-    return builtin_types[T_VOID];
+    return c4m_bi_types[C4M_T_VOID];
 }
 
 static inline type_spec_t *
 c4m_tspec_bool()
 {
-    return builtin_types[T_BOOL];
+    return c4m_bi_types[C4M_T_BOOL];
 }
 
 static inline type_spec_t *
 c4m_tspec_i8()
 {
-    return builtin_types[T_I8];
+    return c4m_bi_types[C4M_T_I8];
 }
 
 static inline type_spec_t *
 c4m_tspec_u8()
 {
-    return builtin_types[T_BYTE];
+    return c4m_bi_types[C4M_T_BYTE];
 }
 
 static inline type_spec_t *
 c4m_tspec_byte()
 {
-    return builtin_types[T_BYTE];
+    return c4m_bi_types[C4M_T_BYTE];
 }
 
 static inline type_spec_t *
 c4m_tspec_i32()
 {
-    return builtin_types[T_I32];
+    return c4m_bi_types[C4M_T_I32];
 }
 
 static inline type_spec_t *
 c4m_tspec_u32()
 {
-    return builtin_types[T_CHAR];
+    return c4m_bi_types[C4M_T_CHAR];
 }
 
 static inline type_spec_t *
 c4m_tspec_char()
 {
-    return builtin_types[T_CHAR];
+    return c4m_bi_types[C4M_T_CHAR];
 }
 
 static inline type_spec_t *
 c4m_tspec_i64()
 {
-    return builtin_types[T_INT];
+    return c4m_bi_types[C4M_T_INT];
 }
 
 static inline type_spec_t *
 c4m_tspec_int()
 {
-    return builtin_types[T_INT];
+    return c4m_bi_types[C4M_T_INT];
 }
 
 static inline type_spec_t *
 c4m_tspec_u64()
 {
-    return builtin_types[T_UINT];
+    return c4m_bi_types[C4M_T_UINT];
 }
 
 static inline type_spec_t *
 c4m_tspec_uint()
 {
-    return builtin_types[T_UINT];
+    return c4m_bi_types[C4M_T_UINT];
 }
 
 static inline type_spec_t *
 c4m_tspec_f32()
 {
-    return builtin_types[T_F32];
+    return c4m_bi_types[C4M_T_F32];
 }
 
 static inline type_spec_t *
 c4m_tspec_f64()
 {
-    return builtin_types[T_F64];
+    return c4m_bi_types[C4M_T_F64];
 }
 
 static inline type_spec_t *
 c4m_tspec_float()
 {
-    return builtin_types[T_F64];
+    return c4m_bi_types[C4M_T_F64];
 }
 
 static inline type_spec_t *
 c4m_tspec_utf8()
 {
-    return builtin_types[T_UTF8];
+    return c4m_bi_types[C4M_T_UTF8];
 }
 
 static inline type_spec_t *
 c4m_tspec_buffer()
 {
-    return builtin_types[T_BUFFER];
+    return c4m_bi_types[C4M_T_BUFFER];
 }
 
 static inline type_spec_t *
 c4m_tspec_utf32()
 {
-    return builtin_types[T_UTF32];
+    return c4m_bi_types[C4M_T_UTF32];
 }
 
 static inline type_spec_t *
 c4m_tspec_grid()
 {
-    return builtin_types[T_GRID];
+    return c4m_bi_types[C4M_T_GRID];
 }
 
 static inline type_spec_t *
 c4m_tspec_typespec()
 {
-    return builtin_types[T_TYPESPEC];
+    return c4m_bi_types[C4M_T_TYPESPEC];
 }
 
 static inline type_spec_t *
 c4m_tspec_ipv4()
 {
-    return builtin_types[T_IPV4];
+    return c4m_bi_types[C4M_T_IPV4];
 }
 
 static inline type_spec_t *
 c4m_tspec_ipv6()
 {
-    return builtin_types[T_IPV6];
+    return c4m_bi_types[C4M_T_IPV6];
 }
 
 static inline type_spec_t *
 c4m_tspec_duration()
 {
-    return builtin_types[T_DURATION];
+    return c4m_bi_types[C4M_T_DURATION];
 }
 
 static inline type_spec_t *
 c4m_tspec_size()
 {
-    return builtin_types[T_SIZE];
+    return c4m_bi_types[C4M_T_SIZE];
 }
 
 static inline type_spec_t *
 c4m_tspec_datetime()
 {
-    return builtin_types[T_DATETIME];
+    return c4m_bi_types[C4M_T_DATETIME];
 }
 
 static inline type_spec_t *
 c4m_tspec_date()
 {
-    return builtin_types[T_DATE];
+    return c4m_bi_types[C4M_T_DATE];
 }
 
 static inline type_spec_t *
 c4m_tspec_time()
 {
-    return builtin_types[T_TIME];
+    return c4m_bi_types[C4M_T_TIME];
 }
 
 static inline type_spec_t *
 c4m_tspec_url()
 {
-    return builtin_types[T_URL];
+    return c4m_bi_types[C4M_T_URL];
 }
 
 static inline type_spec_t *
 c4m_tspec_callback()
 {
-    return builtin_types[T_CALLBACK];
+    return c4m_bi_types[C4M_T_CALLBACK];
 }
 
 static inline type_spec_t *
 c4m_tspec_renderable()
 {
-    return builtin_types[T_RENDERABLE];
+    return c4m_bi_types[C4M_T_RENDERABLE];
 }
 
 static inline type_spec_t *
 c4m_tspec_render_style()
 {
-    return builtin_types[T_RENDER_STYLE];
+    return c4m_bi_types[C4M_T_RENDER_STYLE];
 }
 
 static inline type_spec_t *
 c4m_tspec_hash()
 {
-    return builtin_types[T_SHA];
+    return c4m_bi_types[C4M_T_SHA];
 }
 
 static inline type_spec_t *
 c4m_tspec_exception()
 {
-    return builtin_types[T_EXCEPTION];
+    return c4m_bi_types[C4M_T_EXCEPTION];
 }
 
 static inline type_spec_t *
 c4m_tspec_type_env()
 {
-    return builtin_types[T_TYPE_ENV];
+    return c4m_bi_types[C4M_T_TYPE_ENV];
 }
 
 static inline type_spec_t *
 c4m_tspec_logring()
 {
-    return builtin_types[T_LOGRING];
+    return c4m_bi_types[C4M_T_LOGRING];
 }
 
 static inline type_spec_t *
 c4m_tspec_mixed()
 {
-    return builtin_types[T_GENERIC];
+    return c4m_bi_types[C4M_T_GENERIC];
 }
 
 static inline type_spec_t *
 c4m_tspec_ref()
 {
-    return builtin_types[T_REF];
+    return c4m_bi_types[C4M_T_REF];
 }
 
 static inline type_spec_t *
 c4m_tspec_stream()
 {
-    return builtin_types[T_STREAM];
+    return c4m_bi_types[C4M_T_STREAM];
 }
 
 static inline type_spec_t *
 c4m_tspec_kargs()
 {
-    return builtin_types[T_KEYWORD];
+    return c4m_bi_types[C4M_T_KEYWORD];
 }
 
 static inline type_spec_t *
 c4m_new_typevar(type_env_t *env)
 {
-    type_spec_t *result = c4m_new(c4m_tspec_typespec(), env, T_GENERIC);
+    type_spec_t *result = c4m_new(c4m_tspec_typespec(), env, C4M_T_GENERIC);
 
     return result;
 }
@@ -398,7 +398,7 @@ c4m_tspec_tuple_from_xlist(xlist_t *item_types)
 {
     type_spec_t *result   = c4m_new(c4m_tspec_typespec(),
                                   c4m_global_type_env,
-                                  T_TUPLE);
+                                  C4M_T_TUPLE);
     xlist_t     *res_list = result->details->items;
 
     int n = c4m_xlist_len(item_types);
@@ -418,13 +418,13 @@ c4m_tspec_is_int_type(type_spec_t *t)
     }
 
     switch (t->typeid) {
-    case T_I8:
-    case T_BYTE:
-    case T_I32:
-    case T_CHAR:
-    case T_U32:
-    case T_INT:
-    case T_UINT:
+    case C4M_T_I8:
+    case C4M_T_BYTE:
+    case C4M_T_I32:
+    case C4M_T_CHAR:
+    case C4M_T_U32:
+    case C4M_T_INT:
+    case C4M_T_UINT:
         return true;
     default:
         return false;

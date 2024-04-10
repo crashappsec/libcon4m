@@ -5,23 +5,23 @@
 typedef struct c4m_obj_t c4m_obj_t;
 
 typedef enum {
-    BT_nil,
-    BT_primitive,
-    BT_internal, // Internal primitives.
-    BT_type_var,
-    BT_list,
-    BT_dict,
-    BT_tuple,
-    BT_func,
-    BT_maybe,
-    BT_object,
-    BT_oneof,
-} base_t;
+    C4M_DT_KIND_nil,
+    C4M_DT_KIND_primitive,
+    C4M_DT_KIND_internal, // Internal primitives.
+    C4M_DT_KIND_type_var,
+    C4M_DT_KIND_list,
+    C4M_DT_KIND_dict,
+    C4M_DT_KIND_tuple,
+    C4M_DT_KIND_func,
+    C4M_DT_KIND_maybe,
+    C4M_DT_KIND_object,
+    C4M_DT_KIND_oneof,
+} c4m_dt_kind_t;
 
 // At least for now, we're going to only us built-in methods of fixed
 // size and know parameters in the vtable.
 typedef void (*c4m_vtable_entry)(c4m_obj_t *, va_list);
-typedef void (*container_init)(c4m_obj_t *, void *, va_list);
+typedef void (*c4m_container_init)(c4m_obj_t *, void *, va_list);
 
 typedef int64_t  i64_box;
 typedef uint64_t u64_box;
@@ -51,11 +51,11 @@ typedef struct {
     const uint64_t      alloc_len; // How much space to allocate.
     const uint64_t     *ptr_info;  // Shows GC u64 offsets to examine for ptrs.
     const c4m_vtable_t *vtable;
-    const base_t        base;
+    const c4m_dt_kind_t dt_kind;
     const uint32_t      hash_fn;
     const bool          by_value : 1;
     // clang-format on
-} dt_info;
+} c4m_dt_info_t;
 
 // Below, c4m_obj_t is the *internal* object type.
 //
@@ -73,7 +73,7 @@ typedef struct {
 // do not have
 
 struct c4m_obj_t {
-    dt_info            *base_data_type;
+    c4m_dt_info_t      *base_data_type;
     struct type_spec_t *concrete_type;
     __uint128_t         cached_hash;
     // The exposed object data.
@@ -133,57 +133,56 @@ typedef enum {
 } c4m_buitin_type_fn;
 
 typedef enum {
-    TO_STR_USE_AS_VALUE,
-    TO_STR_USE_QUOTED
+    C4M_REPR_VALUE,
+    C4M_REPR_QUOTED
 } to_str_use_t;
 
 typedef enum : int64_t {
-    T_TYPE_ERROR = 0,
-    T_VOID,
-    T_BOOL,
-    T_I8,
-    T_BYTE,
-    T_I32,
-    T_CHAR,
-    T_U32,
-    T_INT,
-    T_UINT,
-    T_F32,
-    T_F64,
-    T_UTF8,
-    T_BUFFER,
-    T_UTF32,
-    T_GRID,
-    T_LIST,
-    T_TUPLE,
-    T_DICT,
-    T_SET,
-    T_TYPESPEC,
-    T_IPV4,
-    T_IPV6,
-    T_DURATION,
-    T_SIZE,
-    T_DATETIME,
-    T_DATE,
-    T_TIME,
-    T_URL,
-    T_CALLBACK,
-    T_QUEUE,
-    T_RING,
-    T_LOGRING,
-    T_STACK,
-    T_RENDERABLE,
-    T_XLIST, // single-threaded list.
-    T_RENDER_STYLE,
-    T_SHA,
-    T_EXCEPTION,
-    T_TYPE_ENV,
-    T_TREE,
-    T_FUNCDEF,
-    T_REF,     // A managed pointer.
-    T_GENERIC, // If instantiated, instantiates a 'mixed' object.
-    T_STREAM,  // streaming IO interface.
-    T_KEYWORD, // Keyword arg object for internal use.
+    C4M_T_ERROR = 0,
+    C4M_T_VOID,
+    C4M_T_BOOL,
+    C4M_T_I8,
+    C4M_T_BYTE,
+    C4M_T_I32,
+    C4M_T_CHAR,
+    C4M_T_U32,
+    C4M_T_INT,
+    C4M_T_UINT,
+    C4M_T_F32,
+    C4M_T_F64,
+    C4M_T_UTF8,
+    C4M_T_BUFFER,
+    C4M_T_UTF32,
+    C4M_T_GRID,
+    C4M_T_LIST,
+    C4M_T_TUPLE,
+    C4M_T_DICT,
+    C4M_T_SET,
+    C4M_T_TYPESPEC,
+    C4M_T_IPV4,
+    C4M_T_IPV6,
+    C4M_T_DURATION,
+    C4M_T_SIZE,
+    C4M_T_DATETIME,
+    C4M_T_DATE,
+    C4M_T_TIME,
+    C4M_T_URL,
+    C4M_T_CALLBACK,
+    C4M_T_QUEUE,
+    C4M_T_RING,
+    C4M_T_LOGRING,
+    C4M_T_STACK,
+    C4M_T_RENDERABLE,
+    C4M_T_XLIST, // single-threaded list.
+    C4M_T_RENDER_STYLE,
+    C4M_T_SHA,
+    C4M_T_EXCEPTION,
+    C4M_T_TYPE_ENV,
+    C4M_T_TREE,
+    C4M_T_FUNCDEF,
+    C4M_T_REF,     // A managed pointer.
+    C4M_T_GENERIC, // If instantiated, instantiates a 'mixed' object.
+    C4M_T_STREAM,  // streaming IO interface.
+    C4M_T_KEYWORD, // Keyword arg object for internal use.
     C4M_NUM_BUILTIN_DTS
-
 } c4m_builtin_t;

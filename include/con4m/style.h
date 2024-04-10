@@ -26,10 +26,10 @@
 #define C4M_OFFSET_FG_GREEN 8
 #define C4M_OFFSET_FG_BLUE  0
 
-extern style_t c4m_apply_bg_color(style_t style, utf8_t *name);
-extern style_t c4m_apply_fg_color(style_t style, utf8_t *name);
-extern void    c4m_style_gaps(any_str_t *, style_t);
-extern void    c4m_str_layer_style(any_str_t *, style_t, style_t);
+extern c4m_style_t c4m_apply_bg_color(c4m_style_t style, utf8_t *name);
+extern c4m_style_t c4m_apply_fg_color(c4m_style_t style, utf8_t *name);
+extern void        c4m_style_gaps(any_str_t *, c4m_style_t);
+extern void        c4m_str_layer_style(any_str_t *, c4m_style_t, c4m_style_t);
 
 static inline void
 c4m_style_debug(char *prefix, const any_str_t *p)
@@ -50,7 +50,7 @@ c4m_style_debug(char *prefix, const any_str_t *p)
                (long long)p->styling->num_entries);
     }
     for (int i = 0; i < p->styling->num_entries; i++) {
-        style_entry_t entry = p->styling->styles[i];
+        c4m_style_entry_t entry = p->styling->styles[i];
         printf("%d: %llx (%d:%d)\n",
                i + 1,
                (long long)p->styling->styles[i].info,
@@ -65,13 +65,13 @@ c4m_style_debug(char *prefix, const any_str_t *p)
 static inline size_t
 c4m_style_size(uint64_t num_entries)
 {
-    return sizeof(style_info_t) + (sizeof(style_entry_t) * num_entries);
+    return sizeof(c4m_style_info_t) + (sizeof(c4m_style_entry_t) * num_entries);
 }
 
 static inline size_t
 c4m_alloc_style_len(any_str_t *s)
 {
-    return sizeof(style_info_t) + s->styling->num_entries * sizeof(style_entry_t);
+    return sizeof(c4m_style_info_t) + s->styling->num_entries * sizeof(c4m_style_entry_t);
 }
 
 static inline int64_t
@@ -87,15 +87,15 @@ static inline void
 c4m_alloc_styles(any_str_t *s, int n)
 {
     if (n <= 0) {
-        s->styling              = c4m_gc_flex_alloc(style_info_t,
-                                       style_entry_t,
+        s->styling              = c4m_gc_flex_alloc(c4m_style_info_t,
+                                       c4m_style_entry_t,
                                        0,
                                        NULL);
         s->styling->num_entries = 0;
     }
     else {
-        s->styling              = c4m_gc_flex_alloc(style_info_t,
-                                       style_entry_t,
+        s->styling              = c4m_gc_flex_alloc(c4m_style_info_t,
+                                       c4m_style_entry_t,
                                        n,
                                        NULL);
         s->styling->num_entries = n;
@@ -113,7 +113,7 @@ c4m_copy_style_info(const any_str_t *from_str, any_str_t *to_str)
     c4m_alloc_styles(to_str, n);
 
     for (int i = 0; i < n; i++) {
-        style_entry_t s            = from_str->styling->styles[i];
+        c4m_style_entry_t s        = from_str->styling->styles[i];
         to_str->styling->styles[i] = s;
     }
 
@@ -121,7 +121,7 @@ c4m_copy_style_info(const any_str_t *from_str, any_str_t *to_str)
 }
 
 static inline void
-c4m_str_set_style(any_str_t *s, style_t style)
+c4m_str_set_style(any_str_t *s, c4m_style_t style)
 {
     c4m_alloc_styles(s, 1);
     s->styling->styles[0].start = 0;
@@ -140,7 +140,7 @@ c4m_copy_and_offset_styles(any_str_t *from_str,
     }
 
     for (int i = 0; i < from_str->styling->num_entries; i++) {
-        style_entry_t style = from_str->styling->styles[i];
+        c4m_style_entry_t style = from_str->styling->styles[i];
 
         if (style.end <= style.start) {
             break;
@@ -157,7 +157,7 @@ c4m_copy_and_offset_styles(any_str_t *from_str,
 }
 
 static inline void
-c4m_str_apply_style(any_str_t *s, style_t style, bool replace)
+c4m_str_apply_style(any_str_t *s, c4m_style_t style, bool replace)
 {
     if (replace) {
         c4m_str_set_style(s, style);
@@ -167,141 +167,141 @@ c4m_str_apply_style(any_str_t *s, style_t style, bool replace)
     }
 }
 
-static inline style_t
-c4m_set_bg_color(style_t style, color_t color)
+static inline c4m_style_t
+c4m_set_bg_color(c4m_style_t style, c4m_color_t color)
 {
     return (style & C4M_STY_CLEAR_BG) | C4M_STY_BG | ((uint64_t)color) << 24;
 }
 
-static inline style_t
-c4m_set_fg_color(style_t style, color_t color)
+static inline c4m_style_t
+c4m_set_fg_color(c4m_style_t style, c4m_color_t color)
 {
     return (style & C4M_STY_CLEAR_FG) | C4M_STY_FG | (uint64_t)color;
 }
 
-extern style_t default_style;
+extern c4m_style_t default_style;
 
 static inline void
-c4m_set_default_style(style_t s)
+c4m_set_default_style(c4m_style_t s)
 {
     default_style = s;
 }
 
-static inline style_t
+static inline c4m_style_t
 c4m_get_default_style()
 {
     return default_style;
 }
 
-static inline style_t
+static inline c4m_style_t
 c4m_new_style()
 {
     return (uint64_t)0;
 }
 
-static inline style_t
-c4m_add_bold(style_t style)
+static inline c4m_style_t
+c4m_add_bold(c4m_style_t style)
 {
     return style | C4M_STY_BOLD;
 }
 
-static inline style_t
-c4m_remove_bold(style_t style)
+static inline c4m_style_t
+c4m_remove_bold(c4m_style_t style)
 {
     return style & ~C4M_STY_BOLD;
 }
 
-static inline style_t
-c4m_add_inverse(style_t style)
+static inline c4m_style_t
+c4m_add_inverse(c4m_style_t style)
 {
     return style | C4M_STY_REV;
 }
 
-static inline style_t
-c4m_remove_inverse(style_t style)
+static inline c4m_style_t
+c4m_remove_inverse(c4m_style_t style)
 {
     return style & ~C4M_STY_REV;
 }
 
-static inline style_t
-c4m_add_strikethrough(style_t style)
+static inline c4m_style_t
+c4m_add_strikethrough(c4m_style_t style)
 {
     return style | C4M_STY_ST;
 }
 
-static inline style_t
-c4m_remove_strikethrough(style_t style)
+static inline c4m_style_t
+c4m_remove_strikethrough(c4m_style_t style)
 {
     return style & ~C4M_STY_ST;
 }
 
-static inline style_t
-c4m_add_italic(style_t style)
+static inline c4m_style_t
+c4m_add_italic(c4m_style_t style)
 {
     return style | C4M_STY_ITALIC;
 }
 
-static inline style_t
-c4m_remove_italic(style_t style)
+static inline c4m_style_t
+c4m_remove_italic(c4m_style_t style)
 {
     return style & ~C4M_STY_ITALIC;
 }
 
-static inline style_t
-c4m_add_underline(style_t style)
+static inline c4m_style_t
+c4m_add_underline(c4m_style_t style)
 {
     return (style | C4M_STY_UL) & ~C4M_STY_UUL;
 }
 
-static inline style_t
-c4m_add_double_underline(style_t style)
+static inline c4m_style_t
+c4m_add_double_underline(c4m_style_t style)
 {
     return (style | C4M_STY_UUL) & ~C4M_STY_UL;
 }
 
-static inline style_t
-c4m_remove_underline(style_t style)
+static inline c4m_style_t
+c4m_remove_underline(c4m_style_t style)
 {
     return style & ~(C4M_STY_UL | C4M_STY_UUL);
 }
 
-static inline style_t
-c4m_add_upper_case(style_t style)
+static inline c4m_style_t
+c4m_add_upper_case(c4m_style_t style)
 {
     return (style & ~C4M_STY_TITLE) | C4M_STY_UPPER;
 }
-static inline style_t
-c4m_add_lower_case(style_t style)
+static inline c4m_style_t
+c4m_add_lower_case(c4m_style_t style)
 {
     return (style & ~C4M_STY_TITLE) | C4M_STY_LOWER;
 }
 
-static inline style_t
-c4m_add_title_case(style_t style)
+static inline c4m_style_t
+c4m_add_title_case(c4m_style_t style)
 {
     return style | C4M_STY_TITLE;
 }
 
-static inline style_t
-c4m_remove_case(style_t style)
+static inline c4m_style_t
+c4m_remove_case(c4m_style_t style)
 {
     return style & ~C4M_STY_TITLE;
 }
 
-static inline style_t
-c4m_remove_bg_color(style_t style)
+static inline c4m_style_t
+c4m_remove_bg_color(c4m_style_t style)
 {
     return ((uint64_t)style) & (C4M_STY_CLEAR_BG & ~C4M_STY_BG);
 }
 
-static inline style_t
-c4m_remove_fg_color(style_t style)
+static inline c4m_style_t
+c4m_remove_fg_color(c4m_style_t style)
 {
     return ((uint64_t)style) & (C4M_STY_CLEAR_FG & ~C4M_STY_FG);
 }
 
-static inline style_t
-c4m_remove_all_color(style_t style)
+static inline c4m_style_t
+c4m_remove_all_color(c4m_style_t style)
 {
     // This should mainly constant fold down to a single AND.
     return ((uint64_t)style) & (C4M_STY_CLEAR_FG & C4M_STY_CLEAR_BG & ~(C4M_STY_FG | C4M_STY_BG));
@@ -323,8 +323,8 @@ c4m_clean_styles(any_str_t *s)
 
     int move = 0;
 
-    style_entry_t prev = s->styling->styles[0];
-    style_entry_t cur;
+    c4m_style_entry_t prev = s->styling->styles[0];
+    c4m_style_entry_t cur;
 
     for (int i = 1; i < s->styling->num_entries; i++) {
         cur = s->styling->styles[i];

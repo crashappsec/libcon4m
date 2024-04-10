@@ -70,11 +70,11 @@ c4m_tree_children(tree_node_t *t)
 static void
 tree_node_marshal(tree_node_t *t, stream_t *s, dict_t *memos, int64_t *mid)
 {
-    type_spec_t *list_type   = c4m_get_my_type(t);
-    xlist_t     *type_params = c4m_tspec_get_parameters(list_type);
-    type_spec_t *item_type   = c4m_xlist_get(type_params, 0, NULL);
-    dt_info     *item_info   = c4m_tspec_get_data_type_info(item_type);
-    bool         by_val      = item_info->by_value;
+    type_spec_t   *list_type   = c4m_get_my_type(t);
+    xlist_t       *type_params = c4m_tspec_get_parameters(list_type);
+    type_spec_t   *item_type   = c4m_xlist_get(type_params, 0, NULL);
+    c4m_dt_info_t *item_info   = c4m_tspec_get_data_type_info(item_type);
+    bool           by_val      = item_info->by_value;
 
     c4m_marshal_i32(t->alloced_kids, s);
     c4m_marshal_i32(t->num_kids, s);
@@ -95,11 +95,11 @@ tree_node_marshal(tree_node_t *t, stream_t *s, dict_t *memos, int64_t *mid)
 static void
 tree_node_unmarshal(tree_node_t *t, stream_t *s, dict_t *memos)
 {
-    type_spec_t *list_type   = c4m_get_my_type(t);
-    xlist_t     *type_params = c4m_tspec_get_parameters(list_type);
-    type_spec_t *item_type   = c4m_xlist_get(type_params, 0, NULL);
-    dt_info     *item_info   = c4m_tspec_get_data_type_info(item_type);
-    bool         by_val      = item_info->by_value;
+    type_spec_t   *list_type   = c4m_get_my_type(t);
+    xlist_t       *type_params = c4m_tspec_get_parameters(list_type);
+    type_spec_t   *item_type   = c4m_xlist_get(type_params, 0, NULL);
+    c4m_dt_info_t *item_info   = c4m_tspec_get_data_type_info(item_type);
+    bool           by_val      = item_info->by_value;
 
     t->alloced_kids = c4m_unmarshal_i32(s);
     t->num_kids     = c4m_unmarshal_i32(s);

@@ -160,26 +160,26 @@ typedef struct grid_t grid_t;
 // on subsequent lines.
 
 typedef struct {
-    object_t        raw_item; // Currently, must be a grid_t * or any_str_t *.
-    char           *container_tag;
-    render_style_t *current_style;
-    uint16_t        start_col;
-    uint16_t        start_row;
-    uint16_t        end_col;
-    uint16_t        end_row;
-    xlist_t        *render_cache;
-    uint16_t        render_width;
-    uint16_t        render_height;
+    object_t            raw_item; // Currently, must be a grid_t * or any_str_t *.
+    char               *container_tag;
+    c4m_render_style_t *current_style;
+    uint16_t            start_col;
+    uint16_t            start_row;
+    uint16_t            end_col;
+    uint16_t            end_row;
+    xlist_t            *render_cache;
+    uint16_t            render_width;
+    uint16_t            render_height;
 } renderable_t;
 
 struct grid_t {
-    renderable_t    *self;
-    renderable_t   **cells; // A 2d array of renderable_objects, by ref
-    uint16_t         num_cols;
-    uint16_t         num_rows;
-    uint16_t         spare_rows;
-    render_style_t **col_props;
-    render_style_t **row_props;
+    renderable_t        *self;
+    renderable_t       **cells; // A 2d array of renderable_objects, by ref
+    uint16_t             num_cols;
+    uint16_t             num_rows;
+    uint16_t             spare_rows;
+    c4m_render_style_t **col_props;
+    c4m_render_style_t **row_props;
 
     // Per-render info, which includes any adding added to perform
     // alignment of the grid within the dimensions we're given.

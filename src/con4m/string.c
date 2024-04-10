@@ -11,16 +11,16 @@ const uint64_t c4m_pmap_str[2] = {
     0x0400000000000000,
 };
 
-STATIC_ASCII_STR(c4m_empty_string_const, "");
-STATIC_ASCII_STR(c4m_newline_const, "\n");
-STATIC_ASCII_STR(c4m_crlf_const, "\r\n");
+C4M_STATIC_ASCII_STR(c4m_empty_string_const, "");
+C4M_STATIC_ASCII_STR(c4m_newline_const, "\n");
+C4M_STATIC_ASCII_STR(c4m_crlf_const, "\r\n");
 
 static void
 utf8_set_codepoint_count(utf8_t *instr)
 {
-    uint8_t    *p   = (uint8_t *)instr->data;
-    uint8_t    *end = p + instr->byte_len;
-    codepoint_t cp;
+    uint8_t        *p   = (uint8_t *)instr->data;
+    uint8_t        *end = p + instr->byte_len;
+    c4m_codepoint_t cp;
 
     instr->codepoints = 0;
 
@@ -33,10 +33,10 @@ utf8_set_codepoint_count(utf8_t *instr)
 int64_t
 c4m_utf8_validate(const utf8_t *instr)
 {
-    uint8_t    *p   = (uint8_t *)instr->data;
-    uint8_t    *end = p + instr->byte_len;
-    codepoint_t cp;
-    int64_t     n = 0;
+    uint8_t        *p   = (uint8_t *)instr->data;
+    uint8_t        *end = p + instr->byte_len;
+    c4m_codepoint_t cp;
+    int64_t         n = 0;
 
     while (p < end) {
         int to_add = utf8proc_iterate(p, 4, &cp);
@@ -89,8 +89,8 @@ c4m_str_slice(const any_str_t *instr, int64_t start, int64_t end)
                            c4m_kw("length", c4m_ka(slice_len)));
     res->codepoints    = ~(slice_len);
 
-    codepoint_t *src = (codepoint_t *)s->data;
-    codepoint_t *dst = (codepoint_t *)res->data;
+    c4m_codepoint_t *src = (c4m_codepoint_t *)s->data;
+    c4m_codepoint_t *dst = (c4m_codepoint_t *)res->data;
 
     for (int i = 0; i < slice_len; i++) {
         dst[i] = src[start + i];
@@ -138,10 +138,10 @@ c4m_str_slice(const any_str_t *instr, int64_t start, int64_t end)
         c4m_alloc_styles(res, sliced_style_count);
 
         for (i = 0; i < sliced_style_count; i++) {
-            int64_t sold = s->styling->styles[i + first].start;
-            style_t info = s->styling->styles[i + first].info;
-            int64_t snew = max(sold - start, 0);
-            int64_t enew = min(s->styling->styles[i + first].end, end) - start;
+            int64_t     sold = s->styling->styles[i + first].start;
+            c4m_style_t info = s->styling->styles[i + first].info;
+            int64_t     snew = max(sold - start, 0);
+            int64_t     enew = min(s->styling->styles[i + first].end, end) - start;
 
             if (enew > slice_len) {
                 enew = slice_len;
@@ -160,7 +160,7 @@ c4m_str_slice(const any_str_t *instr, int64_t start, int64_t end)
     return res;
 }
 
-static inline codepoint_t
+static inline c4m_codepoint_t
 c4m_utf8_index(const utf8_t *s, int64_t n)
 {
     int64_t l = c4m_str_codepoint_len(s);
@@ -177,8 +177,8 @@ c4m_utf8_index(const utf8_t *s, int64_t n)
         C4M_CRAISE("Index out of bounds.");
     }
 
-    char       *p = (char *)s->data;
-    codepoint_t cp;
+    char           *p = (char *)s->data;
+    c4m_codepoint_t cp;
 
     for (int i = 0; i <= n; i++) {
         p += utf8proc_iterate((uint8_t *)p, 4, &cp);
@@ -187,7 +187,7 @@ c4m_utf8_index(const utf8_t *s, int64_t n)
     return cp;
 }
 
-static inline codepoint_t
+static inline c4m_codepoint_t
 c4m_utf32_index(const utf32_t *s, int64_t i)
 {
     int64_t l = c4m_str_codepoint_len(s);
@@ -204,12 +204,12 @@ c4m_utf32_index(const utf32_t *s, int64_t i)
         C4M_CRAISE("Index out of bounds.");
     }
 
-    codepoint_t *p = (codepoint_t *)s->data;
+    c4m_codepoint_t *p = (c4m_codepoint_t *)s->data;
 
     return p[i];
 }
 
-codepoint_t
+c4m_codepoint_t
 c4m_index(const any_str_t *s, int64_t i)
 {
     if (!c4m_str_is_u8(s)) {
@@ -233,11 +233,11 @@ _c4m_str_strip(const any_str_t *s, ...)
     c4m_kw_bool("front", front);
     c4m_kw_bool("back", back);
 
-    utf32_t     *as32  = c4m_to_utf32(s);
-    codepoint_t *p     = (codepoint_t *)as32->data;
-    int64_t      start = 0;
-    int          len   = c4m_str_codepoint_len(as32);
-    int          end   = len;
+    utf32_t         *as32  = c4m_to_utf32(s);
+    c4m_codepoint_t *p     = (c4m_codepoint_t *)as32->data;
+    int64_t          start = 0;
+    int              len   = c4m_str_codepoint_len(as32);
+    int              end   = len;
 
     if (front) {
         while (start < end && c4m_codepoint_is_space(p[start]))
@@ -349,12 +349,12 @@ _c4m_str_join(const xlist_t *l, const any_str_t *joiner, ...)
         n_styles += c4m_style_num_entries(line);
     }
 
-    utf32_t     *result   = c4m_new(c4m_tspec_utf32(),
+    utf32_t         *result   = c4m_new(c4m_tspec_utf32(),
                               c4m_kw("length", c4m_ka(len)));
-    codepoint_t *p        = (codepoint_t *)result->data;
-    int          txt_ix   = 0;
-    int          style_ix = 0;
-    utf32_t     *j        = joinlen ? c4m_to_utf32(joiner) : NULL;
+    c4m_codepoint_t *p        = (c4m_codepoint_t *)result->data;
+    int              txt_ix   = 0;
+    int              style_ix = 0;
+    utf32_t         *j        = joinlen ? c4m_to_utf32(joiner) : NULL;
 
     result->codepoints = ~len;
     c4m_alloc_styles(result, n_styles);
@@ -400,11 +400,11 @@ c4m_to_utf8(const utf32_t *inp)
     // Allocates 4 bytes per codepoint; this is an overestimate in
     // cases where UTF8 codepoints are above U+00ff. But nbd.
 
-    utf8_t      *res    = c4m_new(c4m_tspec_utf8(),
+    utf8_t          *res    = c4m_new(c4m_tspec_utf8(),
                           c4m_kw("length", c4m_ka(inp->byte_len)));
-    codepoint_t *p      = (codepoint_t *)inp->data;
-    uint8_t     *outloc = (uint8_t *)res->data;
-    int          l;
+    c4m_codepoint_t *p      = (c4m_codepoint_t *)inp->data;
+    uint8_t         *outloc = (uint8_t *)res->data;
+    int              l;
 
     res->codepoints = c4m_str_codepoint_len(inp);
 
@@ -425,10 +425,10 @@ c4m_to_utf32(const utf8_t *instr)
         return (utf32_t *)instr;
     }
 
-    int64_t      len    = (int64_t)c4m_str_codepoint_len(instr);
-    utf32_t     *outstr = c4m_new(c4m_tspec_utf32(), c4m_kw("length", c4m_ka(len)));
-    uint8_t     *inp    = (uint8_t *)(instr->data);
-    codepoint_t *outp   = (codepoint_t *)(outstr->data);
+    int64_t          len    = (int64_t)c4m_str_codepoint_len(instr);
+    utf32_t         *outstr = c4m_new(c4m_tspec_utf32(), c4m_kw("length", c4m_ka(len)));
+    uint8_t         *inp    = (uint8_t *)(instr->data);
+    c4m_codepoint_t *outp   = (c4m_codepoint_t *)(outstr->data);
 
     for (int i = 0; i < len; i++) {
         inp += utf8proc_iterate(inp, 4, outp + i);
@@ -444,12 +444,12 @@ c4m_to_utf32(const utf8_t *instr)
 static void
 utf8_init(utf8_t *s, va_list args)
 {
-    int64_t length        = -1; // BYTE length.
-    int64_t start         = 0;
-    char   *cstring       = NULL;
-    style_t style         = C4M_STY_BAD;
-    bool    replace_style = true;
-    char   *tag           = NULL;
+    int64_t     length        = -1; // BYTE length.
+    int64_t     start         = 0;
+    char       *cstring       = NULL;
+    c4m_style_t style         = C4M_STY_BAD;
+    bool        replace_style = true;
+    char       *tag           = NULL;
 
     c4m_karg_va_init(args);
     c4m_kw_int64("length", length);
@@ -489,7 +489,7 @@ utf8_init(utf8_t *s, va_list args)
     }
 
     if (tag != NULL) {
-        render_style_t *rs = c4m_lookup_cell_style(tag);
+        c4m_render_style_t *rs = c4m_lookup_cell_style(tag);
         if (rs != NULL) {
             c4m_str_apply_style(s, rs->base_style, replace_style);
         }
@@ -499,13 +499,13 @@ utf8_init(utf8_t *s, va_list args)
 static void
 utf32_init(utf32_t *s, va_list args)
 {
-    int64_t      length        = -1; // NUMBER OF CODEPOINTS.
-    int64_t      start         = 0;
-    char        *cstring       = NULL;
-    codepoint_t *codepoints    = NULL;
-    style_t      style         = C4M_STY_BAD;
-    bool         replace_style = true;
-    char        *tag           = NULL;
+    int64_t          length        = -1; // NUMBER OF CODEPOINTS.
+    int64_t          start         = 0;
+    char            *cstring       = NULL;
+    c4m_codepoint_t *codepoints    = NULL;
+    c4m_style_t      style         = C4M_STY_BAD;
+    bool             replace_style = true;
+    char            *tag           = NULL;
 
     c4m_karg_va_init(args);
     c4m_kw_int64("length", length);
@@ -535,7 +535,7 @@ utf32_init(utf32_t *s, va_list args)
         s->byte_len = (length + 1) * 4;
         s->data     = c4m_gc_raw_alloc(s->byte_len, NULL);
 
-        codepoint_t *local = (codepoint_t *)s->data;
+        c4m_codepoint_t *local = (c4m_codepoint_t *)s->data;
 
         for (int i = 0; i < length; i++) {
             local[i] = codepoints[i];
@@ -578,7 +578,7 @@ utf32_init(utf32_t *s, va_list args)
     }
 
     if (tag != NULL) {
-        render_style_t *rs = c4m_lookup_cell_style(tag);
+        c4m_render_style_t *rs = c4m_lookup_cell_style(tag);
         if (rs != NULL) {
             c4m_str_apply_style(s, rs->base_style, replace_style);
         }
@@ -614,7 +614,7 @@ c4m_str_from_int(int64_t n)
 // For repeat, we leave an extra alloc'd character to ensure we
 // can easily drop in a newline.
 utf8_t *
-c4m_utf8_repeat(codepoint_t cp, int64_t num)
+c4m_utf8_repeat(c4m_codepoint_t cp, int64_t num)
 {
     uint8_t buf[4] = {
         0,
@@ -636,14 +636,14 @@ c4m_utf8_repeat(codepoint_t cp, int64_t num)
 }
 
 utf32_t *
-c4m_utf32_repeat(codepoint_t cp, int64_t num)
+c4m_utf32_repeat(c4m_codepoint_t cp, int64_t num)
 {
     if (num <= 0) {
         return c4m_empty_string();
     }
 
-    utf32_t     *res = c4m_new(c4m_tspec_utf8(), c4m_kw("length", c4m_ka(num + 1)));
-    codepoint_t *p   = (codepoint_t *)res->data;
+    utf32_t         *res = c4m_new(c4m_tspec_utf8(), c4m_kw("length", c4m_ka(num + 1)));
+    c4m_codepoint_t *p   = (c4m_codepoint_t *)res->data;
 
     res->codepoints = ~num;
 
@@ -661,15 +661,15 @@ c4m_str_render_len(const any_str_t *s)
     int64_t n      = c4m_str_codepoint_len(s);
 
     if (c4m_str_is_u32(s)) {
-        codepoint_t *p = (codepoint_t *)s->data;
+        c4m_codepoint_t *p = (c4m_codepoint_t *)s->data;
 
         for (int i = 0; i < n; i++) {
             result += c4m_codepoint_width(p[i]);
         }
     }
     else {
-        uint8_t    *p = (uint8_t *)s->data;
-        codepoint_t cp;
+        uint8_t        *p = (uint8_t *)s->data;
+        c4m_codepoint_t cp;
 
         for (int i = 0; i < n; i++) {
             p += utf8proc_iterate(p, 4, &cp);
@@ -692,7 +692,7 @@ _c4m_str_truncate(const any_str_t *s, int64_t len, ...)
     int64_t c = 0;
 
     if (c4m_str_is_u32(s)) {
-        codepoint_t *p = (codepoint_t *)s->data;
+        c4m_codepoint_t *p = (c4m_codepoint_t *)s->data;
 
         if (use_render_width) {
             for (int i = 0; i < n; i++) {
@@ -709,10 +709,10 @@ _c4m_str_truncate(const any_str_t *s, int64_t len, ...)
         return c4m_str_slice(s, 0, len);
     }
     else {
-        uint8_t    *p = (uint8_t *)s->data;
-        uint8_t    *next;
-        codepoint_t cp;
-        int64_t     num_cp = 0;
+        uint8_t        *p = (uint8_t *)s->data;
+        uint8_t        *next;
+        c4m_codepoint_t cp;
+        int64_t         num_cp = 0;
 
         if (use_render_width) {
             for (int i = 0; i < n; i++) {
@@ -745,7 +745,7 @@ u8_slice:
 
                         if (res->styling != NULL) {
                             for (int i = 0; i < res->styling->num_entries; i++) {
-                                style_entry_t e = res->styling->styles[i];
+                                c4m_style_entry_t e = res->styling->styles[i];
                                 if (e.start > num_cp) {
                                     res->styling->num_entries = i;
                                     return res;
@@ -1000,8 +1000,8 @@ c4m_cstring(char *s, int64_t len)
 utf8_t *
 c4m_rich(utf8_t *to_copy, utf8_t *style)
 {
-    utf8_t         *res = c4m_str_copy(to_copy);
-    render_style_t *rs  = c4m_lookup_cell_style(style->data);
+    utf8_t             *res = c4m_str_copy(to_copy);
+    c4m_render_style_t *rs  = c4m_lookup_cell_style(style->data);
 
     if (rs != NULL) {
         c4m_str_apply_style(res, rs->base_style, 0);
@@ -1014,7 +1014,7 @@ static any_str_t *
 c4m_str_repr(any_str_t *str, to_str_use_t how)
 {
     // TODO: actually implement string quoting.
-    if (how == TO_STR_USE_QUOTED) {
+    if (how == C4M_REPR_QUOTED) {
         utf32_t *q = c4m_new(c4m_tspec_utf32(), c4m_kw("cstring", c4m_ka("\"")));
         return c4m_str_concat(c4m_str_concat(q, str), q);
     }
@@ -1065,7 +1065,10 @@ c4m_str_coerce_to(const any_str_t *s, type_spec_t *target_type)
 }
 
 static object_t
-c4m_str_lit(char *s, syntax_t st, char *litmod, lit_error_t *err)
+c4m_str_lit(char            *s,
+            c4m_lit_syntax_t st,
+            char            *litmod,
+            c4m_lit_error_t *err)
 {
     if (*litmod == 0 || !strcmp(litmod, "u8") || !strcmp(litmod, "utf8")) {
         return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(s)));

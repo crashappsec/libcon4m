@@ -13,7 +13,7 @@ typedef enum {
     ST_Dict   = 8,
     ST_Tuple  = 9,
     ST_MAX    = 10
-} syntax_t;
+} c4m_lit_syntax_t;
 
 typedef enum {
     LE_NoError        = 0,
@@ -24,9 +24,9 @@ typedef enum {
     LE_InvalidNeg     = 5,
     LE_WrongNumDigits = 6,
     LE_NoLitmodMatch  = 7,
-} lit_error_code_t;
+} c4m_lit_error_code_t;
 
 typedef struct {
-    uint64_t         loc;
-    lit_error_code_t code;
-} lit_error_t;
+    uint64_t             loc;
+    c4m_lit_error_code_t code;
+} c4m_lit_error_t;

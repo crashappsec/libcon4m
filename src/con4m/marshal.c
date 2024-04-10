@@ -1,8 +1,8 @@
 #include "con4m.h"
 
-STATIC_ASCII_STR(c4m_marshal_err,
-                 "No marshal implementation is defined for the "
-                 "data type: ");
+C4M_STATIC_ASCII_STR(c4m_marshal_err,
+                     "No marshal implementation is defined for the "
+                     "data type: ");
 
 void
 c4m_marshal_cstring(char *s, stream_t *stream)
@@ -95,11 +95,11 @@ c4m_unmarshal_i16(stream_t *s)
 }
 
 void
-c4m_marshal_unmanaged_object(void      *addr,
-                             stream_t  *s,
-                             dict_t    *memos,
-                             int64_t   *mid,
-                             marshal_fn fn)
+c4m_marshal_unmanaged_object(void          *addr,
+                             stream_t      *s,
+                             dict_t        *memos,
+                             int64_t       *mid,
+                             c4m_marshal_fn fn)
 {
     if (addr == NULL) {
         c4m_marshal_u64(0ull, s);
@@ -128,23 +128,23 @@ c4m_marshal_compact_type(type_spec_t *t, stream_t *s)
 
     c4m_marshal_u16(t->details->base_type->typeid, s);
     c4m_marshal_u64(t->typeid, s);
-    switch (t->details->base_type->base) {
-    case BT_nil:
-    case BT_primitive:
-    case BT_internal:
-    case BT_maybe:
-    case BT_object:
-    case BT_oneof:
+    switch (t->details->base_type->dt_kind) {
+    case C4M_DT_KIND_nil:
+    case C4M_DT_KIND_primitive:
+    case C4M_DT_KIND_internal:
+    case C4M_DT_KIND_maybe:
+    case C4M_DT_KIND_object:
+    case C4M_DT_KIND_oneof:
         return;
-    case BT_type_var:
+    case C4M_DT_KIND_type_var:
         c4m_marshal_cstring(t->details->name, s);
         return;
-    case BT_func:
+    case C4M_DT_KIND_func:
         c4m_marshal_u8(t->details->flags, s);
         // Fallthrough.
-    case BT_list:
-    case BT_dict:
-    case BT_tuple:
+    case C4M_DT_KIND_list:
+    case C4M_DT_KIND_dict:
+    case C4M_DT_KIND_tuple:
         param_count = (uint16_t)c4m_len(t->details->items);
         c4m_marshal_u16(param_count, s);
         for (int i = 0; i < param_count; i++) {
@@ -156,37 +156,37 @@ c4m_marshal_compact_type(type_spec_t *t, stream_t *s)
 type_spec_t *
 c4m_unmarshal_compact_type(stream_t *s)
 {
-    c4m_builtin_t base = (c4m_builtin_t)c4m_unmarshal_u16(s);
-    uint64_t      tid  = c4m_unmarshal_u64(s);
-    type_spec_t  *result;
-    uint8_t       flags = 0;
-    uint16_t      param_count;
-    dt_info      *dtinfo = (dt_info *)&builtin_type_info[base];
+    c4m_builtin_t  base = (c4m_builtin_t)c4m_unmarshal_u16(s);
+    uint64_t       tid  = c4m_unmarshal_u64(s);
+    type_spec_t   *result;
+    uint8_t        flags = 0;
+    uint16_t       param_count;
+    c4m_dt_info_t *dtinfo = (c4m_dt_info_t *)&c4m_base_type_info[base];
 
-    switch (dtinfo->base) {
-    case BT_nil:
-    case BT_primitive:
-    case BT_internal:
-    case BT_maybe:
-    case BT_object:
-    case BT_oneof:
+    switch (dtinfo->dt_kind) {
+    case C4M_DT_KIND_nil:
+    case C4M_DT_KIND_primitive:
+    case C4M_DT_KIND_internal:
+    case C4M_DT_KIND_maybe:
+    case C4M_DT_KIND_object:
+    case C4M_DT_KIND_oneof:
         result = c4m_get_builtin_type(base);
         return result;
-    case BT_type_var:
+    case C4M_DT_KIND_type_var:
         result                     = c4m_new(c4m_tspec_typespec(),
                          NULL,
                          NULL,
                          NULL);
-        result->details->base_type = (dt_info *)&builtin_type_info[base];
+        result->details->base_type = (c4m_dt_info_t *)&c4m_base_type_info[base];
         result->typeid             = tid;
         result->details->name      = c4m_unmarshal_cstring(s);
         return result;
-    case BT_func:
+    case C4M_DT_KIND_func:
         flags = c4m_unmarshal_u8(s);
         // Fallthrough.
-    case BT_list:
-    case BT_dict:
-    case BT_tuple:
+    case C4M_DT_KIND_list:
+    case C4M_DT_KIND_dict:
+    case C4M_DT_KIND_tuple:
         param_count            = c4m_unmarshal_u16(s);
         result                 = c4m_new(c4m_tspec_typespec(), NULL, NULL, 1UL);
         result->typeid         = tid;
@@ -230,10 +230,10 @@ c4m_sub_marshal(object_t obj, stream_t *s, dict_t *memos, int64_t *mid)
     c4m_marshal_u64(memo, s);
     hatrack_dict_put(memos, obj, (void *)memo);
 
-    c4m_obj_t *hdr = c4m_object_header(obj);
-    marshal_fn ptr;
+    c4m_obj_t     *hdr = c4m_object_header(obj);
+    c4m_marshal_fn ptr;
 
-    ptr = (marshal_fn)hdr->base_data_type->vtable->methods[C4M_BI_MARSHAL];
+    ptr = (c4m_marshal_fn)hdr->base_data_type->vtable->methods[C4M_BI_MARSHAL];
 
     if (ptr == NULL) {
         utf8_t *type_name = c4m_new_utf8(hdr->base_data_type->name);
@@ -244,7 +244,7 @@ c4m_sub_marshal(object_t obj, stream_t *s, dict_t *memos, int64_t *mid)
     }
 
     // This captures the actual index of the base type.
-    uint16_t diff = (uint16_t)(hdr->base_data_type - &builtin_type_info[0]);
+    uint16_t diff = (uint16_t)(hdr->base_data_type - &c4m_base_type_info[0]);
     c4m_marshal_u16(diff, s);
 
     // And now, the concrete type.
@@ -255,10 +255,10 @@ c4m_sub_marshal(object_t obj, stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 void *
-c4m_unmarshal_unmanaged_object(size_t       len,
-                               stream_t    *s,
-                               dict_t      *memos,
-                               unmarshal_fn fn)
+c4m_unmarshal_unmanaged_object(size_t           len,
+                               stream_t        *s,
+                               dict_t          *memos,
+                               c4m_unmarshal_fn fn)
 {
     bool     found = false;
     uint64_t memo;
@@ -303,15 +303,15 @@ c4m_sub_unmarshal(stream_t *s, dict_t *memos)
         return obj->data;
     }
 
-    c4m_builtin_t base_type_id = (c4m_builtin_t)c4m_unmarshal_u16(s);
-    dt_info      *dt_entry;
-    uint64_t      alloc_len;
-    unmarshal_fn  ptr;
+    c4m_builtin_t    base_type_id = (c4m_builtin_t)c4m_unmarshal_u16(s);
+    c4m_dt_info_t   *dt_entry;
+    uint64_t         alloc_len;
+    c4m_unmarshal_fn ptr;
 
     if (base_type_id > C4M_NUM_BUILTIN_DTS) {
         C4M_CRAISE("Invalid marshal format (got invalid data type ID)");
     }
-    dt_entry  = (dt_info *)&builtin_type_info[base_type_id];
+    dt_entry  = (c4m_dt_info_t *)&c4m_base_type_info[base_type_id];
     alloc_len = sizeof(c4m_obj_t) + dt_entry->alloc_len;
 
     obj = (c4m_obj_t *)c4m_gc_raw_alloc(alloc_len,
@@ -323,7 +323,8 @@ c4m_sub_unmarshal(stream_t *s, dict_t *memos)
 
     obj->base_data_type = dt_entry;
     obj->concrete_type  = c4m_unmarshal_compact_type(s);
-    ptr                 = (unmarshal_fn)dt_entry->vtable->methods[C4M_BI_UNMARSHAL];
+
+    ptr = (c4m_unmarshal_fn)dt_entry->vtable->methods[C4M_BI_UNMARSHAL];
 
     if (ptr == NULL) {
         utf8_t *type_name = c4m_new_utf8(dt_entry->name);

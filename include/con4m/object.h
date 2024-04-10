@@ -30,7 +30,7 @@ c4m_base_type_name(const object_t user_object)
 }
 
 // in object.c
-extern const dt_info builtin_type_info[C4M_NUM_BUILTIN_DTS];
+extern const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS];
 
 #define c4m_new(tid, ...) _c4m_new(tid, KFUNC(__VA_ARGS__))
 

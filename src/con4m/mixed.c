@@ -27,7 +27,7 @@ c4m_mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
     m->held_type = type;
 
     switch (c4m_tspec_get_data_type_info(type)->typeid) {
-    case T_BOOL: {
+    case C4M_T_BOOL: {
         bool   *p = (bool *)ptr;
         bool    b = *p;
         int64_t n = (int64_t)b;
@@ -35,7 +35,7 @@ c4m_mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
         m->held_value = (void *)n;
         return;
     }
-    case T_I8: {
+    case C4M_T_I8: {
         char   *p = (char *)ptr;
         char    c = *p;
         int64_t n = (int64_t)c;
@@ -43,7 +43,7 @@ c4m_mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
         m->held_value = (void *)n;
         return;
     }
-    case T_BYTE: {
+    case C4M_T_BYTE: {
         uint8_t *p = (uint8_t *)ptr;
         uint8_t  c = *p;
         int64_t  n = (int64_t)c;
@@ -51,7 +51,7 @@ c4m_mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
         m->held_value = (void *)n;
         return;
     }
-    case T_I32: {
+    case C4M_T_I32: {
         int32_t *p = (int32_t *)ptr;
         int32_t  v = *p;
         int64_t  n = (int64_t)v;
@@ -59,27 +59,26 @@ c4m_mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
         m->held_value = (void *)n;
         return;
     }
-    case T_CHAR:
-    case T_U32: {
+    case C4M_T_CHAR:
+    case C4M_T_U32: {
         uint32_t *p = (uint32_t *)ptr;
         uint32_t  v = *p;
         int64_t   n = (int64_t)v;
 
         m->held_value = (void *)n;
-        return;
     }
-    case T_INT:
-    case T_UINT:
+    case C4M_T_INT:
+    case C4M_T_UINT:
         m->held_value = *ptr;
         return;
-    case T_F32: {
+    case C4M_T_F32: {
         float *p      = (float *)ptr;
         float  f      = *p;
         double d      = (double)f;
         m->held_value = c4m_double_to_ptr(d);
         return;
     }
-    case T_F64: {
+    case C4M_T_F64: {
         double *p     = (double *)ptr;
         double  d     = *p;
         m->held_value = c4m_double_to_ptr(d);
@@ -112,7 +111,7 @@ c4m_unbox_mixed(mixed_t *m, type_spec_t *expected_type, void **ptr)
     }
 
     switch (c4m_tspec_get_data_type_info(m->held_type)->typeid) {
-    case T_BOOL: {
+    case C4M_T_BOOL: {
         if (m->held_value) {
             *(bool *)ptr = true;
         }
@@ -121,44 +120,44 @@ c4m_unbox_mixed(mixed_t *m, type_spec_t *expected_type, void **ptr)
         }
         return;
     }
-    case T_I8: {
+    case C4M_T_I8: {
         int64_t n    = (int64_t)m->held_value;
         char    c    = n & 0xff;
         *(char *)ptr = c;
         return;
     }
-    case T_BYTE: {
+    case C4M_T_BYTE: {
         int64_t n       = (int64_t)m->held_value;
         uint8_t c       = n & 0xff;
         *(uint8_t *)ptr = c;
         return;
     }
-    case T_I32: {
+    case C4M_T_I32: {
         int64_t n       = (int64_t)m->held_value;
         int32_t v       = n & 0xffffffff;
         *(int32_t *)ptr = v;
         return;
     }
-    case T_CHAR:
-    case T_U32: {
+    case C4M_T_CHAR:
+    case C4M_T_U32: {
         int64_t  n       = (int64_t)m->held_value;
         uint32_t v       = n & 0xffffffff;
         *(uint32_t *)ptr = v;
         return;
     }
-    case T_INT:
+    case C4M_T_INT:
         *(int64_t *)ptr = (int64_t)m->held_value;
         return;
-    case T_UINT:
+    case C4M_T_UINT:
         *(uint64_t *)ptr = (uint64_t)m->held_value;
         return;
-    case T_F32: {
+    case C4M_T_F32: {
         double d = c4m_ptr_to_double(m->held_value);
 
         *(float *)ptr = (float)d;
         return;
     }
-    case T_F64: {
+    case C4M_T_F64: {
         *(double *)ptr = c4m_ptr_to_double(m->held_value);
         return;
     }
@@ -172,7 +171,7 @@ static int64_t
 mixed_as_word(mixed_t *m)
 {
     switch (c4m_tspec_get_data_type_info(m->held_type)->typeid) {
-    case T_BOOL:
+    case C4M_T_BOOL:
         if (m->held_value == NULL) {
             return 0;
         }
@@ -180,26 +179,26 @@ mixed_as_word(mixed_t *m)
             return 1;
         }
         break;
-    case T_I8: {
+    case C4M_T_I8: {
         char b;
 
         c4m_unbox_mixed(m, m->held_type, (void **)&b);
         return (int64_t)b;
     }
-    case T_BYTE: {
+    case C4M_T_BYTE: {
         uint8_t b;
 
         c4m_unbox_mixed(m, m->held_type, (void **)&b);
         return (int64_t)b;
     }
-    case T_I32: {
+    case C4M_T_I32: {
         int32_t n;
 
         c4m_unbox_mixed(m, m->held_type, (void **)&n);
         return (int64_t)n;
     }
-    case T_CHAR:
-    case T_U32: {
+    case C4M_T_CHAR:
+    case C4M_T_U32: {
         uint32_t n;
         c4m_unbox_mixed(m, m->held_type, (void **)&n);
         return (int64_t)n;

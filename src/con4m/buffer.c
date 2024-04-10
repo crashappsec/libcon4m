@@ -136,7 +136,7 @@ buffer_repr(buffer_t *buf, to_str_use_t how)
 {
     utf8_t *result;
 
-    if (how == TO_STR_USE_QUOTED) {
+    if (how == C4M_REPR_QUOTED) {
         result  = c4m_new(c4m_tspec_utf8(),
                          c4m_kw("length", c4m_ka(buf->byte_len * 4 + 2)));
         char *p = result->data;
@@ -302,11 +302,11 @@ buffer_coerce_to(const buffer_t *b, type_spec_t *target_type)
     }
 
     if (c4m_tspecs_are_compat(target_type, c4m_tspec_utf8())) {
-        int32_t     count = 0;
-        uint8_t    *p     = (uint8_t *)b->data;
-        uint8_t    *end   = p + b->byte_len;
-        codepoint_t cp;
-        int         cplen;
+        int32_t         count = 0;
+        uint8_t        *p     = (uint8_t *)b->data;
+        uint8_t        *end   = p + b->byte_len;
+        c4m_codepoint_t cp;
+        int             cplen;
 
         while (p < end) {
             count++;
@@ -461,7 +461,7 @@ buffer_set_slice(buffer_t *b, int64_t start, int64_t end, buffer_t *val)
 }
 
 static object_t
-buffer_lit(char *s, syntax_t st, char *litmod, lit_error_t *err)
+buffer_lit(char *s, c4m_lit_syntax_t st, char *litmod, c4m_lit_error_t *err)
 {
     if (!strcmp(litmod, "h") || !strcmp(litmod, "hex")) {
         int length = strlen(s);

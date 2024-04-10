@@ -17,12 +17,12 @@
 
 #include "con4m.h"
 
-karg_info_t *c4m_get_kargs(va_list);
-karg_info_t *c4m_pass_kargs(int, ...);
-karg_info_t *c4m_get_kargs_and_count(va_list, int *);
+c4m_karg_info_t *c4m_get_kargs(va_list);
+c4m_karg_info_t *c4m_pass_kargs(int, ...);
+c4m_karg_info_t *c4m_get_kargs_and_count(va_list, int *);
 
 static inline bool
-_c4m_kw_int64(karg_info_t *provided, char *name, int64_t *ptr)
+_c4m_kw_int64(c4m_karg_info_t *provided, char *name, int64_t *ptr)
 {
     if (!provided) {
         return false;
@@ -41,13 +41,13 @@ _c4m_kw_int64(karg_info_t *provided, char *name, int64_t *ptr)
 }
 
 static inline bool
-_c4m_kw_ptr(karg_info_t *provided, char *name, void *ptr)
+_c4m_kw_ptr(c4m_karg_info_t *provided, char *name, void *ptr)
 {
     return _c4m_kw_int64(provided, name, (int64_t *)ptr);
 }
 
 static inline bool
-_c4m_kw_int32(karg_info_t *provided, char *name, int32_t *ptr)
+_c4m_kw_int32(c4m_karg_info_t *provided, char *name, int32_t *ptr)
 {
     if (!provided) {
         return false;
@@ -69,7 +69,7 @@ _c4m_kw_int32(karg_info_t *provided, char *name, int32_t *ptr)
 }
 
 static inline bool
-_c4m_kw_int16(karg_info_t *provided, char *name, int16_t *ptr)
+_c4m_kw_int16(c4m_karg_info_t *provided, char *name, int16_t *ptr)
 {
     if (!provided) {
         return false;
@@ -91,7 +91,7 @@ _c4m_kw_int16(karg_info_t *provided, char *name, int16_t *ptr)
 }
 
 static inline bool
-_c4m_kw_int8(karg_info_t *provided, char *name, int8_t *ptr)
+_c4m_kw_int8(c4m_karg_info_t *provided, char *name, int8_t *ptr)
 {
     if (!provided) {
         return false;
@@ -113,7 +113,7 @@ _c4m_kw_int8(karg_info_t *provided, char *name, int8_t *ptr)
 }
 
 static inline bool
-_c4m_kw_bool(karg_info_t *provided, char *name, bool *ptr)
+_c4m_kw_bool(c4m_karg_info_t *provided, char *name, bool *ptr)
 {
     if (!provided) {
         return false;
@@ -135,7 +135,7 @@ _c4m_kw_bool(karg_info_t *provided, char *name, bool *ptr)
 }
 
 static inline bool
-_c4m_kw_float(karg_info_t *provided, char *name, double *ptr)
+_c4m_kw_float(c4m_karg_info_t *provided, char *name, double *ptr)
 {
     if (!provided) {
         return false;
@@ -175,10 +175,11 @@ _c4m_kw_float(karg_info_t *provided, char *name, double *ptr)
 
 #define c4m_ka(x)   ((int64_t)x)
 #define c4m_kw(...) c4m_pass_kargs(PP_NARG(__VA_ARGS__), __VA_ARGS__), NULL
-#define c4m_karg_only_init(last)                      \
-    va_list _args;                                    \
-    va_start(_args, last);                            \
-    karg_info_t *_c4m_karg = va_arg(_args, object_t); \
+#define c4m_karg_only_init(last)                          \
+    va_list _args;                                        \
+    va_start(_args, last);                                \
+    c4m_karg_info_t *_c4m_karg = va_arg(_args, object_t); \
     va_end(_args);
 
-#define c4m_karg_va_init(list) karg_info_t *_c4m_karg = va_arg(list, object_t)
+#define c4m_karg_va_init(list) \
+    c4m_karg_info_t *_c4m_karg = va_arg(list, object_t)

@@ -62,13 +62,13 @@ c4m_stack_init(hatstack_t *stack, va_list args)
 static void
 c4m_list_marshal(flexarray_t *r, stream_t *s, dict_t *memos, int64_t *mid)
 {
-    type_spec_t *list_type   = c4m_get_my_type(r);
-    xlist_t     *type_params = c4m_tspec_get_parameters(list_type);
-    type_spec_t *item_type   = c4m_xlist_get(type_params, 0, NULL);
-    dt_info     *item_info   = c4m_tspec_get_data_type_info(item_type);
-    bool         by_val      = item_info->by_value;
-    flex_view_t *view        = flexarray_view(r);
-    uint64_t     len         = flexarray_view_len(view);
+    type_spec_t   *list_type   = c4m_get_my_type(r);
+    xlist_t       *type_params = c4m_tspec_get_parameters(list_type);
+    type_spec_t   *item_type   = c4m_xlist_get(type_params, 0, NULL);
+    c4m_dt_info_t *item_info   = c4m_tspec_get_data_type_info(item_type);
+    bool           by_val      = item_info->by_value;
+    flex_view_t   *view        = flexarray_view(r);
+    uint64_t       len         = flexarray_view_len(view);
 
     c4m_marshal_u64(len, s);
 
@@ -87,12 +87,12 @@ c4m_list_marshal(flexarray_t *r, stream_t *s, dict_t *memos, int64_t *mid)
 static void
 c4m_list_unmarshal(flexarray_t *r, stream_t *s, dict_t *memos)
 {
-    type_spec_t *list_type   = c4m_get_my_type(r);
-    xlist_t     *type_params = c4m_tspec_get_parameters(list_type);
-    type_spec_t *item_type   = c4m_xlist_get(type_params, 0, NULL);
-    dt_info     *item_info   = c4m_tspec_get_data_type_info(item_type);
-    bool         by_val      = item_info->by_value;
-    uint64_t     len         = c4m_unmarshal_u64(s);
+    type_spec_t   *list_type   = c4m_get_my_type(r);
+    xlist_t       *type_params = c4m_tspec_get_parameters(list_type);
+    type_spec_t   *item_type   = c4m_xlist_get(type_params, 0, NULL);
+    c4m_dt_info_t *item_info   = c4m_tspec_get_data_type_info(item_type);
+    bool           by_val      = item_info->by_value;
+    uint64_t       len         = c4m_unmarshal_u64(s);
 
     flexarray_init(r, len);
 
@@ -111,13 +111,13 @@ c4m_list_unmarshal(flexarray_t *r, stream_t *s, dict_t *memos)
 bool
 list_can_coerce_to(type_spec_t *my_type, type_spec_t *dst_type)
 {
-    base_t base = c4m_tspec_get_base(dst_type);
+    c4m_dt_kind_t base = c4m_tspec_get_base(dst_type);
 
-    if (base == (base_t)T_BOOL) {
+    if (base == (c4m_dt_kind_t)C4M_T_BOOL) {
         return true;
     }
 
-    if (base == (base_t)T_LIST || base == (base_t)T_XLIST) {
+    if (base == (c4m_dt_kind_t)C4M_T_LIST || base == (c4m_dt_kind_t)C4M_T_XLIST) {
         type_spec_t *my_item  = c4m_tspec_get_param(my_type, 0);
         type_spec_t *dst_item = c4m_tspec_get_param(dst_type, 0);
 
@@ -130,17 +130,17 @@ list_can_coerce_to(type_spec_t *my_type, type_spec_t *dst_type)
 static object_t
 list_coerce_to(flexarray_t *list, type_spec_t *dst_type)
 {
-    base_t       base          = c4m_tspec_get_base(dst_type);
-    flex_view_t *view          = flexarray_view(list);
-    int64_t      len           = flexarray_view_len(view);
-    type_spec_t *src_item_type = c4m_tspec_get_param(c4m_get_my_type(list), 0);
-    type_spec_t *dst_item_type = c4m_tspec_get_param(dst_type, 0);
+    c4m_dt_kind_t base          = c4m_tspec_get_base(dst_type);
+    flex_view_t  *view          = flexarray_view(list);
+    int64_t       len           = flexarray_view_len(view);
+    type_spec_t  *src_item_type = c4m_tspec_get_param(c4m_get_my_type(list), 0);
+    type_spec_t  *dst_item_type = c4m_tspec_get_param(dst_type, 0);
 
-    if (base == (base_t)T_BOOL) {
+    if (base == (c4m_dt_kind_t)C4M_T_BOOL) {
         return (object_t)(int64_t)(flexarray_view_len(view) != 0);
     }
 
-    if (base == (base_t)T_LIST) {
+    if (base == (c4m_dt_kind_t)C4M_T_LIST) {
         flexarray_t *res = c4m_new(dst_type, c4m_kw("length", c4m_ka(len)));
 
         for (int i = 0; i < len; i++) {
@@ -339,7 +339,7 @@ list_repr(flexarray_t *list, to_str_use_t how)
     any_str_t *sep    = c4m_get_comma_const();
     any_str_t *result = c4m_str_join(items, sep);
 
-    if (how == TO_STR_USE_QUOTED) {
+    if (how == C4M_REPR_QUOTED) {
         result = c4m_str_concat(c4m_get_lbrak_const(),
                                 c4m_str_concat(result, c4m_get_rbrak_const()));
     }

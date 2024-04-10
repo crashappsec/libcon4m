@@ -19,7 +19,7 @@ typedef struct type_spec_t {
 
 typedef struct type_details_t {
     char          *name; // Obj type name or type var name
-    dt_info       *base_type;
+    c4m_dt_info_t *base_type;
     xlist_t       *items;
     struct dict_t *props; // Object properties. maps name to type node.
     // 'Locked' means this type node cannot forward, even though it

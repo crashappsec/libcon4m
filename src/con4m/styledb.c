@@ -2,7 +2,7 @@
 
 static hatrack_dict_t *style_dictionary = NULL;
 
-static const border_theme_t border_ascii = {
+static const c4m_border_theme_t border_ascii = {
     .name            = "ascii",
     .horizontal_rule = '-',
     .vertical_rule   = '|',
@@ -18,7 +18,7 @@ static const border_theme_t border_ascii = {
     .next_style      = NULL,
 };
 
-static const border_theme_t border_asterisk = {
+static const c4m_border_theme_t border_asterisk = {
     .name            = "asterisk",
     .horizontal_rule = '*',
     .vertical_rule   = '*',
@@ -31,10 +31,10 @@ static const border_theme_t border_asterisk = {
     .bottom_t        = '*',
     .left_t          = '*',
     .right_t         = '*',
-    .next_style      = (border_theme_t *)&border_ascii,
+    .next_style      = (c4m_border_theme_t *)&border_ascii,
 };
 
-static const border_theme_t border_bold_dash2 = {
+static const c4m_border_theme_t border_bold_dash2 = {
     .name            = "bold_dash2",
     .horizontal_rule = 0x2509,
     .vertical_rule   = 0x250b,
@@ -47,10 +47,10 @@ static const border_theme_t border_bold_dash2 = {
     .bottom_t        = 0x253b,
     .left_t          = 0x2523,
     .right_t         = 0x252b,
-    .next_style      = (border_theme_t *)&border_asterisk,
+    .next_style      = (c4m_border_theme_t *)&border_asterisk,
 };
 
-static const border_theme_t border_dash2 = {
+static const c4m_border_theme_t border_dash2 = {
     .name            = "dash2",
     .horizontal_rule = 0x2508,
     .vertical_rule   = 0x250a,
@@ -63,10 +63,10 @@ static const border_theme_t border_dash2 = {
     .bottom_t        = 0x2534,
     .left_t          = 0x251c,
     .right_t         = 0x2524,
-    .next_style      = (border_theme_t *)&border_bold_dash2,
+    .next_style      = (c4m_border_theme_t *)&border_bold_dash2,
 };
 
-static const border_theme_t border_bold_dash = {
+static const c4m_border_theme_t border_bold_dash = {
     .name            = "bold_dash",
     .horizontal_rule = 0x2505,
     .vertical_rule   = 0x2507,
@@ -79,10 +79,10 @@ static const border_theme_t border_bold_dash = {
     .bottom_t        = 0x253b,
     .left_t          = 0x2523,
     .right_t         = 0x252b,
-    .next_style      = (border_theme_t *)&border_dash2,
+    .next_style      = (c4m_border_theme_t *)&border_dash2,
 };
 
-static const border_theme_t border_dash = {
+static const c4m_border_theme_t border_dash = {
     .name            = "dash",
     .horizontal_rule = 0x2504,
     .vertical_rule   = 0x2506,
@@ -95,10 +95,10 @@ static const border_theme_t border_dash = {
     .bottom_t        = 0x2534,
     .left_t          = 0x251c,
     .right_t         = 0x2524,
-    .next_style      = (border_theme_t *)&border_bold_dash,
+    .next_style      = (c4m_border_theme_t *)&border_bold_dash,
 };
 
-static const border_theme_t border_double = {
+static const c4m_border_theme_t border_double = {
     .name            = "double",
     .horizontal_rule = 0x2550,
     .vertical_rule   = 0x2551,
@@ -111,10 +111,10 @@ static const border_theme_t border_double = {
     .bottom_t        = 0x2569,
     .left_t          = 0x2560,
     .right_t         = 0x2563,
-    .next_style      = (border_theme_t *)&border_dash,
+    .next_style      = (c4m_border_theme_t *)&border_dash,
 };
 
-static const border_theme_t border_bold = {
+static const c4m_border_theme_t border_bold = {
     .name            = "bold",
     .horizontal_rule = 0x2501,
     .vertical_rule   = 0x2503,
@@ -127,10 +127,10 @@ static const border_theme_t border_bold = {
     .bottom_t        = 0x253b,
     .left_t          = 0x2523,
     .right_t         = 0x252b,
-    .next_style      = (border_theme_t *)&border_double,
+    .next_style      = (c4m_border_theme_t *)&border_double,
 };
 
-static const border_theme_t border_plain = {
+static const c4m_border_theme_t border_plain = {
     .name            = "plain",
     .horizontal_rule = 0x2500,
     .vertical_rule   = 0x2502,
@@ -143,137 +143,137 @@ static const border_theme_t border_plain = {
     .bottom_t        = 0x2534,
     .left_t          = 0x251c,
     .right_t         = 0x2524,
-    .next_style      = (border_theme_t *)&border_bold,
+    .next_style      = (c4m_border_theme_t *)&border_bold,
 };
 
-const border_theme_t *c4m_registered_borders = (border_theme_t *)&border_plain;
+const c4m_border_theme_t *c4m_registered_borders = (c4m_border_theme_t *)&border_plain;
 
 // Used for border drawing and background (pad color).
-static const render_style_t default_table = {
+static const c4m_render_style_t default_table = {
     .name         = "table",
-    .borders      = BORDER_TOP | BORDER_BOTTOM | BORDER_LEFT | BORDER_RIGHT | INTERIOR_HORIZONTAL | INTERIOR_VERTICAL,
-    .border_theme = (border_theme_t *)&border_bold_dash,
-    .dim_kind     = DIM_AUTO,
-    .alignment    = ALIGN_MID_LEFT};
+    .borders      = C4M_BORDER_TOP | C4M_BORDER_BOTTOM | C4M_BORDER_LEFT | C4M_BORDER_RIGHT | C4M_INTERIOR_HORIZONTAL | C4M_INTERIOR_VERTICAL,
+    .border_theme = (c4m_border_theme_t *)&border_bold_dash,
+    .dim_kind     = C4M_DIM_AUTO,
+    .alignment    = C4M_ALIGN_MID_LEFT};
 
-static const render_style_t default_tr = {
+static const c4m_render_style_t default_tr = {
     .name       = "tr",
-    .dim_kind   = DIM_AUTO,
-    .alignment  = ALIGN_TOP_LEFT,
+    .dim_kind   = C4M_DIM_AUTO,
+    .alignment  = C4M_ALIGN_TOP_LEFT,
     .base_style = 0x2f3f3ff8f8fful | C4M_STY_BG | C4M_STY_FG,
 };
 
-static const render_style_t default_tr_even = {
+static const c4m_render_style_t default_tr_even = {
     .name       = "tr.even",
-    .dim_kind   = DIM_AUTO,
-    .alignment  = ALIGN_TOP_LEFT,
+    .dim_kind   = C4M_DIM_AUTO,
+    .alignment  = C4M_ALIGN_TOP_LEFT,
     .base_style = 0x3f3f3ff8f8fful | C4M_STY_BG | C4M_STY_FG,
 };
 
-static const render_style_t default_tr_odd = {
+static const c4m_render_style_t default_tr_odd = {
     .name       = "tr.odd",
-    .dim_kind   = DIM_AUTO,
-    .alignment  = ALIGN_TOP_LEFT,
+    .dim_kind   = C4M_DIM_AUTO,
+    .alignment  = C4M_ALIGN_TOP_LEFT,
     .base_style = 0x5f5f5ff8f8fful | C4M_STY_BG | C4M_STY_FG,
 };
 
-static const render_style_t default_th = {
+static const c4m_render_style_t default_th = {
     .name       = "th",
     .base_style = C4M_STY_UPPER | 0xb3ff00 | C4M_STY_BG | C4M_STY_FG | C4M_STY_BOLD,
-    .dim_kind   = DIM_AUTO,
-    .alignment  = ALIGN_MID_CENTER,
+    .dim_kind   = C4M_DIM_AUTO,
+    .alignment  = C4M_ALIGN_MID_CENTER,
 };
 
-static const render_style_t default_td = {
+static const c4m_render_style_t default_td = {
     .name       = "td",
     .base_style = 0,
     .left_pad   = 1,
     .right_pad  = 1};
 
-static const render_style_t default_tcol = {
+static const c4m_render_style_t default_tcol = {
     .name     = "tcol",
-    .dim_kind = DIM_AUTO};
+    .dim_kind = C4M_DIM_AUTO};
 
-static const render_style_t default_list_grid = {
+static const c4m_render_style_t default_list_grid = {
     .name       = "ul",
     //.base_style = 0x2f3f3ff8f8fful | C4M_STY_BG | C4M_STY_FG,
     .bottom_pad = 1,
-    .dim_kind   = DIM_AUTO,
-    .alignment  = ALIGN_MID_LEFT,
+    .dim_kind   = C4M_DIM_AUTO,
+    .alignment  = C4M_ALIGN_MID_LEFT,
 };
 
-static const render_style_t default_ordered_list_grid = {
+static const c4m_render_style_t default_ordered_list_grid = {
     .name       = "ol",
     //.base_style = 0x2f3f3ff8f8fful | C4M_STY_BG | C4M_STY_FG,
     .bottom_pad = 1,
-    .dim_kind   = DIM_AUTO,
-    .alignment  = ALIGN_MID_LEFT,
+    .dim_kind   = C4M_DIM_AUTO,
+    .alignment  = C4M_ALIGN_MID_LEFT,
 };
 
-static const render_style_t default_bullet_column = {
+static const c4m_render_style_t default_bullet_column = {
     .name       = "bullet",
-    .dim_kind   = DIM_ABSOLUTE,
+    .dim_kind   = C4M_DIM_ABSOLUTE,
     //.base_style = 0x2f3f3ff8f8fful | C4M_STY_BG | C4M_STY_FG,
     .left_pad   = 1,
     .dims.units = 1,
-    .alignment  = ALIGN_TOP_RIGHT,
+    .alignment  = C4M_ALIGN_TOP_RIGHT,
 };
 
-static const render_style_t default_list_text_column = {
+static const c4m_render_style_t default_list_text_column = {
     .name      = "li",
     //.base_style = 0x2f3f3ff8f8fful | C4M_STY_BG | C4M_STY_FG,
-    .dim_kind  = DIM_AUTO,
+    .dim_kind  = C4M_DIM_AUTO,
     .left_pad  = 1,
     .right_pad = 1,
-    .alignment = ALIGN_TOP_LEFT,
+    .alignment = C4M_ALIGN_TOP_LEFT,
 };
 
-static const render_style_t default_h1 = {
+static const c4m_render_style_t default_h1 = {
     .name       = "h1",
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_BG | C4M_STY_BOLD | 0x3434340ff2f8eUL,
     .top_pad    = 2,
-    .alignment  = ALIGN_BOTTOM_CENTER,
+    .alignment  = C4M_ALIGN_BOTTOM_CENTER,
 };
 
-static const render_style_t default_h2 = {
+static const c4m_render_style_t default_h2 = {
     .name       = "h2",
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_BG | C4M_STY_BOLD | 0x606060b3ff00UL,
     .top_pad    = 1,
-    .alignment  = ALIGN_BOTTOM_CENTER,
+    .alignment  = C4M_ALIGN_BOTTOM_CENTER,
 };
 
-static const render_style_t default_h3 = {
+static const c4m_render_style_t default_h3 = {
     .name       = "h3",
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_BG | C4M_STY_BOLD | 0x454545ee82eeUL,
     .top_pad    = 1,
-    .alignment  = ALIGN_BOTTOM_CENTER,
+    .alignment  = C4M_ALIGN_BOTTOM_CENTER,
 };
 
-static const render_style_t default_h4 = {
+static const c4m_render_style_t default_h4 = {
     .name       = "h4",
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_BG | C4M_STY_UL | (0xff2f8eUL << 24),
-    .alignment  = ALIGN_BOTTOM_LEFT,
+    .alignment  = C4M_ALIGN_BOTTOM_LEFT,
 
 };
 
-static const render_style_t default_h5 = {
+static const c4m_render_style_t default_h5 = {
     .name       = "h5",
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_BG | C4M_STY_UL | (0xb3ff00UL << 24),
-    .alignment  = ALIGN_BOTTOM_LEFT,
+    .alignment  = C4M_ALIGN_BOTTOM_LEFT,
 };
 
-static const render_style_t default_h6 = {
+static const c4m_render_style_t default_h6 = {
     .name       = "h6",
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_BG | C4M_STY_UL | (0xee82eeUL << 24),
-    .alignment  = ALIGN_BOTTOM_LEFT,
+    .alignment  = C4M_ALIGN_BOTTOM_LEFT,
 };
 
-static const render_style_t default_flow = {
+static const c4m_render_style_t default_flow = {
     .name       = "flow",
     .base_style = 0x2f3f3ff8f8fful | C4M_STY_BG | C4M_STY_FG,
     .left_pad   = 1,
     .right_pad  = 1,
-    .alignment  = ALIGN_TOP_LEFT,
+    .alignment  = C4M_ALIGN_TOP_LEFT,
 };
 
 // Third word of render styles is a pointer.
@@ -290,7 +290,7 @@ init_style_db()
 }
 
 void
-c4m_set_style(char *name, render_style_t *style)
+c4m_set_style(char *name, c4m_render_style_t *style)
 {
     init_style_db();
     hatrack_dict_put(style_dictionary, name, style);
@@ -298,50 +298,50 @@ c4m_set_style(char *name, render_style_t *style)
 
 // Returns a COPY of the style so that it doesn't get accidentially
 // changed by reference.
-render_style_t *
+c4m_render_style_t *
 c4m_lookup_cell_style(char *name)
 {
     init_style_db();
 
-    render_style_t *entry = hatrack_dict_get(style_dictionary, name, NULL);
+    c4m_render_style_t *entry = hatrack_dict_get(style_dictionary, name, NULL);
 
     if (!entry) {
         return NULL;
     }
 
-    render_style_t *result = c4m_gc_alloc_mapped(render_style_t,
-                                                 &c4m_rs_pmap[0]);
-    memcpy(result, entry, sizeof(render_style_t));
+    c4m_render_style_t *result = c4m_gc_alloc_mapped(c4m_render_style_t,
+                                                     &c4m_rs_pmap[0]);
+    memcpy(result, entry, sizeof(c4m_render_style_t));
     return result;
 }
 
 void
-c4m_style_init(render_style_t *style, va_list args)
+c4m_style_init(c4m_render_style_t *style, va_list args)
 {
-    color_t fg_color        = -1;
-    color_t bg_color        = -1;
-    bool    bold            = false;
-    bool    italic          = false;
-    bool    strikethru      = false;
-    bool    underline       = false;
-    bool    duline          = false;
-    bool    reverse         = false;
-    bool    fit_text        = false;
-    bool    disable_wrap    = false;
-    double  width_pct       = -1;
-    int64_t flex_units      = -1;
-    int32_t min_size        = -1;
-    int32_t max_size        = -1;
-    int32_t top_pad         = -1;
-    int32_t bottom_pad      = -1;
-    int32_t left_pad        = -1;
-    int32_t right_pad       = -1;
-    int32_t wrap_hang       = -1;
-    color_t pad_color       = 0xffffffff;
-    int32_t alignment       = -1;
-    int32_t enabled_borders = -1;
-    char   *border_theme    = NULL;
-    char   *tag             = NULL;
+    c4m_color_t fg_color        = -1;
+    c4m_color_t bg_color        = -1;
+    bool        bold            = false;
+    bool        italic          = false;
+    bool        strikethru      = false;
+    bool        underline       = false;
+    bool        duline          = false;
+    bool        reverse         = false;
+    bool        fit_text        = false;
+    bool        disable_wrap    = false;
+    double      width_pct       = -1;
+    int64_t     flex_units      = -1;
+    int32_t     min_size        = -1;
+    int32_t     max_size        = -1;
+    int32_t     top_pad         = -1;
+    int32_t     bottom_pad      = -1;
+    int32_t     left_pad        = -1;
+    int32_t     right_pad       = -1;
+    int32_t     wrap_hang       = -1;
+    c4m_color_t pad_color       = 0xffffffff;
+    int32_t     alignment       = -1;
+    int32_t     enabled_borders = -1;
+    char       *border_theme    = NULL;
+    char       *tag             = NULL;
 
     c4m_karg_va_init(args);
     c4m_kw_int32("fg_color", fg_color);
@@ -467,11 +467,11 @@ c4m_style_init(render_style_t *style, va_list args)
     }
 
     if (alignment != -1) {
-        c4m_set_alignment(style, (alignment_t)alignment);
+        c4m_set_alignment(style, (c4m_alignment_t)alignment);
     }
 
     if (enabled_borders != -1) {
-        c4m_set_borders(style, (border_set_t)enabled_borders);
+        c4m_set_borders(style, (c4m_border_set_t)enabled_borders);
     }
 
     if (tag != NULL) {
@@ -480,7 +480,7 @@ c4m_style_init(render_style_t *style, va_list args)
 }
 
 void
-c4m_layer_styles(const render_style_t *base, render_style_t *cur)
+c4m_layer_styles(const c4m_render_style_t *base, c4m_render_style_t *cur)
 {
     // Anything not explicitly set in 'cur' will get set from base.
     if (!(cur->base_style & C4M_STY_FG) && base->base_style & C4M_STY_FG) {
@@ -490,7 +490,7 @@ c4m_layer_styles(const render_style_t *base, render_style_t *cur)
     if (!(cur->base_style & C4M_STY_BG) && base->base_style & C4M_STY_BG) {
         c4m_set_render_style_bg_color(
             cur,
-            (color_t)((base->base_style & ~C4M_STY_CLEAR_BG) >> 24));
+            (c4m_color_t)((base->base_style & ~C4M_STY_CLEAR_BG) >> 24));
     }
     if (base->base_style & C4M_STY_BOLD) {
         cur->base_style |= C4M_STY_BOLD;
@@ -525,7 +525,7 @@ c4m_layer_styles(const render_style_t *base, render_style_t *cur)
         c4m_set_pad_color(cur, base->pad_color);
     }
 
-    if (cur->dim_kind == DIM_UNSET && base->dim_kind != DIM_UNSET) {
+    if (cur->dim_kind == C4M_DIM_UNSET && base->dim_kind != C4M_DIM_UNSET) {
         cur->dim_kind = base->dim_kind;
         cur->dims     = base->dims;
     }
@@ -566,7 +566,7 @@ c4m_layer_styles(const render_style_t *base, render_style_t *cur)
 }
 
 static void
-c4m_style_marshal(render_style_t *obj, stream_t *s, dict_t *memos, int64_t *mid)
+c4m_style_marshal(c4m_render_style_t *obj, stream_t *s, dict_t *memos, int64_t *mid)
 {
     uint8_t flags = 0;
 
@@ -589,7 +589,7 @@ c4m_style_marshal(render_style_t *obj, stream_t *s, dict_t *memos, int64_t *mid)
 }
 
 static void
-c4m_style_unmarshal(render_style_t *obj, stream_t *s, dict_t *memos)
+c4m_style_unmarshal(c4m_render_style_t *obj, stream_t *s, dict_t *memos)
 {
     uint8_t flags;
     char   *theme;
@@ -635,26 +635,26 @@ c4m_install_default_styles()
 {
     init_style_db();
 
-    c4m_set_style("table", (render_style_t *)&default_table);
-    c4m_set_style("tr", (render_style_t *)&default_tr);
-    c4m_set_style("tr.even", (render_style_t *)&default_tr_even);
-    c4m_set_style("tr.odd", (render_style_t *)&default_tr_odd);
-    c4m_set_style("td", (render_style_t *)&default_td);
-    c4m_set_style("text", (render_style_t *)&default_td);
-    c4m_set_style("th", (render_style_t *)&default_th);
-    c4m_set_style("tcol", (render_style_t *)&default_tcol);
-    c4m_set_style("ul", (render_style_t *)&default_list_grid);
-    c4m_set_style("ol", (render_style_t *)&default_ordered_list_grid);
-    c4m_set_style("bullet", (render_style_t *)&default_bullet_column);
-    c4m_set_style("li", (render_style_t *)&default_list_text_column);
-    c4m_set_style("h1", (render_style_t *)&default_h1);
-    c4m_set_style("h2", (render_style_t *)&default_h2);
-    c4m_set_style("h3", (render_style_t *)&default_h3);
-    c4m_set_style("h4", (render_style_t *)&default_h4);
-    c4m_set_style("h5", (render_style_t *)&default_h5);
-    c4m_set_style("h6", (render_style_t *)&default_h6);
-    c4m_set_style("table", (render_style_t *)&default_table);
-    c4m_set_style("flow", (render_style_t *)&default_flow);
+    c4m_set_style("table", (c4m_render_style_t *)&default_table);
+    c4m_set_style("tr", (c4m_render_style_t *)&default_tr);
+    c4m_set_style("tr.even", (c4m_render_style_t *)&default_tr_even);
+    c4m_set_style("tr.odd", (c4m_render_style_t *)&default_tr_odd);
+    c4m_set_style("td", (c4m_render_style_t *)&default_td);
+    c4m_set_style("text", (c4m_render_style_t *)&default_td);
+    c4m_set_style("th", (c4m_render_style_t *)&default_th);
+    c4m_set_style("tcol", (c4m_render_style_t *)&default_tcol);
+    c4m_set_style("ul", (c4m_render_style_t *)&default_list_grid);
+    c4m_set_style("ol", (c4m_render_style_t *)&default_ordered_list_grid);
+    c4m_set_style("bullet", (c4m_render_style_t *)&default_bullet_column);
+    c4m_set_style("li", (c4m_render_style_t *)&default_list_text_column);
+    c4m_set_style("h1", (c4m_render_style_t *)&default_h1);
+    c4m_set_style("h2", (c4m_render_style_t *)&default_h2);
+    c4m_set_style("h3", (c4m_render_style_t *)&default_h3);
+    c4m_set_style("h4", (c4m_render_style_t *)&default_h4);
+    c4m_set_style("h5", (c4m_render_style_t *)&default_h5);
+    c4m_set_style("h6", (c4m_render_style_t *)&default_h6);
+    c4m_set_style("table", (c4m_render_style_t *)&default_table);
+    c4m_set_style("flow", (c4m_render_style_t *)&default_flow);
 }
 
 const c4m_vtable_t c4m_render_style_vtable = {

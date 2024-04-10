@@ -22,11 +22,11 @@ extern void     c4m_marshal_unmanaged_object(void *,
                                              stream_t *,
                                              struct dict_t *,
                                              int64_t *,
-                                             marshal_fn);
+                                             c4m_marshal_fn);
 extern void    *c4m_unmarshal_unmanaged_object(size_t,
                                                stream_t *,
                                                struct dict_t *,
-                                               unmarshal_fn);
+                                               c4m_unmarshal_fn);
 extern void     c4m_dump_c_static_instance_code(object_t, char *, utf8_t *);
 static inline void
 c4m_marshal_i8(int8_t c, stream_t *s)

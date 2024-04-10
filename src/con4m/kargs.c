@@ -11,15 +11,16 @@
 #include "con4m.h"
 
 static void
-kargs_init(karg_info_t *kargs, va_list args)
+kargs_init(c4m_karg_info_t *kargs, va_list args)
 {
     int nargs = va_arg(args, int);
 
     kargs->num_provided = nargs;
-    kargs->args         = c4m_gc_raw_alloc(sizeof(one_karg_t) * nargs, NULL);
+    kargs->args         = c4m_gc_raw_alloc(sizeof(c4m_one_karg_t) * nargs,
+                                   NULL);
 }
 
-karg_info_t *
+c4m_karg_info_t *
 c4m_pass_kargs(int nargs, ...)
 {
     va_list args;
@@ -34,7 +35,7 @@ c4m_pass_kargs(int nargs, ...)
 
     nargs >>= 1;
 
-    karg_info_t *kargs = c4m_new(c4m_tspec_kargs(), nargs);
+    c4m_karg_info_t *kargs = c4m_new(c4m_tspec_kargs(), nargs);
 
     for (int i = 0; i < nargs; i++) {
         kargs->args[i].kw    = va_arg(args, char *);
@@ -46,7 +47,7 @@ c4m_pass_kargs(int nargs, ...)
     return kargs;
 }
 
-karg_info_t *
+c4m_karg_info_t *
 c4m_get_kargs(va_list args)
 {
     object_t cur;
@@ -70,7 +71,7 @@ c4m_get_kargs(va_list args)
 }
 
 // This is for varargs functions, so it def needs to copy the va_list.
-karg_info_t *
+c4m_karg_info_t *
 c4m_get_kargs_and_count(va_list args, int *nargs)
 {
     va_list  arg_copy;

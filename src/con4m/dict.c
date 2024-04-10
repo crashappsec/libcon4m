@@ -3,11 +3,11 @@
 static void
 c4m_dict_init(hatrack_dict_t *dict, va_list args)
 {
-    size_t       hash_fn;
-    xlist_t     *type_params;
-    type_spec_t *key_type;
-    dt_info     *info;
-    type_spec_t *dict_type = c4m_get_my_type(dict);
+    size_t         hash_fn;
+    xlist_t       *type_params;
+    type_spec_t   *key_type;
+    c4m_dt_info_t *info;
+    type_spec_t   *dict_type = c4m_get_my_type(dict);
 
     if (dict_type != NULL) {
         type_params = c4m_tspec_get_parameters(dict_type);
@@ -51,8 +51,8 @@ c4m_dict_marshal(dict_t *d, stream_t *s, dict_t *memos, int64_t *mid)
     type_spec_t         *key_type    = c4m_xlist_get(type_params, 0, NULL);
     type_spec_t         *val_type    = c4m_xlist_get(type_params, 1, NULL);
     hatrack_dict_item_t *view        = hatrack_dict_items_sort(d, &length);
-    dt_info             *kinfo       = c4m_tspec_get_data_type_info(key_type);
-    dt_info             *vinfo       = c4m_tspec_get_data_type_info(val_type);
+    c4m_dt_info_t       *kinfo       = c4m_tspec_get_data_type_info(key_type);
+    c4m_dt_info_t       *vinfo       = c4m_tspec_get_data_type_info(val_type);
     bool                 key_by_val  = kinfo->by_value;
     bool                 val_by_val  = vinfo->by_value;
 
@@ -81,15 +81,15 @@ c4m_dict_marshal(dict_t *d, stream_t *s, dict_t *memos, int64_t *mid)
 static void
 c4m_dict_unmarshal(dict_t *d, stream_t *s, dict_t *memos)
 {
-    uint32_t     length      = c4m_unmarshal_u32(s);
-    type_spec_t *dict_type   = c4m_get_my_type(d);
-    xlist_t     *type_params = c4m_tspec_get_parameters(dict_type);
-    type_spec_t *key_type    = c4m_xlist_get(type_params, 0, NULL);
-    type_spec_t *val_type    = c4m_xlist_get(type_params, 1, NULL);
-    dt_info     *kinfo       = c4m_tspec_get_data_type_info(key_type);
-    dt_info     *vinfo       = c4m_tspec_get_data_type_info(val_type);
-    bool         key_by_val  = kinfo->by_value;
-    bool         val_by_val  = vinfo->by_value;
+    uint32_t       length      = c4m_unmarshal_u32(s);
+    type_spec_t   *dict_type   = c4m_get_my_type(d);
+    xlist_t       *type_params = c4m_tspec_get_parameters(dict_type);
+    type_spec_t   *key_type    = c4m_xlist_get(type_params, 0, NULL);
+    type_spec_t   *val_type    = c4m_xlist_get(type_params, 1, NULL);
+    c4m_dt_info_t *kinfo       = c4m_tspec_get_data_type_info(key_type);
+    c4m_dt_info_t *vinfo       = c4m_tspec_get_data_type_info(val_type);
+    bool           key_by_val  = kinfo->by_value;
+    bool           val_by_val  = vinfo->by_value;
 
     hatrack_dict_init(d, kinfo->hash_fn);
 

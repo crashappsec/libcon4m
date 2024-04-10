@@ -15,7 +15,7 @@
 #define SPAN_HERE  1
 #define SPAN_BELOW 2
 
-static inline render_style_t *
+static inline c4m_render_style_t *
 grid_style(grid_t *grid)
 {
     if (!grid->self->current_style) {
@@ -29,7 +29,7 @@ void
 c4m_apply_container_style(renderable_t *item, char *tag)
 
 {
-    render_style_t *tag_style = c4m_lookup_cell_style(tag);
+    c4m_render_style_t *tag_style = c4m_lookup_cell_style(tag);
     if (!tag_style) {
         return;
     }
@@ -43,7 +43,7 @@ c4m_apply_container_style(renderable_t *item, char *tag)
 }
 
 static inline utf32_t *
-styled_repeat(codepoint_t c, uint32_t width, style_t style)
+styled_repeat(c4m_codepoint_t c, uint32_t width, c4m_style_t style)
 {
     utf32_t *result = c4m_utf32_repeat(c, width);
 
@@ -55,16 +55,16 @@ styled_repeat(codepoint_t c, uint32_t width, style_t style)
 }
 
 static inline utf32_t *
-get_styled_pad(uint32_t width, style_t style)
+get_styled_pad(uint32_t width, c4m_style_t style)
 {
     return styled_repeat(' ', width, style);
 }
 
 static xlist_t *
-pad_lines_vertically(render_style_t *gs,
-                     xlist_t        *list,
-                     int32_t         height,
-                     int32_t         width)
+pad_lines_vertically(c4m_render_style_t *gs,
+                     xlist_t            *list,
+                     int32_t             height,
+                     int32_t             width)
 {
     int32_t  len  = c4m_xlist_len(list);
     int32_t  diff = height - len;
@@ -81,7 +81,7 @@ pad_lines_vertically(render_style_t *gs,
         pad->styling = l->styling;
     }
     switch (gs->alignment) {
-    case ALIGN_BOTTOM:
+    case C4M_ALIGN_BOTTOM:
         res = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()),
                       c4m_kw("length", c4m_ka(height)));
 
@@ -91,7 +91,7 @@ pad_lines_vertically(render_style_t *gs,
         c4m_xlist_plus_eq(res, list);
         return res;
 
-    case ALIGN_MIDDLE:
+    case C4M_ALIGN_MIDDLE:
         res = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()),
                       c4m_kw("length", c4m_ka(height)));
 
@@ -188,7 +188,7 @@ c4m_expand_columns(grid_t *grid, uint64_t num)
         }
     }
 
-    render_style_t **col_props = c4m_gc_array_alloc(render_style_t *, new_cols);
+    c4m_render_style_t **col_props = c4m_gc_array_alloc(c4m_render_style_t *, new_cols);
 
     for (int i = 0; i < grid->num_cols; i++) {
         col_props[i] = grid->col_props[i];
@@ -216,7 +216,7 @@ c4m_grid_expand_rows(grid_t *grid, uint64_t num)
         cells[i] = grid->cells[i];
     }
 
-    render_style_t **row_props = c4m_gc_array_alloc(render_style_t *, new_rows);
+    c4m_render_style_t **row_props = c4m_gc_array_alloc(c4m_render_style_t *, new_rows);
 
     for (int i = 0; i < grid->num_rows; i++) {
         row_props[i] = grid->row_props[i];
@@ -238,7 +238,7 @@ c4m_grid_add_row(grid_t *grid, object_t container)
     }
 
     switch (c4m_base_type(container)) {
-    case T_RENDERABLE:
+    case C4M_T_RENDERABLE:
         c4m_install_renderable(grid,
                                (renderable_t *)container,
                                grid->row_cursor,
@@ -248,9 +248,9 @@ c4m_grid_add_row(grid_t *grid, object_t container)
         grid->row_cursor++;
         return;
 
-    case T_GRID:
-    case T_UTF8:
-    case T_UTF32: {
+    case C4M_T_GRID:
+    case C4M_T_UTF8:
+    case C4M_T_UTF32: {
         renderable_t *r = c4m_new(c4m_tspec_renderable(),
                                   c4m_kw("obj",
                                          c4m_ka(container),
@@ -265,7 +265,7 @@ c4m_grid_add_row(grid_t *grid, object_t container)
         grid->row_cursor++;
         return;
     }
-    case T_LIST: {
+    case C4M_T_LIST: {
         flex_view_t *items = flexarray_view((flexarray_t *)container);
 
         for (int i = 0; i < grid->num_cols; i++) {
@@ -279,7 +279,7 @@ c4m_grid_add_row(grid_t *grid, object_t container)
         grid->row_cursor++;
         return;
     }
-    case T_XLIST:
+    case C4M_T_XLIST:
         for (int i = 0; i < grid->num_cols; i++) {
             object_t x = c4m_xlist_get((xlist_t *)container, i, NULL);
             if (x == NULL) {
@@ -374,8 +374,8 @@ grid_init(grid_t *grid, va_list args)
                                         c4m_ka(grid)));
     grid->self         = self;
 
-    grid->col_props = c4m_gc_array_alloc(render_style_t *, grid->num_cols);
-    grid->row_props = c4m_gc_array_alloc(render_style_t *,
+    grid->col_props = c4m_gc_array_alloc(c4m_render_style_t *, grid->num_cols);
+    grid->row_props = c4m_gc_array_alloc(c4m_render_style_t *,
                                          grid->num_rows + spare_rows);
 
     for (int i = 0; i < min(header_rows, start_rows); i++) {
@@ -390,7 +390,7 @@ grid_init(grid_t *grid, va_list args)
     grid->header_cols = header_cols;
 }
 
-static inline render_style_t *
+static inline c4m_render_style_t *
 get_row_props(grid_t *grid, int row)
 {
     if (!grid->row_props[row]) {
@@ -410,7 +410,7 @@ get_row_props(grid_t *grid, int row)
     }
 }
 
-static inline render_style_t *
+static inline c4m_render_style_t *
 get_col_props(grid_t *grid, int col)
 {
     if (!grid->col_props[col]) {
@@ -512,18 +512,18 @@ c4m_grid_add_row_span(grid_t       *grid,
 static inline int16_t
 get_column_render_overhead(grid_t *grid)
 {
-    render_style_t *gs     = grid_style(grid);
-    int16_t         result = gs->left_pad + gs->right_pad;
+    c4m_render_style_t *gs     = grid_style(grid);
+    int16_t             result = gs->left_pad + gs->right_pad;
 
-    if (gs->borders & BORDER_LEFT) {
+    if (gs->borders & C4M_BORDER_LEFT) {
         result += 1;
     }
 
-    if (gs->borders & BORDER_RIGHT) {
+    if (gs->borders & C4M_BORDER_RIGHT) {
         result += 1;
     }
 
-    if (gs->borders & INTERIOR_VERTICAL) {
+    if (gs->borders & C4M_INTERIOR_VERTICAL) {
         result += grid->num_cols - 1;
     }
 
@@ -544,8 +544,8 @@ column_text_width(grid_t *grid, int col)
             continue;
         }
         switch (c4m_base_type(cell->raw_item)) {
-        case T_UTF8:
-        case T_UTF32:
+        case C4M_T_UTF8:
+        case C4M_T_UTF32:
             s = (any_str_t *)cell->raw_item;
 
             flexarray_t *f   = c4m_str_split(s, c4m_str_newline());
@@ -575,10 +575,10 @@ column_text_width(grid_t *grid, int col)
 static int16_t *
 calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
 {
-    size_t          term_width;
-    int16_t        *result = c4m_gc_array_alloc(uint16_t, grid->num_cols);
-    int16_t         sum    = get_column_render_overhead(grid);
-    render_style_t *props;
+    size_t              term_width;
+    int16_t            *result = c4m_gc_array_alloc(uint16_t, grid->num_cols);
+    int16_t             sum    = get_column_render_overhead(grid);
+    c4m_render_style_t *props;
 
     for (int i = 0; i < grid->num_cols; i++) {
         props = get_col_props(grid, i);
@@ -602,11 +602,11 @@ calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
             props = get_col_props(grid, i);
 
             switch (props->dim_kind) {
-            case DIM_ABSOLUTE:
+            case C4M_DIM_ABSOLUTE:
                 result[i] = (uint16_t)props->dims.units;
                 sum += result[i];
                 break;
-            case DIM_ABSOLUTE_RANGE:
+            case C4M_DIM_ABSOLUTE_RANGE:
                 result[i] = (uint16_t)props->dims.range[1];
                 sum += result[i];
                 break;
@@ -645,46 +645,46 @@ calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
         props = get_col_props(grid, i);
 
         switch (props->dim_kind) {
-        case DIM_ABSOLUTE:
+        case C4M_DIM_ABSOLUTE:
             cur       = (uint16_t)props->dims.units;
             result[i] = cur;
             sum += cur;
             remaining -= cur;
             continue;
-        case DIM_ABSOLUTE_RANGE:
+        case C4M_DIM_ABSOLUTE_RANGE:
             has_range = true;
             cur       = (uint16_t)props->dims.range[0];
             result[i] = cur;
             sum += cur;
             remaining -= cur;
             continue;
-        case DIM_PERCENT_TRUNCATE:
+        case C4M_DIM_PERCENT_TRUNCATE:
             pct       = (props->dims.percent / 100);
             cur       = (uint16_t)(pct * width);
             result[i] = cur;
             sum += cur;
             remaining -= cur;
             continue;
-        case DIM_PERCENT_ROUND:
+        case C4M_DIM_PERCENT_ROUND:
             pct       = (props->dims.percent + 0.5) / 100;
             cur       = (uint16_t)(pct * width);
             result[i] = cur;
             sum += cur;
             remaining -= cur;
             continue;
-        case DIM_FIT_TO_TEXT:
+        case C4M_DIM_FIT_TO_TEXT:
             cur       = column_text_width(grid, i);
             result[i] = cur;
             sum += cur;
             remaining -= cur;
 
             continue;
-        case DIM_UNSET:
-        case DIM_AUTO:
+        case C4M_DIM_UNSET:
+        case C4M_DIM_AUTO:
             flex_units += 1;
             num_flex += 1;
             continue;
-        case DIM_FLEX_UNITS:
+        case C4M_DIM_FLEX_UNITS:
             flex_units += props->dims.units;
 
             // We don't count this if it's set to 0.
@@ -707,7 +707,7 @@ calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
         for (int i = 0; i < grid->num_cols; i++) {
             props = get_col_props(grid, i);
 
-            if (props->dim_kind != DIM_ABSOLUTE_RANGE) {
+            if (props->dim_kind != C4M_DIM_ABSOLUTE_RANGE) {
                 continue;
             }
             int32_t desired = props->dims.range[1] - props->dims.range[0];
@@ -743,14 +743,14 @@ calculate_col_widths(grid_t *grid, int16_t width, int16_t *render_width)
         uint64_t units = 1;
 
         switch (props->dim_kind) {
-        case DIM_FLEX_UNITS:
+        case C4M_DIM_FLEX_UNITS:
             units = props->dims.units;
             if (units == 0) {
                 continue;
             }
             /* fallthrough */
-        case DIM_UNSET:
-        case DIM_AUTO:
+        case C4M_DIM_UNSET:
+        case C4M_DIM_AUTO:
             if (--num_flex == 0) {
                 result[i] += remaining;
                 sum += remaining;
@@ -794,20 +794,20 @@ pad_and_style_line(grid_t       *grid,
                    int16_t       width,
                    utf32_t      *line)
 {
-    alignment_t align = cell->current_style->alignment & HORIZONTAL_MASK;
-    int64_t     len   = c4m_str_render_len(line);
-    uint8_t     lnum  = cell->current_style->left_pad;
-    uint8_t     rnum  = cell->current_style->right_pad;
-    int64_t     diff  = width - len - lnum - rnum;
-    utf32_t    *lpad;
-    utf32_t    *rpad;
+    c4m_alignment_t align = cell->current_style->alignment & C4M_HORIZONTAL_MASK;
+    int64_t         len   = c4m_str_render_len(line);
+    uint8_t         lnum  = cell->current_style->left_pad;
+    uint8_t         rnum  = cell->current_style->right_pad;
+    int64_t         diff  = width - len - lnum - rnum;
+    utf32_t        *lpad;
+    utf32_t        *rpad;
 
     if (diff > 0) {
         switch (align) {
-        case ALIGN_RIGHT:
+        case C4M_ALIGN_RIGHT:
             lnum += diff;
             break;
-        case ALIGN_CENTER:
+        case C4M_ALIGN_CENTER:
             lnum += (diff / 2);
             rnum += (diff / 2);
 
@@ -821,10 +821,10 @@ pad_and_style_line(grid_t       *grid,
         }
     }
 
-    style_t  cell_style = cell->current_style->base_style;
-    style_t  lpad_style = c4m_get_pad_style(cell->current_style);
-    style_t  rpad_style = lpad_style;
-    utf32_t *copy       = c4m_str_copy(line);
+    c4m_style_t cell_style = cell->current_style->base_style;
+    c4m_style_t lpad_style = c4m_get_pad_style(cell->current_style);
+    c4m_style_t rpad_style = lpad_style;
+    utf32_t    *copy       = c4m_str_copy(line);
 
     c4m_style_gaps(copy, cell_style);
 
@@ -846,10 +846,10 @@ str_render_cell(grid_t       *grid,
                 int16_t       width,
                 int16_t       height)
 {
-    render_style_t *col_style = get_col_props(grid, cell->start_col);
-    render_style_t *row_style = get_row_props(grid, cell->start_row);
-    render_style_t *cs        = c4m_copy_render_style(cell->current_style);
-    xlist_t        *res       = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
+    c4m_render_style_t *col_style = get_col_props(grid, cell->start_col);
+    c4m_render_style_t *row_style = get_row_props(grid, cell->start_row);
+    c4m_render_style_t *cs        = c4m_copy_render_style(cell->current_style);
+    xlist_t            *res       = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
 
     c4m_layer_styles(col_style, cs);
     c4m_layer_styles(row_style, cs);
@@ -920,8 +920,8 @@ render_to_cache(grid_t *grid, renderable_t *cell, int16_t width, int16_t height)
     assert(cell->raw_item != NULL);
 
     switch (c4m_base_type(cell->raw_item)) {
-    case T_UTF8:
-    case T_UTF32: {
+    case C4M_T_UTF8:
+    case C4M_T_UTF32: {
         any_str_t *r = (any_str_t *)cell->raw_item;
         if (cell->end_col - cell->start_col != 1) {
             return str_render_cell(grid, c4m_to_utf32(r), cell, width, height);
@@ -931,7 +931,7 @@ render_to_cache(grid_t *grid, renderable_t *cell, int16_t width, int16_t height)
         }
     }
 
-    case T_GRID:
+    case C4M_T_GRID:
         cell->render_cache = c4m_grid_render(cell->raw_item,
                                              c4m_kw("width",
                                                     c4m_ka(width),
@@ -965,8 +965,9 @@ grid_add_blank_cell(grid_t  *grid,
 static inline int16_t *
 grid_pre_render(grid_t *grid, int16_t *col_widths)
 {
-    int16_t        *row_heights = c4m_gc_array_alloc(int16_t *, grid->num_rows);
-    render_style_t *gs          = grid_style(grid);
+    int16_t            *row_heights = c4m_gc_array_alloc(int16_t *,
+                                              grid->num_rows);
+    c4m_render_style_t *gs          = grid_style(grid);
 
     // Run through and tell the individual items to render.
     // For now we tell them all to render to whatever height.
@@ -993,7 +994,7 @@ grid_pre_render(grid_t *grid, int16_t *col_widths)
             }
 
             // Make sure to account for borders in spans.
-            if (gs->borders & INTERIOR_VERTICAL) {
+            if (gs->borders & C4M_INTERIOR_VERTICAL) {
                 width += cell->end_col - j - 1;
             }
 
@@ -1033,8 +1034,8 @@ grid_pre_render(grid_t *grid, int16_t *col_widths)
 static inline void
 grid_add_top_pad(grid_t *grid, xlist_t *lines, int16_t width)
 {
-    render_style_t *gs  = grid_style(grid);
-    int             top = gs->top_pad;
+    c4m_render_style_t *gs  = grid_style(grid);
+    int                 top = gs->top_pad;
 
     if (!top) {
         return;
@@ -1050,8 +1051,8 @@ grid_add_top_pad(grid_t *grid, xlist_t *lines, int16_t width)
 static inline void
 grid_add_bottom_pad(grid_t *grid, xlist_t *lines, int16_t width)
 {
-    render_style_t *gs     = grid_style(grid);
-    int             bottom = gs->bottom_pad;
+    c4m_render_style_t *gs     = grid_style(grid);
+    int                 bottom = gs->bottom_pad;
 
     if (!bottom) {
         return;
@@ -1091,15 +1092,15 @@ find_spans(grid_t *grid, int row, int col)
 static inline void
 grid_add_top_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 {
-    render_style_t *gs           = grid_style(grid);
-    int32_t         border_width = 0;
-    int             vertical_borders;
-    border_theme_t *draw_chars;
-    utf32_t        *s, *lpad, *rpad;
-    codepoint_t    *p;
-    style_t         pad_color;
+    c4m_render_style_t *gs           = grid_style(grid);
+    int32_t             border_width = 0;
+    int                 vertical_borders;
+    c4m_border_theme_t *draw_chars;
+    utf32_t            *s, *lpad, *rpad;
+    c4m_codepoint_t    *p;
+    c4m_style_t         pad_color;
 
-    if (!(gs->borders & BORDER_TOP)) {
+    if (!(gs->borders & C4M_BORDER_TOP)) {
         return;
     }
 
@@ -1109,26 +1110,26 @@ grid_add_top_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
         border_width += col_widths[i];
     }
 
-    if (gs->borders & BORDER_LEFT) {
+    if (gs->borders & C4M_BORDER_LEFT) {
         border_width++;
     }
 
-    if (gs->borders & BORDER_RIGHT) {
+    if (gs->borders & C4M_BORDER_RIGHT) {
         border_width++;
     }
 
-    vertical_borders = gs->borders & INTERIOR_VERTICAL;
+    vertical_borders = gs->borders & C4M_INTERIOR_VERTICAL;
 
     if (vertical_borders) {
         border_width += grid->num_cols - 1;
     }
 
     s = c4m_new(c4m_tspec_utf32(), c4m_kw("length", c4m_ka(border_width)));
-    p = (codepoint_t *)s->data;
+    p = (c4m_codepoint_t *)s->data;
 
     s->codepoints = ~border_width;
 
-    if (gs->borders & BORDER_LEFT) {
+    if (gs->borders & C4M_BORDER_LEFT) {
         *p++ = draw_chars->upper_left;
     }
 
@@ -1147,7 +1148,7 @@ grid_add_top_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
         }
     }
 
-    if (gs->borders & BORDER_RIGHT) {
+    if (gs->borders & C4M_BORDER_RIGHT) {
         *p++ = draw_chars->upper_right;
     }
 
@@ -1163,15 +1164,15 @@ grid_add_top_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 static inline void
 grid_add_bottom_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
 {
-    render_style_t *gs           = grid_style(grid);
-    int32_t         border_width = 0;
-    int             vertical_borders;
-    border_theme_t *draw_chars;
-    utf32_t        *s, *lpad, *rpad;
-    codepoint_t    *p;
-    style_t         pad_color;
+    c4m_render_style_t *gs           = grid_style(grid);
+    int32_t             border_width = 0;
+    int                 vertical_borders;
+    c4m_border_theme_t *draw_chars;
+    utf32_t            *s, *lpad, *rpad;
+    c4m_codepoint_t    *p;
+    c4m_style_t         pad_color;
 
-    if (!(gs->borders & BORDER_BOTTOM)) {
+    if (!(gs->borders & C4M_BORDER_BOTTOM)) {
         return;
     }
 
@@ -1181,26 +1182,26 @@ grid_add_bottom_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
         border_width += col_widths[i];
     }
 
-    if (gs->borders & BORDER_LEFT) {
+    if (gs->borders & C4M_BORDER_LEFT) {
         border_width++;
     }
 
-    if (gs->borders & BORDER_RIGHT) {
+    if (gs->borders & C4M_BORDER_RIGHT) {
         border_width++;
     }
 
-    vertical_borders = gs->borders & INTERIOR_VERTICAL;
+    vertical_borders = gs->borders & C4M_INTERIOR_VERTICAL;
 
     if (vertical_borders) {
         border_width += grid->num_cols - 1;
     }
 
     s = c4m_new(c4m_tspec_utf32(), c4m_kw("length", c4m_ka(border_width)));
-    p = (codepoint_t *)s->data;
+    p = (c4m_codepoint_t *)s->data;
 
     s->codepoints = ~border_width;
 
-    if (gs->borders & BORDER_LEFT) {
+    if (gs->borders & C4M_BORDER_LEFT) {
         *p++ = draw_chars->lower_left;
     }
 
@@ -1219,7 +1220,7 @@ grid_add_bottom_border(grid_t *grid, xlist_t *lines, int16_t *col_widths)
         }
     }
 
-    if (gs->borders & BORDER_RIGHT) {
+    if (gs->borders & C4M_BORDER_RIGHT) {
         *p++ = draw_chars->lower_right;
     }
 
@@ -1238,15 +1239,15 @@ grid_add_horizontal_rule(grid_t  *grid,
                          xlist_t *lines,
                          int16_t *col_widths)
 {
-    render_style_t *gs           = grid_style(grid);
-    int32_t         border_width = 0;
-    int             vertical_borders;
-    border_theme_t *draw_chars;
-    utf32_t        *s, *lpad, *rpad;
-    codepoint_t    *p;
-    style_t         pad_color;
+    c4m_render_style_t *gs           = grid_style(grid);
+    int32_t             border_width = 0;
+    int                 vertical_borders;
+    c4m_border_theme_t *draw_chars;
+    utf32_t            *s, *lpad, *rpad;
+    c4m_codepoint_t    *p;
+    c4m_style_t         pad_color;
 
-    if (!(gs->borders & INTERIOR_HORIZONTAL)) {
+    if (!(gs->borders & C4M_INTERIOR_HORIZONTAL)) {
         return;
     }
 
@@ -1256,26 +1257,26 @@ grid_add_horizontal_rule(grid_t  *grid,
         border_width += col_widths[i];
     }
 
-    if (gs->borders & BORDER_LEFT) {
+    if (gs->borders & C4M_BORDER_LEFT) {
         border_width++;
     }
 
-    if (gs->borders & BORDER_RIGHT) {
+    if (gs->borders & C4M_BORDER_RIGHT) {
         border_width++;
     }
 
-    vertical_borders = gs->borders & INTERIOR_VERTICAL;
+    vertical_borders = gs->borders & C4M_INTERIOR_VERTICAL;
 
     if (vertical_borders) {
         border_width += grid->num_cols - 1;
     }
 
     s = c4m_new(c4m_tspec_utf32(), c4m_kw("length", c4m_ka(border_width)));
-    p = (codepoint_t *)s->data;
+    p = (c4m_codepoint_t *)s->data;
 
     s->codepoints = ~border_width;
 
-    if (gs->borders & BORDER_LEFT) {
+    if (gs->borders & C4M_BORDER_LEFT) {
         *p++ = draw_chars->left_t;
     }
 
@@ -1302,7 +1303,7 @@ grid_add_horizontal_rule(grid_t  *grid,
         }
     }
 
-    if (gs->borders & BORDER_RIGHT) {
+    if (gs->borders & C4M_BORDER_RIGHT) {
         *p++ = draw_chars->right_t;
     }
 
@@ -1318,10 +1319,10 @@ grid_add_horizontal_rule(grid_t  *grid,
 static inline xlist_t *
 grid_add_left_pad(grid_t *grid, int height)
 {
-    render_style_t *gs   = grid_style(grid);
-    xlist_t        *res  = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()),
+    c4m_render_style_t *gs   = grid_style(grid);
+    xlist_t            *res  = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()),
                            c4m_kw("length", c4m_ka(height)));
-    utf32_t        *lpad = c4m_empty_string();
+    utf32_t            *lpad = c4m_empty_string();
 
     if (gs->left_pad > 0) {
         lpad = get_styled_pad(gs->left_pad, c4m_get_pad_style(gs));
@@ -1337,7 +1338,7 @@ grid_add_left_pad(grid_t *grid, int height)
 static inline void
 grid_add_right_pad(grid_t *grid, xlist_t *lines)
 {
-    render_style_t *gs = grid_style(grid);
+    c4m_render_style_t *gs = grid_style(grid);
 
     if (gs->right_pad <= 0) {
         return;
@@ -1352,17 +1353,17 @@ grid_add_right_pad(grid_t *grid, xlist_t *lines)
 }
 
 static inline void
-add_vertical_bar(grid_t *grid, xlist_t *lines, border_set_t to_match)
+add_vertical_bar(grid_t *grid, xlist_t *lines, c4m_border_set_t to_match)
 {
-    render_style_t *gs = grid_style(grid);
+    c4m_render_style_t *gs = grid_style(grid);
 
     if (!(gs->borders & to_match)) {
         return;
     }
 
-    border_theme_t *border_theme = c4m_get_border_theme(gs);
-    style_t         border_color = c4m_str_style(gs);
-    utf32_t        *bar;
+    c4m_border_theme_t *border_theme = c4m_get_border_theme(gs);
+    c4m_style_t         border_color = c4m_str_style(gs);
+    utf32_t            *bar;
 
     bar = styled_repeat(border_theme->vertical_rule, 1, border_color);
 
@@ -1375,34 +1376,34 @@ add_vertical_bar(grid_t *grid, xlist_t *lines, border_set_t to_match)
 static inline void
 grid_add_left_border(grid_t *grid, xlist_t *lines)
 {
-    add_vertical_bar(grid, lines, BORDER_LEFT);
+    add_vertical_bar(grid, lines, C4M_BORDER_LEFT);
 }
 
 static inline void
 grid_add_right_border(grid_t *grid, xlist_t *lines)
 {
-    add_vertical_bar(grid, lines, BORDER_RIGHT);
+    add_vertical_bar(grid, lines, C4M_BORDER_RIGHT);
 }
 
 static inline void
 grid_add_vertical_rule(grid_t *grid, xlist_t *lines)
 {
-    add_vertical_bar(grid, lines, BORDER_RIGHT);
+    add_vertical_bar(grid, lines, C4M_BORDER_RIGHT);
 }
 
 static void
 crop_vertically(grid_t *grid, xlist_t *lines, int32_t height)
 {
-    render_style_t *gs   = grid_style(grid);
-    int32_t         diff = height - c4m_xlist_len(lines);
+    c4m_render_style_t *gs   = grid_style(grid);
+    int32_t             diff = height - c4m_xlist_len(lines);
 
-    switch (gs->alignment & VERTICAL_MASK) {
-    case ALIGN_BOTTOM:
+    switch (gs->alignment & C4M_VERTICAL_MASK) {
+    case C4M_ALIGN_BOTTOM:
         for (int i = 0; i < height; i++) {
             c4m_xlist_set(lines, i, c4m_xlist_get(lines, i + diff, NULL));
         }
         break;
-    case ALIGN_MIDDLE:
+    case C4M_ALIGN_MIDDLE:
         for (int i = 0; i < height; i++) {
             c4m_xlist_set(lines,
                           i,
@@ -1419,9 +1420,9 @@ crop_vertically(grid_t *grid, xlist_t *lines, int32_t height)
 static inline utf32_t *
 align_and_crop_grid_line(grid_t *grid, utf32_t *line, int32_t width)
 {
-    render_style_t *gs        = grid_style(grid);
-    alignment_t     align     = gs->alignment;
-    style_t         pad_style = c4m_get_pad_style(gs);
+    c4m_render_style_t *gs        = grid_style(grid);
+    c4m_alignment_t     align     = gs->alignment;
+    c4m_style_t         pad_style = c4m_get_pad_style(gs);
 
     // Called on one grid line if we need to align or crop it.
     int32_t  diff = width - c4m_str_render_len(line);
@@ -1429,11 +1430,11 @@ align_and_crop_grid_line(grid_t *grid, utf32_t *line, int32_t width)
 
     if (diff > 0) {
         // We need to pad. Here, we use the alignment info.
-        switch (align & HORIZONTAL_MASK) {
-        case ALIGN_RIGHT:
+        switch (align & C4M_HORIZONTAL_MASK) {
+        case C4M_ALIGN_RIGHT:
             pad = get_styled_pad(diff, pad_style);
             return c4m_str_concat(pad, line);
-        case ALIGN_CENTER: {
+        case C4M_ALIGN_CENTER: {
             pad  = get_styled_pad(diff / 2, pad_style);
             line = c4m_str_concat(pad, line);
             if (diff % 2 != 0) {
@@ -1512,8 +1513,9 @@ grid_add_cell_contents(grid_t  *grid,
                                                         i,
                                                         NULL));
             if (!c4m_str_codepoint_len(piece)) {
-                style_t pad_style = c4m_get_pad_style(grid_style(grid));
-                piece             = get_styled_pad(col_widths[i], pad_style);
+                c4m_style_t pad_style = c4m_get_pad_style(grid_style(grid));
+                piece                 = get_styled_pad(col_widths[i],
+                                       pad_style);
             }
             c4m_xlist_set(lines, i, c4m_str_concat(s, piece));
         }
@@ -1522,17 +1524,17 @@ grid_add_cell_contents(grid_t  *grid,
 
     // For spans, just return the one block of the grid, along with
     // any interior borders.
-    uint16_t        row_offset   = r - cell->start_row;
-    uint16_t        col_offset   = c - cell->start_col;
-    int             start_width  = 0;
-    int             start_height = 0;
-    render_style_t *gs           = grid_style(grid);
+    uint16_t            row_offset   = r - cell->start_row;
+    uint16_t            col_offset   = c - cell->start_col;
+    int                 start_width  = 0;
+    int                 start_height = 0;
+    c4m_render_style_t *gs           = grid_style(grid);
 
-    if (gs->borders & INTERIOR_VERTICAL) {
+    if (gs->borders & C4M_INTERIOR_VERTICAL) {
         start_width += col_offset;
     }
 
-    if (gs->borders & INTERIOR_HORIZONTAL) {
+    if (gs->borders & C4M_INTERIOR_HORIZONTAL) {
         start_height += row_offset;
     }
 
@@ -1547,18 +1549,22 @@ grid_add_cell_contents(grid_t  *grid,
     int num_rows = row_heights[r];
     int num_cols = col_widths[c];
 
-    if ((gs->borders & INTERIOR_HORIZONTAL) && r + 1 != cell->end_row) {
+    if ((gs->borders & C4M_INTERIOR_HORIZONTAL) && r + 1 != cell->end_row) {
         num_rows += 1;
     }
 
-    if ((gs->borders & INTERIOR_VERTICAL) && r + 1 != cell->end_col) {
+    if ((gs->borders & C4M_INTERIOR_VERTICAL) && r + 1 != cell->end_col) {
         num_cols += 1;
     }
     for (i = row_offset; i < row_offset + num_rows; i++) {
         utf32_t *s     = c4m_to_utf32(c4m_xlist_get(lines, i, NULL));
-        utf32_t *piece = c4m_to_utf32(c4m_xlist_get(cell->render_cache, i, NULL));
+        utf32_t *piece = c4m_to_utf32(c4m_xlist_get(cell->render_cache,
+                                                    i,
+                                                    NULL));
 
-        piece         = c4m_str_slice(piece, start_width, start_width + num_cols);
+        piece         = c4m_str_slice(piece,
+                              start_width,
+                              start_width + num_cols);
         utf32_t *line = c4m_str_concat(s, piece);
         c4m_xlist_set(lines, i, line);
     }
@@ -1620,8 +1626,8 @@ _c4m_grid_render(grid_t *grid, ...)
     // cells. The function abstractions will do the checking to see if
     // they should do anything.
 
-    render_style_t *gs      = grid_style(grid);
-    uint16_t        h_alloc = grid->num_rows + 1 + gs->top_pad + gs->bottom_pad;
+    c4m_render_style_t *gs      = grid_style(grid);
+    uint16_t            h_alloc = grid->num_rows + 1 + gs->top_pad + gs->bottom_pad;
 
     for (int i = 0; i < grid->num_rows; i++) {
         h_alloc += row_heights[i];
@@ -1698,9 +1704,9 @@ _c4m_ordered_list(flexarray_t *items, ...)
                                  "container_tag",
                                  c4m_ka("ol")));
 
-    render_style_t *bp    = c4m_lookup_cell_style(bullet_style);
-    float           log   = log10((float)n);
-    int             width = (int)(log + .5) + 1 + 1;
+    c4m_render_style_t *bp    = c4m_lookup_cell_style(bullet_style);
+    float               log   = log10((float)n);
+    int                 width = (int)(log + .5) + 1 + 1;
     // Above, one + 1 is because log returns one less than what we
     // need for the int with, and the other is for the period /
     // bullet.
@@ -1731,9 +1737,9 @@ _c4m_ordered_list(flexarray_t *items, ...)
 grid_t *
 _c4m_unordered_list(flexarray_t *items, ...)
 {
-    char       *bullet_style = "bullet";
-    char       *item_style   = "li";
-    codepoint_t bullet       = 0x2022;
+    char           *bullet_style = "bullet";
+    char           *item_style   = "li";
+    c4m_codepoint_t bullet       = 0x2022;
 
     c4m_karg_only_init(items);
     c4m_kw_ptr("bullet_style", bullet_style);
@@ -1751,7 +1757,7 @@ _c4m_unordered_list(flexarray_t *items, ...)
                                  c4m_ka("ul")));
     utf32_t     *bull_str = c4m_utf32_repeat(bullet, 1);
 
-    render_style_t *bp = c4m_lookup_cell_style(bullet_style);
+    c4m_render_style_t *bp = c4m_lookup_cell_style(bullet_style);
     bp->dims.units += bp->left_pad + bp->right_pad;
 
     res->col_props[0] = bp;
@@ -1891,8 +1897,8 @@ c4m_grid_unmarshal(grid_t *grid, stream_t *s, dict_t *memos)
 
     size_t num_cells = (grid->num_rows + grid->spare_rows) * grid->num_cols;
     grid->cells      = c4m_gc_array_alloc(renderable_t *, num_cells);
-    grid->col_props  = c4m_gc_array_alloc(render_style_t *, grid->num_cols);
-    grid->row_props  = c4m_gc_array_alloc(render_style_t *,
+    grid->col_props  = c4m_gc_array_alloc(c4m_render_style_t *, grid->num_cols);
+    grid->row_props  = c4m_gc_array_alloc(c4m_render_style_t *,
                                          grid->num_rows + grid->spare_rows);
 
     num_cells = grid->num_rows * grid->num_cols;
@@ -1975,19 +1981,19 @@ c4m_grid(int32_t start_rows,
 }
 
 typedef struct {
-    codepoint_t  pad;
-    codepoint_t  tchar;
-    codepoint_t  lchar;
-    codepoint_t  hchar;
-    codepoint_t  vchar;
-    int          vpad;
-    int          ipad;
-    int          no_nl;
-    char        *tag;
-    codepoint_t *padstr;
-    int          pad_ix;
-    grid_t      *grid;
-    utf8_t      *nl;
+    c4m_codepoint_t  pad;
+    c4m_codepoint_t  tchar;
+    c4m_codepoint_t  lchar;
+    c4m_codepoint_t  hchar;
+    c4m_codepoint_t  vchar;
+    int              vpad;
+    int              ipad;
+    int              no_nl;
+    char            *tag;
+    c4m_codepoint_t *padstr;
+    int              pad_ix;
+    grid_t          *grid;
+    utf8_t          *nl;
 } tree_fmt_t;
 
 static void
@@ -2026,12 +2032,12 @@ build_tree_output(tree_node_t *node, tree_fmt_t *info)
         return;
     }
 
-    codepoint_t *prev_pad = info->padstr;
-    int          last_len = info->pad_ix;
-    int          i;
+    c4m_codepoint_t *prev_pad = info->padstr;
+    int              last_len = info->pad_ix;
+    int              i;
 
     info->pad_ix = last_len + info->vpad + info->ipad + 1;
-    info->padstr = c4m_gc_array_alloc(codepoint_t, info->pad_ix);
+    info->padstr = c4m_gc_array_alloc(c4m_codepoint_t, info->pad_ix);
 
     for (i = 0; i < last_len; i++) {
         if (prev_pad[i] == info->tchar || prev_pad[i] == info->vchar) {
@@ -2076,15 +2082,15 @@ build_tree_output(tree_node_t *node, tree_fmt_t *info)
 grid_t *
 _c4m_grid_tree(tree_node_t *tree, ...)
 {
-    codepoint_t pad   = ' ';
-    codepoint_t tchar = 0x251c;
-    codepoint_t lchar = 0x2514;
-    codepoint_t hchar = 0x2500;
-    codepoint_t vchar = 0x2502;
-    int32_t     vpad  = 2;
-    int32_t     ipad  = 1;
-    bool        no_nl = true;
-    char       *tag   = "li";
+    c4m_codepoint_t pad   = ' ';
+    c4m_codepoint_t tchar = 0x251c;
+    c4m_codepoint_t lchar = 0x2514;
+    c4m_codepoint_t hchar = 0x2500;
+    c4m_codepoint_t vchar = 0x2502;
+    int32_t         vpad  = 2;
+    int32_t         ipad  = 1;
+    bool            no_nl = true;
+    char           *tag   = "li";
 
     c4m_karg_only_init(tree);
     c4m_kw_codepoint("pad", pad);

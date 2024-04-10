@@ -23,7 +23,7 @@ c4m_stream_putc(stream_t *s, char c)
 }
 
 static inline bool
-c4m_stream_putcp(stream_t *s, codepoint_t cp)
+c4m_stream_putcp(stream_t *s, c4m_codepoint_t cp)
 {
     uint8_t utf8[5];
 
