@@ -66,6 +66,7 @@ c4m_mixed_set_value(mixed_t *m, type_spec_t *type, void **ptr)
         int64_t   n = (int64_t)v;
 
         m->held_value = (void *)n;
+        return;
     }
     case C4M_T_INT:
     case C4M_T_UINT:

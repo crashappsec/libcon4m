@@ -134,7 +134,7 @@ c4m_titlecase_on(c4m_render_style_t *style)
     style->base_style |= C4M_STY_TITLE;
 }
 
-const extern c4m_border_theme_t *c4m_registered_borders;
+extern const c4m_border_theme_t *c4m_registered_borders;
 
 static inline bool
 c4m_set_border_theme(c4m_render_style_t *style, char *name)
