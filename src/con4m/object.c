@@ -348,6 +348,16 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind = C4M_DT_KIND_func,
     },
     {
+        // The idea from the library level behind refs is that they
+        // will always be pointers, but perhaps not even to one of our
+        // heaps.
+        //
+        // We need to take this into account if we need to dereference
+        // something here. Currently, this is only used for holding
+        // non-objects internally.
+        //
+        // Once we add proper references to the language, we might split
+        // out such internal references, IDK.
         .name      = "ref",
         .alloc_len = sizeof(void *),
         .ptr_info  = GC_SCAN_ALL,
@@ -356,6 +366,10 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     {
+        // This is meant for runtime sum types. It's lightly used
+        // internally, and we may want to do something more
+        // sophisticated when deciding how to support this in the
+        // language proper.
         .name      = "mixed",
         .typeid    = C4M_T_GENERIC,
         .alloc_len = sizeof(c4m_mixed_t),

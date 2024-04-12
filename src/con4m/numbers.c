@@ -450,13 +450,16 @@ u64_parse(char                 *s,
 }
 
 c4m_obj_t
-f64_parse(char *s, c4m_lit_syntax_t st, char *litmod, c4m_lit_error_code_t *code)
+f64_parse(char                 *s,
+          c4m_lit_syntax_t      st,
+          char                 *litmod,
+          c4m_lit_error_code_t *code)
 {
     char   *end;
     double *lit = c4m_new(c4m_tspec_f64());
     double  d   = strtod(s, &end);
 
-    if (end == s || *end) {
+    if (end == s || !*end) {
         *code = LE_InvalidChar;
         return NULL;
     }

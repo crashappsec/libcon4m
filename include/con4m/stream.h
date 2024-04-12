@@ -1,15 +1,16 @@
 #pragma once
 #include "con4m.h"
 
-c4m_obj_t c4m_stream_raw_read(c4m_stream_t *, int64_t, char *);
-size_t    c4m_stream_raw_write(c4m_stream_t *, int64_t, char *);
-void      _c4m_stream_write_object(c4m_stream_t *, c4m_obj_t, bool);
-bool      c4m_stream_at_eof(c4m_stream_t *);
-int64_t   c4m_stream_get_location(c4m_stream_t *);
-void      c4m_stream_set_location(c4m_stream_t *, int64_t);
-void      c4m_stream_close(c4m_stream_t *);
-void      c4m_stream_flush(c4m_stream_t *);
-void      _c4m_print(c4m_obj_t, ...);
+extern c4m_obj_t *c4m_stream_raw_read(c4m_stream_t *, int64_t, char *);
+extern size_t     c4m_stream_raw_write(c4m_stream_t *, int64_t, char *);
+extern void       _c4m_stream_write_object(c4m_stream_t *, c4m_obj_t, bool);
+extern bool       c4m_stream_at_eof(c4m_stream_t *);
+extern int64_t    c4m_stream_get_location(c4m_stream_t *);
+extern void       c4m_stream_set_location(c4m_stream_t *, int64_t);
+extern void       c4m_stream_close(c4m_stream_t *);
+extern void       c4m_stream_flush(c4m_stream_t *);
+extern void       _c4m_print(c4m_obj_t, ...);
+extern c4m_obj_t *c4m_stream_read_all(c4m_stream_t *);
 
 #define c4m_stream_write_object(s, o, ...) \
     _c4m_stream_write_object(s, o, IF(ISEMPTY(__VA_ARGS__))(false) __VA_ARGS__)

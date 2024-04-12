@@ -11,11 +11,11 @@ ignore_for_printing(c4m_codepoint_t cp)
     // control rendering as intended.
 
     switch (cp) {
-    case CP_CATEGORY_CN:
-    case CP_CATEGORY_CC:
-    case CP_CATEGORY_CF:
-    case CP_CATEGORY_CS:
-    case CP_CATEGORY_CO:
+    case UTF8PROC_CATEGORY_CN:
+    case UTF8PROC_CATEGORY_CC:
+    case UTF8PROC_CATEGORY_CF:
+    case UTF8PROC_CATEGORY_CS:
+    case UTF8PROC_CATEGORY_CO:
         if (cp == '\n') {
             return false;
         }
