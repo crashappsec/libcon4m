@@ -1,0 +1,10 @@
+func somethingcool(x: int) {
+  return true
+}
+
+x = func somethingcool(int) -> bool
+y = func print(`x) -> void
+
+assert repr(x) == "func somethingcool(int) -> bool"
+assert repr(y) == "func con4m_print(`x) -> void"
+assert x(2) == true

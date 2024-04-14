@@ -420,7 +420,14 @@ c4m_stream_read_all(c4m_stream_t *stream)
         c4m_xlist_append(l, one);
     }
     if (outkind) {
-        return (c4m_obj_t *)c4m_str_join(l, c4m_empty_string());
+        c4m_str_t *s = c4m_str_join(l, c4m_empty_string());
+
+        if (outkind == C4M_F_STREAM_UTF8_OUT) {
+            return (c4m_obj_t *)c4m_to_utf8(s);
+        }
+        else {
+            return (c4m_obj_t *)c4m_to_utf32(s);
+        }
     }
     else {
         return (c4m_obj_t *)c4m_buffer_join(l, NULL);

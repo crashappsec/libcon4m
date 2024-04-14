@@ -14,7 +14,9 @@ enum {
     RBRACE_IX = 10,
     COLON_IX  = 11,
     COLON_NSP = 12,
-    PUNC_MAX  = 13
+    SLASH_IX  = 13,
+    PERIOD_IX = 14,
+    PUNC_MAX  = 15
 };
 
 static c4m_str_t *type_punct[PUNC_MAX] = {
@@ -41,6 +43,7 @@ init_punctuation()
         type_punct[COLON_IX]  = c4m_new(c4m_tspec_utf8(),
                                        c4m_kw("cstring", c4m_ka(" : ")));
         type_punct[COLON_NSP] = c4m_utf8_repeat(':', 1);
+        type_punct[SLASH_IX]  = c4m_utf8_repeat('/', 1);
     }
     c4m_gc_register_root(&type_punct[0], PUNC_MAX);
 }
@@ -134,4 +137,18 @@ c4m_get_colon_no_space_const()
 {
     init_punctuation();
     return type_punct[COLON_NSP];
+}
+
+c4m_utf8_t *
+c4m_get_slash_const()
+{
+    init_punctuation();
+    return type_punct[SLASH_IX];
+}
+
+c4m_utf8_t *
+c4m_get_period_const()
+{
+    init_punctuation();
+    return type_punct[PERIOD_IX];
 }

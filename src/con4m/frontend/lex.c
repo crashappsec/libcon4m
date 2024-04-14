@@ -1,4 +1,93 @@
+#define C4M_USE_INTERNAL_API
 #include <con4m.h>
+
+typedef struct {
+    char *tt_name;
+    bool  show_contents;
+} internal_tt_info_t;
+
+static internal_tt_info_t tt_info[] = {
+    {"space", false},
+    {";", false},
+    {"newline", false},
+    {"comment", true},
+    {"~", false},
+    {"+", false},
+    {"-", false},
+    {"*", false},
+    {"comment", true},
+    {"/", false},
+    {"%", false},
+    {"<=", false},
+    {"<", false},
+    {">=", false},
+    {">", false},
+    {"!=", false},
+    {"!", false},
+    {":", false},
+    {"=", false},
+    {"==", false},
+    {",", false},
+    {".", false},
+    {"{", false},
+    {"}", false},
+    {"[", false},
+    {"]", false},
+    {"(", false},
+    {")", false},
+    {"and", false},
+    {"or", false},
+    {"int", true},
+    {"hex", true},
+    {"float", true},
+    {"string", true},
+    {"char", true},
+    {"true", false},
+    {"false", false},
+    {"nil", false},
+    {"if", false},
+    {"elif", false},
+    {"else", false},
+    {"for", false},
+    {"from", false},
+    {"to", false},
+    {"break", false},
+    {"continue", false},
+    {"return", false},
+    {"enum", false},
+    {"identifier", true},
+    {"func", false},
+    {"var", false},
+    {"global", false},
+    {"const", false},
+    {":= literal", true},
+    {"`", false},
+    {"->", false},
+    {"object", false},
+    {"while", false},
+    {"in", false},
+    {"&", false},
+    {"|", false},
+    {"^", false},
+    {"<<", false},
+    {">>", false},
+    {"typeof", false},
+    {"switch", false},
+    {"case", false},
+    {"+=", false},
+    {"-=", false},
+    {"*=", false},
+    {"/=", false},
+    {"%=", false},
+    {"&=", false},
+    {"|=", false},
+    {"^=", false},
+    {"<<=", false},
+    {">>=", false},
+    {"start", false},
+    {"eof", false},
+    {"error", false},
+};
 
 typedef struct {
     c4m_file_compile_ctx *ctx;
@@ -9,6 +98,8 @@ typedef struct {
     c4m_token_t          *last_token;
     size_t                token_id;
     size_t                line_no;
+    size_t                cur_tok_line_no;
+    size_t                cur_tok_offset;
 } lex_state_t;
 
 // These helpers definitely require us to keep names consistent internally.
@@ -22,9 +113,10 @@ typedef struct {
 #define LITERAL_TOK(kind)      \
     output_token(state, kind); \
     handle_lit_mod(state)
-#define LEX_ERROR(code)          \
-    fill_lex_error(state, code); \
-    C4M_CRAISE("")
+#define LEX_ERROR(code)                  \
+    fill_lex_error(state, code);         \
+    printf("Raising exception: " #code); \
+    C4M_CRAISE("Exception:" #code "\n")
 
 static const __uint128_t max_intval = (__uint128_t)0xffffffffffffffffULL;
 
@@ -35,6 +127,14 @@ next(lex_state_t *state)
         return 0;
     }
     return *state->pos++;
+}
+
+static inline void
+unput(lex_state_t *state)
+{
+    if (state->pos && state->pos < state->end) {
+        --state->pos;
+    }
 }
 
 static inline void
@@ -49,7 +149,7 @@ peek(lex_state_t *state)
     if (state->pos + 1 >= state->end) {
         return 0;
     }
-    return *(state->pos + 1);
+    return *(state->pos);
 }
 
 static inline void
@@ -67,9 +167,8 @@ output_token(lex_state_t *state, c4m_token_kind_t kind)
     tok->start_ptr    = state->start;
     tok->end_ptr      = state->pos;
     tok->token_id     = ++state->token_id;
-    tok->line_no      = state->line_no;
-    tok->line_offset  = state->start - state->line_start;
-    state->start      = state->pos;
+    tok->line_no      = state->cur_tok_line_no;
+    tok->line_offset  = state->cur_tok_offset;
     state->last_token = tok;
 
     c4m_xlist_append(state->ctx->tokens, tok);
@@ -99,12 +198,13 @@ skip_optional_newline(lex_state_t *state)
                     advance(state);
                     continue;
                 default:
-                    break;
+                    goto possible_ws_token;
                 }
             }
             // Explicitly fall through here out of the nested switch
             // since we're done.
         default:
+possible_ws_token:
             if (state->pos != start) {
                 TOK(c4m_tt_space);
             }
@@ -203,8 +303,8 @@ scan_int_or_float_literal(lex_state_t *state)
     // use that when we need to reconstruct the string.
 
     c4m_codepoint_t *start    = state->start;
-    size_t           ix       = 1; // First index we need to check.
-    size_t           float_ix = 0; // 0 means not a float.
+    int              ix       = 1; // First index we need to check.
+    int              float_ix = 0; // 0 means not a float.
 
     while (true) {
         switch (start[ix]) {
@@ -241,6 +341,7 @@ scan_int_or_float_literal(lex_state_t *state)
         default:
             break;
         }
+        break;
     }
 
     c4m_utf32_t *u32 = c4m_new(c4m_tspec_utf32(),
@@ -283,7 +384,7 @@ scan_int_or_float_literal(lex_state_t *state)
     size_t     slen = c4m_str_byte_len(u8);
     char      *p    = (char *)u8->data;
 
-    for (; i < slen; i++) {
+    for (; i < (int64_t)slen; i++) {
         char c = *p++;
 
         switch (c) {
@@ -299,7 +400,7 @@ scan_int_or_float_literal(lex_state_t *state)
         case '9':
             val *= 10;
             val += c - '0';
-            if (val > max_intval) {
+            if (val > (uint64_t)max_intval) {
                 LEX_ERROR(c4m_err_lex_int_oflow);
             }
             continue;
@@ -434,7 +535,9 @@ scan_string_literal(lex_state_t *state)
     }
 
     while (true) {
-        switch (next(state)) {
+        c4m_codepoint_t c = next(state);
+
+        switch (c) {
         case 0:
             LEX_ERROR(c4m_err_lex_eof_in_str_lit);
         case '\n':
@@ -563,8 +666,8 @@ init_keywords()
     add_keyword("enum", c4m_tt_enum);
     add_keyword("func", c4m_tt_func);
     add_keyword("object", c4m_tt_object);
-    add_keyword("typeof", c4m_tt_type_of);
-    add_keyword("switch", c4m_tt_value_of);
+    add_keyword("typeof", c4m_tt_typeof);
+    add_keyword("switch", c4m_tt_switch);
     add_keyword("infinity", c4m_tt_float_lit);
     add_keyword("NaN", c4m_tt_float_lit);
 
@@ -574,21 +677,30 @@ init_keywords()
 static void
 scan_id_or_keyword(lex_state_t *state)
 {
+    init_keywords();
+
+    // The pointer should be over an id_start
     while (true) {
         c4m_codepoint_t c = next(state);
         if (!c4m_codepoint_is_c4m_id_continue(c)) {
+            unput(state);
             break;
         }
     }
 
-    init_keywords();
-    bool         found  = false;
+    bool    found  = false;
+    int64_t length = (int64_t)(state->pos - state->start);
+
+    if (length == 0) {
+        return;
+    }
+
     c4m_utf32_t *as_u32 = c4m_new(
         c4m_tspec_utf32(),
         c4m_kw("codepoints",
                c4m_ka(state->start),
                "length",
-               c4m_ka((int64_t)(state->pos - state->start))));
+               c4m_ka(length)));
 
     c4m_token_kind_t r = (c4m_token_kind_t)(int64_t)hatrack_dict_get(
         keywords,
@@ -638,7 +750,10 @@ lex(lex_state_t *state)
         // circuit here w/ a goto than to break out of all those
         // loops just to 'continue'.
 lex_next_token:
-        c = next(state);
+        state->start           = state->pos;
+        state->cur_tok_line_no = state->line_no;
+        state->cur_tok_offset  = state->start - state->line_start;
+        c                      = next(state);
 
         switch (c) {
         case 0:
@@ -653,7 +768,7 @@ lex_next_token:
                     advance(state);
                     continue;
                 default:
-                    break;
+                    goto lex_next_token;
                 }
             }
             TOK(c4m_tt_space);
@@ -679,15 +794,14 @@ line_comment:
                 switch (next(state)) {
                 case '\n':
                     at_new_line(state);
-                    break;
+                    TOK(c4m_tt_line_comment);
+                    goto lex_next_token;
                 case 0: // EOF
-                    break;
+                    return;
                 default:
                     continue;
                 }
             }
-            TOK(c4m_tt_line_comment);
-            continue;
         case '~':
             TOK(c4m_tt_lock_attr);
             continue;
@@ -836,6 +950,9 @@ line_comment:
             if (peek(state) == '=') {
                 advance(state);
                 TOK(c4m_tt_assign);
+                state->start           = state->pos;
+                state->cur_tok_line_no = state->line_no;
+                state->cur_tok_offset  = state->start - state->line_start;
                 scan_unquoted_literal(state);
             }
             else {
@@ -947,13 +1064,13 @@ c4m_lex(c4m_file_compile_ctx *ctx, c4m_stream_t *stream)
     int outkind;
     outkind = stream->flags & (C4M_F_STREAM_UTF8_OUT | C4M_F_STREAM_UTF32_OUT);
 
-    c4m_obj_t  *raw = c4m_stream_read_all(stream);
-    c4m_utf8_t *utf32;
-    lex_state_t lex_info = {
-        .token_id   = 0,
-        .line_no    = 1,
-        .line_start = 0,
-        .ctx        = ctx,
+    c4m_obj_t   *raw = c4m_stream_read_all(stream);
+    c4m_utf32_t *utf32;
+    lex_state_t  lex_info = {
+         .token_id   = 0,
+         .line_no    = 1,
+         .line_start = 0,
+         .ctx        = ctx,
     };
 
     if (raw == NULL) {
@@ -984,12 +1101,13 @@ c4m_lex(c4m_file_compile_ctx *ctx, c4m_stream_t *stream)
         break;
     }
 
+    int len             = c4m_str_codepoint_len(utf32);
     ctx->raw            = utf32;
     ctx->tokens         = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
     lex_info.start      = (c4m_codepoint_t *)utf32->data;
     lex_info.pos        = (c4m_codepoint_t *)utf32->data;
     lex_info.line_start = (c4m_codepoint_t *)utf32->data;
-    lex_info.end        = (c4m_codepoint_t *)(utf32->data + c4m_str_codepoint_len(utf32));
+    lex_info.end        = &((c4m_codepoint_t *)(utf32->data))[len];
 
     bool error = false;
 
@@ -1004,4 +1122,57 @@ c4m_lex(c4m_file_compile_ctx *ctx, c4m_stream_t *stream)
     C4M_TRY_END;
 
     return !error;
+}
+
+// Start out with any focus on color or other highlighting; just get
+// them into a default table for now aimed at debugging, and we'll add
+// a facility for styling later.
+c4m_grid_t *
+c4m_format_tokens(c4m_file_compile_ctx *ctx)
+{
+    c4m_grid_t *grid = c4m_new(c4m_tspec_grid(),
+                               c4m_kw("start_cols",
+                                      c4m_ka(5),
+                                      "header_rows",
+                                      c4m_ka(1),
+                                      "stripe",
+                                      c4m_ka(true)));
+
+    c4m_xlist_t *row = c4m_new_table_row();
+    int64_t      len = c4m_xlist_len(ctx->tokens);
+
+    c4m_xlist_append(row, c4m_rich_lit("Seq #"));
+    c4m_xlist_append(row, c4m_rich_lit("Type"));
+    c4m_xlist_append(row, c4m_rich_lit("Line #"));
+    c4m_xlist_append(row, c4m_rich_lit("Column #"));
+    c4m_xlist_append(row, c4m_rich_lit("Value"));
+    c4m_grid_add_row(grid, row);
+
+    for (int64_t i = 0; i < len; i++) {
+        c4m_token_t *tok     = c4m_xlist_get(ctx->tokens, i, NULL);
+        int          info_ix = (int)tok->kind;
+
+        row = c4m_new_table_row();
+        c4m_xlist_append(row, c4m_str_from_int(i + 1));
+        c4m_xlist_append(row, c4m_rich_lit(tt_info[info_ix].tt_name));
+        c4m_xlist_append(row, c4m_str_from_int(tok->line_no));
+        c4m_xlist_append(row, c4m_str_from_int(tok->line_offset));
+
+        if (tt_info[info_ix].show_contents) {
+            c4m_xlist_append(
+                row,
+                c4m_new(c4m_tspec_utf32(),
+                        c4m_kw("length",
+                               c4m_ka((int64_t)(tok->end_ptr - tok->start_ptr)),
+                               "codepoints",
+                               c4m_ka(tok->start_ptr))));
+        }
+        else {
+            c4m_xlist_append(row, c4m_rich_lit(" "));
+        }
+
+        c4m_grid_add_row(grid, row);
+    }
+
+    return grid;
 }

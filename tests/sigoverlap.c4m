@@ -1,0 +1,24 @@
+func ex2(x: `t) {
+  typeof x {
+    case int, i32:
+       print("hi")
+    case dict[`t, int]:
+        print("Int value")
+    case dict[string, string]:
+       print("Word.")
+  }
+}
+
+func ex2(lmno: `t) {
+  typeof lmno {
+    case int, i32:
+       print("hi")
+    case dict[`t, int]:
+        print("Int value")
+    case dict[string, string]:
+       print("Word.")
+    else {
+       print("foo")
+    }
+  }
+}

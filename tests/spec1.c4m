@@ -1,0 +1,44 @@
+func somethingcool(x: int) {
+  return true
+}
+
+confspec {
+
+  singleton test {  
+    user_def_ok: true
+    #validator: func somethingcool(int) -> bool
+    
+    field audit_id {
+      type:   int
+      default: 176
+      range: 0, 100
+      #validator: func somethingcool(int) -> bool
+    }
+    
+  }
+  
+  named test2 {
+    field audit_location {
+      type:   string
+      default: "test 1"
+      #validator: func somethingcool(int) -> bool
+    }
+  }
+
+  root {
+    allow:   test
+    require: test2
+    
+    field log_level {
+     type:    string
+     require: true
+     default: "info"
+     choices: ["trace", "info", "warn", "error", "fatal"]
+    }
+  }
+}
+
+assert test.audit_id == 176
+assert log_level == "info"
+log_level = "warn"
+assert log_level == "warn"

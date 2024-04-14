@@ -577,6 +577,22 @@ c4m_rich_lit_test()
     c4m_print(test, test, c4m_kw("no_color", c4m_ka(true), "sep", c4m_ka('&')));
 }
 
+void
+test_lex()
+{
+    c4m_str_t            *fname = c4m_rich_lit("../tests/modparam.c4m");
+    c4m_str_t            *mname = c4m_rich_lit("test1");
+    c4m_file_compile_ctx *ctx;
+
+    ctx = c4m_new_compile_ctx(
+        mname,
+        c4m_kw("uri_path", c4m_ka(fname)));
+
+    c4m_stream_t *stream = c4m_load_code(ctx);
+    c4m_lex(ctx, stream);
+    c4m_print(c4m_format_tokens(ctx));
+}
+
 int
 main(int argc, char **argv, char **envp)
 {
@@ -614,6 +630,8 @@ main(int argc, char **argv, char **envp)
         c4m_rich_lit_test();
         c4m_print(c4m_box_u32((int32_t)-1));
         c4m_print(c4m_box_i32((int32_t)-1));
+
+        test_lex();
         C4M_STATIC_ASCII_STR(local_test, "Goodbye!");
         // c4m_ansi_render(local_test, sout);
         c4m_print((c4m_obj_t *)local_test);

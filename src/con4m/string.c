@@ -420,6 +420,8 @@ c4m_to_utf8(const c4m_utf32_t *inp)
         outloc += l;
     }
 
+    res->byte_len = (int32_t)(outloc - (uint8_t *)res->data);
+
     c4m_copy_style_info(inp, res);
 
     return res;

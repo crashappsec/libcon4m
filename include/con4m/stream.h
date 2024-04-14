@@ -109,7 +109,7 @@ buffer_iostream(c4m_buf_t *buf)
 }
 
 static inline c4m_stream_t *
-file_instream(c4m_str_t *filename, c4m_builtin_t output_type)
+c4m_file_instream(c4m_str_t *filename, c4m_builtin_t output_type)
 {
     return c4m_new(c4m_tspec_stream(),
                    c4m_kw("filename",

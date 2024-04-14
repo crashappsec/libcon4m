@@ -74,4 +74,5 @@ typedef void *object_t;
 #include "crypto/sha.h"
 
 // The front end.
+#include "con4m/frontend/compile.h"
 #include "con4m/frontend/lex.h" // Lexical Tokens

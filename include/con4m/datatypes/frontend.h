@@ -66,8 +66,8 @@ typedef enum {
     c4m_tt_bit_xor,
     c4m_tt_shl,
     c4m_tt_shr,
-    c4m_tt_type_of,
-    c4m_tt_value_of,
+    c4m_tt_typeof,
+    c4m_tt_switch,
     c4m_tt_case,
     c4m_tt_plus_eq,
     c4m_tt_minus_eq,
@@ -85,6 +85,7 @@ typedef enum {
 } c4m_token_kind_t;
 
 typedef enum {
+    c4m_err_open_file,
     c4m_err_lex_stray_cr,
     c4m_err_lex_eof_in_comment,
     c4m_err_lex_invalid_char,
@@ -115,13 +116,33 @@ typedef struct {
 
 typedef struct {
     c4m_compile_error_t code;
-    // This will probably turn into a transparent pointer with a phase
-    // indicator, so we can design the aux data appropriate per-phase.
+    // These will probably turn into a tagged union or transparent
+    // pointer with a phase indicator, so we can design the aux data
+    // appropriate per-phase.
     c4m_token_t        *current_token;
+    c4m_str_t          *exception_message;
 } c4m_compile_error;
 
 typedef struct {
-    c4m_utf32_t *raw;
-    c4m_xlist_t *tokens; // an xlist of x4m_token_t objects;
-    c4m_xlist_t *errors; // an xlist of c4m_compile_errors
+    // The module_id is calculated by combining the package name and the
+    // module name, then hashing it with SHA256. We use Unix style paths
+    // but this is not necessarily derived from the URI path.
+    //
+    // Note that packages (and our combining of it and the module) use
+    // dotted syntax like with most PLs. When we combine for the hash,
+    // we add a dot in there.
+    //
+    // c4m_new_compile_ctx will add __default__ as the package if none
+    // is provided. The URI fields are optional (via API you can just
+    // pass raw source as long as you give at least a module name).
+
+    __int128_t   module_id;
+    c4m_str_t   *scheme;    // http, https or file; if NULL, then file.
+    c4m_str_t   *authority; // http/s only.
+    c4m_str_t   *path;      // Path component in the URI.
+    c4m_str_t   *package;   // Package name.
+    c4m_str_t   *module;    // Module name.
+    c4m_utf32_t *raw;       // raw contents read when we do the lex pass.
+    c4m_xlist_t *tokens;    // an xlist of x4m_token_t objects;
+    c4m_xlist_t *errors;    // an xlist of c4m_compile_errors
 } c4m_file_compile_ctx;

@@ -173,13 +173,13 @@ typedef struct {
 } c4m_renderable_t;
 
 struct c4m_grid_t {
-    c4m_renderable_t    *self;
-    c4m_renderable_t   **cells; // A 2d array of renderable_objects, by ref
-    uint16_t             num_cols;
-    uint16_t             num_rows;
-    uint16_t             spare_rows;
-    c4m_render_style_t **col_props;
-    c4m_render_style_t **row_props;
+    c4m_renderable_t  *self;
+    c4m_renderable_t **cells; // A 2d array of renderable_objects, by ref
+    uint16_t           num_cols;
+    uint16_t           num_rows;
+    uint16_t           spare_rows;
+    c4m_dict_t        *col_props; // dict of int:c4m_render_style_t **
+    c4m_dict_t        *row_props;
 
     // Per-render info, which includes any adding added to perform
     // alignment of the grid within the dimensions we're given.
