@@ -26,12 +26,20 @@ c4m_get_td_tag(c4m_grid_t *g)
 }
 void c4m_grid_set_all_contents(c4m_grid_t *, flexarray_t *);
 
-extern c4m_grid_t *c4m_grid_flow(uint64_t items, ...);
-c4m_utf32_t       *c4m_grid_to_str(c4m_grid_t *, to_str_use_t);
-extern c4m_grid_t *_c4m_ordered_list(flexarray_t *, ...);
-extern c4m_grid_t *_c4m_unordered_list(flexarray_t *, ...);
-extern c4m_grid_t *_c4m_grid_tree(c4m_tree_node_t *, ...);
-c4m_xlist_t       *_c4m_grid_render(c4m_grid_t *, ...);
+extern c4m_grid_t  *c4m_grid_flow(uint64_t items, ...);
+extern c4m_utf32_t *c4m_grid_to_str(c4m_grid_t *, to_str_use_t);
+extern c4m_grid_t  *_c4m_ordered_list(flexarray_t *, ...);
+extern c4m_grid_t  *_c4m_unordered_list(flexarray_t *, ...);
+extern c4m_grid_t  *_c4m_grid_tree(c4m_tree_node_t *, ...);
+extern c4m_xlist_t *_c4m_grid_render(c4m_grid_t *, ...);
+extern void         c4m_set_column_props(c4m_grid_t *,
+                                         int,
+                                         c4m_render_style_t *);
+extern void         c4m_row_column_props(c4m_grid_t *,
+                                         int,
+                                         c4m_render_style_t *);
+extern void         c4m_set_column_style(c4m_grid_t *, int, char *);
+extern void         c4m_set_row_style(c4m_grid_t *, int, char *);
 
 #define c4m_grid_render(g, ...)    _c4m_grid_render(g, KFUNC(__VA_ARGS__))
 #define c4m_ordered_list(l, ...)   _c4m_ordered_list(l, KFUNC(__VA_ARGS__))
@@ -50,30 +58,6 @@ c4m_to_str_renderable(c4m_str_t *s, char *tag)
 {
     return c4m_new(c4m_tspec_renderable(),
                    c4m_kw("obj", c4m_ka(s), "tag", c4m_ka(tag)));
-}
-
-static inline void
-c4m_set_column_style(c4m_grid_t *grid, int col, char *tag)
-{
-    grid->col_props[col] = c4m_lookup_cell_style(tag);
-}
-
-static inline void
-c4m_set_row_style(c4m_grid_t *grid, int row, char *tag)
-{
-    grid->row_props[row] = c4m_lookup_cell_style(tag);
-}
-
-static inline void
-c4m_set_column_props(c4m_grid_t *grid, int col, c4m_render_style_t *s)
-{
-    grid->col_props[col] = s;
-}
-
-static inline void
-c4m_set_row_props(c4m_grid_t *grid, int row, c4m_render_style_t *s)
-{
-    grid->row_props[row] = s;
 }
 
 static inline c4m_style_t
@@ -183,3 +167,12 @@ c4m_grid_stripe_rows(c4m_grid_t *grid)
 {
     grid->stripe = 1;
 }
+
+#ifdef C4M_USE_INTERNAL_API
+
+static inline c4m_xlist_t *
+c4m_new_table_row()
+{
+    return c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
+}
+#endif

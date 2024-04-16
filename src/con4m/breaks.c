@@ -91,8 +91,8 @@ internal_is_line_break(int32_t cp)
     }
 
     switch (utf8proc_category(cp)) {
-    case CP_CATEGORY_ZL:
-    case CP_CATEGORY_ZP:
+    case UTF8PROC_CATEGORY_ZL:
+    case UTF8PROC_CATEGORY_ZP:
         return true;
     default:
         return false;

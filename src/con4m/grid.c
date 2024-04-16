@@ -188,13 +188,6 @@ c4m_expand_columns(c4m_grid_t *grid, uint64_t num)
         }
     }
 
-    c4m_render_style_t **col_props = c4m_gc_array_alloc(c4m_render_style_t *,
-                                                        new_cols);
-
-    for (int i = 0; i < grid->num_cols; i++) {
-        col_props[i] = grid->col_props[i];
-    }
-
     // This needs a lock.
     grid->cells    = cells;
     grid->num_cols = new_cols;
@@ -215,13 +208,6 @@ c4m_grid_expand_rows(c4m_grid_t *grid, uint64_t num)
     c4m_renderable_t **cells    = c4m_gc_array_alloc(c4m_renderable_t *, sz);
     for (int i = 0; i < old_num; i++) {
         cells[i] = grid->cells[i];
-    }
-
-    c4m_render_style_t **row_props = c4m_gc_array_alloc(c4m_render_style_t *,
-                                                        new_rows);
-
-    for (int i = 0; i < grid->num_rows; i++) {
-        row_props[i] = grid->row_props[i];
     }
 
     grid->cells    = cells;
@@ -285,7 +271,8 @@ c4m_grid_add_row(c4m_grid_t *grid, c4m_obj_t container)
         for (int i = 0; i < grid->num_cols; i++) {
             c4m_obj_t x = c4m_xlist_get((c4m_xlist_t *)container, i, NULL);
             if (x == NULL) {
-                x = (c4m_obj_t)c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(" ")));
+                x = (c4m_obj_t)c4m_new(c4m_tspec_utf8(),
+                                       c4m_kw("cstring", c4m_ka(" ")));
             }
             c4m_grid_set_cell_contents(grid, grid->row_cursor, i, x);
         }
@@ -376,17 +363,8 @@ grid_init(c4m_grid_t *grid, va_list args)
                                             c4m_ka(grid)));
     grid->self             = self;
 
-    grid->col_props = c4m_gc_array_alloc(c4m_render_style_t *, grid->num_cols);
-    grid->row_props = c4m_gc_array_alloc(c4m_render_style_t *,
-                                         grid->num_rows + spare_rows);
-
-    for (int i = 0; i < min(header_rows, start_rows); i++) {
-        c4m_set_row_style(grid, i, "th");
-    }
-
-    for (int i = 0; i < min(header_cols, start_cols); i++) {
-        c4m_set_column_style(grid, i, "th");
-    }
+    grid->col_props = NULL;
+    grid->row_props = NULL;
 
     grid->header_rows = header_rows;
     grid->header_cols = header_cols;
@@ -395,32 +373,42 @@ grid_init(c4m_grid_t *grid, va_list args)
 static inline c4m_render_style_t *
 get_row_props(c4m_grid_t *grid, int row)
 {
-    if (!grid->row_props[row]) {
-        if (grid->stripe) {
-            if (row % 2) {
-                return c4m_lookup_cell_style("tr.even");
-            }
-            else {
-                return c4m_lookup_cell_style("tr.odd");
-            }
-        }
+    c4m_render_style_t *result;
 
-        return c4m_lookup_cell_style("tr");
+    if (grid->row_props != NULL) {
+        result = hatrack_dict_get(grid->row_props, (void *)(int64_t)row, NULL);
+        if (result != NULL) {
+            return result;
+        }
+    }
+
+    if (grid->stripe) {
+        if (row % 2) {
+            return c4m_lookup_cell_style("tr.even");
+        }
+        else {
+            return c4m_lookup_cell_style("tr.odd");
+        }
     }
     else {
-        return grid->row_props[row];
+        return c4m_lookup_cell_style("tr");
     }
 }
 
 static inline c4m_render_style_t *
 get_col_props(c4m_grid_t *grid, int col)
 {
-    if (!grid->col_props[col]) {
-        return c4m_lookup_cell_style("td");
+    c4m_render_style_t *result;
+
+    if (grid->col_props != NULL) {
+        result = hatrack_dict_get(grid->col_props, (void *)(int64_t)col, NULL);
+
+        if (result != NULL) {
+            return result;
+        }
     }
-    else {
-        return grid->col_props[col];
-    }
+
+    return c4m_lookup_cell_style("td");
 }
 
 // Contents currently must be a list[list[c4m_obj_t]].  Supply
@@ -1726,7 +1714,7 @@ _c4m_ordered_list(flexarray_t *items, ...)
     width += bp->left_pad + bp->right_pad;
     bp->dims.units = width;
 
-    res->col_props[0] = bp;
+    c4m_set_column_props(res, 0, bp);
     c4m_set_column_style(res, 1, item_style);
 
     for (int i = 0; i < n; i++) {
@@ -1774,7 +1762,7 @@ _c4m_unordered_list(flexarray_t *items, ...)
     c4m_render_style_t *bp = c4m_lookup_cell_style(bullet_style);
     bp->dims.units += bp->left_pad + bp->right_pad;
 
-    res->col_props[0] = bp;
+    c4m_set_column_props(res, 0, bp);
     c4m_set_column_style(res, 1, item_style);
 
     for (int i = 0; i < n; i++) {
@@ -1885,13 +1873,8 @@ c4m_grid_marshal(c4m_grid_t   *grid,
     c4m_marshal_cstring(grid->td_tag_name, s);
     c4m_marshal_cstring(grid->th_tag_name, s);
 
-    for (int i = 0; i < grid->num_cols; i++) {
-        c4m_sub_marshal(grid->col_props[i], s, memos, mid);
-    }
-
-    for (int i = 0; i < grid->num_rows; i++) {
-        c4m_sub_marshal(grid->row_props[i], s, memos, mid);
-    }
+    c4m_sub_marshal(grid->col_props, s, memos, mid);
+    c4m_sub_marshal(grid->row_props, s, memos, mid);
 
     for (int i = 0; i < num_cells; i++) {
         c4m_sub_marshal((c4m_renderable_t *)grid->cells[i], s, memos, mid);
@@ -1915,22 +1898,13 @@ c4m_grid_unmarshal(c4m_grid_t *grid, c4m_stream_t *s, c4m_dict_t *memos)
     grid->stripe      = c4m_unmarshal_i8(s);
     grid->td_tag_name = c4m_unmarshal_cstring(s);
     grid->th_tag_name = c4m_unmarshal_cstring(s);
+    grid->col_props   = c4m_sub_unmarshal(s, memos);
+    grid->row_props   = c4m_sub_unmarshal(s, memos);
 
     size_t num_cells = (grid->num_rows + grid->spare_rows) * grid->num_cols;
     grid->cells      = c4m_gc_array_alloc(c4m_renderable_t *, num_cells);
-    grid->col_props  = c4m_gc_array_alloc(c4m_render_style_t *, grid->num_cols);
-    grid->row_props  = c4m_gc_array_alloc(c4m_render_style_t *,
-                                         grid->num_rows + grid->spare_rows);
 
     num_cells = grid->num_rows * grid->num_cols;
-
-    for (int i = 0; i < grid->num_cols; i++) {
-        grid->col_props[i] = c4m_sub_unmarshal(s, memos);
-    }
-
-    for (int i = 0; i < grid->num_rows; i++) {
-        grid->row_props[i] = c4m_sub_unmarshal(s, memos);
-    }
 
     for (size_t i = 0; i < num_cells; i++) {
         grid->cells[i] = c4m_sub_unmarshal(s, memos);
@@ -2091,6 +2065,52 @@ build_tree_output(c4m_tree_node_t *node, tree_fmt_t *info)
 
     info->pad_ix = last_len;
     info->padstr = prev_pad;
+}
+
+void
+c4m_set_column_props(c4m_grid_t *grid, int col, c4m_render_style_t *s)
+{
+    if (grid->col_props == NULL) {
+        grid->col_props = c4m_new(c4m_tspec_dict(c4m_tspec_int(),
+                                                 c4m_tspec_ref()));
+    }
+
+    hatrack_dict_put(grid->col_props, (void *)(int64_t)col, s);
+}
+
+void
+c4m_set_row_props(c4m_grid_t *grid, int row, c4m_render_style_t *s)
+{
+    if (grid->row_props == NULL) {
+        grid->row_props = c4m_new(c4m_tspec_dict(c4m_tspec_int(),
+                                                 c4m_tspec_ref()));
+    }
+
+    hatrack_dict_put(grid->row_props, (void *)(int64_t)row, s);
+}
+
+void
+c4m_set_column_style(c4m_grid_t *grid, int col, char *tag)
+{
+    c4m_render_style_t *style = c4m_lookup_cell_style(tag);
+
+    if (!style) {
+        C4M_CRAISE("Style not found.");
+    }
+
+    c4m_set_column_props(grid, col, style);
+}
+
+void
+c4m_set_row_style(c4m_grid_t *grid, int row, char *tag)
+{
+    c4m_render_style_t *style = c4m_lookup_cell_style(tag);
+
+    if (!style) {
+        C4M_CRAISE("Style not found.");
+    }
+
+    c4m_set_row_props(grid, row, style);
 }
 
 // This currently expects a tree[utf8] or tree[utf32].  Eventually

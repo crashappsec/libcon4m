@@ -334,7 +334,7 @@ c4m_stream_bytes_to_output(int64_t flags, char *buf, int64_t len)
 // marshal, so we don't have to go through an object to read out
 // things like ints that we plan on returning.
 
-c4m_obj_t
+c4m_obj_t *
 c4m_stream_raw_read(c4m_stream_t *stream, int64_t len, char *buf)
 {
     // If a buffer is provided, return the length and write into
@@ -385,6 +385,54 @@ c4m_stream_raw_read(c4m_stream_t *stream, int64_t len, char *buf)
     }
 }
 
+c4m_obj_t *
+c4m_stream_read_all(c4m_stream_t *stream)
+{
+    c4m_xlist_t *l;
+    int          outkind;
+
+    outkind = stream->flags & (C4M_F_STREAM_UTF8_OUT | C4M_F_STREAM_UTF32_OUT);
+
+    switch (outkind) {
+    case C4M_F_STREAM_UTF8_OUT:
+        l = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+        break;
+    case C4M_F_STREAM_UTF32_OUT:
+        l = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
+        break;
+    default:
+        // Buffers.
+        l = c4m_new(c4m_tspec_xlist(c4m_tspec_buffer()));
+        break;
+    }
+    while (true) {
+        c4m_obj_t *one = c4m_stream_raw_read(stream, PIPE_BUF, NULL);
+        if (outkind) {
+            if (c4m_str_codepoint_len((c4m_str_t *)one) == 0) {
+                break;
+            }
+        }
+        else {
+            if (c4m_buffer_len((c4m_buf_t *)one) == 0) {
+                break;
+            }
+        }
+        c4m_xlist_append(l, one);
+    }
+    if (outkind) {
+        c4m_str_t *s = c4m_str_join(l, c4m_empty_string());
+
+        if (outkind == C4M_F_STREAM_UTF8_OUT) {
+            return (c4m_obj_t *)c4m_to_utf8(s);
+        }
+        else {
+            return (c4m_obj_t *)c4m_to_utf32(s);
+        }
+    }
+    else {
+        return (c4m_obj_t *)c4m_buffer_join(l, NULL);
+    }
+}
 size_t
 c4m_stream_raw_write(c4m_stream_t *stream, int64_t len, char *buf)
 {
