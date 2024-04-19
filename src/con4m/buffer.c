@@ -39,7 +39,7 @@ buffer_init(c4m_buf_t *obj, va_list args)
         }
     }
 
-    if (length > 0) {
+    if (length > 0 && ptr != NULL) {
         int64_t alloc_len = hatrack_round_up_to_power_of_2(length);
 
         obj->data      = c4m_gc_raw_alloc(alloc_len, NULL);

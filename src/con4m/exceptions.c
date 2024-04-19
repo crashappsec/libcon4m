@@ -30,7 +30,7 @@ exception_init(c4m_exception_t *exception, va_list args)
 c4m_exception_t *
 _c4m_alloc_exception(const char *msg, ...)
 {
-    c4m_exception_t *ret = c4m_gc_alloc(sizeof(c4m_exception_t));
+    c4m_exception_t *ret = c4m_gc_alloc(c4m_exception_t);
     ret->msg             = c4m_new(c4m_tspec_utf8(),
                        c4m_kw("cstring", c4m_ka(msg)));
 
@@ -40,7 +40,7 @@ _c4m_alloc_exception(const char *msg, ...)
 c4m_exception_t *
 _c4m_alloc_str_exception(c4m_utf8_t *msg, ...)
 {
-    c4m_exception_t *ret = c4m_gc_alloc(sizeof(c4m_exception_t));
+    c4m_exception_t *ret = c4m_gc_alloc(c4m_exception_t);
     ret->msg             = msg;
 
     return ret;
