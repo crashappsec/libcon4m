@@ -542,8 +542,10 @@ column_text_width(c4m_grid_t *grid, int col)
             flex_view_t *v   = flexarray_view(f);
             int          len = flexarray_view_len(v);
 
-            for (i = 0; i < len; i++) {
-                c4m_utf32_t *item = c4m_to_utf32(flexarray_view_get(v, i, NULL));
+            for (int j = 0; j < len; j++) {
+                c4m_utf32_t *item = c4m_to_utf32(flexarray_view_get(v,
+                                                                    j,
+                                                                    NULL));
                 if (item == NULL) {
                     break;
                 }
@@ -663,11 +665,12 @@ calculate_col_widths(c4m_grid_t *grid, int16_t width, int16_t *render_width)
             remaining -= cur;
             continue;
         case C4M_DIM_FIT_TO_TEXT:
-            cur       = column_text_width(grid, i);
+            cur = column_text_width(grid, i);
+            // Assume minimal padding needed.
+            cur += 2;
             result[i] = cur;
             sum += cur;
             remaining -= cur;
-
             continue;
         case C4M_DIM_UNSET:
         case C4M_DIM_AUTO:

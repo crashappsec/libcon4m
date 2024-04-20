@@ -89,6 +89,12 @@ static internal_tt_info_t tt_info[] = {
     {"error", false},
 };
 
+c4m_utf8_t *
+token_type_to_string(c4m_token_kind_t tk)
+{
+    return c4m_new(c4m_tspec_utf8(), "cstring", tt_info[tk]);
+}
+
 typedef struct {
     c4m_file_compile_ctx *ctx;
     c4m_codepoint_t      *start;
@@ -113,9 +119,8 @@ typedef struct {
 #define LITERAL_TOK(kind)      \
     output_token(state, kind); \
     handle_lit_mod(state)
-#define LEX_ERROR(code)                  \
-    fill_lex_error(state, code);         \
-    printf("Raising exception: " #code); \
+#define LEX_ERROR(code)          \
+    fill_lex_error(state, code); \
     C4M_CRAISE("Exception:" #code "\n")
 
 static const __uint128_t max_intval = (__uint128_t)0xffffffffffffffffULL;
@@ -239,7 +244,7 @@ fill_lex_error(lex_state_t *state, c4m_compile_error_t code)
 
 {
     c4m_token_t *tok = c4m_gc_alloc(c4m_token_t);
-    tok->kind        = c4m_tt_lex_error;
+    tok->kind        = c4m_tt_error;
     tok->start_ptr   = state->start;
     tok->end_ptr     = state->pos;
     tok->line_no     = state->line_no;
@@ -647,6 +652,7 @@ init_keywords()
     add_keyword("in", c4m_tt_in);
     add_keyword("var", c4m_tt_var);
     add_keyword("global", c4m_tt_global);
+    add_keyword("private", c4m_tt_private);
     add_keyword("const", c4m_tt_const);
     add_keyword("is", c4m_tt_cmp);
     add_keyword("and", c4m_tt_and);
@@ -1174,5 +1180,9 @@ c4m_format_tokens(c4m_file_compile_ctx *ctx)
         c4m_grid_add_row(grid, row);
     }
 
+    c4m_set_column_style(grid, 0, "snap");
+    c4m_set_column_style(grid, 1, "snap");
+    c4m_set_column_style(grid, 2, "snap");
+    c4m_set_column_style(grid, 3, "snap");
     return grid;
 }

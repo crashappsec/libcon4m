@@ -276,6 +276,7 @@ c4m_str_copy(const c4m_str_t *s)
     res->codepoints = s->codepoints;
     memcpy(res->data, s->data, s->byte_len);
     c4m_copy_style_info(s, res);
+    res->byte_len = s->byte_len;
 
     return res;
 }

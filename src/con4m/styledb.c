@@ -189,11 +189,18 @@ static const c4m_render_style_t default_td = {
     .name       = "td",
     .base_style = 0,
     .left_pad   = 1,
-    .right_pad  = 1};
+    .right_pad  = 1,
+};
 
 static const c4m_render_style_t default_tcol = {
     .name     = "tcol",
-    .dim_kind = C4M_DIM_AUTO};
+    .dim_kind = C4M_DIM_AUTO,
+};
+
+static const c4m_render_style_t default_snap_col = {
+    .name     = "snap",
+    .dim_kind = C4M_DIM_FIT_TO_TEXT,
+};
 
 static const c4m_render_style_t default_list_grid = {
     .name       = "ul",
@@ -652,6 +659,7 @@ c4m_install_default_styles()
     c4m_set_style("text", (c4m_render_style_t *)&default_td);
     c4m_set_style("th", (c4m_render_style_t *)&default_th);
     c4m_set_style("tcol", (c4m_render_style_t *)&default_tcol);
+    c4m_set_style("snap", (c4m_render_style_t *)&default_snap_col);
     c4m_set_style("ul", (c4m_render_style_t *)&default_list_grid);
     c4m_set_style("ol", (c4m_render_style_t *)&default_ordered_list_grid);
     c4m_set_style("bullet", (c4m_render_style_t *)&default_bullet_column);

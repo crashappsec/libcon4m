@@ -302,7 +302,10 @@ c4m_xlist_get_slice(c4m_xlist_t *list, int64_t start, int64_t end)
 }
 
 void
-c4m_xlist_set_slice(c4m_xlist_t *list, int64_t start, int64_t end, c4m_xlist_t *new)
+c4m_xlist_set_slice(c4m_xlist_t *list,
+                    int64_t      start,
+                    int64_t      end,
+                    c4m_xlist_t *new)
 {
     int64_t len1 = c4m_xlist_len(list);
     int64_t len2 = c4m_xlist_len(new);

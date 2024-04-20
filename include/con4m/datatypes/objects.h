@@ -186,5 +186,6 @@ typedef enum : int64_t {
     C4M_T_STREAM,  // streaming IO interface.
     C4M_T_KEYWORD, // Keyword arg object for internal use.
     C4M_T_VM,
+    C4M_T_PARSE_NODE,
     C4M_NUM_BUILTIN_DTS
 } c4m_builtin_t;

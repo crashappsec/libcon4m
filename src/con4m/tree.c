@@ -14,15 +14,9 @@ tree_node_init(c4m_tree_node_t *t, va_list args)
     t->contents     = contents;
 }
 
-c4m_tree_node_t *
-c4m_tree_add_node(c4m_tree_node_t *t, void *item)
+void
+c4m_tree_adopt_node(c4m_tree_node_t *t, c4m_tree_node_t *kid)
 {
-    c4m_type_t      *tree_type   = c4m_get_my_type(t);
-    c4m_xlist_t     *type_params = c4m_tspec_get_parameters(tree_type);
-    c4m_type_t      *item_type   = c4m_xlist_get(type_params, 0, NULL);
-    c4m_tree_node_t *kid         = c4m_new(c4m_tspec_tree(item_type),
-                                   c4m_kw("contents", c4m_ka(item)));
-
     kid->parent = t;
 
     if (t->num_kids == t->alloced_kids) {
@@ -35,6 +29,58 @@ c4m_tree_add_node(c4m_tree_node_t *t, void *item)
         t->children = new_kids;
     }
     t->children[t->num_kids++] = kid;
+}
+
+c4m_tree_node_t *
+c4m_tree_add_node(c4m_tree_node_t *t, void *item)
+{
+    c4m_type_t      *tree_type   = c4m_get_my_type(t);
+    c4m_xlist_t     *type_params = c4m_tspec_get_parameters(tree_type);
+    c4m_type_t      *item_type   = c4m_xlist_get(type_params, 0, NULL);
+    c4m_tree_node_t *kid         = c4m_new(c4m_tspec_tree(item_type),
+                                   c4m_kw("contents", c4m_ka(item)));
+
+    c4m_tree_adopt_node(t, kid);
+
+    return kid;
+}
+
+void
+c4m_tree_adopt_and_prepend(c4m_tree_node_t *t, c4m_tree_node_t *kid)
+{
+    kid->parent = t;
+
+    if (t->num_kids == t->alloced_kids) {
+        t->alloced_kids *= 2;
+        c4m_tree_node_t **new_kids = c4m_gc_array_alloc(c4m_tree_node_t **,
+                                                        t->alloced_kids);
+        for (int i = 0; i < t->num_kids; i++) {
+            new_kids[i + 1] = t->children[i];
+        }
+        t->children = new_kids;
+    }
+    else {
+        int i = t->num_kids;
+
+        while (i != 0) {
+            t->children[i] = t->children[i - 1];
+            i--;
+        }
+    }
+
+    t->children[0] = kid;
+}
+
+c4m_tree_node_t *
+c4m_tree_prepend_node(c4m_tree_node_t *t, void *item)
+{
+    c4m_type_t      *tree_type   = c4m_get_my_type(t);
+    c4m_xlist_t     *type_params = c4m_tspec_get_parameters(tree_type);
+    c4m_type_t      *item_type   = c4m_xlist_get(type_params, 0, NULL);
+    c4m_tree_node_t *kid         = c4m_new(c4m_tspec_tree(item_type),
+                                   c4m_kw("contents", c4m_ka(item)));
+
+    c4m_tree_adopt_and_prepend(t, kid);
 
     return kid;
 }
@@ -68,7 +114,10 @@ c4m_tree_children(c4m_tree_node_t *t)
 }
 
 static void
-tree_node_marshal(c4m_tree_node_t *t, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
+tree_node_marshal(c4m_tree_node_t *t,
+                  c4m_stream_t    *s,
+                  c4m_dict_t      *memos,
+                  int64_t         *mid)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(t);
     c4m_xlist_t   *type_params = c4m_tspec_get_parameters(list_type);
