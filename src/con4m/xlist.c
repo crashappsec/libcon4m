@@ -379,6 +379,7 @@ const c4m_vtable_t c4m_xlist_vtable = {
         (c4m_vtable_entry)xlist_init,
         (c4m_vtable_entry)xlist_repr,
         NULL,
+        NULL,
         (c4m_vtable_entry)c4m_xlist_marshal,
         (c4m_vtable_entry)c4m_xlist_unmarshal,
         (c4m_vtable_entry)list_can_coerce_to,

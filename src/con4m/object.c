@@ -372,7 +372,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         // language proper.
         .name      = "mixed",
         .typeid    = C4M_T_GENERIC,
-        .alloc_len = sizeof(c4m_mixed_t),
+        .alloc_len = sizeof(void *),
         .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_mixed_vtable,
         .dt_kind   = C4M_DT_KIND_type_var,

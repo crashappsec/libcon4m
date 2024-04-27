@@ -117,6 +117,98 @@ static const ctype_name_info_t ctype_info[] = {
     // clang-format on
 };
 
+typedef struct {
+    char        *name;
+    unsigned int show_contents : 1;
+    unsigned int terminal      : 1;
+    unsigned int literal       : 1;
+    unsigned int takes_docs    : 1;
+} node_type_info_t;
+
+static const node_type_info_t node_type_info[] = {
+    // clang-format off
+    { "nt_error", 1, 1, 0, 0, },
+    { "nt_module", 1, 0, 0, 1, },
+    { "nt_body", 0, 0, 0, 0, },
+    { "nt_assign", 0, 0, 0, 0, },
+    { "nt_attr_set_lock", 0, 0, 0, 0, },
+    { "nt_cast", 0, 0, 0, 0, },
+    { "nt_section", 0, 0, 0, 1, },
+    { "nt_if", 0, 0, 0, 0, },
+    { "nt_elif", 0, 0, 0, 0, },
+    { "nt_else", 0, 0, 0, 0, },
+    { "nt_typeof", 0, 0, 0, 0, },
+    { "nt_switch", 0, 0, 0, 0, },
+    { "nt_for", 0, 0, 0, 0, },
+    { "nt_while", 0, 0, 0, 0, },
+    { "nt_break", 0, 0, 0, 0, },
+    { "nt_continue", 0, 0, 0, 0, },
+    { "nt_return", 0, 0, 0, 0, },
+    { "nt_simple_lit", 1, 1, 1, 0, },
+    { "nt_lit_list", 0, 0, 1, 0, },
+    { "nt_lit_dict", 0, 0, 1, 0, },
+    { "nt_lit_set", 0, 0, 1, 0, },
+    { "nt_lit_empty_dict_or_set", 0, 1, 1, 0, },
+    { "nt_lit_tuple", 0, 0, 1, 0, },
+    { "nt_lit_unquoted", 1, 1, 1, 0, },
+    { "nt_lit_callback", 0, 0, 0, 0, },
+    { "nt_lit_tspec", 0, 0, 0, 0, },
+    { "nt_lit_tspec_tvar", 1, 1, 1, 0, },
+    { "nt_lit_tspec_named_type", 1, 1, 1, 0, },
+    { "nt_lit_tspec_parameterized_type", 1, 0, 0, 0, },
+    { "nt_lit_tspec_func", 1, 0, 0, 0, },
+    { "nt_lit_tspec_varargs", 0, 0, 0, 0, },
+    { "nt_lit_tspec_return_type", 0, 0, 0, 0, },
+    { "nt_or", 0, 0, 0, 0, },
+    { "nt_and", 0, 0, 0, 0, },
+    { "nt_cmp", 1, 0, 0, 0, },
+    { "nt_binary_op", 1, 0, 0, 0, },
+    { "nt_binary_assign_op", 1, 0, 0, 0, },
+    { "nt_unary_op", 1, 0, 0, 0, },
+    { "nt_enum", 1, 0, 0, 0, },
+    { "nt_enum_item", 1, 0, 0, 0, },
+    { "nt_identifier", 1, 1, 0, 0, },
+    { "nt_func_def", 1, 0, 0, 0, },
+    { "nt_formals", 0, 0, 0, 0, },
+    { "nt_varargs_param", 1, 0, 0, 0, },
+    { "nt_member", 0, 0, 0, 0, },
+    { "nt_index", 0, 0, 0, 0, },
+    { "nt_call", 0, 0, 0, 0, },
+    { "nt_paren_expr", 0, 0, 0, 0, },
+    { "nt_var_decls", 0, 0, 0, 0, },
+    { "nt_global_decls", 0, 0, 0, 0, },
+    { "nt_const_var_decls", 0, 0, 0, 0, },
+    { "nt_const_global_decls", 0, 0, 0, 0, },
+    { "nt_const_decls,", 0, 0, 0, 0, },
+    { "nt_sym_decl", 0, 0, 0, 0, },
+    { "nt_use", 0, 0, 0, 0, },
+    { "nt_param_block", 0, 0, 0, 1, },
+    { "nt_param_prop", 0, 0, 0, 0, },
+    { "nt_extern_block", 0, 0, 0, 1, },
+    { "nt_extern_sig", 0, 0, 0, 0, },
+    { "nt_extern_param", 0, 0, 0, 0, },
+    { "nt_extern_local", 0, 0, 0, 0, },
+    { "nt_extern_dll", 0, 0, 0, 0, },
+    { "nt_extern_pure", 0, 0, 0, 0, },
+    { "nt_extern_holds", 0, 0, 0, 0, },
+    { "nt_extern_allocs", 0, 0, 0, 0, },
+    { "nt_extern_return", 0, 0, 0, 0, },
+    { "nt_extern_expression", 0, 0, 0, 0, },
+    { "nt_label", 0, 1, 0, 0, },
+    { "nt_case", 0, 0, 0, 0, },
+    { "nt_range", 1, 0, 0, 0, },
+    { "nt_assert", 0, 0, 0, 0, },
+    { "nt_config_spec", 0, 0, 0, 1, },
+    { "nt_section_spec", 0, 0, 0, 1, },
+    { "nt_section_prop", 0, 0, 0, 0, },
+    { "nt_field_spec", 0, 0, 0, 1, },
+    { "nt_field_prop", 0, 0, 0, 0, },
+    { "nt_short_doc_string", 1, 1, 0, 0, },
+    { "nt_long_doc_string", 1, 1, 0, 0, },
+    { "nt_expression", 0, 0, 0, 0, },
+    // clang-format on
+};
+
 static int
 lookup_ctype_id(char *found)
 {
@@ -3427,6 +3519,17 @@ module(parse_ctx *ctx)
             return NULL;
         }
     }
+}
+
+static c4m_utf8_t *
+repr_one_node(c4m_pnode_t *one)
+{
+    node_type_info_t *info = (node_type_info_t *)&node_type_info[one->kind];
+    c4m_xlist_t      *l    = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+
+    c4m_xlist_append(l,
+                     c4m_new(c4m_tspec_utf8(),
+                             c4m_kw("cstring", c4m_ka(info->name))));
 }
 
 bool

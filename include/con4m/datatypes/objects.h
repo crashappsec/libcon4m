@@ -95,6 +95,7 @@ struct c4m_base_obj_t {
 typedef enum {
     C4M_BI_CONSTRUCTOR = 0,
     C4M_BI_TO_STR,
+    C4M_BI_FORMAT,
     C4M_BI_FINALIZER,
     C4M_BI_MARSHAL,
     C4M_BI_UNMARSHAL,

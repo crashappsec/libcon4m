@@ -2187,6 +2187,7 @@ const c4m_vtable_t c4m_grid_vtable = {
     .methods     = {
         (c4m_vtable_entry)grid_init,
         (c4m_vtable_entry)c4m_grid_to_str,
+        NULL, // Format; use default to_str
         NULL,
         (c4m_vtable_entry)c4m_grid_marshal,
         (c4m_vtable_entry)c4m_grid_unmarshal,
@@ -2214,6 +2215,7 @@ const c4m_vtable_t c4m_renderable_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         (c4m_vtable_entry)renderable_init,
+        NULL,
         NULL,
         NULL,
         (c4m_vtable_entry)c4m_renderable_marshal,

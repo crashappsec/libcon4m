@@ -134,6 +134,7 @@ const c4m_vtable_t c4m_tuple_vtable = {
         (c4m_vtable_entry)tuple_init,
         (c4m_vtable_entry)tuple_repr,
         NULL,
+        NULL,
         (c4m_vtable_entry)tuple_marshal,
         (c4m_vtable_entry)tuple_unmarshal,
         (c4m_vtable_entry)tuple_can_coerce,

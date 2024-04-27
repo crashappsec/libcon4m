@@ -495,6 +495,7 @@ const c4m_vtable_t c4m_buffer_vtable = {
     .methods     = {
         (c4m_vtable_entry)buffer_init,
         (c4m_vtable_entry)buffer_repr,
+        NULL, // format; TODO
         NULL, // finalizer
         (c4m_vtable_entry)c4m_buffer_marshal,
         (c4m_vtable_entry)c4m_buffer_unmarshal,

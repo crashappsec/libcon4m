@@ -900,6 +900,7 @@ const c4m_vtable_t c4m_type_env_vtable = {
         (c4m_vtable_entry)c4m_type_env_init,
         NULL,
         NULL,
+        NULL,
         (c4m_vtable_entry)c4m_type_env_marshal,
         (c4m_vtable_entry)c4m_type_env_unmarshal,
         NULL,
@@ -910,6 +911,7 @@ const c4m_vtable_t c4m_type_spec_vtable = {
     .methods     = {
         (c4m_vtable_entry)c4m_tspec_init,
         (c4m_vtable_entry)c4m_tspec_repr,
+        NULL,
         NULL,
         (c4m_vtable_entry)c4m_tspec_marshal,
         (c4m_vtable_entry)c4m_tspec_unmarshal,

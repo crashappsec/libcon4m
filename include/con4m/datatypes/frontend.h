@@ -270,7 +270,6 @@ typedef enum {
     c4m_nt_short_doc_string,
     c4m_nt_long_doc_string,
     c4m_nt_expression,
-    c4m_nt_comment,
 } c4m_node_kind_t;
 
 typedef struct {

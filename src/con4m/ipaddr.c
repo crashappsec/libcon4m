@@ -104,6 +104,7 @@ const c4m_vtable_t c4m_ipaddr_vtable = {
         (c4m_vtable_entry)ipaddr_init,
         (c4m_vtable_entry)ipaddr_repr,
         NULL,
+        NULL,
         (c4m_vtable_entry)ipaddr_marshal,
         (c4m_vtable_entry)ipaddr_unmarshal,
         NULL,

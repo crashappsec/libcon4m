@@ -680,6 +680,7 @@ const c4m_vtable_t c4m_render_style_vtable = {
         (c4m_vtable_entry)c4m_style_init,
         NULL,
         NULL,
+        NULL,
         (c4m_vtable_entry)c4m_style_marshal,
         (c4m_vtable_entry)c4m_style_unmarshal,
         NULL,
