@@ -278,7 +278,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_extern_allocs", 0, 0, 0, 0, },
     { "nt_extern_return", 0, 0, 0, 0, },
     { "nt_extern_expression", 0, 0, 0, 0, },
-    { "nt_label", 0, 1, 0, 0, },
+    { "nt_label", 1, 1, 0, 0, },
     { "nt_case", 0, 0, 0, 0, },
     { "nt_range", 1, 0, 0, 0, },
     { "nt_assert", 0, 0, 0, 0, }, // 70
