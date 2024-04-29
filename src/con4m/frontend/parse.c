@@ -769,6 +769,7 @@ opt_doc_strings(parse_ctx *ctx, c4m_pnode_t *pn)
         pn->long_doc = tok_cur(ctx);
         consume(ctx);
     }
+    opt_newlines(ctx);
 }
 
 static void
@@ -1185,6 +1186,7 @@ extern_signature(parse_ctx *ctx)
     }
 
     expect(ctx, c4m_tt_rparen);
+    opt_return_type(ctx);
 }
 
 static void
@@ -1199,9 +1201,9 @@ extern_block(parse_ctx *ctx)
     expect(ctx, c4m_tt_lbrace);
     opt_doc_strings(ctx, current_parse_node(ctx));
 
-    while (true) {
-        int checkpoint_result = START_CHECKPOINT();
+    int checkpoint_result = START_CHECKPOINT();
 
+    while (true) {
         switch (checkpoint_result) {
         case 0:
             switch (match(ctx, c4m_tt_rbrace, c4m_tt_identifier)) {
@@ -1234,6 +1236,7 @@ extern_block(parse_ctx *ctx)
                 }
                 // Fallthrough
             default:
+                DEBUG_CUR("...");
                 err_skip_stmt(ctx, c4m_err_parse_extern_bad_prop);
                 continue;
             }
@@ -1468,6 +1471,7 @@ case_body(parse_ctx *ctx)
     c4m_tree_node_t *expr;
 
     start_node(ctx, c4m_nt_body, true);
+
     while (true) {
         int checkpoint_result = START_CHECKPOINT();
 
@@ -1689,18 +1693,30 @@ switch_case_block(parse_ctx *ctx)
 {
     start_node(ctx, c4m_nt_case, false);
 
+    DEBUG_CUR("Top of scb: ");
+
     while (true) {
         c4m_tree_node_t *expr = expression(ctx);
 
-        if (!optional_range(ctx, expr)) {
+        DEBUG_CUR("After expr: ");
+
+        // clang-format off
+        if (tok_kind(ctx) != c4m_tt_colon ||
+	    lookahead(ctx, 1, false) != c4m_tt_newline) {
+            optional_range(ctx, expr);
+        }
+        // clang-format on
+        else {
             adopt_kid(ctx, expr);
         }
+
         if (tok_kind(ctx) != c4m_tt_comma) {
             break;
         }
         consume(ctx);
     }
 
+    DEBUG_CUR("After !opt_range: ");
     if (tok_kind(ctx) == c4m_tt_colon) {
         case_body(ctx);
     }
