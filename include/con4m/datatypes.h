@@ -21,6 +21,7 @@
 #include "con4m/datatypes/callbacks.h"
 #include "con4m/datatypes/streams.h"
 #include "con4m/datatypes/frontend.h"
+#include "con4m/datatypes/vm.h"
 
 typedef c4m_str_t *(*c4m_repr_fn)(c4m_obj_t, to_str_use_t);
 typedef void (*c4m_marshal_fn)(c4m_obj_t,

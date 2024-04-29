@@ -131,7 +131,7 @@ typedef enum {
     C4M_BI_SLICE_GET, // `t[int:int] -> `v
     C4M_BI_SLICE_SET,
     C4M_BI_NUM_FUNCS
-} c4m_buitin_type_fn;
+} c4m_builtin_type_fn;
 
 typedef enum {
     C4M_REPR_VALUE,
@@ -185,5 +185,6 @@ typedef enum : int64_t {
     C4M_T_GENERIC, // If instantiated, instantiates a 'mixed' object.
     C4M_T_STREAM,  // streaming IO interface.
     C4M_T_KEYWORD, // Keyword arg object for internal use.
+    C4M_T_VM,
     C4M_NUM_BUILTIN_DTS
 } c4m_builtin_t;

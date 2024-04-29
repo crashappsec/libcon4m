@@ -90,6 +90,7 @@ extern const c4m_vtable_t c4m_mixed_vtable;
 extern const c4m_vtable_t c4m_ipaddr_vtable;
 extern const c4m_vtable_t c4m_stream_vtable;
 extern const c4m_vtable_t c4m_kargs_vtable;
+extern const c4m_vtable_t c4m_vm_vtable;
 
 extern const uint64_t c4m_pmap_first_word[2];
 extern const uint64_t c4m_rs_pmap[2];
