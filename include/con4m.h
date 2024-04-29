@@ -85,3 +85,5 @@ typedef void *object_t;
 
 // Virtual machine for running con4m code
 #include "con4m/vm.h"
+#include "con4m/frontend/parse.h"
+#include "con4m/frontend/errors.h"

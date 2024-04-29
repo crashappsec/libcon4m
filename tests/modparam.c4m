@@ -1,4 +1,7 @@
+"Test"
+
 func value_provider() {
+  "Provide a value."
   return 101
 }
 
@@ -12,7 +15,7 @@ func example_checker(x) {
 
 parameter var example1 {
   "This should be some documentation."
-  "Also this."
+  "Also this (e1)."
   default:  100
   validator: func example_checker(int) -> string
 }
@@ -25,6 +28,8 @@ parameter var example2 {
 }
 
 # Neither of these should happen.
+
 print(example1)
 print(example2)
 assert false
+

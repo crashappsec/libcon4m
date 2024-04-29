@@ -2,6 +2,7 @@
 #include "con4m.h"
 
 typedef enum {
+    c4m_tt_error, // 0
     c4m_tt_space,
     c4m_tt_semi,
     c4m_tt_newline,
@@ -11,7 +12,7 @@ typedef enum {
     c4m_tt_plus,
     c4m_tt_minus,
     c4m_tt_mul,
-    c4m_tt_div,
+    c4m_tt_div, // 10
     c4m_tt_mod,
     c4m_tt_lte,
     c4m_tt_lt,
@@ -21,7 +22,7 @@ typedef enum {
     c4m_tt_not,
     c4m_tt_colon,
     c4m_tt_assign,
-    c4m_tt_cmp,
+    c4m_tt_cmp, // 20
     c4m_tt_comma,
     c4m_tt_period,
     c4m_tt_lbrace,
@@ -31,7 +32,7 @@ typedef enum {
     c4m_tt_lparen,
     c4m_tt_rparen,
     c4m_tt_and,
-    c4m_tt_or,
+    c4m_tt_or, // 30
     c4m_tt_int_lit,
     c4m_tt_hex_lit,
     c4m_tt_float_lit,
@@ -41,7 +42,7 @@ typedef enum {
     c4m_tt_true,
     c4m_tt_false,
     c4m_tt_nil,
-    c4m_tt_if,
+    c4m_tt_if, // 40
     c4m_tt_elif,
     c4m_tt_else,
     c4m_tt_for,
@@ -51,7 +52,7 @@ typedef enum {
     c4m_tt_continue,
     c4m_tt_return,
     c4m_tt_enum,
-    c4m_tt_identifier,
+    c4m_tt_identifier, // 50
     c4m_tt_func,
     c4m_tt_var,
     c4m_tt_global,
@@ -61,7 +62,7 @@ typedef enum {
     c4m_tt_arrow,
     c4m_tt_object,
     c4m_tt_while,
-    c4m_tt_in,
+    c4m_tt_in, // 60
     c4m_tt_bit_and,
     c4m_tt_bit_or,
     c4m_tt_bit_xor,
@@ -71,7 +72,7 @@ typedef enum {
     c4m_tt_switch,
     c4m_tt_case,
     c4m_tt_plus_eq,
-    c4m_tt_minus_eq,
+    c4m_tt_minus_eq, // 70
     c4m_tt_mul_eq,
     c4m_tt_div_eq,
     c4m_tt_mod_eq,
@@ -80,8 +81,7 @@ typedef enum {
     c4m_tt_bit_xor_eq,
     c4m_tt_shl_eq,
     c4m_tt_shr_eq,
-    c4m_tt_eof,
-    c4m_tt_error
+    c4m_tt_eof // 79
 } c4m_token_kind_t;
 
 typedef enum {
@@ -110,7 +110,6 @@ typedef enum {
     c4m_err_parse_bad_use_uri,
     c4m_err_parse_id_expected,
     c4m_err_parse_id_member_part,
-    c4m_err_parse_from_needs_to,
     c4m_err_parse_not_docable_block,
     c4m_err_parse_for_syntax,
     c4m_err_parse_missing_type_rbrak,
@@ -122,9 +121,9 @@ typedef enum {
     c4m_err_parse_parameter_is_toplevel,
     c4m_err_parse_extern_is_toplevel,
     c4m_err_parse_confspec_is_toplevel,
-    c4m_err_parse_bad_confspec_sec_type, // Takes one argument.
+    c4m_err_parse_bad_confspec_sec_type,
     c4m_err_parse_invalid_token_in_sec,
-    c4m_err_parse_expected_token,        // Takes one argument.
+    c4m_err_parse_expected_token,
     c4m_err_parse_invalid_sec_part,
     c4m_err_parse_invalid_field_part,
     c4m_err_parse_no_empty_tuples,
@@ -150,11 +149,11 @@ typedef enum {
     c4m_err_parse_bad_ctype_id,
     c4m_err_parse_mod_param_no_const,
     c4m_err_parse_bad_param_start,
-    c4m_err_parse_invalid_param_syntax,
     c4m_err_parse_param_def_and_callback,
     c4m_err_parse_param_dupe_prop,
     c4m_err_parse_param_invalid_prop,
     c4m_err_parse_bad_expression_start,
+    c4m_err_parse_missing_expression,
     c4m_err_last,
 } c4m_compile_error_t;
 
@@ -174,6 +173,12 @@ typedef struct {
     uint8_t          adjustment; // For keeping track of quoting.
 } c4m_token_t;
 
+typedef enum {
+    c4m_err_severity_error,
+    c4m_err_severity_warning,
+    c4m_err_severity_info,
+} c4m_err_severity_t;
+
 typedef struct {
     c4m_compile_error_t code;
     // These may turn into a tagged union or transparent pointer with
@@ -185,13 +190,15 @@ typedef struct {
     // .. $n, and the formatter will assume the right number of array
     // elements are there based on the values it sees.
 
-    c4m_token_t *current_token;
-    c4m_str_t   *exception_message;
-    c4m_str_t   *msg_parameters[];
+    c4m_token_t       *current_token;
+    c4m_str_t         *long_info;
+    int32_t            num_args;
+    c4m_err_severity_t severity;
+    c4m_str_t         *msg_parameters[];
 } c4m_compile_error;
 
 typedef enum {
-    c4m_nt_error,
+    c4m_nt_error, // 0
     c4m_nt_module,
     c4m_nt_body,
     c4m_nt_assign,
@@ -201,7 +208,7 @@ typedef enum {
     c4m_nt_if,
     c4m_nt_elif,
     c4m_nt_else,
-    c4m_nt_typeof,
+    c4m_nt_typeof, // 10
     c4m_nt_switch,
     c4m_nt_for,
     c4m_nt_while,
@@ -211,7 +218,7 @@ typedef enum {
     c4m_nt_simple_lit,
     c4m_nt_lit_list,
     c4m_nt_lit_dict,
-    c4m_nt_lit_set,
+    c4m_nt_lit_set, // 20
     c4m_nt_lit_empty_dict_or_set,
     c4m_nt_lit_tuple,
     c4m_nt_lit_unquoted,
@@ -221,7 +228,7 @@ typedef enum {
     c4m_nt_lit_tspec_named_type,
     c4m_nt_lit_tspec_parameterized_type,
     c4m_nt_lit_tspec_func,
-    c4m_nt_lit_tspec_varargs,
+    c4m_nt_lit_tspec_varargs, // 30
     c4m_nt_lit_tspec_return_type,
     c4m_nt_or,
     c4m_nt_and,
@@ -231,7 +238,7 @@ typedef enum {
     c4m_nt_unary_op,
     c4m_nt_enum,
     c4m_nt_enum_item,
-    c4m_nt_identifier,
+    c4m_nt_identifier, // 40
     c4m_nt_func_def,
     c4m_nt_formals,
     c4m_nt_varargs_param,
@@ -241,9 +248,9 @@ typedef enum {
     c4m_nt_paren_expr,
     c4m_nt_var_decls,
     c4m_nt_global_decls,
-    c4m_nt_const_var_decls,
+    c4m_nt_const_var_decls, // 50
     c4m_nt_const_global_decls,
-    c4m_nt_const_decls, // global / var not specified.
+    c4m_nt_const_decls,     // global / var not specified.
     c4m_nt_sym_decl,
     c4m_nt_use,
     c4m_nt_param_block,
@@ -251,7 +258,7 @@ typedef enum {
     c4m_nt_extern_block,
     c4m_nt_extern_sig,
     c4m_nt_extern_param,
-    c4m_nt_extern_local,
+    c4m_nt_extern_local, // 60
     c4m_nt_extern_dll,
     c4m_nt_extern_pure,
     c4m_nt_extern_holds,
@@ -261,7 +268,7 @@ typedef enum {
     c4m_nt_label,
     c4m_nt_case,
     c4m_nt_range,
-    c4m_nt_assert,
+    c4m_nt_assert, // 70
     c4m_nt_config_spec,
     c4m_nt_section_spec,
     c4m_nt_section_prop,
@@ -269,7 +276,7 @@ typedef enum {
     c4m_nt_field_prop,
     c4m_nt_short_doc_string,
     c4m_nt_long_doc_string,
-    c4m_nt_expression,
+    c4m_nt_expression, // 78
 } c4m_node_kind_t;
 
 typedef struct {
@@ -287,7 +294,6 @@ typedef struct {
     c4m_token_t    *short_doc;
     c4m_token_t    *long_doc;
     c4m_xlist_t    *comments;
-    int             num_tree_kids;
     int             total_kids;
     int             sibling_id;
     void           *extra_info;

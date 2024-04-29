@@ -18,3 +18,4 @@ extern c4m_utf8_t *c4m_get_colon_no_space_const();
 extern c4m_utf8_t *c4m_get_slash_const();
 extern c4m_utf8_t *c4m_get_period_const();
 extern c4m_utf8_t *c4m_get_empty_fmt_const();
+extern c4m_utf8_t *c4m_in_parens(c4m_str_t *);

@@ -7,6 +7,7 @@ typedef struct {
 } internal_tt_info_t;
 
 static internal_tt_info_t tt_info[] = {
+    {"error", false},
     {"space", false},
     {";", false},
     {"newline", false},
@@ -16,7 +17,7 @@ static internal_tt_info_t tt_info[] = {
     {"-", false},
     {"*", false},
     {"comment", true},
-    {"/", false},
+    {"/", false}, // 10
     {"%", false},
     {"<=", false},
     {"<", false},
@@ -26,7 +27,7 @@ static internal_tt_info_t tt_info[] = {
     {"!", false},
     {":", false},
     {"=", false},
-    {"==", false},
+    {"==", false}, // 20
     {",", false},
     {".", false},
     {"{", false},
@@ -36,16 +37,17 @@ static internal_tt_info_t tt_info[] = {
     {"(", false},
     {")", false},
     {"and", false},
-    {"or", false},
+    {"or", false}, // 30
     {"int", true},
     {"hex", true},
     {"float", true},
     {"string", true},
     {"char", true},
+    {"unquoted", true},
     {"true", false},
     {"false", false},
     {"nil", false},
-    {"if", false},
+    {"if", false}, // 40
     {"elif", false},
     {"else", false},
     {"for", false},
@@ -55,7 +57,7 @@ static internal_tt_info_t tt_info[] = {
     {"continue", false},
     {"return", false},
     {"enum", false},
-    {"identifier", true},
+    {"identifier", true}, // 50
     {"func", false},
     {"var", false},
     {"global", false},
@@ -65,7 +67,7 @@ static internal_tt_info_t tt_info[] = {
     {"->", false},
     {"object", false},
     {"while", false},
-    {"in", false},
+    {"in", false}, // 60
     {"&", false},
     {"|", false},
     {"^", false},
@@ -75,7 +77,7 @@ static internal_tt_info_t tt_info[] = {
     {"switch", false},
     {"case", false},
     {"+=", false},
-    {"-=", false},
+    {"-=", false}, // 70
     {"*=", false},
     {"/=", false},
     {"%=", false},
@@ -84,15 +86,13 @@ static internal_tt_info_t tt_info[] = {
     {"^=", false},
     {"<<=", false},
     {">>=", false},
-    {"start", false},
-    {"eof", false},
-    {"error", false},
+    {"eof", false}, // 79
 };
 
 c4m_utf8_t *
 token_type_to_string(c4m_token_kind_t tk)
 {
-    return c4m_new(c4m_tspec_utf8(), "cstring", tt_info[tk]);
+    return c4m_new_utf8(tt_info[tk].tt_name);
 }
 
 typedef struct {
@@ -833,6 +833,7 @@ line_comment:
             case '>':
                 advance(state);
                 TOK(c4m_tt_arrow);
+                break;
             default:
                 TOK(c4m_tt_minus);
                 break;
@@ -1130,6 +1131,31 @@ c4m_lex(c4m_file_compile_ctx *ctx, c4m_stream_t *stream)
     return !error;
 }
 
+c4m_utf8_t *
+c4m_format_one_token(c4m_token_t *tok, c4m_str_t *prefix)
+{
+    int32_t      info_ix = (int)tok->kind;
+    int32_t     *num     = c4m_box_i32(tok->token_id);
+    c4m_utf8_t  *name    = c4m_new_utf8(tt_info[info_ix].tt_name);
+    int32_t     *line    = c4m_box_i32(tok->line_no);
+    int32_t     *offset  = c4m_box_i32(tok->line_offset);
+    c4m_utf32_t *val;
+
+    val = c4m_new(c4m_tspec_utf32(),
+                  c4m_kw("length",
+                         c4m_ka((int64_t)(tok->end_ptr - tok->start_ptr)),
+                         "codepoints",
+                         c4m_ka(tok->start_ptr)));
+
+    return c4m_cstr_format("{}#{} {} ({}:{}) {}",
+                           prefix,
+                           num,
+                           name,
+                           line,
+                           offset,
+                           val);
+}
+
 // Start out with any focus on color or other highlighting; just get
 // them into a default table for now aimed at debugging, and we'll add
 // a facility for styling later.
@@ -1147,11 +1173,11 @@ c4m_format_tokens(c4m_file_compile_ctx *ctx)
     c4m_xlist_t *row = c4m_new_table_row();
     int64_t      len = c4m_xlist_len(ctx->tokens);
 
-    c4m_xlist_append(row, c4m_rich_lit("Seq #"));
-    c4m_xlist_append(row, c4m_rich_lit("Type"));
-    c4m_xlist_append(row, c4m_rich_lit("Line #"));
-    c4m_xlist_append(row, c4m_rich_lit("Column #"));
-    c4m_xlist_append(row, c4m_rich_lit("Value"));
+    c4m_xlist_append(row, c4m_new_utf8("Seq #"));
+    c4m_xlist_append(row, c4m_new_utf8("Type"));
+    c4m_xlist_append(row, c4m_new_utf8("Line #"));
+    c4m_xlist_append(row, c4m_new_utf8("Column #"));
+    c4m_xlist_append(row, c4m_new_utf8("Value"));
     c4m_grid_add_row(grid, row);
 
     for (int64_t i = 0; i < len; i++) {
@@ -1160,7 +1186,7 @@ c4m_format_tokens(c4m_file_compile_ctx *ctx)
 
         row = c4m_new_table_row();
         c4m_xlist_append(row, c4m_str_from_int(i + 1));
-        c4m_xlist_append(row, c4m_rich_lit(tt_info[info_ix].tt_name));
+        c4m_xlist_append(row, c4m_new_utf8(tt_info[info_ix].tt_name));
         c4m_xlist_append(row, c4m_str_from_int(tok->line_no));
         c4m_xlist_append(row, c4m_str_from_int(tok->line_offset));
 

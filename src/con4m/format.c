@@ -558,41 +558,59 @@ c4m_str_vformat(c4m_str_t *fmt, c4m_dict_t *args)
 }
 
 c4m_utf8_t *
-_c4m_str_format(c4m_str_t *fmt, ...)
+c4m_base_format(c4m_str_t *fmt, va_list args)
 {
-    va_list     args;
     c4m_obj_t   one;
     int64_t     argc = 0;
     c4m_dict_t *dict = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
                                               c4m_tspec_ref()));
 
-    va_start(args, fmt);
     while ((one = va_arg(args, c4m_obj_t)) != NULL) {
         c4m_utf8_t *key = c4m_str_from_int(argc++);
         hatrack_dict_add(dict, key, one);
     }
-    va_end(args);
 
     return c4m_str_vformat(fmt, dict);
+}
+
+c4m_utf8_t *
+_c4m_str_format(c4m_str_t *fmt, ...)
+{
+    va_list     args;
+    c4m_utf8_t *result;
+
+    va_start(args, fmt);
+    result = c4m_base_format(fmt, args);
+    va_end(args);
+
+    return result;
 }
 
 c4m_utf8_t *
 _c4m_cstr_format(char *fmt, ...)
 {
     va_list     args;
-    c4m_obj_t   one;
-    int64_t     argc = 0;
+    c4m_utf8_t *result;
+
+    va_start(args, fmt);
+    result = c4m_base_format(c4m_new_utf8(fmt), args);
+    va_end(args);
+
+    return result;
+}
+
+c4m_utf8_t *
+c4m_cstr_array_format(char *fmt, int num_args, c4m_utf8_t **params)
+{
+    c4m_utf8_t *one;
     c4m_dict_t *dict = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
                                               c4m_tspec_ref()));
 
-    va_start(args, fmt);
-    while ((one = va_arg(args, c4m_obj_t)) != NULL) {
-        c4m_utf8_t *key = c4m_str_from_int(argc++);
+    for (int i = 0; i < num_args; i++) {
+        one             = params[i];
+        c4m_utf8_t *key = c4m_str_from_int(i);
         hatrack_dict_add(dict, key, one);
     }
-    va_end(args);
 
-    return c4m_str_vformat(c4m_new(c4m_tspec_utf8(),
-                                   c4m_kw("cstring", c4m_ka(fmt))),
-                           dict);
+    return c4m_str_vformat(c4m_new_utf8(fmt), dict);
 }

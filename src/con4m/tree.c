@@ -69,6 +69,7 @@ c4m_tree_adopt_and_prepend(c4m_tree_node_t *t, c4m_tree_node_t *kid)
     }
 
     t->children[0] = kid;
+    t->num_kids++;
 }
 
 c4m_tree_node_t *
@@ -170,12 +171,16 @@ tree_node_unmarshal(c4m_tree_node_t *t, c4m_stream_t *s, c4m_dict_t *memos)
 c4m_tree_node_t *
 c4m_tree_str_transform(c4m_tree_node_t *t, c4m_str_t *(*fn)(void *))
 {
+    if (t == NULL) {
+        return NULL;
+    }
+
     c4m_str_t       *str    = fn(c4m_tree_get_contents(t));
     c4m_tree_node_t *result = c4m_new(c4m_tspec_tree(c4m_tspec_utf8()),
                                       c4m_kw("contents", c4m_ka(str)));
 
     for (int64_t i = 0; i < t->num_kids; i++) {
-        c4m_tree_adopt_node(t, c4m_tree_str_transform(t->children[i], fn));
+        c4m_tree_adopt_node(result, c4m_tree_str_transform(t->children[i], fn));
     }
 
     return result;
