@@ -87,3 +87,7 @@ typedef void *object_t;
 #include "con4m/vm.h"
 #include "con4m/frontend/parse.h"
 #include "con4m/frontend/errors.h"
+#include "frontend/compile.h"
+#include "frontend/errors.h"
+#include "frontend/lex.h"
+#include "frontend/parse.h"

@@ -54,7 +54,7 @@ c4m_end_checkpoint(parse_ctx *ctx)
     ctx->jump_state = ctx->jump_state->prev;
 }
 
-static inline void
+static inline __attribute__((noreturn)) void
 c4m_exit_to_checkpoint(parse_ctx  *ctx,
                        int         code,
                        const char *f,
@@ -69,41 +69,23 @@ c4m_exit_to_checkpoint(parse_ctx  *ctx,
     longjmp(ctx->jump_state->env, code);
 }
 
-#if 0
-static int
-c4m_start_checkpoint(parse_ctx *ctx, const char *fn)
-{
-    if (ctx->jump_state != NULL && !strcmp(ctx->jump_state->fn, fn)) {
-        return 0;
+#define DECLARE_CHECKPOINT() \
+    int checkpoint_error = 0;
+
+#define ENTER_CHECKPOINT()                             \
+    if (!checkpoint_error) {                           \
+        checkpoint_t *cp = c4m_gc_alloc(checkpoint_t); \
+        cp->prev         = ctx->jump_state;            \
+        cp->fn           = (char *)__func__;           \
+        ctx->jump_state  = cp;                         \
+        checkpoint_error = setjmp(cp->env);            \
+        if (checkpoint_error != 0) {                   \
+            ctx->jump_state = cp->prev;                \
+        }                                              \
     }
 
-    printf("Start checkpoint @ %s\n", fn);
-    checkpoint_t *cp = c4m_gc_raw_alloc(sizeof(struct checkpoint_t),
-                                        (void *)(~0));
+#define CHECKPOINT_STATUS() (checkpoint_error)
 
-    cp->prev        = ctx->jump_state;
-    cp->fn          = (char *)fn;
-    ctx->jump_state = cp;
-
-    int res = setjmp(cp->env);
-
-    if (res) {
-        ctx->jump_state = cp->prev;
-    }
-    printf("setjmp returned: %d\n", res);
-
-    return res;
-}
-
-#define START_CHECKPOINT() c4m_start_checkpoint(ctx, __func__)
-#else
-static int           internal_checkpoint_result;
-static checkpoint_t *cp;
-
-#define START_CHECKPOINT() \
-    (ctx->jump_state != NULL && !strcmp(ctx->jump_state->fn, __func__)) ? (int)0 : (int)((cp = c4m_gc_raw_alloc(sizeof(struct checkpoint_t), (void *)(~0))), cp->prev = ctx->jump_state, cp->fn = (char *)__func__, ctx->jump_state = cp, internal_checkpoint_result = setjmp(cp->env), internal_checkpoint_result ? ctx->jump_state = cp->prev, internal_checkpoint_result : internal_checkpoint_result)
-
-#endif
 #define END_CHECKPOINT() c4m_end_checkpoint(ctx)
 #define THROW(code)      c4m_exit_to_checkpoint(ctx, \
                                            code,     \
@@ -225,7 +207,7 @@ typedef struct {
 } node_type_info_t;
 static const node_type_info_t node_type_info[] = {
     // clang-format off
-    { "nt_error", 1, 1, 0, 0, }, // 0
+    { "nt_error", 1, 1, 0, 0, },
     { "nt_module", 0, 0, 0, 1, },
     { "nt_body", 0, 0, 0, 0, },
     { "nt_assign", 0, 0, 0, 0, },
@@ -235,7 +217,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_if", 0, 0, 0, 0, },
     { "nt_elif", 0, 0, 0, 0, },
     { "nt_else", 0, 0, 0, 0, },
-    { "nt_typeof", 0, 0, 0, 0, }, // 10
+    { "nt_typeof", 0, 0, 0, 0, },
     { "nt_switch", 0, 0, 0, 0, },
     { "nt_for", 0, 0, 0, 0, },
     { "nt_while", 0, 0, 0, 0, },
@@ -245,7 +227,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_simple_lit", 1, 1, 1, 0, },
     { "nt_lit_list", 0, 0, 1, 0, },
     { "nt_lit_dict", 0, 0, 1, 0, },
-    { "nt_lit_set", 0, 0, 1, 0, }, // 20
+    { "nt_lit_set", 0, 0, 1, 0, },
     { "nt_lit_empty_dict_or_set", 0, 1, 1, 0, },
     { "nt_lit_tuple", 0, 0, 1, 0, },
     { "nt_lit_unquoted", 1, 1, 1, 0, },
@@ -255,7 +237,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_lit_tspec_named_type", 1, 1, 1, 0, },
     { "nt_lit_tspec_parameterized_type", 1, 0, 0, 0, },
     { "nt_lit_tspec_func", 1, 0, 0, 0, },
-    { "nt_lit_tspec_varargs", 0, 0, 0, 0, }, // 30
+    { "nt_lit_tspec_varargs", 0, 0, 0, 0, },
     { "nt_lit_tspec_return_type", 0, 0, 0, 0, },
     { "nt_or", 0, 0, 0, 0, },
     { "nt_and", 0, 0, 0, 0, },
@@ -265,7 +247,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_unary_op", 1, 0, 0, 0, },
     { "nt_enum", 1, 0, 0, 0, },
     { "nt_enum_item", 1, 0, 0, 0, },
-    { "nt_identifier", 1, 1, 0, 0, }, // 40
+    { "nt_identifier", 1, 1, 0, 0, },
     { "nt_func_def", 1, 0, 0, 1, },
     { "nt_formals", 0, 0, 0, 0, },
     { "nt_varargs_param", 1, 0, 0, 0, },
@@ -275,7 +257,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_paren_expr", 0, 0, 0, 0, },
     { "nt_var_decls", 0, 0, 0, 0, },
     { "nt_global_decls", 0, 0, 0, 0, },
-    { "nt_const_var_decls", 0, 0, 0, 0, }, // 50
+    { "nt_const_var_decls", 0, 0, 0, 0, },
     { "nt_const_global_decls", 0, 0, 0, 0, },
     { "nt_const_decls,", 0, 0, 0, 0, },
     { "nt_sym_decl", 0, 0, 0, 0, },
@@ -285,7 +267,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_extern_block", 0, 0, 0, 1, },
     { "nt_extern_sig", 0, 0, 0, 0, },
     { "nt_extern_param", 0, 0, 0, 0, },
-    { "nt_extern_local", 0, 0, 0, 0, }, // 60
+    { "nt_extern_local", 0, 0, 0, 0, },
     { "nt_extern_dll", 0, 0, 0, 0, },
     { "nt_extern_pure", 0, 0, 0, 0, },
     { "nt_extern_holds", 0, 0, 0, 0, },
@@ -295,7 +277,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_label", 1, 1, 0, 0, },
     { "nt_case", 0, 0, 0, 0, },
     { "nt_range", 0, 0, 0, 0, },
-    { "nt_assert", 0, 0, 0, 0, }, // 70
+    { "nt_assert", 0, 0, 0, 0, },
     { "nt_config_spec", 0, 0, 0, 1, },
     { "nt_section_spec", 0, 0, 0, 1, },
     { "nt_section_prop", 1, 0, 0, 0, },
@@ -1235,10 +1217,11 @@ extern_block(parse_ctx *ctx)
     expect(ctx, c4m_tt_lbrace);
     opt_doc_strings(ctx, current_parse_node(ctx));
 
-    int checkpoint_result = START_CHECKPOINT();
+    DECLARE_CHECKPOINT();
 
     while (true) {
-        switch (checkpoint_result) {
+        ENTER_CHECKPOINT();
+        switch (CHECKPOINT_STATUS()) {
         case 0:
             switch (match(ctx, c4m_tt_rbrace, c4m_tt_identifier)) {
             case c4m_tt_rbrace:
@@ -1274,10 +1257,10 @@ extern_block(parse_ctx *ctx)
                 err_skip_stmt(ctx, c4m_err_parse_extern_bad_prop);
                 continue;
             }
+        case '!':
+            THROW('!');
         default:
-            if (checkpoint_result == '!') {
-                THROW('!');
-            }
+            continue;
         }
     }
 }
@@ -1519,10 +1502,11 @@ case_body(parse_ctx *ctx)
 
     start_node(ctx, c4m_nt_body, true);
 
+    DECLARE_CHECKPOINT();
     while (true) {
-        int checkpoint_result = START_CHECKPOINT();
+        ENTER_CHECKPOINT();
 
-        switch (checkpoint_result) {
+        switch (CHECKPOINT_STATUS()) {
         case 0:
             switch (tok_kind(ctx)) {
             case c4m_tt_eof:
@@ -1641,10 +1625,10 @@ case_body(parse_ctx *ctx)
                     continue;
                 }
             }
+        case '!':
+            THROW('!');
         default:
-            if (checkpoint_result == '!') {
-                THROW('!');
-            }
+            continue;
         }
     }
 }
@@ -1982,11 +1966,11 @@ first_sym:
         symbol_info(ctx);
     }
 
-    c4m_node_kind_t checkpoint_result = current_parse_node(ctx)->kind;
+    c4m_node_kind_t result = current_parse_node(ctx)->kind;
 
     end_node(ctx);
 
-    return checkpoint_result;
+    return result;
 }
 
 static void
@@ -2449,10 +2433,10 @@ field_spec(parse_ctx *ctx)
     }
     opt_doc_strings(ctx, current_parse_node(ctx));
 
-    int checkpoint_result = START_CHECKPOINT();
-
+    DECLARE_CHECKPOINT();
     while (true) {
-        switch (checkpoint_result) {
+        ENTER_CHECKPOINT();
+        switch (CHECKPOINT_STATUS()) {
         case 0:
             switch (tok_kind(ctx)) {
             case c4m_tt_eof:
@@ -2475,10 +2459,10 @@ field_spec(parse_ctx *ctx)
                 END_CHECKPOINT();
                 return;
             }
+        case '!':
+            THROW('!');
         default:
-            if (checkpoint_result == '!') {
-                THROW('!');
-            }
+            continue;
         }
     }
 }
@@ -2576,10 +2560,10 @@ object_spec(parse_ctx *ctx, c4m_utf8_t *txt)
 
     opt_doc_strings(ctx, current_parse_node(ctx));
 
-    int checkpoint_result = START_CHECKPOINT();
-
+    DECLARE_CHECKPOINT();
     while (true) {
-        switch (checkpoint_result) {
+        ENTER_CHECKPOINT();
+        switch (CHECKPOINT_STATUS()) {
         case 0:
             switch (tok_kind(ctx)) {
             case c4m_tt_rbrace:
@@ -2607,10 +2591,9 @@ object_spec(parse_ctx *ctx, c4m_utf8_t *txt)
                 err_skip_stmt(ctx, c4m_err_parse_invalid_token_in_sec);
                 continue;
             }
+        case '!':
+            THROW('!');
         default:
-            if (checkpoint_result == '!') {
-                THROW('!');
-            }
             THROW('.');
         }
     }
@@ -3503,10 +3486,10 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
         }
     }
 
+    DECLARE_CHECKPOINT();
     while (true) {
-        int checkpoint_result = START_CHECKPOINT();
-
-        switch (checkpoint_result) {
+        ENTER_CHECKPOINT();
+        switch (CHECKPOINT_STATUS()) {
         case 0:
             switch (tok_kind(ctx)) {
             case c4m_tt_eof:
@@ -3625,10 +3608,10 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
                     continue;
                 }
             }
+        case '!':
+            THROW('!');
         default:
-            if (checkpoint_result == '!') {
-                THROW('!');
-            }
+            continue;
         }
     }
 }
@@ -3647,13 +3630,10 @@ module(parse_ctx *ctx)
 
     opt_doc_strings(ctx, root);
 
-    // ... you are here.
-    // Could easily test matching doc strings.
-
-    int checkpoint_result = START_CHECKPOINT();
-
+    DECLARE_CHECKPOINT();
     while (true) {
-        switch (checkpoint_result) {
+        ENTER_CHECKPOINT();
+        switch (CHECKPOINT_STATUS()) {
         case 0:
             switch (tok_cur(ctx)->kind) {
             case c4m_tt_eof:
@@ -3769,9 +3749,11 @@ module(parse_ctx *ctx)
                     continue;
                 }
             }
-        default:
-            END_CHECKPOINT();
+
+        case '!':
             return NULL;
+        default:
+            continue;
         }
     }
 }
