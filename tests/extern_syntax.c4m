@@ -1,14 +1,14 @@
-extern callecho(a: ptr) -> ptr {
+extern callecho(ptr) -> ptr {
   local: print(x: string) -> void
   pure: false
 }
 
-extern echoanint(a: cint) -> cvoid {
+extern echoanint(cint) -> cvoid {
   local: print(x: int) -> void
   pure: false
 }
 
-extern exit(status: cint) -> cvoid {
+extern exit(cint) -> cvoid {
   local: exit(x: int) -> void
   pure: false
 }
@@ -18,12 +18,12 @@ extern abort() -> cvoid {
   pure: false
 }
 
- extern splitwrap(a: cstring, cstring) -> ptr {
+ extern splitwrap(cstring, cstring) -> ptr {
   local: split(x: string, y: string) -> list[string]
   pure: true
 }
 
-extern callecho2(a: ptr, b: ptr) -> ptr {
+extern callecho2(ptr, ptr) -> ptr {
   local: print(x: string) -> void
   pure: false
   holds: a

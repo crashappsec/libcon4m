@@ -730,7 +730,7 @@ base_int_fmt(__int128_t v, c4m_fmt_spec_t *spec, c4m_codepoint_t default_type)
     case 'n':
     case 'i':
     case 'd': // Normal ordinal.
-        if (n == 0) {
+        if (v == 0) {
             repr[--n] = '0';
         }
         else {

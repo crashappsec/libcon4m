@@ -137,7 +137,7 @@ next(lex_state_t *state)
 static inline void
 unput(lex_state_t *state)
 {
-    if (state->pos && state->pos < state->end) {
+    if (state->pos && state->pos <= state->end) {
         --state->pos;
     }
 }
@@ -689,7 +689,9 @@ scan_id_or_keyword(lex_state_t *state)
     while (true) {
         c4m_codepoint_t c = next(state);
         if (!c4m_codepoint_is_c4m_id_continue(c)) {
-            unput(state);
+            if (c) {
+                unput(state);
+            }
             break;
         }
     }

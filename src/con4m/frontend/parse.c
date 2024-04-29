@@ -24,12 +24,22 @@ typedef struct {
     checkpoint_t         *jump_state;
 } parse_ctx;
 
-static inline c4m_token_t *_tok_cur(parse_ctx *, int);
 #undef PARSE_DEBUG
 
-#define consume(ctx)                         _consume(ctx, __LINE__)
-#define tok_cur(ctx)                         _tok_cur(ctx, __LINE__)
-#define start_node(ctx, kind, consume_token) _start_node(ctx, kind, consume_token, __LINE__)
+#ifdef PARSE_DEBUG
+static inline c4m_token_t *_tok_cur(parse_ctx *, int);
+#define consume(ctx) _consume(ctx, __LINE__)
+#define tok_cur(ctx) _tok_cur(ctx, __LINE__)
+#define start_node(ctx, kind, consume_token) \
+    _start_node(ctx, kind, consume_token, __LINE__)
+#else
+static inline c4m_token_t *_tok_cur(parse_ctx *);
+#define consume(ctx) _consume(ctx)
+#define tok_cur(ctx) _tok_cur(ctx)
+#define start_node(ctx, kind, consume_token) \
+    _start_node(ctx, kind, consume_token)
+#endif
+
 #define DEBUG_CUR(x)                                           \
     {                                                          \
         c4m_utf8_t *prefix = c4m_new_utf8(x);                  \
@@ -101,8 +111,12 @@ static checkpoint_t *cp;
                                            __LINE__, \
                                            __func__)
 
-static inline void
-                        _consume(parse_ctx *, int);
+#ifdef PARSE_DEBUG
+static inline void _consume(parse_ctx *, int);
+#else
+static inline void _consume(parse_ctx *);
+#endif
+
 static void             identifier(parse_ctx *);
 static void             body(parse_ctx *, c4m_pnode_t *);
 static inline bool      line_skip_recover(parse_ctx *);
@@ -280,7 +294,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_extern_expression", 0, 0, 0, 0, },
     { "nt_label", 1, 1, 0, 0, },
     { "nt_case", 0, 0, 0, 0, },
-    { "nt_range", 1, 0, 0, 0, },
+    { "nt_range", 0, 0, 0, 0, },
     { "nt_assert", 0, 0, 0, 0, }, // 70
     { "nt_config_spec", 0, 0, 0, 1, },
     { "nt_section_spec", 0, 0, 0, 1, },
@@ -310,8 +324,13 @@ lookup_ctype_id(char *found)
     }
 }
 
+#ifdef PARSE_DEBUG
 static inline c4m_token_t *
 _tok_cur(parse_ctx *ctx, int line)
+#else
+static inline c4m_token_t *
+_tok_cur(parse_ctx *ctx)
+#endif
 {
     if (!ctx->cached_token || ctx->token_ix != ctx->cache_ix) {
         ctx->cached_token = c4m_xlist_get(ctx->file_ctx->tokens,
@@ -320,11 +339,11 @@ _tok_cur(parse_ctx *ctx, int line)
         ctx->cache_ix     = ctx->token_ix;
     }
 
+#ifdef PARSE_DEBUG
     if (line == -1) {
         return ctx->cached_token;
     }
 
-#ifdef PARSE_DEBUG
     c4m_utf8_t *prefix = c4m_cstr_format("parse.c line {}: tok_cur(ctx) = ",
                                          c4m_box_i32(line));
 
@@ -336,7 +355,11 @@ _tok_cur(parse_ctx *ctx, int line)
 static inline c4m_token_kind_t
 tok_kind(parse_ctx *ctx)
 {
+#ifdef PARSE_DEBUG
     return _tok_cur(ctx, -1)->kind;
+#else
+    return _tok_cur(ctx)->kind;
+#endif
 }
 
 static void
@@ -493,8 +516,13 @@ tok_raw_advance_once(parse_ctx *ctx)
     ctx->token_ix += 1;
 }
 
+#ifdef PARSE_DEBUG
 static inline void
 _consume(parse_ctx *ctx, int line)
+#else
+static inline void
+_consume(parse_ctx *ctx)
+#endif
 {
     c4m_pnode_t        *pn;
     c4m_comment_node_t *comment;
@@ -680,8 +708,13 @@ adopt_kid(parse_ctx *ctx, c4m_tree_node_t *node)
     c4m_tree_adopt_node(ctx->cur, node);
 }
 
+#ifdef PARSE_DEBUG
 static inline c4m_tree_node_t *
 _start_node(parse_ctx *ctx, c4m_node_kind_t kind, bool consume_token, int line)
+#else
+static inline c4m_tree_node_t *
+_start_node(parse_ctx *ctx, c4m_node_kind_t kind, bool consume_token)
+#endif
 {
     c4m_pnode_t     *child  = c4m_new(c4m_tspec_parse_node(), ctx, kind);
     c4m_tree_node_t *parent = ctx->cur;
@@ -862,7 +895,7 @@ finish_fnspec:
         consume(ctx);
         opt_return_type(ctx);
         end_node(ctx);
-
+        return;
     default:
         err_skip_stmt(ctx, c4m_err_parse_bad_tspec);
     }
@@ -1155,6 +1188,7 @@ extern_signature(parse_ctx *ctx)
     if (tok_kind(ctx) == c4m_tt_rparen) {
         consume(ctx);
         end_node(ctx);
+        opt_return_type(ctx);
         return;
     }
     while (true) {
@@ -1393,7 +1427,7 @@ for_var_list(parse_ctx *ctx)
 static bool
 optional_range(parse_ctx *ctx, c4m_tree_node_t *lhs)
 {
-    if (match(ctx, c4m_tt_to, c4m_tt_colon) == c4m_tt_error) {
+    if (match(ctx, c4m_tt_to, c4m_tt_comma, c4m_tt_colon) == c4m_tt_error) {
         return false;
     }
 
@@ -1410,7 +1444,8 @@ range(parse_ctx *ctx)
 {
     start_node(ctx, c4m_nt_range, false);
     literal_or_identifier(ctx);
-    if (match(ctx, c4m_tt_to, c4m_tt_colon) == c4m_tt_error) {
+
+    if (match(ctx, c4m_tt_to, c4m_tt_comma, c4m_tt_colon) == c4m_tt_error) {
         add_parse_error(ctx, c4m_err_parse_expected_range_tok);
         line_skip_recover(ctx);
         end_node(ctx);
@@ -1418,7 +1453,19 @@ range(parse_ctx *ctx)
     }
     consume(ctx);
     literal_or_identifier(ctx);
+    end_of_statement(ctx);
     end_node(ctx);
+}
+
+static void
+property_range(parse_ctx *ctx)
+{
+    consume(ctx);
+    if (!expect(ctx, c4m_tt_colon)) {
+        return;
+    }
+
+    range(ctx);
 }
 
 static void
@@ -1693,12 +1740,8 @@ switch_case_block(parse_ctx *ctx)
 {
     start_node(ctx, c4m_nt_case, false);
 
-    DEBUG_CUR("Top of scb: ");
-
     while (true) {
         c4m_tree_node_t *expr = expression(ctx);
-
-        DEBUG_CUR("After expr: ");
 
         // clang-format off
         if (tok_kind(ctx) != c4m_tt_colon ||
@@ -1716,7 +1759,6 @@ switch_case_block(parse_ctx *ctx)
         consume(ctx);
     }
 
-    DEBUG_CUR("After !opt_range: ");
     if (tok_kind(ctx) == c4m_tt_colon) {
         case_body(ctx);
     }
@@ -2251,6 +2293,69 @@ literal_or_identifier(parse_ctx *ctx)
 }
 
 static void
+typical_field_property(parse_ctx *ctx)
+{
+    start_node(ctx, c4m_nt_section_prop, true);
+    if (!expect(ctx, c4m_tt_colon)) {
+        end_node(ctx);
+        return;
+    }
+
+    literal_or_identifier(ctx);
+    end_of_statement(ctx);
+    end_node(ctx);
+}
+
+static void
+exclusion_field_property(parse_ctx *ctx)
+{
+    start_node(ctx, c4m_nt_section_prop, true);
+
+    if (!expect(ctx, c4m_tt_colon)) {
+        end_node(ctx);
+        return;
+    }
+
+    identifier(ctx);
+    while (tok_kind(ctx) == c4m_tt_comma) {
+        consume(ctx);
+        identifier(ctx);
+    }
+    end_of_statement(ctx);
+    end_node(ctx);
+}
+
+static void
+type_field_property(parse_ctx *ctx)
+{
+    start_node(ctx, c4m_nt_section_prop, true);
+
+    if (!expect(ctx, c4m_tt_colon)) {
+        end_node(ctx);
+        return;
+    }
+
+    if (tok_kind(ctx) == c4m_tt_arrow) {
+        consume(ctx);
+        identifier(ctx);
+    }
+    else {
+        type_spec(ctx);
+    }
+
+    end_of_statement(ctx);
+    end_node(ctx);
+}
+
+static void
+invalid_field_part(parse_ctx *ctx)
+{
+    end_node(ctx);
+    err_skip_stmt(ctx, c4m_err_parse_invalid_field_part);
+    return;
+}
+
+static void
 field_property(parse_ctx *ctx)
 {
     char *txt = identifier_text(tok_cur(ctx))->data;
@@ -2258,94 +2363,78 @@ field_property(parse_ctx *ctx)
     switch (txt[0]) {
     case 'c':
         if (strcmp(txt, "choice") && strcmp(txt, "choices")) {
-            goto invalid_field_part;
-        }
-
-typical_property:
-        start_node(ctx, c4m_nt_section_prop, true);
-
-        if (!expect(ctx, c4m_tt_colon)) {
-            end_node(ctx);
-            return;
-        }
-
-        literal_or_identifier(ctx);
-        break;
-
-    case 'd':
-        if (strcmp(txt, "default")) {
-            goto invalid_field_part;
-        }
-        goto typical_property;
-
-    case 'e':
-        if (strcmp(txt, "exclude") && strcmp(txt, "exclusions")) {
-            goto invalid_field_part;
-        }
-
-        start_node(ctx, c4m_nt_section_prop, true);
-
-        if (!expect(ctx, c4m_tt_colon)) {
-            end_node(ctx);
-            return;
-        }
-
-        identifier(ctx);
-        while (tok_kind(ctx) == c4m_tt_comma) {
-            consume(ctx);
-            identifier(ctx);
-        }
-        break;
-
-    case 'h':
-        if (strcmp(txt, "hide") && strcmp(txt, "hidden")) {
-            goto invalid_field_part;
-        }
-        goto typical_property;
-
-    case 'l':
-        if (strcmp(txt, "lock") && strcmp(txt, "locked")) {
-            goto invalid_field_part;
-        }
-        goto typical_property;
-    case 'r':
-        if (!strcmp(txt, "require") || !strcmp(txt, "required")) {
-            goto typical_property;
-        }
-        if (strcmp(txt, "range")) {
-            goto invalid_field_part;
-        }
-        range(ctx);
-        break;
-    case 't':
-        if (strcmp(txt, "type")) {
-            goto invalid_field_part;
-        }
-        if (tok_kind(ctx) == c4m_tt_arrow) {
-            consume(ctx);
-            identifier(ctx);
+            invalid_field_part(ctx);
         }
         else {
-            type_spec(ctx);
+            typical_field_property(ctx);
         }
-        break;
+        return;
+    case 'd':
+        if (strcmp(txt, "default")) {
+            invalid_field_part(ctx);
+        }
+        else {
+            typical_field_property(ctx);
+        }
+        return;
+    case 'e':
+        if (strcmp(txt, "exclude") && strcmp(txt, "exclusions")) {
+            invalid_field_part(ctx);
+        }
+        else {
+            exclusion_field_property(ctx);
+        }
+        return;
+    case 'h':
+        if (strcmp(txt, "hide") && strcmp(txt, "hidden")) {
+            invalid_field_part(ctx);
+        }
+        else {
+            typical_field_property(ctx);
+        }
+        return;
+    case 'l':
+        if (strcmp(txt, "lock") && strcmp(txt, "locked")) {
+            invalid_field_part(ctx);
+        }
+        else {
+            typical_field_property(ctx);
+        }
+        return;
+    case 'r':
+        if (!strcmp(txt, "require") || !strcmp(txt, "required")) {
+            typical_field_property(ctx);
+        }
+        else {
+            if (!strcmp(txt, "range")) {
+                property_range(ctx);
+            }
+            else {
+                invalid_field_part(ctx);
+            }
+        }
+        return;
+    case 't':
+        if (strcmp(txt, "type")) {
+            invalid_field_part(ctx);
+        }
+        else {
+            type_field_property(ctx);
+        }
+        return;
     case 'v':
         if (strcmp(txt, "validator")) {
-            goto invalid_field_part;
+            invalid_field_part(ctx);
         }
-
-        goto typical_property;
-
+        else {
+            typical_field_property(ctx);
+        }
+        return;
     default:
-invalid_field_part:
         end_node(ctx);
         err_skip_stmt(ctx, c4m_err_parse_invalid_field_part);
         return;
     }
-
-    end_node(ctx);
-    end_of_statement(ctx);
-    return;
 }
 
 static void
@@ -2360,26 +2449,30 @@ field_spec(parse_ctx *ctx)
     }
     opt_doc_strings(ctx, current_parse_node(ctx));
 
-    while (true) {
-        int checkpoint_result = START_CHECKPOINT();
+    int checkpoint_result = START_CHECKPOINT();
 
+    while (true) {
         switch (checkpoint_result) {
+        case 0:
             switch (tok_kind(ctx)) {
             case c4m_tt_eof:
                 EOF_ERROR(ctx);
             case c4m_tt_rbrace:
                 consume(ctx);
                 end_node(ctx);
+                END_CHECKPOINT();
                 return;
             case c4m_tt_semi:
             case c4m_tt_newline:
-                consume(ctx);
+                opt_newlines(ctx);
                 continue;
             case c4m_tt_identifier:
                 field_property(ctx);
+                continue;
             default:
                 end_node(ctx);
                 err_skip_stmt(ctx, c4m_err_parse_invalid_sec_part);
+                END_CHECKPOINT();
                 return;
             }
         default:
@@ -2467,13 +2560,13 @@ invalid_sec_part:
 static void
 object_spec(parse_ctx *ctx, c4m_utf8_t *txt)
 {
-    start_node(ctx, c4m_nt_section_spec, true);
-    identifier(ctx);
-
+    start_node(ctx, c4m_nt_section_spec, false);
     // if this isn't the root section, we read a name.
     if (strcmp(txt->data, "root")) {
         identifier(ctx);
     }
+
+    identifier(ctx);
 
     opt_one_newline(ctx);
 
@@ -2483,14 +2576,17 @@ object_spec(parse_ctx *ctx, c4m_utf8_t *txt)
 
     opt_doc_strings(ctx, current_parse_node(ctx));
 
+    int checkpoint_result = START_CHECKPOINT();
+
     while (true) {
-        int checkpoint_result = START_CHECKPOINT();
         switch (checkpoint_result) {
+        case 0:
             switch (tok_kind(ctx)) {
             case c4m_tt_rbrace:
                 consume(ctx);
                 opt_newlines(ctx);
                 end_node(ctx);
+                END_CHECKPOINT();
                 return;
             case c4m_tt_semi:
             case c4m_tt_newline:
@@ -2509,11 +2605,13 @@ object_spec(parse_ctx *ctx, c4m_utf8_t *txt)
                 EOF_ERROR(ctx);
             default:
                 err_skip_stmt(ctx, c4m_err_parse_invalid_token_in_sec);
+                continue;
             }
         default:
             if (checkpoint_result == '!') {
                 THROW('!');
             }
+            THROW('.');
         }
     }
 }
@@ -2531,6 +2629,7 @@ confspec_block(parse_ctx *ctx)
     }
 
     opt_doc_strings(ctx, current_parse_node(ctx));
+
     while (true) {
         switch (tok_kind(ctx)) {
         case c4m_tt_eof:
@@ -2556,8 +2655,9 @@ confspec_block(parse_ctx *ctx)
                                 c4m_err_parse_bad_confspec_sec_type,
                                 txt);
                 line_skip_recover(ctx);
-                continue;
             }
+            continue;
+
         default:
             add_parse_error(ctx,
                             c4m_err_parse_bad_confspec_sec_type,
@@ -3326,11 +3426,20 @@ section(parse_ctx *ctx, c4m_tree_node_t *node)
 {
     c4m_pnode_t *lhs = (c4m_pnode_t *)c4m_tree_get_contents(node);
 
-    if (lhs->kind != c4m_nt_identifier) {
+    if (lhs->kind != c4m_nt_expression || !c4m_tree_get_number_children(node)) {
+        printf("Bad start 1.\n");
+bad_start:
         raise_err_at_node(ctx,
                           current_parse_node(ctx),
                           c4m_err_parse_unexpected_after_expr,
                           false);
+    }
+
+    lhs = c4m_tree_get_contents(c4m_tree_get_child(node, 0));
+
+    if (lhs->kind != c4m_nt_identifier) {
+        printf("Bad start 2.\n");
+        goto bad_start;
     }
 
     c4m_tree_node_t *result = temporary_tree(ctx, c4m_nt_section);
@@ -3340,6 +3449,7 @@ section(parse_ctx *ctx, c4m_tree_node_t *node)
     switch (match(ctx,
                   c4m_tt_identifier,
                   c4m_tt_string_lit,
+                  c4m_tt_newline,
                   c4m_tt_lbrace)) {
     case c4m_tt_identifier:
         identifier(ctx);
@@ -3354,10 +3464,7 @@ section(parse_ctx *ctx, c4m_tree_node_t *node)
         abort(); // Should be unreachable.
     }
 
-    if (!START_CHECKPOINT()) {
-        body(ctx, (c4m_pnode_t *)c4m_tree_get_contents(result));
-        END_CHECKPOINT();
-    }
+    body(ctx, (c4m_pnode_t *)c4m_tree_get_contents(result));
 
     restore_tree(ctx);
     return result;
@@ -3537,17 +3644,6 @@ module(parse_ctx *ctx)
                                       c4m_kw("contents", c4m_ka(root)));
 
     ctx->cur = result;
-
-    // tok_cur() doesn't skip comment tokens; consume() does.
-    // So if a module starts w/ something that is always skipped,
-    // we need to skip it up front.
-    switch (tok_kind(ctx)) {
-    case c4m_tt_newline:
-    case c4m_tt_long_comment:
-    case c4m_tt_line_comment:
-        consume(ctx);
-    default:
-    }
 
     opt_doc_strings(ctx, root);
 
@@ -3741,6 +3837,23 @@ c4m_parse(c4m_file_compile_ctx *file_ctx)
         .cache_ix     = -1,
         .root_stack   = c4m_new(c4m_tspec_stack(c4m_tspec_parse_node())),
     };
+
+    // tok_cur() doesn't skip comment tokens; consume() does.  So if a
+    // module starts w/ something that is always skipped, we need to
+    // skip it up front, or add an extra check to tok_cur.
+    while (true) {
+        switch (tok_kind(&ctx)) {
+        case c4m_tt_newline:
+        case c4m_tt_long_comment:
+        case c4m_tt_line_comment:
+        case c4m_tt_space:
+            ctx.token_ix++;
+            continue;
+        default:
+            break;
+        }
+        break;
+    }
 
     file_ctx->parse_tree = module(&ctx);
     return file_ctx->parse_tree != NULL;
