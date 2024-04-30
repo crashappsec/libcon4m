@@ -21,7 +21,6 @@
 #include "con4m/datatypes/callbacks.h"
 #include "con4m/datatypes/streams.h"
 #include "con4m/datatypes/format.h"
-#include "con4m/datatypes/frontend.h"
 #include "con4m/datatypes/vm.h"
 #include "frontend/datatypes/lex.h"
 #include "frontend/datatypes/error.h"

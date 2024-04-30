@@ -79,14 +79,10 @@ typedef void *object_t;
 // Yes we use cryptographic hashes internally for type IDing.
 #include "crypto/sha.h"
 
-// The front end.
-#include "con4m/frontend/compile.h"
-#include "con4m/frontend/lex.h" // Lexical Tokens
-
 // Virtual machine for running con4m code
 #include "con4m/vm.h"
-#include "con4m/frontend/parse.h"
-#include "con4m/frontend/errors.h"
+
+// The front end.
 #include "frontend/compile.h"
 #include "frontend/errors.h"
 #include "frontend/lex.h"

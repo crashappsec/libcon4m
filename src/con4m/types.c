@@ -252,9 +252,10 @@ internal_type_hash(c4m_type_t *node, type_hash_ctx *ctx)
 static c4m_type_hash_t
 type_hash_and_dedupe(c4m_type_t **nodeptr, c4m_type_env_t *env)
 {
-    c4m_buf_t  *buf;
-    uint64_t    result;
-    c4m_type_t *node = *nodeptr;
+    c4m_buf_t    *buf;
+    uint64_t      result;
+    c4m_type_t   *node = *nodeptr;
+    type_hash_ctx ctx;
 
     if (node->typeid != 0) {
         return node->typeid;
@@ -268,11 +269,10 @@ type_hash_and_dedupe(c4m_type_t **nodeptr, c4m_type_env_t *env)
         return node->typeid;
     case C4M_DT_KIND_type_var:
         assert(false); // unreachable; typeid should always be set.
-    default: {
-        type_hash_ctx ctx = {
-            .env      = env,
-            .sha      = c4m_new(c4m_tspec_hash()),
-            .tv_count = 0};
+    default:
+        ctx.env      = env;
+        ctx.sha      = c4m_new(c4m_tspec_hash());
+        ctx.tv_count = 0;
 
         internal_type_hash(node, &ctx);
 
@@ -293,7 +293,6 @@ type_hash_and_dedupe(c4m_type_t **nodeptr, c4m_type_env_t *env)
             *nodeptr = hatrack_dict_get(env->store, (void *)result, NULL);
             *nodeptr = c4m_resolve_type_aliases(*nodeptr, env);
         }
-    }
     }
     return result;
 }

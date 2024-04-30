@@ -56,6 +56,7 @@ c4m_sha_init(c4m_sha_t *ctx, va_list args)
 
     ctx->digest = c4m_new(c4m_tspec_buffer(),
                           c4m_kw("length", c4m_ka(bits / 8)));
+
     version -= 2;
     bits               = (bits >> 7) - 2; // Maps the bit sizes to 0, 1 and 2,
                                           // by dividing by 128, then - 2.

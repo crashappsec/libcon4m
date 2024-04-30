@@ -12,9 +12,9 @@ c4m_init(int argc, char **argv, char **envp)
     c4m_stashed_argv = argv;
     c4m_stashed_envp = envp;
 
+    c4m_gc_openssl();
     c4m_initialize_gc();
     c4m_initialize_global_types();
-    c4m_gc_openssl();
 }
 
 c4m_xlist_t *
