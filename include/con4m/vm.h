@@ -43,3 +43,9 @@ c4m_vm_attr_set(c4m_vmthread_t *tstate,
 // it is set.
 extern void
 c4m_vm_attr_lock(c4m_vmthread_t *tstate, c4m_str_t *key, bool on_write);
+
+extern void
+c4m_vm_marshal(c4m_vm_t *vm, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid);
+
+extern void
+c4m_vm_unmarshal(c4m_vm_t *vm, c4m_stream_t *in, c4m_dict_t *memos);

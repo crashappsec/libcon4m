@@ -334,7 +334,7 @@ typedef struct {
     int32_t      mid; // module_id
     c4m_type_t  *tid;
     bool         va;
-    int         *dlls;
+    c4m_xlist_t *dlls;     // int64_t
     c4m_xlist_t *arg_info; // tspec_ref: c4m_zffi_arg_info_t
     c4m_str_t   *shortdoc;
     c4m_str_t   *longdoc;
@@ -406,14 +406,13 @@ typedef struct {
 
 typedef struct {
     uint64_t     zero_magic;
-    uint16_t     zc_object_vars;
-    char        *static_data;
-    size_t       static_data_size; // does not exist in Nim; added for C safety
-    c4m_dict_t  *t_info;           // c4m_type_t *, int64_t (index into static data for repr)
-    c4m_dict_t  *globals;          // int64_t, string
-    c4m_xlist_t *sym_types;        // tspec_ref: c4m_zsymbol_t
+    uint16_t     zc_object_vers;
+    c4m_buf_t   *static_data;
+    c4m_dict_t  *t_info;          // c4m_type_t *, int64_t (index into static data for repr)
+    c4m_dict_t  *globals;         // int64_t, string
+    c4m_xlist_t *sym_types;       // tspec_ref: c4m_zsymbol_t
     int64_t      global_scope_sz;
-    c4m_xlist_t *module_contents;  // tspec_ref: c4m_zmodule_info_t
+    c4m_xlist_t *module_contents; // tspec_ref: c4m_zmodule_info_t
     int32_t      entrypoint;
     int32_t      next_entrypoint;
     c4m_xlist_t *func_info; // tspec_ref: c4m_zfn_info_t
@@ -452,7 +451,7 @@ typedef struct {
     // the base object file.
     c4m_value_t **module_allocations;
     c4m_dict_t   *attrs;        // string, c4m_attr_contents_t (tspec_ref)
-    c4m_dict_t   *all_sections; // string, bool
+    c4m_set_t    *all_sections; // string
     c4m_dict_t   *section_docs; // string, c4m_docs_container_t (tspec_ref)
     bool          using_attrs;
 } c4m_vm_t;

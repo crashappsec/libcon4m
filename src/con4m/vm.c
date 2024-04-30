@@ -219,9 +219,9 @@ c4m_vm_module_enter(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 static c4m_utf8_t *
 c4m_vm_attr_key(c4m_vmthread_t *tstate, uint64_t static_ptr)
 {
-    char  *s    = tstate->vm->obj->static_data + tstate->sp->static_ptr;
+    char  *s    = tstate->vm->obj->static_data->data + tstate->sp->static_ptr;
     size_t slen = strnlen(s,
-                          tstate->vm->obj->static_data_size
+                          c4m_buffer_len(tstate->vm->obj->static_data)
                               - tstate->sp->static_ptr);
 
     return c4m_new(c4m_tspec_utf8(),
@@ -917,8 +917,9 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     // Nim vm doesn't use the length encoded in the instruction,
                     // but codegen does include it as i->arg. We'll use it in
                     // our implementation.
-                    char   *data  = &tstate->vm->obj->static_data[i->immediate];
-                    int64_t avail = tstate->vm->obj->static_data_size - i->immediate;
+                    char   *data  = &tstate->vm->obj->static_data->data[i->immediate];
+                    int64_t avail = c4m_buffer_len(tstate->vm->obj->static_data)
+                                  - i->immediate;
                     if (i->arg > avail) {
                         C4M_CRAISE("could not unmarshal: invalid length / offset combination");
                     }
@@ -1013,13 +1014,13 @@ c4m_vm_reset(c4m_vm_t *vm)
     int64_t nmodules          = c4m_xlist_len(vm->obj->module_contents);
     vm->module_allocations    = c4m_gc_array_alloc(c4m_value_t *, nmodules + 1);
     vm->module_allocations[0] = c4m_gc_array_alloc(c4m_value_t, vm->obj->global_scope_sz);
-    for (int64_t n = 1; n < nmodules; ++n) {
+    for (int64_t n = 1; n <= nmodules; ++n) {
         c4m_zmodule_info_t *m     = c4m_xlist_get(vm->obj->module_contents, n, NULL);
         vm->module_allocations[n] = c4m_gc_array_alloc(c4m_value_t, m->module_var_size);
     }
 
     vm->attrs        = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_ref()));
-    vm->all_sections = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_bool()));
+    vm->all_sections = c4m_new(c4m_tspec_set(c4m_tspec_utf8()));
     vm->section_docs = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_ref()));
     vm->using_attrs  = false;
 }
@@ -1074,16 +1075,6 @@ c4m_vmthread_run(c4m_vmthread_t *tstate)
     tstate->running = false;
 
     return result;
-}
-
-void
-c4m_vm_marshal(c4m_vm_t *vm, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid) // TODO
-{
-}
-
-void
-c4m_vm_unmarshal(c4m_vm_t *vm, c4m_stream_t *in, c4m_dict_t *memos) // TODO
-{
 }
 
 const c4m_vtable_t c4m_vm_vtable = {

@@ -62,6 +62,7 @@ forkpty(int *, char *, struct termios *, struct winsize *);
 #include "hatrack.h"
 
 typedef struct hatrack_dict_t c4m_dict_t;
+typedef struct hatrack_set_st c4m_set_t;
 
 #include "con4m/datatypes.h"
 
