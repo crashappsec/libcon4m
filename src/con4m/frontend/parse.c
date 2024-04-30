@@ -378,7 +378,7 @@ _add_parse_error(parse_ctx *ctx, c4m_compile_error_t code, ...)
 #define add_parse_error(ctx, code, ...) \
     _add_parse_error(ctx, code, KFUNC(__VA_ARGS__))
 
-static void
+static void __attribute__((noreturn))
 _raise_err_at_node(parse_ctx          *ctx,
                    c4m_pnode_t        *n,
                    c4m_compile_error_t code,
@@ -396,7 +396,7 @@ _raise_err_at_node(parse_ctx          *ctx,
         c4m_exit_to_checkpoint(ctx, '!', f, line, fn);
     }
     else {
-        c4m_exit_to_checkpoint(ctx, '!', f, line, fn);
+        c4m_exit_to_checkpoint(ctx, '.', f, line, fn);
     }
 }
 
@@ -3578,6 +3578,7 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
                 }
                 // fallthrough. We'll parse an identifier then parent
                 // it based on what we see after.
+                // fallthrough
             default:
                 expr = expression(ctx);
                 switch (tok_kind(ctx)) {
@@ -3666,10 +3667,13 @@ module(parse_ctx *ctx)
                 continue;
             case c4m_tt_continue:
                 err_skip_stmt(ctx, c4m_err_parse_continue_outside_loop);
+                continue;
             case c4m_tt_break:
                 err_skip_stmt(ctx, c4m_err_parse_break_outside_loop);
+                continue;
             case c4m_tt_return:
                 err_skip_stmt(ctx, c4m_err_parse_return_outside_func);
+                continue;
             case c4m_tt_private:
             case c4m_tt_func:
                 func_def(ctx);
@@ -3713,6 +3717,7 @@ module(parse_ctx *ctx)
                 }
                 // fallthrough. We'll parse an identifier then parent
                 // it based on what we see after.
+                // fallthrough
             default:
                 expr = expression(ctx);
 

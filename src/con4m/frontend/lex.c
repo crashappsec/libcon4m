@@ -787,6 +787,7 @@ lex_next_token:
                 LEX_ERROR(c4m_err_lex_stray_cr);
             }
             // Fallthrough if no exception got raised.
+            // fallthrough
         case '\n':
             TOK(c4m_tt_newline);
             at_new_line(state);
