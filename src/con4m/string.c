@@ -276,6 +276,7 @@ c4m_str_copy(const c4m_str_t *s)
     res->codepoints = s->codepoints;
     memcpy(res->data, s->data, s->byte_len);
     c4m_copy_style_info(s, res);
+    res->byte_len = s->byte_len;
 
     return res;
 }
@@ -1116,11 +1117,19 @@ c4m_str_eq(c4m_str_t *s1, c4m_str_t *s2)
     return memcmp(s1->data, s2->data, s1->byte_len) == 0;
 }
 
+static c4m_str_t *
+c4m_string_format(c4m_str_t *obj, c4m_fmt_spec_t *spec)
+{
+    // For now, just do nothing.
+    return obj;
+}
+
 const c4m_vtable_t c4m_u8str_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         (c4m_vtable_entry)utf8_init,
         (c4m_vtable_entry)c4m_str_repr,
+        (c4m_vtable_entry)c4m_string_format,
         NULL, // finalizer
         (c4m_vtable_entry)c4m_string_marshal,
         (c4m_vtable_entry)c4m_string_unmarshal,
@@ -1141,7 +1150,8 @@ const c4m_vtable_t c4m_u8str_vtable = {
         NULL, // Index set
         (c4m_vtable_entry)c4m_str_slice,
         NULL, // Slice set
-    }};
+    },
+};
 
 const c4m_vtable_t c4m_u32str_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,

@@ -15,7 +15,6 @@ typedef void *object_t;
 #include "con4m/refcount.h"
 #include "con4m/gc.h"
 #include "con4m/object.h"
-
 #include "con4m/color.h"
 
 // Basic "exclusive" (i.e., single threaded) list.
@@ -23,6 +22,8 @@ typedef void *object_t;
 
 // Type system API.
 #include "con4m/type.h"
+
+#include "con4m/box.h"
 
 // Extra data structure stuff.
 #include "con4m/set.h"
@@ -70,12 +71,19 @@ typedef void *object_t;
 // A few prototypes for literal handling.
 #include "con4m/literal.h"
 
+// Format string API
+#include "con4m/format.h"
+
+#include "con4m/fp.h"
+
 // Yes we use cryptographic hashes internally for type IDing.
 #include "crypto/sha.h"
 
-// The front end.
-#include "con4m/frontend/compile.h"
-#include "con4m/frontend/lex.h" // Lexical Tokens
-
 // Virtual machine for running con4m code
 #include "con4m/vm.h"
+
+// The front end.
+#include "frontend/compile.h"
+#include "frontend/errors.h"
+#include "frontend/lex.h"
+#include "frontend/parse.h"

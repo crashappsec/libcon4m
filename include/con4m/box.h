@@ -1,3 +1,5 @@
+#pragma once
+
 #include "con4m.h"
 
 static inline i64_box *

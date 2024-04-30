@@ -20,8 +20,13 @@
 #include "con4m/datatypes/tuples.h"
 #include "con4m/datatypes/callbacks.h"
 #include "con4m/datatypes/streams.h"
-#include "con4m/datatypes/frontend.h"
+#include "con4m/datatypes/format.h"
 #include "con4m/datatypes/vm.h"
+#include "frontend/datatypes/lex.h"
+#include "frontend/datatypes/error.h"
+#include "frontend/datatypes/parse.h"
+#include "frontend/datatypes/scope.h"
+#include "frontend/datatypes/file.h"
 
 typedef c4m_str_t *(*c4m_repr_fn)(c4m_obj_t, to_str_use_t);
 typedef void (*c4m_marshal_fn)(c4m_obj_t,
@@ -44,6 +49,7 @@ typedef c4m_obj_t (*c4m_literal_fn)(char *,
                                     char *,
                                     c4m_lit_error_t *);
 typedef c4m_obj_t (*c4m_container_lit_fn)(c4m_type_t *,
-                                          c4m_obj_t *,
+                                          c4m_obj_t,
                                           c4m_lit_syntax_t,
                                           char *);
+typedef c4m_str_t *(*c4m_format_fn)(c4m_obj_t, c4m_fmt_spec_t *);

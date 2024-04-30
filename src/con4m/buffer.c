@@ -39,7 +39,7 @@ buffer_init(c4m_buf_t *obj, va_list args)
         }
     }
 
-    if (length > 0 && ptr != NULL) {
+    if (length > 0 && ptr == NULL) {
         int64_t alloc_len = hatrack_round_up_to_power_of_2(length);
 
         obj->data      = c4m_gc_raw_alloc(alloc_len, NULL);
@@ -495,6 +495,7 @@ const c4m_vtable_t c4m_buffer_vtable = {
     .methods     = {
         (c4m_vtable_entry)buffer_init,
         (c4m_vtable_entry)buffer_repr,
+        NULL, // format; TODO
         NULL, // finalizer
         (c4m_vtable_entry)c4m_buffer_marshal,
         (c4m_vtable_entry)c4m_buffer_unmarshal,

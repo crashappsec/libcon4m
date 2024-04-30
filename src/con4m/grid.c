@@ -542,8 +542,10 @@ column_text_width(c4m_grid_t *grid, int col)
             flex_view_t *v   = flexarray_view(f);
             int          len = flexarray_view_len(v);
 
-            for (i = 0; i < len; i++) {
-                c4m_utf32_t *item = c4m_to_utf32(flexarray_view_get(v, i, NULL));
+            for (int j = 0; j < len; j++) {
+                c4m_utf32_t *item = c4m_to_utf32(flexarray_view_get(v,
+                                                                    j,
+                                                                    NULL));
                 if (item == NULL) {
                     break;
                 }
@@ -663,11 +665,12 @@ calculate_col_widths(c4m_grid_t *grid, int16_t width, int16_t *render_width)
             remaining -= cur;
             continue;
         case C4M_DIM_FIT_TO_TEXT:
-            cur       = column_text_width(grid, i);
+            cur = column_text_width(grid, i);
+            // Assume minimal padding needed.
+            cur += 2;
             result[i] = cur;
             sum += cur;
             remaining -= cur;
-
             continue;
         case C4M_DIM_UNSET:
         case C4M_DIM_AUTO:
@@ -1986,17 +1989,26 @@ typedef struct {
     int              vpad;
     int              ipad;
     int              no_nl;
+    c4m_style_t      style;
     char            *tag;
     c4m_codepoint_t *padstr;
     int              pad_ix;
     c4m_grid_t      *grid;
     c4m_utf8_t      *nl;
+    bool             root;
 } tree_fmt_t;
 
 static void
-build_tree_output(c4m_tree_node_t *node, tree_fmt_t *info)
+build_tree_output(c4m_tree_node_t *node, tree_fmt_t *info, bool last)
 {
-    c4m_str_t *line = c4m_tree_get_contents(node);
+    if (node == NULL) {
+        return;
+    }
+
+    c4m_str_t       *line = c4m_tree_get_contents(node);
+    int              i;
+    c4m_codepoint_t *prev_pad = info->padstr;
+    int              last_len = info->pad_ix;
 
     if (line != NULL) {
         if (info->no_nl) {
@@ -2012,59 +2024,75 @@ build_tree_output(c4m_tree_node_t *node, tree_fmt_t *info)
         line = c4m_utf32_repeat(0x2026, 1);
     }
 
-    c4m_utf32_t *pad = c4m_new(c4m_tspec_utf32(),
-                               c4m_kw("length",
-                                      c4m_ka(info->pad_ix),
-                                      "codepoints",
-                                      c4m_ka(info->padstr)));
+    if (!info->root) {
+        info->pad_ix += info->vpad + info->ipad + 1;
+        info->padstr = c4m_gc_array_alloc(c4m_codepoint_t, info->pad_ix);
+        for (i = 0; i < last_len; i++) {
+            if (prev_pad[i] == info->tchar || prev_pad[i] == info->vchar) {
+                info->padstr[i] = info->vchar;
+            }
+            else {
+                if (prev_pad[i] == info->lchar) {
+                    info->padstr[i] = info->vchar;
+                }
+                else {
+                    info->padstr[i] = ' ';
+                }
+            }
+        }
 
-    line                   = c4m_str_concat(pad, line);
+        if (last) {
+            info->padstr[i++] = info->lchar;
+        }
+        else {
+            info->padstr[i++] = info->tchar;
+        }
+
+        for (int j = 0; j < info->vpad; j++) {
+            info->padstr[i++] = info->hchar;
+        }
+
+        for (int j = 0; j < info->ipad; j++) {
+            info->padstr[i++] = ' ';
+        }
+
+        c4m_utf32_t *pad = c4m_new(c4m_tspec_utf32(),
+                                   c4m_kw("length",
+                                          c4m_ka(i),
+                                          "codepoints",
+                                          c4m_ka(info->padstr)));
+        c4m_str_set_style(pad, info->style);
+        line = c4m_str_concat(pad, line);
+    }
+    else {
+        info->root = false;
+    }
+
+    c4m_style_gaps(line, info->style);
     c4m_renderable_t *item = c4m_to_str_renderable(line, info->tag);
 
     c4m_grid_add_row(info->grid, item);
 
     int64_t num_kids = c4m_tree_get_number_children(node);
 
-    if (num_kids == 0) {
-        return;
+    if (last) {
+        assert(info->padstr[last_len] == info->lchar);
+        info->padstr[last_len] = 'x';
     }
 
-    c4m_codepoint_t *prev_pad = info->padstr;
-    int              last_len = info->pad_ix;
-    int              i;
+    int              my_pad_ix = info->pad_ix;
+    c4m_codepoint_t *my_pad    = info->padstr;
 
-    info->pad_ix = last_len + info->vpad + info->ipad + 1;
-    info->padstr = c4m_gc_array_alloc(c4m_codepoint_t, info->pad_ix);
-
-    for (i = 0; i < last_len; i++) {
-        if (prev_pad[i] == info->tchar || prev_pad[i] == info->vchar) {
-            info->padstr[i] = info->vchar;
+    for (i = 0; i < num_kids; i++) {
+        if (i + 1 == num_kids) {
+            build_tree_output(c4m_tree_get_child(node, i), info, true);
         }
         else {
-            info->padstr[i] = info->pad;
+            build_tree_output(c4m_tree_get_child(node, i), info, false);
+            info->pad_ix = my_pad_ix;
+            info->padstr = my_pad;
         }
     }
-    info->padstr[i++] = info->tchar;
-
-    for (int j = 0; j < info->vpad; j++) {
-        info->padstr[i++] = info->hchar;
-    }
-
-    for (int j = 0; j < info->ipad; j++) {
-        info->padstr[i++] = ' ';
-    }
-
-    for (i = 0; i < (num_kids - 1); i++) {
-        build_tree_output(c4m_tree_get_child(node, i), info);
-    }
-
-    // Redraw the connector on our last node.
-    info->padstr[last_len] = info->lchar;
-
-    build_tree_output(c4m_tree_get_child(node, num_kids - 1), info);
-
-    info->pad_ix = last_len;
-    info->padstr = prev_pad;
 }
 
 void
@@ -2125,15 +2153,16 @@ c4m_set_row_style(c4m_grid_t *grid, int row, char *tag)
 c4m_grid_t *
 _c4m_grid_tree(c4m_tree_node_t *tree, ...)
 {
-    c4m_codepoint_t pad   = ' ';
-    c4m_codepoint_t tchar = 0x251c;
-    c4m_codepoint_t lchar = 0x2514;
-    c4m_codepoint_t hchar = 0x2500;
-    c4m_codepoint_t vchar = 0x2502;
-    int32_t         vpad  = 2;
-    int32_t         ipad  = 1;
-    bool            no_nl = true;
-    char           *tag   = "li";
+    c4m_codepoint_t pad       = ' ';
+    c4m_codepoint_t tchar     = 0x251c;
+    c4m_codepoint_t lchar     = 0x2514;
+    c4m_codepoint_t hchar     = 0x2500;
+    c4m_codepoint_t vchar     = 0x2502;
+    int32_t         vpad      = 2;
+    int32_t         ipad      = 1;
+    bool            no_nl     = true;
+    char           *tag       = "tree_item";
+    void           *converter = NULL;
 
     c4m_karg_only_init(tree);
     c4m_kw_codepoint("pad", pad);
@@ -2145,6 +2174,12 @@ _c4m_grid_tree(c4m_tree_node_t *tree, ...)
     c4m_kw_int32("ipad", ipad);
     c4m_kw_bool("truncate_at_newline", no_nl);
     c4m_kw_ptr("style_tag", tag);
+    c4m_kw_ptr("converter", converter);
+
+    if (converter != NULL) {
+        tree = c4m_tree_str_transform(tree,
+                                      (c4m_str_t * (*)(void *)) converter);
+    }
 
     if (vpad < 1) {
         vpad = 1;
@@ -2168,13 +2203,15 @@ _c4m_grid_tree(c4m_tree_node_t *tree, ...)
         .vpad   = vpad,
         .ipad   = ipad,
         .no_nl  = no_nl,
+        .style  = c4m_str_style(c4m_lookup_cell_style(tag)),
         .tag    = tag,
         .pad_ix = 0,
         .grid   = result,
         .nl     = c4m_utf8_repeat('\n', 1),
+        .root   = true,
     };
 
-    build_tree_output(tree, &fmt_info);
+    build_tree_output(tree, &fmt_info, false);
 
     return result;
 }
@@ -2184,6 +2221,7 @@ const c4m_vtable_t c4m_grid_vtable = {
     .methods     = {
         (c4m_vtable_entry)grid_init,
         (c4m_vtable_entry)c4m_grid_to_str,
+        NULL, // Format; use default to_str
         NULL,
         (c4m_vtable_entry)c4m_grid_marshal,
         (c4m_vtable_entry)c4m_grid_unmarshal,
@@ -2211,6 +2249,7 @@ const c4m_vtable_t c4m_renderable_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         (c4m_vtable_entry)renderable_init,
+        NULL,
         NULL,
         NULL,
         (c4m_vtable_entry)c4m_renderable_marshal,

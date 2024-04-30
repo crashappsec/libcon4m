@@ -578,27 +578,90 @@ c4m_rich_lit_test()
 }
 
 void
-test_lex()
+test_compiler()
 {
-    c4m_str_t            *fname = c4m_rich_lit("../tests/modparam.c4m");
-    c4m_str_t            *mname = c4m_rich_lit("test1");
-    c4m_file_compile_ctx *ctx;
+    c4m_xlist_t *files  = c4m_get_program_arguments();
+    int64_t      l      = c4m_xlist_len(files);
+    c4m_str_t   *mname  = c4m_rich_lit("test1");
+    c4m_utf8_t  *joiner = c4m_new_utf8("../tests/");
+    c4m_utf8_t  *slash  = c4m_get_slash_const();
 
-    ctx = c4m_new_compile_ctx(
-        mname,
-        c4m_kw("uri_path", c4m_ka(fname)));
+    for (int64_t i = 0; i < l; i++) {
+        c4m_utf8_t           *fname = c4m_xlist_get(files, i, NULL);
+        c4m_utf8_t           *path  = c4m_xlist_get(files, i, NULL);
+        c4m_file_compile_ctx *ctx;
 
-    c4m_stream_t *stream = c4m_load_code(ctx);
-    c4m_lex(ctx, stream);
-    c4m_print(c4m_format_tokens(ctx));
+        if (c4m_str_find(fname, slash) == -1) {
+            path = c4m_str_concat(joiner, fname);
+        }
+        else {
+            path = fname;
+        }
+
+        ctx = c4m_new_compile_ctx(
+            mname,
+            c4m_kw("uri_path", c4m_ka(path)));
+
+        c4m_stream_t *stream = c4m_load_code(ctx);
+        if (stream == NULL) {
+            c4m_print(c4m_cstr_format("[red]error: [/] Couldn't read file: {}",
+                                      fname));
+            continue;
+        }
+        if (c4m_lex(ctx, stream) == false) {
+            c4m_print(c4m_cstr_format("[red]error: [/] Lex failed for: {}",
+                                      fname));
+            c4m_print(c4m_format_errors(ctx));
+            continue;
+        }
+
+        c4m_print(c4m_format_tokens(ctx));
+        c4m_parse(ctx);
+        c4m_print(c4m_format_parse_tree(ctx));
+
+        c4m_print(c4m_cstr_format("[atomic lime]info: [/] Finished parsing: {}",
+                                  fname));
+
+        c4m_grid_t *err_output = c4m_format_errors(ctx);
+
+        if (err_output != NULL) {
+            c4m_print(err_output);
+        }
+    }
 }
+
+void
+test_format()
+{
+    c4m_str_t *s;
+    s = c4m_cstr_format("Test 0");
+    c4m_print(s);
+
+    s = c4m_cstr_format("[red]Test 1:[/] [brown]{:c}[/] : [blue]{}[/] [i]woo.[/]",
+                        c4m_box_u32(100),
+                        c4m_rich_lit("Hello"));
+    c4m_print(s);
+    s = c4m_cstr_format("[red]Test 2:[/] [brown]{:d}[/] : [red]{:}[/]",
+                        c4m_box_u32(100),
+                        c4m_box_u32(100));
+    c4m_print(s);
+
+    s = c4m_cstr_format("[red]Test 3:[/] {1} : [blue]{0:n}[/]\n",
+                        c4m_box_u32(100),
+                        c4m_rich_lit("Hello"));
+    c4m_print(s);
+}
+
+#undef STACK_SCAN_TEST
 
 int
 main(int argc, char **argv, char **envp)
 {
+#ifdef STACK_SCAN_TEST
     uint64_t top, bottom;
+#endif
 
-    c4m_init();
+    c4m_init(argc, argv, envp);
 
     sout = c4m_get_stdout();
     serr = c4m_get_stderr();
@@ -631,7 +694,9 @@ main(int argc, char **argv, char **envp)
         c4m_print(c4m_box_u32((int32_t)-1));
         c4m_print(c4m_box_i32((int32_t)-1));
 
-        test_lex();
+        test_format();
+        test_compiler();
+
         C4M_STATIC_ASCII_STR(local_test, "Goodbye!");
         // c4m_ansi_render(local_test, sout);
         c4m_print((c4m_obj_t *)local_test);
@@ -654,21 +719,21 @@ main(int argc, char **argv, char **envp)
     C4M_TRY_END;
     c4m_stream_puts(serr, "This theoretically should run.\n");
 
-    if (argc > 1) {
-        c4m_get_stack_scan_region(&top, &bottom);
+#ifdef STACK_SCAN_TEST
+    c4m_get_stack_scan_region(&top, &bottom);
 
-        uint64_t q = bottom - top;
+    uint64_t q = bottom - top;
 
-        // Give ourselves something to see where the real start is.
-        bottom        = 0x4141414141414141;
-        c4m_utf8_t *s = c4m_hex_dump((void *)top, q, top, 80, "");
-        c4m_stream_puts(sout, s->data);
-        c4m_stream_putc(sout, '\n');
+    // Give ourselves something to see where the real start is.
+    bottom        = 0x4141414141414141;
+    c4m_utf8_t *s = c4m_hex_dump((void *)top, q, top, 80, "");
+    c4m_stream_puts(sout, s->data);
+    c4m_stream_putc(sout, '\n');
 
-        bottom = top + q;
-        printf("(start) = %p; (end) = %p (%llu bytes)\n",
-               (void *)top,
-               (void *)bottom,
-               (unsigned long long)q);
-    }
+    bottom = top + q;
+    printf("(start) = %p; (end) = %p (%llu bytes)\n",
+           (void *)top,
+           (void *)bottom,
+           (unsigned long long)q);
+#endif
 }

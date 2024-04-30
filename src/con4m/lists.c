@@ -355,6 +355,7 @@ const c4m_vtable_t c4m_list_vtable = {
     .methods     = {
         (c4m_vtable_entry)c4m_list_init,
         (c4m_vtable_entry)list_repr,
+        NULL,
         NULL, // no finalizer
         (c4m_vtable_entry)c4m_list_marshal,
         (c4m_vtable_entry)c4m_list_unmarshal,

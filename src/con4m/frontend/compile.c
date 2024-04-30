@@ -146,9 +146,13 @@ c4m_load_code(c4m_file_compile_ctx *ctx)
     }
     C4M_EXCEPT
     {
-        c4m_compile_error *err = c4m_gc_alloc(c4m_compile_error);
+        c4m_compile_error *err = c4m_gc_flex_alloc(c4m_compile_error,
+                                                   c4m_str_t *,
+                                                   1,
+                                                   GC_SCAN_ALL);
         err->code              = c4m_err_open_file;
-        err->exception_message = c4m_exception_get_message(C4M_X_CUR());
+        err->msg_parameters[0] = c4m_exception_get_message(C4M_X_CUR());
+        err->num_args          = 1;
 
         c4m_xlist_append(ctx->errors, err);
         result = NULL;

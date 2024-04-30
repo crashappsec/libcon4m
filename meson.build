@@ -87,9 +87,13 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/init.c',
             'src/con4m/attrstore.c',
             'src/con4m/vm.c',
+            'src/con4m/format.c',
+            'src/con4m/fptostr.c',            
             'src/con4m/crypto/sha.c',
             'src/con4m/frontend/compile.c',
             'src/con4m/frontend/lex.c',
+            'src/con4m/frontend/parse.c',
+            'src/con4m/frontend/errors.c',                        
             ]
 
 hat_primary = ['src/hatrack/support/hatrack_common.c',

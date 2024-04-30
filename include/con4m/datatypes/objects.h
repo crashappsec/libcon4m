@@ -95,6 +95,7 @@ struct c4m_base_obj_t {
 typedef enum {
     C4M_BI_CONSTRUCTOR = 0,
     C4M_BI_TO_STR,
+    C4M_BI_FORMAT,
     C4M_BI_FINALIZER,
     C4M_BI_MARSHAL,
     C4M_BI_UNMARSHAL,
@@ -186,5 +187,6 @@ typedef enum : int64_t {
     C4M_T_STREAM,  // streaming IO interface.
     C4M_T_KEYWORD, // Keyword arg object for internal use.
     C4M_T_VM,
+    C4M_T_PARSE_NODE,
     C4M_NUM_BUILTIN_DTS
 } c4m_builtin_t;

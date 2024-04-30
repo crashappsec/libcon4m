@@ -4,14 +4,14 @@ Here is one of its two doc strings.
 """
 "Here's it's other doc."
 
-extern callecho(a: ptr) -> cvoid {
+extern callecho(ptr) -> cvoid {
   "This has some docs too."
   
   local: print(x: string) -> void
   pure: false
 }
 
-extern echoanint(a: cint) -> cvoid {
+extern echoanint(cint) -> cvoid {
   local: print(x: int) -> void
   pure: false
 }

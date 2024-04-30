@@ -59,24 +59,28 @@ c4m_style_gaps(c4m_str_t *s, c4m_style_t gapstyle)
     last_end = 0;
 
     for (int i = 0; i < old->num_entries; i++) {
-        c4m_style_entry_t style = s->styling->styles[i];
+        c4m_style_entry_t style = old->styles[i];
 
         if (style.start > last_end) {
             c4m_style_entry_t filler = {
                 .start = last_end,
                 .end   = style.start,
-                .info  = gapstyle};
+                .info  = gapstyle,
+            };
 
             s->styling->styles[new_ix++] = filler;
         }
+
         s->styling->styles[new_ix++] = old->styles[i];
         last_end                     = old->styles[i].end;
     }
+
     if (last_end != num_cp) {
         c4m_style_entry_t filler = {
             .start = last_end,
             .end   = num_cp,
-            .info  = gapstyle};
+            .info  = gapstyle,
+        };
 
         s->styling->styles[new_ix] = filler;
     }

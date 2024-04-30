@@ -101,6 +101,7 @@ const c4m_vtable_t c4m_set_vtable = {
         (c4m_vtable_entry)c4m_set_init,
         NULL,
         NULL,
+        NULL,
         (c4m_vtable_entry)c4m_set_marshal,
         (c4m_vtable_entry)c4m_set_unmarshal,
     },

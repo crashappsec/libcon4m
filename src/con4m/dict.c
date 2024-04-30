@@ -243,6 +243,7 @@ const c4m_vtable_t c4m_dict_vtable = {
         (c4m_vtable_entry)c4m_dict_init,
         (c4m_vtable_entry)dict_repr,
         NULL,
+        NULL,
         (c4m_vtable_entry)c4m_dict_marshal,
         (c4m_vtable_entry)c4m_dict_unmarshal,
         (c4m_vtable_entry)dict_can_coerce_to,

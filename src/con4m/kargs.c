@@ -103,4 +103,5 @@ const c4m_vtable_t c4m_kargs_vtable = {
     .methods     = {
         (c4m_vtable_entry)kargs_init,
         NULL, // Aboslutelty nothing else.
-    }};
+    },
+};

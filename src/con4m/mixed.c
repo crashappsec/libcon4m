@@ -268,6 +268,7 @@ const c4m_vtable_t c4m_mixed_vtable = {
     .methods     = {
         (c4m_vtable_entry)mixed_init,
         (c4m_vtable_entry)mixed_repr,
+        NULL,
         NULL, // finalizer
         (c4m_vtable_entry)mixed_marshal_arts,
         (c4m_vtable_entry)mixed_unmarshal_arts,
