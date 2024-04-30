@@ -1595,6 +1595,7 @@ case_body(parse_ctx *ctx)
                 }
                 // fallthrough. We'll parse an identifier then parent
                 // it based on what we see after.
+                // fallthrough
             default:
                 expr = expression(ctx);
                 switch (tok_kind(ctx)) {
