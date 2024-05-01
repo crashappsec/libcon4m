@@ -283,7 +283,6 @@ typedef struct {
     c4m_type_t *type_info;
 } c4m_zinstruction_t;
 
-// FIXME this does not appear to be marshalled. Rename to c4m_vmcallback_t
 typedef struct {
     // Nim casts this around as a pointer, but it's always used as an integer
     // index into an array
@@ -292,7 +291,7 @@ typedef struct {
     c4m_type_t *tid;
     int16_t     mid;
     bool        ffi;
-} c4m_zcallback_t;
+} c4m_vmcallback_t;
 
 // this is an arbitrary value that combines the value itself with its type
 // information. this is needed because we want to keep ints and floats unboxed,
@@ -311,7 +310,7 @@ typedef union c4m_stack_value_t {
     c4m_value_t             *lvalue;
     c4m_value_t              rvalue;
     uint64_t                 static_ptr; // offset into static_data
-    c4m_zcallback_t         *callback;
+    c4m_vmcallback_t        *callback;
     uint64_t                 uint;       // saved pc / module_id
     union c4m_stack_value_t *fp;         // saved fp
 } c4m_stack_value_t;
