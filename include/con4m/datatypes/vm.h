@@ -283,6 +283,7 @@ typedef struct {
     c4m_type_t *type_info;
 } c4m_zinstruction_t;
 
+// FIXME this does not appear to be marshalled. Rename to c4m_vmcallback_t
 typedef struct {
     // Nim casts this around as a pointer, but it's always used as an integer
     // index into an array
@@ -404,20 +405,73 @@ typedef struct {
     c4m_xlist_t *instructions; // tspec_ref: c4m_zinstruction_t
 } c4m_zmodule_info_t;
 
+typedef enum : uint8_t {
+    C4M_FS_FIELD,
+    C4M_FS_OBJECT_TYPE,
+    C4M_FS_SINGLETON,
+    C4M_FS_USER_DEF_FIELD,
+    C4M_FS_OBJECT_INSTANCE,
+    C4M_FS_ERROR_NO_SPEC,
+    C4M_FS_ERROR_SEC_UNDER_FIELD,
+    C4M_FS_ERROR_NO_SUCH_SEC,
+    C4M_FS_ERROR_SEC_NOT_ALLOWED,
+    C4M_FS_ERROR_FIELD_NOT_ALLOWED,
+} c4m_field_spec_kind_t;
+
 typedef struct {
-    uint64_t     zero_magic;
-    uint16_t     zc_object_vers;
-    c4m_buf_t   *static_data;
-    c4m_dict_t  *t_info;          // c4m_type_t *, int64_t (index into static data for repr)
-    c4m_dict_t  *globals;         // int64_t, string
-    c4m_xlist_t *sym_types;       // tspec_ref: c4m_zsymbol_t
-    int64_t      global_scope_sz;
-    c4m_xlist_t *module_contents; // tspec_ref: c4m_zmodule_info_t
-    int32_t      entrypoint;
-    int32_t      next_entrypoint;
-    c4m_xlist_t *func_info; // tspec_ref: c4m_zfn_info_t
-    c4m_xlist_t *ffi_info;  // tspec_ref: c4m_zffi_info_t
-    // TODO c4m_validation_spec_t *spec;
+    c4m_str_t            *name;
+    c4m_type_t           *tid;
+    c4m_field_spec_kind_t field_kind;
+    bool                  lock_on_write; // enforced at runtime.
+    bool                  hidden;
+    bool                  required;
+    bool                  have_default;
+    c4m_value_t           default_value;
+    // TODO    c4m_xlist_t          *validators; // tspec_ref: c4m_zvalidator_t
+    c4m_str_t            *doc;
+    c4m_str_t            *shortdoc;
+    int64_t               err_ix;
+    c4m_xlist_t          *exclusions; // string
+    // name of the field that's going to contain our type.
+    c4m_str_t            *deferred_type;
+} c4m_zfield_spec_t;
+
+typedef struct {
+    c4m_str_t   *name;
+    int64_t      min_allowed; // this is useless actually
+    int64_t      max_allowed; // And this can be a bool for singleton.
+    c4m_dict_t  *fields;      // string, tspec_ref: c4m_zfield_spec_t
+    bool         user_def_ok;
+    bool         hidden;
+    bool         cycle; // Private, used to avoid populating cyclic defs.
+    // TODO c4m_xlist_t *validators; // tspec_ref: c4m_zvalidator_t
+    c4m_str_t   *doc;
+    c4m_str_t   *shortdoc;
+    c4m_xlist_t *allowed_sections;  // string
+    c4m_xlist_t *required_sections; // string
+} c4m_zsection_spec_t;
+
+typedef struct {
+    c4m_zsection_spec_t *root_spec;
+    c4m_dict_t          *sec_specs; // string, tspec_ref: c4m_zsection_spec_t
+    bool                 used;
+    bool                 locked;
+} c4m_zvalidation_spec_t;
+
+typedef struct {
+    uint64_t                zero_magic;
+    uint16_t                zc_object_vers;
+    c4m_buf_t              *static_data;
+    c4m_dict_t             *t_info;          // c4m_type_t *, int64_t (index into static data for repr)
+    c4m_dict_t             *globals;         // int64_t, string
+    c4m_xlist_t            *sym_types;       // tspec_ref: c4m_zsymbol_t
+    int64_t                 global_scope_sz;
+    c4m_xlist_t            *module_contents; // tspec_ref: c4m_zmodule_info_t
+    int32_t                 entrypoint;
+    int32_t                 next_entrypoint;
+    c4m_xlist_t            *func_info; // tspec_ref: c4m_zfn_info_t
+    c4m_xlist_t            *ffi_info;  // tspec_ref: c4m_zffi_info_t
+    c4m_zvalidation_spec_t *spec;
 } c4m_zobject_file_t;
 
 typedef struct {

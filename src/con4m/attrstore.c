@@ -1,15 +1,174 @@
 #include "con4m.h"
 
 static void
-populate_defaults(c4m_vm_t *vm, c4m_str_t *key)
+apply_section_defaults(c4m_vmthread_t *tstate, c4m_zsection_spec_t *spec, c4m_str_t *prefix)
 {
-    // TODO populate_defaults
+    // When we're first populating a program, if there are defaults we can
+    // set without instantiating objects, we do so. Similarly, when a `set`
+    // ends up being the first write to some new object section, we call
+    // this to populate any defaults in the object.
+
+    if (c4m_len(prefix) > 0) {
+        c4m_codepoint_t cp = (int64_t)c4m_index_get(prefix, (c4m_obj_t)-1);
+        if (cp != '.') {
+            C4M_STATIC_ASCII_STR(dot, ".");
+            prefix = c4m_str_concat(prefix, dot);
+        }
+    }
+
+    uint64_t             num;
+    hatrack_dict_item_t *items = hatrack_dict_items_nosort(spec->fields, &num);
+    for (uint64_t i = 0; i < num; ++i) {
+        c4m_zfield_spec_t *f = items[i].value;
+        if (f->have_default) {
+            c4m_str_t *key = c4m_str_concat(prefix, items[i].key);
+            c4m_vm_attr_set(tstate,
+                            key,
+                            &f->default_value,
+                            f->lock_on_write,
+                            false,
+                            true);
+        }
+    }
+    free(items);
+
+    for (int64_t i = 0; i < c4m_xlist_len(spec->allowed_sections); ++i) {
+        c4m_str_t *key = c4m_xlist_get(spec->allowed_sections, i, NULL);
+
+        bool                 found;
+        c4m_zsection_spec_t *s = hatrack_dict_get(tstate->vm->obj->spec->sec_specs,
+                                                  key,
+                                                  &found);
+        if (!found) {
+            // TODO print: f"error: No specification provided for section {key}"
+            continue;
+        }
+
+        if (s->max_allowed <= 1) {
+            c4m_str_t *p = c4m_str_concat(prefix, key);
+            apply_section_defaults(tstate, s, p);
+        }
+    }
+}
+
+static void
+populate_defaults(c4m_vmthread_t *tstate, c4m_str_t *key)
+{
+    bool found;
+    C4M_STATIC_ASCII_STR(dot, ".");
+
+    c4m_xlist_t *parts = c4m_str_xsplit(key, (c4m_str_t *)dot);
+    int64_t      l     = c4m_xlist_len(parts) - 1;
+    c4m_str_t   *cur   = (c4m_str_t *)c4m_newline_const;
+    int64_t      start = -1;
+
+    for (int64_t i = 0; i < l; ++i) {
+        if (!hatrack_set_contains(tstate->vm->all_sections, cur)) {
+            start = i;
+            hatrack_set_add(tstate->vm->all_sections, cur);
+            for (int64_t n = i; n < l; ++n) {
+                if (!n) {
+                    cur = c4m_xlist_get(parts, 0, NULL);
+                }
+                else {
+                    cur = c4m_str_concat(c4m_str_concat(cur, dot),
+                                         c4m_xlist_get(parts, n, NULL));
+                }
+                hatrack_set_add(tstate->vm->all_sections, cur);
+            }
+            break;
+        }
+        if (!i && i != l) {
+            cur = c4m_xlist_get(parts, 0, NULL);
+        }
+        else if (i != l) {
+            cur = c4m_str_concat(c4m_str_concat(cur, dot),
+                                 c4m_xlist_get(parts, i, NULL));
+        }
+    }
+    if (-1 == start || NULL == tstate->vm->obj->spec) {
+        return;
+    }
+
+    int64_t              i   = 0;
+    c4m_zsection_spec_t *sec = tstate->vm->obj->spec->root_spec;
+    c4m_str_t           *attr;
+
+    if (!start) {
+        apply_section_defaults(tstate,
+                               sec,
+                               (c4m_str_t *)c4m_empty_string_const);
+    }
+
+    while (i < start) {
+        cur = c4m_xlist_get(parts, i, NULL);
+        if (!i) {
+            attr = cur;
+        }
+        else {
+            attr = c4m_str_concat(c4m_str_concat(attr, dot), cur);
+        }
+
+        c4m_zsection_spec_t *spec = hatrack_dict_get(tstate->vm->obj->spec->sec_specs,
+                                                     attr,
+                                                     &found);
+        if (!found) {
+            return;
+        }
+
+        ++i;
+        if (spec->max_allowed <= 1) {
+            continue;
+        }
+        if (i + 1 == l) {
+            start = i;
+            break;
+        }
+        attr = c4m_str_concat(c4m_str_concat(attr, dot),
+                              c4m_xlist_get(parts, i, NULL));
+        ++i;
+    }
+
+    i = start;
+
+    while (i < l) {
+        if (sec->max_allowed <= 1) {
+            apply_section_defaults(tstate, sec, attr);
+        }
+        else {
+            if (!i) {
+                attr = c4m_xlist_get(parts, i, NULL);
+            }
+            else {
+                attr = c4m_str_concat(c4m_str_concat(attr, dot),
+                                      c4m_xlist_get(parts, i, NULL));
+            }
+            apply_section_defaults(tstate, sec, attr);
+            ++i;
+            if (i == l) {
+                break;
+            }
+        }
+
+        cur = c4m_xlist_get(parts, i, NULL);
+        sec = hatrack_dict_get(tstate->vm->obj->spec->sec_specs, cur, &found);
+        if (!found) {
+            return;
+        }
+        if (!i) {
+            attr = cur;
+        }
+        else {
+            attr = c4m_str_concat(c4m_str_concat(attr, dot), cur);
+        }
+        ++i;
+    }
 }
 
 c4m_value_t *
 c4m_vm_attr_get(c4m_vmthread_t *tstate, c4m_str_t *key, c4m_type_t *expected_type)
 {
-    populate_defaults(tstate->vm, key);
+    populate_defaults(tstate, key);
 
     bool                 found;
     c4m_attr_contents_t *info = hatrack_dict_get(tstate->vm->attrs, key, &found);
@@ -47,7 +206,7 @@ c4m_vm_attr_set(c4m_vmthread_t *tstate,
     vm->using_attrs = true;
 
     if (!internal) {
-        populate_defaults(vm, key);
+        populate_defaults(tstate, key);
     }
 
     // We will create a new entry on every write, just to avoid any race

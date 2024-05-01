@@ -1,4 +1,5 @@
 #include "con4m.h"
+#include "con4m/datatypes/vm.h"
 
 typedef void (*marshalfn_t)(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid);
 
@@ -13,6 +14,7 @@ marshal_dict_value_ref(c4m_dict_t *in, c4m_stream_t *out, c4m_dict_t *memos, int
         c4m_sub_marshal(view[i].key, out, memos, mid);
         fn(view[i].value, out, memos, mid);
     }
+    free(view);
 }
 
 static void
@@ -320,6 +322,127 @@ unmarshal_module_info(c4m_stream_t *in, c4m_dict_t *memos)
 }
 
 static void
+marshal_field_spec(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
+{
+    c4m_zfield_spec_t *in = ref;
+
+    c4m_sub_marshal(in->name, out, memos, mid);
+    c4m_sub_marshal(in->tid, out, memos, mid);
+    c4m_marshal_u8(in->field_kind, out);
+    c4m_marshal_bool(in->lock_on_write, out);
+    c4m_marshal_bool(in->hidden, out);
+    c4m_marshal_bool(in->required, out);
+    c4m_marshal_bool(in->have_default, out);
+    if (in->have_default) {
+        marshal_value(&in->default_value, out, memos, mid);
+    }
+    // TODO marshal_xlist_ref(in->validators, out, memos, mid, marshal_validator);
+    c4m_sub_marshal(in->doc, out, memos, mid);
+    c4m_sub_marshal(in->shortdoc, out, memos, mid);
+    c4m_marshal_i64(in->err_ix, out);
+    c4m_sub_marshal(in->exclusions, out, memos, mid);
+    c4m_sub_marshal(in->deferred_type, out, memos, mid);
+}
+
+static void *
+unmarshal_field_spec(c4m_stream_t *in, c4m_dict_t *memos)
+{
+    c4m_zfield_spec_t *out = c4m_gc_alloc(c4m_zfield_spec_t);
+
+    out->name          = c4m_sub_unmarshal(in, memos);
+    out->tid           = c4m_sub_unmarshal(in, memos);
+    out->field_kind    = c4m_unmarshal_u8(in);
+    out->lock_on_write = c4m_unmarshal_bool(in);
+    out->hidden        = c4m_unmarshal_bool(in);
+    out->required      = c4m_unmarshal_bool(in);
+    out->have_default  = c4m_unmarshal_bool(in);
+    if (out->have_default) {
+        unmarshal_value(&out->default_value, in, memos);
+    }
+    // TODO out->validators = unmarshal_xlist_ref(in, memos);
+    out->doc           = c4m_sub_unmarshal(in, memos);
+    out->shortdoc      = c4m_sub_unmarshal(in, memos);
+    out->err_ix        = c4m_unmarshal_i64(in);
+    out->exclusions    = c4m_sub_unmarshal(in, memos);
+    out->deferred_type = c4m_sub_unmarshal(in, memos);
+
+    return out;
+}
+
+static void
+marshal_section_spec(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
+{
+    c4m_zsection_spec_t *in = ref;
+
+    c4m_sub_marshal(in->name, out, memos, mid);
+    c4m_marshal_i64(in->min_allowed, out);
+    c4m_marshal_i64(in->max_allowed, out);
+    marshal_dict_value_ref(in->fields, out, memos, mid, marshal_field_spec);
+    c4m_marshal_bool(in->user_def_ok, out);
+    c4m_marshal_bool(in->hidden, out);
+    // c4m_marshal_bool(in->cycle, out);
+    // TODO marshal_xlist_ref(in->validators, out, memos, mid, marshal_validator);
+    c4m_sub_marshal(in->doc, out, memos, mid);
+    c4m_sub_marshal(in->shortdoc, out, memos, mid);
+    c4m_sub_marshal(in->allowed_sections, out, memos, mid);
+    c4m_sub_marshal(in->required_sections, out, memos, mid);
+}
+
+static void *
+unmarshal_section_spec(c4m_stream_t *in, c4m_dict_t *memos)
+{
+    c4m_zsection_spec_t *out = c4m_gc_alloc(c4m_zsection_spec_t);
+
+    out->name        = c4m_sub_unmarshal(in, memos);
+    out->min_allowed = c4m_unmarshal_i64(in);
+    out->max_allowed = c4m_unmarshal_i64(in);
+    out->fields      = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_ref()));
+    unmarshal_dict_value_ref(out->fields, in, memos, unmarshal_field_spec);
+    out->user_def_ok       = c4m_unmarshal_bool(in);
+    out->hidden            = c4m_unmarshal_bool(in);
+    // out->cycle = c4m_unmarshal_bool(in);
+    // TODO out->validators = unmarshal_xlist_ref(in, memos, unmarshal_validator);
+    out->doc               = c4m_sub_unmarshal(in, memos);
+    out->shortdoc          = c4m_sub_unmarshal(in, memos);
+    out->allowed_sections  = c4m_sub_unmarshal(in, memos);
+    out->required_sections = c4m_sub_unmarshal(in, memos);
+
+    return out;
+}
+
+static void
+marshal_validation_spec(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
+{
+    c4m_zvalidation_spec_t *in = ref;
+
+    if (NULL == in || !in->used) {
+        c4m_marshal_bool(false, out);
+    }
+    else {
+        c4m_marshal_bool(true, out);
+        c4m_marshal_bool(in->locked, out);
+        marshal_section_spec(in->root_spec, out, memos, mid);
+        marshal_dict_value_ref(in->sec_specs, out, memos, mid, marshal_section_spec);
+    }
+}
+
+static void *
+unmarshal_validation_spec(c4m_stream_t *in, c4m_dict_t *memos)
+{
+    c4m_zvalidation_spec_t *out = c4m_gc_alloc(c4m_zvalidation_spec_t);
+
+    out->used = c4m_unmarshal_bool(in);
+    if (out->used) {
+        out->locked    = c4m_unmarshal_bool(in);
+        out->root_spec = unmarshal_section_spec(in, memos);
+        out->sec_specs = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_ref()));
+        unmarshal_dict_value_ref(out->sec_specs, in, memos, unmarshal_section_spec);
+    }
+
+    return out;
+}
+
+static void
 marshal_object_file(c4m_zobject_file_t *in, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
 {
 #if 0
@@ -348,7 +471,7 @@ marshal_object_file(c4m_zobject_file_t *in, c4m_stream_t *out, c4m_dict_t *memos
     c4m_marshal_i32(in->next_entrypoint, out);
     marshal_xlist_ref(in->func_info, out, memos, mid, marshal_fn_info);
     marshal_xlist_ref(in->ffi_info, out, memos, mid, marshal_ffi_info);
-    // TODO c4m_sub_marshal(in->spec, out, memos, mid);
+    marshal_validation_spec(in->spec, out, memos, mid);
 }
 
 static c4m_zobject_file_t *
@@ -368,7 +491,7 @@ unmarshal_object_file(c4m_stream_t *in, c4m_dict_t *memos)
     out->next_entrypoint = c4m_unmarshal_i32(in);
     out->func_info       = unmarshal_xlist_ref(in, memos, unmarshal_fn_info);
     out->ffi_info        = unmarshal_xlist_ref(in, memos, unmarshal_ffi_info);
-    // TODO out->spec = c4m_sub_unmarshal(in, memos);
+    out->spec            = unmarshal_validation_spec(in, memos);
 
     return out;
 }
