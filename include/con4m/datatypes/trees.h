@@ -9,3 +9,5 @@ typedef struct c4m_tree_node_t {
     struct c4m_tree_node_t **children;
     struct c4m_tree_node_t  *parent;
 } c4m_tree_node_t;
+
+typedef void (*c4m_walker_fn)(c4m_tree_node_t *);

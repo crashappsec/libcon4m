@@ -28,6 +28,7 @@ typedef void *object_t;
 // Extra data structure stuff.
 #include "con4m/set.h"
 #include "con4m/tree.h"
+#include "con4m/tree_pattern.h"
 #include "con4m/buffer.h"
 #include "con4m/tuple.h"
 
