@@ -59,13 +59,28 @@ cur_node(pass_ctx *ctx)
     return ctx->cur;
 }
 
-static inline static inline void
+static inline void
 node_up(c4m_file_compile_ctx *ctx)
 {
     ctx->cur = ctx->cur->parent;
 }
 
-void
+static void
+handle_enum_decl(pass_ctx *ctx)
+{
+}
+
+static void
+handle_func_decl(pass_ctx *ctx)
+{
+}
+
+static void
+handle_var_decl(pass_ctx *ctx)
+{
+}
+
+static void
 pass_dispatch(pass_ctx *ctx)
 {
     switch (cur_node_type(ctx)) {
@@ -80,15 +95,38 @@ pass_dispatch(pass_ctx *ctx)
     case c4m_nt_const_var_decls:
     case c4m_nt_const_global_decls:
     case c4m_nt_const_var_decls:
+        handle_var_decl(ctx);
+        break;
     default:
         process_children(ctx);
         break;
     }
 }
 
+// More consise aliases internally only.
+#define tfind(x, y, ...)  _c4m_tpat_find(x, y, KFUNC(__VA_ARGS__))
+#define tmatch(x, y, ...) _c4m_tpat_match(x, y, KFUNC(__VA_ARGS__))
+#define topt(x, y, ...) \
+    _c4m_tpat_opt_match(x, y, KFUNC(__VA_ARGS__))
+#define tcount(a, b, c, d, ...) \
+    _c4m_tpat_n_m_match(a, b, c, d, KFUNC(__VA_ARGS__))
+
+// From a given node,
+static c4m_tpat_node_t *first_pattern = NULL;
+
+static void
+setup_pass1_patterns()
+{
+    if (first_pattern != NULL) {
+        return;
+    }
+}
+
 void
 c4m_pass_1(c4m_file_compile_ctx *file_ctx)
 {
+    setup_pass1_patterns();
+
     pass_ctx ctx = {
         .file_ctx = file_ctx,
     };

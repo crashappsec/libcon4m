@@ -1291,6 +1291,7 @@ enum_stmt(parse_ctx *ctx)
     if (tok_kind(ctx) == c4m_tt_rbrace) {
         add_parse_error(ctx, c4m_err_parse_empty_enum);
         consume(ctx);
+        return;
     }
 
     while (true) {
@@ -1299,7 +1300,24 @@ enum_stmt(parse_ctx *ctx)
             THROW('!');
         }
         start_node(ctx, c4m_nt_enum_item, true);
-        if (match(ctx, c4m_tt_colon, c4m_tt_assign) != c4m_tt_error) {
+
+        switch (tok_kind(ctx)) {
+        case c4m_tt_comma:
+            end_node(ctx);
+            consume(ctx);
+            if (tok_kind(ctx) == c4m_tt_rbrace) {
+                end_node(ctx);
+                consume(ctx);
+                return;
+            }
+            continue;
+        case c4m_tt_rbrace:
+            end_node(ctx);
+            end_node(ctx);
+            consume(ctx);
+            return;
+        case c4m_tt_colon:
+        case c4m_tt_assign:
             consume(ctx);
             switch (match(ctx,
                           c4m_tt_int_lit,
@@ -1308,21 +1326,30 @@ enum_stmt(parse_ctx *ctx)
             case c4m_tt_error:
                 add_parse_error(ctx, c4m_err_parse_enum_value_type);
                 consume(ctx);
-                break;
+                end_node(ctx);
+                continue;
             default:
                 simple_lit(ctx);
-                break;
+                end_node(ctx);
+                if (tok_kind(ctx) == c4m_tt_rbrace) {
+                    end_node(ctx);
+                    consume(ctx);
+                    return;
+                }
+                expect(ctx, c4m_tt_comma);
+                if (tok_kind(ctx) == c4m_tt_rbrace) {
+                    end_node(ctx);
+                    consume(ctx);
+                    return;
+                }
+                continue;
             }
-
-            if (tok_kind(ctx) != c4m_tt_comma) {
-                break;
-            }
-            consume(ctx);
+        default:
+            err_skip_stmt(ctx, c4m_err_parse_enum_item);
+            end_node(ctx);
+            end_node(ctx);
+            return;
         }
-
-        expect(ctx, c4m_tt_rbrace);
-
-        end_node(ctx);
     }
 }
 
