@@ -72,6 +72,9 @@
 #define STACK_SIZE     (1 << 20)
 #define MAX_CALL_DEPTH 200
 
+// forward declaration needed for validators
+typedef struct c4m_vmthread c4m_vmthread_t;
+
 typedef enum : uint8_t {
     // Push an rvalue by value. At this time, this is just used by constant
     // values that are immutable. The value to push is determined as described
@@ -404,6 +407,24 @@ typedef struct {
     c4m_xlist_t *instructions; // tspec_ref: c4m_zinstruction_t
 } c4m_zmodule_info_t;
 
+typedef c4m_obj_t (*c4m_section_validator_fn)(c4m_vmthread_t *tstate,
+                                              c4m_str_t      *name,
+                                              c4m_xlist_t    *fields, // tspec_utf8
+                                              void           *params);
+
+typedef c4m_obj_t (*c4m_field_validator_fn)(c4m_vmthread_t *tstate,
+                                            c4m_str_t      *str,
+                                            c4m_value_t    *value,
+                                            void           *params);
+
+typedef struct {
+    union {
+        c4m_section_validator_fn section_validator;
+        c4m_field_validator_fn   field_validator;
+    } fn;
+    void *params;
+} c4m_zvalidator_t;
+
 typedef enum : uint8_t {
     C4M_FS_FIELD,
     C4M_FS_OBJECT_TYPE,
@@ -426,13 +447,13 @@ typedef struct {
     bool                  required;
     bool                  have_default;
     c4m_value_t           default_value;
-    // TODO    c4m_xlist_t          *validators; // tspec_ref: c4m_zvalidator_t
+    c4m_xlist_t          *validators; // tspec_ref: c4m_zvalidator_t
     c4m_str_t            *doc;
     c4m_str_t            *shortdoc;
     int64_t               err_ix;
-    c4m_xlist_t          *exclusions; // string
-    // name of the field that's going to contain our type.
-    c4m_str_t            *deferred_type;
+    c4m_xlist_t          *exclusions;    // string
+    c4m_str_t            *deferred_type; // name of the field that's going to
+                                         // contain our type.
 } c4m_zfield_spec_t;
 
 typedef struct {
@@ -442,8 +463,8 @@ typedef struct {
     c4m_dict_t  *fields;      // string, tspec_ref: c4m_zfield_spec_t
     bool         user_def_ok;
     bool         hidden;
-    bool         cycle; // Private, used to avoid populating cyclic defs.
-    // TODO c4m_xlist_t *validators; // tspec_ref: c4m_zvalidator_t
+    bool         cycle;      // Private, used to avoid populating cyclic defs.
+    c4m_xlist_t *validators; // tspec_ref: c4m_zvalidator_t
     c4m_str_t   *doc;
     c4m_str_t   *shortdoc;
     c4m_xlist_t *allowed_sections;  // string
@@ -492,6 +513,12 @@ typedef struct {
 } c4m_attr_contents_t;
 
 typedef struct {
+    c4m_str_t   *path;
+    c4m_xlist_t *kids;  // tspec_ref: c4m_attr_tree_t
+    c4m_dict_t  *cache; // string, tspec_ref: c4m_attr_contents_t
+} c4m_attr_tree_t;
+
+typedef struct {
     c4m_str_t *shortdoc;
     c4m_str_t *longdoc;
 } c4m_docs_container_t;
@@ -509,7 +536,7 @@ typedef struct {
     bool          using_attrs;
 } c4m_vm_t;
 
-typedef struct {
+struct c4m_vmthread {
     // vm is a pointer to the global vm state shared by various threads.
     c4m_vm_t *vm;
 
@@ -556,4 +583,4 @@ typedef struct {
     // stack is the base address of the stack for this thread of execution.
     // the stack grows down, so the stack bottom is &stack[STACK_SIZE]
     c4m_stack_value_t stack[STACK_SIZE];
-} c4m_vmthread_t;
+};
