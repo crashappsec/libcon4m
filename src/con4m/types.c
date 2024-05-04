@@ -959,6 +959,7 @@ c4m_initialize_global_types()
                 one         = c4m_gc_raw_alloc(tslen,
                                        (uint64_t *)tspec->ptr_info);
                 ts          = (c4m_type_t *)one->data;
+                ts->typeid  = i;
                 info        = c4m_gc_alloc(c4m_type_info_t);
                 ts->details = info;
 

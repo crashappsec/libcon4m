@@ -3,19 +3,27 @@
 static void
 c4m_set_init(c4m_set_t *set, va_list args)
 {
-    size_t key_type = (uint32_t)va_arg(args, size_t);
-    assert(!(uint64_t)va_arg(args, uint64_t));
+    size_t      hash_fn;
+    c4m_type_t *stype = c4m_get_my_type(set);
 
-    hatrack_set_init(set, key_type);
+    if (stype != NULL) {
+        stype   = c4m_xlist_get(c4m_tspec_get_parameters(stype), 0, NULL);
+        hash_fn = c4m_tspec_get_data_type_info(stype)->hash_fn;
+    }
+    else {
+        hash_fn = (uint32_t)va_arg(args, size_t);
+    }
 
-    switch (key_type) {
+    hatrack_set_init(set, hash_fn);
+
+    switch (hash_fn) {
     case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
-        hatrack_set_set_hash_offset(set, sizeof(uint64_t) * 2);
+        hatrack_set_set_hash_offset(set, 2 * (int32_t)sizeof(uint64_t));
         /* fallthrough */
     case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
     case HATRACK_DICT_KEY_TYPE_OBJ_INT:
     case HATRACK_DICT_KEY_TYPE_OBJ_REAL:
-        hatrack_set_set_cache_offset(set, (int32_t)(-sizeof(uint64_t) * 2));
+        hatrack_set_set_cache_offset(set, -2 * (int32_t)sizeof(uint64_t));
         break;
     default:
         // nada.

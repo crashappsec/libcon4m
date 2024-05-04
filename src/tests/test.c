@@ -664,6 +664,14 @@ test_compiler()
     printf("Res = %d; # caps: %lld\n", result, c4m_xlist_len(captures));
 
     c4m_print_parse_node((c4m_tree_node_t *)c4m_xlist_get(captures, 0, NULL));
+
+    c4m_pass_1(ctx);
+
+    c4m_grid_t *err_output = c4m_format_errors(ctx);
+
+    if (err_output != NULL) {
+        c4m_print(err_output);
+    }
 }
 
 void

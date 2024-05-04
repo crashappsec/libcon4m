@@ -75,6 +75,7 @@ static inline c4m_utf8_t *
 c4m_empty_string()
 {
     c4m_utf8_t *s = c4m_str_copy(c4m_empty_string_const);
+
     s->codepoints = 0;
 
     return s;

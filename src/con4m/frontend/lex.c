@@ -806,6 +806,7 @@ line_comment:
                     TOK(c4m_tt_line_comment);
                     goto lex_next_token;
                 case 0: // EOF
+                    TOK(c4m_tt_eof);
                     return;
                 default:
                     continue;

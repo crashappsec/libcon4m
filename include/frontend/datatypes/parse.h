@@ -41,6 +41,7 @@ typedef enum {
     c4m_nt_binary_assign_op,
     c4m_nt_unary_op,
     c4m_nt_enum,
+    c4m_nt_global_enum,
     c4m_nt_enum_item,
     c4m_nt_identifier,
     c4m_nt_func_def,
@@ -90,15 +91,18 @@ typedef struct {
 
 typedef struct {
     // Parse children are stored beside us because we're using the c4m_tree.
-    c4m_node_kind_t kind;
+    c4m_node_kind_t     kind;
     // Every node gets a token to mark its location, even if the same
     // token appears in separate nodes (it will never have semantic
     // meaning in more than one).
-    c4m_token_t    *token;
-    c4m_token_t    *short_doc;
-    c4m_token_t    *long_doc;
-    c4m_xlist_t    *comments;
-    int             total_kids;
-    int             sibling_id;
-    void           *extra_info;
+    c4m_token_t        *token;
+    c4m_token_t        *short_doc;
+    c4m_token_t        *long_doc;
+    c4m_xlist_t        *comments;
+    int                 total_kids;
+    int                 sibling_id;
+    void               *extra_info;
+    c4m_obj_t          *value;
+    struct c4m_scope_t *static_scope;
+    c4m_type_t         *type;
 } c4m_pnode_t;

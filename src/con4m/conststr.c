@@ -166,7 +166,7 @@ c4m_get_empty_fmt_const()
 c4m_utf8_t *
 c4m_in_parens(c4m_str_t *s)
 {
-    return c4m_str_concat(c4m_get_lparen_const(),
-                          c4m_str_concat(c4m_to_utf8(s),
-                                         c4m_get_rparen_const()));
+    return c4m_to_utf8(c4m_str_concat(c4m_get_lparen_const(),
+                                      c4m_str_concat(c4m_to_utf8(s),
+                                                     c4m_get_rparen_const())));
 }

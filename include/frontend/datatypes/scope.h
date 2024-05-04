@@ -2,54 +2,45 @@
 #include "con4m.h"
 
 typedef enum : int8_t {
-    c4m_sk_module,
-    c4m_sk_func,
-    c4m_sk_enum_val,
-    c4m_sk_attr,
-    c4m_sk_local,
-    c4m_sk_global,
-    c4m_sk_module_param,
-    c4m_sk_formal,
-    c4m_sk_scoped_type_variable,
-    c4m_sk_user_defined_type,
-} c4m_symbol_kind_t;
+    sk_module,
+    sk_func,
+    sk_enum_type,
+    sk_enum_val,
+    sk_attr,
+    sk_variable,
+    sk_formal,
+    // Will be adding more for sure.
+    sk_num_sym_kinds
+} c4m_symbol_kind;
 
 enum {
     C4M_F_HAS_DEFAULT_VALUE = 1,
     C4M_F_IS_CONST          = 2,
 };
 
-typedef struct {
-} c4m_scopeinfo_module_t;
+typedef enum c4m_scope_kind {
+    C4M_SCOPE_GLOBAL,
+    C4M_SCOPE_MODULE,
+    C4M_SCOPE_LOCAL
+} c4m_scope_kind;
 
 typedef struct {
-    c4m_type_t *declared_type;
-    c4m_type_t *inferred_type;
-} c4m_scopeinfo_func_t;
+    c4m_utf8_t      *path;
+    c4m_utf8_t      *name;
+    c4m_tree_node_t *declaration_node;
+    c4m_xlist_t     *use_locations;
+    c4m_xlist_t     *lhs_locations;
+    uint32_t         offset;
+    uint32_t         size;
+    uint8_t          flags;
+    c4m_symbol_kind  kind;
+    c4m_type_t      *declared_type;
+    c4m_type_t      *inferred_type;
+    c4m_type_t      *value;
+} c4m_scope_entry_t;
 
-typedef struct {
-    c4m_type_t *declared_type;
-    c4m_type_t *inferred_type;
-    void       *value;
-} c4m_scopeinfo_param_t;
-
-typedef struct {
-    c4m_type_t *declared_type;
-    c4m_type_t *inferred_type;
-    size_t      required_storage;
-    void       *value;
-} c4m_scopeinfo_variable_t;
-
-typedef struct {
-    c4m_type_t *declared_type;
-    c4m_type_t *inferred_type;
-    void       *value;
-} c4m_enum_val_t;
-
-typedef struct {
-    c4m_utf8_t       *name;
-    c4m_pnode_t      *declaration_node;
-    void             *info; // pointer to one of the above structs.
-    c4m_symbol_kind_t kind;
-    uint8_t           flags;
-} c4m_scope_entry;
+typedef struct c4m_scope_t {
+    struct c4m_scope_t *parent;
+    c4m_dict_t         *symbols;
+    enum c4m_scope_kind kind;
+} c4m_scope_t;

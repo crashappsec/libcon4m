@@ -88,3 +88,4 @@ typedef void *object_t;
 #include "frontend/errors.h"
 #include "frontend/lex.h"
 #include "frontend/parse.h"
+#include "frontend/scope.h"

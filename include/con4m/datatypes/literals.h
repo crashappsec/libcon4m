@@ -14,19 +14,3 @@ typedef enum {
     ST_Tuple  = 9,
     ST_MAX    = 10
 } c4m_lit_syntax_t;
-
-typedef enum {
-    LE_NoError        = 0,
-    LE_InvalidChar    = 1,
-    LE_Overflow       = 2,
-    LE_Underflow      = 3,
-    LE_OddHex         = 4,
-    LE_InvalidNeg     = 5,
-    LE_WrongNumDigits = 6,
-    LE_NoLitmodMatch  = 7,
-} c4m_lit_error_code_t;
-
-typedef struct {
-    uint64_t             loc;
-    c4m_lit_error_code_t code;
-} c4m_lit_error_t;

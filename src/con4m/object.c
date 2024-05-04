@@ -641,7 +641,7 @@ c4m_can_coerce(c4m_type_t *t1, c4m_type_t *t2)
     return (*ptr)(t1, t2);
 }
 
-void *
+c4m_obj_t
 c4m_coerce(void *data, c4m_type_t *t1, c4m_type_t *t2)
 {
     // TODO-- if it's not a primitive type in t1, we should
@@ -656,6 +656,47 @@ c4m_coerce(void *data, c4m_type_t *t1, c4m_type_t *t2)
     }
 
     return (*ptr)(data, t2);
+}
+
+c4m_obj_t
+c4m_coerce_object(const c4m_obj_t obj, c4m_type_t *to_type)
+{
+    c4m_type_t    *from_type = c4m_get_my_type(obj);
+    c4m_dt_info_t *info      = c4m_tspec_get_data_type_info(from_type);
+    uint64_t       value;
+
+    if (!info->by_value) {
+        return c4m_coerce(obj, from_type, to_type);
+    }
+
+    switch (info->alloc_len) {
+    case 8:
+        value = (uint64_t) * (uint8_t *)obj;
+        break;
+    case 32:
+        value = (uint64_t) * (uint32_t *)obj;
+        break;
+    default:
+        value = *(uint64_t *)obj;
+    }
+
+    value        = (uint64_t)c4m_coerce((void *)value, from_type, to_type);
+    info         = c4m_tspec_get_data_type_info(to_type);
+    void *result = c4m_new(to_type);
+
+    if (info->alloc_len == 8) {
+        *(uint8_t *)result = (uint8_t)value;
+    }
+    else {
+        if (info->alloc_len == 32) {
+            *(uint32_t *)result = (uint32_t)value;
+        }
+        else {
+            *(uint64_t *)result = value;
+        }
+    }
+
+    return result;
 }
 
 bool

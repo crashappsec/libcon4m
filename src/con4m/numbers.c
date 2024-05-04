@@ -72,10 +72,11 @@ unsigned_repr(int64_t item, to_str_use_t how)
 }
 
 __uint128_t
-raw_int_parse(char *s, c4m_lit_error_t *err, bool *neg)
+raw_int_parse(c4m_utf8_t *u8, c4m_compile_error_t *err, bool *neg)
 {
     __uint128_t cur  = 0;
     __uint128_t last = 0;
+    char       *s    = u8->data;
     char       *p    = s;
 
     if (*p == '-') {
@@ -93,13 +94,15 @@ raw_int_parse(char *s, c4m_lit_error_t *err, bool *neg)
         cur *= 10;
         if (c < 0 || c > 9) {
             if (err) {
-                err->code = LE_InvalidChar;
-                err->loc  = p - s - 1;
+                *err = c4m_err_parse_invalid_lit_char;
+                // err->loc  = p - s - 1;
             }
             return ~0;
         }
         if (cur < last) {
-            err->code = LE_Overflow;
+            if (err) {
+                *err = c4m_err_parse_lit_overflow;
+            }
         }
         cur += c;
     }
@@ -107,17 +110,18 @@ raw_int_parse(char *s, c4m_lit_error_t *err, bool *neg)
 }
 
 __uint128_t
-raw_hex_parse(char *s, c4m_lit_error_t *err)
+raw_hex_parse(c4m_utf8_t *u8, c4m_compile_error_t *err)
 {
     // Here we expect *s to point to the first
     // character after any leading '0x'.
     __uint128_t cur = 0;
+    char       *s   = u8->data;
     char        c;
     bool        even = true;
 
     while ((c = *s++) != 0) {
         if (cur & (((__uint128_t)0x0f) << 124)) {
-            err->code = LE_Overflow;
+            *err = c4m_err_parse_lit_overflow;
             return ~0;
         }
         even = !even;
@@ -153,187 +157,148 @@ raw_hex_parse(char *s, c4m_lit_error_t *err)
             cur |= (c + 10 - 'A');
             continue;
         default:
-            err->code = LE_InvalidChar;
+            *err = c4m_err_parse_invalid_lit_char;
             return ~0;
         }
     }
 
     if (!even) {
-        err->code = LE_OddHex;
+        *err = c4m_err_parse_lit_odd_hex;
         return ~0;
     }
 
     return cur;
 }
 
+#define BASE_INT_PARSE()                                      \
+    bool        neg;                                          \
+    __uint128_t val;                                          \
+                                                              \
+    switch (st) {                                             \
+    case ST_Base10:                                           \
+        val = raw_int_parse(s, code, &neg);                   \
+        break;                                                \
+    case ST_1Quote:                                           \
+        C4M_CRAISE("Single quoted not reimplemented yet.\n"); \
+    default:                                                  \
+        val = raw_hex_parse(s, code);                         \
+        break;                                                \
+    }                                                         \
+                                                              \
+    if (*code != c4m_err_no_error) {                          \
+        return NULL;                                          \
+    }
+
+#define SIGNED_PARSE(underlow_val, overflow_val, magic_type) \
+    BASE_INT_PARSE()                                         \
+    if (neg) {                                               \
+        if (val > overflow_val) {                            \
+            *code = c4m_err_parse_lit_underflow;             \
+            return NULL;                                     \
+        }                                                    \
+        *result = -1 * (magic_type)val;                      \
+    }                                                        \
+    else {                                                   \
+        if (val > overflow_val) {                            \
+            *code = c4m_err_parse_lit_overflow;              \
+            return NULL;                                     \
+        }                                                    \
+        *result = (magic_type)val;                           \
+    }                                                        \
+    return (c4m_obj_t)result
+
+#define UNSIGNED_PARSE(overflow_val, magic_type) \
+    BASE_INT_PARSE()                             \
+    if (neg) {                                   \
+        *code = c4m_err_parse_lit_invalid_neg;   \
+        return NULL;                             \
+    }                                            \
+                                                 \
+    if (val > overflow_val) {                    \
+        *code = c4m_err_parse_lit_overflow;      \
+        return NULL;                             \
+    }                                            \
+    *result = (magic_type)val;                   \
+                                                 \
+    return (c4m_obj_t)result
+
 static c4m_obj_t
-i8_parse(char *s, c4m_lit_syntax_t st, char *litmod, c4m_lit_error_code_t *code)
+i8_parse(c4m_utf8_t          *s,
+         c4m_lit_syntax_t     st,
+         c4m_utf8_t          *litmod,
+         c4m_compile_error_t *code)
 {
-    char           *result = c4m_new(c4m_tspec_i8());
-    c4m_lit_error_t err    = {0, LE_NoError};
-    bool            neg;
-    __uint128_t     val;
+    char *result = c4m_new(c4m_tspec_i8());
 
-    if (st == ST_Base10) {
-        val = raw_int_parse(s, &err, &neg);
-    }
-    else {
-        val = raw_hex_parse(s, &err);
-        neg = false;
-    }
+    SIGNED_PARSE(0x80, 0x7f, char);
+}
 
-    if (err.code != LE_NoError) {
-        *code = err.code;
-        return NULL;
-    }
+static c4m_obj_t
+u8_parse(c4m_utf8_t          *s,
+         c4m_lit_syntax_t     st,
+         c4m_utf8_t          *litmod,
+         c4m_compile_error_t *code)
+{
+    uint8_t *result = c4m_new(c4m_tspec_byte());
 
-    if (neg) {
-        if (val > 0x80) {
-            *code = LE_Underflow;
-            return NULL;
-        }
-
-        *result = -1 * (char)val;
-    }
-    else {
-        if (val > 0x7f) {
-            *code = LE_Overflow;
-            return NULL;
-        }
-        *result = (char)val;
-    }
-
-    return (c4m_obj_t)result;
+    UNSIGNED_PARSE(0xff, uint8_t);
 }
 
 c4m_obj_t
-u8_parse(char                 *s,
-         c4m_lit_syntax_t      st,
-         char                 *litmod,
-         c4m_lit_error_code_t *code)
+i32_parse(c4m_utf8_t          *s,
+          c4m_lit_syntax_t     st,
+          c4m_utf8_t          *litmod,
+          c4m_compile_error_t *code)
 {
-    uint8_t        *result = c4m_new(c4m_tspec_byte());
-    c4m_lit_error_t err    = {0, LE_NoError};
-    bool            neg;
-    __uint128_t     val;
+    int32_t *result = c4m_new(c4m_tspec_i32());
 
-    if (st == ST_Base10) {
-        val = raw_int_parse(s, &err, &neg);
-    }
-    else {
-        val = raw_hex_parse(s, &err);
-    }
-
-    if (err.code != LE_NoError) {
-        *code = err.code;
-        return NULL;
-    }
-
-    if (neg) {
-        *code = LE_InvalidNeg;
-        return NULL;
-    }
-
-    if (val > 0xff) {
-        *code = LE_Overflow;
-        return NULL;
-    }
-    *result = (uint8_t)val;
-
-    return (c4m_obj_t)result;
+    SIGNED_PARSE(0x80000000, 0x7fffffff, int32_t);
 }
 
 c4m_obj_t
-i32_parse(char                 *s,
-          c4m_lit_syntax_t      st,
-          char                 *litmod,
-          c4m_lit_error_code_t *code)
+u32_parse(c4m_utf8_t          *s,
+          c4m_lit_syntax_t     st,
+          c4m_utf8_t          *litmod,
+          c4m_compile_error_t *code)
 {
-    int32_t        *result = c4m_new(c4m_tspec_i32());
-    c4m_lit_error_t err    = {0, LE_NoError};
-    bool            neg;
-    __uint128_t     val;
+    uint32_t *result = c4m_new(c4m_tspec_char());
 
-    if (st == ST_Base10) {
-        val = raw_int_parse(s, &err, &neg);
-    }
-    else {
-        val = raw_hex_parse(s, &err);
-        neg = false;
-    }
-
-    if (err.code != LE_NoError) {
-        *code = err.code;
-        return NULL;
-    }
-
-    if (neg) {
-        if (val > 0x80000000) {
-            *code = LE_Underflow;
-            return NULL;
-        }
-
-        *result = -1 * (int32_t)val;
-    }
-    else {
-        if (val > 0x7fffffff) {
-            *code = LE_Overflow;
-            return NULL;
-        }
-
-        *result = (int32_t)val;
-    }
-
-    return (c4m_obj_t)result;
+    UNSIGNED_PARSE(0xffffffff, uint32_t);
 }
 
 c4m_obj_t
-u32_parse(char                 *s,
-          c4m_lit_syntax_t      st,
-          char                 *litmod,
-          c4m_lit_error_code_t *code)
+i64_parse(c4m_utf8_t          *s,
+          c4m_lit_syntax_t     st,
+          c4m_utf8_t          *litmod,
+          c4m_compile_error_t *code)
 {
-    uint32_t       *result = c4m_new(c4m_tspec_u32());
-    c4m_lit_error_t err    = {0, LE_NoError};
-    bool            neg;
-    __uint128_t     val;
+    int64_t *result = c4m_new(c4m_tspec_int());
 
-    if (st == ST_Base10) {
-        val = raw_int_parse(s, &err, &neg);
-    }
-    else {
-        val = raw_hex_parse(s, &err);
-    }
+    SIGNED_PARSE(0x8000000000000000, 0x7fffffffffffffff, int64_t);
+}
 
-    if (err.code != LE_NoError) {
-        *code = err.code;
-        return NULL;
-    }
+c4m_obj_t
+u64_parse(c4m_utf8_t          *s,
+          c4m_lit_syntax_t     st,
+          c4m_utf8_t          *litmod,
+          c4m_compile_error_t *code)
+{
+    uint64_t *result = c4m_new(c4m_tspec_uint());
 
-    if (neg) {
-        *code = LE_InvalidNeg;
-        return NULL;
-    }
-
-    if (val > 0xffffffff) {
-        *code = LE_Overflow;
-        return NULL;
-    }
-
-    *result = (uint32_t)val;
-
-    return (c4m_obj_t)result;
+    UNSIGNED_PARSE(0xffffffffffffffff, uint64_t);
 }
 
 static c4m_obj_t false_lit = NULL;
 static c4m_obj_t true_lit  = NULL;
 
 c4m_obj_t
-bool_parse(char                 *s,
-           c4m_lit_syntax_t      st,
-           char                 *litmod,
-           c4m_lit_error_code_t *code)
+bool_parse(c4m_utf8_t          *u8,
+           c4m_lit_syntax_t     st,
+           c4m_utf8_t          *litmod,
+           c4m_compile_error_t *code)
 {
+    char *s = u8->data;
+
     switch (*s++) {
     case 't':
     case 'T':
@@ -362,114 +327,33 @@ bool_parse(char                 *s,
     default:
         break;
     }
-    *code = LE_InvalidChar;
+
+    *code = c4m_err_parse_invalid_lit_char;
 
     return NULL;
 }
 
 c4m_obj_t
-i64_parse(char                 *s,
-          c4m_lit_syntax_t      st,
-          char                 *litmod,
-          c4m_lit_error_code_t *code)
-{
-    int64_t        *result = c4m_new(c4m_tspec_int());
-    c4m_lit_error_t err    = {0, LE_NoError};
-    bool            neg;
-    __uint128_t     val;
-
-    if (st == ST_Base10) {
-        val = raw_int_parse(s, &err, &neg);
-    }
-    else {
-        val = raw_hex_parse(s, &err);
-        neg = false;
-    }
-
-    if (err.code != LE_NoError) {
-        *code = err.code;
-        return NULL;
-    }
-
-    if (neg) {
-        if (val > 0x8000000000000000) {
-            *code = LE_Underflow;
-            return NULL;
-        }
-
-        *result = -1 * (int64_t)val;
-    }
-    else {
-        if (val > 0x7fffffffffffffff) {
-            *code = LE_Overflow;
-            return NULL;
-        }
-
-        *result = (int64_t)val;
-    }
-
-    return (c4m_obj_t)result;
-}
-
-c4m_obj_t
-u64_parse(char                 *s,
-          c4m_lit_syntax_t      st,
-          char                 *litmod,
-          c4m_lit_error_code_t *code)
-{
-    uint64_t       *result = c4m_new(c4m_tspec_uint());
-    c4m_lit_error_t err    = {0, LE_NoError};
-    bool            neg;
-    __uint128_t     val;
-
-    if (st == ST_Base10) {
-        val = raw_int_parse(s, &err, &neg);
-    }
-    else {
-        val = raw_hex_parse(s, &err);
-    }
-
-    if (err.code != LE_NoError) {
-        *code = err.code;
-        return NULL;
-    }
-
-    if (neg) {
-        *code = LE_InvalidNeg;
-        return NULL;
-    }
-
-    if (val > 0xffffffffffffffff) {
-        *code = LE_Overflow;
-        return NULL;
-    }
-
-    *result = (uint64_t)val;
-
-    return (c4m_obj_t)result;
-}
-
-c4m_obj_t
-f64_parse(char                 *s,
-          c4m_lit_syntax_t      st,
-          char                 *litmod,
-          c4m_lit_error_code_t *code)
+f64_parse(c4m_utf8_t          *s,
+          c4m_lit_syntax_t     st,
+          c4m_utf8_t          *litmod,
+          c4m_compile_error_t *code)
 {
     char   *end;
     double *lit = c4m_new(c4m_tspec_f64());
-    double  d   = strtod(s, &end);
+    double  d   = strtod(s->data, &end);
 
-    if (end == s || !*end) {
-        *code = LE_InvalidChar;
+    if (end == s->data || !*end) {
+        *code = c4m_err_parse_invalid_lit_char;
         return NULL;
     }
 
     if (errno == ERANGE) {
         if (d == HUGE_VAL) {
-            *code = LE_Overflow;
+            *code = c4m_err_parse_lit_overflow;
             return NULL;
         }
-        *code == LE_Underflow;
+        *code == c4m_err_parse_lit_underflow;
         return NULL;
     }
     *lit = d;
@@ -538,7 +422,7 @@ bool_repr(bool *b, to_str_use_t how)
     return true_repr;
 }
 
-bool
+static bool
 any_number_can_coerce_to(c4m_type_t *my_type, c4m_type_t *target_type)
 {
     switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
@@ -558,7 +442,7 @@ any_number_can_coerce_to(c4m_type_t *my_type, c4m_type_t *target_type)
     }
 }
 
-void *
+static void *
 any_int_coerce_to(const int64_t data, c4m_type_t *target_type)
 {
     double d;
@@ -582,7 +466,7 @@ any_int_coerce_to(const int64_t data, c4m_type_t *target_type)
     }
 }
 
-void *
+static void *
 bool_coerce_to(const int64_t data, c4m_type_t *target_type)
 {
     switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
@@ -613,7 +497,7 @@ bool_coerce_to(const int64_t data, c4m_type_t *target_type)
     }
 }
 
-c4m_str_t *
+static c4m_str_t *
 float_repr(const double *dp, to_str_use_t how)
 {
     double d       = *dp;
@@ -627,7 +511,7 @@ float_repr(const double *dp, to_str_use_t how)
     return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(buf)));
 }
 
-void *
+static void *
 float_coerce_to(const double d, c4m_type_t *target_type)
 {
     int64_t i;

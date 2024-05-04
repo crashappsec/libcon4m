@@ -98,6 +98,36 @@ _c4m_tpat_n_m_match(void *contents, int16_t min, int16_t max, int capture, ...)
     return result;
 }
 
+c4m_tpat_node_t *
+c4m_tpat_content_match(void *contents, int capture)
+{
+    c4m_tpat_node_t *result = tpat_base(contents, 1, 1, false, capture);
+    result->ignore_kids     = 1;
+
+    return result;
+}
+
+c4m_tpat_node_t *
+c4m_tpat_opt_content_match(void *contents, int capture)
+{
+    c4m_tpat_node_t *result = tpat_base(contents, 0, 1, false, capture);
+    result->ignore_kids     = 1;
+
+    return result;
+}
+
+c4m_tpat_node_t *
+c4m_tpat_n_m_content_match(void   *contents,
+                           int16_t min,
+                           int16_t max,
+                           int     capture)
+{
+    c4m_tpat_node_t *result = tpat_base(contents, min, max, false, capture);
+    result->ignore_kids     = 1;
+
+    return result;
+}
+
 // This is a naive implementation. I won't use patterns that trigger the
 // non-linear cost, but if this gets more general purpose use, should probably
 // implement a closer-to-optimal general purpose search.
@@ -153,7 +183,6 @@ count_consecutive_matches(search_ctx_t    *ctx,
                           int              max)
 {
     int result = 0;
-
     // pattern_cur is already properly set by our caller.
     for (; next_child < parent->num_kids; next_child++) {
         ctx->tree_cur = parent->children[next_child];
@@ -226,11 +255,11 @@ kid_match_from(search_ctx_t    *ctx,
     next_pattern++;
 
     c4m_tpat_node_t *pnew           = parent_pattern->children[next_pattern];
+    void            *next_contents  = pnew->contents;
     c4m_xlist_t     *saved_captures = ctx->captures;
     ctx->captures                   = NULL;
-    void *next_contents             = pnew->contents;
 
-    for (int i = subpattern->min; i < subpattern->min + num_matches; i++) {
+    for (int i = subpattern->min; i <= subpattern->min + num_matches; i++) {
         ctx->captures = NULL;
         if (kid_match_from(ctx,
                            parent,
@@ -249,6 +278,10 @@ kid_match_from(search_ctx_t    *ctx,
 static inline bool
 children_match(search_ctx_t *ctx)
 {
+    if (ctx->pattern_cur->ignore_kids == 1) {
+        return true;
+    }
+
     c4m_tree_node_t *saved_parent  = ctx->tree_cur;
     c4m_tpat_node_t *saved_pattern = ctx->pattern_cur;
     bool             result;

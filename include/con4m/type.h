@@ -401,6 +401,12 @@ c4m_tspecs_are_compat(c4m_type_t *t1, c4m_type_t *t2)
     return !c4m_tspec_is_error(c4m_global_type_check(t1, t2));
 }
 
+static inline bool
+c4m_obj_type_check(const c4m_obj_t *obj, c4m_type_t *t2)
+{
+    return c4m_tspecs_are_compat(c4m_object_type(obj), t2);
+}
+
 static inline c4m_type_t *
 c4m_tspec_tuple_from_xlist(c4m_xlist_t *item_types)
 {
@@ -437,4 +443,12 @@ c4m_tspec_is_int_type(c4m_type_t *t)
     default:
         return false;
     }
+}
+
+static inline bool
+c4m_obj_is_int_type(const c4m_obj_t *obj)
+{
+    c4m_base_obj_t *base = (c4m_base_obj_t *)c4m_object_header(obj);
+
+    return c4m_tspec_is_int_type(base->concrete_type);
 }

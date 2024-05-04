@@ -45,10 +45,10 @@ typedef void (*c4m_slice_set_fn)(c4m_obj_t, int64_t, int64_t, c4m_obj_t);
 typedef bool (*c4m_can_coerce_fn)(c4m_type_t *, c4m_type_t *);
 typedef void *(*c4m_coerce_fn)(void *, c4m_type_t *);
 typedef bool (*c4m_cmp_fn)(c4m_obj_t, c4m_obj_t);
-typedef c4m_obj_t (*c4m_literal_fn)(char *,
+typedef c4m_obj_t (*c4m_literal_fn)(c4m_utf8_t *,
                                     c4m_lit_syntax_t,
-                                    char *,
-                                    c4m_lit_error_t *);
+                                    c4m_utf8_t *,
+                                    c4m_compile_error_t *);
 typedef c4m_obj_t (*c4m_container_lit_fn)(c4m_type_t *,
                                           c4m_obj_t,
                                           c4m_lit_syntax_t,

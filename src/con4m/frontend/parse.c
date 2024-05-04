@@ -1,3 +1,5 @@
+#define C4M_USE_INTERNAL_API
+
 #include "con4m.h"
 // TODO: clean up stack to set the tree properly when a RAISE happens.
 
@@ -206,6 +208,7 @@ typedef struct {
     unsigned int takes_docs    : 1;
     int          aux_alloc_size;
 } node_type_info_t;
+
 static const node_type_info_t node_type_info[] = {
     // clang-format off
     { "nt_error", 1, 1, 0, 0, 0, },
@@ -246,7 +249,8 @@ static const node_type_info_t node_type_info[] = {
     { "nt_binary_op", 1, 0, 0, 0, 0, },
     { "nt_binary_assign_op", 1, 0, 0, 0, 0, },
     { "nt_unary_op", 1, 0, 0, 0, 0, },
-    { "nt_enum", 1, 0, 0, 0, 0, },
+    { "nt_enum", 0, 0, 0, 0, 0, },
+    { "nt_global_enum", 0, 0, 0, 0, 0, },
     { "nt_enum_item", 1, 0, 0, 0, 0, },
     { "nt_identifier", 1, 1, 0, 0, 0, },
     { "nt_func_def", 1, 0, 0, 1, 0, },
@@ -349,31 +353,10 @@ static void
 _add_parse_error(parse_ctx *ctx, c4m_compile_error_t code, ...)
 {
     va_list args;
-    int     num_args = 0;
 
     va_start(args, code);
-    while (va_arg(args, void *) != NULL) {
-        num_args++;
-    }
+    c4m_base_add_error(ctx->file_ctx->errors, code, tok_cur(ctx), args);
     va_end(args);
-
-    c4m_compile_error *err = c4m_gc_flex_alloc(c4m_compile_error,
-                                               c4m_str_t *,
-                                               num_args,
-                                               GC_SCAN_ALL);
-    err->code              = code;
-    err->current_token     = tok_cur(ctx);
-
-    if (num_args) {
-        va_start(args, code);
-        for (int i = 0; i < num_args; i++) {
-            err->msg_parameters[i] = va_arg(args, c4m_str_t *);
-        }
-        va_end(args);
-        err->num_args = num_args;
-    }
-
-    c4m_xlist_append(ctx->file_ctx->errors, err);
 }
 
 #define add_parse_error(ctx, code, ...) \
@@ -635,16 +618,6 @@ expect(parse_ctx *ctx, c4m_token_kind_t tk)
                     token_type_to_string(tk));
     line_skip_recover(ctx);
     return false;
-}
-
-static inline c4m_utf8_t *
-identifier_text(c4m_token_t *tok)
-{
-    if (tok->literal_value == NULL) {
-        tok->literal_value = c4m_token_raw_content(tok);
-    }
-
-    return (c4m_utf8_t *)tok->literal_value;
 }
 
 static inline bool
@@ -919,7 +892,17 @@ simple_lit(parse_ctx *ctx)
         add_parse_error(ctx, c4m_err_parse_need_simple_lit);
     }
     else {
+        c4m_token_t *tok = tok_cur(ctx);
         start_node(ctx, c4m_nt_simple_lit, true);
+        if (tok->kind == c4m_tt_unquoted_lit) {
+            C4M_CRAISE("Unquoted literals not reimplemented yet");
+        }
+        c4m_compile_error_t err = c4m_parse_simple_lit(tok);
+
+        if (err != c4m_err_no_error) {
+            c4m_error_from_token(ctx->file_ctx, err, tok);
+        }
+
         end_node(ctx);
     }
 }
@@ -931,7 +914,16 @@ string_lit(parse_ctx *ctx)
         add_parse_error(ctx, c4m_err_parse_need_str_lit);
     }
     else {
+        c4m_token_t *tok = tok_cur(ctx);
+
         start_node(ctx, c4m_nt_simple_lit, true);
+
+        c4m_compile_error_t err = c4m_parse_simple_lit(tok);
+
+        if (err != c4m_err_no_error) {
+            c4m_error_from_token(ctx->file_ctx, err, tok);
+        }
+
         end_node(ctx);
     }
 }
@@ -943,7 +935,16 @@ bool_lit(parse_ctx *ctx)
         add_parse_error(ctx, c4m_err_parse_need_bool_lit);
     }
     else {
+        c4m_token_t *tok = tok_cur(ctx);
+
         start_node(ctx, c4m_nt_simple_lit, true);
+
+        c4m_compile_error_t err = c4m_parse_simple_lit(tok);
+
+        if (err != c4m_err_no_error) {
+            c4m_error_from_token(ctx->file_ctx, err, tok);
+        }
+
         end_node(ctx);
     }
 }
@@ -1260,7 +1261,6 @@ extern_block(parse_ctx *ctx)
                 }
                 // Fallthrough
             default:
-                DEBUG_CUR("...");
                 err_skip_stmt(ctx, c4m_err_parse_extern_bad_prop);
                 continue;
             }
@@ -1275,7 +1275,19 @@ extern_block(parse_ctx *ctx)
 static void
 enum_stmt(parse_ctx *ctx)
 {
-    start_node(ctx, c4m_nt_enum, true);
+    if (tok_kind(ctx) == c4m_tt_global) {
+        start_node(ctx, c4m_nt_global_enum, true);
+        consume(ctx); // enum being next validated by caller.
+    }
+    else {
+        if (lookahead(ctx, 1, false) == c4m_tt_global) {
+            start_node(ctx, c4m_nt_global_enum, true);
+            consume(ctx);
+        }
+        else {
+            start_node(ctx, c4m_nt_enum, true);
+        }
+    }
 
     if (tok_kind(ctx) == c4m_tt_identifier) {
         identifier(ctx);
@@ -1301,10 +1313,13 @@ enum_stmt(parse_ctx *ctx)
         }
         start_node(ctx, c4m_nt_enum_item, true);
 
+        opt_one_newline(ctx);
+
         switch (tok_kind(ctx)) {
         case c4m_tt_comma:
             end_node(ctx);
             consume(ctx);
+            opt_one_newline(ctx);
             if (tok_kind(ctx) == c4m_tt_rbrace) {
                 end_node(ctx);
                 consume(ctx);
@@ -1331,6 +1346,7 @@ enum_stmt(parse_ctx *ctx)
             default:
                 simple_lit(ctx);
                 end_node(ctx);
+                opt_one_newline(ctx);
                 if (tok_kind(ctx) == c4m_tt_rbrace) {
                     end_node(ctx);
                     consume(ctx);
@@ -1589,8 +1605,8 @@ case_body(parse_ctx *ctx)
             case c4m_tt_return:
                 return_stmt(ctx);
                 continue;
-            case c4m_tt_var:
             case c4m_tt_global:
+            case c4m_tt_var:
             case c4m_tt_const:
                 variable_decl(ctx);
                 end_of_statement(ctx);
@@ -3573,8 +3589,8 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
             case c4m_tt_return:
                 return_stmt(ctx);
                 continue;
-            case c4m_tt_var:
             case c4m_tt_global:
+            case c4m_tt_var:
             case c4m_tt_const:
                 variable_decl(ctx);
                 end_of_statement(ctx);
@@ -3713,8 +3729,12 @@ module(parse_ctx *ctx)
             case c4m_tt_func:
                 func_def(ctx);
                 continue;
-            case c4m_tt_var:
             case c4m_tt_global:
+                if (lookahead(ctx, 1, false) == c4m_tt_enum) {
+                    enum_stmt(ctx);
+                }
+                continue;
+            case c4m_tt_var:
             case c4m_tt_const:
                 variable_decl(ctx);
                 end_of_statement(ctx);
@@ -3817,14 +3837,14 @@ repr_one_node(c4m_pnode_t *one)
 
     if (info->takes_docs) {
         if (one->short_doc == NULL) {
-            doc = c4m_new_utf8(" no docs");
+            doc = c4m_new_utf8("no docs");
         }
         else {
             if (one->long_doc == NULL) {
-                doc = c4m_new_utf8(" short doc");
+                doc = c4m_new_utf8("short doc");
             }
             else {
-                doc = c4m_new_utf8(" full docs");
+                doc = c4m_new_utf8("full docs");
             }
         }
     }
@@ -3832,7 +3852,10 @@ repr_one_node(c4m_pnode_t *one)
         doc = c4m_empty_string();
     }
 
-    return c4m_cstr_format(fmt, name, xtra, doc);
+    c4m_utf8_t *result = c4m_cstr_format(fmt, name, xtra, doc);
+
+    //    c4m_print(c4m_hex_dump(result->data, result->byte_len));
+    return result;
 }
 
 void
