@@ -452,3 +452,9 @@ c4m_obj_is_int_type(const c4m_obj_t *obj)
 
     return c4m_tspec_is_int_type(base->concrete_type);
 }
+
+static inline bool
+c4m_type_is_value_type(c4m_type_t *t)
+{
+    return c4m_tspec_get_data_type_info(t)->by_value;
+}

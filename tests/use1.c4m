@@ -1,3 +1,6 @@
+use test1
 use use2 from "."
+use foo.bar.boz
+use test1
 
 assert(fact(4) == 24)

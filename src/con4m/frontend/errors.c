@@ -494,6 +494,14 @@ static error_info_t error_info[] = {
         "Duplicate value in the same [em]enum[/] is not allowed.",
         false,
     },
+    [c4m_info_dupe_import] = {
+        c4m_info_dupe_import,
+        "dupe_import",
+        "Multiple calls to [em]use[/] with the exact same package. "
+        "Each statement runs the module top-level code each time "
+        "execution reaches the [em]use[/] statement.",
+        false,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",
@@ -570,7 +578,7 @@ c4m_format_errors(c4m_file_compile_ctx *ctx)
     if (error_constant == NULL) {
         error_constant = c4m_rich_lit("[red]error:[/]");
         warn_constant  = c4m_rich_lit("[yellow]warning:[/]");
-        info_constant  = c4m_rich_lit("[atomic lime]warning:[/]");
+        info_constant  = c4m_rich_lit("[atomic lime]info:[/]");
     }
 
     int64_t n = c4m_xlist_len(ctx->errors);
@@ -612,6 +620,7 @@ c4m_compile_error *
 c4m_base_add_error(c4m_xlist_t        *err_list,
                    c4m_compile_error_t code,
                    c4m_token_t        *tok,
+                   c4m_err_severity_t  severity,
                    va_list             args)
 {
     va_list arg_counter;
@@ -630,6 +639,7 @@ c4m_base_add_error(c4m_xlist_t        *err_list,
 
     err->code          = code;
     err->current_token = tok;
+    err->severity      = severity;
 
     if (num_args) {
         for (int i = 0; i < num_args; i++) {
@@ -653,25 +663,38 @@ _c4m_error_from_token(c4m_file_compile_ctx *ctx,
 
     va_list args;
     va_start(args, tok);
-    result = c4m_base_add_error(ctx->errors, code, tok, args);
+    result = c4m_base_add_error(ctx->errors,
+                                code,
+                                tok,
+                                c4m_err_severity_error,
+                                args);
     va_end(args);
 
     return result;
 }
 
-c4m_compile_error *
-_c4m_add_error(c4m_file_compile_ctx *ctx,
-               c4m_compile_error_t   code,
-               c4m_tree_node_t      *node,
-               ...)
-{
-    c4m_compile_error *result;
-    c4m_pnode_t       *pnode = c4m_tree_get_contents(node);
+#define c4m_base_err_decl(func_name, severity_value)            \
+    c4m_compile_error *                                         \
+    func_name(c4m_file_compile_ctx *ctx,                        \
+              c4m_compile_error_t   code,                       \
+              c4m_tree_node_t      *node,                       \
+              ...)                                              \
+    {                                                           \
+        c4m_compile_error *result;                              \
+        c4m_pnode_t       *pnode = c4m_tree_get_contents(node); \
+                                                                \
+        va_list args;                                           \
+        va_start(args, node);                                   \
+        result = c4m_base_add_error(ctx->errors,                \
+                                    code,                       \
+                                    pnode->token,               \
+                                    severity_value,             \
+                                    args);                      \
+        va_end(args);                                           \
+                                                                \
+        return result;                                          \
+    }
 
-    va_list args;
-    va_start(args, node);
-    result = c4m_base_add_error(ctx->errors, code, pnode->token, args);
-    va_end(args);
-
-    return result;
-}
+c4m_base_err_decl(_c4m_add_error, c4m_err_severity_error);
+c4m_base_err_decl(_c4m_add_warning, c4m_err_severity_warning);
+c4m_base_err_decl(_c4m_add_info, c4m_err_severity_info);

@@ -26,5 +26,6 @@ typedef struct {
     c4m_xlist_t     *errors;          // an xlist of c4m_compile_errors
     c4m_scope_t     *global_scope;    // Symbols used w/ global scope
     c4m_scope_t     *module_scope;    // Symbols used w/ module scope
-    c4m_scope_t     *attribule_scope; // Declared or used attrs
+    c4m_scope_t     *attribute_scope; // Declared or used attrs
+    c4m_scope_t     *imports;
 } c4m_file_compile_ctx;

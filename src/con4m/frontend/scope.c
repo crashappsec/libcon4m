@@ -29,7 +29,9 @@ c4m_declare_symbol(c4m_file_compile_ctx *ctx,
                    c4m_scope_t          *scope,
                    c4m_utf8_t           *name,
                    c4m_tree_node_t      *node,
-                   c4m_symbol_kind       kind)
+                   c4m_symbol_kind       kind,
+                   bool                 *success,
+                   bool                  err_if_present)
 {
     c4m_scope_entry_t *entry = c4m_gc_alloc(c4m_scope_entry_t);
     entry->path              = c4m_to_utf8(ctx->path);
@@ -40,12 +42,24 @@ c4m_declare_symbol(c4m_file_compile_ctx *ctx,
     entry->kind              = kind;
 
     if (hatrack_dict_add(scope->symbols, name, entry)) {
+        if (success != NULL) {
+            *success = true;
+        }
+
         return entry;
     }
 
     c4m_scope_entry_t *old   = hatrack_dict_get(scope->symbols, name, NULL);
     c4m_pnode_t       *pnode = c4m_tree_get_contents(old->declaration_node);
     c4m_token_t       *tok   = pnode->token;
+
+    if (success != NULL) {
+        *success = false;
+    }
+
+    if (!err_if_present) {
+        return old;
+    }
 
     c4m_add_error(ctx,
                   c4m_err_invalid_redeclaration,
@@ -56,5 +70,5 @@ c4m_declare_symbol(c4m_file_compile_ctx *ctx,
                   c4m_box_i32(tok->line_no),
                   c4m_box_i32(tok->line_offset));
 
-    return NULL;
+    return old;
 }

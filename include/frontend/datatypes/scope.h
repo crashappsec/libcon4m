@@ -3,6 +3,7 @@
 
 typedef enum : int8_t {
     sk_module,
+    sk_package,
     sk_func,
     sk_enum_type,
     sk_enum_val,
@@ -21,8 +22,18 @@ enum {
 typedef enum c4m_scope_kind {
     C4M_SCOPE_GLOBAL,
     C4M_SCOPE_MODULE,
-    C4M_SCOPE_LOCAL
+    C4M_SCOPE_LOCAL,
+    C4M_SCOPE_ATTRIBUTES,
+    C4M_SCOPE_IMPORTS
 } c4m_scope_kind;
+
+// Note that for module entries, the c4m_module_info_t data structure
+// will be in the `value` field of the scope entry.
+typedef struct {
+    c4m_utf8_t *specified_module;
+    c4m_utf8_t *specified_package;
+    c4m_utf8_t *specified_uri;
+} c4m_module_info_t;
 
 typedef struct {
     c4m_utf8_t      *path;

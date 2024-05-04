@@ -25,6 +25,22 @@ node_text(c4m_tree_node_t *n)
     return c4m_token_raw_content(p->token);
 }
 
+static inline c4m_utf8_t *
+node_list_join(c4m_xlist_t *nodes, c4m_str_t *joiner, bool trailing)
+{
+    int64_t      n      = c4m_xlist_len(nodes);
+    c4m_xlist_t *strarr = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+
+    for (int64_t i = 0; i < n; i++) {
+        c4m_tree_node_t *one = c4m_xlist_get(nodes, i, NULL);
+        c4m_xlist_append(strarr, node_text(one));
+    }
+
+    return c4m_to_utf8(c4m_str_join(strarr,
+                                    joiner,
+                                    c4m_kw("add_trailing", c4m_ka(trailing))));
+}
+
 static inline int
 node_num_kids(c4m_tree_node_t *t)
 {

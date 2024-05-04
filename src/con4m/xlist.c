@@ -73,6 +73,10 @@ c4m_xlist_append(c4m_xlist_t *list, void *item)
 void
 c4m_xlist_plus_eq(c4m_xlist_t *l1, c4m_xlist_t *l2)
 {
+    if (l1 == NULL || l2 == NULL) {
+        return;
+    }
+
     int needed = l1->append_ix + l2->append_ix;
 
     if (needed > l1->length) {
@@ -89,6 +93,16 @@ c4m_xlist_plus(c4m_xlist_t *l1, c4m_xlist_t *l2)
 {
     // This assumes type checking already happened statically.
     // You can make mistakes manually.
+
+    if (l1 == NULL && l2 == NULL) {
+        return NULL;
+    }
+    if (l1 == NULL) {
+        return c4m_xlist_shallow_copy(l2);
+    }
+    if (l2 == NULL) {
+        return c4m_xlist_shallow_copy(l1);
+    }
 
     c4m_type_t  *t      = c4m_get_my_type(l1);
     size_t       needed = l1->append_ix + l2->append_ix;
@@ -234,23 +248,38 @@ xlist_coerce_to(c4m_xlist_t *list, c4m_type_t *dst_type)
     return (c4m_obj_t)res;
 }
 
-static c4m_xlist_t *
+c4m_xlist_t *
 xlist_copy(c4m_xlist_t *list)
 {
-    int64_t      len = c4m_xlist_len(list);
-    c4m_xlist_t *res = c4m_new(c4m_get_my_type((c4m_obj_t)list),
-                               c4m_kw("length", c4m_ka(len)));
+    int64_t      len       = c4m_xlist_len(list);
+    c4m_type_t  *my_type   = c4m_get_my_type((c4m_obj_t)list);
+    c4m_type_t  *item_type = c4m_tspec_get_param(my_type, 0);
+    c4m_xlist_t *res       = c4m_new(my_type, c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {
         c4m_obj_t item = c4m_xlist_get(list, i, NULL);
-        c4m_xlist_set(res, i, c4m_copy_object(item));
+        c4m_xlist_set(res, i, c4m_copy_object_of_type(item, item_type));
+    }
+
+    return res;
+}
+
+c4m_xlist_t *
+c4m_xlist_shallow_copy(c4m_xlist_t *list)
+{
+    int64_t      len     = c4m_xlist_len(list);
+    c4m_type_t  *my_type = c4m_get_my_type((c4m_obj_t)list);
+    c4m_xlist_t *res     = c4m_new(my_type, c4m_kw("length", c4m_ka(len)));
+
+    for (int i = 0; i < len; i++) {
+        c4m_xlist_set(res, i, c4m_xlist_get(list, i, NULL));
     }
 
     return res;
 }
 
 static c4m_obj_t
-xlist_safe_get(c4m_xlist_t *list, int64_t ix)
+c4m_xlist_safe_get(c4m_xlist_t *list, int64_t ix)
 {
     bool err = false;
 
@@ -395,7 +424,7 @@ const c4m_vtable_t c4m_xlist_vtable = {
         NULL, // LT
         NULL, // GT
         (c4m_vtable_entry)c4m_xlist_len,
-        (c4m_vtable_entry)xlist_safe_get,
+        (c4m_vtable_entry)c4m_xlist_safe_get,
         (c4m_vtable_entry)c4m_xlist_set,
         (c4m_vtable_entry)c4m_xlist_get_slice,
         (c4m_vtable_entry)c4m_xlist_set_slice,

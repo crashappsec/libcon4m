@@ -23,7 +23,7 @@
 #define get_pnode(x) ((x) ? c4m_tree_get_contents(x) : NULL)
 
 // We use the null value (error) in patterns to match any type node.
-#define nt_any    c4m_nt_error
+#define nt_any    (c4m_nt_error)
 #define max_nodes 0x7fff
 
 typedef struct {
@@ -42,7 +42,9 @@ tcmp(int64_t kind_as_64, c4m_tree_node_t *node)
         return true;
     }
 
-    return kind == pnode->kind;
+    bool result = kind == pnode->kind;
+
+    return result;
 }
 
 static inline c4m_xlist_t *
@@ -75,7 +77,10 @@ get_match(pass_ctx *ctx, c4m_tpat_node_t *pattern)
 }
 
 static c4m_tpat_node_t *first_kid_id = NULL;
-static c4m_tpat_node_t *enum_items   = NULL;
+static c4m_tpat_node_t *enum_items;
+static c4m_tpat_node_t *member_prefix;
+static c4m_tpat_node_t *member_last;
+static c4m_tpat_node_t *use_uri;
 
 static void
 setup_pass1_patterns()
@@ -84,19 +89,32 @@ setup_pass1_patterns()
         return;
     }
     // Returns first child if it's an identifier, null otherwise.
-    first_kid_id = tmatch(nt_any, 0, tmatch(c4m_nt_identifier, 1));
+    first_kid_id  = tmatch(nt_any, 0, tmatch(c4m_nt_identifier, 1));
     // Skips the identifier if there, and returns all the enum items,
     // regardless of the subtree shape.
-    enum_items   = tmatch(nt_any,
+    enum_items    = tmatch(nt_any,
                         0,
                         toptional(c4m_nt_identifier, 0),
                         tcount_content(c4m_nt_enum_item,
                                        0,
                                        max_nodes,
                                        1));
+    member_last   = tfind(c4m_nt_member,
+                        0,
+                        tcount(c4m_nt_identifier, 0, max_nodes, 0),
+                        tmatch(c4m_nt_identifier, 1));
+    member_prefix = tfind(c4m_nt_member,
+                          0,
+                          tcount(c4m_nt_identifier, 0, max_nodes, 1),
+                          tmatch(c4m_nt_identifier, 0));
+
+    use_uri = tfind(c4m_nt_simple_lit, 1);
 
     c4m_gc_register_root(&first_kid_id, 1);
     c4m_gc_register_root(&enum_items, 1);
+    c4m_gc_register_root(&member_prefix, 1);
+    c4m_gc_register_root(&member_last, 1);
+    c4m_gc_register_root(&use_uri, 1);
 }
 
 static inline void
@@ -125,12 +143,6 @@ static inline void
 node_up(pass_ctx *ctx)
 {
     set_current_node(ctx, ctx->cur_tnode->parent);
-}
-
-static inline void *
-node_info(pass_ctx *ctx)
-{
-    return ctx->cur->extra_info;
 }
 
 static void pass_dispatch(pass_ctx *ctx);
@@ -328,7 +340,9 @@ handle_enum_decl(pass_ctx *ctx)
                                    scope,
                                    identifier_text(id->token),
                                    tnode,
-                                   sk_enum_type);
+                                   sk_enum_type,
+                                   NULL,
+                                   true);
     }
 
     for (int i = 0; i < n; i++) {
@@ -381,7 +395,9 @@ handle_enum_decl(pass_ctx *ctx)
                            scope,
                            varname,
                            item,
-                           sk_enum_val);
+                           sk_enum_val,
+                           NULL,
+                           true);
     }
 
     if (is_str) {
@@ -422,31 +438,77 @@ handle_enum_decl(pass_ctx *ctx)
 static void
 handle_func_decl(pass_ctx *ctx)
 {
+    c4m_print_parse_node(ctx->cur_tnode);
 }
 
 static void
 handle_var_decl(pass_ctx *ctx)
 {
+    c4m_print_parse_node(ctx->cur_tnode);
 }
 
 static void
 handle_config_spec(pass_ctx *ctx)
 {
+    c4m_print_parse_node(ctx->cur_tnode);
 }
 
 static void
 handle_param_block(pass_ctx *ctx)
 {
+    c4m_print_parse_node(ctx->cur_tnode);
 }
 
 static void
 handle_extern_block(pass_ctx *ctx)
 {
+    c4m_print_parse_node(ctx->cur_tnode);
 }
 
 static void
 handle_use_stmt(pass_ctx *ctx)
 {
+    c4m_tree_node_t   *uri    = get_match(ctx, use_uri);
+    c4m_tree_node_t   *member = get_match(ctx, member_last);
+    c4m_xlist_t       *prefix = apply_pattern(ctx, member_prefix);
+    c4m_module_info_t *mi     = c4m_gc_alloc(c4m_module_info_t);
+    c4m_utf8_t        *fq     = node_text(member);
+    bool               status = false;
+
+    mi->specified_module = fq;
+
+    if (c4m_xlist_len(prefix) != 0) {
+        mi->specified_package = node_list_join(prefix,
+                                               c4m_utf32_repeat('.', 1),
+                                               true);
+        fq                    = c4m_str_concat(mi->specified_package, fq);
+    }
+
+    if (uri) {
+        mi->specified_uri = node_literal(uri);
+    }
+
+    c4m_scope_entry_t *entry = c4m_declare_symbol(ctx->file_ctx,
+                                                  ctx->file_ctx->imports,
+                                                  fq,
+                                                  ctx->cur_tnode,
+                                                  sk_module,
+                                                  &status,
+                                                  false);
+    if (!status) {
+        c4m_add_info(ctx->file_ctx,
+                     c4m_info_dupe_import,
+                     ctx->cur_tnode);
+    }
+
+#ifdef C4M_PASS1_UNIT_TESTS
+    c4m_utf8_t *default_txt = c4m_new_utf8("not specified");
+
+    c4m_print(c4m_cstr_format(
+        "USE: fq: {}; uri: {}\n",
+        fq,
+        mi->specified_uri ? mi->specified_uri : default_txt));
+#endif
 }
 
 static void
@@ -502,9 +564,11 @@ c4m_pass_1(c4m_file_compile_ctx *file_ctx)
     };
 
     set_current_node(&ctx, file_ctx->parse_tree);
-    file_ctx->global_scope = c4m_new_scope(NULL, C4M_SCOPE_GLOBAL);
-    file_ctx->module_scope = c4m_new_scope(file_ctx->global_scope,
+    file_ctx->global_scope    = c4m_new_scope(NULL, C4M_SCOPE_GLOBAL);
+    file_ctx->module_scope    = c4m_new_scope(file_ctx->global_scope,
                                            C4M_SCOPE_MODULE);
-    ctx.cur->static_scope  = file_ctx->module_scope;
+    file_ctx->attribute_scope = c4m_new_scope(NULL, C4M_SCOPE_ATTRIBUTES);
+    file_ctx->imports         = c4m_new_scope(NULL, C4M_SCOPE_IMPORTS);
+    ctx.cur->static_scope     = file_ctx->module_scope;
     pass_dispatch(&ctx);
 }

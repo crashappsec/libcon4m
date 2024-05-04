@@ -48,3 +48,5 @@ extern void         c4m_xlist_set_slice(c4m_xlist_t *,
                                         int64_t,
                                         c4m_xlist_t *);
 extern bool         c4m_xlist_contains(c4m_xlist_t *, c4m_obj_t);
+extern c4m_xlist_t *c4m_xlist_copy(c4m_xlist_t *);
+extern c4m_xlist_t *c4m_xlist_shallow_copy(c4m_xlist_t *);

@@ -49,6 +49,7 @@ extern bool               c4m_can_coerce(c4m_type_t *, c4m_type_t *);
 extern c4m_obj_t          c4m_coerce(void *, c4m_type_t *, c4m_type_t *);
 extern c4m_obj_t          c4m_coerce_object(const c4m_obj_t, c4m_type_t *);
 extern c4m_obj_t          c4m_copy_object(c4m_obj_t);
+extern c4m_obj_t          c4m_copy_object_of_type(c4m_obj_t, c4m_type_t *);
 extern c4m_obj_t          c4m_add(c4m_obj_t, c4m_obj_t);
 extern c4m_obj_t          c4m_sub(c4m_obj_t, c4m_obj_t);
 extern c4m_obj_t          c4m_mul(c4m_obj_t, c4m_obj_t);

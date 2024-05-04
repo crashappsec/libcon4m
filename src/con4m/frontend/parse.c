@@ -355,7 +355,11 @@ _add_parse_error(parse_ctx *ctx, c4m_compile_error_t code, ...)
     va_list args;
 
     va_start(args, code);
-    c4m_base_add_error(ctx->file_ctx->errors, code, tok_cur(ctx), args);
+    c4m_base_add_error(ctx->file_ctx->errors,
+                       code,
+                       tok_cur(ctx),
+                       c4m_err_severity_error,
+                       args);
     va_end(args);
 }
 

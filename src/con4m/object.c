@@ -496,6 +496,22 @@ c4m_copy_object(c4m_obj_t obj)
 }
 
 c4m_obj_t
+c4m_copy_object_of_type(c4m_obj_t obj, c4m_type_t *t)
+{
+    if (c4m_type_is_value_type(t)) {
+        return obj;
+    }
+
+    c4m_copy_fn ptr = (c4m_copy_fn)c4m_vtable(obj)->methods[C4M_BI_COPY];
+
+    if (ptr == NULL) {
+        C4M_CRAISE("Copying for this object type not currently supported.");
+    }
+
+    return (*ptr)(obj);
+}
+
+c4m_obj_t
 c4m_add(c4m_obj_t lhs, c4m_obj_t rhs)
 {
     c4m_binop_fn ptr = (c4m_binop_fn)c4m_vtable(lhs)->methods[C4M_BI_ADD];

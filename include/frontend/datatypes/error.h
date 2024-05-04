@@ -82,6 +82,7 @@ typedef enum {
     c4m_err_invalid_enum_lit_type,
     c4m_err_enum_str_int_mix,
     c4m_err_dupe_enum,
+    c4m_info_dupe_import,
     c4m_err_last,
 } c4m_compile_error_t;
 
