@@ -465,8 +465,9 @@ static error_info_t error_info[] = {
     [c4m_err_invalid_redeclaration] = {
         c4m_err_invalid_redeclaration,
         "invalid_redeclaration",
-        "Re-declaration of {} is not allowed here; previous declaration of "
-        "{} was here: {}:{}:{}",
+        "Re-declaration of [em]{}[/] is not allowed here; "
+        "previous declaration of "
+        "{} was here: [i]{}:{}:{}[/]",
         true,
     },
     [c4m_err_omit_string_enum_value] = {
@@ -522,13 +523,27 @@ static error_info_t error_info[] = {
     [c4m_warn_dupe_hold] = {
         c4m_warn_dupe_hold,
         "dupe_hold",
-        "[em]hold[/] specified again for this parameter.",
+        "The [em]hold[/] property is already specified for this parameter. ",
+        false,
+    },
+    [c4m_warn_dupe_alloc] = {
+        c4m_warn_dupe_alloc,
+        "dupe_alloc",
+        "The [em]alloc[/] property is already specified for this parameter.",
         false,
     },
     [c4m_err_bad_hold_name] = {
         c4m_err_bad_hold_name,
         "bad_hold_name",
-        "Name to hold is not one of the specified local parameter names.",
+        "Parameter name specified for the [em]hold[/] property here was not "
+        "listed as a local parameter name.",
+        false,
+    },
+    [c4m_err_bad_alloc_name] = {
+        c4m_err_bad_alloc_name,
+        "bad_alloc_name",
+        "Parameter name specified for the [em]alloc[/] property here was not "
+        "listed as a local parameter name.",
         false,
     },
     [c4m_info_dupe_import] = {

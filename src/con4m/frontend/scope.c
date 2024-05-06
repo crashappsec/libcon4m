@@ -3,13 +3,14 @@
 
 // clang-format off
 static char *symbol_kind_names[sk_num_sym_kinds] = {
-    [sk_module]    = "module",
-    [sk_func]      = "function",
-    [sk_enum_type] = "enum type",
-    [sk_enum_val]  = "enum value",
-    [sk_attr]      = "attribute",
-    [sk_variable]  = "variable",
-    [sk_formal]    = "function parameter",
+    [sk_module]      = "module",
+    [sk_func]        = "function",
+    [sk_extern_func] = "extern function",
+    [sk_enum_type]   = "enum type",
+    [sk_enum_val]    = "enum value",
+    [sk_attr]        = "attribute",
+    [sk_variable]    = "variable",
+    [sk_formal]      = "function parameter",
 };
 // clang-format on
 

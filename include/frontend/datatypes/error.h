@@ -87,7 +87,9 @@ typedef enum {
     c4m_err_no_logring_yet,
     c4m_err_no_params_to_hold,
     c4m_warn_dupe_hold,
+    c4m_warn_dupe_alloc,
     c4m_err_bad_hold_name,
+    c4m_err_bad_alloc_name,
     c4m_info_dupe_import,
     c4m_err_last,
 } c4m_compile_error_t;

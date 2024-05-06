@@ -5,6 +5,7 @@ typedef enum : int8_t {
     sk_module,
     sk_package,
     sk_func,
+    sk_extern_func,
     sk_enum_type,
     sk_enum_val,
     sk_attr,
@@ -47,14 +48,6 @@ typedef struct {
 } c4m_param_info_t;
 
 typedef struct {
-    int               num_params;
-    c4m_type_t       *full_type;
-    c4m_param_info_t *param_info;
-    c4m_param_info_t  return_info;
-    unsigned int      pure : 1;
-} c4m_sig_info_t;
-
-typedef struct {
     c4m_utf8_t      *path;
     c4m_utf8_t      *name;
     c4m_tree_node_t *declaration_node;
@@ -76,6 +69,15 @@ typedef struct c4m_scope_t {
 } c4m_scope_t;
 
 typedef struct {
+    int               num_params;
+    c4m_type_t       *full_type;
+    c4m_param_info_t *param_info;
+    c4m_param_info_t  return_info;
+    unsigned int      pure : 1;
+    c4m_scope_t      *param_scope;
+} c4m_sig_info_t;
+
+typedef struct {
     c4m_utf8_t     *short_doc;
     c4m_utf8_t     *long_doc;
     c4m_utf8_t     *local_name;
@@ -86,5 +88,4 @@ typedef struct {
     uint8_t         external_return_type;
     int             holds;
     int             allocs;
-    c4m_scope_t    *param_scope;
 } c4m_ffi_decl_t;

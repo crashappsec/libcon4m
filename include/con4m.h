@@ -26,7 +26,6 @@ typedef void *object_t;
 #include "con4m/box.h"
 
 // Extra data structure stuff.
-#include "con4m/set.h"
 #include "con4m/tree.h"
 #include "con4m/tree_pattern.h"
 #include "con4m/buffer.h"
@@ -89,3 +88,4 @@ typedef void *object_t;
 #include "frontend/lex.h"
 #include "frontend/parse.h"
 #include "frontend/scope.h"
+#include "con4m/set.h"

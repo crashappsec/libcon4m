@@ -1,5 +1,37 @@
 #include "con4m.h"
 
+static int
+hatrack_set_epoch_sort_cmp(const void *b1, const void *b2)
+{
+    hatrack_set_view_t *item1;
+    hatrack_set_view_t *item2;
+
+    item1 = (hatrack_set_view_t *)b1;
+    item2 = (hatrack_set_view_t *)b2;
+
+    return item1->sort_epoch - item2->sort_epoch;
+}
+
+static int
+hatrack_set_hv_sort_cmp(const void *b1, const void *b2)
+{
+    hatrack_set_view_t *item1;
+    hatrack_set_view_t *item2;
+
+    item1 = (hatrack_set_view_t *)b1;
+    item2 = (hatrack_set_view_t *)b2;
+
+    if (hatrack_hash_gt(item1->hv, item2->hv)) {
+        return 1;
+    }
+
+    if (hatrack_hashes_eq(item1->hv, item2->hv)) {
+        abort(); // Shouldn't happen; hash entries should be unique.
+    }
+
+    return -1;
+}
+
 static void
 c4m_set_init(c4m_set_t *set, va_list args)
 {
@@ -40,7 +72,7 @@ c4m_set_marshal(c4m_set_t *d, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
 {
     uint64_t length;
     uint8_t  kt   = (uint8_t)d->item_type;
-    void   **view = hatrack_set_items_sort(d, &length);
+    void   **view = c4m_set_items_sort(d, &length);
 
     c4m_marshal_u32((uint32_t)length, s);
     c4m_marshal_u8(kt, s);
@@ -99,8 +131,255 @@ c4m_set_unmarshal(c4m_set_t *d, c4m_stream_t *s, c4m_dict_t *memos)
             break;
         }
 
-        hatrack_set_put(d, key);
+        c4m_set_add(d, key);
     }
+}
+
+c4m_set_t *
+c4m_set_shallow_copy(c4m_set_t *s)
+{
+    if (s == NULL) {
+        return NULL;
+    }
+
+    c4m_set_t *result = c4m_new(c4m_get_my_type(s));
+    uint64_t   count  = 0;
+    void     **items  = (void **)c4m_set_items(s, &count);
+
+    for (uint64_t i = 0; i < count; i++) {
+        c4m_set_add(result, items[i]);
+    }
+
+    return result;
+}
+
+c4m_xlist_t *
+c4m_set_to_xlist(c4m_set_t *s)
+{
+    if (s == NULL) {
+        return NULL;
+    }
+
+    c4m_type_t  *item_type = c4m_tspec_get_param(c4m_get_my_type(s), 0);
+    c4m_xlist_t *result    = c4m_new(c4m_tspec_xlist(item_type));
+    uint64_t     count     = 0;
+    void       **items     = (void **)c4m_set_items(s, &count);
+
+    for (uint64_t i = 0; i < count; i++) {
+        c4m_xlist_append(result, items[i]);
+    }
+
+    return result;
+}
+
+/* c4m_set_union(A, B)
+ *
+ * Returns a new set that consists of all the items from both sets, at
+ * the moment in time of the call (as defined by the epoch).
+ */
+
+c4m_set_t *
+c4m_set_union(c4m_set_t *set1, c4m_set_t *set2)
+{
+    c4m_set_t          *ret;
+    uint64_t            epoch;
+    uint64_t            num1;
+    uint64_t            num2;
+    hatrack_set_view_t *view1;
+    hatrack_set_view_t *view2;
+    uint64_t            i, j;
+
+    ret   = c4m_new(c4m_get_my_type(set1));
+    epoch = mmm_start_linearized_op();
+
+    view1 = woolhat_view_epoch(&set1->woolhat_instance, &num1, epoch);
+    view2 = woolhat_view_epoch(&set2->woolhat_instance, &num2, epoch);
+
+    qsort(view1, num1, sizeof(hatrack_set_view_t), hatrack_set_epoch_sort_cmp);
+    qsort(view2, num2, sizeof(hatrack_set_view_t), hatrack_set_epoch_sort_cmp);
+
+    /* Here we're going to add from each array based on the insertion
+     * epoch, to preserve insertion ordering.
+     */
+    i = 0;
+    j = 0;
+
+    while ((i < num1) && (j < num2)) {
+        if (view1[i].sort_epoch < view2[j].sort_epoch) {
+            if (woolhat_add(&ret->woolhat_instance, view1[i].hv, view1[i].item)
+                && set1->pre_return_hook) {
+                (*set1->pre_return_hook)(set1, view1[i].item);
+            }
+            i++;
+        }
+        else {
+            if (woolhat_add(&ret->woolhat_instance, view2[j].hv, view2[j].item)
+                && set2->pre_return_hook) {
+                (*set2->pre_return_hook)(set2, view2[j].item);
+            }
+
+            j++;
+        }
+    }
+
+    while (i < num1) {
+        if (woolhat_add(&ret->woolhat_instance, view1[i].hv, view1[i].item)
+            && set1->pre_return_hook) {
+            (*set1->pre_return_hook)(set1, view1[i].item);
+        }
+        i++;
+    }
+
+    while (j < num2) {
+        if (woolhat_add(&ret->woolhat_instance, view2[j].hv, view2[j].item)
+            && set2->pre_return_hook) {
+            (*set2->pre_return_hook)(set2, view2[j].item);
+        }
+        j++;
+    }
+
+    mmm_end_op();
+
+    return ret;
+}
+
+/* c4m_set_intersection(A, B)
+ *
+ * Returns a new set that consists of only the items that exist in
+ * both sets at the time of the call (as defined by the epoch).
+ *
+ * This does NOT currently preserve insertion ordering the way that
+ * hatrack_set_union() does. It could, if we first mark what gets
+ * copied and what doesn't, then re-sort based on original epoch.
+ *
+ * But, meh.
+ *
+ * The basic algorithm is to sort both views by hash value, then
+ * march through them in tandem.
+ *
+ * If we see two hash values are equal, add the item to the new set
+ * and advance to the next item in both sets.
+ *
+ * Otherwise, the item with the lower hash value definitely is NOT
+ * in the intersection (since the items are sorted by hash value).
+ * Advance to the next item in that view.
+ *
+ * Once one view ends, there are no more items in the intersection.
+ */
+c4m_set_t *
+c4m_set_intersection(c4m_set_t *set1, c4m_set_t *set2)
+{
+    c4m_set_t          *ret;
+    uint64_t            epoch;
+    uint64_t            num1;
+    uint64_t            num2;
+    hatrack_set_view_t *view1;
+    hatrack_set_view_t *view2;
+    uint64_t            i, j;
+
+    ret   = c4m_new(c4m_get_my_type(set1));
+    epoch = mmm_start_linearized_op();
+
+    view1 = woolhat_view_epoch(&set1->woolhat_instance, &num1, epoch);
+    view2 = woolhat_view_epoch(&set2->woolhat_instance, &num2, epoch);
+
+    qsort(view1, num1, sizeof(hatrack_set_view_t), hatrack_set_hv_sort_cmp);
+    qsort(view2, num2, sizeof(hatrack_set_view_t), hatrack_set_hv_sort_cmp);
+
+    i = 0;
+    j = 0;
+
+    while ((i < num1) && (j < num2)) {
+        if (hatrack_hashes_eq(view1[i].hv, view2[j].hv)) {
+            if (set1->pre_return_hook) {
+                (*set1->pre_return_hook)(set1, view1[i].item);
+            }
+
+            woolhat_add(&ret->woolhat_instance, view1[i].hv, view1[i].item);
+            i++;
+            j++;
+            continue;
+        }
+
+        if (hatrack_hash_gt(view1[i].hv, view2[j].hv)) {
+            j++;
+        }
+
+        else {
+            i++;
+        }
+    }
+
+    mmm_end_op();
+
+    return ret;
+}
+
+/* hatrack_set_disjunction(A, B)
+ *
+ * Returns a new set that contains items in set A that did not exist
+ * in set B, PLUS the items in set B that did not exist in set A.
+ *
+ * Like intersection, this does not currently preserve intersection
+ * order.
+ *
+ * The algorithm here is to sort by hash value, then go through in
+ * tandem. If the item at the current index in one view has a lower
+ * hash value than the item in the current index of the other view,
+ * then that item is part of the disjunction.
+ */
+c4m_set_t *
+c4m_set_disjunction(c4m_set_t *set1, c4m_set_t *set2)
+{
+    c4m_set_t          *ret;
+    uint64_t            epoch;
+    uint64_t            num1;
+    uint64_t            num2;
+    hatrack_set_view_t *view1;
+    hatrack_set_view_t *view2;
+    uint64_t            i, j;
+
+    ret   = c4m_new(c4m_get_my_type(set1));
+    epoch = mmm_start_linearized_op();
+
+    view1 = woolhat_view_epoch(&set1->woolhat_instance, &num1, epoch);
+    view2 = woolhat_view_epoch(&set2->woolhat_instance, &num2, epoch);
+
+    qsort(view1, num1, sizeof(hatrack_set_view_t), hatrack_set_hv_sort_cmp);
+    qsort(view2, num2, sizeof(hatrack_set_view_t), hatrack_set_hv_sort_cmp);
+
+    i = 0;
+    j = 0;
+
+    while ((i < num1) && (j < num2)) {
+        if (hatrack_hashes_eq(view1[i].hv, view2[j].hv)) {
+            i++;
+            j++;
+            continue;
+        }
+
+        if (hatrack_hash_gt(view1[i].hv, view2[j].hv)) {
+            if (set2->pre_return_hook) {
+                (*set2->pre_return_hook)(set2, view2[j].item);
+            }
+
+            woolhat_add(&ret->woolhat_instance, view2[j].hv, view2[j].item);
+            j++;
+        }
+
+        else {
+            if (set1->pre_return_hook) {
+                (*set1->pre_return_hook)(set1, view1[i].item);
+            }
+
+            woolhat_add(&ret->woolhat_instance, view1[i].hv, view1[i].item);
+            i++;
+        }
+    }
+
+    mmm_end_op();
+
+    return ret;
 }
 
 const c4m_vtable_t c4m_set_vtable = {

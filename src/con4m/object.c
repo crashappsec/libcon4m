@@ -430,6 +430,8 @@ _c4m_new(c4m_type_t *type, ...)
     obj->concrete_type  = type;
     result              = obj->data;
 
+    assert(obj->concrete_type != NULL);
+
     switch (tinfo->dt_kind) {
     case C4M_DT_KIND_primitive:
     case C4M_DT_KIND_internal:
