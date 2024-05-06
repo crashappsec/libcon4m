@@ -5,6 +5,7 @@ extern bool        c4m_parse(c4m_file_compile_ctx *);
 extern c4m_grid_t *c4m_format_parse_tree(c4m_file_compile_ctx *);
 extern void        c4m_print_parse_node(c4m_tree_node_t *);
 extern void        c4m_pass_1(c4m_file_compile_ctx *);
+extern c4m_utf8_t *c4m_node_type_name(c4m_node_kind_t);
 
 #ifdef C4M_USE_INTERNAL_API
 

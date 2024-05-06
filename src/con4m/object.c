@@ -102,7 +102,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .by_value  = true,
     },
     {
-        .name      = "utf8",
+        .name      = "string",
         .typeid    = C4M_T_UTF8,
         .alloc_len = sizeof(c4m_str_t),
         .ptr_info  = (uint64_t *)c4m_pmap_str,

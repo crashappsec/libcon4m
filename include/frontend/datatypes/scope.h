@@ -24,16 +24,35 @@ typedef enum c4m_scope_kind {
     C4M_SCOPE_MODULE,
     C4M_SCOPE_LOCAL,
     C4M_SCOPE_ATTRIBUTES,
-    C4M_SCOPE_IMPORTS
+    C4M_SCOPE_IMPORTS,
+    C4M_SCOPE_FORMALS,
 } c4m_scope_kind;
 
-// Note that for module entries, the c4m_module_info_t data structure
+// For module entries, the c4m_module_info_t data structure
 // will be in the `value` field of the scope entry.
 typedef struct {
     c4m_utf8_t *specified_module;
     c4m_utf8_t *specified_package;
     c4m_utf8_t *specified_uri;
 } c4m_module_info_t;
+
+// For extern entries, the data structure will be in the `value`
+// field.
+
+typedef struct {
+    c4m_utf8_t  *name;
+    c4m_type_t  *type;
+    unsigned int ffi_holds  : 1;
+    unsigned int ffi_allocs : 1;
+} c4m_param_info_t;
+
+typedef struct {
+    int               num_params;
+    c4m_type_t       *full_type;
+    c4m_param_info_t *param_info;
+    c4m_param_info_t  return_info;
+    unsigned int      pure : 1;
+} c4m_sig_info_t;
 
 typedef struct {
     c4m_utf8_t      *path;
@@ -55,3 +74,17 @@ typedef struct c4m_scope_t {
     c4m_dict_t         *symbols;
     enum c4m_scope_kind kind;
 } c4m_scope_t;
+
+typedef struct {
+    c4m_utf8_t     *short_doc;
+    c4m_utf8_t     *long_doc;
+    c4m_utf8_t     *local_name;
+    c4m_sig_info_t *local_params;
+    int             num_params;
+    c4m_utf8_t     *external_name;
+    uint8_t        *external_params;
+    uint8_t         external_return_type;
+    int             holds;
+    int             allocs;
+    c4m_scope_t    *param_scope;
+} c4m_ffi_decl_t;

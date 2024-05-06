@@ -18,9 +18,14 @@ extern abort() -> cvoid {
   pure: false
 }
 
- extern splitwrap(cstring, cstring) -> ptr {
-  local: split(x: string, y: string) -> list[string]
+extern splitwrap(cstring, cstring) -> ptr {
+  local: split(x: string, y, z: string) -> list[string]
   pure: true
+}
+
+// TODO: can't do varargs in a local; fix that.
+extern whatever(ptr) -> ptr {
+  local: something(a : int, b, x: dict[`a, b]) -> (int, *bool) -> bar
 }
 
 extern callecho2(ptr, ptr) -> ptr {
@@ -30,3 +35,5 @@ extern callecho2(ptr, ptr) -> ptr {
   allocs: b, return
 }
 
+func foo (x : int, y, *z : int) {
+}

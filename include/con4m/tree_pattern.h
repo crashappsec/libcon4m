@@ -10,6 +10,7 @@ c4m_tpat_node_t *_c4m_tpat_find(void *, int, ...);
 c4m_tpat_node_t *_c4m_tpat_match(void *, int, ...);
 c4m_tpat_node_t *_c4m_tpat_opt_match(void *, int, ...);
 c4m_tpat_node_t *_c4m_tpat_n_m_match(void *, int16_t, int16_t, int, ...);
+c4m_tpat_node_t *c4m_tpat_content_find(void *, int);
 c4m_tpat_node_t *c4m_tpat_content_match(void *, int);
 c4m_tpat_node_t *_c4m_tpat_opt_content_match(void *, int);
 c4m_tpat_node_t *c4m_tpat_n_m_content_match(void *, int16_t, int16_t, int);

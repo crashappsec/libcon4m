@@ -7,6 +7,17 @@ typedef struct {
     c4m_cmp_fn       cmp;
 } search_ctx_t;
 
+#undef C4M_DEBUG_PATTERNS
+#ifdef C4M_DEBUG_PATTERNS
+#define tpat_debug(ctx, txt) c4m_print(c4m_cstr_format( \
+    "{:x} : [em]{}[/]",                                 \
+    c4m_box_u64((uint64_t)ctx->pattern_cur),            \
+    c4m_new_utf8(txt),                                  \
+    0))
+#else
+#define tpat_debug(ctx, txt)
+#endif
+
 #define tpat_varargs(result)                                                 \
     va_list args;                                                            \
     int16_t num_kids = 0;                                                    \
@@ -30,6 +41,94 @@ typedef struct {
                                                                              \
         va_end(args);                                                        \
     }
+
+c4m_tree_node_t *
+c4m_pat_repr(c4m_tpat_node_t   *pat,
+             c4m_pattern_fmt_fn content_formatter)
+{
+    c4m_utf8_t *op       = NULL;
+    c4m_utf8_t *contents = (*content_formatter)(pat->contents);
+    c4m_utf8_t *capture;
+
+    if (pat->walk) {
+        op = c4m_new_utf8(">>>");
+    }
+    else {
+        if (pat->min == 1 && pat->max == 1) {
+            if (pat->ignore_kids) {
+                op = c4m_new_utf8(".");
+            }
+            else {
+                op = c4m_new_utf8("...");
+            }
+        }
+        if (pat->min == 0 && pat->max == 1) {
+            if (pat->ignore_kids) {
+                op = c4m_new_utf8("?");
+            }
+            else {
+                op = c4m_new_utf8("???");
+            }
+        }
+        if (pat->min == 0 && pat->max == 0x7fff) {
+            if (pat->ignore_kids) {
+                op = c4m_new_utf8("*");
+            }
+            else {
+                op = c4m_new_utf8("***");
+            }
+        }
+        if (pat->min == 0 && pat->max == 0x7fff) {
+            if (pat->ignore_kids) {
+                op = c4m_new_utf8("*");
+            }
+            else {
+                op = c4m_new_utf8("***");
+            }
+        }
+        if (pat->min == 1 && pat->max == 0x7fff) {
+            if (pat->ignore_kids) {
+                op = c4m_new_utf8("+");
+            }
+            else {
+                op = c4m_new_utf8("+++");
+            }
+        }
+    }
+    if (op == NULL) {
+        if (pat->ignore_kids) {
+            op = c4m_cstr_format("{}:{}", pat->min, pat->max);
+        }
+        else {
+            op = c4m_cstr_format("{}:::{}", pat->min, pat->max);
+        }
+    }
+
+    if (pat->capture) {
+        capture = c4m_new_utf8(" !");
+    }
+    else {
+        capture = c4m_new_utf8(" ");
+    }
+
+    c4m_utf8_t *txt = c4m_cstr_format("{:x} [em]{}{}[/] :",
+                                      c4m_box_u64((uint64_t)pat),
+                                      op,
+                                      capture);
+
+    txt = c4m_str_concat(txt, contents);
+
+    c4m_tree_node_t *result = c4m_new(c4m_tspec_tree(c4m_tspec_utf8()),
+                                      c4m_kw("contents", c4m_ka(txt)));
+
+    for (int i = 0; i < pat->num_kids; i++) {
+        c4m_tree_node_t *kid = c4m_pat_repr(pat->children[i],
+                                            content_formatter);
+        c4m_tree_adopt_node(result, kid);
+    }
+
+    return result;
+}
 
 static inline c4m_xlist_t *
 merge_captures(c4m_xlist_t *l1, c4m_xlist_t *l2)
@@ -93,6 +192,15 @@ _c4m_tpat_n_m_match(void *contents, int16_t min, int16_t max, int capture, ...)
 }
 
 c4m_tpat_node_t *
+c4m_tpat_content_find(void *contents, int capture)
+{
+    c4m_tpat_node_t *result = tpat_base(contents, 1, 1, true, capture);
+    result->ignore_kids     = 1;
+
+    return result;
+}
+
+c4m_tpat_node_t *
 c4m_tpat_content_match(void *contents, int capture)
 {
     c4m_tpat_node_t *result = tpat_base(contents, 1, 1, false, capture);
@@ -141,6 +249,8 @@ c4m_tree_match(c4m_tree_node_t *tree,
         .captures    = NULL,
     };
 
+    tpat_debug((&search_state), "start");
+
     if (pat->min != 1 && pat->max != 1) {
         C4M_CRAISE("Pattern root must be a single node (non-optional) match.");
     }
@@ -151,6 +261,12 @@ c4m_tree_match(c4m_tree_node_t *tree,
         *match_loc = search_state.captures;
     }
 
+    if (result) {
+        tpat_debug((&search_state), "end: success!");
+    }
+    else {
+        tpat_debug((&search_state), "end: fail :(");
+    }
     return result;
 }
 
@@ -294,7 +410,7 @@ kid_match_from(search_ctx_t    *ctx,
     c4m_tpat_node_t *pnew          = parent_pattern->children[next_pattern];
     void            *next_contents = pnew->contents;
 
-    for (int i = subpattern->min; i < num_matches; i++) {
+    for (int i = subpattern->min; i <= num_matches + subpattern->min; i++) {
         c4m_xlist_t *copy = NULL;
 
         if (ctx->captures != NULL) {
@@ -337,7 +453,7 @@ children_match(search_ctx_t *ctx)
     bool             result;
 
     if (saved_pattern->num_kids == 0) {
-        if (saved_parent->num_kids == 0) {
+        if (saved_parent->num_kids == 0 || saved_pattern->ignore_kids) {
             return true;
         }
         return false;
@@ -390,6 +506,7 @@ walk_match(search_ctx_t *ctx, void *contents, bool capture_match)
 static bool
 full_match(search_ctx_t *ctx, void *contents)
 {
+    tpat_debug(ctx, "enter full");
     // Full match doesn't look at min/max; it checks content and
     // children only.
 
@@ -397,7 +514,7 @@ full_match(search_ctx_t *ctx, void *contents)
     c4m_tpat_node_t *saved_pattern   = ctx->pattern_cur;
     c4m_xlist_t     *saved_captures  = ctx->captures;
 
-    bool result;
+    bool result = false;
     bool capture_result;
 
     if (ctx->pattern_cur->walk) {
@@ -411,13 +528,15 @@ full_match(search_ctx_t *ctx, void *contents)
             capture(ctx, saved_tree_node);
         }
 
+        tpat_debug(ctx, "exit full 1");
         return result;
     }
 
-    if (!content_matches(ctx, contents)) {
+    if (!(result = content_matches(ctx, contents))) {
         ctx->tree_cur    = saved_tree_node;
         ctx->pattern_cur = saved_pattern;
         ctx->captures    = saved_captures;
+        tpat_debug(ctx, "exit full 2");
         return false;
     }
 
@@ -431,5 +550,6 @@ full_match(search_ctx_t *ctx, void *contents)
         capture(ctx, saved_tree_node);
     }
 
+    tpat_debug(ctx, "exit full 3");
     return result;
 }

@@ -494,6 +494,43 @@ static error_info_t error_info[] = {
         "Duplicate value in the same [em]enum[/] is not allowed.",
         false,
     },
+    [c4m_err_unk_primitive_type] = {
+        c4m_err_unk_primitive_type,
+        "unk_primitive_type",
+        "Type name is not a known primitive type.",
+        false,
+    },
+    [c4m_err_unk_param_type] = {
+        c4m_err_unk_param_type,
+        "unk_param_type",
+        "Type name is not a known parameterized type.",
+        false,
+    },
+    [c4m_err_no_logring_yet] = {
+        c4m_err_no_logring_yet,
+        "no_logring_yet",
+        "Log rings are not yet implemented.",
+        false,
+    },
+    [c4m_err_no_params_to_hold] = {
+        c4m_err_no_params_to_hold,
+        "no_params_to_hold",
+        "Hold values can't be specified for an imported function without "
+        "any parameters.",
+        false,
+    },
+    [c4m_warn_dupe_hold] = {
+        c4m_warn_dupe_hold,
+        "dupe_hold",
+        "[em]hold[/] specified again for this parameter.",
+        false,
+    },
+    [c4m_err_bad_hold_name] = {
+        c4m_err_bad_hold_name,
+        "bad_hold_name",
+        "Name to hold is not one of the specified local parameter names.",
+        false,
+    },
     [c4m_info_dupe_import] = {
         c4m_info_dupe_import,
         "dupe_import",

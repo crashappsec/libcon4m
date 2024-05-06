@@ -486,6 +486,7 @@ utf8_init(c4m_utf8_t *s, va_list args)
     c4m_style_t style         = C4M_STY_BAD;
     bool        replace_style = true;
     char       *tag           = NULL;
+    bool        share_cstring = false;
 
     c4m_karg_va_init(args);
     c4m_kw_int64("length", length);
@@ -506,7 +507,12 @@ utf8_init(c4m_utf8_t *s, va_list args)
                 "len(cstring) is less than the start index");
         }
 
-        s->data     = c4m_gc_raw_alloc(length + 1, NULL);
+        if (share_cstring == true && ((char *)s->data)[length] == 0) {
+            s->data = cstring;
+        }
+        else {
+            s->data = c4m_gc_raw_alloc(length + 1, NULL);
+        }
         s->byte_len = length;
 
         memcpy(s->data, cstring, length);

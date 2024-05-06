@@ -240,7 +240,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_lit_tspec_tvar", 1, 1, 1, 0, 0, },
     { "nt_lit_tspec_named_type", 1, 1, 1, 0, 0, },
     { "nt_lit_tspec_parameterized_type", 1, 0, 0, 0, 0, },
-    { "nt_lit_tspec_func", 1, 0, 0, 0, 0, },
+    { "nt_lit_tspec_func", 0, 0, 0, 0, 0, },
     { "nt_lit_tspec_varargs", 0, 0, 0, 0, 0, },
     { "nt_lit_tspec_return_type", 0, 0, 0, 0, 0, },
     { "nt_or", 0, 0, 0, 0, 0, },
@@ -255,7 +255,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_identifier", 1, 1, 0, 0, 0, },
     { "nt_func_def", 1, 0, 0, 1, 0, },
     { "nt_formals", 0, 0, 0, 0, 0, },
-    { "nt_varargs_param", 1, 0, 0, 0, 0, },
+    { "nt_varargs_param", 0, 0, 0, 0, 0, },
     { "nt_member", 0, 0, 0, 0, 0, },
     { "nt_index", 0, 0, 0, 0, 0, },
     { "nt_call", 0, 0, 0, 0, 0, },
@@ -271,7 +271,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_param_prop", 1, 0, 0, 0, 0, },
     { "nt_extern_block", 0, 0, 0, 1, 0, },
     { "nt_extern_sig", 0, 0, 0, 0, 0, },
-    { "nt_extern_param", 0, 0, 0, 0, 0, },
+    { "nt_extern_param", 1, 0, 0, 0, 0, },
     { "nt_extern_local", 0, 0, 0, 0, 0, },
     { "nt_extern_dll", 0, 0, 0, 0, 0, },
     { "nt_extern_pure", 0, 0, 0, 0, 0, },
@@ -826,22 +826,36 @@ one_tspec_node(parse_ctx *ctx)
         if (tok_kind(ctx) != c4m_tt_mul) {
             one_tspec_node(ctx);
         }
+        else {
+            start_node(ctx, c4m_nt_lit_tspec_varargs, true);
+            one_tspec_node(ctx);
+            end_node(ctx);
+            if (tok_kind(ctx) != c4m_tt_rparen) {
+                err_skip_stmt(ctx, c4m_err_parse_vararg_wasnt_last_thing);
+                end_node(ctx);
+                return;
+            }
+            goto finish_fnspec;
+        }
 
         while (true) {
-            switch (match(ctx, c4m_tt_mul, c4m_tt_comma, c4m_tt_rparen)) {
-            case c4m_tt_mul:
-                start_node(ctx, c4m_nt_lit_tspec_varargs, true);
-                one_tspec_node(ctx);
-                end_node(ctx);
-                if (tok_kind(ctx) != c4m_tt_rparen) {
-                    err_skip_stmt(ctx, c4m_err_parse_vararg_wasnt_last_thing);
-                    end_node(ctx);
-                    return;
-                }
-                goto finish_fnspec;
-
+            switch (match(ctx, c4m_tt_comma, c4m_tt_rparen)) {
             case c4m_tt_comma:
                 consume(ctx);
+
+                if (tok_kind(ctx) == c4m_tt_mul) {
+                    start_node(ctx, c4m_nt_lit_tspec_varargs, true);
+                    one_tspec_node(ctx);
+                    end_node(ctx);
+                    if (tok_kind(ctx) != c4m_tt_rparen) {
+                        err_skip_stmt(ctx,
+                                      c4m_err_parse_vararg_wasnt_last_thing);
+                        end_node(ctx);
+                        return;
+                    }
+                    goto finish_fnspec;
+                }
+
                 one_tspec_node(ctx);
                 if (tok_kind(ctx) == c4m_tt_rparen) {
                     goto finish_fnspec;
@@ -1202,7 +1216,7 @@ extern_signature(parse_ctx *ctx)
                 start_node(ctx, c4m_nt_extern_param, true);
                 c4m_pnode_t *n = current_parse_node(ctx);
 
-                n->extra_info = (void *)ctype_id;
+                n->extra_info = (void *)(uint64_t)ctype_id;
                 end_node(ctx);
             }
         }
@@ -1215,6 +1229,7 @@ extern_signature(parse_ctx *ctx)
 
     expect(ctx, c4m_tt_rparen);
     opt_return_type(ctx);
+    end_node(ctx);
 }
 
 static void
@@ -1856,12 +1871,16 @@ symbol_info(parse_ctx *ctx)
     start_node(ctx, c4m_nt_var_decls, false);
 
     while (true) {
+        if (tok_kind(ctx) == c4m_tt_mul) {
+            break;
+        }
         identifier(ctx);
         if (tok_kind(ctx) != c4m_tt_comma) {
             break;
         }
         consume(ctx);
     }
+
     if (tok_kind(ctx) == c4m_tt_colon) {
         consume(ctx);
         type_spec(ctx);
@@ -1889,17 +1908,28 @@ formal_list(parse_ctx *ctx)
     if (!expect(ctx, c4m_tt_lparen)) {
         THROW('!');
     }
+    if (tok_kind(ctx) == c4m_tt_mul) {
+        varargs_param(ctx);
+        goto finish_formals;
+    }
+
     if (tok_kind(ctx) == c4m_tt_identifier) {
         while (true) {
             symbol_info(ctx);
+            if (tok_kind(ctx) == c4m_tt_mul) {
+                varargs_param(ctx);
+                goto finish_formals;
+            }
+
             if (tok_kind(ctx) != c4m_tt_comma) {
                 break;
             }
+
             consume(ctx);
 
             if (tok_kind(ctx) == c4m_tt_mul) {
                 varargs_param(ctx);
-                break;
+                goto finish_formals;
             }
 
             // We actually consume this at the top of the loop.
@@ -1909,6 +1939,8 @@ formal_list(parse_ctx *ctx)
             }
         }
     }
+
+finish_formals:
     if (!expect(ctx, c4m_tt_rparen)) {
         THROW('!');
     }
@@ -3815,11 +3847,17 @@ module(parse_ctx *ctx)
             }
 
         case '!':
-            return NULL;
         default:
-            continue;
+            return NULL;
         }
     }
+}
+
+c4m_utf8_t *
+c4m_node_type_name(c4m_node_kind_t n)
+{
+    node_type_info_t *info = (node_type_info_t *)&node_type_info[n];
+    return c4m_new_utf8(info->name);
 }
 
 static c4m_utf8_t *

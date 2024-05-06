@@ -763,7 +763,9 @@ internal_repr_tv(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
 }
 
 static inline c4m_str_t *
-internal_repr_container(c4m_type_info_t *info, c4m_dict_t *memos, int64_t *nexttv)
+internal_repr_container(c4m_type_info_t *info,
+                        c4m_dict_t      *memos,
+                        int64_t         *nexttv)
 {
     int          num_types = c4m_xlist_len(info->items);
     c4m_xlist_t *to_join   = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
@@ -869,7 +871,8 @@ internal_type_repr(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
 static c4m_str_t *
 c4m_tspec_repr(c4m_type_t *t, to_str_use_t how)
 {
-    c4m_dict_t *memos = c4m_new(c4m_tspec_dict(c4m_tspec_ref(), c4m_tspec_utf8()));
+    c4m_dict_t *memos = c4m_new(c4m_tspec_dict(c4m_tspec_ref(),
+                                               c4m_tspec_utf8()));
     int64_t     n     = 0;
 
     return internal_type_repr(t, memos, &n);
@@ -1176,6 +1179,20 @@ c4m_tspec_tuple(int64_t nitems, ...)
         c4m_type_t *sub = va_arg(args, c4m_type_t *);
         c4m_xlist_append(items, sub);
     }
+
+    type_hash_and_dedupe(&result, c4m_global_type_env);
+
+    return result;
+}
+
+c4m_type_t *
+c4m_tspec_tuple_from_xlist(c4m_xlist_t *items)
+{
+    c4m_type_t *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_TUPLE);
+
+    result->details->items = items;
 
     type_hash_and_dedupe(&result, c4m_global_type_env);
 

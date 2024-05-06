@@ -9,8 +9,9 @@
 #define tfind(x, y, ...) _c4m_tpat_find((void *)(int64_t)x, \
                                         y,                  \
                                         KFUNC(__VA_ARGS__))
-#define tmatch(x, y, ...) _c4m_tpat_match((void *)(int64_t)x, \
-                                          y,                  \
+#define tfind_content(x, y) c4m_tpat_content_find((void *)(int64_t)x, y)
+#define tmatch(x, y, ...)   _c4m_tpat_match((void *)(int64_t)x, \
+                                          y,                    \
                                           KFUNC(__VA_ARGS__))
 #define tcontent(x, y) c4m_tpat_content_match((void *)(int64_t)x, y)
 #define toptional(x, y, ...) \
@@ -32,6 +33,30 @@ typedef struct {
     c4m_file_compile_ctx *file_ctx;
 } pass_ctx;
 
+#ifdef DEBUG_PATTERNS
+
+static c4m_utf8_t *
+content_formatter(void *contents)
+{
+    c4m_node_kind_t kind = (c4m_node_kind_t)(uint64_t)contents;
+
+    if (kind == nt_any) {
+        return c4m_rich_lit("[h2]nt_any[]");
+    }
+
+    return c4m_cstr_format("[h2]{}[/]", c4m_node_type_name(kind));
+}
+
+static void
+show_pattern(c4m_tpat_node_t *pat)
+{
+    c4m_tree_node_t *t = c4m_pat_repr(pat, content_formatter);
+    c4m_grid_t      *g = c4m_grid_tree(t);
+
+    c4m_print(g);
+}
+#endif
+
 static bool
 tcmp(int64_t kind_as_64, c4m_tree_node_t *node)
 {
@@ -48,10 +73,10 @@ tcmp(int64_t kind_as_64, c4m_tree_node_t *node)
 }
 
 static inline c4m_xlist_t *
-apply_pattern(pass_ctx *ctx, c4m_tpat_node_t *pattern)
+apply_pattern_on_node(c4m_tree_node_t *node, c4m_tpat_node_t *pattern)
 {
     c4m_xlist_t *cap = NULL;
-    bool         ok  = c4m_tree_match(ctx->cur_tnode,
+    bool         ok  = c4m_tree_match(node,
                              pattern,
                              (c4m_cmp_fn)tcmp,
                              &cap);
@@ -63,11 +88,17 @@ apply_pattern(pass_ctx *ctx, c4m_tpat_node_t *pattern)
     return cap;
 }
 
+static inline c4m_xlist_t *
+apply_pattern(pass_ctx *ctx, c4m_tpat_node_t *pattern)
+{
+    return apply_pattern_on_node(ctx->cur_tnode, pattern);
+}
+
 // Return the first capture if there's a match, and NULL if not.
 static inline c4m_tree_node_t *
-get_match(pass_ctx *ctx, c4m_tpat_node_t *pattern)
+get_match_on_node(c4m_tree_node_t *node, c4m_tpat_node_t *pattern)
 {
-    c4m_xlist_t *cap = apply_pattern(ctx, pattern);
+    c4m_xlist_t *cap = apply_pattern_on_node(node, pattern);
 
     if (cap != NULL) {
         return c4m_xlist_get(cap, 0, NULL);
@@ -76,11 +107,25 @@ get_match(pass_ctx *ctx, c4m_tpat_node_t *pattern)
     return NULL;
 }
 
+static inline c4m_tree_node_t *
+get_match(pass_ctx *ctx, c4m_tpat_node_t *pattern)
+{
+    return get_match_on_node(ctx->cur_tnode, pattern);
+}
+
 static c4m_tpat_node_t *first_kid_id = NULL;
 static c4m_tpat_node_t *enum_items;
 static c4m_tpat_node_t *member_prefix;
 static c4m_tpat_node_t *member_last;
 static c4m_tpat_node_t *use_uri;
+static c4m_tpat_node_t *extern_params;
+static c4m_tpat_node_t *extern_return;
+static c4m_tpat_node_t *return_extract;
+static c4m_tpat_node_t *find_pure;
+static c4m_tpat_node_t *find_holds;
+static c4m_tpat_node_t *find_allocs;
+static c4m_tpat_node_t *find_extern_local;
+static c4m_tpat_node_t *param_extraction;
 
 static void
 setup_pass1_patterns()
@@ -89,7 +134,10 @@ setup_pass1_patterns()
         return;
     }
     // Returns first child if it's an identifier, null otherwise.
-    first_kid_id  = tmatch(nt_any, 0, tmatch(c4m_nt_identifier, 1));
+    first_kid_id  = tmatch(nt_any,
+                          0,
+                          tmatch(c4m_nt_identifier, 1),
+                          tcount_content(nt_any, 0, max_nodes, 0));
     // Skips the identifier if there, and returns all the enum items,
     // regardless of the subtree shape.
     enum_items    = tmatch(nt_any,
@@ -108,13 +156,46 @@ setup_pass1_patterns()
                           tcount(c4m_nt_identifier, 0, max_nodes, 1),
                           tmatch(c4m_nt_identifier, 0));
 
-    use_uri = tfind(c4m_nt_simple_lit, 1);
+    extern_params    = tfind(c4m_nt_extern_sig,
+                          0,
+                          tcount_content(c4m_nt_extern_param, 0, max_nodes, 1),
+                          tcount_content(c4m_nt_lit_tspec_return_type,
+                                         0,
+                                         1,
+                                         0));
+    extern_return    = tfind(c4m_nt_extern_sig,
+                          0,
+                          tcount_content(c4m_nt_extern_param, 0, max_nodes, 0),
+                          tcount_content(c4m_nt_lit_tspec_return_type,
+                                         0,
+                                         1,
+                                         1));
+    return_extract   = tfind(c4m_nt_lit_tspec_return_type,
+                           0,
+                           tmatch(nt_any, 1));
+    use_uri          = tfind(c4m_nt_simple_lit, 1);
+    param_extraction = tfind(c4m_nt_formals,
+                             0,
+                             tcount_content(c4m_nt_var_decls, 0, max_nodes, 1));
+
+    find_pure         = tfind_content(c4m_nt_extern_pure, 1);
+    find_holds        = tfind_content(c4m_nt_extern_holds, 1);
+    find_allocs       = tfind_content(c4m_nt_extern_allocs, 1);
+    find_extern_local = tfind_content(c4m_nt_extern_local, 1);
 
     c4m_gc_register_root(&first_kid_id, 1);
     c4m_gc_register_root(&enum_items, 1);
     c4m_gc_register_root(&member_prefix, 1);
     c4m_gc_register_root(&member_last, 1);
     c4m_gc_register_root(&use_uri, 1);
+    c4m_gc_register_root(&extern_params, 1);
+    c4m_gc_register_root(&extern_return, 1);
+    c4m_gc_register_root(&return_extract, 1);
+    c4m_gc_register_root(&find_pure, 1);
+    c4m_gc_register_root(&find_holds, 1);
+    c4m_gc_register_root(&find_allocs, 1);
+    c4m_gc_register_root(&find_extern_local, 1);
+    c4m_gc_register_root(&param_extraction, 1);
 }
 
 static inline void
@@ -165,10 +246,10 @@ cur_node_type(pass_ctx *ctx)
     return ctx->cur->kind;
 }
 
-static inline c4m_pnode_t *
+static inline c4m_tree_node_t *
 cur_node(pass_ctx *ctx)
 {
-    return ctx->cur;
+    return ctx->cur_tnode;
 }
 
 static void
@@ -438,31 +519,377 @@ handle_enum_decl(pass_ctx *ctx)
 static void
 handle_func_decl(pass_ctx *ctx)
 {
-    c4m_print_parse_node(ctx->cur_tnode);
+    c4m_print_parse_node(cur_node(ctx));
 }
 
 static void
 handle_var_decl(pass_ctx *ctx)
 {
-    c4m_print_parse_node(ctx->cur_tnode);
+    c4m_print_parse_node(cur_node(ctx));
 }
 
 static void
 handle_config_spec(pass_ctx *ctx)
 {
-    c4m_print_parse_node(ctx->cur_tnode);
+    c4m_print_parse_node(cur_node(ctx));
 }
 
 static void
 handle_param_block(pass_ctx *ctx)
 {
-    c4m_print_parse_node(ctx->cur_tnode);
+    c4m_print_parse_node(cur_node(ctx));
+}
+
+static c4m_type_t *
+node_to_type(pass_ctx *ctx, c4m_tree_node_t *n, c4m_dict_t *type_ctx)
+{
+    if (type_ctx == NULL) {
+        type_ctx = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_ref()));
+    }
+
+    c4m_pnode_t *pnode = get_pnode(n);
+    c4m_utf8_t  *varname;
+    c4m_type_t  *t;
+    bool         found;
+    int          numkids;
+
+    switch (pnode->kind) {
+    case c4m_nt_lit_tspec:
+        return node_to_type(ctx, c4m_tree_get_child(n, 0), type_ctx);
+    case c4m_nt_lit_tspec_tvar:
+        varname = node_text(c4m_tree_get_child(n, 0));
+        t       = hatrack_dict_get(type_ctx, varname, &found);
+        if (!found) {
+            t                = c4m_tspec_typevar();
+            t->details->name = varname->data;
+            hatrack_dict_put(type_ctx, varname, t);
+        }
+        return t;
+    case c4m_nt_lit_tspec_named_type:
+        varname = node_text(n);
+        for (int i = 0; i < C4M_NUM_BUILTIN_DTS; i++) {
+            if (!strcmp(varname->data, c4m_base_type_info[i].name)) {
+                return c4m_bi_types[i];
+            }
+        }
+
+        c4m_add_error(ctx->file_ctx, c4m_err_unk_primitive_type, n);
+        return c4m_tspec_typevar();
+
+    case c4m_nt_lit_tspec_parameterized_type:
+        varname = node_text(n);
+        // Need to do this more generically, but OK for now.
+        if (!strcmp(varname->data, "list")) {
+            return c4m_tspec_list(node_to_type(ctx,
+                                               c4m_tree_get_child(n, 0),
+                                               type_ctx));
+        }
+        if (!strcmp(varname->data, "queue")) {
+            return c4m_tspec_queue(node_to_type(ctx,
+                                                c4m_tree_get_child(n, 0),
+                                                type_ctx));
+        }
+        if (!strcmp(varname->data, "ring")) {
+            return c4m_tspec_queue(node_to_type(ctx,
+                                                c4m_tree_get_child(n, 0),
+                                                type_ctx));
+        }
+        if (!strcmp(varname->data, "logring")) {
+            c4m_add_error(ctx->file_ctx, c4m_err_no_logring_yet, n);
+            return c4m_tspec_typevar();
+        }
+        if (!strcmp(varname->data, "xlist")) {
+            return c4m_tspec_xlist(node_to_type(ctx,
+                                                c4m_tree_get_child(n, 0),
+                                                type_ctx));
+        }
+        if (!strcmp(varname->data, "tree")) {
+            return c4m_tspec_tree(node_to_type(ctx,
+                                               c4m_tree_get_child(n, 0),
+                                               type_ctx));
+        }
+        if (!strcmp(varname->data, "stack")) {
+            return c4m_tspec_stack(node_to_type(ctx,
+                                                c4m_tree_get_child(n, 0),
+                                                type_ctx));
+        }
+        if (!strcmp(varname->data, "set")) {
+            return c4m_tspec_set(node_to_type(ctx,
+                                              c4m_tree_get_child(n, 0),
+                                              type_ctx));
+        }
+        if (!strcmp(varname->data, "dict")) {
+            return c4m_tspec_dict(node_to_type(ctx,
+                                               c4m_tree_get_child(n, 0),
+                                               type_ctx),
+                                  node_to_type(ctx,
+                                               c4m_tree_get_child(n, 1),
+                                               type_ctx));
+        }
+        if (!strcmp(varname->data, "tuple")) {
+            c4m_xlist_t *subitems;
+
+            subitems = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+
+            for (int i = 0; i < c4m_tree_get_number_children(n); i++) {
+                c4m_xlist_append(subitems,
+                                 node_to_type(ctx,
+                                              c4m_tree_get_child(n, i),
+                                              type_ctx));
+            }
+
+            return c4m_tspec_tuple_from_xlist(subitems);
+        }
+        c4m_add_error(ctx->file_ctx, c4m_err_unk_param_type, n);
+        return c4m_tspec_typevar();
+    case c4m_nt_lit_tspec_func:
+        numkids = c4m_tree_get_number_children(n);
+        if (numkids == 0) {
+            return c4m_tspec_varargs_fn(c4m_tspec_typevar(), 0);
+        }
+
+        c4m_xlist_t     *args = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+        c4m_tree_node_t *kid  = c4m_tree_get_child(n, numkids - 1);
+        bool             va   = false;
+
+        pnode = get_pnode(kid);
+
+        if (pnode->kind == c4m_nt_lit_tspec_return_type) {
+            t = node_to_type(ctx, c4m_tree_get_child(kid, 0), type_ctx);
+            numkids--;
+        }
+        else {
+            t = c4m_tspec_typevar();
+        }
+
+        for (int i = 0; i < numkids; i++) {
+            kid = c4m_tree_get_child(n, i);
+
+            if (i + 1 == numkids) {
+                pnode = get_pnode(kid);
+
+                if (pnode->kind == c4m_nt_lit_tspec_varargs) {
+                    va  = true;
+                    kid = c4m_tree_get_child(kid, 0);
+                }
+            }
+
+            c4m_xlist_append(args, node_to_type(ctx, kid, type_ctx));
+        }
+
+        return c4m_tspec_fn(t, args, va);
+
+    default:
+        C4M_CRAISE("Reached code that should be unreachable.");
+    }
+}
+
+static c4m_sig_info_t *
+new_sig_info(int num_params)
+{
+    c4m_sig_info_t *result = c4m_gc_alloc(c4m_sig_info_t);
+    result->num_params     = num_params;
+
+    if (result->num_params > 0) {
+        result->param_info = c4m_gc_array_alloc(c4m_param_info_t, num_params);
+    }
+
+    return result;
+}
+
+static c4m_sig_info_t *
+extract_fn_sig_info(pass_ctx        *ctx,
+                    c4m_tree_node_t *tree)
+{
+    c4m_xlist_t     *decls     = apply_pattern_on_node(tree, param_extraction);
+    int              ndecls    = c4m_xlist_len(decls);
+    int              nparams   = 0;
+    int              cur_param = 0;
+    c4m_tree_node_t *retnode   = get_match_on_node(tree, return_extract);
+    c4m_xlist_t     *ptypes    = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+    c4m_sig_info_t  *info;
+
+    // Allocate space for parameters by counting how many variable
+    // names we find.
+    for (int i = 0; i < ndecls; i++) {
+        c4m_tree_node_t *node  = c4m_xlist_get(decls, i, NULL);
+        int              kidct = c4m_tree_get_number_children(node);
+
+        if (kidct > 1) {
+            c4m_tree_node_t *kid   = c4m_tree_get_child(node, kidct - 1);
+            c4m_pnode_t     *pnode = get_pnode(kid);
+
+            // Skip type specs.
+            if (pnode->kind != c4m_nt_identifier) {
+                kidct--;
+            }
+        }
+        nparams += kidct;
+    }
+
+    info = new_sig_info(nparams);
+
+    // Now, we loop through the parameter trees again. In function
+    // declarations, named variables with omitted types are given a
+    // type variable as a return type. Similarly, omitted return
+    // values get a type variable.
+
+    for (int i = 0; i < ndecls; i++) {
+        c4m_print_parse_node(c4m_xlist_get(decls, i, NULL));
+    }
+    c4m_print_parse_node(tree);
+
+    for (int i = 0; i < ndecls; i++) {
+        c4m_tree_node_t *node  = c4m_xlist_get(decls, i, NULL);
+        int              kidct = c4m_tree_get_number_children(node);
+        c4m_type_t      *type  = NULL;
+
+        if (kidct > 1) {
+            c4m_tree_node_t *kid   = c4m_tree_get_child(node, kidct - 1);
+            c4m_pnode_t     *pnode = get_pnode(kid);
+
+            if (pnode->kind != c4m_nt_identifier) {
+                type = node_to_type(ctx, kid, NULL);
+                kidct--;
+            }
+        }
+
+        // All but the last one in a subtree get type variables.
+        for (int j = 0; j < kidct - 1; j++) {
+            c4m_param_info_t *pi  = &info->param_info[cur_param++];
+            c4m_tree_node_t  *kid = c4m_tree_get_child(node, i);
+            pi->name              = node_text(kid);
+            pi->type              = c4m_tspec_typevar();
+
+            c4m_xlist_append(ptypes, pi->type);
+        }
+
+        // last item.
+        if (!type) {
+            type = c4m_tspec_typevar();
+        }
+
+        c4m_param_info_t *pi  = &info->param_info[cur_param++];
+        c4m_tree_node_t  *kid = c4m_tree_get_child(node, kidct - 1);
+        pi->name              = node_text(kid);
+        pi->type              = type;
+
+        c4m_xlist_append(ptypes, pi->type);
+    }
+
+    if (!retnode) {
+        info->return_info.type = c4m_tspec_void();
+    }
+    else {
+        info->return_info.type = node_to_type(ctx,
+                                              c4m_tree_get_child(retnode, 0),
+                                              NULL);
+    }
+
+    // Now fill out the 'local_type' field of the ffi decl.
+    // TODO: support varargs.
+    info->full_type = c4m_tspec_fn(info->return_info.type, ptypes, false);
+
+    return info;
 }
 
 static void
 handle_extern_block(pass_ctx *ctx)
 {
-    c4m_print_parse_node(ctx->cur_tnode);
+    c4m_ffi_decl_t  *info          = c4m_gc_alloc(c4m_ffi_info_t);
+    c4m_utf8_t      *external_name = node_text(get_match(ctx, first_kid_id));
+    c4m_xlist_t     *ext_params    = apply_pattern(ctx, extern_params);
+    c4m_tree_node_t *ext_ret       = get_match(ctx, extern_return);
+    c4m_pnode_t     *pnode         = get_pnode(cur_node(ctx));
+    c4m_tree_node_t *ext_pure      = get_match(ctx, find_pure);
+    c4m_tree_node_t *ext_holds     = get_match(ctx, find_holds);
+    c4m_tree_node_t *ext_allocs    = get_match(ctx, find_allocs);
+    c4m_tree_node_t *ext_lsig      = get_match(ctx, find_extern_local);
+
+    if (pnode->short_doc) {
+        info->short_doc = c4m_token_raw_content(pnode->short_doc);
+        printf("info->short_doc = %s\n", info->short_doc->data);
+
+        if (pnode->long_doc) {
+            info->long_doc = c4m_token_raw_content(pnode->long_doc);
+        }
+    }
+
+    c4m_print(c4m_cstr_format(
+        "external name: {}; ret = {}",
+        external_name,
+        ext_ret ? node_text(ext_ret) : c4m_new_utf8("void")));
+
+    if (ext_params != NULL) {
+        int64_t n             = c4m_xlist_len(ext_params);
+        info->num_params      = n;
+        info->external_name   = external_name;
+        info->external_params = c4m_gc_array_alloc(uint8_t, n);
+
+        for (int64_t i = 0; i < n; i++) {
+            c4m_tree_node_t *tnode = c4m_xlist_get(ext_params, i, NULL);
+            c4m_pnode_t     *pnode = c4m_tree_get_contents(tnode);
+            uint64_t         val   = (uint64_t)pnode->extra_info;
+
+            info->external_params[i] = (uint8_t)val;
+        }
+    }
+
+    if (ext_ret) {
+        c4m_pnode_t *pnode = get_pnode(ext_ret);
+        uint64_t     val   = (uint64_t)pnode->extra_info;
+
+        info->external_return_type = (uint8_t)val;
+    }
+
+    info->local_params = extract_fn_sig_info(ctx, ext_lsig);
+    c4m_print(info->local_params->full_type);
+
+    if (ext_pure) {
+        bool *pure_ptr = node_literal(c4m_tree_get_child(ext_pure, 0));
+
+        if (*pure_ptr) {
+            info->local_params->pure = 1;
+        }
+    }
+
+    info->local_name = node_text(get_match_on_node(ext_lsig, first_kid_id));
+
+    if (ext_holds) {
+        if (info->local_params == NULL) {
+            c4m_add_error(ctx->file_ctx, c4m_err_no_params_to_hold, ext_holds);
+            return;
+        }
+
+        uint64_t        bitfield  = 0;
+        c4m_sig_info_t *si        = info->local_params;
+        int             num_holds = c4m_tree_get_number_children(ext_holds);
+
+        for (int i = 0; i < num_holds; i++) {
+            c4m_tree_node_t *kid = c4m_tree_get_child(ext_holds, i);
+            c4m_utf8_t      *txt = node_text(kid);
+
+            for (int j = 0; i < si->num_params; j++) {
+                c4m_param_info_t *param = &si->param_info[i];
+                if (strcmp(txt->data, param->name->data)) {
+                    continue;
+                }
+                param->ffi_holds = 1;
+                uint64_t flag    = (uint64_t)(1 << j);
+                if (bitfield & flag) {
+                    c4m_add_warning(ctx->file_ctx, c4m_warn_dupe_hold, kid);
+                }
+                goto next_i;
+            }
+            c4m_add_error(ctx->file_ctx, c4m_err_bad_hold_name, kid);
+next_i:
+    /* nothing. */;
+        }
+    }
+
+    if (ext_allocs) {
+        // TODO
+    }
 }
 
 static void
@@ -488,17 +915,17 @@ handle_use_stmt(pass_ctx *ctx)
         mi->specified_uri = node_literal(uri);
     }
 
-    c4m_scope_entry_t *entry = c4m_declare_symbol(ctx->file_ctx,
-                                                  ctx->file_ctx->imports,
-                                                  fq,
-                                                  ctx->cur_tnode,
-                                                  sk_module,
-                                                  &status,
-                                                  false);
+    c4m_declare_symbol(ctx->file_ctx,
+                       ctx->file_ctx->imports,
+                       fq,
+                       cur_node(ctx),
+                       sk_module,
+                       &status,
+                       false);
     if (!status) {
         c4m_add_info(ctx->file_ctx,
                      c4m_info_dupe_import,
-                     ctx->cur_tnode);
+                     cur_node(ctx));
     }
 
 #ifdef C4M_PASS1_UNIT_TESTS

@@ -52,6 +52,7 @@ c4m_init_literal_handling()
 
         c4m_gc_register_root(&mod_map[0], ST_MAX);
 
+        c4m_register_literal(ST_Bool, "", C4M_T_BOOL);
         c4m_register_literal(ST_Base10, "", C4M_T_INT);
         c4m_register_literal(ST_Base10, "int", C4M_T_INT);
         c4m_register_literal(ST_Base10, "i64", C4M_T_INT);

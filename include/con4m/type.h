@@ -4,10 +4,10 @@
 
 extern c4m_type_t     *c4m_resolve_type_aliases(c4m_type_t *, c4m_type_env_t *);
 extern bool            c4m_tspec_is_concrete(c4m_type_t *);
-extern c4m_type_t     *c4m_tspec_copy(c4m_type_t *node, c4m_type_env_t *env);
+extern c4m_type_t     *c4m_tspec_copy(c4m_type_t *, c4m_type_env_t *);
 extern c4m_type_t     *c4m_get_builtin_type(c4m_builtin_t);
 extern c4m_type_t     *c4m_unify(c4m_type_t *, c4m_type_t *, c4m_type_env_t *);
-extern c4m_type_t     *c4m_lookup_tspec(c4m_type_hash_t tid, c4m_type_env_t *env);
+extern c4m_type_t     *c4m_lookup_tspec(c4m_type_hash_t, c4m_type_env_t *);
 extern c4m_type_t     *c4m_tspec_list(c4m_type_t *);
 extern c4m_type_t     *c4m_tspec_xlist(c4m_type_t *);
 extern c4m_type_t     *c4m_tspec_tree(c4m_type_t *);
@@ -17,6 +17,7 @@ extern c4m_type_t     *c4m_tspec_stack(c4m_type_t *);
 extern c4m_type_t     *c4m_tspec_dict(c4m_type_t *, c4m_type_t *);
 extern c4m_type_t     *c4m_tspec_set(c4m_type_t *);
 extern c4m_type_t     *c4m_tspec_tuple(int64_t, ...);
+extern c4m_type_t     *c4m_tspec_tuple_from_xlist(c4m_xlist_t *);
 extern c4m_type_t     *c4m_tspec_fn(c4m_type_t *, c4m_xlist_t *, bool);
 extern c4m_type_t     *c4m_tspec_varargs_fn_va(c4m_type_t *, int64_t, ...);
 extern c4m_type_t     *c4m_tspec_varargs_fn(c4m_type_t *, int64_t, ...);
@@ -405,23 +406,6 @@ static inline bool
 c4m_obj_type_check(const c4m_obj_t *obj, c4m_type_t *t2)
 {
     return c4m_tspecs_are_compat(c4m_object_type(obj), t2);
-}
-
-static inline c4m_type_t *
-c4m_tspec_tuple_from_xlist(c4m_xlist_t *item_types)
-{
-    c4m_type_t  *result   = c4m_new(c4m_tspec_typespec(),
-                                 c4m_global_type_env,
-                                 C4M_T_TUPLE);
-    c4m_xlist_t *res_list = result->details->items;
-
-    int n = c4m_xlist_len(item_types);
-
-    for (int i = 0; i < n; i++) {
-        c4m_xlist_append(res_list, c4m_xlist_get(item_types, i, NULL));
-    }
-
-    return result;
 }
 
 static inline bool
