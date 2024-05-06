@@ -61,6 +61,8 @@ free_libc_allocation(void *ptr)
     (*p)(ptr);
 }
 
+#include "hatrack/malloc.h"
+
 #include "hatrack/xxhash.h"
 #include "hatrack/hatrack_config.h"
 #include "hatrack/debug.h"
