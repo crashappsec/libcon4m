@@ -30,9 +30,3 @@
 #include <stdatomic.h>
 
 #include <pthread.h>
-
-// FIXME this probably should go too, but I need to setup on a Mac to be sure.
-#ifdef __MACH__
-#include <mach/clock.h>
-#include <mach/mach.h>
-#endif

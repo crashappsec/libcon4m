@@ -44,6 +44,9 @@
 #include <string.h>
 
 #ifdef __MACH__
+#include <mach/clock.h>
+#include <mach/mach.h>
+
 extern _Bool        clock_service_inited;
 extern clock_serv_t clock_service;
 

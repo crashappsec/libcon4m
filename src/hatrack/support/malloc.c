@@ -22,6 +22,7 @@
 #include "hatrack/malloc.h"
 
 #include <stdint.h>
+#include <string.h>
 
 // For most platforms we want to reference posix_memalign and free as weak
 // imports. This is why we do not include the header to get them and we include
@@ -47,7 +48,6 @@ hatrack_default_zalloc(size_t size)
         return NULL;
     }
 
-    extern void *memset(void *, int, size_t);
     return memset(ptr, 0, size);
 }
 
@@ -66,7 +66,6 @@ hatrack_default_realloc(void *oldptr, size_t oldsize, size_t newsize)
         return NULL;
     }
 
-    extern void *memcpy(void *, const void *, size_t);
     if (newsize > oldsize) {
         memcpy(newptr, oldptr, oldsize);
     }
