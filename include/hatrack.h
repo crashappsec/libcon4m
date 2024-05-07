@@ -21,7 +21,7 @@
 
 #pragma once
 #include <stdio.h>
-#include <strings.h>
+#include <string.h>
 #include <limits.h>
 #include <time.h>
 #include <stdlib.h>
@@ -39,27 +39,6 @@
 #endif
 
 typedef struct hatrack_queue_t queue_t;
-#ifndef NO_CON4M
-#include "con4m.h"
-
-static inline void *c4m_gc_malloc(size_t);
-
-#define malloc(x)        c4m_gc_malloc(x)
-#define free(x)          x // In case it has side effects.
-#define realloc(x, y)    c4m_gc_resize(x, y)
-#define zero_alloc(x, y) c4m_gc_malloc((x) * (y))
-#else
-#define zero_alloc(x, y) calloc(x, y)
-#endif
-
-// This dance ensures we circumvent the above function-like macro.
-static inline void
-free_libc_allocation(void *ptr)
-{
-    void (*p)(void *) = free;
-
-    (*p)(ptr);
-}
 
 #include "hatrack/malloc.h"
 
