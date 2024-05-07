@@ -49,7 +49,7 @@ node_num_kids(c4m_tree_node_t *t)
 }
 
 static inline c4m_obj_t
-node_literal(c4m_tree_node_t *n)
+node_simp_literal(c4m_tree_node_t *n)
 {
     c4m_pnode_t *p   = c4m_tree_get_contents(n);
     c4m_token_t *tok = p->token;

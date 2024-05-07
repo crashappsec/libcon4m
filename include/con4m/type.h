@@ -380,6 +380,12 @@ c4m_tspec_parse_node()
 }
 
 static inline c4m_type_t *
+c4m_tspec_partial_lit()
+{
+    return c4m_bi_types[C4M_T_PARTIAL_LIT];
+}
+
+static inline c4m_type_t *
 c4m_new_typevar(c4m_type_env_t *env)
 {
     c4m_type_t *result = c4m_new(c4m_tspec_typespec(), env, C4M_T_GENERIC);

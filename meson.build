@@ -96,7 +96,8 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/frontend/lex.c',
             'src/con4m/frontend/parse.c',
             'src/con4m/frontend/errors.c',
-            'src/con4m/frontend/scope.c',            
+            'src/con4m/frontend/scope.c',
+            'src/con4m/frontend/specs.c',                        
             'src/con4m/frontend/pass1.c',                                    
             ]
 

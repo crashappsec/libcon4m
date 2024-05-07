@@ -6,13 +6,13 @@ confspec {
 
   singleton test {  
     user_def_ok: true
-    #validator: func somethingcool(int) -> bool
+    validator: func somethingcool(int) -> bool
     
     field audit_id {
       type:   int
       default: 176
       range: 0, 100
-      #validator: func somethingcool(int) -> bool
+      validator: func somethingcool(int) -> bool
     }
     
   }
@@ -21,7 +21,7 @@ confspec {
     field audit_location {
       type:   string
       default: "test 1"
-      #validator: func somethingcool(int) -> bool
+      validator: func somethingcool(int) -> bool
     }
   }
 
@@ -34,6 +34,7 @@ confspec {
      require: true
      default: "info"
      choices: ["trace", "info", "warn", "error", "fatal"]
+     exclude: yourmom
     }
   }
 }

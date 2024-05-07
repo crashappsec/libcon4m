@@ -2,8 +2,6 @@
 
 #include "con4m.h"
 
-typedef struct hatrack_set_st c4m_set_t;
-
 extern c4m_set_t   *c4m_set_shallow_copy(c4m_set_t *);
 extern c4m_xlist_t *c4m_set_to_xlist(c4m_set_t *);
 

@@ -237,10 +237,13 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     {
-        .name    = "callback",
-        .typeid  = C4M_T_CALLBACK,
-        .dt_kind = C4M_DT_KIND_primitive,
-        .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .name      = "callback",
+        .typeid    = C4M_T_CALLBACK,
+        .alloc_len = sizeof(c4m_callback_t),
+        .vtable    = &c4m_callback_vtable,
+        .ptr_info  = GC_SCAN_ALL,
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     {
         .name      = "queue",
@@ -412,7 +415,15 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_internal,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-};
+    [C4M_T_PARTIAL_LIT] = {
+        .name      = "partially_evaluated_literal",
+        .typeid    = C4M_T_PARTIAL_LIT,
+        .alloc_len = sizeof(c4m_partial_lit_t),
+        .ptr_info  = GC_SCAN_ALL,
+        .vtable    = &c4m_partial_lit_vtable,
+        .dt_kind   = C4M_DT_KIND_internal,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+    }};
 
 c4m_obj_t
 _c4m_new(c4m_type_t *type, ...)

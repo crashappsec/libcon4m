@@ -30,8 +30,11 @@
 typedef struct {
     c4m_tree_node_t      *cur_tnode;
     c4m_pnode_t          *cur;
+    c4m_spec_t           *spec;
     c4m_file_compile_ctx *file_ctx;
 } pass_ctx;
+
+c4m_type_t *c4m_node_to_type(pass_ctx *, c4m_tree_node_t *, c4m_dict_t *);
 
 #undef DEBUG_PATTERNS
 #ifdef DEBUG_PATTERNS
@@ -66,6 +69,197 @@ show_pattern(c4m_tpat_node_t *pat)
     c4m_print(g);
 }
 #endif
+
+static bool
+node_has_type(c4m_tree_node_t *node, c4m_node_kind_t expect)
+{
+    c4m_pnode_t *pnode = get_pnode(node);
+    return expect == pnode->kind;
+}
+
+static c4m_obj_t
+node_to_callback(pass_ctx *ctx, c4m_tree_node_t *n)
+{
+    if (!node_has_type(n, c4m_nt_lit_callback)) {
+        return NULL;
+    }
+
+    c4m_utf8_t *name = node_text(c4m_tree_get_child(n, 0));
+    c4m_type_t *type = c4m_node_to_type(ctx, c4m_tree_get_child(n, 1), NULL);
+
+    return c4m_new(c4m_tspec_callback(),
+                   c4m_kw("symbol_name",
+                          c4m_ka(name),
+                          "type",
+                          c4m_ka(type)));
+}
+
+static inline c4m_utf8_t *
+get_litmod(c4m_pnode_t *p)
+{
+    if (!p->extra_info) {
+        return NULL;
+    }
+
+    return c4m_to_utf8(p->extra_info);
+}
+
+#define ERROR_ON_BAD_LITMOD(ctx, base_type, node, litmod, st) \
+    if (base_type == C4M_T_ERROR) {                           \
+        c4m_add_error(ctx->file_ctx,                          \
+                      c4m_err_parse_no_lit_mod_match,         \
+                      node,                                   \
+                      litmod,                                 \
+                      c4m_new_utf8(st));                      \
+        return NULL;                                          \
+    }
+
+static c4m_obj_t
+node_literal(pass_ctx *ctx, c4m_tree_node_t *node, c4m_dict_t *type_ctx)
+{
+    c4m_pnode_t       *pnode = get_pnode(node);
+    c4m_obj_t          one;
+    c4m_partial_lit_t *partial;
+    c4m_utf8_t        *litmod;
+    int                n;
+    c4m_builtin_t      base_type;
+
+    switch (pnode->kind) {
+    case c4m_nt_expression:
+        return node_literal(ctx, c4m_tree_get_child(node, 0), type_ctx);
+
+    case c4m_nt_simple_lit:
+        return node_simp_literal(node);
+
+    case c4m_nt_lit_list:
+        // TODO: error if the litmod type is bad.
+        litmod = get_litmod(pnode);
+
+        if (litmod == NULL) {
+            base_type = C4M_T_LIST;
+        }
+        else {
+            base_type = base_type_from_litmod(ST_List, litmod);
+        }
+
+        ERROR_ON_BAD_LITMOD(ctx, base_type, node, litmod, "list");
+
+        n       = c4m_tree_get_number_children(node);
+        partial = c4m_new(c4m_tspec_partial_lit(), n, base_type);
+
+        c4m_xlist_append(partial->type->details->items, c4m_tspec_typevar());
+
+        for (int i = 0; i < n; i++) {
+            one               = node_literal(ctx,
+                               c4m_tree_get_child(node, i),
+                               type_ctx);
+            partial->items[i] = one;
+        }
+
+        return partial;
+
+    case c4m_nt_lit_dict:
+        litmod = get_litmod(pnode);
+        if (litmod == NULL) {
+            base_type = C4M_T_DICT;
+        }
+        else {
+handle_dict_or_litmodded_but_empty:
+            base_type = base_type_from_litmod(ST_Dict, litmod);
+        }
+
+        ERROR_ON_BAD_LITMOD(ctx, base_type, node, litmod, "dict");
+
+        n       = c4m_tree_get_number_children(node);
+        partial = c4m_new(c4m_tspec_partial_lit(), n, base_type);
+
+        c4m_xlist_append(partial->type->details->items, c4m_tspec_typevar());
+        c4m_xlist_append(partial->type->details->items, c4m_tspec_typevar());
+
+        for (int i = 0; i < n; n++) {
+            one               = node_literal(ctx,
+                               c4m_tree_get_child(node, i),
+                               type_ctx);
+            partial->items[i] = one;
+        }
+        return partial;
+
+    case c4m_nt_lit_set:
+        litmod = get_litmod(pnode);
+
+        if (litmod == NULL) {
+            base_type = C4M_T_SET;
+        }
+        else {
+            base_type = base_type_from_litmod(ST_Dict, litmod);
+        }
+
+        ERROR_ON_BAD_LITMOD(ctx, base_type, node, litmod, "set");
+
+        n       = c4m_tree_get_number_children(node);
+        partial = c4m_new(c4m_tspec_partial_lit(), n, base_type);
+
+        c4m_xlist_append(partial->type->details->items, c4m_tspec_typevar());
+
+        for (int i = 0; i < n; n++) {
+            one               = node_literal(ctx,
+                               c4m_tree_get_child(node, i),
+                               type_ctx);
+            partial->items[i] = one;
+        }
+        return partial;
+
+    case c4m_nt_lit_tuple:
+        litmod = get_litmod(pnode);
+
+        if (litmod == NULL) {
+            base_type = C4M_T_TUPLE;
+        }
+        else {
+            base_type = base_type_from_litmod(ST_Tuple, litmod);
+        }
+
+        ERROR_ON_BAD_LITMOD(ctx, base_type, node, litmod, "tuple");
+
+        n       = c4m_tree_get_number_children(node);
+        partial = c4m_new(c4m_tspec_partial_lit(), n, base_type);
+
+        for (int i = 0; i < n; n++) {
+            c4m_xlist_append(partial->type->details->items,
+                             c4m_tspec_typevar());
+            one               = node_literal(ctx,
+                               c4m_tree_get_child(node, i),
+                               type_ctx);
+            partial->items[i] = one;
+        }
+        return partial;
+
+    case c4m_nt_lit_unquoted:
+        C4M_CRAISE("Currently unsupported.");
+
+    case c4m_nt_lit_empty_dict_or_set:
+        litmod = get_litmod(pnode);
+        if (litmod && c4m_str_codepoint_len(litmod) != 0) {
+            goto handle_dict_or_litmodded_but_empty;
+
+            return c4m_new(c4m_tspec_partial_lit(), 0, C4M_T_VOID);
+        }
+
+    case c4m_nt_lit_callback:
+        return node_to_callback(ctx, node);
+    case c4m_nt_lit_tspec:
+
+        if (type_ctx == NULL) {
+            type_ctx = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
+                                              c4m_tspec_ref()));
+        }
+        return c4m_node_to_type(ctx, node, type_ctx);
+
+    default:
+        // Return the parse node!
+        return node;
+    }
+}
 
 static bool
 tcmp(int64_t kind_as_64, c4m_tree_node_t *node)
@@ -443,7 +637,7 @@ handle_enum_decl(pass_ctx *ctx)
         if (node_num_kids(item) != 0) {
             c4m_pnode_t *pnode = get_pnode(item);
 
-            pnode->value = node_literal(c4m_tree_get_child(item, 0));
+            pnode->value = node_simp_literal(c4m_tree_get_child(item, 0));
 
             if (!c4m_obj_is_int_type(pnode->value)) {
                 if (!c4m_obj_type_check(pnode->value, c4m_tspec_utf8())) {
@@ -539,9 +733,313 @@ handle_var_decl(pass_ctx *ctx)
 }
 
 static void
+one_section_prop(pass_ctx           *ctx,
+                 c4m_spec_section_t *section,
+                 c4m_tree_node_t    *n)
+{
+    bool       *value;
+    c4m_obj_t   callback;
+    c4m_utf8_t *prop = node_text(n);
+
+    switch (prop->data[0]) {
+    case 'u': // user_def_ok
+        value = node_simp_literal(c4m_tree_get_child(n, 0));
+
+        if (!value || !c4m_obj_type_check((c4m_obj_t)value, c4m_tspec_bool())) {
+            c4m_add_error(ctx->file_ctx,
+                          c4m_err_spec_bool_required,
+                          c4m_tree_get_child(n, 0));
+        }
+        else {
+            if (*value) {
+                section->user_def_ok = 1;
+            }
+        }
+        break;
+    case 'h': // hidden
+        value = node_simp_literal(c4m_tree_get_child(n, 0));
+        if (!value || !c4m_obj_type_check((c4m_obj_t)value, c4m_tspec_bool())) {
+            c4m_add_error(ctx->file_ctx,
+                          c4m_err_spec_bool_required,
+                          c4m_tree_get_child(n, 0));
+        }
+        else {
+            if (*value) {
+                section->hidden = 1;
+            }
+        }
+        break;
+    case 'v': // validator
+        callback = node_to_callback(ctx, c4m_tree_get_child(n, 0));
+
+        if (!callback) {
+            c4m_add_error(ctx->file_ctx,
+                          c4m_err_spec_callback_required,
+                          c4m_tree_get_child(n, 0));
+        }
+        else {
+            section->validator = callback;
+        }
+        break;
+    case 'r': // require
+        for (int i = 0; i < c4m_tree_get_number_children(n); i++) {
+            c4m_utf8_t *name = node_text(c4m_tree_get_child(n, i));
+            if (!c4m_set_add(section->required_sections, name)) {
+                c4m_add_warning(ctx->file_ctx,
+                                c4m_warn_dupe_require,
+                                c4m_tree_get_child(n, i));
+            }
+            if (c4m_set_contains(section->allowed_sections, name)) {
+                c4m_add_warning(ctx->file_ctx,
+                                c4m_warn_require_allow,
+                                c4m_tree_get_child(n, i));
+            }
+        }
+        break;
+    default: // allow
+        for (int i = 0; i < c4m_tree_get_number_children(n); i++) {
+            c4m_utf8_t *name = node_text(c4m_tree_get_child(n, i));
+            if (!c4m_set_add(section->allowed_sections, name)) {
+                c4m_add_warning(ctx->file_ctx,
+                                c4m_warn_dupe_allow,
+                                c4m_tree_get_child(n, i));
+            }
+            if (c4m_set_contains(section->required_sections, name)) {
+                c4m_add_warning(ctx->file_ctx,
+                                c4m_warn_require_allow,
+                                c4m_tree_get_child(n, i));
+            }
+        }
+    }
+}
+
+static void
+one_field(pass_ctx           *ctx,
+          c4m_spec_section_t *section,
+          c4m_tree_node_t    *tnode)
+{
+    c4m_spec_field_t *f        = c4m_gc_alloc(c4m_spec_field_t);
+    c4m_utf8_t       *name     = node_text(c4m_tree_get_child(tnode, 0));
+    c4m_pnode_t      *pnode    = get_pnode(tnode);
+    int               num_kids = c4m_tree_get_number_children(tnode);
+    bool             *value;
+    c4m_obj_t         callback;
+
+    f->exclusions       = c4m_new(c4m_tspec_set(c4m_tspec_utf8()));
+    f->name             = name;
+    f->declaration_node = tnode;
+
+    if (pnode->short_doc) {
+        section->short_doc = c4m_token_raw_content(pnode->short_doc);
+
+        if (pnode->long_doc) {
+            section->long_doc = c4m_token_raw_content(pnode->long_doc);
+        }
+    }
+
+    for (int i = 1; i < num_kids; i++) {
+        c4m_tree_node_t *kid  = c4m_tree_get_child(tnode, i);
+        c4m_utf8_t      *prop = node_text(kid);
+        switch (prop->data[0]) {
+        case 'c': // choice:
+                  // For now, we just stash the raw nodes, and
+                  // evaluate it later.
+            f->stashed_options = node_literal(ctx,
+                                              c4m_tree_get_child(kid, 0),
+                                              NULL);
+            f->validate_choice = 1;
+            break;
+
+        case 'd': // default:
+                  // Same.
+            f->default_value    = node_literal(ctx,
+                                            c4m_tree_get_child(kid, 0),
+                                            NULL);
+            f->default_provided = 1;
+            break;
+
+        case 'h': // hidden
+            value = node_simp_literal(c4m_tree_get_child(kid, 0));
+            if (!value || !c4m_obj_type_check((c4m_obj_t)value, c4m_tspec_bool())) {
+                c4m_add_error(ctx->file_ctx,
+                              c4m_err_spec_bool_required,
+                              c4m_tree_get_child(kid, 0));
+            }
+            else {
+                if (*value) {
+                    f->hidden = 1;
+                }
+            }
+            break;
+
+        case 'l': // lock
+            value = node_simp_literal(c4m_tree_get_child(kid, 0));
+            if (!value || !c4m_obj_type_check((c4m_obj_t)value, c4m_tspec_bool())) {
+                c4m_add_error(ctx->file_ctx,
+                              c4m_err_spec_bool_required,
+                              c4m_tree_get_child(kid, 0));
+            }
+            else {
+                if (*value) {
+                    f->lock_on_write = 1;
+                }
+            }
+            break;
+
+        case 'e': // exclusions
+            for (int i = 0; i < c4m_tree_get_number_children(kid); i++) {
+                c4m_utf8_t *name = node_text(c4m_tree_get_child(kid, i));
+
+                if (!c4m_set_add(f->exclusions, name)) {
+                    c4m_add_warning(ctx->file_ctx,
+                                    c4m_warn_dupe_exclusion,
+                                    c4m_tree_get_child(kid, i));
+                }
+            }
+            break;
+
+        case 't': // type
+            if (node_has_type(c4m_tree_get_child(kid, 0), c4m_nt_identifier)) {
+                f->tinfo.type_pointer = node_text(c4m_tree_get_child(kid, 0));
+            }
+            else {
+                f->tinfo.type = c4m_node_to_type(ctx,
+                                                 c4m_tree_get_child(kid, 0),
+                                                 NULL);
+            }
+            break;
+
+        case 'v': // validator
+            callback = node_to_callback(ctx, c4m_tree_get_child(kid, 0));
+
+            if (!callback) {
+                c4m_add_error(ctx->file_ctx,
+                              c4m_err_spec_callback_required,
+                              c4m_tree_get_child(kid, 0));
+            }
+            else {
+                f->validator = callback;
+            }
+            break;
+        default:
+            if (!strcmp(prop->data, "range")) {
+                f->stashed_options = c4m_tree_get_child(kid, 0);
+            }
+            else {
+                // required.
+                value = node_simp_literal(c4m_tree_get_child(kid, 0));
+                if (!value || !c4m_obj_type_check((c4m_obj_t)value, c4m_tspec_bool())) {
+                    c4m_add_error(ctx->file_ctx,
+                                  c4m_err_spec_bool_required,
+                                  c4m_tree_get_child(kid, 0));
+                }
+                else {
+                    if (*value) {
+                        f->required = 1;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    if (!hatrack_dict_add(section->fields, name, f)) {
+        c4m_add_error(ctx->file_ctx, c4m_err_dupe_spec_field, tnode);
+    }
+}
+
+static void
+handle_section_spec(pass_ctx *ctx)
+{
+    c4m_spec_t         *spec     = ctx->spec;
+    c4m_spec_section_t *section  = c4m_gc_alloc(c4m_spec_section_t);
+    c4m_tree_node_t    *tnode    = cur_node(ctx);
+    c4m_pnode_t        *pnode    = get_pnode(tnode);
+    int                 ix       = 2;
+    int                 num_kids = c4m_tree_get_number_children(tnode);
+
+    section->fields            = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
+                                             c4m_tspec_ref()));
+    section->allowed_sections  = c4m_new(c4m_tspec_set(c4m_tspec_utf8()));
+    section->required_sections = c4m_new(c4m_tspec_set(c4m_tspec_utf8()));
+    section->declaration_node  = tnode;
+
+    if (pnode->short_doc) {
+        section->short_doc = c4m_token_raw_content(pnode->short_doc);
+
+        if (pnode->long_doc) {
+            section->long_doc = c4m_token_raw_content(pnode->long_doc);
+        }
+    }
+
+    c4m_utf8_t *kind = node_text(c4m_tree_get_child(tnode, 0));
+    switch (kind->data[0]) {
+    case 's': // singleton
+        section->singleton = 1;
+        // fallthrough
+    case 'n': // named
+        section->name = node_text(c4m_tree_get_child(tnode, 1));
+        break;
+    default: // root
+        ix = 1;
+        break;
+    }
+
+    for (; ix < num_kids; ix++) {
+        c4m_tree_node_t *tkid = c4m_tree_get_child(tnode, ix);
+        c4m_pnode_t     *pkid = get_pnode(tkid);
+
+        if (pkid->kind == c4m_nt_section_prop) {
+            one_section_prop(ctx, section, tkid);
+        }
+        else {
+            one_field(ctx, section, tkid);
+        }
+    }
+
+    if (section->name == NULL) {
+        if (spec->root_section) {
+            c4m_add_error(ctx->file_ctx,
+                          c4m_err_dupe_root_section,
+                          tnode);
+        }
+        else {
+            spec->root_section = section;
+        }
+    }
+    else {
+        if (!hatrack_dict_add(spec->section_specs, section->name, section)) {
+            c4m_add_error(ctx->file_ctx, c4m_err_dupe_section, tnode);
+        }
+    }
+}
+
+static void
 handle_config_spec(pass_ctx *ctx)
 {
-    c4m_print_parse_node(cur_node(ctx));
+    c4m_tree_node_t *tnode = cur_node(ctx);
+    c4m_pnode_t     *pnode = get_pnode(tnode);
+
+    if (ctx->file_ctx->local_confspecs == NULL) {
+        ctx->file_ctx->local_confspecs = new_spec();
+    }
+    else {
+        c4m_add_error(ctx->file_ctx, c4m_err_dupe_section, tnode);
+        return;
+    }
+
+    ctx->spec                   = ctx->file_ctx->local_confspecs;
+    ctx->spec->declaration_node = tnode;
+
+    if (pnode->short_doc) {
+        ctx->spec->short_doc = c4m_token_raw_content(pnode->short_doc);
+
+        if (pnode->long_doc) {
+            ctx->spec->long_doc = c4m_token_raw_content(pnode->long_doc);
+        }
+    }
+
+    process_children(ctx);
 }
 
 static void
@@ -550,13 +1048,9 @@ handle_param_block(pass_ctx *ctx)
     c4m_print_parse_node(cur_node(ctx));
 }
 
-static c4m_type_t *
-node_to_type(pass_ctx *ctx, c4m_tree_node_t *n, c4m_dict_t *type_ctx)
+c4m_type_t *
+c4m_node_to_type(pass_ctx *ctx, c4m_tree_node_t *n, c4m_dict_t *type_ctx)
 {
-    if (type_ctx == NULL) {
-        type_ctx = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_ref()));
-    }
-
     c4m_pnode_t *pnode = get_pnode(n);
     c4m_utf8_t  *varname;
     c4m_type_t  *t;
@@ -565,7 +1059,7 @@ node_to_type(pass_ctx *ctx, c4m_tree_node_t *n, c4m_dict_t *type_ctx)
 
     switch (pnode->kind) {
     case c4m_nt_lit_tspec:
-        return node_to_type(ctx, c4m_tree_get_child(n, 0), type_ctx);
+        return c4m_node_to_type(ctx, c4m_tree_get_child(n, 0), type_ctx);
     case c4m_nt_lit_tspec_tvar:
         varname = node_text(c4m_tree_get_child(n, 0));
         t       = hatrack_dict_get(type_ctx, varname, &found);
@@ -590,51 +1084,51 @@ node_to_type(pass_ctx *ctx, c4m_tree_node_t *n, c4m_dict_t *type_ctx)
         varname = node_text(n);
         // Need to do this more generically, but OK for now.
         if (!strcmp(varname->data, "list")) {
-            return c4m_tspec_list(node_to_type(ctx,
-                                               c4m_tree_get_child(n, 0),
-                                               type_ctx));
+            return c4m_tspec_list(c4m_node_to_type(ctx,
+                                                   c4m_tree_get_child(n, 0),
+                                                   type_ctx));
         }
         if (!strcmp(varname->data, "queue")) {
-            return c4m_tspec_queue(node_to_type(ctx,
-                                                c4m_tree_get_child(n, 0),
-                                                type_ctx));
+            return c4m_tspec_queue(c4m_node_to_type(ctx,
+                                                    c4m_tree_get_child(n, 0),
+                                                    type_ctx));
         }
         if (!strcmp(varname->data, "ring")) {
-            return c4m_tspec_queue(node_to_type(ctx,
-                                                c4m_tree_get_child(n, 0),
-                                                type_ctx));
+            return c4m_tspec_queue(c4m_node_to_type(ctx,
+                                                    c4m_tree_get_child(n, 0),
+                                                    type_ctx));
         }
         if (!strcmp(varname->data, "logring")) {
             c4m_add_error(ctx->file_ctx, c4m_err_no_logring_yet, n);
             return c4m_tspec_typevar();
         }
         if (!strcmp(varname->data, "xlist")) {
-            return c4m_tspec_xlist(node_to_type(ctx,
-                                                c4m_tree_get_child(n, 0),
-                                                type_ctx));
+            return c4m_tspec_xlist(c4m_node_to_type(ctx,
+                                                    c4m_tree_get_child(n, 0),
+                                                    type_ctx));
         }
         if (!strcmp(varname->data, "tree")) {
-            return c4m_tspec_tree(node_to_type(ctx,
-                                               c4m_tree_get_child(n, 0),
-                                               type_ctx));
+            return c4m_tspec_tree(c4m_node_to_type(ctx,
+                                                   c4m_tree_get_child(n, 0),
+                                                   type_ctx));
         }
         if (!strcmp(varname->data, "stack")) {
-            return c4m_tspec_stack(node_to_type(ctx,
-                                                c4m_tree_get_child(n, 0),
-                                                type_ctx));
+            return c4m_tspec_stack(c4m_node_to_type(ctx,
+                                                    c4m_tree_get_child(n, 0),
+                                                    type_ctx));
         }
         if (!strcmp(varname->data, "set")) {
-            return c4m_tspec_set(node_to_type(ctx,
-                                              c4m_tree_get_child(n, 0),
-                                              type_ctx));
+            return c4m_tspec_set(c4m_node_to_type(ctx,
+                                                  c4m_tree_get_child(n, 0),
+                                                  type_ctx));
         }
         if (!strcmp(varname->data, "dict")) {
-            return c4m_tspec_dict(node_to_type(ctx,
-                                               c4m_tree_get_child(n, 0),
-                                               type_ctx),
-                                  node_to_type(ctx,
-                                               c4m_tree_get_child(n, 1),
-                                               type_ctx));
+            return c4m_tspec_dict(c4m_node_to_type(ctx,
+                                                   c4m_tree_get_child(n, 0),
+                                                   type_ctx),
+                                  c4m_node_to_type(ctx,
+                                                   c4m_tree_get_child(n, 1),
+                                                   type_ctx));
         }
         if (!strcmp(varname->data, "tuple")) {
             c4m_xlist_t *subitems;
@@ -643,9 +1137,9 @@ node_to_type(pass_ctx *ctx, c4m_tree_node_t *n, c4m_dict_t *type_ctx)
 
             for (int i = 0; i < c4m_tree_get_number_children(n); i++) {
                 c4m_xlist_append(subitems,
-                                 node_to_type(ctx,
-                                              c4m_tree_get_child(n, i),
-                                              type_ctx));
+                                 c4m_node_to_type(ctx,
+                                                  c4m_tree_get_child(n, i),
+                                                  type_ctx));
             }
 
             return c4m_tspec_tuple_from_xlist(subitems);
@@ -665,7 +1159,7 @@ node_to_type(pass_ctx *ctx, c4m_tree_node_t *n, c4m_dict_t *type_ctx)
         pnode = get_pnode(kid);
 
         if (pnode->kind == c4m_nt_lit_tspec_return_type) {
-            t = node_to_type(ctx, c4m_tree_get_child(kid, 0), type_ctx);
+            t = c4m_node_to_type(ctx, c4m_tree_get_child(kid, 0), type_ctx);
             numkids--;
         }
         else {
@@ -684,7 +1178,7 @@ node_to_type(pass_ctx *ctx, c4m_tree_node_t *n, c4m_dict_t *type_ctx)
                 }
             }
 
-            c4m_xlist_append(args, node_to_type(ctx, kid, type_ctx));
+            c4m_xlist_append(args, c4m_node_to_type(ctx, kid, type_ctx));
         }
 
         return c4m_tspec_fn(t, args, va);
@@ -755,7 +1249,7 @@ extract_fn_sig_info(pass_ctx        *ctx,
             c4m_pnode_t     *pnode = get_pnode(kid);
 
             if (pnode->kind != c4m_nt_identifier) {
-                type = node_to_type(ctx, kid, NULL);
+                type = c4m_node_to_type(ctx, kid, NULL);
                 kidct--;
             }
         }
@@ -805,9 +1299,9 @@ extract_fn_sig_info(pass_ctx        *ctx,
         info->return_info.type = c4m_tspec_void();
     }
     else {
-        info->return_info.type = node_to_type(ctx,
-                                              retnode,
-                                              NULL);
+        info->return_info.type = c4m_node_to_type(ctx,
+                                                  retnode,
+                                                  NULL);
     }
 
     // Now fill out the 'local_type' field of the ffi decl.
@@ -863,7 +1357,7 @@ handle_extern_block(pass_ctx *ctx)
     info->local_params = extract_fn_sig_info(ctx, ext_lsig);
 
     if (ext_pure) {
-        bool *pure_ptr = node_literal(c4m_tree_get_child(ext_pure, 0));
+        bool *pure_ptr = node_simp_literal(c4m_tree_get_child(ext_pure, 0));
 
         if (pure_ptr && *pure_ptr) {
             info->local_params->pure = 1;
@@ -974,7 +1468,7 @@ handle_use_stmt(pass_ctx *ctx)
     }
 
     if (uri) {
-        mi->specified_uri = node_literal(uri);
+        mi->specified_uri = node_simp_literal(uri);
     }
 
     c4m_declare_symbol(ctx->file_ctx,
@@ -1023,6 +1517,10 @@ pass_dispatch(pass_ctx *ctx)
 
     case c4m_nt_config_spec:
         handle_config_spec(ctx);
+        break;
+
+    case c4m_nt_section_spec:
+        handle_section_spec(ctx);
         break;
 
     case c4m_nt_param_block:

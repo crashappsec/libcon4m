@@ -11,3 +11,5 @@ extern void                c4m_register_literal(c4m_lit_syntax_t,
                                                 char *,
                                                 c4m_builtin_t);
 extern c4m_compile_error_t c4m_parse_simple_lit(c4m_token_t *);
+extern c4m_builtin_t       base_type_from_litmod(c4m_lit_syntax_t,
+                                                 c4m_utf8_t *);

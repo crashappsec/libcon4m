@@ -88,4 +88,7 @@ typedef void *object_t;
 #include "frontend/lex.h"
 #include "frontend/parse.h"
 #include "frontend/scope.h"
+#include "frontend/spec.h"
+#include "frontend/partial.h"
+
 #include "con4m/set.h"

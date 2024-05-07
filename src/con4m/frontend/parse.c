@@ -116,7 +116,7 @@ static c4m_tree_node_t *member_expr(parse_ctx *, c4m_tree_node_t *);
 static c4m_tree_node_t *index_expr(parse_ctx *, c4m_tree_node_t *);
 static c4m_tree_node_t *call_expr(parse_ctx *, c4m_tree_node_t *);
 static c4m_tree_node_t *section(parse_ctx *, c4m_tree_node_t *);
-static void             literal_or_identifier(parse_ctx *);
+static bool             literal(parse_ctx *);
 static void             label_stmt(parse_ctx *);
 static void             assert_stmt(parse_ctx *);
 static void             use_stmt(parse_ctx *);
@@ -808,6 +808,7 @@ one_tspec_node(parse_ctx *ctx)
                 consume(ctx);
             }
             if (tok_kind(ctx) == c4m_tt_rbracket) {
+                // TODO: error if there's a litmode here.
                 consume(ctx);
             }
             else {
@@ -916,9 +917,47 @@ simple_lit(parse_ctx *ctx)
             C4M_CRAISE("Unquoted literals not reimplemented yet");
         }
         c4m_compile_error_t err = c4m_parse_simple_lit(tok);
+        c4m_utf8_t         *mod;
+        c4m_utf8_t         *syntax_kind;
 
-        if (err != c4m_err_no_error) {
+        switch (err) {
+        case c4m_err_parse_no_lit_mod_match:
+            mod = c4m_to_utf8(tok->literal_modifier);
+            switch (tok->kind) {
+            case c4m_tt_int_lit:
+                syntax_kind = c4m_new_utf8("integer");
+                break;
+            case c4m_tt_hex_lit:
+                syntax_kind = c4m_new_utf8("hex");
+                break;
+            case c4m_tt_float_lit:
+                syntax_kind = c4m_new_utf8("float");
+                break;
+            case c4m_tt_true:
+            case c4m_tt_false:
+                syntax_kind = c4m_new_utf8("boolean");
+                break;
+
+            case c4m_tt_string_lit:
+                syntax_kind = c4m_new_utf8("string");
+                break;
+
+            case c4m_tt_char_lit:
+                syntax_kind = c4m_new_utf8("character");
+                break;
+
+            default:
+                C4M_CRAISE("Reached supposedly unreachable code.");
+            }
+
+            c4m_error_from_token(ctx->file_ctx, err, tok, mod, syntax_kind);
+            break;
+        case c4m_err_no_error:
+            break;
+        default:
             c4m_error_from_token(ctx->file_ctx, err, tok);
+        }
+        if (err != c4m_err_no_error) {
         }
 
         end_node(ctx);
@@ -1041,7 +1080,7 @@ param_items(parse_ctx *ctx)
             end_node(ctx);
             continue;
         }
-        literal_or_identifier(ctx);
+        literal(ctx);
         end_node(ctx);
         end_of_statement(ctx);
     }
@@ -1495,7 +1534,7 @@ static void
 range(parse_ctx *ctx)
 {
     start_node(ctx, c4m_nt_range, false);
-    literal_or_identifier(ctx);
+    adopt_kid(ctx, expression(ctx));
 
     if (match(ctx, c4m_tt_to, c4m_tt_comma, c4m_tt_colon) == c4m_tt_error) {
         add_parse_error(ctx, c4m_err_parse_expected_range_tok);
@@ -1504,7 +1543,7 @@ range(parse_ctx *ctx)
         return;
     }
     consume(ctx);
-    literal_or_identifier(ctx);
+    adopt_kid(ctx, expression(ctx));
     end_of_statement(ctx);
     end_node(ctx);
 }
@@ -1517,7 +1556,19 @@ property_range(parse_ctx *ctx)
         return;
     }
 
-    range(ctx);
+    start_node(ctx, c4m_nt_range, false);
+    adopt_kid(ctx, expression(ctx));
+
+    if (match(ctx, c4m_tt_to, c4m_tt_comma, c4m_tt_colon) == c4m_tt_error) {
+        add_parse_error(ctx, c4m_err_parse_expected_range_tok);
+        line_skip_recover(ctx);
+        end_node(ctx);
+        return;
+    }
+    consume(ctx);
+    adopt_kid(ctx, expression(ctx));
+    end_of_statement(ctx);
+    end_node(ctx);
 }
 
 static void
@@ -2218,6 +2269,8 @@ list_lit(parse_ctx *ctx)
             consume(ctx);
         }
     }
+
+    current_parse_node(ctx)->extra_info = tok_cur(ctx)->literal_modifier;
     end_node(ctx);
     ctx->lit_depth--;
 
@@ -2266,6 +2319,8 @@ finish_lit:
             adopt_kid(ctx, expression(ctx));
         }
     }
+
+    current_parse_node(ctx)->extra_info = tok_cur(ctx)->literal_modifier;
     end_node(ctx);
     ctx->lit_depth--;
     expect(ctx, c4m_tt_rbrace);
@@ -2294,6 +2349,8 @@ tuple_lit(parse_ctx *ctx)
     }
 
     ctx->lit_depth--;
+
+    current_parse_node(ctx)->extra_info = tok_cur(ctx)->literal_modifier;
 
     if (expect(ctx, c4m_tt_rparen) && num_items < 2) {
         current_parse_node(ctx)->kind = c4m_nt_paren_expr;
@@ -2352,18 +2409,6 @@ literal(parse_ctx *ctx)
 }
 
 static void
-literal_or_identifier(parse_ctx *ctx)
-{
-    if (!literal(ctx)) {
-        if (tok_kind(ctx) != c4m_tt_identifier) {
-            add_parse_error(ctx, c4m_err_parse_lit_or_id);
-            THROW('.');
-        }
-        identifier(ctx);
-    }
-}
-
-static void
 typical_field_property(parse_ctx *ctx)
 {
     start_node(ctx, c4m_nt_section_prop, true);
@@ -2372,7 +2417,7 @@ typical_field_property(parse_ctx *ctx)
         return;
     }
 
-    literal_or_identifier(ctx);
+    literal(ctx);
     end_of_statement(ctx);
     end_node(ctx);
 }
@@ -2572,7 +2617,7 @@ typical_section_prop:
             end_node(ctx);
             return;
         }
-        literal_or_identifier(ctx);
+        literal(ctx);
         break;
 
     case 'a':

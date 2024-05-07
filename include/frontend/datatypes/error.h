@@ -91,6 +91,16 @@ typedef enum {
     c4m_err_bad_hold_name,
     c4m_err_bad_alloc_name,
     c4m_info_dupe_import,
+    c4m_warn_dupe_require,
+    c4m_warn_dupe_allow,
+    c4m_warn_require_allow,
+    c4m_err_spec_bool_required,
+    c4m_err_spec_callback_required,
+    c4m_warn_dupe_exclusion,
+    c4m_err_dupe_spec_field,
+    c4m_err_dupe_root_section,
+    c4m_err_dupe_section,
+    c4m_err_dupe_confspec,
     c4m_err_last,
 } c4m_compile_error_t;
 

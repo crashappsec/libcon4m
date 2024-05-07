@@ -429,8 +429,9 @@ static error_info_t error_info[] = {
     [c4m_err_parse_no_lit_mod_match] = {
         c4m_err_parse_no_lit_mod_match,
         "no_lit_mod_match",
-        "Could not find the named literal modifier, so cannot instantiate.",
-        false,
+        "Could not find a handler for the literal modifier [em]{}[/] "
+        "for literals using [i]{}[/] syntax.",
+        true,
     },
     [c4m_err_parse_invalid_lit_char] = {
         c4m_err_parse_invalid_lit_char,
@@ -552,6 +553,69 @@ static error_info_t error_info[] = {
         "Multiple calls to [em]use[/] with the exact same package. "
         "Each statement runs the module top-level code each time "
         "execution reaches the [em]use[/] statement.",
+        false,
+    },
+    [c4m_warn_dupe_require] = {
+        c4m_warn_dupe_require,
+        "dupe_require",
+        "Duplicate entry in spec for [em]required[/] subsections.",
+        false,
+    },
+    [c4m_warn_dupe_allow] = {
+        c4m_warn_dupe_allow,
+        "dupe_allow",
+        "Duplicate entry in spec for [em]allowed[/] subsections.",
+        false,
+    },
+    [c4m_warn_require_allow] = {
+        c4m_warn_require_allow,
+        "require_allow",
+        "It's redundant to put a subsection on both the [em]required[/] "
+        "and [em]allowed[/] lists.",
+        false,
+    },
+    [c4m_err_spec_bool_required] = {
+        c4m_err_spec_bool_required,
+        "spec_bool_required",
+        "Specification field requires a boolean value.",
+        false,
+    },
+    [c4m_err_spec_callback_required] = {
+        c4m_err_spec_callback_required,
+        "spec_callback_required",
+        "Specification field requires a callback literal.",
+        false,
+    },
+    [c4m_warn_dupe_exclusion] = {
+        c4m_warn_dupe_exclusion,
+        "dupe_exclusion",
+        "Redundant entry in field spec for [em]exclusion[/] (same field"
+        "is excluded multiple times)",
+        false,
+    },
+    [c4m_err_dupe_spec_field] = {
+        c4m_err_dupe_spec_field,
+        "dupe_spec_field",
+        "Field inside section specification has already been specified.",
+        false,
+    },
+    [c4m_err_dupe_root_section] = {
+        c4m_err_dupe_root_section,
+        "dupe_root_section",
+        "Configuration section root section additions currently "
+        "may only appear once in a module.",
+        false,
+    },
+    [c4m_err_dupe_section] = {
+        c4m_err_dupe_section,
+        "dupe_section",
+        "Multiple specifications for the same section are not allowed.",
+        false,
+    },
+    [c4m_err_dupe_confspec] = {
+        c4m_err_dupe_confspec,
+        "dupe_confspec",
+        "Modules may only have a single [em]confspec[/] section.",
         false,
     },
     [c4m_err_last] = {
@@ -722,6 +786,8 @@ _c4m_error_from_token(c4m_file_compile_ctx *ctx,
                                 args);
     va_end(args);
 
+    ctx->fatal_errors = 1;
+
     return result;
 }
 
@@ -744,9 +810,11 @@ _c4m_error_from_token(c4m_file_compile_ctx *ctx,
                                     args);                      \
         va_end(args);                                           \
                                                                 \
+        if (severity_value == c4m_err_severity_error) {         \
+            ctx->fatal_errors = 1;                              \
+        }                                                       \
         return result;                                          \
     }
-
 c4m_base_err_decl(_c4m_add_error, c4m_err_severity_error);
 c4m_base_err_decl(_c4m_add_warning, c4m_err_severity_warning);
 c4m_base_err_decl(_c4m_add_info, c4m_err_severity_info);

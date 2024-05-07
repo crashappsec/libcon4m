@@ -1,5 +1,7 @@
 #pragma once
 
+typedef struct hatrack_set_st c4m_set_t;
+
 #include "con4m/datatypes/memory.h"
 #include "con4m/datatypes/kargs.h"
 #include "con4m/datatypes/literals.h"
@@ -27,6 +29,8 @@
 #include "frontend/datatypes/error.h"
 #include "frontend/datatypes/parse.h"
 #include "frontend/datatypes/scope.h"
+#include "frontend/datatypes/partials.h"
+#include "frontend/datatypes/spec.h"
 #include "frontend/datatypes/file.h"
 
 typedef c4m_str_t *(*c4m_repr_fn)(c4m_obj_t, to_str_use_t);
