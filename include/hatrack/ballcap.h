@@ -54,7 +54,8 @@
  */
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatrack_common.h"
 
 // clang-format off
 typedef struct ballcap_record_st ballcap_record_t;

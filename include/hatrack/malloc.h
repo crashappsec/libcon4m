@@ -21,6 +21,7 @@
 
 #pragma once
 
+#include "base.h"
 #include <stddef.h>
 
 // hatrack_malloc_t is the signature of a function that is used to allocate

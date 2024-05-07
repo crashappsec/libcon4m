@@ -149,7 +149,8 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatring.h"
 
 #define LOGRING_MIN_SIZE 64
 

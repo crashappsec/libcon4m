@@ -19,32 +19,11 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#pragma once
-#include <stdio.h>
-#include <string.h>
-#include <limits.h>
-#include <time.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <pthread.h>
-#include <stdalign.h>
-#include <stdatomic.h>
-#include <stdint.h>
-#include <stdalign.h>
-#include <sys/wait.h>
-
-#ifdef __MACH__
-#include <mach/clock.h>
-#include <mach/mach.h>
-#endif
-
-typedef struct hatrack_queue_t queue_t;
-
+#include "hatrack/base.h"
+#include "hatrack/debug.h"
 #include "hatrack/malloc.h"
 
 #include "hatrack/xxhash.h"
-#include "hatrack/hatrack_config.h"
-#include "hatrack/debug.h"
 #include "hatrack/counters.h"
 #include "hatrack/hatomic.h"
 #include "hatrack/mmm.h"
@@ -81,7 +60,6 @@ typedef struct hatrack_queue_t queue_t;
 #include "hatrack/stack.h"
 #include "hatrack/hatring.h"
 #include "hatrack/logring.h"
-#include "hatrack/crown.h"
 
 // These aren't fully finished.
 #ifdef HATRACK_UNFINISHED_ALGORITHMS

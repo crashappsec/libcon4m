@@ -42,7 +42,7 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
 
 typedef struct {
     void    *item;

@@ -23,7 +23,9 @@
 
 #pragma once
 
-#include "hatrack/hatrack_common.h"
+#include "base.h"
+#include "malloc.h"
+#include "hatrack_common.h"
 
 typedef struct woolhat_record_st woolhat_record_t;
 

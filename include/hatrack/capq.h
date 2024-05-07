@@ -47,7 +47,9 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatomic.h"
+#include "hq.h"
 
 // clang-format off
 typedef struct {

@@ -21,7 +21,10 @@
  */
 
 #pragma once
-#include "hatrack.h"
+#include "base.h"
+#include "malloc.h"
+#include "counters.h"
+#include "hatomic.h"
 
 /* This type represents a callback to de-allocate sub-objects before
  * the final free for an object allocated via MMM.
@@ -159,7 +162,7 @@ static inline void hatrack_debug_mmm(void *, char *);
  * here, especially considering that, typically, most hash table
  * access is done by readers.
  *
- * Another issue we have with the attempt to commit writes to an epic,
+ * Another issue we have with the attempt to commit writes to an epoch,
  * is that the store into the memory associated with the variable
  * write_epoch is NOT atomic (even without the +1). So the committing
  * thread could get suspended.

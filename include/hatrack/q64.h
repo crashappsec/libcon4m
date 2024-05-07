@@ -33,7 +33,8 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatomic.h"
 
 #define QUEUE_HELP_VALUE 1 << QUEUE_HELP_STEPS
 

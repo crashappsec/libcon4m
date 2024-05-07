@@ -102,7 +102,8 @@ extern "C" {
  */
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "malloc.h"
 
 #if (defined(XXH_INLINE_ALL) || defined(XXH_PRIVATE_API)) \
     && !defined(XXH_INLINE_ALL_31684351384)

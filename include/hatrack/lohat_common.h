@@ -28,7 +28,7 @@
 
 #pragma once
 
-#include "hatrack/hatrack_common.h"
+#include "base.h"
 
 /* We use an "epoch" counter that is incremented with every write
  * committment, that gives us an insertion order that we can sort on,

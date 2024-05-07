@@ -25,10 +25,7 @@
 
 #pragma once
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdatomic.h>
-#include "hatrack/hatrack_config.h"
+#include "base.h"
 
 #define FLEXARRAY_MIN_STORE_SZ_LOG 4
 

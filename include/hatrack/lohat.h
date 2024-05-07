@@ -261,7 +261,9 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatrack_common.h"
+#include "lohat_common.h"
 
 /* lohat_history_t
  *

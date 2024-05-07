@@ -39,7 +39,7 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
 
 #ifdef HATRACK_DEBUG
 

@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
 
 /* While we don't explicitly discuss it much in the comments of the
  * algorithms, most of our reads are agnostic to memory ordering.

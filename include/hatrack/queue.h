@@ -76,7 +76,8 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatomic.h"
 
 #define QUEUE_HELP_VALUE 1 << QUEUE_HELP_STEPS
 
@@ -112,13 +113,13 @@ typedef struct {
     queue_segment_t *dequeue_segment;
 } queue_seg_ptrs_t;
 
-struct hatrack_queue_t {
+typedef struct hatrack_queue_t {
     alignas(16)
     _Atomic queue_seg_ptrs_t segments;
     uint64_t                 default_segment_size;
     _Atomic uint64_t         help_needed;
     _Atomic uint64_t         len;
-};
+} queue_t;
 
 enum64(queue_cell_state_t,
        QUEUE_EMPTY   = 0x00,

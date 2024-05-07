@@ -21,7 +21,8 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "helpmanager.h"
 
 #define VECTOR_MIN_STORE_SZ_LOG 4
 

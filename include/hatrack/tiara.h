@@ -52,7 +52,8 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatrack_common.h"
 
 enum64(tiara_flag_t,
        TIARA_F_MOVING = 0x0000000000000001,

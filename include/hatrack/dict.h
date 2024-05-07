@@ -21,7 +21,9 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatrack_common.h"
+#include "crown.h"
 
 enum {
     HATRACK_DICT_KEY_TYPE_INT,

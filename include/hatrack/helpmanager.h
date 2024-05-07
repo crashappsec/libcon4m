@@ -38,7 +38,8 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "capq.h"
 
 typedef struct {
     void   *data;

@@ -21,7 +21,10 @@
  */
 
 #pragma once
-#include "hatrack.h"
+#include "base.h"
+#include "malloc.h"
+#include "counters.h"
+#include "mmm.h"
 
 /* hatrack_hash_t
  *
