@@ -58,7 +58,7 @@ newshat_new(void)
 {
     newshat_t *ret;
 
-    ret = (newshat_t *)malloc(sizeof(newshat_t));
+    ret = (newshat_t *)hatrack_malloc(sizeof(newshat_t));
 
     newshat_init(ret);
 
@@ -70,7 +70,7 @@ newshat_new_size(char size)
 {
     newshat_t *ret;
 
-    ret = (newshat_t *)malloc(sizeof(newshat_t));
+    ret = (newshat_t *)hatrack_malloc(sizeof(newshat_t));
 
     newshat_init_size(ret, size);
 
@@ -159,7 +159,7 @@ void
 newshat_delete(newshat_t *self)
 {
     newshat_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(newshat_t));
 
     return;
 }
@@ -319,7 +319,7 @@ newshat_view(newshat_t *self, uint64_t *num, bool sort)
     store     = self->store_current;
     last_slot = store->last_slot;
     alloc_len = sizeof(hatrack_view_t) * (last_slot + 1);
-    view      = (hatrack_view_t *)malloc(alloc_len);
+    view      = (hatrack_view_t *)hatrack_malloc(alloc_len);
     p         = view;
     cur       = store->buckets;
     end       = cur + (last_slot + 1);
@@ -360,13 +360,13 @@ newshat_view(newshat_t *self, uint64_t *num, bool sort)
     *num = count;
 
     if (!count) {
-        free(view);
+        hatrack_free(view, alloc_len);
         mmm_end_op();
 
         return NULL;
     }
 
-    view = (hatrack_view_t *)realloc(view, sizeof(hatrack_view_t) * count);
+    view = (hatrack_view_t *)hatrack_realloc(view, alloc_len, sizeof(hatrack_view_t) * count);
 
     if (sort) {
         qsort(view, count, sizeof(hatrack_view_t), hatrack_quicksort_cmp);

@@ -101,7 +101,7 @@ duncecap_new(void)
 {
     duncecap_t *ret;
 
-    ret = (duncecap_t *)malloc(sizeof(duncecap_t));
+    ret = (duncecap_t *)hatrack_malloc(sizeof(duncecap_t));
 
     duncecap_init(ret);
 
@@ -113,7 +113,7 @@ duncecap_new_size(char size)
 {
     duncecap_t *ret;
 
-    ret = (duncecap_t *)malloc(sizeof(duncecap_t));
+    ret = (duncecap_t *)hatrack_malloc(sizeof(duncecap_t));
 
     duncecap_init_size(ret, size);
 
@@ -174,7 +174,7 @@ void
 duncecap_cleanup(duncecap_t *self)
 {
     pthread_mutex_destroy(&self->mutex);
-    free(self->store_current);
+    hatrack_free(self->store_current, self->store_current->alloc_len);
 
     return;
 }
@@ -202,7 +202,7 @@ void
 duncecap_delete(duncecap_t *self)
 {
     duncecap_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(duncecap_t));
 
     return;
 }
@@ -430,7 +430,7 @@ duncecap_view(duncecap_t *self, uint64_t *num, bool sort)
     store     = duncecap_viewer_enter(self);
     last_slot = store->last_slot;
     alloc_len = sizeof(hatrack_view_t) * (last_slot + 1);
-    view      = (hatrack_view_t *)malloc(alloc_len);
+    view      = (hatrack_view_t *)hatrack_malloc(alloc_len);
     p         = view;
     cur       = store->buckets;
     end       = cur + (last_slot + 1);
@@ -455,13 +455,13 @@ duncecap_view(duncecap_t *self, uint64_t *num, bool sort)
     *num = count;
 
     if (!count) {
-        free(view);
+        hatrack_free(view, alloc_len);
         duncecap_viewer_exit(self, store);
 
         return NULL;
     }
 
-    view = (hatrack_view_t *)realloc(view, sizeof(hatrack_view_t) * count);
+    view = (hatrack_view_t *)hatrack_realloc(view, alloc_len, sizeof(hatrack_view_t) * count);
 
     if (sort) {
         qsort(view, count, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
@@ -480,7 +480,8 @@ duncecap_store_new(uint64_t size)
 
     alloc_len      = sizeof(duncecap_store_t);
     alloc_len     += size * sizeof(duncecap_bucket_t);
-    ret            = (duncecap_store_t *)zero_alloc(1, alloc_len);
+    ret            = (duncecap_store_t *)hatrack_zalloc(alloc_len);
+    ret->alloc_len = alloc_len;
     ret->last_slot = size - 1;
     ret->threshold = hatrack_compute_table_threshold(size);
 
@@ -845,7 +846,7 @@ duncecap_migrate(duncecap_t *self)
     while (atomic_load(&cur_store->readers))
         ;
 
-    free(cur_store);
+    hatrack_free(cur_store, cur_store->alloc_len);
 
     return;
 }

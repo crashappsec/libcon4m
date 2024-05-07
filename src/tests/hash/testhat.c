@@ -121,8 +121,8 @@ testhat_new(char *name)
         abort();
     }
 
-    ret         = (testhat_t *)calloc(1, sizeof(testhat_t));
-    ret->htable = (void *)calloc(1, implementation_info[i].size);
+    ret         = (testhat_t *)hatrack_zalloc(sizeof(testhat_t));
+    ret->htable = (void *)hatrack_zalloc(implementation_info[i].size);
 
     memcpy(ret, implementation_info[i].vtable, sizeof(hatrack_vtable_t));
 
@@ -144,8 +144,8 @@ testhat_new_size(char *name, char sz)
         abort();
     }
 
-    ret         = (testhat_t *)calloc(1, sizeof(testhat_t));
-    ret->htable = (void *)calloc(1, implementation_info[i].size);
+    ret         = (testhat_t *)hatrack_zalloc(sizeof(testhat_t));
+    ret->htable = (void *)hatrack_zalloc(implementation_info[i].size);
 
     memcpy(ret, implementation_info[i].vtable, sizeof(hatrack_vtable_t));
 

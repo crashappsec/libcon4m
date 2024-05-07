@@ -75,7 +75,7 @@ prepare_hat_info(void)
 
     info     = get_all_algorithm_info();
     n        = get_num_algorithms();
-    hat_info = (config_hat_info_t *)calloc(n, sizeof(config_hat_info_t));
+    hat_info = (config_hat_info_t *)hatrack_zalloc(n * sizeof(config_hat_info_t));
 
     for (i = 0; i < n; i++) {
         hat_info[i].name   = info[i].name;
@@ -506,7 +506,7 @@ parse_args(int argc, char *argv[])
     prog_name = argv[0];
     num_hats  = prepare_hat_info();
     alloc_len = sizeof(config_info_t) + sizeof(char *) * (num_hats + 1);
-    ret       = (config_info_t *)calloc(1, alloc_len);
+    ret       = (config_info_t *)hatrack_zalloc(alloc_len);
 
     config_init(ret);
 

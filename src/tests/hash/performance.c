@@ -249,12 +249,13 @@ extern __thread bool rand_inited;
 static void *
 shuffle_thread_run(void *v)
 {
-    int64_t  i, j;
-    uint32_t next_key;
-    uint32_t thread_step;
-    uint32_t seed;
-    uint64_t num_items;
-    char     thread_mix[100];
+    int64_t         i, j;
+    uint32_t        next_key;
+    uint32_t        thread_step;
+    uint32_t        seed;
+    uint64_t        num_items;
+    char            thread_mix[100];
+    hatrack_view_t *view;
 
     seed        = (uint32_t)(uintptr_t)v;
     next_key    = seed;
@@ -286,10 +287,12 @@ shuffle_thread_run(void *v)
                 test_remove(table, next_key);
                 break;
             case OP_VIEW:
-                free(test_view(table, &num_items, false));
+                view = test_view(table, &num_items, false);
+                hatrack_view_delete(view, num_items);
                 break;
             case OP_ORDERED_VIEW:
-                free(test_view(table, &num_items, true));
+                view = test_view(table, &num_items, true);
+                hatrack_view_delete(view, num_items);
                 break;
             }
             next_key = (next_key + thread_step) & key_mod_mask;
@@ -314,10 +317,12 @@ shuffle_thread_run(void *v)
             test_remove(table, next_key);
             break;
         case OP_VIEW:
-            free(test_view(table, &num_items, false));
+            view = test_view(table, &num_items, false);
+            hatrack_view_delete(view, num_items);
             break;
         case OP_ORDERED_VIEW:
-            free(test_view(table, &num_items, true));
+            view = test_view(table, &num_items, true);
+            hatrack_view_delete(view, num_items);
             break;
         }
         next_key = (next_key + thread_step) & key_mod_mask;
@@ -332,12 +337,13 @@ shuffle_thread_run(void *v)
 static void *
 shuffle_thread_run64(void *v)
 {
-    int64_t  i, j;
-    uint32_t next_key;
-    uint32_t thread_step;
-    uint32_t seed;
-    uint64_t num_items;
-    char     thread_mix[100];
+    int64_t         i, j;
+    uint32_t        next_key;
+    uint32_t        thread_step;
+    uint32_t        seed;
+    uint64_t        num_items;
+    char            thread_mix[100];
+    hatrack_view_t *view;
 
     seed        = (uint32_t)(uintptr_t)v;
     next_key    = seed;
@@ -369,10 +375,12 @@ shuffle_thread_run64(void *v)
                 test_remove64(table, next_key);
                 break;
             case OP_VIEW:
-                free(test_view64(table, &num_items, false));
+                view = test_view64(table, &num_items, false);
+                hatrack_view_delete(view, num_items);
                 break;
             case OP_ORDERED_VIEW:
-                free(test_view64(table, &num_items, true));
+                view = test_view64(table, &num_items, true);
+                hatrack_view_delete(view, num_items);
                 break;
             }
             next_key = (next_key + thread_step) & key_mod_mask;
@@ -397,10 +405,12 @@ shuffle_thread_run64(void *v)
             test_remove64(table, next_key);
             break;
         case OP_VIEW:
-            free(test_view64(table, &num_items, false));
+            view = test_view64(table, &num_items, false);
+            hatrack_view_delete(view, num_items);
             break;
         case OP_ORDERED_VIEW:
-            free(test_view64(table, &num_items, true));
+            test_view64(table, &num_items, true);
+            hatrack_view_delete(view, num_items);
             break;
         }
         next_key = (next_key + thread_step) & key_mod_mask;
@@ -415,10 +425,11 @@ shuffle_thread_run64(void *v)
 static void *
 rand_thread_run(void *v)
 {
-    uint32_t n;
-    int64_t  i;
-    uint64_t num_items;
-    intptr_t thread_total_ops;
+    uint32_t        n;
+    int64_t         i;
+    uint64_t        num_items;
+    intptr_t        thread_total_ops;
+    hatrack_view_t *view;
 
     thread_total_ops = (uintptr_t)v;
     /* Grab the first number before the starting_gate to ensure that
@@ -447,10 +458,12 @@ rand_thread_run(void *v)
             test_remove(table, test_rand() & key_mod_mask);
             break;
         case OP_VIEW:
-            free(test_view(table, &num_items, false));
+            view = test_view(table, &num_items, false);
+            hatrack_view_delete(view, num_items);
             break;
         case OP_ORDERED_VIEW:
-            free(test_view(table, &num_items, true));
+            view = test_view(table, &num_items, true);
+            hatrack_view_delete(view, num_items);
             break;
         }
         n = test_rand() % 100;
@@ -465,10 +478,11 @@ rand_thread_run(void *v)
 static void *
 rand_thread_run64(void *v)
 {
-    uint32_t n;
-    int64_t  i;
-    uint64_t num_items;
-    intptr_t thread_total_ops;
+    uint32_t        n;
+    int64_t         i;
+    uint64_t        num_items;
+    intptr_t        thread_total_ops;
+    hatrack_view_t *view;
 
     thread_total_ops = (uintptr_t)v;
     n                = test_rand() % 100;
@@ -494,10 +508,12 @@ rand_thread_run64(void *v)
             test_remove64(table, test_rand() & key_mod_mask);
             break;
         case OP_VIEW:
-            free(test_view64(table, &num_items, false));
+            view = test_view64(table, &num_items, false);
+            hatrack_view_delete(view, num_items);
             break;
         case OP_ORDERED_VIEW:
-            free(test_view64(table, &num_items, true));
+            view = test_view64(table, &num_items, true);
+            hatrack_view_delete(view, num_items);
             break;
         }
         n = test_rand() % 100;

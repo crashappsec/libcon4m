@@ -205,6 +205,7 @@ typedef struct {
     uint64_t            entry_len;
     _Atomic view_info_t view_state;
     hatring_t          *ring;
+    uint64_t            entries_size;
     logring_entry_t    *entries;
 } logring_t;
 

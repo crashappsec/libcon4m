@@ -35,7 +35,7 @@ refhat_new(void)
 {
     refhat_t *ret;
 
-    ret = (refhat_t *)malloc(sizeof(refhat_t));
+    ret = (refhat_t *)hatrack_malloc(sizeof(refhat_t));
 
     refhat_init(ret);
 
@@ -73,14 +73,14 @@ refhat_init_size(refhat_t *self, char size)
         abort();
     }
 
-    len              = 1 << size;
-    self->last_slot  = len - 1;
-    self->threshold  = hatrack_compute_table_threshold(len);
-    self->used_count = 0;
-    self->item_count = 0;
-    self->next_epoch = 1;
-    self->buckets    = (refhat_bucket_t *)zero_alloc(len,
-                                                  sizeof(refhat_bucket_t));
+    len                = 1 << size;
+    self->last_slot    = len - 1;
+    self->threshold    = hatrack_compute_table_threshold(len);
+    self->used_count   = 0;
+    self->item_count   = 0;
+    self->next_epoch   = 1;
+    self->buckets_size = len * sizeof(refhat_bucket_t);
+    self->buckets      = (refhat_bucket_t *)hatrack_zalloc(self->buckets_size);
 
     return;
 }
@@ -98,7 +98,7 @@ refhat_init_size(refhat_t *self, char size)
 void
 refhat_cleanup(refhat_t *self)
 {
-    free(self->buckets);
+    hatrack_free(self->buckets, self->buckets_size);
 
     return;
 }
@@ -114,7 +114,7 @@ void
 refhat_delete(refhat_t *self)
 {
     refhat_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(refhat_t));
 
     return;
 }
@@ -492,7 +492,7 @@ refhat_view(refhat_t *self, uint64_t *num, bool sort)
     refhat_bucket_t *cur;
     refhat_bucket_t *end;
 
-    view = (hatrack_view_t *)malloc(sizeof(hatrack_view_t) * self->item_count);
+    view = (hatrack_view_t *)hatrack_malloc(sizeof(hatrack_view_t) * self->item_count);
     p    = view;
     cur  = self->buckets;
     end  = cur + (self->last_slot + 1);
@@ -546,11 +546,13 @@ refhat_migrate(refhat_t *self)
     uint64_t         num_buckets;
     uint64_t         new_last_slot;
     uint64_t         i, n, bix;
+    uint64_t         new_buckets_size;
 
-    bucket_size   = sizeof(refhat_bucket_t);
-    num_buckets   = hatrack_new_size(self->last_slot, self->item_count + 1);
-    new_last_slot = num_buckets - 1;
-    new_buckets   = (refhat_bucket_t *)zero_alloc(num_buckets, bucket_size);
+    bucket_size      = sizeof(refhat_bucket_t);
+    num_buckets      = hatrack_new_size(self->last_slot, self->item_count + 1);
+    new_last_slot    = num_buckets - 1;
+    new_buckets_size = num_buckets * bucket_size;
+    new_buckets      = (refhat_bucket_t *)hatrack_zalloc(new_buckets_size);
 
     for (n = 0; n <= self->last_slot; n++) {
         cur = &self->buckets[n];
@@ -575,12 +577,13 @@ refhat_migrate(refhat_t *self)
         }
     }
 
-    free(self->buckets);
+    hatrack_free(self->buckets, self->buckets_size);
 
-    self->used_count = self->item_count;
-    self->buckets    = new_buckets;
-    self->last_slot  = new_last_slot;
-    self->threshold  = hatrack_compute_table_threshold(num_buckets);
+    self->used_count   = self->item_count;
+    self->buckets      = new_buckets;
+    self->buckets_size = new_buckets_size;
+    self->last_slot    = new_last_slot;
+    self->threshold    = hatrack_compute_table_threshold(num_buckets);
 
     return;
 }

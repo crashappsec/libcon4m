@@ -95,7 +95,7 @@ capq_new_size(uint64_t size)
 {
     capq_t *ret;
 
-    ret = (capq_t *)malloc(sizeof(capq_t));
+    ret = (capq_t *)hatrack_malloc(sizeof(capq_t));
     capq_init_size(ret, size);
 
     return ret;
@@ -118,7 +118,7 @@ void
 capq_delete(capq_t *self)
 {
     capq_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(capq_t));
 
     return;
 }

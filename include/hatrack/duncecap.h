@@ -153,6 +153,8 @@ typedef struct {
     uint64_t            last_slot;
     uint64_t            threshold;
     uint64_t            used_count;
+    uint64_t            alloc_len;
+    uint64_t            pad;
     duncecap_bucket_t   buckets[];
 } duncecap_store_t;
 

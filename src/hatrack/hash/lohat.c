@@ -26,6 +26,7 @@
  */
 
 #include "hatrack.h"
+#include <stdint.h>
 
 // clang-format off
 
@@ -49,7 +50,7 @@ lohat_new(void)
 {
     lohat_t *ret;
 
-    ret = (lohat_t *)malloc(sizeof(lohat_t));
+    ret = (lohat_t *)hatrack_malloc(sizeof(lohat_t));
 
     lohat_init(ret);
 
@@ -61,7 +62,7 @@ lohat_new_size(char size)
 {
     lohat_t *ret;
 
-    ret = (lohat_t *)malloc(sizeof(lohat_t));
+    ret = (lohat_t *)hatrack_malloc(sizeof(lohat_t));
 
     lohat_init_size(ret, size);
 
@@ -164,7 +165,7 @@ void
 lohat_delete(lohat_t *self)
 {
     lohat_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(lohat_t));
 
     return;
 }
@@ -329,16 +330,18 @@ lohat_view(lohat_t *self, uint64_t *out_num, bool sort)
     hatrack_view_t  *view;
     hatrack_view_t  *p;
     lohat_record_t  *rec;
+    uint64_t         alloc_len;
     uint64_t         epoch;
     uint64_t         sort_epoch;
     uint64_t         num_items;
 
-    epoch = mmm_start_linearized_op();
-    store = self->store_current;
-    cur   = store->hist_buckets;
-    end   = cur + (store->last_slot + 1);
-    view  = (hatrack_view_t *)malloc(sizeof(hatrack_view_t) * (end - cur));
-    p     = view;
+    epoch     = mmm_start_linearized_op();
+    store     = self->store_current;
+    cur       = store->hist_buckets;
+    end       = cur + (store->last_slot + 1);
+    alloc_len = sizeof(hatrack_view_t) * (end - cur);
+    view      = (hatrack_view_t *)hatrack_malloc(alloc_len);
+    p         = view;
 
     while (cur < end) {
         /* Clear the HEAD flags, to be able to dereference the
@@ -402,14 +405,14 @@ lohat_view(lohat_t *self, uint64_t *out_num, bool sort)
     // If there are no items, instead of realloc'ing down, free the
     // memory and return NULL.
     if (!num_items) {
-        free(view);
+        hatrack_free(view, alloc_len);
         mmm_end_op();
 
         return NULL;
     }
 
     // Size down to the actual used size.
-    view = realloc(view, num_items * sizeof(hatrack_view_t));
+    view = hatrack_realloc(view, alloc_len, num_items * sizeof(hatrack_view_t));
 
     if (sort) {
         // Unordered buckets should be in random order, so quicksort

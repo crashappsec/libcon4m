@@ -89,7 +89,7 @@ gate_new_size(uint64_t mt)
 {
     gate_t *ret;
 
-    ret = (gate_t *)malloc(sizeof(gate_t) + sizeof(duration_t) * mt);
+    ret = (gate_t *)hatrack_malloc(sizeof(gate_t) + sizeof(duration_t) * mt);
 
     gate_init(ret, mt);
 
@@ -105,7 +105,7 @@ gate_new(void)
 static inline void
 gate_delete(gate_t *gate)
 {
-    free(gate);
+    hatrack_free(gate, sizeof(gate_t) + sizeof(duration_t) * gate->max_threads);
 
     return;
 }

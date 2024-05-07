@@ -55,7 +55,7 @@ tiara_new(void)
 {
     tiara_t *ret;
 
-    ret = (tiara_t *)malloc(sizeof(tiara_t));
+    ret = (tiara_t *)hatrack_malloc(sizeof(tiara_t));
 
     tiara_init(ret);
 
@@ -67,7 +67,7 @@ tiara_new_size(char size)
 {
     tiara_t *ret;
 
-    ret = (tiara_t *)malloc(sizeof(tiara_t));
+    ret = (tiara_t *)hatrack_malloc(sizeof(tiara_t));
 
     tiara_init_size(ret, size);
 
@@ -118,7 +118,7 @@ void
 tiara_delete(tiara_t *self)
 {
     tiara_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(tiara_t));
 
     return;
 }
@@ -225,7 +225,7 @@ tiara_view(tiara_t *self, uint64_t *num, bool ignored)
 
     store     = atomic_read(&self->store_current);
     alloc_len = sizeof(hatrack_view_t) * (store->last_slot + 1);
-    view      = (hatrack_view_t *)malloc(alloc_len);
+    view      = (hatrack_view_t *)hatrack_malloc(alloc_len);
     p         = view;
     cur       = store->buckets;
     end       = cur + (store->last_slot + 1);
@@ -249,13 +249,13 @@ tiara_view(tiara_t *self, uint64_t *num, bool ignored)
     *num      = num_items;
 
     if (!num_items) {
-        free(view);
+        hatrack_free(view, alloc_len);
         mmm_end_op();
 
         return NULL;
     }
 
-    view = realloc(view, num_items * sizeof(hatrack_view_t));
+    view = hatrack_realloc(view, alloc_len, num_items * sizeof(hatrack_view_t));
 
     mmm_end_op();
 

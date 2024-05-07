@@ -85,7 +85,7 @@ q64_new_size(char size)
 {
     q64_t *ret;
 
-    ret = (q64_t *)malloc(sizeof(q64_t));
+    ret = (q64_t *)hatrack_malloc(sizeof(q64_t));
     q64_init_size(ret, size);
 
     return ret;
@@ -121,7 +121,7 @@ void
 q64_delete(q64_t *self)
 {
     q64_cleanup(self);
-    free(self);
+    hatrack_free(self, siozeof(q64_t));
 
     return;
 }

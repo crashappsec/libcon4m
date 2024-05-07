@@ -104,6 +104,7 @@ typedef struct {
     uint64_t          used_count;
     uint64_t          item_count;
     refhat_bucket_t  *buckets;
+    uint64_t          buckets_size;
     uint64_t          next_epoch;
 } refhat_t;
 

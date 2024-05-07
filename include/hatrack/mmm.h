@@ -73,6 +73,8 @@ struct mmm_header_st {
     uint64_t         retire_epoch;
     mmm_cleanup_func cleanup;
     void            *cleanup_aux; // Data needed for cleanup, usually the object
+    size_t           size;
+    uint64_t         padding;
     alignas(16)
     uint8_t          data[];
 };
@@ -577,7 +579,7 @@ static inline void *
 mmm_alloc(uint64_t size)
 {
     uint64_t      actual_size = sizeof(mmm_header_t) + size;
-    mmm_header_t *item        = (mmm_header_t *)zero_alloc(1, actual_size);
+    mmm_header_t *item        = hatrack_zalloc(actual_size);
 
     HATRACK_MALLOC_CTR();
     DEBUG_MMM_INTERNAL(item->data, "mmm_alloc");
@@ -593,7 +595,7 @@ static inline void *
 mmm_alloc_committed(uint64_t size)
 {
     uint64_t      actual_size = sizeof(mmm_header_t) + size;
-    mmm_header_t *item        = (mmm_header_t *)zero_alloc(1, actual_size);
+    mmm_header_t *item        = hatrack_zalloc(actual_size);
 
     atomic_store(&item->write_epoch, atomic_fetch_add(&mmm_epoch, 1) + 1);
 
@@ -688,7 +690,8 @@ mmm_retire_unused(void *ptr)
     DEBUG_MMM_INTERNAL(ptr, "mmm_retire_unused");
     HATRACK_RETIRE_UNUSED_CTR();
 
-    free(mmm_get_header(ptr));
+    mmm_header_t *item = mmm_get_header(ptr);
+    hatrack_free(item, sizeof(mmm_header_t) + item->size);
 
     return;
 }

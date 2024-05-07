@@ -110,7 +110,7 @@ hatstack_new(uint64_t prealloc)
 {
     hatstack_t *ret;
 
-    ret = (hatstack_t *)malloc(sizeof(hatstack_t));
+    ret = (hatstack_t *)hatrack_malloc(sizeof(hatstack_t));
 
     hatstack_init(ret, prealloc);
 
@@ -144,7 +144,7 @@ hatstack_delete(hatstack_t *self)
 {
     hatstack_cleanup(self);
 
-    free(self);
+    hatrack_free(self, sizeof(hatstack_t));
 
     return;
 }
@@ -438,7 +438,7 @@ hatstack_view(hatstack_t *self)
     hatstack_grow_store(store, self);
     mmm_end_op();
 
-    ret          = (stack_view_t *)malloc(sizeof(flex_view_t));
+    ret          = (stack_view_t *)hatrack_malloc(sizeof(stack_view_t));
     ret->store   = store;
     ret->next_ix = 0;
 
@@ -468,7 +468,7 @@ hatstack_view_delete(stack_view_t *view)
 {
     mmm_retire(view->store);
 
-    free(view);
+    hatrack_free(view, sizeof(stack_view_t));
 
     return;
 }

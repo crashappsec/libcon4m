@@ -84,6 +84,12 @@ typedef struct {
     int64_t        sort_epoch;
 } hatrack_set_view_t;
 
+static inline void
+hatrack_set_view_delete(hatrack_set_view_t *view, uint64_t num)
+{
+    hatrack_free(view, sizeof(hatrack_set_view_t) * num);
+}
+
 woolhat_t      *woolhat_new             (void);
 woolhat_t      *woolhat_new_size        (char);
 void            woolhat_init            (woolhat_t *);

@@ -63,7 +63,7 @@ swimcap_new(void)
 {
     swimcap_t *ret;
 
-    ret = (swimcap_t *)malloc(sizeof(swimcap_t));
+    ret = (swimcap_t *)hatrack_malloc(sizeof(swimcap_t));
 
     swimcap_init(ret);
 
@@ -75,7 +75,7 @@ swimcap_new_size(char size)
 {
     swimcap_t *ret;
 
-    ret = (swimcap_t *)malloc(sizeof(swimcap_t));
+    ret = (swimcap_t *)hatrack_malloc(sizeof(swimcap_t));
 
     swimcap_init_size(ret, size);
 
@@ -168,7 +168,7 @@ void
 swimcap_delete(swimcap_t *self)
 {
     swimcap_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(swimcap_t));
 
     return;
 }
@@ -433,7 +433,7 @@ swimcap_view(swimcap_t *self, uint64_t *num, bool sort)
     store     = self->store_current;
     last_slot = store->last_slot;
     alloc_len = sizeof(hatrack_view_t) * (last_slot + 1);
-    view      = (hatrack_view_t *)malloc(alloc_len);
+    view      = (hatrack_view_t *)hatrack_malloc(alloc_len);
     p         = view;
     cur       = store->buckets;
     end       = cur + (last_slot + 1);
@@ -458,7 +458,7 @@ swimcap_view(swimcap_t *self, uint64_t *num, bool sort)
     *num = count;
 
     if (!count) {
-        free(view);
+        hatrack_free(view, alloc_len);
 
 #ifdef SWIMCAP_CONSISTENT_VIEWS
         if (pthread_mutex_unlock(&self->write_mutex)) {
@@ -471,7 +471,7 @@ swimcap_view(swimcap_t *self, uint64_t *num, bool sort)
         return NULL;
     }
 
-    view = (hatrack_view_t *)realloc(view, sizeof(hatrack_view_t) * count);
+    view = (hatrack_view_t *)hatrack_realloc(view, alloc_len, sizeof(hatrack_view_t) * count);
 
     if (sort) {
         qsort(view, count, sizeof(hatrack_view_t), hatrack_quicksort_cmp);

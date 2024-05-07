@@ -51,7 +51,7 @@ vector_new(int64_t initial_size)
 {
     vector_t *arr;
 
-    arr = (vector_t *)zero_alloc(1, sizeof(vector_t));
+    arr = (vector_t *)hatrack_zalloc(sizeof(vector_t));
 
     vector_init(arr, initial_size, false);
 
@@ -118,7 +118,7 @@ void
 vector_delete(vector_t *self)
 {
     vector_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(vector_t));
 
     return;
 }
@@ -360,7 +360,7 @@ vector_view(vector_t *self)
     vector_item_t   item;
     vec_size_info_t si;
 
-    ret          = malloc(sizeof(vector_view_t));
+    ret          = hatrack_malloc(sizeof(vector_view_t));
     ret->next_ix = 0;
 
     mmm_start_basic_op();
@@ -433,7 +433,7 @@ vector_view_delete(vector_view_t *view)
 
     mmm_retire(view->contents);
 
-    free(view);
+    hatrack_free(view, sizeof(vector_view_t));
 
     return;
 }

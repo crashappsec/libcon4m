@@ -37,7 +37,7 @@ flexarray_new(uint64_t initial_size)
 {
     flexarray_t *arr;
 
-    arr = (flexarray_t *)malloc(sizeof(flexarray_t));
+    arr = (flexarray_t *)hatrack_malloc(sizeof(flexarray_t));
 
     flexarray_init(arr, initial_size);
 
@@ -103,7 +103,7 @@ void
 flexarray_delete(flexarray_t *self)
 {
     flexarray_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(flexarray_t));
 
     return;
 }
@@ -332,7 +332,7 @@ flexarray_view(flexarray_t *self)
 
     mmm_end_op();
 
-    ret           = (flex_view_t *)malloc(sizeof(flex_view_t));
+    ret           = (flex_view_t *)hatrack_malloc(sizeof(flex_view_t));
     ret->contents = store;
     ret->next_ix  = 0;
 
@@ -382,7 +382,7 @@ flexarray_view_delete(flex_view_t *view)
 
     mmm_retire(view->contents);
 
-    free(view);
+    hatrack_free(view, sizeof(flex_view_t));
 
     return;
 }
@@ -425,7 +425,7 @@ flexarray_view_len(flex_view_t *view)
 flexarray_t *
 flexarray_add(flexarray_t *arr1, flexarray_t *arr2)
 {
-    flexarray_t  *res   = (flexarray_t *)malloc(sizeof(flexarray_t));
+    flexarray_t  *res   = (flexarray_t *)hatrack_malloc(sizeof(flexarray_t));
     flex_view_t  *v1    = flexarray_view(arr1);
     flex_view_t  *v2    = flexarray_view(arr2);
     flex_store_t *s1    = v1->contents;
@@ -437,7 +437,7 @@ flexarray_add(flexarray_t *arr1, flexarray_t *arr2)
     res->eject_callback = arr1->eject_callback;
 
     atomic_store(&res->store, s1);
-    free(v1);
+    hatrack_free(v1, sizeof(flex_view_t));
 
     if (v1_sz + v2_sz > s1->array_size) {
         flexarray_grow(res, v1_sz + v2_sz);
@@ -450,7 +450,7 @@ flexarray_add(flexarray_t *arr1, flexarray_t *arr2)
 
     atomic_store(&(s1->array_size), v1_sz);
     mmm_retire_unused(s2);
-    free(v2);
+    hatrack_free(v2, sizeof(flex_view_t));
 
     return res;
 }

@@ -34,7 +34,7 @@ logring_new(uint64_t ring_size, uint64_t entry_size)
 {
     logring_t *ret;
 
-    ret = (logring_t *)zero_alloc(1, sizeof(logring_t));
+    ret = (logring_t *)hatrack_zalloc(sizeof(logring_t));
 
     logring_init(ret, ring_size, entry_size);
 
@@ -62,12 +62,13 @@ logring_init(logring_t *self, uint64_t ring_size, uint64_t entry_size)
         m = n << 1;
     }
 
-    l                = sizeof(logring_entry_t) + entry_size;
-    self->ring       = hatring_new(n);
-    self->entries    = (logring_entry_t *)zero_alloc(m, l);
-    self->last_entry = m - 1;
-    self->entry_ix   = 0;
-    self->entry_len  = entry_size;
+    l                  = sizeof(logring_entry_t) + entry_size;
+    self->ring         = hatring_new(n);
+    self->entries_size = m * l;
+    self->entries      = (logring_entry_t *)hatrack_zalloc(self->entries_size);
+    self->last_entry   = m - 1;
+    self->entry_ix     = 0;
+    self->entry_len    = entry_size;
 
     return;
 }
@@ -76,7 +77,7 @@ void
 logring_cleanup(logring_t *self)
 {
     hatring_delete(self->ring);
-    free(self->entries);
+    hatrack_free(self->entries, self->entries_size);
 
     return;
 }
@@ -86,7 +87,7 @@ logring_delete(logring_t *self)
 {
     logring_cleanup(self);
 
-    free(self);
+    hatrack_free(self, sizeof(logring_t));
 
     return;
 }
@@ -308,7 +309,7 @@ logring_view(logring_t *self, bool lax_view)
         entry = &ret->cells[i];
 
         if (entry->value) {
-            free(entry->value);
+            hatrack_free(entry->value, entry->len);
         }
     }
 
@@ -350,7 +351,7 @@ logring_view_delete(logring_view_t *view)
         view->next_ix++;
 
         if (cur->value) {
-            free(cur->value);
+            hatrack_free(cur->value, cur->len);
         }
     }
 
@@ -548,7 +549,7 @@ got_entry_index:
          * correct item gets installed, so it's not a problem.
          */
 
-        contents     = (char *)malloc(data_entry->len);
+        contents     = (char *)hatrack_malloc(data_entry->len);
         exp_contents = NULL;
 
         memcpy(contents, data_entry->data, exp_len);
@@ -556,7 +557,7 @@ got_entry_index:
         if (!CAS(&cur_view_entry->value,
                  (void **)&exp_contents,
                  (void *)contents)) {
-            free(contents);
+            hatrack_free(contents, data_entry->len);
         }
 
         /* Now we have to flip VIEW_RESERVE off, if no other thread has,
