@@ -57,3 +57,9 @@ extern c4m_compile_error *_c4m_error_from_token(c4m_file_compile_ctx *,
 
 #define c4m_error_from_token(x, y, z, ...) \
     _c4m_error_from_token(x, y, z, KFUNC(__VA_ARGS__))
+
+static inline bool
+c4m_fatal_error_in_module(c4m_file_compile_ctx *ctx)
+{
+    return ctx->fatal_errors != 0;
+}

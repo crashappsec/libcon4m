@@ -28,6 +28,9 @@ typedef struct {
     c4m_scope_t     *module_scope;    // Symbols used w/ module scope
     c4m_scope_t     *attribute_scope; // Declared or used attrs
     c4m_scope_t     *imports;
+    c4m_dict_t      *parameters;
     c4m_spec_t      *local_confspecs;
+    c4m_utf8_t      *short_doc;
+    c4m_utf8_t      *long_doc;
     unsigned int     fatal_errors : 1;
 } c4m_file_compile_ctx;

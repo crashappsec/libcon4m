@@ -66,7 +66,6 @@ typedef enum {
     c4m_nt_extern_holds,
     c4m_nt_extern_allocs,
     c4m_nt_extern_return,
-    c4m_nt_extern_expression,
     c4m_nt_label,
     c4m_nt_case,
     c4m_nt_range,
@@ -76,8 +75,6 @@ typedef enum {
     c4m_nt_section_prop,
     c4m_nt_field_spec,
     c4m_nt_field_prop,
-    c4m_nt_short_doc_string,
-    c4m_nt_long_doc_string,
     c4m_nt_expression,
 } c4m_node_kind_t;
 

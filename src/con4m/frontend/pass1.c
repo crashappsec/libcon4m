@@ -33,6 +33,7 @@ typedef struct {
     c4m_spec_t           *spec;
     c4m_file_compile_ctx *file_ctx;
     c4m_scope_t          *static_scope;
+    c4m_dict_t           *unbound;
 } pass_ctx;
 
 c4m_type_t *c4m_node_to_type(pass_ctx *, c4m_tree_node_t *, c4m_dict_t *);
@@ -55,7 +56,7 @@ content_formatter(void *contents)
     c4m_node_kind_t kind = (c4m_node_kind_t)(uint64_t)contents;
 
     if (kind == nt_any) {
-        return c4m_rich_lit("[h2]nt_any[]");
+        return c4m_rich_lit("[h2]nt_any[/]");
     }
 
     return c4m_cstr_format("[h2]{}[/]", c4m_node_type_name(kind));
@@ -835,8 +836,98 @@ static void
 handle_param_block(pass_ctx *ctx)
 {
     // Reminder to self: make sure to check for not const in the decl.
+    // That really needs to happen at the end of the pass through :)
+    c4m_module_param_info_t *prop      = c4m_gc_alloc(c4m_module_param_info_t);
+    c4m_tree_node_t         *root      = cur_node(ctx);
+    c4m_pnode_t             *pnode     = get_pnode(root);
+    c4m_tree_node_t         *name_node = c4m_tree_get_child(root, 0);
+    c4m_utf8_t              *sym_name  = node_text(name_node);
+    int                      nkids     = c4m_tree_get_number_children(root);
+    c4m_scope_entry_t       *sym;
+    bool                     attr;
 
-    c4m_print_parse_node(cur_node(ctx));
+    if (pnode->short_doc) {
+        prop->short_doc = c4m_token_raw_content(pnode->short_doc);
+
+        if (pnode->long_doc) {
+            prop->long_doc = c4m_token_raw_content(pnode->long_doc);
+        }
+    }
+
+    if (pnode->kind == c4m_nt_member) {
+        attr            = true;
+        int num_members = c4m_tree_get_number_children(name_node);
+
+        for (int i = 1; i < num_members; i++) {
+            sym_name = c4m_str_concat(sym_name, c4m_new_utf8("."));
+            sym_name = c4m_str_concat(sym_name,
+                                      node_text(
+                                          c4m_tree_get_child(name_node, i)));
+        }
+    }
+    else {
+        attr = false;
+    }
+
+    for (int i = 1; i < nkids; i++) {
+        c4m_tree_node_t *prop_node = c4m_tree_get_child(root, i);
+        c4m_utf8_t      *prop_name = node_text(prop_node);
+        c4m_obj_t        lit       = c4m_tree_get_child(prop_node, 0);
+
+        switch (prop_name->data[0]) {
+        case 'v':
+            prop->validator = node_literal(ctx, lit, NULL);
+            break;
+        case 'c':
+            prop->callback = node_literal(ctx, lit, NULL);
+            break;
+        case 'd':
+            prop->default_value = node_literal(ctx, lit, NULL);
+            break;
+        default:
+            C4M_CRAISE("Reached supposedly unreachable code.");
+        }
+    }
+
+    if (!hatrack_dict_add(ctx->file_ctx->parameters, sym_name, prop)) {
+        c4m_add_error(ctx->file_ctx, c4m_err_dupe_param, name_node);
+        return;
+    }
+
+    if (attr) {
+        sym = c4m_lookup_symbol(ctx->file_ctx->attribute_scope, sym_name);
+        if (sym) {
+            if (c4m_sym_is_const(sym)) {
+                c4m_add_error(ctx->file_ctx, c4m_err_const_param, name_node);
+            }
+        }
+        else {
+            sym = c4m_declare_symbol(ctx->file_ctx,
+                                     ctx->file_ctx->attribute_scope,
+                                     sym_name,
+                                     name_node,
+                                     sk_attr,
+                                     NULL,
+                                     false);
+        }
+    }
+    else {
+        sym = c4m_lookup_symbol(ctx->file_ctx->module_scope, sym_name);
+        if (sym) {
+            if (c4m_sym_is_const(sym)) {
+                c4m_add_error(ctx->file_ctx, c4m_err_const_param, name_node);
+            }
+        }
+        else {
+            sym = c4m_declare_symbol(ctx->file_ctx,
+                                     ctx->file_ctx->module_scope,
+                                     sym_name,
+                                     name_node,
+                                     sk_variable,
+                                     NULL,
+                                     false);
+        }
+    }
 }
 
 static void
@@ -1296,7 +1387,8 @@ new_sig_info(int num_params)
     result->num_params     = num_params;
 
     if (result->num_params > 0) {
-        result->param_info = c4m_gc_array_alloc(c4m_param_info_t, num_params);
+        result->param_info = c4m_gc_array_alloc(c4m_fn_param_info_t,
+                                                num_params);
     }
 
     return result;
@@ -1357,10 +1449,10 @@ extract_fn_sig_info(pass_ctx        *ctx,
 
         // All but the last one in a subtree get type variables.
         for (int j = 0; j < kidct - 1; j++) {
-            c4m_param_info_t *pi  = &info->param_info[cur_param++];
-            c4m_tree_node_t  *kid = c4m_tree_get_child(node, j);
-            pi->name              = node_text(kid);
-            pi->type              = c4m_tspec_typevar();
+            c4m_fn_param_info_t *pi  = &info->param_info[cur_param++];
+            c4m_tree_node_t     *kid = c4m_tree_get_child(node, j);
+            pi->name                 = node_text(kid);
+            pi->type                 = c4m_tspec_typevar();
 
             c4m_declare_symbol(ctx->file_ctx,
                                info->fn_scope,
@@ -1378,10 +1470,10 @@ extract_fn_sig_info(pass_ctx        *ctx,
             type = c4m_tspec_typevar();
         }
 
-        c4m_param_info_t *pi  = &info->param_info[cur_param++];
-        c4m_tree_node_t  *kid = c4m_tree_get_child(node, kidct - 1);
-        pi->name              = node_text(kid);
-        pi->type              = type;
+        c4m_fn_param_info_t *pi  = &info->param_info[cur_param++];
+        c4m_tree_node_t     *kid = c4m_tree_get_child(node, kidct - 1);
+        pi->name                 = node_text(kid);
+        pi->type                 = type;
 
         c4m_declare_symbol(ctx->file_ctx,
                            info->fn_scope,
@@ -1514,7 +1606,7 @@ handle_extern_block(pass_ctx *ctx)
             c4m_utf8_t      *txt = node_text(kid);
 
             for (int j = 0; j < si->num_params; j++) {
-                c4m_param_info_t *param = &si->param_info[j];
+                c4m_fn_param_info_t *param = &si->param_info[j];
                 if (strcmp(txt->data, param->name->data)) {
                     continue;
                 }
@@ -1553,7 +1645,7 @@ next_i:
             }
 
             for (int j = 0; j < si->num_params; j++) {
-                c4m_param_info_t *param = &si->param_info[j];
+                c4m_fn_param_info_t *param = &si->param_info[j];
                 if (strcmp(txt->data, param->name->data)) {
                     continue;
                 }
@@ -1689,6 +1781,10 @@ pass_dispatch(pass_ctx *ctx)
 void
 c4m_pass_1(c4m_file_compile_ctx *file_ctx)
 {
+    if (c4m_fatal_error_in_module(file_ctx)) {
+        return;
+    }
+
     setup_pass1_patterns();
 
     pass_ctx ctx = {
@@ -1696,12 +1792,28 @@ c4m_pass_1(c4m_file_compile_ctx *file_ctx)
     };
 
     set_current_node(&ctx, file_ctx->parse_tree);
+
     file_ctx->global_scope    = c4m_new_scope(NULL, C4M_SCOPE_GLOBAL);
     file_ctx->module_scope    = c4m_new_scope(file_ctx->global_scope,
                                            C4M_SCOPE_MODULE);
     file_ctx->attribute_scope = c4m_new_scope(NULL, C4M_SCOPE_ATTRIBUTES);
     file_ctx->imports         = c4m_new_scope(NULL, C4M_SCOPE_IMPORTS);
+    file_ctx->parameters      = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
+                                                  c4m_tspec_ref()));
     ctx.cur->static_scope     = file_ctx->module_scope;
     ctx.static_scope          = file_ctx->module_scope;
+    ctx.unbound               = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
+                                         c4m_tspec_ref()));
+
+    c4m_pnode_t *pnode = get_pnode(file_ctx->parse_tree);
+
+    if (pnode->short_doc) {
+        file_ctx->short_doc = c4m_token_raw_content(pnode->short_doc);
+
+        if (pnode->long_doc) {
+            file_ctx->long_doc = c4m_token_raw_content(pnode->long_doc);
+        }
+    }
+
     pass_dispatch(&ctx);
 }

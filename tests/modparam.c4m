@@ -20,7 +20,7 @@ parameter var example1 {
   validator: func example_checker(int) -> string
 }
 
-parameter var example2 {
+parameter example.two {
   "This should be some documentation."
   "Also this."
   validator: func example_checker(int) -> string

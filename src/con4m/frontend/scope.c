@@ -73,3 +73,9 @@ c4m_declare_symbol(c4m_file_compile_ctx *ctx,
 
     return old;
 }
+
+c4m_scope_entry_t *
+c4m_lookup_symbol(c4m_scope_t *scope, c4m_utf8_t *name)
+{
+    return hatrack_dict_get(scope->symbols, name, NULL);
+}

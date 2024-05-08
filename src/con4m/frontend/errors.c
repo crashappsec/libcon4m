@@ -618,6 +618,18 @@ static error_info_t error_info[] = {
         "Modules may only have a single [em]confspec[/] section.",
         false,
     },
+    [c4m_err_dupe_param] = {
+        c4m_err_dupe_param,
+        "dupe_param",
+        "Multiple parameter specifications for the same parameter are not allowed in one module.",
+        false,
+    },
+    [c4m_err_const_param] = {
+        c4m_err_const_param,
+        "const_param",
+        "Module parameters may not be [em]const[/] variables.",
+        false,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",

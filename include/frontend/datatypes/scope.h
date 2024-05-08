@@ -44,7 +44,7 @@ typedef struct {
     c4m_type_t  *type;
     unsigned int ffi_holds  : 1;
     unsigned int ffi_allocs : 1;
-} c4m_param_info_t;
+} c4m_fn_param_info_t;
 
 typedef struct {
     // The `value` field gets the proper value for vars and enums, but
@@ -65,6 +65,16 @@ typedef struct {
     c4m_type_t      *inferred_type;
 } c4m_scope_entry_t;
 
+typedef struct {
+    c4m_utf8_t        *short_doc;
+    c4m_utf8_t        *long_doc;
+    c4m_obj_t          callback;
+    c4m_obj_t          validator;
+    c4m_obj_t          default_value;
+    unsigned int       have_default : 1;
+    c4m_scope_entry_t *linked_symbol;
+} c4m_module_param_info_t;
+
 typedef struct c4m_scope_t {
     struct c4m_scope_t *parent;
     c4m_dict_t         *symbols;
@@ -72,12 +82,12 @@ typedef struct c4m_scope_t {
 } c4m_scope_t;
 
 typedef struct {
-    c4m_type_t       *full_type;
-    c4m_scope_t      *fn_scope;
-    c4m_param_info_t *param_info;
-    c4m_param_info_t  return_info;
-    int               num_params;
-    unsigned int      pure : 1;
+    c4m_type_t          *full_type;
+    c4m_scope_t         *fn_scope;
+    c4m_fn_param_info_t *param_info;
+    c4m_fn_param_info_t  return_info;
+    int                  num_params;
+    unsigned int         pure : 1;
 } c4m_sig_info_t;
 
 typedef struct {

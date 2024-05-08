@@ -101,6 +101,8 @@ typedef enum {
     c4m_err_dupe_root_section,
     c4m_err_dupe_section,
     c4m_err_dupe_confspec,
+    c4m_err_dupe_param,
+    c4m_err_const_param,
     c4m_err_last,
 } c4m_compile_error_t;
 

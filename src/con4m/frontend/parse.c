@@ -275,7 +275,6 @@ static const node_type_info_t node_type_info[] = {
     { "nt_extern_holds", 0, 0, 0, 0, 0, },
     { "nt_extern_allocs", 0, 0, 0, 0, 0, },
     { "nt_extern_return", 0, 0, 0, 0, 0, },
-    { "nt_extern_expression", 0, 0, 0, 0, 0, },
     { "nt_label", 1, 1, 0, 0, 0, },
     { "nt_case", 0, 0, 0, 0, 0, },
     { "nt_range", 0, 0, 0, 0, 0, },
@@ -285,8 +284,6 @@ static const node_type_info_t node_type_info[] = {
     { "nt_section_prop", 1, 0, 0, 0, 0, },
     { "nt_field_spec", 0, 0, 0, 1, 0, },
     { "nt_field_prop", 1, 0, 0, 0, 0, },
-    { "nt_short_doc_string", 1, 1, 0, 0, 0, },
-    { "nt_long_doc_string", 1, 1, 0, 0, 0, },
     { "nt_expression", 0, 0, 0, 0, 0, },
     // clang-format on
 };
@@ -1093,6 +1090,8 @@ parameter_block(parse_ctx *ctx)
         basic_member_expr(ctx);
         break;
     case c4m_tt_var:
+        consume(ctx);
+        identifier(ctx);
         break;
     default:
         add_parse_error(ctx, c4m_err_parse_bad_param_start);
@@ -3974,6 +3973,10 @@ c4m_format_parse_tree(c4m_file_compile_ctx *ctx)
 bool
 c4m_parse(c4m_file_compile_ctx *file_ctx)
 {
+    if (c4m_fatal_error_in_module(file_ctx)) {
+        return false;
+    }
+
     parse_ctx ctx = {
         .cur          = NULL,
         .file_ctx     = file_ctx,
