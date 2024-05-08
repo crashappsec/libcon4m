@@ -420,7 +420,6 @@ kid_match_from(search_ctx_t    *ctx,
     //
     // If it turns out there's a good reason for maximal munch, we
     // just need to run this loop backwards.
-
     next_pattern++;
 
     next_child += subpattern->min;
@@ -428,7 +427,7 @@ kid_match_from(search_ctx_t    *ctx,
     c4m_tpat_node_t *pnew          = parent_pattern->children[next_pattern];
     void            *next_contents = pnew->contents;
 
-    for (int i = subpattern->min; i <= num_matches + subpattern->min; i++) {
+    for (int i = 0; i <= num_matches; i++) {
         c4m_set_t *copy = NULL;
 
         if (ctx->captures != NULL) {
@@ -524,7 +523,6 @@ walk_match(search_ctx_t *ctx, void *contents, bool capture_match)
 static bool
 full_match(search_ctx_t *ctx, void *contents)
 {
-    tpat_debug(ctx, "enter full");
     // Full match doesn't look at min/max; it checks content and
     // children only.
 
@@ -542,7 +540,6 @@ full_match(search_ctx_t *ctx, void *contents)
         ctx->pattern_cur = saved_pattern;
         ctx->captures    = merge_captures(saved_captures, ctx->captures);
 
-        tpat_debug(ctx, "exit full 1");
         return result;
     }
 
@@ -550,7 +547,6 @@ full_match(search_ctx_t *ctx, void *contents)
         ctx->tree_cur    = saved_tree_node;
         ctx->pattern_cur = saved_pattern;
         ctx->captures    = saved_captures;
-        tpat_debug(ctx, "exit full 2");
         return false;
     }
 
@@ -564,6 +560,5 @@ full_match(search_ctx_t *ctx, void *contents)
         capture(ctx, saved_tree_node);
     }
 
-    tpat_debug(ctx, "exit full 3");
     return result;
 }

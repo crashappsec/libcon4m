@@ -260,12 +260,9 @@ static const node_type_info_t node_type_info[] = {
     { "nt_index", 0, 0, 0, 0, 0, },
     { "nt_call", 0, 0, 0, 0, 0, },
     { "nt_paren_expr", 0, 0, 0, 0, 0, },
-    { "nt_var_decls", 0, 0, 0, 0, 0, },
-    { "nt_global_decls", 0, 0, 0, 0, 0, },
-    { "nt_const_var_decls", 0, 0, 0, 0, 0, },
-    { "nt_const_global_decls", 0, 0, 0, 0, 0, },
-    { "nt_const_decls,", 0, 0, 0, 0, 0, },
+    { "nt_variable_decls", 0, 0, 0, 0, 0, },
     { "nt_sym_decl", 0, 0, 0, 0, 0, },
+    { "nt_decl_qualifiers", 0, 0, 0, 0, 0, },
     { "nt_use", 0, 0, 0, 0, 0, },
     { "nt_param_block", 0, 0, 0, 1, 0, },
     { "nt_param_prop", 1, 0, 0, 0, 0, },
@@ -1096,9 +1093,6 @@ parameter_block(parse_ctx *ctx)
         basic_member_expr(ctx);
         break;
     case c4m_tt_var:
-        if (variable_decl(ctx) != c4m_nt_var_decls) {
-            add_parse_error(ctx, c4m_err_parse_mod_param_no_const);
-        }
         break;
     default:
         add_parse_error(ctx, c4m_err_parse_bad_param_start);
@@ -1333,17 +1327,28 @@ extern_block(parse_ctx *ctx)
 static void
 enum_stmt(parse_ctx *ctx)
 {
-    if (tok_kind(ctx) == c4m_tt_global) {
+    switch (tok_kind(ctx)) {
+    case c4m_tt_private:
+        start_node(ctx, c4m_nt_enum, true);
+        consume(ctx); // enum being next validated by caller.
+        break;
+    case c4m_tt_global:
         start_node(ctx, c4m_nt_global_enum, true);
         consume(ctx); // enum being next validated by caller.
-    }
-    else {
-        if (lookahead(ctx, 1, false) == c4m_tt_global) {
+        break;
+    default:
+        switch (lookahead(ctx, 1, false)) {
+        case c4m_tt_global:
             start_node(ctx, c4m_nt_global_enum, true);
             consume(ctx);
-        }
-        else {
+            break;
+        case c4m_tt_private:
             start_node(ctx, c4m_nt_enum, true);
+            consume(ctx);
+            break;
+        default:
+            start_node(ctx, c4m_nt_global_enum, true);
+            break;
         }
     }
 
@@ -1503,7 +1508,9 @@ if_stmt(parse_ctx *ctx)
 static void
 for_var_list(parse_ctx *ctx)
 {
-    start_node(ctx, c4m_nt_var_decls, false);
+    start_node(ctx, c4m_nt_variable_decls, false);
+    start_node(ctx, c4m_nt_decl_qualifiers, false);
+    end_node(ctx);
 
     while (true) {
         identifier(ctx);
@@ -1917,9 +1924,19 @@ switch_stmt(parse_ctx *ctx)
 }
 
 static void
-symbol_info(parse_ctx *ctx)
+optional_initializer(parse_ctx *ctx)
 {
-    start_node(ctx, c4m_nt_var_decls, false);
+    if (match(ctx, c4m_tt_colon, c4m_tt_assign) != c4m_tt_error) {
+        start_node(ctx, c4m_nt_assign, true);
+        adopt_kid(ctx, expression(ctx));
+        end_node(ctx);
+    }
+}
+
+static void
+symbol_info(parse_ctx *ctx, bool allow_assignment)
+{
+    start_node(ctx, c4m_nt_sym_decl, false);
 
     while (true) {
         if (tok_kind(ctx) == c4m_tt_mul) {
@@ -1935,6 +1952,14 @@ symbol_info(parse_ctx *ctx)
     if (tok_kind(ctx) == c4m_tt_colon) {
         consume(ctx);
         type_spec(ctx);
+    }
+
+    // Right now, I'm not yet dealing with default parameters, so this
+    // flag is meant to temporarily disable them syntacticall, so that
+    // they still work in variable declarations.
+
+    if (allow_assignment) {
+        optional_initializer(ctx);
     }
 
     end_node(ctx);
@@ -1966,7 +1991,7 @@ formal_list(parse_ctx *ctx)
 
     if (tok_kind(ctx) == c4m_tt_identifier) {
         while (true) {
-            symbol_info(ctx);
+            symbol_info(ctx, false);
             if (tok_kind(ctx) == c4m_tt_mul) {
                 varargs_param(ctx);
                 goto finish_formals;
@@ -2034,11 +2059,14 @@ variable_decl(parse_ctx *ctx)
     bool got_global = false;
     bool got_const  = false;
 
-    start_node(ctx, c4m_nt_error, false);
+    start_node(ctx, c4m_nt_variable_decls, false);
+    start_node(ctx, c4m_nt_decl_qualifiers, false);
 
     while (true) {
         switch (tok_kind(ctx)) {
         case c4m_tt_var:
+            start_node(ctx, c4m_nt_identifier, true);
+            end_node(ctx);
             if (got_var) {
                 end_node(ctx);
                 err_skip_stmt(ctx, c4m_err_parse_decl_kw_x2);
@@ -2047,6 +2075,8 @@ variable_decl(parse_ctx *ctx)
             got_var = true;
             break;
         case c4m_tt_global:
+            start_node(ctx, c4m_nt_identifier, true);
+            end_node(ctx);
             if (got_global) {
                 end_node(ctx);
                 err_skip_stmt(ctx, c4m_err_parse_decl_kw_x2);
@@ -2055,6 +2085,8 @@ variable_decl(parse_ctx *ctx)
             got_global = true;
             break;
         case c4m_tt_const:
+            start_node(ctx, c4m_nt_identifier, true);
+            end_node(ctx);
             if (got_const) {
                 end_node(ctx);
                 err_skip_stmt(ctx, c4m_err_parse_decl_kw_x2);
@@ -2065,43 +2097,23 @@ variable_decl(parse_ctx *ctx)
         default:
             goto done_with_qualifiers;
         }
-        consume(ctx);
     }
 
 done_with_qualifiers:
+    end_node(ctx);
+
     if (got_var && got_global) {
         end_node(ctx);
         err_skip_stmt(ctx, c4m_err_parse_decl_2_scopes);
         return c4m_nt_error;
     }
 
-    if (!got_var && !got_global) {
-        current_parse_node(ctx)->kind = c4m_nt_const_decls;
-    }
-    else {
-        if (got_var) {
-            if (got_const) {
-                current_parse_node(ctx)->kind = c4m_nt_const_var_decls;
-            }
-            else {
-                current_parse_node(ctx)->kind = c4m_nt_var_decls;
-            }
-        }
-        else {
-            if (got_const) {
-                current_parse_node(ctx)->kind = c4m_nt_const_global_decls;
-            }
-            else {
-                current_parse_node(ctx)->kind = c4m_nt_global_decls;
-            }
-        }
-    }
-
+    // First symbol name we do not expect a comma, so jump past it.
     goto first_sym;
     while (tok_kind(ctx) == c4m_tt_comma) {
         consume(ctx);
 first_sym:
-        symbol_info(ctx);
+        symbol_info(ctx, true);
     }
 
     c4m_node_kind_t result = current_parse_node(ctx)->kind;
@@ -3813,8 +3825,9 @@ module(parse_ctx *ctx)
             case c4m_tt_global:
                 if (lookahead(ctx, 1, false) == c4m_tt_enum) {
                     enum_stmt(ctx);
+                    continue;
                 }
-                continue;
+                // fallthrough
             case c4m_tt_var:
             case c4m_tt_const:
                 variable_decl(ctx);

@@ -144,7 +144,7 @@ c4m_set_shallow_copy(c4m_set_t *s)
 
     c4m_set_t *result = c4m_new(c4m_get_my_type(s));
     uint64_t   count  = 0;
-    void     **items  = (void **)c4m_set_items(s, &count);
+    void     **items  = (void **)c4m_set_items_sort(s, &count);
 
     for (uint64_t i = 0; i < count; i++) {
         c4m_set_add(result, items[i]);
@@ -163,7 +163,7 @@ c4m_set_to_xlist(c4m_set_t *s)
     c4m_type_t  *item_type = c4m_tspec_get_param(c4m_get_my_type(s), 0);
     c4m_xlist_t *result    = c4m_new(c4m_tspec_xlist(item_type));
     uint64_t     count     = 0;
-    void       **items     = (void **)c4m_set_items(s, &count);
+    void       **items     = (void **)c4m_set_items_sort(s, &count);
 
     for (uint64_t i = 0; i < count; i++) {
         c4m_xlist_append(result, items[i]);

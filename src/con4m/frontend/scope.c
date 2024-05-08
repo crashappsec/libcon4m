@@ -69,7 +69,7 @@ c4m_declare_symbol(c4m_file_compile_ctx *ctx,
                   c4m_new_utf8(symbol_kind_names[old->kind]),
                   old->path,
                   c4m_box_i32(tok->line_no),
-                  c4m_box_i32(tok->line_offset));
+                  c4m_box_i32(tok->line_offset + 1));
 
     return old;
 }

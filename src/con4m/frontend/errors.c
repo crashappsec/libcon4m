@@ -284,7 +284,7 @@ static error_info_t error_info[] = {
     [c4m_err_parse_decl_2_scopes] = {
         c4m_err_parse_decl_2_scopes,
         "decl_2_scopes",
-        "Invalid declaration; cannot be part of two different scopes",
+        "Invalid declaration; cannot be both global and local ([em]var[/])",
         false,
     },
     [c4m_err_parse_case_else_or_end] = {
@@ -681,7 +681,7 @@ format_location(c4m_file_compile_ctx *ctx, c4m_compile_error *err)
     return c4m_cstr_format("[b]{}:{:n}:{:n}:[/]",
                            ctx->path,
                            c4m_box_i32(tok->line_no),
-                           c4m_box_i32(tok->line_offset));
+                           c4m_box_i32(tok->line_offset + 1));
 }
 
 c4m_grid_t *

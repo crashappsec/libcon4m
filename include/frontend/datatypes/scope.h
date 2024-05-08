@@ -26,7 +26,6 @@ typedef enum c4m_scope_kind {
     C4M_SCOPE_LOCAL,
     C4M_SCOPE_ATTRIBUTES,
     C4M_SCOPE_IMPORTS,
-    C4M_SCOPE_FORMALS,
 } c4m_scope_kind;
 
 // For module entries, the c4m_module_info_t data structure
@@ -48,6 +47,11 @@ typedef struct {
 } c4m_param_info_t;
 
 typedef struct {
+    // The `value` field gets the proper value for vars and enums, but
+    // for other types, it gets a pointer to one of the specific data
+    // structures in this file.
+
+    c4m_obj_t        value;
     c4m_utf8_t      *path;
     c4m_utf8_t      *name;
     c4m_tree_node_t *declaration_node;
@@ -59,7 +63,6 @@ typedef struct {
     c4m_symbol_kind  kind;
     c4m_type_t      *declared_type;
     c4m_type_t      *inferred_type;
-    c4m_type_t      *value;
 } c4m_scope_entry_t;
 
 typedef struct c4m_scope_t {
@@ -69,13 +72,20 @@ typedef struct c4m_scope_t {
 } c4m_scope_t;
 
 typedef struct {
-    int               num_params;
     c4m_type_t       *full_type;
+    c4m_scope_t      *fn_scope;
     c4m_param_info_t *param_info;
     c4m_param_info_t  return_info;
+    int               num_params;
     unsigned int      pure : 1;
-    c4m_scope_t      *param_scope;
 } c4m_sig_info_t;
+
+typedef struct {
+    c4m_utf8_t     *short_doc;
+    c4m_utf8_t     *long_doc;
+    c4m_sig_info_t *signature_info;
+    unsigned int private : 1;
+} c4m_fn_decl_t;
 
 typedef struct {
     c4m_utf8_t     *short_doc;
