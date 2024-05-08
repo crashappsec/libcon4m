@@ -19,6 +19,29 @@ static uint64_t                  page_bytes;
 static uint64_t                  page_modulus;
 static uint64_t                  modulus_mask;
 
+static void
+c4m_get_stack_bounds(uint64_t *top, uint64_t *bottom)
+{
+    pthread_t self = pthread_self();
+
+#if defined(__linux__)
+    pthread_attr_t attrs;
+    size_t         size;
+    uint64_t       addr;
+
+    pthread_getattr_np(self, &attrs);
+    pthread_attr_getstack(&attrs, (void **)&addr, &size);
+
+    *bottom = (uint64_t)addr + size;
+    *top    = (uint64_t)addr;
+#elif defined(__APPLE__) || defined(BSD)
+    // Apple at least has no way to get the thread's attr struct that
+    // I can find. But it does provide an API to get at the same data.
+    *bottom = (uint64_t)pthread_get_stackaddr_np(self);
+    *top    = *bottom - pthread_get_stacksize_np(self);
+#endif
+}
+
 // This puts a junk call frame on we scan, which on yhr mac seems
 // to be 256 bytes. Playing it safe and not subtracking it out, though.
 void
