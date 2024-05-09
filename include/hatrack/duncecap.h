@@ -149,7 +149,6 @@ typedef struct {
  *               so that we can avoid an extra indirection.
  */
 typedef struct {
-    alignas(8)
     _Atomic uint64_t    readers;
     uint64_t            last_slot;
     uint64_t            threshold;

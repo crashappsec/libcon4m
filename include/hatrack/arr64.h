@@ -43,7 +43,6 @@ typedef struct {
 } arr64_view_t;
 
 struct arr64_store_t {
-    alignas(8)
     uint64_t                 store_size;
     _Atomic uint64_t         array_size;
     _Atomic (arr64_store_t *)next;

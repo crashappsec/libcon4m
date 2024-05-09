@@ -71,7 +71,7 @@ typedef _Atomic(tiara_record_t) tiara_bucket_t;
 typedef struct tiara_store_st tiara_store_t;
 
 struct tiara_store_st {
-    alignas(8) uint64_t last_slot;
+    uint64_t                 last_slot;
     uint64_t                 threshold;
     _Atomic uint64_t         used_count;
     _Atomic(tiara_store_t *) store_next;

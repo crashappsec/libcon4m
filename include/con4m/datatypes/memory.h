@@ -2,9 +2,9 @@
 
 #include "con4m.h"
 
+#define C4M_FORCED_ALIGNMENT 16
+
 typedef struct {
-    // clang-format off
-    alignas(8)
     // A guard value added to every allocation so that cross-heap
     // memory accesses can scan backwards (if needed) to determine if
     // a write should be forwarded to a new location.
@@ -52,18 +52,18 @@ typedef struct {
     // needs to be long enough to capture all pointers to track in it.
     uint64_t *ptr_map;
 
-    // The actual exposed data.
-    uint64_t data[];
-    // clang-format on
+    // The actual exposed data. This must be 16-byte aligned!
+    alignas(C4M_FORCED_ALIGNMENT) uint64_t data[];
 } c4m_alloc_hdr;
 
 typedef struct c4m_arena_t {
-    alignas(8)
-        c4m_alloc_hdr *next_alloc;
+    c4m_alloc_hdr      *next_alloc;
     c4m_dict_t         *roots;
     struct c4m_arena_t *previous;
     queue_t            *late_mutations;
     uint64_t           *heap_end;
     uint64_t            arena_id;
-    uint64_t            data[];
+
+    // This must be 16-byte aligned!
+    alignas(C4M_FORCED_ALIGNMENT) uint64_t data[];
 } c4m_arena_t;

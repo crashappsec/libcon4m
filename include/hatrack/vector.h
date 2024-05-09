@@ -51,7 +51,6 @@ typedef struct {
 } vec_size_info_t;
 
 struct vector_store_t {
-    alignas(8)
     int64_t                   store_size;
     _Atomic vec_size_info_t   array_size_info;
     _Atomic (vector_store_t *)next;

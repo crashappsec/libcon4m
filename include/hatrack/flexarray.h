@@ -48,7 +48,6 @@ typedef struct {
 } flex_view_t;
 
 struct flex_store_t {
-    alignas(8)
     uint64_t                store_size;
     _Atomic uint64_t        array_size;
     _Atomic (flex_store_t *)next;

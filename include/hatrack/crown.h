@@ -73,7 +73,6 @@ typedef struct crown_store_st crown_store_t;
 
 // clang-format off
 struct crown_store_st {
-    alignas(8)
     uint64_t                 last_slot;
     uint64_t                 threshold;
     _Atomic uint64_t         used_count;
@@ -84,7 +83,6 @@ struct crown_store_st {
 };
 
 typedef struct {
-    alignas(8)
     _Atomic(crown_store_t *) store_current;
     _Atomic uint64_t         item_count;
     _Atomic uint64_t         help_needed;

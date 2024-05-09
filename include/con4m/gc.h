@@ -155,7 +155,7 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
                      const uint64_t *ptr_map)
 {
     // Round up to aligned length.
-    size_t       wordlen = c4m_round_up_to_given_power_of_2(16, len);
+    size_t       wordlen = c4m_round_up_to_given_power_of_2(C4M_FORCED_ALIGNMENT, len);
     c4m_arena_t *arena   = *arena_ptr;
 
     if (arena == 0) {

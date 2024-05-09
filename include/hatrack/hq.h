@@ -54,7 +54,6 @@ typedef struct {
 } hq_view_t;
 
 struct hq_store_t {
-    alignas(8)
     _Atomic (hq_store_t *)next_store;
     uint64_t              size;
     _Atomic uint64_t      enqueue_index;
@@ -64,7 +63,6 @@ struct hq_store_t {
 };
 
 typedef struct {
-    alignas(8)
     _Atomic (hq_store_t *)store;
     _Atomic int64_t       len;
 } hq_t;

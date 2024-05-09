@@ -57,7 +57,6 @@ typedef struct {
 typedef struct woolhat_store_st woolhat_store_t;
 
 struct woolhat_store_st {
-    alignas(8)
     uint64_t                   last_slot;
     uint64_t                   threshold;
     _Atomic uint64_t           used_count;
@@ -66,7 +65,6 @@ struct woolhat_store_st {
 };
 
 typedef struct woolhat_st {
-    alignas(8)
     _Atomic(woolhat_store_t *) store_current;
     _Atomic uint64_t           item_count;
     _Atomic uint64_t           help_needed;

@@ -60,7 +60,7 @@ typedef struct {
 } hatring_view_t;
 
 typedef struct {
-    alignas(16) _Atomic uint64_t epochs;
+    _Atomic uint64_t     epochs;
     hatring_drop_handler drop_handler;
     uint64_t             last_slot;
     uint64_t             size;

@@ -99,7 +99,6 @@ typedef struct {
  *               operation, for the purposes of sort ordering.
  */
 typedef struct {
-    alignas(8)
     uint64_t          last_slot;
     uint64_t          threshold;
     uint64_t          used_count;

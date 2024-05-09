@@ -69,7 +69,6 @@ extern          uint64_t       mmm_reservations[HATRACK_THREADS_MAX];
  */
 // clang-format off
 struct mmm_header_st {
-    alignas(16)
     mmm_header_t    *next;
     _Atomic uint64_t create_epoch;
     _Atomic uint64_t write_epoch;
@@ -78,8 +77,9 @@ struct mmm_header_st {
     void            *cleanup_aux; // Data needed for cleanup, usually the object
     size_t           size;
     uint64_t         padding;
-    alignas(16)
-    uint8_t          data[];
+
+    // This must be 16-byte aligned!
+    alignas(16) uint8_t data[];
 };
 
 struct mmm_free_tids_st {
@@ -215,7 +215,7 @@ static inline void hatrack_debug_mmm(void *, char *);
  * is possible:
  *
  * 1) Our thread runs start_op(), and reads epoch N.
-< * 2) Our thread gets SUSPENDED before recording its reservation.
+ * 2) Our thread gets SUSPENDED before recording its reservation.
  * 3) In epoch N+1, another thread retires a piece of the data structure
  *     that was alive in epoch N.
  * 4) Since no reservations are currently recorded for epoch N, the
