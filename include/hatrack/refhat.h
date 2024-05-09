@@ -21,7 +21,8 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatrack_common.h"
 
 // clang-format off
 
@@ -98,12 +99,12 @@ typedef struct {
  *               operation, for the purposes of sort ordering.
  */
 typedef struct {
-    alignas(8)
     uint64_t          last_slot;
     uint64_t          threshold;
     uint64_t          used_count;
     uint64_t          item_count;
     refhat_bucket_t  *buckets;
+    uint64_t          buckets_size;
     uint64_t          next_epoch;
 } refhat_t;
 

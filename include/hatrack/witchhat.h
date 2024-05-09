@@ -34,7 +34,8 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatrack_common.h"
 
 typedef struct {
     void    *item;
@@ -56,17 +57,14 @@ typedef struct witchhat_store_st witchhat_store_t;
 
 // clang-format off
 struct witchhat_store_st {
-    alignas(8)
     uint64_t                    last_slot;
     uint64_t                    threshold;
     _Atomic uint64_t            used_count;
     _Atomic(witchhat_store_t *) store_next;
-    alignas(16)
     witchhat_bucket_t           buckets[];
 };
 
 typedef struct {
-    alignas(8)
     _Atomic(witchhat_store_t *) store_current;
     _Atomic uint64_t            item_count;
     _Atomic uint64_t            help_needed;

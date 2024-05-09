@@ -157,7 +157,7 @@ oldhat_new(void)
 {
     oldhat_t *ret;
 
-    ret = (oldhat_t *)malloc(sizeof(oldhat_t));
+    ret = (oldhat_t *)hatrack_malloc(sizeof(oldhat_t));
 
     oldhat_init(ret);
 
@@ -169,7 +169,7 @@ oldhat_new_size(char size)
 {
     oldhat_t *ret;
 
-    ret = (oldhat_t *)malloc(sizeof(oldhat_t));
+    ret = (oldhat_t *)hatrack_malloc(sizeof(oldhat_t));
 
     oldhat_init_size(ret, size);
 
@@ -246,7 +246,7 @@ void
 oldhat_delete(oldhat_t *self)
 {
     oldhat_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(oldhat_t));
 
     return;
 }
@@ -445,7 +445,7 @@ oldhat_view(oldhat_t *self, uint64_t *num, bool sort)
 
     store     = atomic_read(&self->store_current);
     alloc_len = sizeof(hatrack_view_t) * (store->last_slot + 1);
-    view      = (hatrack_view_t *)malloc(alloc_len);
+    view      = (hatrack_view_t *)hatrack_malloc(alloc_len);
     p         = view;
 
     for (i = 0; i <= store->last_slot; i++) {
@@ -464,13 +464,13 @@ oldhat_view(oldhat_t *self, uint64_t *num, bool sort)
     *num      = num_items;
 
     if (!num_items) {
-        free(view);
+        hatrack_free(view, alloc_len);
         mmm_end_op();
 
         return NULL;
     }
 
-    view = realloc(view, *num * sizeof(hatrack_view_t));
+    view = hatrack_realloc(view, alloc_len, *num * sizeof(hatrack_view_t));
 
     if (sort) {
         qsort(view, num_items, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
@@ -486,7 +486,7 @@ oldhat_view(oldhat_t *self, uint64_t *num, bool sort)
  * non-zero items.
  *
  * The cleanup handler is called by the memory management system, for
- * us to do any cleanup tasks before the store is finally free()'d.
+ * us to do any cleanup tasks before the store is finally hatrack_free()'d.
  */
 // clang-format off
 

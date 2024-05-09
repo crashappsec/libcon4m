@@ -25,10 +25,7 @@
 
 #pragma once
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdatomic.h>
-#include "hatrack/hatrack_config.h"
+#include "base.h"
 
 #define FLEXARRAY_MIN_STORE_SZ_LOG 4
 
@@ -51,7 +48,6 @@ typedef struct {
 } flex_view_t;
 
 struct flex_store_t {
-    alignas(8)
     uint64_t                store_size;
     _Atomic uint64_t        array_size;
     _Atomic (flex_store_t *)next;

@@ -47,7 +47,9 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatomic.h"
+#include "hq.h"
 
 // clang-format off
 typedef struct {
@@ -62,7 +64,6 @@ typedef _Atomic capq_item_t capq_cell_t;
 typedef struct capq_store_t capq_store_t;
 
 struct capq_store_t {
-    alignas(8)
     _Atomic (capq_store_t *)next_store;
     uint64_t                size;
     _Atomic uint64_t        enqueue_index;
@@ -71,7 +72,6 @@ struct capq_store_t {
 };
 
 typedef struct {
-    alignas(8)
     _Atomic (capq_store_t *)store;
     _Atomic int64_t         len;
 } capq_t;

@@ -164,7 +164,7 @@ hq_new_size(uint64_t size)
 {
     hq_t *ret;
 
-    ret = (hq_t *)malloc(sizeof(hq_t));
+    ret = (hq_t *)hatrack_malloc(sizeof(hq_t));
     hq_init_size(ret, size);
 
     return ret;
@@ -187,7 +187,7 @@ void
 hq_delete(hq_t *self)
 {
     hq_cleanup(self);
-    free(self);
+    hatrack_free(self, sozeof(hq_t));
 
     return;
 }
@@ -426,7 +426,7 @@ hq_view(hq_t *self)
 
     mmm_start_basic_op();
 
-    ret = (hq_view_t *)malloc(sizeof(hq_view_t));
+    ret = (hq_view_t *)hatrack_malloc(sizeof(hq_view_t));
 
     while (true) {
         store    = atomic_read(&self->store);
@@ -478,7 +478,7 @@ hq_view_delete(hq_view_t *view)
 {
     mmm_retire(view->store);
 
-    free(view);
+    hatrack_free(view, sizeof(hq_view_t));
 
     return;
 }

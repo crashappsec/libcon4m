@@ -39,7 +39,7 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
 
 #ifdef HATRACK_DEBUG
 
@@ -54,10 +54,8 @@
  */
 // clang-format off
 typedef struct {
-    alignas(8)
     char      msg[HATRACK_DEBUG_MSG_SIZE];
     char      null;
-    alignas(8)
     uint64_t  sequence;
     int64_t   thread;
 } hatrack_debug_record_t;

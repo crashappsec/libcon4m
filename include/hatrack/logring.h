@@ -149,7 +149,8 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatring.h"
 
 #define LOGRING_MIN_SIZE 64
 
@@ -174,16 +175,17 @@ typedef struct {
 
 // Atomically swapped metadata about entries in the big array.
 typedef struct {
-    uint32_t write_epoch;
+    alignas(16)
+        uint32_t write_epoch;
     uint32_t state;
     uint64_t view_id;
 } logring_entry_info_t;
 
 // Entries in the bigger array.
 typedef struct {
-    alignas(16) _Atomic logring_entry_info_t info;
-    uint64_t len;
-    char     data[];
+    _Atomic logring_entry_info_t info;
+    uint64_t                     len;
+    char                         data[];
 } logring_entry_t;
 
 enum {
@@ -205,6 +207,7 @@ typedef struct {
     uint64_t            entry_len;
     _Atomic view_info_t view_state;
     hatring_t          *ring;
+    uint64_t            entries_size;
     logring_entry_t    *entries;
 } logring_t;
 

@@ -35,7 +35,8 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatrack_common.h"
 
 // clang-format off
 
@@ -76,6 +77,7 @@
  *          construct a consistent sort order.
  */
 typedef struct {
+    alignas(16)
     void    *item;
     uint64_t epoch;
 } duncecap_record_t;
@@ -106,7 +108,6 @@ typedef struct {
  *           worry about in practice.
  */
 typedef struct {
-    alignas(16)
     _Atomic duncecap_record_t record;
     hatrack_hash_t            hv;
 } duncecap_bucket_t;
@@ -148,11 +149,12 @@ typedef struct {
  *               so that we can avoid an extra indirection.
  */
 typedef struct {
-    alignas(8)
     _Atomic uint64_t    readers;
     uint64_t            last_slot;
     uint64_t            threshold;
     uint64_t            used_count;
+    uint64_t            alloc_len;
+    uint64_t            pad;
     duncecap_bucket_t   buckets[];
 } duncecap_store_t;
 

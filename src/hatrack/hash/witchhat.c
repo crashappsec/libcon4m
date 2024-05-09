@@ -47,7 +47,7 @@ witchhat_new(void)
 {
     witchhat_t *ret;
 
-    ret = (witchhat_t *)malloc(sizeof(witchhat_t));
+    ret = (witchhat_t *)hatrack_malloc(sizeof(witchhat_t));
 
     witchhat_init(ret);
 
@@ -59,7 +59,7 @@ witchhat_new_size(char size)
 {
     witchhat_t *ret;
 
-    ret = (witchhat_t *)malloc(sizeof(witchhat_t));
+    ret = (witchhat_t *)hatrack_malloc(sizeof(witchhat_t));
 
     witchhat_init_size(ret, size);
 
@@ -110,7 +110,7 @@ void
 witchhat_delete(witchhat_t *self)
 {
     witchhat_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(witchhat_t));
 
     return;
 }
@@ -232,7 +232,7 @@ witchhat_view_no_mmm(witchhat_t *self, uint64_t *num, bool sort)
 
     store     = atomic_read(&self->store_current);
     alloc_len = sizeof(hatrack_view_t) * (store->last_slot + 1);
-    view      = (hatrack_view_t *)malloc(alloc_len);
+    view      = (hatrack_view_t *)hatrack_malloc(alloc_len);
     p         = view;
     cur       = store->buckets;
     end       = cur + (store->last_slot + 1);
@@ -256,12 +256,12 @@ witchhat_view_no_mmm(witchhat_t *self, uint64_t *num, bool sort)
     *num      = num_items;
 
     if (!num_items) {
-        free(view);
+        hatrack_free(view, alloc_len);
 
         return NULL;
     }
 
-    view = realloc(view, num_items * sizeof(hatrack_view_t));
+    view = hatrack_realloc(view, alloc_len, num_items * sizeof(hatrack_view_t));
 
     if (sort) {
 	qsort(view, num_items, sizeof(hatrack_view_t), hatrack_quicksort_cmp);

@@ -49,7 +49,7 @@ hihat_new(void)
 {
     hihat_t *ret;
 
-    ret = (hihat_t *)malloc(sizeof(hihat_t));
+    ret = (hihat_t *)hatrack_malloc(sizeof(hihat_t));
 
     hihat_init(ret);
 
@@ -61,7 +61,7 @@ hihat_new_size(char size)
 {
     hihat_t *ret;
 
-    ret = (hihat_t *)malloc(sizeof(hihat_t));
+    ret = (hihat_t *)hatrack_malloc(sizeof(hihat_t));
 
     hihat_init_size(ret, size);
 
@@ -131,7 +131,7 @@ void
 hihat_delete(hihat_t *self)
 {
     hihat_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(hihat_t));
 
     return;
 }
@@ -376,7 +376,7 @@ hihat_view(hihat_t *self, uint64_t *num, bool sort)
 
     store     = atomic_read(&self->store_current);
     alloc_len = sizeof(hatrack_view_t) * (store->last_slot + 1);
-    view      = (hatrack_view_t *)malloc(alloc_len);
+    view      = (hatrack_view_t *)hatrack_malloc(alloc_len);
     p         = view;
     cur       = store->buckets;
     end       = cur + (store->last_slot + 1);
@@ -403,13 +403,13 @@ hihat_view(hihat_t *self, uint64_t *num, bool sort)
     *num      = num_items;
 
     if (!num_items) {
-        free(view);
+        hatrack_free(view, alloc_len);
         mmm_end_op();
 
         return NULL;
     }
 
-    view = realloc(view, num_items * sizeof(hatrack_view_t));
+    view = hatrack_realloc(view, alloc_len, num_items * sizeof(hatrack_view_t));
 
     if (sort) {
 	// Unordered buckets should be in random order, so quicksort

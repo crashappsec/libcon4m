@@ -21,7 +21,10 @@
  */
 
 #pragma once
-#include "hatrack.h"
+#include "base.h"
+#include "malloc.h"
+#include "counters.h"
+#include "mmm.h"
 
 /* hatrack_hash_t
  *
@@ -38,6 +41,9 @@
 typedef __int128_t hatrack_hash_t;
 #else
 typedef struct {
+    // __int128_t is naturally aligned to 16 bytes, but this struct is not.
+    // Force 16-byte alignment to match __int128_t.
+    alignas(16)
     uint64_t w1;
     uint64_t w2;
 } hatrack_hash_t;
@@ -116,6 +122,12 @@ typedef struct {
     void    *item;
     int64_t  sort_epoch;
 } hatrack_view_t;
+
+static inline void
+hatrack_view_delete(hatrack_view_t *view, uint64_t num)
+{
+    hatrack_free(view, sizeof(hatrack_view_t) * num);
+}
 
 /* These inline functions are used across all the hatrack
  * implementations.
@@ -419,7 +431,7 @@ hatrack_or2x64h(generic_2x64_u *s1, uint64_t h)
 #define ORPTR(s1, s2) atomic_fetch_or((_Atomic uint64_t *)(s1), s2)
 
 #define hatrack_cell_alloc(container_type, cell_type, n)                       \
-    (container_type *)zero_alloc(1, sizeof(container_type) + \
+    (container_type *)hatrack_zalloc(sizeof(container_type) + \
 				 sizeof(cell_type) * n)
 
 int  hatrack_quicksort_cmp(const void *, const void *);

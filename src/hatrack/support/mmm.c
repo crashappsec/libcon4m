@@ -294,7 +294,8 @@ mmm_empty(void)
 	    (*tmp->cleanup)(&tmp->data, tmp->cleanup_aux);
 	}
 
-	free(tmp);
+    size_t actual_size = sizeof(mmm_header_t) + tmp->size;
+	hatrack_free(tmp, actual_size);
     }
 
     return;

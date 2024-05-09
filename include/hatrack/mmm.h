@@ -21,7 +21,10 @@
  */
 
 #pragma once
-#include "hatrack.h"
+#include "base.h"
+#include "malloc.h"
+#include "counters.h"
+#include "hatomic.h"
 
 /* This type represents a callback to de-allocate sub-objects before
  * the final free for an object allocated via MMM.
@@ -66,15 +69,17 @@ extern          uint64_t       mmm_reservations[HATRACK_THREADS_MAX];
  */
 // clang-format off
 struct mmm_header_st {
-    alignas(16)
     mmm_header_t    *next;
     _Atomic uint64_t create_epoch;
     _Atomic uint64_t write_epoch;
     uint64_t         retire_epoch;
     mmm_cleanup_func cleanup;
     void            *cleanup_aux; // Data needed for cleanup, usually the object
-    alignas(16)
-    uint8_t          data[];
+    size_t           size;
+    uint64_t         padding;
+
+    // This must be 16-byte aligned!
+    alignas(16) uint8_t data[];
 };
 
 struct mmm_free_tids_st {
@@ -157,7 +162,7 @@ static inline void hatrack_debug_mmm(void *, char *);
  * here, especially considering that, typically, most hash table
  * access is done by readers.
  *
- * Another issue we have with the attempt to commit writes to an epic,
+ * Another issue we have with the attempt to commit writes to an epoch,
  * is that the store into the memory associated with the variable
  * write_epoch is NOT atomic (even without the +1). So the committing
  * thread could get suspended.
@@ -210,7 +215,7 @@ static inline void hatrack_debug_mmm(void *, char *);
  * is possible:
  *
  * 1) Our thread runs start_op(), and reads epoch N.
-< * 2) Our thread gets SUSPENDED before recording its reservation.
+ * 2) Our thread gets SUSPENDED before recording its reservation.
  * 3) In epoch N+1, another thread retires a piece of the data structure
  *     that was alive in epoch N.
  * 4) Since no reservations are currently recorded for epoch N, the
@@ -577,7 +582,7 @@ static inline void *
 mmm_alloc(uint64_t size)
 {
     uint64_t      actual_size = sizeof(mmm_header_t) + size;
-    mmm_header_t *item        = (mmm_header_t *)zero_alloc(1, actual_size);
+    mmm_header_t *item        = hatrack_zalloc(actual_size);
 
     HATRACK_MALLOC_CTR();
     DEBUG_MMM_INTERNAL(item->data, "mmm_alloc");
@@ -593,7 +598,7 @@ static inline void *
 mmm_alloc_committed(uint64_t size)
 {
     uint64_t      actual_size = sizeof(mmm_header_t) + size;
-    mmm_header_t *item        = (mmm_header_t *)zero_alloc(1, actual_size);
+    mmm_header_t *item        = hatrack_zalloc(actual_size);
 
     atomic_store(&item->write_epoch, atomic_fetch_add(&mmm_epoch, 1) + 1);
 
@@ -688,7 +693,8 @@ mmm_retire_unused(void *ptr)
     DEBUG_MMM_INTERNAL(ptr, "mmm_retire_unused");
     HATRACK_RETIRE_UNUSED_CTR();
 
-    free(mmm_get_header(ptr));
+    mmm_header_t *item = mmm_get_header(ptr);
+    hatrack_free(item, sizeof(mmm_header_t) + item->size);
 
     return;
 }

@@ -21,7 +21,8 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "helpmanager.h"
 
 #define VECTOR_MIN_STORE_SZ_LOG 4
 
@@ -50,7 +51,6 @@ typedef struct {
 } vec_size_info_t;
 
 struct vector_store_t {
-    alignas(8)
     int64_t                   store_size;
     _Atomic vec_size_info_t   array_size_info;
     _Atomic (vector_store_t *)next;

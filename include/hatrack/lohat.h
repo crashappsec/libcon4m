@@ -261,7 +261,9 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatrack_common.h"
+#include "lohat_common.h"
 
 /* lohat_history_t
  *
@@ -397,7 +399,6 @@
 // clang-format off
 
 typedef struct {
-    alignas(16)
     _Atomic hatrack_hash_t    hv;
     _Atomic(lohat_record_t *) head;
 } lohat_history_t;
@@ -512,7 +513,6 @@ typedef struct lohat_store_st lohat_store_t;
 // clang-format off
 
 struct lohat_store_st {
-    alignas(8)
     uint64_t                 last_slot;
     uint64_t                 threshold;
     _Atomic uint64_t         used_count;
@@ -550,7 +550,6 @@ struct lohat_store_st {
 // clang-format off
 
 typedef struct lohat_st {
-    alignas(8)
     _Atomic(lohat_store_t *) store_current;
     _Atomic uint64_t         item_count;
 } lohat_t;

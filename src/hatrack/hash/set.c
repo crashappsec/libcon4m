@@ -31,7 +31,7 @@ hatrack_set_new(uint32_t item_type)
 {
     hatrack_set_t *ret;
 
-    ret = (hatrack_set_t *)malloc(sizeof(hatrack_set_t));
+    ret = (hatrack_set_t *)hatrack_malloc(sizeof(hatrack_set_t));
 
     hatrack_set_init(ret, item_type);
 
@@ -108,7 +108,7 @@ hatrack_set_delete(hatrack_set_t *self)
 {
     hatrack_set_cleanup(self);
 
-    free(self);
+    hatrack_free(self, sizeof(hatrack_set_t));
 
     return;
 }
@@ -212,7 +212,7 @@ hatrack_set_items_base(hatrack_set_t *self, uint64_t *num, bool sort)
     epoch = mmm_start_linearized_op();
 
     view = woolhat_view_epoch(&self->woolhat_instance, num, epoch);
-    ret  = malloc(sizeof(void *) * *num);
+    ret  = hatrack_malloc(sizeof(void *) * *num);
 
     if (sort) {
         qsort(view,
@@ -236,7 +236,7 @@ hatrack_set_items_base(hatrack_set_t *self, uint64_t *num, bool sort)
 
     mmm_end_op();
 
-    free(view);
+    hatrack_set_view_delete(view, *num);
 
     return (void *)ret;
 }
@@ -301,8 +301,8 @@ hatrack_set_is_eq(hatrack_set_t *set1, hatrack_set_t *set2)
 finished:
     mmm_end_op();
 
-    free(view1);
-    free(view2);
+    hatrack_set_view_delete(view1, num1);
+    hatrack_set_view_delete(view2, num2);
 
     return ret;
 }
@@ -377,8 +377,8 @@ hatrack_set_is_superset(hatrack_set_t *set1, hatrack_set_t *set2, bool proper)
 finished:
     mmm_end_op();
 
-    free(view1);
-    free(view2);
+    hatrack_set_view_delete(view1, num1);
+    hatrack_set_view_delete(view2, num2);
 
     return ret;
 }
@@ -446,8 +446,8 @@ hatrack_set_is_disjoint(hatrack_set_t *set1, hatrack_set_t *set2)
 finished:
     mmm_end_op();
 
-    free(view1);
-    free(view2);
+    hatrack_set_view_delete(view1, num1);
+    hatrack_set_view_delete(view2, num2);
 
     return ret;
 }
@@ -511,8 +511,8 @@ hatrack_set_difference(hatrack_set_t *set1, hatrack_set_t *set2)
 
     mmm_end_op();
 
-    free(view1);
-    free(view2);
+    hatrack_set_view_delete(view1, num1);
+    hatrack_set_view_delete(view2, num2);
 
     return ret;
 }
@@ -589,8 +589,8 @@ hatrack_set_union(hatrack_set_t *set1, hatrack_set_t *set2)
 
     mmm_end_op();
 
-    free(view1);
-    free(view2);
+    hatrack_set_view_delete(view1, num1);
+    hatrack_set_view_delete(view2, num2);
 
     return ret;
 }
@@ -667,8 +667,8 @@ hatrack_set_intersection(hatrack_set_t *set1, hatrack_set_t *set2)
     }
 
     mmm_end_op();
-    free(view1);
-    free(view2);
+    hatrack_set_view_delete(view1, num1);
+    hatrack_set_view_delete(view2, num2);
 
     return ret;
 }
@@ -740,8 +740,8 @@ hatrack_set_disjunction(hatrack_set_t *set1, hatrack_set_t *set2)
     }
 
     mmm_end_op();
-    free(view1);
-    free(view2);
+    hatrack_set_view_delete(view1, num1);
+    hatrack_set_view_delete(view2, num2);
 
     return ret;
 }

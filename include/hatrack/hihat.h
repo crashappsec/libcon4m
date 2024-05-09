@@ -24,7 +24,9 @@
  */
 
 #pragma once
-#include "hatrack.h"
+
+#include "base.h"
+#include "hatrack_common.h"
 
 /* hihat_record_t
  *
@@ -144,12 +146,10 @@ typedef struct hihat_store_st hihat_store_t;
  */
 // clang-format off
 struct hihat_store_st {
-    alignas(8)
     uint64_t                   last_slot;
     uint64_t                   threshold;
     _Atomic uint64_t           used_count;
     _Atomic(hihat_store_t *)   store_next;
-    alignas(16)
     hihat_bucket_t             buckets[];
 };
 
@@ -172,7 +172,6 @@ struct hihat_store_st {
  *                  operation, for the purposes of sort ordering.
  */
 typedef struct {
-    alignas(8)
     _Atomic(hihat_store_t *) store_current;
     _Atomic uint64_t         item_count;
     uint64_t                 next_epoch;

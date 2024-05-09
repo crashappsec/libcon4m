@@ -36,9 +36,17 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "malloc.h"
+#include "hatomic.h"
+#include "mmm.h"
+
+#include <string.h>
 
 #ifdef __MACH__
+#include <mach/clock.h>
+#include <mach/mach.h>
+
 extern _Bool        clock_service_inited;
 extern clock_serv_t clock_service;
 
@@ -75,7 +83,7 @@ gate_time_diff(duration_t *end, duration_t *start)
 static inline void
 gate_init(gate_t *gate, uint64_t max_threads)
 {
-    bzero(gate->end_times, sizeof(duration_t) * max_threads);
+    memset(gate->end_times, 0, sizeof(duration_t) * max_threads);
 
     gate->max_threads  = max_threads;
     gate->count        = 0;
@@ -89,7 +97,7 @@ gate_new_size(uint64_t mt)
 {
     gate_t *ret;
 
-    ret = (gate_t *)malloc(sizeof(gate_t) + sizeof(duration_t) * mt);
+    ret = (gate_t *)hatrack_malloc(sizeof(gate_t) + sizeof(duration_t) * mt);
 
     gate_init(ret, mt);
 
@@ -105,7 +113,7 @@ gate_new(void)
 static inline void
 gate_delete(gate_t *gate)
 {
-    free(gate);
+    hatrack_free(gate, sizeof(gate_t) + sizeof(duration_t) * gate->max_threads);
 
     return;
 }

@@ -93,7 +93,7 @@ woolhat_new(void)
 {
     woolhat_t *ret;
 
-    ret = (woolhat_t *)malloc(sizeof(woolhat_t));
+    ret = (woolhat_t *)hatrack_malloc(sizeof(woolhat_t));
 
     woolhat_init(ret);
 
@@ -105,7 +105,7 @@ woolhat_new_size(char size)
 {
     woolhat_t *ret;
 
-    ret = (woolhat_t *)malloc(sizeof(woolhat_t));
+    ret = (woolhat_t *)hatrack_malloc(sizeof(woolhat_t));
 
     woolhat_init_size(ret, size);
 
@@ -178,7 +178,7 @@ void
 woolhat_delete(woolhat_t *self)
 {
     woolhat_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(woolhat_t));
 
     return;
 }
@@ -318,16 +318,18 @@ woolhat_view(woolhat_t *self, uint64_t *out_num, bool sort)
     hatrack_view_t    *p;
     woolhat_state_t    state;
     woolhat_record_t  *rec;
+    uint64_t           alloc_len;
     uint64_t           epoch;
     uint64_t           sort_epoch;
     uint64_t           num_items;
 
-    epoch = mmm_start_linearized_op();
-    store = self->store_current;
-    cur   = store->hist_buckets;
-    end   = cur + (store->last_slot + 1);
-    view  = (hatrack_view_t *)malloc(sizeof(hatrack_view_t) * (end - cur));
-    p     = view;
+    epoch     = mmm_start_linearized_op();
+    store     = self->store_current;
+    cur       = store->hist_buckets;
+    end       = cur + (store->last_slot + 1);
+    alloc_len = sizeof(hatrack_view_t) * (end - cur);
+    view      = (hatrack_view_t *)hatrack_malloc(alloc_len);
+    p         = view;
 
     while (cur < end) {
         state = atomic_read(&cur->state);
@@ -369,13 +371,13 @@ woolhat_view(woolhat_t *self, uint64_t *out_num, bool sort)
     *out_num  = num_items;
 
     if (!num_items) {
-        free(view);
+        hatrack_free(view, alloc_len);
         mmm_end_op();
 
         return NULL;
     }
 
-    view = (hatrack_view_t *)realloc(view, num_items * sizeof(hatrack_view_t));
+    view = (hatrack_view_t *)hatrack_realloc(view, alloc_len, num_items * sizeof(hatrack_view_t));
 
     if (sort) {
         qsort(view, num_items, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
@@ -417,7 +419,7 @@ woolhat_view_epoch(woolhat_t *self, uint64_t *out_num, uint64_t epoch)
     cur       = store->hist_buckets;
     end       = cur + (store->last_slot + 1);
     alloc_len = sizeof(hatrack_set_view_t);
-    view      = (hatrack_set_view_t *)zero_alloc(end - cur, alloc_len);
+    view      = (hatrack_set_view_t *)hatrack_zalloc((end - cur) * alloc_len);
     p         = view;
 
     while (cur < end) {
@@ -462,13 +464,13 @@ woolhat_view_epoch(woolhat_t *self, uint64_t *out_num, uint64_t epoch)
     *out_num  = num_items;
 
     if (!num_items) {
-        free(view);
-
+        hatrack_free(view, alloc_len);
         return NULL;
     }
 
-    alloc_len = num_items * sizeof(hatrack_set_view_t);
-    view      = (hatrack_set_view_t *)realloc(view, alloc_len);
+    view = (hatrack_set_view_t *)hatrack_realloc(view,
+                                                 alloc_len,
+                                                 num_items * sizeof(hatrack_set_view_t));
 
     return view;
 }

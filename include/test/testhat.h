@@ -84,7 +84,7 @@ static inline void
 testhat_delete(testhat_t *self)
 {
     (*self->vtable.delete)(self->htable);
-    free(self);
+    hatrack_free(self, sizeof(testhat_t));
 
     return;
 }
@@ -142,7 +142,7 @@ static inline void
 testhat_delete64(testhat_t *self)
 {
     (*self->vtable.delete)(self->htable);
-    free(self);
+    hatrack_free(self, sizeof(testhat_t));
 
     return;
 }

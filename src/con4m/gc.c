@@ -52,6 +52,27 @@ c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom)
     *top = (uint64_t)(&local);
 }
 
+static void *
+c4m_gc_malloc_wrapper(size_t size)
+{
+    // Hatrack wants a 16-byte aligned pointer. The con4m gc allocator will
+    // always produce a 16-byte aligned pointer. The raw allocation header is
+    // 48 bytes and its base pointer is always 16-byte aligned.
+    return c4m_gc_malloc(size);
+}
+
+static void
+c4m_gc_free_wrapper(void *oldptr, size_t size)
+{
+    // do nothing; memory is garbage collected
+}
+
+static void *
+c4m_gc_realloc_wrapper(void *oldptr, size_t oldsize, size_t newsize)
+{
+    return c4m_gc_resize(oldptr, newsize);
+}
+
 void
 c4m_initialize_gc()
 {
@@ -67,6 +88,13 @@ c4m_initialize_gc()
 
         c4m_gc_trace("init:set_guard:%llx", c4m_gc_guard);
         c4m_gc_trace("init:global_root_addr:@%p", global_roots);
+
+        // use c4m_gc_malloc_wrapper for hatrack's zalloc function since our
+        // gc allocator always returns zeroed memory.
+        hatrack_setmallocfns(c4m_gc_malloc_wrapper,
+                             c4m_gc_malloc_wrapper,
+                             c4m_gc_realloc_wrapper,
+                             c4m_gc_free_wrapper);
 
         hatrack_dict_init(global_roots, HATRACK_DICT_KEY_TYPE_PTR);
     }

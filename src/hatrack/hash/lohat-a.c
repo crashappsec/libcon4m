@@ -63,7 +63,7 @@ lohat_a_new(void)
 {
     lohat_a_t *ret;
 
-    ret = (lohat_a_t *)malloc(sizeof(lohat_a_t));
+    ret = (lohat_a_t *)hatrack_malloc(sizeof(lohat_a_t));
 
     lohat_a_init(ret);
 
@@ -135,7 +135,7 @@ void
 lohat_a_delete(lohat_a_t *self)
 {
     lohat_a_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(lohat_a_t));
 
     return;
 }
@@ -237,6 +237,7 @@ lohat_a_view(lohat_a_t *self, uint64_t *out_num, bool sort)
     hatrack_view_t    *view;
     hatrack_view_t    *p;
     lohat_record_t    *rec;
+    uint64_t           alloc_len;
     uint64_t           epoch;
     uint64_t           sort_epoch;
     uint64_t           num_items;
@@ -250,8 +251,9 @@ lohat_a_view(lohat_a_t *self, uint64_t *out_num, bool sort)
         end = store->hist_end;
     }
 
-    view = (hatrack_view_t *)malloc(sizeof(hatrack_view_t) * (end - cur));
-    p    = view;
+    alloc_len = sizeof(hatrack_view_t) * (end - cur);
+    view      = (hatrack_view_t *)hatrack_malloc(alloc_len);
+    p         = view;
 
     while (cur < end) {
         rec = hatrack_pflag_clear(atomic_read(&cur->head),
@@ -285,13 +287,13 @@ lohat_a_view(lohat_a_t *self, uint64_t *out_num, bool sort)
     *out_num  = num_items;
 
     if (!num_items) {
-        free(view);
+        hatrack_free(view, alloc_len);
         mmm_end_op();
 
         return NULL;
     }
 
-    view = realloc(view, num_items * sizeof(hatrack_view_t));
+    view = hatrack_realloc(view, alloc_len, num_items * sizeof(hatrack_view_t));
 
     if (sort) {
         /* Since we're keeping history buckets somewhat ordered, an

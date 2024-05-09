@@ -31,7 +31,7 @@ hatrack_dict_new(uint32_t key_type)
 {
     hatrack_dict_t *ret;
 
-    ret = (hatrack_dict_t *)malloc(sizeof(hatrack_dict_t));
+    ret = (hatrack_dict_t *)hatrack_malloc(sizeof(hatrack_dict_t));
 
     hatrack_dict_init(ret, key_type);
 
@@ -109,7 +109,7 @@ hatrack_dict_delete(hatrack_dict_t *self)
 {
     hatrack_dict_cleanup(self);
 
-    free(self);
+    hatrack_free(self, sizeof(hatrack_dict_t));
 
     return;
 }
@@ -397,7 +397,7 @@ hatrack_dict_keys_base(hatrack_dict_t *self, uint64_t *num, bool sort)
     }
 
     alloc_len = sizeof(hatrack_dict_key_t) * *num;
-    ret       = (hatrack_dict_key_t *)malloc(alloc_len);
+    ret       = (hatrack_dict_key_t *)hatrack_malloc(alloc_len);
 
     if (self->key_return_hook) {
 	for (i = 0; i < *num; i++) {
@@ -416,7 +416,7 @@ hatrack_dict_keys_base(hatrack_dict_t *self, uint64_t *num, bool sort)
 
     mmm_end_op();
 
-    free(view);
+    hatrack_view_delete(view, *num);
 
     return ret;
 }
@@ -440,7 +440,7 @@ hatrack_dict_values_base(hatrack_dict_t *self, uint64_t *num, bool sort)
     }
 
     alloc_len = sizeof(hatrack_dict_value_t) * *num;
-    ret       = (hatrack_dict_value_t *)malloc(alloc_len);
+    ret       = (hatrack_dict_value_t *)hatrack_malloc(alloc_len);
 
     if (self->val_return_hook) {
 	for (i = 0; i < *num; i++) {
@@ -458,7 +458,7 @@ hatrack_dict_values_base(hatrack_dict_t *self, uint64_t *num, bool sort)
 
     mmm_end_op();
 
-    free(view);
+    hatrack_view_delete(view, *num);
 
     return ret;
 }
@@ -482,7 +482,7 @@ hatrack_dict_items_base(hatrack_dict_t *self, uint64_t *num, bool sort)
     }
 
     alloc_len = sizeof(hatrack_dict_item_t) * *num;
-    ret       = (hatrack_dict_item_t *)malloc(alloc_len);
+    ret       = (hatrack_dict_item_t *)hatrack_malloc(alloc_len);
 
     for (i = 0; i < *num; i++) {
 	item         = (hatrack_dict_item_t *)view[i].item;
@@ -499,7 +499,7 @@ hatrack_dict_items_base(hatrack_dict_t *self, uint64_t *num, bool sort)
 
     mmm_end_op();
 
-    free(view);
+    hatrack_view_delete(view, *num);
 
     return ret;
 }

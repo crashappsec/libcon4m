@@ -19,51 +19,11 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#pragma once
-#include <stdio.h>
-#include <strings.h>
-#include <limits.h>
-#include <time.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <pthread.h>
-#include <stdalign.h>
-#include <stdatomic.h>
-#include <stdint.h>
-#include <stdalign.h>
-#include <sys/wait.h>
-
-#ifdef __MACH__
-#include <mach/clock.h>
-#include <mach/mach.h>
-#endif
-
-typedef struct hatrack_queue_t queue_t;
-#ifndef NO_CON4M
-#include "con4m.h"
-
-static inline void *c4m_gc_malloc(size_t);
-
-#define malloc(x)        c4m_gc_malloc(x)
-#define free(x)          x // In case it has side effects.
-#define realloc(x, y)    c4m_gc_resize(x, y)
-#define zero_alloc(x, y) c4m_gc_malloc((x) * (y))
-#else
-#define zero_alloc(x, y) calloc(x, y)
-#endif
-
-// This dance ensures we circumvent the above function-like macro.
-static inline void
-free_libc_allocation(void *ptr)
-{
-    void (*p)(void *) = free;
-
-    (*p)(ptr);
-}
+#include "hatrack/base.h"
+#include "hatrack/debug.h"
+#include "hatrack/malloc.h"
 
 #include "hatrack/xxhash.h"
-#include "hatrack/hatrack_config.h"
-#include "hatrack/debug.h"
 #include "hatrack/counters.h"
 #include "hatrack/hatomic.h"
 #include "hatrack/mmm.h"
@@ -100,7 +60,6 @@ free_libc_allocation(void *ptr)
 #include "hatrack/stack.h"
 #include "hatrack/hatring.h"
 #include "hatrack/logring.h"
-#include "hatrack/crown.h"
 
 // These aren't fully finished.
 #ifdef HATRACK_UNFINISHED_ALGORITHMS

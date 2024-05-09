@@ -31,7 +31,7 @@ llstack_new(void)
 {
     llstack_t *ret;
 
-    ret = (llstack_t *)malloc(sizeof(llstack_t));
+    ret = (llstack_t *)hatrack_malloc(sizeof(llstack_t));
 
     llstack_init(ret);
 
@@ -64,7 +64,7 @@ void
 llstack_delete(llstack_t *self)
 {
     llstack_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(llstack_t));
 
     return;
 }

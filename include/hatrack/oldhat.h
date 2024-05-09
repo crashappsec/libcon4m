@@ -29,7 +29,8 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatrack_common.h"
 
 /* oldhat_record_t
  *
@@ -144,7 +145,6 @@ typedef struct oldhat_store_st oldhat_store_t;
  */
 // clang-format off
 struct oldhat_store_st {
-    alignas(8)
     uint64_t                   last_slot;
     uint64_t                   threshold;
     _Atomic uint64_t           used_count;
@@ -169,7 +169,6 @@ struct oldhat_store_st {
  */
 // clang-format off
 typedef struct {
-    alignas(8)
     _Atomic(oldhat_store_t *) store_current;
     _Atomic uint64_t          item_count;
 } oldhat_t;

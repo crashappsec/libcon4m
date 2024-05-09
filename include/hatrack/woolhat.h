@@ -23,7 +23,9 @@
 
 #pragma once
 
-#include "hatrack/hatrack_common.h"
+#include "base.h"
+#include "malloc.h"
+#include "hatrack_common.h"
 
 typedef struct woolhat_record_st woolhat_record_t;
 
@@ -47,7 +49,6 @@ typedef struct {
 } woolhat_state_t;
 
 typedef struct {
-    alignas(16)
     _Atomic hatrack_hash_t  hv;
     _Atomic woolhat_state_t state;
 } woolhat_history_t;
@@ -55,7 +56,6 @@ typedef struct {
 typedef struct woolhat_store_st woolhat_store_t;
 
 struct woolhat_store_st {
-    alignas(8)
     uint64_t                   last_slot;
     uint64_t                   threshold;
     _Atomic uint64_t           used_count;
@@ -64,7 +64,6 @@ struct woolhat_store_st {
 };
 
 typedef struct woolhat_st {
-    alignas(8)
     _Atomic(woolhat_store_t *) store_current;
     _Atomic uint64_t           item_count;
     _Atomic uint64_t           help_needed;
@@ -83,6 +82,12 @@ typedef struct {
     void          *item;
     int64_t        sort_epoch;
 } hatrack_set_view_t;
+
+static inline void
+hatrack_set_view_delete(hatrack_set_view_t *view, uint64_t num)
+{
+    hatrack_free(view, sizeof(hatrack_set_view_t) * num);
+}
 
 woolhat_t      *woolhat_new             (void);
 woolhat_t      *woolhat_new_size        (char);

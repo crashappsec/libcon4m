@@ -12,6 +12,7 @@
 #include <test/testhat.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 typedef struct {
@@ -260,7 +261,7 @@ test_ordering(func_test_info_t *info)
     view = test_view(info->dict, &n, true);
 
     if (n != info->range) {
-        free(view);
+        hatrack_view_delete(view, n);
         return false;
     }
 
@@ -269,7 +270,7 @@ test_ordering(func_test_info_t *info)
         v = (uint32_t)(((uint64_t)view[i].item) & 0xffffffff);
         if (k != v) {
 	    printf("k(%d) != v(%d)\n", k, v);
-            free(view);
+            hatrack_view_delete(view, n);
             return false;
         }
 
@@ -277,12 +278,12 @@ test_ordering(func_test_info_t *info)
 	    printf("%d != %d\n",
 		   (i + (info->range / 2) + 1) % info->range,
 		   k % info->range);
-            free(view);
+            hatrack_view_delete(view, n);
             return false;
         }
     }
 
-    free(view);
+    hatrack_view_delete(view, n);
 
     return true;
 }

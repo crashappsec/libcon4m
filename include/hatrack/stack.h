@@ -29,7 +29,7 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
 
 /* "Valid after" means that, in any epoch after the epoch stored in
  * this field, pushers that are assigned that slot are free to try
@@ -58,8 +58,7 @@ typedef struct {
 } stack_view_t;
 
 struct stack_store_t {
-    alignas(8)
-        uint64_t num_cells;
+    uint64_t                 num_cells;
     _Atomic uint64_t         head_state;
     _Atomic(stack_store_t *) next_store;
     _Atomic bool             claimed;
@@ -67,8 +66,8 @@ struct stack_store_t {
 };
 
 typedef struct {
-    alignas(8) _Atomic(stack_store_t *) store;
-    uint64_t compress_threshold;
+    _Atomic(stack_store_t *) store;
+    uint64_t                 compress_threshold;
 
 #ifdef HATSTACK_WAIT_FREE
     _Atomic int64_t push_help_shift;

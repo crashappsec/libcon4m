@@ -34,7 +34,8 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatrack_common.h"
 
 // clang-format off
 
@@ -78,6 +79,7 @@
  *          point on which to construct a consistent sort order.
  */
 typedef struct {
+    alignas(16)
     void    *item;
     uint64_t epoch;
 } swimcap_record_t;
@@ -111,7 +113,6 @@ typedef struct {
  *           worry about in practice.
  */
 typedef struct {
-    alignas(16)
     _Atomic swimcap_record_t record;
     hatrack_hash_t           hv;
 } swimcap_bucket_t;

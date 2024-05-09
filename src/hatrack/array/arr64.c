@@ -43,7 +43,7 @@ arr64_new(uint64_t initial_size)
 {
     arr64_t *arr;
 
-    arr = (arr64_t *)malloc(sizeof(arr64_t));
+    arr = (arr64_t *)hatrack_malloc(sizeof(arr64_t));
 
     arr64_init(arr, initial_size);
 
@@ -109,7 +109,7 @@ void
 arr64_delete(arr64_t *self)
 {
     arr64_cleanup(self);
-    free(self);
+    hatrack_free(self, sizeof(arr64_t));
 
     return;
 }
@@ -304,7 +304,7 @@ arr64_view(arr64_t *self)
 
     mmm_end_op();
 
-    ret           = (arr64_view_t *)malloc(sizeof(arr64_view_t));
+    ret           = (arr64_view_t *)hatrack_malloc(sizeof(arr64_view_t));
     ret->contents = store;
     ret->next_ix  = 0;
 
@@ -354,7 +354,7 @@ arr64_view_delete(arr64_view_t *view)
 
     mmm_retire(view->contents);
 
-    free(view);
+    hatrack_free(view, sizeof(arr64_view_t));
 
     return;
 }

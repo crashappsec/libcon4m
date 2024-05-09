@@ -120,7 +120,9 @@
 
 #pragma once
 
-#include "hatrack.h"
+#include "base.h"
+#include "hatrack_common.h"
+#include "lohat_common.h"
 
 /* lohat_a_history_t
  *
@@ -145,7 +147,6 @@
 // clang-format off
 
 typedef struct {
-    alignas(16)
     _Atomic hatrack_hash_t    hv;
     _Atomic(lohat_record_t *) head;
 } lohat_a_history_t;
@@ -161,7 +162,6 @@ typedef struct {
  * a particular location in the other array.
  */
 typedef struct {
-    alignas(16)
     _Atomic hatrack_hash_t       hv;
     _Atomic(lohat_a_history_t *) ptr;
 } lohat_a_indirect_t;
@@ -209,21 +209,15 @@ typedef struct lohat_a_store_st lohat_a_store_t;
 
 // clang-format off
 struct lohat_a_store_st {
-    alignas(8)
     uint64_t                     last_slot;
     lohat_a_history_t           *hist_end;
-  alignas(16)
     _Atomic(lohat_a_history_t *) hist_next;
-  alignas(16)
     _Atomic(lohat_a_store_t *)   store_next;
-  alignas(16)
     lohat_a_history_t           *hist_buckets;
-  alignas(16)
     lohat_a_indirect_t           ptr_buckets[];
 };
 
 typedef struct {
-    alignas(8)
     _Atomic(lohat_a_store_t *) store_current;
     _Atomic(uint64_t)          item_count;
 } lohat_a_t;

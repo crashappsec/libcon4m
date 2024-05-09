@@ -30,8 +30,9 @@
 #include <time.h>
 #include <stdio.h>
 
-hatrack_hash_t *precomputed_hashes = NULL;
-static uint64_t num_hashes         = 0;
+hatrack_hash_t *precomputed_hashes      = NULL;
+static size_t   precomputed_hashes_size = 0;
+static uint64_t num_hashes              = 0;
 
 // This is obviously meant to be run single-threaded.
 void
@@ -46,12 +47,15 @@ precompute_hashes(uint64_t max_range)
     alloc_size = sizeof(hatrack_hash_t) * max_range;
 
     if (!precomputed_hashes) {
-        precomputed_hashes = (hatrack_hash_t *)malloc(alloc_size);
+        precomputed_hashes = (hatrack_hash_t *)hatrack_malloc(alloc_size);
     }
     else {
         precomputed_hashes
-            = (hatrack_hash_t *)realloc(precomputed_hashes, alloc_size);
+            = (hatrack_hash_t *)hatrack_realloc(precomputed_hashes,
+                                                precomputed_hashes_size,
+                                                alloc_size);
     }
+    precomputed_hashes_size = alloc_size;
 
     for (; num_hashes < max_range; num_hashes++) {
         precomputed_hashes[num_hashes] = hash_int(num_hashes);
