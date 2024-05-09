@@ -54,6 +54,7 @@
  */
 
 typedef struct {
+    alignas(16)
     void                *item;
     uint64_t             epoch;
 } newshat_record_t;
@@ -105,7 +106,6 @@ typedef struct {
  */
 // clang-format off
 typedef struct {
-    alignas(16)
     _Atomic newshat_record_t record;
     hatrack_hash_t           hv;
     bool                     migrated;

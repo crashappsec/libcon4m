@@ -61,7 +61,6 @@ struct witchhat_store_st {
     uint64_t                    threshold;
     _Atomic uint64_t            used_count;
     _Atomic(witchhat_store_t *) store_next;
-    alignas(16)
     witchhat_bucket_t           buckets[];
 };
 

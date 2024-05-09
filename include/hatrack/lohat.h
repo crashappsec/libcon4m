@@ -399,7 +399,6 @@
 // clang-format off
 
 typedef struct {
-    alignas(16)
     _Atomic hatrack_hash_t    hv;
     _Atomic(lohat_record_t *) head;
 } lohat_history_t;

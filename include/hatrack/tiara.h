@@ -75,12 +75,12 @@ struct tiara_store_st {
     uint64_t                 threshold;
     _Atomic uint64_t         used_count;
     _Atomic(tiara_store_t *) store_next;
-    alignas(16) tiara_bucket_t buckets[];
+    tiara_bucket_t           buckets[];
 };
 
 typedef struct {
-    alignas(8) _Atomic(tiara_store_t *) store_current;
-    _Atomic uint64_t item_count;
+    _Atomic(tiara_store_t *) store_current;
+    _Atomic uint64_t         item_count;
 } tiara_t;
 
 tiara_t        *tiara_new(void);

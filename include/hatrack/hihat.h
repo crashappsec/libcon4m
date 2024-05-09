@@ -150,7 +150,6 @@ struct hihat_store_st {
     uint64_t                   threshold;
     _Atomic uint64_t           used_count;
     _Atomic(hihat_store_t *)   store_next;
-    alignas(16)
     hihat_bucket_t             buckets[];
 };
 

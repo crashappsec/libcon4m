@@ -71,14 +71,12 @@ typedef struct {
 
 typedef struct crown_store_st crown_store_t;
 
-// clang-format off
 struct crown_store_st {
     uint64_t                 last_slot;
     uint64_t                 threshold;
     _Atomic uint64_t         used_count;
     _Atomic(crown_store_t *) store_next;
     _Atomic bool             claimed;
-    alignas(16)
     crown_bucket_t           buckets[];
 };
 
@@ -86,11 +84,10 @@ typedef struct {
     _Atomic(crown_store_t *) store_current;
     _Atomic uint64_t         item_count;
     _Atomic uint64_t         help_needed;
-            uint64_t         next_epoch;
-
+    uint64_t                 next_epoch;
 } crown_t;
 
-
+// clang-format off
 crown_t        *crown_new        (void);
 crown_t        *crown_new_size   (char);
 void            crown_init       (crown_t *);

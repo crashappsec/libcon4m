@@ -147,7 +147,6 @@
 // clang-format off
 
 typedef struct {
-    alignas(16)
     _Atomic hatrack_hash_t    hv;
     _Atomic(lohat_record_t *) head;
 } lohat_a_history_t;
@@ -163,7 +162,6 @@ typedef struct {
  * a particular location in the other array.
  */
 typedef struct {
-    alignas(16)
     _Atomic hatrack_hash_t       hv;
     _Atomic(lohat_a_history_t *) ptr;
 } lohat_a_indirect_t;
@@ -216,7 +214,6 @@ struct lohat_a_store_st {
     _Atomic(lohat_a_history_t *) hist_next;
     _Atomic(lohat_a_store_t *)   store_next;
     lohat_a_history_t           *hist_buckets;
-  alignas(16)
     lohat_a_indirect_t           ptr_buckets[];
 };
 

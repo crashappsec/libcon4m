@@ -77,6 +77,7 @@
  *          construct a consistent sort order.
  */
 typedef struct {
+    alignas(16)
     void    *item;
     uint64_t epoch;
 } duncecap_record_t;
@@ -107,7 +108,6 @@ typedef struct {
  *           worry about in practice.
  */
 typedef struct {
-    alignas(16)
     _Atomic duncecap_record_t record;
     hatrack_hash_t            hv;
 } duncecap_bucket_t;

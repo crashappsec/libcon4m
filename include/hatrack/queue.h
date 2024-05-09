@@ -100,7 +100,6 @@ typedef struct queue_segment_st queue_segment_t;
  */
 
 struct queue_segment_st {
-    alignas(64)
     _Atomic (queue_segment_t *)next;
     uint64_t                   size;
     _Atomic uint64_t           enqueue_index;
@@ -109,12 +108,12 @@ struct queue_segment_st {
 };
 
 typedef struct {
+    alignas(16)
     queue_segment_t *enqueue_segment;
     queue_segment_t *dequeue_segment;
 } queue_seg_ptrs_t;
 
 typedef struct hatrack_queue_t {
-    alignas(16)
     _Atomic queue_seg_ptrs_t segments;
     uint64_t                 default_segment_size;
     _Atomic uint64_t         help_needed;

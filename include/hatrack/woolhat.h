@@ -49,7 +49,6 @@ typedef struct {
 } woolhat_state_t;
 
 typedef struct {
-    alignas(16)
     _Atomic hatrack_hash_t  hv;
     _Atomic woolhat_state_t state;
 } woolhat_history_t;

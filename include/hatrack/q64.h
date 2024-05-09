@@ -53,7 +53,6 @@ typedef struct q64_segment_st q64_segment_t;
  */
 
 struct q64_segment_st {
-    alignas(64)
     _Atomic (q64_segment_t *)next;
     uint64_t                 size;
     _Atomic uint64_t         enqueue_index;
@@ -62,12 +61,12 @@ struct q64_segment_st {
 };
 
 typedef struct {
+    alignas(16)
     q64_segment_t *enqueue_segment;
     q64_segment_t *dequeue_segment;
 } q64_seg_ptrs_t;
 
 typedef struct {
-    alignas(16)
     _Atomic q64_seg_ptrs_t segments;
     uint64_t               default_segment_size;
     _Atomic uint64_t       help_needed;

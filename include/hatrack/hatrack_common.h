@@ -41,6 +41,9 @@
 typedef __int128_t hatrack_hash_t;
 #else
 typedef struct {
+    // __int128_t is naturally aligned to 16 bytes, but this struct is not.
+    // Force 16-byte alignment to match __int128_t.
+    alignas(16)
     uint64_t w1;
     uint64_t w2;
 } hatrack_hash_t;

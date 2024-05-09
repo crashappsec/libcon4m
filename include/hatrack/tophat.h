@@ -195,7 +195,6 @@ typedef struct {
  *              ever migrate to a static table type.
  */
 typedef struct {
-    alignas(16)
     tophat_st_ctx_t   *st_table;
     pthread_mutex_t    mutex;
     tophat_migration_t dst_type;
