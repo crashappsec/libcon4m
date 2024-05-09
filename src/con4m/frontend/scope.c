@@ -41,6 +41,7 @@ c4m_declare_symbol(c4m_file_compile_ctx *ctx,
     entry->declared_type     = c4m_tspec_error();
     entry->inferred_type     = c4m_tspec_typevar();
     entry->kind              = kind;
+    entry->my_scope          = scope;
 
     if (hatrack_dict_add(scope->symbols, name, entry)) {
         if (success != NULL) {
@@ -72,6 +73,16 @@ c4m_declare_symbol(c4m_file_compile_ctx *ctx,
                   c4m_box_i32(tok->line_offset + 1));
 
     return old;
+}
+
+c4m_scope_entry_t *
+c4m_add_if_missing(c4m_file_compile_ctx *ctx,
+                   c4m_utf8_t           *name,
+                   c4m_tree_node_t      *node,
+                   c4m_symbol_kind       kind,
+                   bool                  err_on_conflict)
+{
+    return NULL;
 }
 
 c4m_scope_entry_t *

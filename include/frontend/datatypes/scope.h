@@ -51,18 +51,19 @@ typedef struct {
     // for other types, it gets a pointer to one of the specific data
     // structures in this file.
 
-    c4m_obj_t        value;
-    c4m_utf8_t      *path;
-    c4m_utf8_t      *name;
-    c4m_tree_node_t *declaration_node;
-    c4m_xlist_t     *use_locations;
-    c4m_xlist_t     *lhs_locations;
-    uint32_t         offset;
-    uint32_t         size;
-    uint8_t          flags;
-    c4m_symbol_kind  kind;
-    c4m_type_t      *declared_type;
-    c4m_type_t      *inferred_type;
+    c4m_obj_t           value;
+    c4m_utf8_t         *path;
+    c4m_utf8_t         *name;
+    c4m_tree_node_t    *declaration_node;
+    c4m_xlist_t        *use_locations;
+    c4m_xlist_t        *lhs_locations;
+    uint32_t            offset;
+    uint32_t            size;
+    uint8_t             flags;
+    c4m_symbol_kind     kind;
+    c4m_type_t         *declared_type;
+    c4m_type_t         *inferred_type;
+    struct c4m_scope_t *my_scope;
 } c4m_scope_entry_t;
 
 typedef struct {
@@ -91,9 +92,10 @@ typedef struct {
 } c4m_sig_info_t;
 
 typedef struct {
-    c4m_utf8_t     *short_doc;
-    c4m_utf8_t     *long_doc;
-    c4m_sig_info_t *signature_info;
+    c4m_utf8_t            *short_doc;
+    c4m_utf8_t            *long_doc;
+    c4m_sig_info_t        *signature_info;
+    struct c4m_cfg_node_t *cfg;
     unsigned int private : 1;
 } c4m_fn_decl_t;
 

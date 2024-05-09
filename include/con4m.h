@@ -1,7 +1,5 @@
 #pragma once
 
-typedef void *object_t;
-
 // Everything includes this; the ordering here is somewhat important
 // due to interdependencies, though they can always be solved via
 // prototyping.
@@ -89,6 +87,7 @@ typedef void *object_t;
 #include "frontend/parse.h"
 #include "frontend/scope.h"
 #include "frontend/spec.h"
+#include "frontend/treematch.h"
 #include "frontend/partial.h"
 
 #include "con4m/set.h"
