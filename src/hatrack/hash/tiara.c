@@ -36,7 +36,9 @@
  *
  */
 
-#include "hatrack.h"
+#include "hatrack/tiara.h"
+
+#include <stdlib.h>
 
 // clang-format off
 static tiara_store_t *tiara_store_new    (uint64_t);

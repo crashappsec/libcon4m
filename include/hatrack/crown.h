@@ -109,7 +109,6 @@ hatrack_view_t *crown_view_slow  (crown_t *, uint64_t *, bool);
  * MMM. But, they should be considered "friend" functions, and not
  * part of the public API.
  */
-#ifdef HATRACK_INTERNAL_API
 crown_store_t    *crown_store_new    (uint64_t);
 void             *crown_store_get    (crown_store_t *, hatrack_hash_t, bool *);
 void             *crown_store_put    (crown_store_t *, crown_t *,
@@ -120,4 +119,3 @@ bool              crown_store_add    (crown_store_t *, crown_t *,
 				      hatrack_hash_t, void *, uint64_t);
 void             *crown_store_remove (crown_store_t *, crown_t *,
 				      hatrack_hash_t, bool *, uint64_t);
-#endif

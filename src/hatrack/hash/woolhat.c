@@ -26,7 +26,9 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack.h"
+#include "hatrack/woolhat.h"
+
+#include <stdlib.h>
 
 // clang-format off
 

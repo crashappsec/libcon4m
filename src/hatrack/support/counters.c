@@ -20,12 +20,11 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack.h"
+#include "hatrack/counters.h"
 
 #ifdef HATRACK_COUNTERS
 
 #include <stdio.h>
-#include <stdbool.h>
 
 // clang-format off
 _Atomic uint64_t hatrack_counters[HATRACK_COUNTERS_NUM]            = {};

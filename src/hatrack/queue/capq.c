@@ -45,7 +45,10 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack.h"
+#include "hatrack/capq.h"
+#include "hatrack/malloc.h"
+#include "hatrack/mmm.h"
+#include "hatrack/hatrack_common.h"
 
 static const capq_item_t empty_cell = {NULL, CAPQ_EMPTY};
 

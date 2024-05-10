@@ -24,7 +24,9 @@
  *
  */
 
-#include "hatrack.h"
+#include "hatrack/newshat.h"
+
+#include <stdlib.h>
 
 // clang-format off
 

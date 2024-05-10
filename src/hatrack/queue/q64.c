@@ -20,7 +20,12 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack.h"
+#include "hatrack/q64.h"
+#include "hatrack/malloc.h"
+#include "hatrack/mmm.h"
+#include "hatrack/hatrack_common.h"
+
+#include <stdlib.h>
 
 static const q64_item_t empty_cell      = Q64_EMPTY;
 static const q64_item_t too_slow_marker = Q64_TOOSLOW;
@@ -121,7 +126,7 @@ void
 q64_delete(q64_t *self)
 {
     q64_cleanup(self);
-    hatrack_free(self, siozeof(q64_t));
+    hatrack_free(self, sizeof(q64_t));
 
     return;
 }

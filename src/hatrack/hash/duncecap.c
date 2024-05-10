@@ -29,7 +29,9 @@
  *
  */
 
-#include "hatrack.h"
+#include "hatrack/duncecap.h"
+
+#include <stdlib.h>
 
 // clang-format off
 static duncecap_store_t *duncecap_store_new    (uint64_t);

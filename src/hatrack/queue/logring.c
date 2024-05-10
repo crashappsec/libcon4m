@@ -21,7 +21,12 @@
  *
  */
 
-#include "hatrack.h"
+#include "hatrack/logring.h"
+#include "hatrack/malloc.h"
+#include "hatrack/mmm.h"
+#include "hatrack/hatrack_common.h"
+
+#include <string.h>
 
 static void logring_view_help_if_needed(logring_t *);
 

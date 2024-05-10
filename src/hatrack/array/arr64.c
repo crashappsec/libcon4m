@@ -29,7 +29,10 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack.h"
+#include "hatrack/arr64.h"
+#include "hatrack/malloc.h"
+#include "hatrack/mmm.h"
+#include "hatrack/hatrack_common.h"
 
 static arr64_store_t *arr64_new_store(uint64_t, uint64_t);
 static void           arr64_migrate(arr64_store_t *, arr64_t *);

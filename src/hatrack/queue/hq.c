@@ -113,7 +113,10 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack.h"
+#include "hatrack/hq.h"
+#include "hatrack/malloc.h"
+#include "hatrack/mmm.h"
+#include "hatrack/hatrack_common.h"
 
 static const hq_item_t empty_cell = {NULL, HQ_EMPTY};
 
@@ -187,7 +190,7 @@ void
 hq_delete(hq_t *self)
 {
     hq_cleanup(self);
-    hatrack_free(self, sozeof(hq_t));
+    hatrack_free(self, sizeof(hq_t));
 
     return;
 }

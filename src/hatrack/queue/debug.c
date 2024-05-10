@@ -20,11 +20,12 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack.h"
+#include "hatrack/debug.h"
 
 #ifdef HATRACK_DEBUG
 
 #include <stdio.h>
+#include <string.h>
 
 hatrack_debug_record_t __hatrack_debug[HATRACK_DEBUG_RING_SIZE] = {};
 

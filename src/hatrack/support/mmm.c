@@ -21,7 +21,9 @@
  *
  */
 
-#include "hatrack.h"
+#include "hatrack/mmm.h"
+
+#include <stdlib.h>
 
 // clang-format off
 __thread mmm_header_t  *mmm_retire_list  = NULL;

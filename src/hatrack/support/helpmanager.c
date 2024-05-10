@@ -22,7 +22,10 @@
  *
  */
 
-#include "hatrack.h"
+#include "hatrack/helpmanager.h"
+#include "hatrack/mmm.h"
+
+#include <string.h>
 
 void
 hatrack_help_init(help_manager_t *manager,
@@ -31,7 +34,7 @@ hatrack_help_init(help_manager_t *manager,
                   bool            zero)
 {
     if (zero) {
-        bzero(manager, sizeof(help_manager_t));
+        memset(manager, 0, sizeof(help_manager_t));
     }
 
     manager->parent = parent;

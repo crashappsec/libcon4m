@@ -82,7 +82,12 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack.h"
+#include "hatrack/stack.h"
+#include "hatrack/malloc.h"
+#include "hatrack/mmm.h"
+#include "hatrack/hatrack_common.h"
+
+#include <stdlib.h>
 
 static const stack_item_t proto_item_empty = {
     .item        = NULL,

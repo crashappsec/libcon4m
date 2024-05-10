@@ -20,7 +20,9 @@
  *
  */
 
-#include "hatrack.h"
+#include "hatrack/refhat.h"
+
+#include <stdlib.h>
 
 static void refhat_migrate(refhat_t *);
 

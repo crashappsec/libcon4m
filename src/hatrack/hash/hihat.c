@@ -24,7 +24,9 @@
  *
  */
 
-#include "hatrack.h"
+#include "hatrack/hihat.h"
+
+#include <stdlib.h>
 
 // clang-format off
 static hihat_store_t *hihat_store_new    (uint64_t);

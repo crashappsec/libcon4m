@@ -19,7 +19,12 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack.h"
+#include "hatrack/vector.h"
+#include "hatrack/debug.h"
+#include "hatrack/malloc.h"
+#include "hatrack/mmm.h"
+#include "hatrack/hatrack_common.h"
+// #include "hatrack/flexarray.h"
 
 static vector_store_t *vector_new_store(int64_t, int64_t);
 static void            vector_migrate(vector_store_t *, vector_t *);
@@ -376,7 +381,7 @@ vector_view(vector_t *self)
     if (self->ret_callback) {
         for (i = 0; i < si.array_size; i++) {
             item = atomic_load(&store->cells[i]);
-            if (item.state & FLEX_ARRAY_USED) {
+            if (item.state & VECTOR_USED) {
                 (*self->ret_callback)(item.item);
             }
         }
