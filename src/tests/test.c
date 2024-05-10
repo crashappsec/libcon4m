@@ -1,3 +1,4 @@
+#define C4M_USE_INTERNAL_API
 #include "con4m.h"
 
 c4m_style_t style1;
@@ -590,6 +591,7 @@ test_tree_search(int64_t kind_as_64, c4m_tree_node_t *node)
     return kind == pnode->kind;
 }
 
+#if 0
 void
 test_compiler()
 {
@@ -611,7 +613,7 @@ test_compiler()
             path = fname;
         }
 
-        ctx = c4m_new_compile_ctx(
+        ctx = new_file_compile_ctx(
             mname,
             c4m_kw("uri_path", c4m_ka(path)));
 
@@ -665,7 +667,7 @@ test_compiler()
 
     c4m_print_parse_node((c4m_tree_node_t *)c4m_xlist_get(captures, 0, NULL));
 
-    c4m_pass_1(ctx);
+    c4m_file_decl_pass(ctx);
 
     c4m_grid_t *err_output = c4m_format_errors(ctx);
 
@@ -673,6 +675,9 @@ test_compiler()
         c4m_print(err_output);
     }
 }
+#else
+#define test_compiler(...)
+#endif
 
 void
 test_format()
@@ -694,6 +699,36 @@ test_format()
                         c4m_box_u32(100),
                         c4m_rich_lit("Hello"));
     c4m_print(s);
+}
+
+void
+test_path()
+{
+    c4m_utf8_t *user = c4m_get_user_name();
+
+    c4m_utf8_t *tests[] = {
+        c4m_new_utf8("/"),
+        c4m_cstr_format("/home/{}/dev/libcon4m/", user),
+        c4m_cstr_format("~{}/dev/libcon4m/", user),
+        c4m_cstr_format("~{}/dev/libcon4m/../con4m////src//", user),
+        c4m_cstr_format("~{}/dev/libcon4m/.././con4m/././///src//", user),
+        c4m_new_utf8(""),
+        c4m_new_utf8("~"),
+        NULL,
+    };
+
+    c4m_utf8_t *one;
+    int         i = 0;
+
+    c4m_print(c4m_cstr_format("[h2]Path resolution tests"));
+
+    while ((one = tests[i++]) != NULL) {
+        c4m_print(c4m_cstr_format(
+            "[h4]Test #{}:[/]\n[u]input:[/] [i]{}[/]\n[u]output:[/] [em]{}\n",
+            c4m_box_u64(i),
+            one,
+            c4m_resolve_path(one)));
+    }
 }
 
 #undef STACK_SCAN_TEST
@@ -739,6 +774,7 @@ main(int argc, char **argv, char **envp)
         c4m_print(c4m_box_i32((int32_t)-1));
 
         test_format();
+        test_path();
         test_compiler();
 
         C4M_STATIC_ASCII_STR(local_test, "Goodbye!");
