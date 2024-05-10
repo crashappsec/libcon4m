@@ -20,3 +20,5 @@ c4m_raw_envp()
 
 c4m_xlist_t *c4m_get_program_arguments();
 c4m_utf8_t  *c4m_get_argv0();
+c4m_utf8_t  *c4m_get_env(c4m_utf8_t *);
+c4m_dict_t  *c4m_environment();
