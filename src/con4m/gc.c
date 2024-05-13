@@ -80,7 +80,7 @@ c4m_initialize_gc()
 
     if (!once) {
         c4m_gc_guard = c4m_rand64();
-        global_roots = calloc(sizeof(c4m_dict_t), 1);
+        global_roots = c4m_rc_alloc(sizeof(c4m_dict_t));
         once         = true;
         page_bytes   = getpagesize();
         page_modulus = page_bytes - 1; // Page size is always a power of 2.

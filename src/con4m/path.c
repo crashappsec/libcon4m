@@ -1,3 +1,5 @@
+#define C4M_INTERNAL_API
+
 #include "con4m.h"
 
 c4m_utf8_t *
@@ -88,15 +90,24 @@ internal_normalize_and_join(c4m_xlist_t *pieces)
         return c4m_get_slash_const();
     }
 
-    c4m_utf8_t *result = c4m_empty_string();
+    c4m_utf8_t *result = NULL;
 
     for (int i = 0; i < nextout; i++) {
-        result = c4m_cstr_format("{}/{}",
-                                 result,
-                                 c4m_xlist_get(pieces, i, NULL));
+        c4m_utf8_t *s = c4m_xlist_get(pieces, i, NULL);
+
+        if (!s->codepoints) {
+            continue;
+        }
+
+        if (!result) {
+            result = c4m_cstr_format("/{}", s);
+        }
+        else {
+            result = c4m_cstr_format("{}/{}", result, s);
+        }
     }
 
-    return result;
+    return c4m_to_utf8(result);
 }
 
 static c4m_xlist_t *
@@ -153,8 +164,68 @@ c4m_resolve_path(c4m_utf8_t *s)
         return internal_normalize_and_join(
             c4m_str_xsplit(s, c4m_get_slash_const()));
     default:
-        parts = raw_path_tilde_expand(c4m_utf8_repeat('~', 1));
+        parts = c4m_str_xsplit(c4m_get_current_directory(NULL),
+                               c4m_get_slash_const());
         c4m_xlist_plus_eq(parts, c4m_str_xsplit(s, c4m_get_slash_const()));
         return internal_normalize_and_join(parts);
     }
+}
+
+c4m_utf8_t *
+c4m_path_join(c4m_xlist_t *items)
+{
+    c4m_utf8_t *result;
+    c4m_utf8_t *tmp;
+    uint8_t    *p;
+    int         len   = 0; // Total length of output.
+    int         first = 0; // First array index we'll use.
+    int         last  = c4m_xlist_len(items);
+    int         tmplen;    // Length of individual strings.
+
+    for (int i = 0; i < last; i++) {
+        tmp = c4m_xlist_get(items, i, NULL);
+        if (!c4m_str_is_u8(tmp)) {
+            C4M_CRAISE("Strings passed to c4m_path_join must be utf8 encoded.");
+        }
+
+        tmplen = c4m_str_byte_len(tmp);
+
+        if (tmplen == 0) {
+            continue;
+        }
+        if (tmp->data[0] == '/') {
+            len   = tmplen;
+            first = i;
+        }
+        else {
+            len += tmplen;
+        }
+        if (tmp->data[tmplen - 1] != '/') {
+            len++;
+        }
+    }
+
+    result = c4m_new(c4m_tspec_utf8(), c4m_kw("length", c4m_ka(len)));
+    p      = (uint8_t *)result->data;
+
+    for (int i = first; i < last; i++) {
+        tmp    = c4m_xlist_get(items, i, NULL);
+        tmplen = c4m_str_byte_len(tmp);
+
+        if (tmplen == 0) {
+            continue;
+        }
+
+        memcpy(p, tmp->data, tmplen);
+        p += (tmplen - 1);
+
+        if (i + 1 != last && *p++ != '/') {
+            *p++ = '/';
+        }
+    }
+
+    result->byte_len = len;
+    c4m_internal_utf8_set_codepoint_count(result);
+
+    return result;
 }

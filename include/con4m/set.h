@@ -15,6 +15,7 @@ extern c4m_xlist_t *c4m_set_to_xlist(c4m_set_t *);
 #define c4m_set_is_superset hatrack_set_is_superset
 #define c4m_set_is_subset   hatrack_set_is_subset
 #define c4m_set_is_disjoint hatrack_set_is_disjoint
+#define c4m_set_any_item    hatrack_set_any_item
 
 extern c4m_set_t *c4m_set_union(c4m_set_t *, c4m_set_t *);
 extern c4m_set_t *c4m_set_intersection(c4m_set_t *, c4m_set_t *);

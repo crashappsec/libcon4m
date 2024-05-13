@@ -9,7 +9,7 @@ hatrack_set_epoch_sort_cmp(const void *b1, const void *b2)
     item1 = (hatrack_set_view_t *)b1;
     item2 = (hatrack_set_view_t *)b2;
 
-    return item1->sort_epoch - item2->sort_epoch;
+    return item2->sort_epoch - item1->sort_epoch;
 }
 
 static int
@@ -35,12 +35,14 @@ hatrack_set_hv_sort_cmp(const void *b1, const void *b2)
 static void
 c4m_set_init(c4m_set_t *set, va_list args)
 {
-    size_t      hash_fn;
-    c4m_type_t *stype = c4m_get_my_type(set);
+    size_t         hash_fn;
+    c4m_type_t    *stype = c4m_get_my_type(set);
+    c4m_dt_info_t *info;
 
     if (stype != NULL) {
         stype   = c4m_xlist_get(c4m_tspec_get_parameters(stype), 0, NULL);
-        hash_fn = c4m_tspec_get_data_type_info(stype)->hash_fn;
+        info    = c4m_tspec_get_data_type_info(stype);
+        hash_fn = info->hash_fn;
     }
     else {
         hash_fn = (uint32_t)va_arg(args, size_t);

@@ -31,7 +31,9 @@ typedef struct hatrack_set_st c4m_set_t;
 #include "frontend/datatypes/scope.h"
 #include "frontend/datatypes/partials.h"
 #include "frontend/datatypes/spec.h"
+#include "frontend/datatypes/cfg.h"
 #include "frontend/datatypes/file.h"
+#include "frontend/datatypes/compile.h"
 
 typedef c4m_str_t *(*c4m_repr_fn)(c4m_obj_t, to_str_use_t);
 typedef void (*c4m_marshal_fn)(c4m_obj_t,

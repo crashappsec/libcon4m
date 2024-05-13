@@ -3,6 +3,7 @@
 
 typedef enum {
     c4m_err_open_file,
+    c4m_err_location,
     c4m_err_lex_stray_cr,
     c4m_err_lex_eof_in_comment,
     c4m_err_lex_invalid_char,
@@ -103,6 +104,10 @@ typedef enum {
     c4m_err_dupe_confspec,
     c4m_err_dupe_param,
     c4m_err_const_param,
+    c4m_err_malformed_url,
+    c4m_warn_no_tls,
+    c4m_err_search_path,
+    c4m_err_no_http,
     c4m_err_last,
 } c4m_compile_error_t;
 

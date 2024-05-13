@@ -43,9 +43,11 @@ c4m_sha_init(c4m_sha_t *ctx, va_list args)
     int64_t version = 2;
     int64_t bits    = 256;
 
-    c4m_karg_va_init(args);
-    c4m_kw_int64("version", version);
-    c4m_kw_int64("bits", bits);
+    if (args != NULL) {
+        c4m_karg_va_init(args);
+        c4m_kw_int64("version", version);
+        c4m_kw_int64("bits", bits);
+    }
 
     if (bits != 256 && bits != 384 && bits != 512) {
         abort();

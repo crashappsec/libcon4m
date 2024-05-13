@@ -1,7 +1,7 @@
 #include "con4m.h"
 
 c4m_spec_t *
-new_spec()
+c4m_new_spec()
 {
     c4m_spec_t *result = c4m_gc_alloc(c4m_spec_t);
 

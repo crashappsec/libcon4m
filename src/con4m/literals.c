@@ -10,7 +10,6 @@ c4m_register_literal(c4m_lit_syntax_t st, char *mod, c4m_builtin_t bi)
     if (!hatrack_dict_add(mod_map[st],
                           c4m_new_utf8(mod),
                           (void *)(int64_t)bi)) {
-        printf("%s\n", mod);
         C4M_CRAISE("Duplicate literal modifier for this syntax type.");
     }
 }

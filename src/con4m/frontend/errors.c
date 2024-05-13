@@ -11,7 +11,7 @@ static error_info_t error_info[] = {
     [c4m_err_open_file] = {
         c4m_err_open_file,
         "open_file",
-        "Could not open the file: [em]{}[/]",
+        "Could not open the file [i]{}[/]. Reason: [em]{}[/]",
         true,
     },
     [c4m_err_lex_stray_cr] = {
@@ -630,6 +630,30 @@ static error_info_t error_info[] = {
         "Module parameters may not be [em]const[/] variables.",
         false,
     },
+    [c4m_err_malformed_url] = {
+        c4m_err_malformed_url,
+        "malformed_url",
+        "URL for module path is invalid.",
+        false,
+    },
+    [c4m_warn_no_tls] = {
+        c4m_warn_no_tls,
+        "no_tls",
+        "URL for module path is insecure.",
+        false,
+    },
+    [c4m_err_search_path] = {
+        c4m_err_search_path,
+        "search_path",
+        "Could not find module in the search path.",
+        true,
+    },
+    [c4m_err_no_http] = {
+        c4m_err_no_http,
+        "no_http",
+        "HTTP and HTTPS support is not yet back in Con4m.",
+        false,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",
@@ -688,6 +712,11 @@ format_location(c4m_file_compile_ctx *ctx, c4m_compile_error *err)
     c4m_token_t *tok = err->current_token;
 
     if (!tok) {
+        if (!ctx->path) {
+            ctx->path = c4m_cstr_format("{}.{}",
+                                        ctx->package,
+                                        ctx->module);
+        }
         return c4m_cstr_format("[b]{}[/]", ctx->path);
     }
     return c4m_cstr_format("[b]{}:{:n}:{:n}:[/]",
@@ -696,13 +725,9 @@ format_location(c4m_file_compile_ctx *ctx, c4m_compile_error *err)
                            c4m_box_i32(tok->line_offset + 1));
 }
 
-c4m_grid_t *
-c4m_format_errors(c4m_file_compile_ctx *ctx)
+static void
+c4m_format_module_errors(c4m_file_compile_ctx *ctx, c4m_grid_t *table)
 {
-    if (ctx->errors == NULL) {
-        return NULL;
-    }
-
     if (error_constant == NULL) {
         error_constant = c4m_rich_lit("[red]error:[/]");
         warn_constant  = c4m_rich_lit("[yellow]warning:[/]");
@@ -712,20 +737,8 @@ c4m_format_errors(c4m_file_compile_ctx *ctx)
     int64_t n = c4m_xlist_len(ctx->errors);
 
     if (n == 0) {
-        return NULL;
+        return;
     }
-
-    c4m_grid_t *table = c4m_new(c4m_tspec_grid(),
-                                c4m_kw("container_tag",
-                                       c4m_ka("error_grid"),
-                                       "td_tag",
-                                       c4m_ka("tcol"),
-                                       "start_rows",
-                                       c4m_ka(n),
-                                       "start_cols",
-                                       c4m_ka(3),
-                                       "header_rows",
-                                       c4m_ka(0)));
 
     for (int i = 0; i < n; i++) {
         c4m_compile_error *err = c4m_xlist_get(ctx->errors, i, NULL);
@@ -736,6 +749,38 @@ c4m_format_errors(c4m_file_compile_ctx *ctx)
         c4m_xlist_append(row, c4m_format_error_message(err, true));
 
         c4m_grid_add_row(table, row);
+    }
+}
+
+c4m_grid_t *
+c4m_format_errors(c4m_compile_ctx *cctx)
+{
+    c4m_grid_t *table = c4m_new(c4m_tspec_grid(),
+                                c4m_kw("container_tag",
+                                       c4m_ka("error_grid"),
+                                       "td_tag",
+                                       c4m_ka("tcol"),
+                                       "start_cols",
+                                       c4m_ka(3),
+                                       "header_rows",
+                                       c4m_ka(0)));
+
+    int      n           = 0;
+    uint64_t num_modules = 0;
+
+    hatrack_dict_item_t *view = hatrack_dict_items_sort(cctx->module_cache,
+                                                        &num_modules);
+
+    for (unsigned int i = 0; i < num_modules; i++) {
+        c4m_file_compile_ctx *ctx = view[i].value;
+        if (ctx->errors != NULL) {
+            n += c4m_xlist_len(ctx->errors);
+            c4m_format_module_errors(ctx, table);
+        }
+    }
+
+    if (!n) {
+        return NULL;
     }
 
     c4m_set_column_style(table, 0, "full_snap");
@@ -830,3 +875,24 @@ _c4m_error_from_token(c4m_file_compile_ctx *ctx,
 c4m_base_err_decl(_c4m_add_error, c4m_err_severity_error);
 c4m_base_err_decl(_c4m_add_warning, c4m_err_severity_warning);
 c4m_base_err_decl(_c4m_add_info, c4m_err_severity_info);
+
+void
+_c4m_file_load_error(c4m_file_compile_ctx *ctx, c4m_compile_error_t code, ...)
+{
+    va_list args;
+
+    va_start(args, code);
+    c4m_base_add_error(ctx->errors, code, NULL, c4m_err_severity_error, args);
+    ctx->fatal_errors = 1;
+    va_end(args);
+}
+
+void
+_c4m_file_load_warn(c4m_file_compile_ctx *ctx, c4m_compile_error_t code, ...)
+{
+    va_list args;
+
+    va_start(args, code);
+    c4m_base_add_error(ctx->errors, code, NULL, c4m_err_severity_warning, args);
+    va_end(args);
+}

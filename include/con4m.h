@@ -74,6 +74,9 @@
 
 #include "con4m/fp.h"
 
+// Path handling utilities.
+#include "con4m/path.h"
+
 // Yes we use cryptographic hashes internally for type IDing.
 #include "crypto/sha.h"
 
@@ -89,5 +92,6 @@
 #include "frontend/spec.h"
 #include "frontend/treematch.h"
 #include "frontend/partial.h"
+#include "frontend/cfgs.h"
 
 #include "con4m/set.h"

@@ -78,6 +78,8 @@ load_env(c4m_dict_t *environment_vars)
 
         hatrack_dict_put(environment_vars, key, value);
     }
+
+    c4m_gc_register_root(&environment_vars, 1);
 }
 
 c4m_utf8_t *

@@ -817,7 +817,7 @@ handle_config_spec(pass_ctx *ctx)
     c4m_pnode_t     *pnode = get_pnode(tnode);
 
     if (ctx->file_ctx->local_confspecs == NULL) {
-        ctx->file_ctx->local_confspecs = new_spec();
+        ctx->file_ctx->local_confspecs = c4m_new_spec();
     }
     else {
         c4m_add_error(ctx->file_ctx, c4m_err_dupe_section, tnode);
@@ -1144,43 +1144,47 @@ handle_use_stmt(pass_ctx *ctx)
     c4m_tree_node_t   *member = get_match(ctx, c4m_member_last);
     c4m_xlist_t       *prefix = apply_pattern(ctx, c4m_member_prefix);
     c4m_module_info_t *mi     = c4m_gc_alloc(c4m_module_info_t);
-    c4m_utf8_t        *fq     = node_text(member);
     bool               status = false;
 
-    mi->specified_module = fq;
+    mi->specified_module = node_text(member);
 
     if (c4m_xlist_len(prefix) != 0) {
         mi->specified_package = node_list_join(prefix,
                                                c4m_utf32_repeat('.', 1),
-                                               true);
-        fq                    = c4m_str_concat(mi->specified_package, fq);
+                                               false);
     }
 
     if (uri) {
         mi->specified_uri = node_simp_literal(uri);
     }
 
-    c4m_declare_symbol(ctx->file_ctx,
-                       ctx->file_ctx->imports,
-                       fq,
-                       cur_node(ctx),
-                       sk_module,
-                       &status,
-                       false);
+    c4m_utf8_t *full;
+
+    if (mi->specified_package != NULL) {
+        full = c4m_cstr_format("{}.{}",
+                               mi->specified_package,
+                               mi->specified_module);
+    }
+    else {
+        full = mi->specified_module;
+    }
+
+    c4m_scope_entry_t *sym = c4m_declare_symbol(ctx->file_ctx,
+                                                ctx->file_ctx->imports,
+                                                full,
+                                                cur_node(ctx),
+                                                sk_module,
+                                                &status,
+                                                false);
+
     if (!status) {
         c4m_add_info(ctx->file_ctx,
                      c4m_info_dupe_import,
                      cur_node(ctx));
     }
-
-#ifdef C4M_PASS1_UNIT_TESTS
-    c4m_utf8_t *default_txt = c4m_new_utf8("not specified");
-
-    c4m_print(c4m_cstr_format(
-        "USE: fq: {}; uri: {}\n",
-        fq,
-        mi->specified_uri ? mi->specified_uri : default_txt));
-#endif
+    else {
+        sym->value = mi;
+    }
 }
 
 static void
@@ -1245,8 +1249,34 @@ pass_dispatch(pass_ctx *ctx)
     }
 }
 
+static void
+find_dependencies(c4m_compile_ctx *cctx, c4m_file_compile_ctx *file_ctx)
+{
+    c4m_scope_t          *imports = file_ctx->imports;
+    uint64_t              len     = 0;
+    hatrack_dict_value_t *values  = hatrack_dict_values(imports->symbols,
+                                                       &len);
+
+    for (uint64_t i = 0; i < len; i++) {
+        c4m_scope_entry_t    *sym = values[i];
+        c4m_module_info_t    *mi  = sym->value;
+        c4m_tree_node_t      *n   = sym->declaration_node;
+        c4m_pnode_t          *pn  = get_pnode(n);
+        c4m_file_compile_ctx *mc  = c4m_init_from_use(cctx,
+                                                     mi->specified_module,
+                                                     mi->specified_package,
+                                                     mi->specified_uri);
+
+        if (c4m_set_contains(cctx->processed, mc)) {
+            continue;
+        }
+
+        pn->value = (c4m_obj_t)mc;
+    }
+}
+
 void
-c4m_pass_1(c4m_file_compile_ctx *file_ctx)
+c4m_file_decl_pass(c4m_compile_ctx *cctx, c4m_file_compile_ctx *file_ctx)
 {
     if (c4m_fatal_error_in_module(file_ctx)) {
         return;
@@ -1282,19 +1312,6 @@ c4m_pass_1(c4m_file_compile_ctx *file_ctx)
     }
 
     pass_dispatch(&ctx);
+    find_dependencies(cctx, file_ctx);
     return;
 }
-
-// TODO: go through and do the rest of our phase 1 stuff,
-// and add undeclared function calls and variables to an 'unbound'
-// list. We'll come back to that at the beginning of phase 2, once all
-// dependencies have finished phase 1 (we can't even bind undeclared
-// variables until we look at any confspecs we're dependent upon).
-//
-// We don't have to worry about that for variables, because they
-// are private by default, and must be declared global in any
-// module that uses them (though we do need to merge and ensure
-// compat).
-//
-// Then, rename the file to something more descriptive, like
-// "decl_pass.c".

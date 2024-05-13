@@ -19,6 +19,7 @@
  *  Author:         John Viega, john@zork.org
  */
 
+#define HATRACK_INTERNAL_API
 #include "hatrack.h"
 
 // clang-format off

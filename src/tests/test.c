@@ -591,20 +591,24 @@ test_tree_search(int64_t kind_as_64, c4m_tree_node_t *node)
     return kind == pnode->kind;
 }
 
-#if 0
+#if 1
 void
 test_compiler()
 {
-    c4m_xlist_t          *files  = c4m_get_program_arguments();
-    int64_t               l      = c4m_xlist_len(files);
-    c4m_str_t            *mname  = c4m_rich_lit("test1");
-    c4m_utf8_t           *joiner = c4m_new_utf8("../tests/");
-    c4m_utf8_t           *slash  = c4m_get_slash_const();
-    c4m_file_compile_ctx *ctx;
+    c4m_xlist_t     *files  = c4m_get_program_arguments();
+    int64_t          l      = c4m_xlist_len(files);
+    c4m_str_t       *mname  = c4m_rich_lit("test1");
+    c4m_utf8_t      *joiner = c4m_new_utf8("../tests/");
+    c4m_utf8_t      *slash  = c4m_get_slash_const();
+    c4m_compile_ctx *ctx;
+
+    if (l < 1) {
+        return;
+    }
 
     for (int64_t i = 0; i < l; i++) {
         c4m_utf8_t *fname = c4m_xlist_get(files, i, NULL);
-        c4m_utf8_t *path  = c4m_xlist_get(files, i, NULL);
+        c4m_utf8_t *path;
 
         if (c4m_str_find(fname, slash) == -1) {
             path = c4m_str_concat(joiner, fname);
@@ -613,26 +617,13 @@ test_compiler()
             path = fname;
         }
 
-        ctx = new_file_compile_ctx(
-            mname,
-            c4m_kw("uri_path", c4m_ka(path)));
+        ctx = c4m_compile_from_entry_point(path);
 
-        c4m_stream_t *stream = c4m_load_code(ctx);
-        if (stream == NULL) {
-            c4m_print(c4m_cstr_format("[red]error: [/] Couldn't read file: {}",
-                                      fname));
-            continue;
-        }
-        if (c4m_lex(ctx, stream) == false) {
-            c4m_print(c4m_cstr_format("[red]error: [/] Lex failed for: {}",
-                                      fname));
-            c4m_print(c4m_format_errors(ctx));
-            continue;
-        }
+        c4m_print(c4m_format_tokens(ctx->entry_point));
 
-        c4m_print(c4m_format_tokens(ctx));
-        c4m_parse(ctx);
-        c4m_print(c4m_format_parse_tree(ctx));
+        if (ctx->entry_point->parse_tree) {
+            c4m_print(c4m_format_parse_tree(ctx->entry_point));
+        }
 
         c4m_print(c4m_cstr_format("[atomic lime]info: [/] Finished parsing: {}",
                                   fname));
@@ -642,37 +633,6 @@ test_compiler()
         if (err_output != NULL) {
             c4m_print(err_output);
         }
-    }
-
-    if (l < 1) {
-        return;
-    }
-
-    c4m_tpat_node_t *pat;
-    pat = c4m_tpat_find((void *)c4m_nt_body,
-                        1,
-                        c4m_tpat_match((void *)c4m_nt_break,
-                                       0,
-                                       c4m_tpat_match((void *)c4m_nt_error,
-                                                      0)));
-
-    c4m_xlist_t *captures = NULL;
-
-    bool result = c4m_tree_match(ctx->parse_tree,
-                                 pat,
-                                 (c4m_cmp_fn)test_tree_search,
-                                 &captures);
-
-    printf("Res = %d; # caps: %lld\n", result, c4m_xlist_len(captures));
-
-    c4m_print_parse_node((c4m_tree_node_t *)c4m_xlist_get(captures, 0, NULL));
-
-    c4m_file_decl_pass(ctx);
-
-    c4m_grid_t *err_output = c4m_format_errors(ctx);
-
-    if (err_output != NULL) {
-        c4m_print(err_output);
     }
 }
 #else

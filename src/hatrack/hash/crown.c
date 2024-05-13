@@ -160,6 +160,7 @@
  *
  */
 
+#define HATRACK_INTERNAL_API
 #include "hatrack.h"
 
 // clang-format off
