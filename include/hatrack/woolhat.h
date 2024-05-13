@@ -24,7 +24,6 @@
 #pragma once
 
 #include "base.h"
-#include "malloc.h"
 #include "hatrack_common.h"
 
 typedef struct woolhat_record_st woolhat_record_t;
@@ -35,17 +34,9 @@ struct woolhat_record_st {
     bool              deleted;
 };
 
-enum {
-    WOOLHAT_F_MOVING      = 0x0000000000000001,
-    WOOLHAT_F_MOVED       = 0x0000000000000002,
-    WOOLHAT_F_DELETE_HELP = 0x0000000000000004
-};
-
-// clang-format off
-
 typedef struct {
-    woolhat_record_t  *head;
-    uint64_t           flags;
+    woolhat_record_t *head;
+    uint64_t          flags;
 } woolhat_state_t;
 
 typedef struct {
@@ -71,7 +62,6 @@ typedef struct woolhat_st {
     void                      *cleanup_aux;
 } woolhat_t;
 
-
 /* This is a special type of view result that includes the hash
  * value, intended for set operations. Currently, it is only in use
  * by woolhat (and by hatrack_set, which is built on woolhat).
@@ -83,12 +73,7 @@ typedef struct {
     int64_t        sort_epoch;
 } hatrack_set_view_t;
 
-static inline void
-hatrack_set_view_delete(hatrack_set_view_t *view, uint64_t num)
-{
-    hatrack_free(view, sizeof(hatrack_set_view_t) * num);
-}
-
+// clang-format off
 woolhat_t      *woolhat_new             (void);
 woolhat_t      *woolhat_new_size        (char);
 void            woolhat_init            (woolhat_t *);
@@ -107,3 +92,5 @@ uint64_t        woolhat_len             (woolhat_t *);
 
 hatrack_view_t     *woolhat_view        (woolhat_t *, uint64_t *, bool);
 hatrack_set_view_t *woolhat_view_epoch  (woolhat_t *, uint64_t *, uint64_t);
+
+void hatrack_set_view_delete(hatrack_set_view_t *view, uint64_t num);

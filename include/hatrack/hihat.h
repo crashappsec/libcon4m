@@ -57,14 +57,6 @@ typedef struct {
     uint64_t info;
 } hihat_record_t;
 
-// The aforementioned flags, along with a bitmask that allows us to
-// extract the epoch in the info field, ignoring any migration flags.
-enum64(hihat_flag_t,
-       HIHAT_F_MOVING   = 0x8000000000000000,
-       HIHAT_F_MOVED    = 0x4000000000000000,
-       HIHAT_F_INITED   = 0x2000000000000000,
-       HIHAT_EPOCH_MASK = 0x1fffffffffffffff);
-
 /* hihat_bucket_t
  *
  * The representation of a bucket. The hash value and the record can
@@ -144,13 +136,12 @@ typedef struct hihat_store_st hihat_store_t;
  *               so that we can avoid an extra indirection.
  *
  */
-// clang-format off
 struct hihat_store_st {
-    uint64_t                   last_slot;
-    uint64_t                   threshold;
-    _Atomic uint64_t           used_count;
-    _Atomic(hihat_store_t *)   store_next;
-    hihat_bucket_t             buckets[];
+    uint64_t                 last_slot;
+    uint64_t                 threshold;
+    _Atomic uint64_t         used_count;
+    _Atomic(hihat_store_t *) store_next;
+    hihat_bucket_t           buckets[];
 };
 
 /* hihat_t
@@ -177,7 +168,6 @@ typedef struct {
     uint64_t                 next_epoch;
 } hihat_t;
 
-
 /* This API requires that you deal with hashing the key external to
  * the API.  You might want to cache hash values, use different
  * functions for different data objects, etc.
@@ -187,6 +177,8 @@ typedef struct {
  * choose a 3-universal keyed hash function, or if hash values need to
  * be consistent across runs, something fast and practical like XXH3.
  */
+
+// clang-format off
 hihat_t        *hihat_new      (void);
 hihat_t        *hihat_new_size (char);
 void            hihat_init     (hihat_t *);

@@ -28,6 +28,14 @@
 #include "hatrack/mmm.h"
 #include "hatrack/hatrack_common.h"
 
+#define FLEXARRAY_MIN_STORE_SZ_LOG 4
+
+enum64(flex_enum_t,
+       FLEX_ARRAY_SHRINK = 0x8000000000000000,
+       FLEX_ARRAY_MOVING = 0x4000000000000000,
+       FLEX_ARRAY_MOVED  = 0x2000000000000000,
+       FLEX_ARRAY_USED   = 0x1000000000000000);
+
 static flex_store_t *flexarray_new_store(uint64_t, uint64_t);
 static void          flexarray_migrate(flex_store_t *, flexarray_t *);
 

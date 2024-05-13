@@ -25,9 +25,6 @@
 
 #include "base.h"
 
-#define ARR64_MIN_STORE_SZ_LOG 4
-
-// clang-format off
 typedef void (*arr64_callback_t)(void *);
 
 typedef uint64_t arr64_item_t;
@@ -45,17 +42,18 @@ typedef struct {
 struct arr64_store_t {
     uint64_t                 store_size;
     _Atomic uint64_t         array_size;
-    _Atomic (arr64_store_t *)next;
+    _Atomic(arr64_store_t *) next;
     _Atomic bool             claimed;
     arr64_cell_t             cells[];
 };
 
 typedef struct {
-    arr64_callback_t          ret_callback;
-    arr64_callback_t          eject_callback;
-    _Atomic (arr64_store_t  *)store;
+    arr64_callback_t         ret_callback;
+    arr64_callback_t         eject_callback;
+    _Atomic(arr64_store_t *) store;
 } arr64_t;
 
+// clang-format off
 arr64_t      *arr64_new               (uint64_t);
 void          arr64_init              (arr64_t *, uint64_t);
 void          arr64_set_ret_callback  (arr64_t *, arr64_callback_t);
@@ -70,15 +68,3 @@ uint32_t      arr64_len               (arr64_t *);
 arr64_view_t *arr64_view              (arr64_t *);
 void         *arr64_view_next         (arr64_view_t *, bool *);
 void          arr64_view_delete       (arr64_view_t *);
-
-enum64(arr64_enum_t,
-       ARR64_USED   = 0x00000000000000001,
-       ARR64_MOVED  = 0x00000000000000002,
-       ARR64_MOVING = 0x00000000000000004
-       );
-
-enum {
-    ARR64_OK,
-    ARR64_OOB,
-    ARR64_UNINITIALIZED
-};

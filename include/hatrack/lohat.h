@@ -396,14 +396,11 @@
  * collection, etc. We expect this all to be application dependent,
  * and outside of the scope of this project.
  */
-// clang-format off
 
 typedef struct {
     _Atomic hatrack_hash_t    hv;
     _Atomic(lohat_record_t *) head;
 } lohat_history_t;
-
-// clang-format on
 
 typedef struct lohat_store_st lohat_store_t;
 
@@ -510,7 +507,6 @@ typedef struct lohat_store_st lohat_store_t;
  *               Only writers care about this variable, and only during
  *               migration.
  */
-// clang-format off
 
 struct lohat_store_st {
     uint64_t                 last_slot;
@@ -547,13 +543,11 @@ struct lohat_store_st {
  *                prematurely.
  *
  */
-// clang-format off
 
 typedef struct lohat_st {
     _Atomic(lohat_store_t *) store_current;
     _Atomic uint64_t         item_count;
 } lohat_t;
-
 
 /* This API requires that you deal with hashing the key external to
  * the API.  You might want to cache hash values, use different
@@ -579,5 +573,3 @@ bool            lohat_add      (lohat_t *, hatrack_hash_t, void *);
 void           *lohat_remove   (lohat_t *, hatrack_hash_t, bool *);
 uint64_t        lohat_len      (lohat_t *);
 hatrack_view_t *lohat_view     (lohat_t *, uint64_t *, bool);
-
-// clang-format on

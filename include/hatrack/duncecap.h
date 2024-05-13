@@ -38,8 +38,6 @@
 #include "base.h"
 #include "hatrack_common.h"
 
-// clang-format off
-
 /* duncecap_record_t
  *
  * In this implementation, readers only use a mutex long enough to
@@ -77,8 +75,7 @@
  *          construct a consistent sort order.
  */
 typedef struct {
-    alignas(16)
-    void    *item;
+    alignas(16) void *item;
     uint64_t epoch;
 } duncecap_record_t;
 
@@ -149,13 +146,13 @@ typedef struct {
  *               so that we can avoid an extra indirection.
  */
 typedef struct {
-    _Atomic uint64_t    readers;
-    uint64_t            last_slot;
-    uint64_t            threshold;
-    uint64_t            used_count;
-    uint64_t            alloc_len;
-    uint64_t            pad;
-    duncecap_bucket_t   buckets[];
+    _Atomic uint64_t  readers;
+    uint64_t          last_slot;
+    uint64_t          threshold;
+    uint64_t          used_count;
+    uint64_t          alloc_len;
+    uint64_t          pad;
+    duncecap_bucket_t buckets[];
 } duncecap_store_t;
 
 /* duncecap_t
@@ -197,12 +194,11 @@ typedef struct {
  *                  operation, for the purposes of sort ordering.
  */
 typedef struct {
-    duncecap_store_t   *store_current;
-    uint64_t            item_count;
-    uint64_t            next_epoch;
-    pthread_mutex_t     mutex;
+    duncecap_store_t *store_current;
+    uint64_t          item_count;
+    uint64_t          next_epoch;
+    pthread_mutex_t   mutex;
 } duncecap_t;
-// clang-format on
 
 /* duncecap_reader_enter()
  *
@@ -224,31 +220,16 @@ typedef struct {
  * use mmm_alloc() for the stores (which we do in the duncecap2
  * implementation).
  */
-static inline duncecap_store_t *
-duncecap_reader_enter(duncecap_t *self)
-{
-    duncecap_store_t *ret;
-
-    pthread_mutex_lock(&self->mutex);
-    ret = self->store_current;
-    atomic_fetch_add(&ret->readers, 1);
-    pthread_mutex_unlock(&self->mutex);
-
-    return ret;
-}
+duncecap_store_t *
+duncecap_reader_enter(duncecap_t *self);
 
 /* duncecap_reader_exit()
  *
  * This simply needs to decrement the reader count associated with the
  * store, atomically.
  */
-static inline void
-duncecap_reader_exit(duncecap_store_t *store)
-{
-    atomic_fetch_sub(&store->readers, 1);
-
-    return;
-}
+void
+duncecap_reader_exit(duncecap_store_t *store);
 
 /* This API requires that you deal with hashing the key external to
  * the API.  You might want to cache hash values, use different
@@ -259,6 +240,7 @@ duncecap_reader_exit(duncecap_store_t *store)
  * choose a 3-universal keyed hash function, or if hash values need to
  * be consistent across runs, something fast and practical like XXH3.
  */
+
 // clang-format off
 duncecap_t     *duncecap_new      (void);
 duncecap_t     *duncecap_new_size (char);

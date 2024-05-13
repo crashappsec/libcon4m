@@ -27,14 +27,11 @@
 
 #include "base.h"
 
-#define FLEXARRAY_MIN_STORE_SZ_LOG 4
-
-// clang-format off
 typedef void (*flex_callback_t)(void *);
 
 typedef struct {
-    void     *item;
-    uint64_t  state;
+    void    *item;
+    uint64_t state;
 } flex_item_t;
 
 typedef _Atomic flex_item_t flex_cell_t;
@@ -50,17 +47,24 @@ typedef struct {
 struct flex_store_t {
     uint64_t                store_size;
     _Atomic uint64_t        array_size;
-    _Atomic (flex_store_t *)next;
+    _Atomic(flex_store_t *) next;
     _Atomic bool            claimed;
     flex_cell_t             cells[];
 };
 
 typedef struct flexarray_t {
-    flex_callback_t          ret_callback;
-    flex_callback_t          eject_callback;
-    _Atomic (flex_store_t  *)store;
+    flex_callback_t         ret_callback;
+    flex_callback_t         eject_callback;
+    _Atomic(flex_store_t *) store;
 } flexarray_t;
 
+enum {
+    FLEX_OK,
+    FLEX_OOB,
+    FLEX_UNINITIALIZED
+};
+
+// clang-format off
 flexarray_t *flexarray_new                (uint64_t);
 void         flexarray_init               (flexarray_t *, uint64_t);
 void         flexarray_set_ret_callback   (flexarray_t *, flex_callback_t);
@@ -78,16 +82,3 @@ void         flexarray_view_delete        (flex_view_t *);
 void        *flexarray_view_get           (flex_view_t *, uint64_t, int *);
 uint64_t     flexarray_view_len           (flex_view_t *);
 flexarray_t *flexarray_add                (flexarray_t *, flexarray_t *);
-
-enum64(flex_enum_t,
-       FLEX_ARRAY_SHRINK = 0x8000000000000000,
-       FLEX_ARRAY_MOVING = 0x4000000000000000,
-       FLEX_ARRAY_MOVED  = 0x2000000000000000,
-       FLEX_ARRAY_USED   = 0x1000000000000000
-       );
-
-enum {
-    FLEX_OK,
-    FLEX_OOB,
-    FLEX_UNINITIALIZED
-};

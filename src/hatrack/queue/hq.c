@@ -118,6 +118,78 @@
 #include "hatrack/mmm.h"
 #include "hatrack/hatrack_common.h"
 
+enum {
+    HQ_EMPTY              = 0x0000000000000000,
+    HQ_TOOSLOW            = 0x1000000000000000,
+    HQ_USED               = 0x2000000000000000,
+    HQ_MOVED              = 0x4000000000000000,
+    HQ_MOVING             = 0x8000000000000000,
+    HQ_FLAG_MASK          = 0xf000000000000000,
+    HQ_STORE_INITIALIZING = 0xffffffffffffffff
+};
+
+static inline bool
+hq_cell_too_slow(hq_item_t item)
+{
+    return (bool)(item.state & HQ_TOOSLOW);
+}
+
+static inline uint64_t
+hq_set_used(uint64_t ix)
+{
+    return HQ_USED | ix;
+}
+
+static inline bool
+hq_is_moving(uint64_t state)
+{
+    return state & HQ_MOVING;
+}
+
+static inline bool
+hq_is_moved(uint64_t state)
+{
+    return state & HQ_MOVED;
+}
+
+static inline bool
+hq_is_queued(uint64_t state)
+{
+    return state & HQ_USED;
+}
+
+#if 0 // UNUSED
+static inline uint64_t
+hq_add_moving(uint64_t state)
+{
+    return state | HQ_MOVING;
+}
+
+static inline uint64_t
+hq_add_moved(uint64_t state)
+{
+    return state | HQ_MOVED | HQ_MOVING;
+}
+
+static inline bool
+hq_can_enqueue(uint64_t state)
+{
+    return !(state & HQ_FLAG_MASK);
+}
+#endif
+
+static inline uint64_t
+hq_extract_epoch(uint64_t state)
+{
+    return state & ~(HQ_FLAG_MASK);
+}
+
+static inline uint64_t
+hq_ix(uint64_t seq, uint64_t sz)
+{
+    return seq & (sz - 1);
+}
+
 static const hq_item_t empty_cell = {NULL, HQ_EMPTY};
 
 static const union {
@@ -193,6 +265,12 @@ hq_delete(hq_t *self)
     hatrack_free(self, sizeof(hq_t));
 
     return;
+}
+
+int64_t
+hq_len(hq_t *self)
+{
+    return atomic_read(&self->len);
 }
 
 /* hq_enqueue is pretty simple in the average case. It only gets

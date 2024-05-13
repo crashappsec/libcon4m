@@ -37,8 +37,6 @@
 #include "base.h"
 #include "hatrack_common.h"
 
-// clang-format off
-
 /* swimcap_record_t
  *
  * This is unchanged from duncecap_record_t.
@@ -79,8 +77,7 @@
  *          point on which to construct a consistent sort order.
  */
 typedef struct {
-    alignas(16)
-    void    *item;
+    alignas(16) void *item;
     uint64_t epoch;
 } swimcap_record_t;
 
@@ -199,10 +196,10 @@ typedef struct {
  *                  operation, for the purposes of sort ordering.
  */
 typedef struct {
-    swimcap_store_t   *store_current;
-    uint64_t           item_count;
-    uint64_t           next_epoch;
-    pthread_mutex_t    write_mutex;
+    swimcap_store_t *store_current;
+    uint64_t         item_count;
+    uint64_t         next_epoch;
+    pthread_mutex_t  write_mutex;
 } swimcap_t;
 
 /* This API requires that you deal with hashing the key external to
@@ -214,6 +211,8 @@ typedef struct {
  * choose a 3-universal keyed hash function, or if hash values need to
  * be consistent across runs, something fast and practical like XXH3.
  */
+
+// clang-format off
 swimcap_t      *swimcap_new      (void);
 swimcap_t      *swimcap_new_size (char);
 void            swimcap_init     (swimcap_t *);

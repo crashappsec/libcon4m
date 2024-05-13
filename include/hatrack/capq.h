@@ -48,10 +48,7 @@
 #pragma once
 
 #include "base.h"
-#include "hatomic.h"
-#include "hq.h"
 
-// clang-format off
 typedef struct {
     void    *item;
     uint64_t state;
@@ -64,7 +61,7 @@ typedef _Atomic capq_item_t capq_cell_t;
 typedef struct capq_store_t capq_store_t;
 
 struct capq_store_t {
-    _Atomic (capq_store_t *)next_store;
+    _Atomic(capq_store_t *) next_store;
     uint64_t                size;
     _Atomic uint64_t        enqueue_index;
     _Atomic uint64_t        dequeue_index;
@@ -72,26 +69,11 @@ struct capq_store_t {
 };
 
 typedef struct {
-    _Atomic (capq_store_t *)store;
+    _Atomic(capq_store_t *) store;
     _Atomic int64_t         len;
 } capq_t;
 
-enum {
-    CAPQ_EMPTY              = 0x0000000000000000,
-    CAPQ_ENQUEUED           = 0x1000000000000000,
-    CAPQ_DEQUEUED           = 0x2000000000000000,
-    CAPQ_MOVED              = 0x4000000000000000,
-    CAPQ_MOVING             = 0x8000000000000000,
-    CAPQ_FLAG_MASK          = 0xf000000000000000,
-    CAPQ_STORE_INITIALIZING = 0xffffffffffffffff
-};
-
-static inline int64_t
-capq_len(hq_t *self)
-{
-    return atomic_read(&self->len);
-}
-
+// clang-format off
 capq_t    *capq_new        (void);
 capq_t    *capq_new_size   (uint64_t);
 void       capq_init       (capq_t *);
@@ -102,68 +84,4 @@ uint64_t   capq_enqueue    (capq_t *, void *);
 capq_top_t capq_top        (capq_t *, bool *);
 bool       capq_cap        (capq_t *, uint64_t);
 void      *capq_dequeue    (capq_t *, bool *);
-
-static inline uint64_t
-capq_set_enqueued(uint64_t ix)
-{
-    return CAPQ_ENQUEUED | ix;
-}
-
-static inline bool
-capq_is_moving(uint64_t state)
-{
-    return state & CAPQ_MOVING;
-}
-
-static inline bool
-capq_is_moved(uint64_t state)
-{
-    return state & CAPQ_MOVED;
-}
-
-static inline bool
-capq_is_enqueued(uint64_t state)
-{
-    return state & CAPQ_ENQUEUED;
-}
-
-static inline bool
-capq_is_dequeued(uint64_t state)
-{
-    return state & CAPQ_DEQUEUED;
-}
-
-static inline uint64_t
-capq_extract_epoch(uint64_t state)
-{
-    return state & ~(CAPQ_FLAG_MASK);
-}
-
-static inline uint64_t
-capq_ix(uint64_t seq, uint64_t sz)
-{
-    return seq & (sz-1);
-}
-
-static inline uint64_t
-capq_set_state_dequeued(uint64_t state)
-{
-    return (state & ~CAPQ_ENQUEUED) | CAPQ_DEQUEUED;
-}
-
-static inline uint64_t
-capq_clear_moving(uint64_t state)
-{
-    return state & (~(CAPQ_MOVING|CAPQ_MOVED));
-}
-
-// Precondition-- we are looking at the right epoch.
-static inline bool
-capq_should_return(uint64_t state)
-{
-    if (capq_is_enqueued(state) || capq_is_dequeued(state)) {
-	return true;
-    }
-
-    return false;
-}
+uint64_t   capq_len        (capq_t *);

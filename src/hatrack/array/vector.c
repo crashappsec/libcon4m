@@ -24,7 +24,32 @@
 #include "hatrack/malloc.h"
 #include "hatrack/mmm.h"
 #include "hatrack/hatrack_common.h"
-// #include "hatrack/flexarray.h"
+
+#define VECTOR_MIN_STORE_SZ_LOG 4
+
+enum {
+    VECTOR_POPPED   = 0x8000000000000000,
+    VECTOR_USED     = 0x4000000000000000,
+    VECTOR_MOVING   = 0x2000000000000000,
+    VECTOR_MOVED    = 0x1000000000000000,
+    VECTOR_JOB_MASK = 0x0fffffffffffffff
+};
+
+enum {
+    VECTOR_OK,
+    VECTOR_OOB,
+    VECTOR_UNINITIALIZED
+};
+
+enum {
+    VECTOR_OP_PUSH = 0,
+    VECTOR_OP_POP,
+    VECTOR_OP_PEEK,
+    VECTOR_OP_GROW,
+    VECTOR_OP_SHRINK,
+    VECTOR_OP_SLOW_SET,
+    VECTOR_OP_VIEW
+};
 
 static vector_store_t *vector_new_store(int64_t, int64_t);
 static void            vector_migrate(vector_store_t *, vector_t *);

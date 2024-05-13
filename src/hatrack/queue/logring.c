@@ -28,6 +28,84 @@
 
 #include <string.h>
 
+#include "hatring-internal.h"
+
+#define LOGRING_MIN_SIZE 64
+
+enum {
+    LOGRING_EMPTY           = 0x00,
+    LOGRING_RESERVED        = 0x01,
+    LOGRING_ENQUEUE_DONE    = 0x02,
+    LOGRING_DEQUEUE_RESERVE = 0x04,
+    LOGRING_VIEW_RESERVE    = 0x08
+};
+
+static inline bool
+logring_entry_is_being_used(logring_entry_info_t info)
+{
+    if (info.state & (LOGRING_RESERVED | LOGRING_VIEW_RESERVE | LOGRING_DEQUEUE_RESERVE)) {
+        return true;
+    }
+
+    return false;
+}
+
+static inline bool
+logring_current_entry_epoch(logring_entry_info_t info, uint32_t my_epoch)
+{
+    if (info.write_epoch == my_epoch) {
+        return true;
+    }
+
+    return false;
+}
+
+static inline bool
+logring_can_write_here(logring_entry_info_t info, uint32_t my_write_epoch)
+{
+    if (logring_entry_is_being_used(info)) {
+        return false;
+    }
+
+    if (info.write_epoch > my_write_epoch) {
+        return false;
+    }
+
+    return true;
+}
+
+static inline bool
+logring_can_dequeue_here(logring_entry_info_t info, uint32_t expected_epoch)
+{
+    if (info.write_epoch > expected_epoch) {
+        return false;
+    }
+
+    return true;
+}
+
+static inline hatring_cell_t *
+logring_get_ringcell(logring_t *self, uint32_t ix)
+{
+    return &self->ring->cells[ix & self->ring->last_slot];
+}
+
+static inline logring_entry_t *
+logring_get_entry(logring_t *self, uint64_t ix)
+{
+    uint64_t byte_ix;
+
+    byte_ix = ix * (sizeof(logring_entry_t) + self->entry_len);
+
+    return (logring_entry_t *)&(((char *)self->entries)[byte_ix]);
+}
+
+static inline uint64_t
+logring_set_dequeue_done(uint64_t state)
+{
+    return state & ~(LOGRING_DEQUEUE_RESERVE | LOGRING_ENQUEUE_DONE);
+}
+
 static void logring_view_help_if_needed(logring_t *);
 
 static const logring_entry_info_t empty_entry = {

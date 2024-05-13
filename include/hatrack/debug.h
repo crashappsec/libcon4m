@@ -52,14 +52,12 @@
  * go right up to the end of the array, make sure we get a zero,
  * whatever the semantics of the strncpy() implementation.
  */
-// clang-format off
 typedef struct {
-    char      msg[HATRACK_DEBUG_MSG_SIZE];
-    char      null;
-    uint64_t  sequence;
-    int64_t   thread;
+    char     msg[HATRACK_DEBUG_MSG_SIZE];
+    char     null;
+    uint64_t sequence;
+    int64_t  thread;
 } hatrack_debug_record_t;
-
 
 /*
  * __hatrack_debug_sequence is a monotoincally increasing counter for
@@ -75,6 +73,8 @@ typedef struct {
  * threads don't stomp on each other's insertions while a write is in
  * progress.
  */
+
+// clang-format off
 extern hatrack_debug_record_t __hatrack_debug[];
 extern _Atomic uint64_t       __hatrack_debug_sequence;
 extern const char             __hatrack_hex_conversion_table[];
@@ -95,7 +95,6 @@ void debug_thread       (void);
 void debug_other_thread (int64_t);
 void debug_grep         (char *);
 void debug_pgrep        (uintptr_t);
-
 // clang-format on
 
 /* hatrack_debug()

@@ -27,6 +27,13 @@
 
 #include <stdlib.h>
 
+#define QUEUE_HELP_VALUE 1 << QUEUE_HELP_STEPS
+
+enum64(q64_cell_state_t,
+       Q64_EMPTY   = 0x00,
+       Q64_TOOSLOW = 0x01,
+       Q64_USED    = 0x02);
+
 static const q64_item_t empty_cell      = Q64_EMPTY;
 static const q64_item_t too_slow_marker = Q64_TOOSLOW;
 static const q64_item_t value_mask      = ~(Q64_TOOSLOW | Q64_USED);
@@ -129,6 +136,12 @@ q64_delete(q64_t *self)
     hatrack_free(self, sizeof(q64_t));
 
     return;
+}
+
+uint64_t
+q64_len(q64_t *self)
+{
+    return atomic_read(&self->len);
 }
 
 /* q64_enqueue is pretty simple in the average case. It only gets

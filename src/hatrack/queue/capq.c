@@ -50,6 +50,77 @@
 #include "hatrack/mmm.h"
 #include "hatrack/hatrack_common.h"
 
+enum {
+    CAPQ_EMPTY              = 0x0000000000000000,
+    CAPQ_ENQUEUED           = 0x1000000000000000,
+    CAPQ_DEQUEUED           = 0x2000000000000000,
+    CAPQ_MOVED              = 0x4000000000000000,
+    CAPQ_MOVING             = 0x8000000000000000,
+    CAPQ_FLAG_MASK          = 0xf000000000000000,
+    CAPQ_STORE_INITIALIZING = 0xffffffffffffffff
+};
+
+static inline uint64_t
+capq_set_enqueued(uint64_t ix)
+{
+    return CAPQ_ENQUEUED | ix;
+}
+
+static inline bool
+capq_is_moving(uint64_t state)
+{
+    return state & CAPQ_MOVING;
+}
+
+static inline bool
+capq_is_moved(uint64_t state)
+{
+    return state & CAPQ_MOVED;
+}
+
+static inline bool
+capq_is_enqueued(uint64_t state)
+{
+    return state & CAPQ_ENQUEUED;
+}
+
+static inline bool
+capq_is_dequeued(uint64_t state)
+{
+    return state & CAPQ_DEQUEUED;
+}
+
+static inline uint64_t
+capq_extract_epoch(uint64_t state)
+{
+    return state & ~(CAPQ_FLAG_MASK);
+}
+
+static inline uint64_t
+capq_ix(uint64_t seq, uint64_t sz)
+{
+    return seq & (sz - 1);
+}
+
+static inline uint64_t
+capq_set_state_dequeued(uint64_t state)
+{
+    return (state & ~CAPQ_ENQUEUED) | CAPQ_DEQUEUED;
+}
+
+static inline uint64_t
+capq_clear_moving(uint64_t state)
+{
+    return state & (~(CAPQ_MOVING | CAPQ_MOVED));
+}
+
+static inline bool
+capq_should_return(uint64_t state)
+{
+    // Precondition-- we are looking at the right epoch.
+    return capq_is_enqueued(state) || capq_is_dequeued(state);
+}
+
 static const capq_item_t empty_cell = {NULL, CAPQ_EMPTY};
 
 typedef union {
@@ -124,6 +195,12 @@ capq_delete(capq_t *self)
     hatrack_free(self, sizeof(capq_t));
 
     return;
+}
+
+uint64_t
+capq_len(capq_t *self)
+{
+    return atomic_read(&self->len);
 }
 
 /* capq_enqueue is pretty simple in the average case. It only gets

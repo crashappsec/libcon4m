@@ -24,14 +24,11 @@
 #include "base.h"
 #include "helpmanager.h"
 
-#define VECTOR_MIN_STORE_SZ_LOG 4
-
-// clang-format off
 typedef void (*vector_callback_t)(void *);
 
 typedef struct {
-    void     *item;
-    int64_t   state;
+    void   *item;
+    int64_t state;
 } vector_item_t;
 
 typedef _Atomic vector_item_t vector_cell_t;
@@ -39,32 +36,33 @@ typedef _Atomic vector_item_t vector_cell_t;
 typedef struct vector_store_t vector_store_t;
 
 typedef struct {
-    int64_t             next_ix;
-    int64_t             size;
-    vector_store_t     *contents;
-    vector_callback_t   eject_callback;
+    int64_t           next_ix;
+    int64_t           size;
+    vector_store_t   *contents;
+    vector_callback_t eject_callback;
 } vector_view_t;
 
 typedef struct {
     int64_t array_size;
-    int64_t  job_id;
+    int64_t job_id;
 } vec_size_info_t;
 
 struct vector_store_t {
     int64_t                   store_size;
     _Atomic vec_size_info_t   array_size_info;
-    _Atomic (vector_store_t *)next;
+    _Atomic(vector_store_t *) next;
     _Atomic bool              claimed;
     vector_cell_t             cells[];
 };
 
 typedef struct {
-    vector_callback_t          ret_callback;
-    vector_callback_t          eject_callback;
-    _Atomic (vector_store_t  *)store;
-    help_manager_t             help_manager;
+    vector_callback_t         ret_callback;
+    vector_callback_t         eject_callback;
+    _Atomic(vector_store_t *) store;
+    help_manager_t            help_manager;
 } vector_t;
 
+// clang-format off
 vector_t      *vector_new               (int64_t);
 void           vector_init              (vector_t *, int64_t, bool);
 void           vector_set_ret_callback  (vector_t *, vector_callback_t);
@@ -82,28 +80,3 @@ void          *vector_peek              (vector_t *, bool *);
 vector_view_t *vector_view              (vector_t *);
 void          *vector_view_next         (vector_view_t *, bool *);
 void           vector_view_delete       (vector_view_t *);
-
-enum {
-       VECTOR_POPPED   = 0x8000000000000000,
-       VECTOR_USED     = 0x4000000000000000,
-       VECTOR_MOVING   = 0x2000000000000000,
-       VECTOR_MOVED    = 0x1000000000000000,
-       VECTOR_JOB_MASK = 0x0fffffffffffffff
-};
-
-
-enum {
-    VECTOR_OK,
-    VECTOR_OOB,
-    VECTOR_UNINITIALIZED
-};
-
-enum {
-    VECTOR_OP_PUSH = 0,
-    VECTOR_OP_POP,
-    VECTOR_OP_PEEK,
-    VECTOR_OP_GROW,
-    VECTOR_OP_SHRINK,
-    VECTOR_OP_SLOW_SET,
-    VECTOR_OP_VIEW
-};

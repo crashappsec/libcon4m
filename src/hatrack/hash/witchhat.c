@@ -32,7 +32,7 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack/witchhat.h"
+#include "witchhat-internal.h"
 
 #include <stdlib.h>
 

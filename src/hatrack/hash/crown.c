@@ -160,7 +160,7 @@
  *
  */
 
-#include "hatrack/crown.h"
+#include "crown-internal.h"
 
 #include <stdlib.h>
 

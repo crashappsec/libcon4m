@@ -29,8 +29,9 @@
 #include "hatrack/tophat.h"
 #include "hatrack/ballcap.h"
 #include "hatrack/newshat.h"
-#include "hatrack/witchhat.h"
 #include "hatrack/woolhat.h"
+
+#include "witchhat-internal.h"
 
 #include <stdlib.h>
 

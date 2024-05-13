@@ -79,7 +79,6 @@
  * used     -- We set this to true when there is a value present.
  *
  */
-// clang-format off
 typedef struct {
     hatrack_hash_t hv;
     void          *item;
@@ -89,7 +88,6 @@ typedef struct {
 } oldhat_record_t;
 
 typedef struct oldhat_store_st oldhat_store_t;
-
 
 /* oldhat_store_t
  *
@@ -143,7 +141,6 @@ typedef struct oldhat_store_st oldhat_store_t;
  *               dynamically allocate the store to the correct size,
  *               so that we can avoid an extra indirection.
  */
-// clang-format off
 struct oldhat_store_st {
     uint64_t                   last_slot;
     uint64_t                   threshold;
@@ -167,7 +164,6 @@ struct oldhat_store_st {
  *                  This value isn't used in anything critical, just
  *                  to return a result when querying the length.
  */
-// clang-format off
 typedef struct {
     _Atomic(oldhat_store_t *) store_current;
     _Atomic uint64_t          item_count;
@@ -182,6 +178,8 @@ typedef struct {
  * choose a 3-universal keyed hash function, or if hash values need to
  * be consistent across runs, something fast and practical like XXH3.
  */
+
+// clang-format off
 oldhat_t       *oldhat_new      (void);
 oldhat_t       *oldhat_new_size (char);
 void            oldhat_init     (oldhat_t *);

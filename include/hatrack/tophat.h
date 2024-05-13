@@ -140,14 +140,13 @@ typedef enum {
 /* tophat_st_record_t and tophat_st_bucket_t are straightforward,
  * and together constitute the single-threaded bucket layout.
  */
-// clang-format off
 typedef struct {
-    void     *item;
-    uint64_t  epoch;
+    void    *item;
+    uint64_t epoch;
 } tophat_st_record_t;
 
 typedef struct {
-            hatrack_hash_t     hv;
+    hatrack_hash_t             hv;
     _Atomic tophat_st_record_t record;
 } tophat_st_bucket_t;
 
@@ -198,10 +197,9 @@ typedef struct {
     tophat_st_ctx_t   *st_table;
     pthread_mutex_t    mutex;
     tophat_migration_t dst_type;
-    _Atomic (void *)   mt_table;
+    _Atomic(void *)    mt_table;
     hatrack_vtable_t   mt_vtable;
 } tophat_t;
-
 
 /* Here, we see that we have four different initialization functions,
  * each of which selects which multi-threaded implementation we want
@@ -215,6 +213,8 @@ typedef struct {
  * _mx   = Mutex variant
  * _wf   = Wait-Free variant
  */
+
+// clang-format off
 tophat_t       *tophat_new_fast_mx      (void);
 tophat_t       *tophat_new_fast_wf      (void);
 tophat_t       *tophat_new_cst_mx       (void);

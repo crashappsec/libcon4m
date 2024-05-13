@@ -28,8 +28,6 @@
 #include "base.h"
 #include "hatrack_common.h"
 
-// clang-format off
-
 /* newshat_record_t
  *
  * Each newshat bucket is individually locked, so that only one thread
@@ -54,9 +52,8 @@
  */
 
 typedef struct {
-    alignas(16)
-    void                *item;
-    uint64_t             epoch;
+    alignas(16) void *item;
+    uint64_t epoch;
 } newshat_record_t;
 
 /* newshat_bucket_t
@@ -104,7 +101,6 @@ typedef struct {
  *             the atomic store approach, they would actually be
  *             wait-free.
  */
-// clang-format off
 typedef struct {
     _Atomic newshat_record_t record;
     hatrack_hash_t           hv;
@@ -145,10 +141,10 @@ typedef struct {
  *               so that we can avoid an extra indirection.
  */
 typedef struct {
-    uint64_t             last_slot;
-    uint64_t             threshold;
-    _Atomic uint64_t     used_count;
-    newshat_bucket_t     buckets[];
+    uint64_t         last_slot;
+    uint64_t         threshold;
+    _Atomic uint64_t used_count;
+    newshat_bucket_t buckets[];
 } newshat_store_t;
 
 /* newshat_t
@@ -181,10 +177,10 @@ typedef struct {
  *                  operation, for the purposes of sort ordering.
  */
 typedef struct {
-    newshat_store_t     *store_current;
-    _Atomic uint64_t     item_count;
-    _Atomic uint64_t     next_epoch;
-    pthread_mutex_t      migrate_mutex;
+    newshat_store_t *store_current;
+    _Atomic uint64_t item_count;
+    _Atomic uint64_t next_epoch;
+    pthread_mutex_t  migrate_mutex;
 } newshat_t;
 
 /* This API requires that you deal with hashing the key external to
@@ -196,6 +192,8 @@ typedef struct {
  * choose a 3-universal keyed hash function, or if hash values need to
  * be consistent across runs, something fast and practical like XXH3.
  */
+
+// clang-format off
 newshat_t      *newshat_new      (void);
 newshat_t      *newshat_new_size (char);
 void            newshat_init     (newshat_t *);

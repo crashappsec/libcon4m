@@ -23,9 +23,7 @@
 #include "hatrack/debug.h"
 #include "hatrack/malloc.h"
 
-#include "hatrack/xxhash.h"
 #include "hatrack/counters.h"
-#include "hatrack/hatomic.h"
 #include "hatrack/mmm.h"
 #include "hatrack/gate.h"
 #include "hatrack/hatrack_common.h"

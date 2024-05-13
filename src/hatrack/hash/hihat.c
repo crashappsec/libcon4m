@@ -24,7 +24,7 @@
  *
  */
 
-#include "hatrack/hihat.h"
+#include "hihat-internal.h"
 
 #include <stdlib.h>
 

@@ -207,7 +207,6 @@ typedef struct {
  */
 typedef struct lohat_a_store_st lohat_a_store_t;
 
-// clang-format off
 struct lohat_a_store_st {
     uint64_t                     last_slot;
     lohat_a_history_t           *hist_end;
@@ -222,6 +221,7 @@ typedef struct {
     _Atomic(uint64_t)          item_count;
 } lohat_a_t;
 
+// clang-format off
 lohat_a_t      *lohat_a_new      (void);
 lohat_a_t      *lohat_a_new_size (char);
 void            lohat_a_init     (lohat_a_t *);

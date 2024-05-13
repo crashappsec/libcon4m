@@ -26,6 +26,13 @@
 
 #include <stdlib.h>
 
+#define QUEUE_HELP_VALUE 1 << QUEUE_HELP_STEPS
+
+enum64(queue_cell_state_t,
+       QUEUE_EMPTY   = 0x00,
+       QUEUE_TOOSLOW = 0x01,
+       QUEUE_USED    = 0x02);
+
 static const queue_item_t empty_cell      = {NULL, QUEUE_EMPTY};
 static const queue_item_t too_slow_marker = {NULL, QUEUE_TOOSLOW};
 
@@ -127,6 +134,12 @@ queue_delete(queue_t *self)
     hatrack_free(self, sizeof(queue_t));
 
     return;
+}
+
+uint64_t
+queue_len(queue_t *self)
+{
+    return atomic_read(&self->len);
 }
 
 /* queue_enqueue is pretty simple in the average case. It only gets

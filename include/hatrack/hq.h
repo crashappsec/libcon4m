@@ -34,9 +34,7 @@
 #pragma once
 
 #include "base.h"
-#include "hatomic.h"
 
-// clang-format off
 typedef struct {
     void    *item;
     uint64_t state;
@@ -54,7 +52,7 @@ typedef struct {
 } hq_view_t;
 
 struct hq_store_t {
-    _Atomic (hq_store_t *)next_store;
+    _Atomic(hq_store_t *) next_store;
     uint64_t              size;
     _Atomic uint64_t      enqueue_index;
     _Atomic uint64_t      dequeue_index;
@@ -63,26 +61,11 @@ struct hq_store_t {
 };
 
 typedef struct {
-    _Atomic (hq_store_t *)store;
+    _Atomic(hq_store_t *) store;
     _Atomic int64_t       len;
 } hq_t;
 
-enum {
-    HQ_EMPTY              = 0x0000000000000000,
-    HQ_TOOSLOW            = 0x1000000000000000,
-    HQ_USED               = 0x2000000000000000,
-    HQ_MOVED              = 0x4000000000000000,
-    HQ_MOVING             = 0x8000000000000000,
-    HQ_FLAG_MASK          = 0xf000000000000000,
-    HQ_STORE_INITIALIZING = 0xffffffffffffffff
-};
-
-static inline int64_t
-hq_len(hq_t *self)
-{
-    return atomic_read(&self->len);
-}
-
+// clang-format off
 hq_t      *hq_new        (void);
 hq_t      *hq_new_size   (uint64_t);
 void       hq_init       (hq_t *);
@@ -91,66 +74,7 @@ void       hq_cleanup    (hq_t *);
 void       hq_delete     (hq_t *);
 void       hq_enqueue    (hq_t *, void *);
 void      *hq_dequeue    (hq_t *, bool *);
+int64_t    hq_len        (hq_t *);
 hq_view_t *hq_view       (hq_t *);
 void      *hq_view_next  (hq_view_t *, bool *);
 void       hq_view_delete(hq_view_t *);
-
-static inline bool
-hq_cell_too_slow(hq_item_t item)
-{
-    return (bool)(item.state & HQ_TOOSLOW);
-}
-
-static inline uint64_t
-hq_set_used(uint64_t ix)
-{
-    return HQ_USED | ix;
-}
-
-static inline bool
-hq_is_moving(uint64_t state)
-{
-    return state & HQ_MOVING;
-}
-
-static inline bool
-hq_is_moved(uint64_t state)
-{
-    return state & HQ_MOVED;
-}
-
-static inline bool
-hq_is_queued(uint64_t state)
-{
-    return state & HQ_USED;
-}
-
-static inline uint64_t
-hq_add_moving(uint64_t state)
-{
-    return state | HQ_MOVING;
-}
-
-static inline uint64_t
-hq_add_moved(uint64_t state)
-{
-    return state | HQ_MOVED | HQ_MOVING;
-}
-
-static inline uint64_t
-hq_extract_epoch(uint64_t state)
-{
-    return state & ~(HQ_FLAG_MASK);
-}
-
-static inline bool
-hq_can_enqueue(uint64_t state)
-{
-    return !(state & HQ_FLAG_MASK);
-}
-
-static inline uint64_t
-hq_ix(uint64_t seq, uint64_t sz)
-{
-    return seq & (sz-1);
-}

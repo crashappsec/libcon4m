@@ -27,6 +27,8 @@
 
 #include <string.h>
 
+#include "hatring-internal.h"
+
 #define HATRING_MINIMUM_SIZE 16
 
 /* The overhead for a call to nanosleep should be probably a couple
