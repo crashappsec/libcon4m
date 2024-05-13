@@ -1,0 +1,6 @@
+enum { E1, E2 }
+enum strenum { C1 = "foo", C2 = "bar" }
+enum strenum2 { C3 = "foo", C4 = "bar", C5 = 6, }
+enum global intenum {
+  X = 1, Y, Z
+}

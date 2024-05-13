@@ -29,9 +29,9 @@
 typedef struct hatrack_set_st hatrack_set_t;
 
 struct hatrack_set_st {
+    uint32_t            item_type;
     woolhat_t           woolhat_instance;
     hatrack_hash_info_t hash_info;
-    uint32_t            item_type;
     hatrack_mem_hook_t  pre_return_hook;
     hatrack_mem_hook_t  free_handler;
 };
@@ -55,6 +55,7 @@ bool            hatrack_set_add             (hatrack_set_t *, void *);
 bool            hatrack_set_remove          (hatrack_set_t *, void *);
 void           *hatrack_set_items           (hatrack_set_t *, uint64_t *);
 void           *hatrack_set_items_sort      (hatrack_set_t *, uint64_t *);
+void           *hatrack_set_any_item        (hatrack_set_t *, bool *);
 bool            hatrack_set_is_eq           (hatrack_set_t *, hatrack_set_t *);
 bool            hatrack_set_is_superset     (hatrack_set_t *, hatrack_set_t *,
 					     bool);

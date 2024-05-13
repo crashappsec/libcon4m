@@ -5,6 +5,7 @@ typedef enum {
     FFI_ABI_1 = 1,
     FFI_ABI_2 = 2,
 } c4m_ffi_abi;
+
 typedef struct _c4m_ffi_type {
     size_t                 size;
     unsigned short         alignment;

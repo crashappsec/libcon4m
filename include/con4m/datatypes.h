@@ -1,5 +1,7 @@
 #pragma once
 
+typedef struct hatrack_set_st c4m_set_t;
+
 #include "con4m/datatypes/memory.h"
 #include "con4m/datatypes/kargs.h"
 #include "con4m/datatypes/literals.h"
@@ -10,6 +12,7 @@
 #include "con4m/datatypes/strings.h"
 #include "con4m/datatypes/lists.h"
 #include "con4m/datatypes/trees.h"
+#include "con4m/datatypes/tree_pattern.h"
 #include "con4m/datatypes/types.h"
 #include "con4m/datatypes/grids.h"
 #include "con4m/datatypes/buffers.h"
@@ -26,7 +29,11 @@
 #include "frontend/datatypes/error.h"
 #include "frontend/datatypes/parse.h"
 #include "frontend/datatypes/scope.h"
+#include "frontend/datatypes/partials.h"
+#include "frontend/datatypes/spec.h"
+#include "frontend/datatypes/cfg.h"
 #include "frontend/datatypes/file.h"
+#include "frontend/datatypes/compile.h"
 
 typedef c4m_str_t *(*c4m_repr_fn)(c4m_obj_t, to_str_use_t);
 typedef void (*c4m_marshal_fn)(c4m_obj_t,
@@ -44,10 +51,10 @@ typedef void (*c4m_slice_set_fn)(c4m_obj_t, int64_t, int64_t, c4m_obj_t);
 typedef bool (*c4m_can_coerce_fn)(c4m_type_t *, c4m_type_t *);
 typedef void *(*c4m_coerce_fn)(void *, c4m_type_t *);
 typedef bool (*c4m_cmp_fn)(c4m_obj_t, c4m_obj_t);
-typedef c4m_obj_t (*c4m_literal_fn)(char *,
+typedef c4m_obj_t (*c4m_literal_fn)(c4m_utf8_t *,
                                     c4m_lit_syntax_t,
-                                    char *,
-                                    c4m_lit_error_t *);
+                                    c4m_utf8_t *,
+                                    c4m_compile_error_t *);
 typedef c4m_obj_t (*c4m_container_lit_fn)(c4m_type_t *,
                                           c4m_obj_t,
                                           c4m_lit_syntax_t,

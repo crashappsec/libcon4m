@@ -80,7 +80,7 @@ c4m_initialize_gc()
 
     if (!once) {
         c4m_gc_guard = c4m_rand64();
-        global_roots = calloc(sizeof(c4m_dict_t), 1);
+        global_roots = c4m_rc_alloc(sizeof(c4m_dict_t));
         once         = true;
         page_bytes   = getpagesize();
         page_modulus = page_bytes - 1; // Page size is always a power of 2.
@@ -153,7 +153,11 @@ c4m_expand_arena(size_t num_words, c4m_arena_t **cur_ptr)
     new_arena->heap_end       = (uint64_t *)(&(new_arena->data[num_words]));
     new_arena->arena_id       = arena_id;
     new_arena->late_mutations = calloc(sizeof(queue_t), 1);
-    *cur_ptr                  = new_arena;
+
+    c4m_gc_trace("******** alloc late mutations dict: %p\n",
+                 new_arena->late_mutations);
+
+    *cur_ptr = new_arena;
 
     queue_init(new_arena->late_mutations);
 
@@ -225,7 +229,9 @@ c4m_delete_arena(c4m_arena_t *arena)
             c4m_rc_free_and_cleanup(arena->roots,
                                     (cleanup_fn)hatrack_dict_cleanup);
         }
-        c4m_rc_free(arena->late_mutations);
+        c4m_gc_trace("******** delete late mutations dict: %p\n",
+                     arena->late_mutations);
+        free(arena->late_mutations);
 
 #if defined(MADV_ZERO_WIRED_PAGES)
         char *start = ((char *)arena) - page_bytes;
@@ -607,6 +613,6 @@ c4m_is_read_only_memory(volatile void *address)
 
 #ifdef GC_TRACE
 
-int c4m_gc_trace = 0;
+int c4m_gc_trace_on = 1;
 
 #endif

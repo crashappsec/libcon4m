@@ -102,7 +102,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .by_value  = true,
     },
     {
-        .name      = "utf8",
+        .name      = "string",
         .typeid    = C4M_T_UTF8,
         .alloc_len = sizeof(c4m_str_t),
         .ptr_info  = (uint64_t *)c4m_pmap_str,
@@ -237,10 +237,13 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     {
-        .name    = "callback",
-        .typeid  = C4M_T_CALLBACK,
-        .dt_kind = C4M_DT_KIND_primitive,
-        .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .name      = "callback",
+        .typeid    = C4M_T_CALLBACK,
+        .alloc_len = sizeof(c4m_callback_t),
+        .vtable    = &c4m_callback_vtable,
+        .ptr_info  = GC_SCAN_ALL,
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     {
         .name      = "queue",
@@ -363,7 +366,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .ptr_info  = GC_SCAN_ALL,
         .typeid    = C4M_T_REF,
         .dt_kind   = C4M_DT_KIND_primitive,
-        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_PTR,
     },
     {
         // This is meant for runtime sum types. It's lightly used
@@ -412,7 +415,15 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_internal,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-};
+    [C4M_T_PARTIAL_LIT] = {
+        .name      = "partially_evaluated_literal",
+        .typeid    = C4M_T_PARTIAL_LIT,
+        .alloc_len = sizeof(c4m_partial_lit_t),
+        .ptr_info  = GC_SCAN_ALL,
+        .vtable    = &c4m_partial_lit_vtable,
+        .dt_kind   = C4M_DT_KIND_internal,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+    }};
 
 c4m_obj_t
 _c4m_new(c4m_type_t *type, ...)
@@ -429,6 +440,8 @@ _c4m_new(c4m_type_t *type, ...)
     obj->base_data_type = tinfo;
     obj->concrete_type  = type;
     result              = obj->data;
+
+    assert(obj->concrete_type != NULL);
 
     switch (tinfo->dt_kind) {
     case C4M_DT_KIND_primitive:
@@ -486,6 +499,22 @@ c4m_repr(void *item, c4m_type_t *t, to_str_use_t how)
 c4m_obj_t
 c4m_copy_object(c4m_obj_t obj)
 {
+    c4m_copy_fn ptr = (c4m_copy_fn)c4m_vtable(obj)->methods[C4M_BI_COPY];
+
+    if (ptr == NULL) {
+        C4M_CRAISE("Copying for this object type not currently supported.");
+    }
+
+    return (*ptr)(obj);
+}
+
+c4m_obj_t
+c4m_copy_object_of_type(c4m_obj_t obj, c4m_type_t *t)
+{
+    if (c4m_type_is_value_type(t)) {
+        return obj;
+    }
+
     c4m_copy_fn ptr = (c4m_copy_fn)c4m_vtable(obj)->methods[C4M_BI_COPY];
 
     if (ptr == NULL) {
@@ -641,7 +670,7 @@ c4m_can_coerce(c4m_type_t *t1, c4m_type_t *t2)
     return (*ptr)(t1, t2);
 }
 
-void *
+c4m_obj_t
 c4m_coerce(void *data, c4m_type_t *t1, c4m_type_t *t2)
 {
     // TODO-- if it's not a primitive type in t1, we should
@@ -656,6 +685,47 @@ c4m_coerce(void *data, c4m_type_t *t1, c4m_type_t *t2)
     }
 
     return (*ptr)(data, t2);
+}
+
+c4m_obj_t
+c4m_coerce_object(const c4m_obj_t obj, c4m_type_t *to_type)
+{
+    c4m_type_t    *from_type = c4m_get_my_type(obj);
+    c4m_dt_info_t *info      = c4m_tspec_get_data_type_info(from_type);
+    uint64_t       value;
+
+    if (!info->by_value) {
+        return c4m_coerce(obj, from_type, to_type);
+    }
+
+    switch (info->alloc_len) {
+    case 8:
+        value = (uint64_t) * (uint8_t *)obj;
+        break;
+    case 32:
+        value = (uint64_t) * (uint32_t *)obj;
+        break;
+    default:
+        value = *(uint64_t *)obj;
+    }
+
+    value        = (uint64_t)c4m_coerce((void *)value, from_type, to_type);
+    info         = c4m_tspec_get_data_type_info(to_type);
+    void *result = c4m_new(to_type);
+
+    if (info->alloc_len == 8) {
+        *(uint8_t *)result = (uint8_t)value;
+    }
+    else {
+        if (info->alloc_len == 32) {
+            *(uint32_t *)result = (uint32_t)value;
+        }
+        else {
+            *(uint64_t *)result = value;
+        }
+    }
+
+    return result;
 }
 
 bool

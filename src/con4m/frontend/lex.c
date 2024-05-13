@@ -151,7 +151,7 @@ advance(lex_state_t *state)
 static inline c4m_codepoint_t
 peek(lex_state_t *state)
 {
-    if (state->pos + 1 >= state->end) {
+    if (state->pos >= state->end) {
         return 0;
     }
     return *(state->pos);
@@ -806,6 +806,7 @@ line_comment:
                     TOK(c4m_tt_line_comment);
                     goto lex_next_token;
                 case 0: // EOF
+                    TOK(c4m_tt_eof);
                     return;
                 default:
                     continue;

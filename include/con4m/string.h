@@ -18,6 +18,7 @@ extern c4m_utf32_t        *_c4m_str_join(const c4m_xlist_t *,
                                          ...);
 extern c4m_utf8_t         *c4m_str_from_int(int64_t n);
 extern int64_t             _c4m_str_find(c4m_str_t *, c4m_str_t *, ...);
+extern int64_t             _c4m_str_rfind(c4m_str_t *, c4m_str_t *, ...);
 extern c4m_utf8_t         *c4m_cstring(char *s, int64_t len);
 extern c4m_utf8_t         *c4m_rich(c4m_utf8_t *, c4m_utf8_t *style);
 extern c4m_codepoint_t     c4m_index(const c4m_str_t *, int64_t);
@@ -25,6 +26,8 @@ extern bool                c4m_str_can_coerce_to(c4m_type_t *, c4m_type_t *);
 extern c4m_obj_t           c4m_str_coerce_to(const c4m_str_t *, c4m_type_t *);
 extern c4m_xlist_t        *c4m_str_xsplit(c4m_str_t *, c4m_str_t *);
 extern struct flexarray_t *c4m_str_split(c4m_str_t *, c4m_str_t *);
+extern bool                c4m_str_starts_with(const c4m_str_t *,
+                                               const c4m_str_t *);
 // This is in richlit.c
 extern c4m_utf8_t         *c4m_rich_lit(char *);
 
@@ -32,6 +35,7 @@ extern c4m_utf8_t         *c4m_rich_lit(char *);
 #define c4m_str_truncate(s, n, ...) _c4m_str_truncate(s, n, KFUNC(__VA_ARGS__))
 #define c4m_str_join(l, s, ...)     _c4m_str_join(l, s, KFUNC(__VA_ARGS__))
 #define c4m_str_find(str, sub, ...) _c4m_str_find(str, sub, KFUNC(__VA_ARGS__))
+#define c4m_str_rfind(a, b, ...)    _c4m_str_rfind(a, b, KFUNC(__VA_ARGS__))
 
 extern const c4m_utf8_t *c4m_empty_string_const;
 extern const c4m_utf8_t *c4m_newline_const;
@@ -75,6 +79,7 @@ static inline c4m_utf8_t *
 c4m_empty_string()
 {
     c4m_utf8_t *s = c4m_str_copy(c4m_empty_string_const);
+
     s->codepoints = 0;
 
     return s;
@@ -104,4 +109,11 @@ c4m_to_cstring(c4m_str_t *s)
     return s->data;
 }
 
+extern c4m_xlist_t *c4m_u8_map(const c4m_xlist_t *);
+extern bool         c4m_str_eq(c4m_str_t *, c4m_str_t *);
+
 extern const uint64_t c4m_pmap_str[2];
+
+#ifdef C4M_INTERNAL_API
+extern void c4m_internal_utf8_set_codepoint_count(c4m_utf8_t *);
+#endif

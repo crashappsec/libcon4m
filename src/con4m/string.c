@@ -15,8 +15,8 @@ C4M_STATIC_ASCII_STR(c4m_empty_string_const, "");
 C4M_STATIC_ASCII_STR(c4m_newline_const, "\n");
 C4M_STATIC_ASCII_STR(c4m_crlf_const, "\r\n");
 
-static void
-utf8_set_codepoint_count(c4m_utf8_t *instr)
+void
+c4m_internal_utf8_set_codepoint_count(c4m_utf8_t *instr)
 {
     uint8_t        *p   = (uint8_t *)instr->data;
     uint8_t        *end = p + instr->byte_len;
@@ -95,7 +95,6 @@ c4m_str_slice(const c4m_str_t *instr, int64_t start, int64_t end)
     for (int i = 0; i < slice_len; i++) {
         dst[i] = src[start + i];
     }
-
     if (s->styling && s->styling->num_entries) {
         int64_t first = -1;
         int64_t last  = 0;
@@ -284,14 +283,25 @@ c4m_str_copy(const c4m_str_t *s)
 c4m_utf32_t *
 c4m_str_concat(const c4m_str_t *p1, const c4m_str_t *p2)
 {
-    c4m_utf32_t *s1          = c4m_to_utf32(p1);
-    c4m_utf32_t *s2          = c4m_to_utf32(p2);
-    int64_t      s1_len      = c4m_str_codepoint_len(s1);
-    int64_t      s2_len      = c4m_str_codepoint_len(s2);
-    int64_t      n           = s1_len + s2_len;
-    c4m_utf32_t *r           = c4m_new(c4m_tspec_utf32(),
+    c4m_utf32_t *s1     = c4m_to_utf32(p1);
+    c4m_utf32_t *s2     = c4m_to_utf32(p2);
+    int64_t      s1_len = c4m_str_codepoint_len(s1);
+    int64_t      s2_len = c4m_str_codepoint_len(s2);
+
+    if (!s1_len) {
+        return s2;
+    }
+
+    if (!s2_len) {
+        return s1;
+    }
+
+    int64_t      n = s1_len + s2_len;
+    c4m_utf32_t *r = c4m_new(c4m_tspec_utf32(),
                              c4m_kw("length", c4m_ka(n)));
-    uint64_t     num_entries = c4m_style_num_entries(s1) + c4m_style_num_entries(s2);
+
+    uint64_t num_entries = c4m_style_num_entries(s1);
+    num_entries          = num_entries + c4m_style_num_entries(s2);
 
     if (!s1_len) {
         return s2;
@@ -401,6 +411,10 @@ _c4m_str_join(const c4m_xlist_t *l, const c4m_str_t *joiner, ...)
 c4m_utf8_t *
 c4m_to_utf8(const c4m_utf32_t *inp)
 {
+    if (inp == NULL) {
+        return c4m_empty_string();
+    }
+
     if (!c4m_str_is_u32(inp)) {
         return (c4m_utf8_t *)inp;
     }
@@ -431,12 +445,24 @@ c4m_to_utf8(const c4m_utf32_t *inp)
 c4m_utf32_t *
 c4m_to_utf32(const c4m_utf8_t *instr)
 {
+    /* // TODO: figure out why non-null empty strings f's up
+    ** //  grid stuff, because this really should get uncommented.
+    *
+    if (!instr) {
+        c4m_utf32_t *outstr = c4m_new(c4m_tspec_utf32(),
+                                      c4m_kw("length", c4m_ka(0)));
+        printf("%d\n", c4m_str_codepoint_len(outstr));
+        return outstr;
+        }
+    */
+
     if (!instr || c4m_str_is_u32(instr)) {
         return (c4m_utf32_t *)instr;
     }
 
     int64_t          len    = (int64_t)c4m_str_codepoint_len(instr);
-    c4m_utf32_t     *outstr = c4m_new(c4m_tspec_utf32(), c4m_kw("length", c4m_ka(len)));
+    c4m_utf32_t     *outstr = c4m_new(c4m_tspec_utf32(),
+                                  c4m_kw("length", c4m_ka(len)));
     uint8_t         *inp    = (uint8_t *)(instr->data);
     c4m_codepoint_t *outp   = (c4m_codepoint_t *)(outstr->data);
 
@@ -460,6 +486,7 @@ utf8_init(c4m_utf8_t *s, va_list args)
     c4m_style_t style         = C4M_STY_BAD;
     bool        replace_style = true;
     char       *tag           = NULL;
+    bool        share_cstring = false;
 
     c4m_karg_va_init(args);
     c4m_kw_int64("length", length);
@@ -480,11 +507,16 @@ utf8_init(c4m_utf8_t *s, va_list args)
                 "len(cstring) is less than the start index");
         }
 
-        s->data     = c4m_gc_raw_alloc(length + 1, NULL);
+        if (share_cstring == true && ((char *)s->data)[length] == 0) {
+            s->data = cstring;
+        }
+        else {
+            s->data = c4m_gc_raw_alloc(length + 1, NULL);
+        }
         s->byte_len = length;
 
         memcpy(s->data, cstring, length);
-        utf8_set_codepoint_count(s);
+        c4m_internal_utf8_set_codepoint_count(s);
     }
     else {
         if (length < 0) {
@@ -632,7 +664,8 @@ c4m_utf8_repeat(c4m_codepoint_t cp, int64_t num)
     int         buf_ix = 0;
     int         l      = utf8proc_encode_char(cp, &buf[0]);
     int         blen   = l * num;
-    c4m_utf8_t *res    = c4m_new(c4m_tspec_utf8(), c4m_kw("length", c4m_ka(blen + 1)));
+    c4m_utf8_t *res    = c4m_new(c4m_tspec_utf8(),
+                              c4m_kw("length", c4m_ka(blen + 1)));
     char       *p      = res->data;
 
     res->codepoints = l;
@@ -652,7 +685,8 @@ c4m_utf32_repeat(c4m_codepoint_t cp, int64_t num)
         return c4m_empty_string();
     }
 
-    c4m_utf32_t     *res = c4m_new(c4m_tspec_utf8(), c4m_kw("length", c4m_ka(num + 1)));
+    c4m_utf32_t     *res = c4m_new(c4m_tspec_utf8(),
+                               c4m_kw("length", c4m_ka(num)));
     c4m_codepoint_t *p   = (c4m_codepoint_t *)res->data;
 
     res->codepoints = ~num;
@@ -778,6 +812,55 @@ u8_slice:
     }
 }
 
+static bool
+u8_starts_with(const c4m_utf8_t *s1, const c4m_utf8_t *s2)
+{
+    int len = c4m_str_codepoint_len(s2);
+
+    if (len > c4m_str_codepoint_len(s1)) {
+        return false;
+    }
+
+    for (int i = 0; i < len; i++) {
+        if (s1->data[i] != s2->data[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool
+u32_starts_with(const c4m_utf32_t *s1, const c4m_utf32_t *s2)
+{
+    int len = c4m_str_codepoint_len(s2);
+
+    if (len > c4m_str_codepoint_len(s1)) {
+        return false;
+    }
+
+    c4m_codepoint_t *cp1 = (c4m_codepoint_t *)s1->data;
+    c4m_codepoint_t *cp2 = (c4m_codepoint_t *)s2->data;
+
+    for (int i = 0; i < len; i++) {
+        if (cp1[i] != cp2[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool
+c4m_str_starts_with(const c4m_str_t *s1, const c4m_str_t *s2)
+{
+    if (c4m_str_is_u8(s1)) {
+        return u8_starts_with(s1, c4m_to_utf8(s2));
+    }
+
+    return u32_starts_with(s1, c4m_to_utf32(s2));
+}
+
 c4m_utf8_t *
 c4m_from_file(const c4m_str_t *name, int *err)
 {
@@ -818,7 +901,7 @@ err:
         }
 
         if (num_read == len) {
-            utf8_set_codepoint_count(result);
+            c4m_internal_utf8_set_codepoint_count(result);
             return result;
         }
 
@@ -881,6 +964,65 @@ _c4m_str_find(c4m_str_t *str, c4m_str_t *sub, ...)
 next_start:
         strp++;
         start++;
+    }
+    return -1;
+}
+
+int64_t
+_c4m_str_rfind(c4m_str_t *str, c4m_str_t *sub, ...)
+{
+    int64_t stop  = 0;
+    int64_t start = -1;
+
+    c4m_karg_only_init(sub);
+
+    c4m_kw_int64("stop", stop);
+    c4m_kw_int64("start", start);
+
+    str = c4m_to_utf32(str);
+    sub = c4m_to_utf32(sub);
+
+    uint64_t strcp = c4m_str_codepoint_len(str);
+    uint64_t subcp = c4m_str_codepoint_len(sub);
+
+    if (stop < 0) {
+        stop += strcp;
+    }
+    if (stop < 0) {
+        stop = 0;
+    }
+    if (start < 0) {
+        start += strcp + 1;
+    }
+
+    if (start <= stop) {
+        return -1;
+    }
+    if ((uint64_t)stop > strcp) {
+        stop = strcp;
+    }
+
+    if (subcp == 0) {
+        return start - 1;
+    }
+
+    uint32_t *strp   = (uint32_t *)str->data;
+    uint32_t *startp = (strp + start) - subcp;
+    uint32_t *endp   = strp + stop;
+    uint32_t *p;
+    uint32_t *subp;
+
+    while (startp >= endp) {
+        p    = startp;
+        subp = (uint32_t *)sub->data;
+        for (uint64_t i = 0; i < subcp; i++) {
+            if (*p++ != *subp++) {
+                goto next_start;
+            }
+        }
+        return startp - strp;
+next_start:
+        startp--;
     }
     return -1;
 }
@@ -1079,23 +1221,35 @@ c4m_str_coerce_to(const c4m_str_t *s, c4m_type_t *target_type)
 }
 
 static c4m_obj_t
-c4m_str_lit(char            *s,
-            c4m_lit_syntax_t st,
-            char            *litmod,
-            c4m_lit_error_t *err)
+c4m_str_lit(c4m_utf8_t          *s_u8,
+            c4m_lit_syntax_t     st,
+            c4m_utf8_t          *lit_u8,
+            c4m_compile_error_t *err)
 {
+    char *s      = s_u8->data;
+    char *litmod = lit_u8->data;
+
     if (*litmod == 0 || !strcmp(litmod, "u8") || !strcmp(litmod, "utf8")) {
-        return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(s)));
+        return s_u8;
     }
 
     if (!strcmp(litmod, "u32") || !strcmp(litmod, "utf32")) {
-        return c4m_new(c4m_tspec_utf32(), c4m_kw("cstring", c4m_ka(s)));
+        return c4m_to_utf32(s_u8);
     }
 
-    return c4m_rich_lit(s);
+    if (!strcmp(litmod, "r") || !strcmp(litmod, "rich")) {
+        return c4m_rich_lit(s);
+    }
+
+    if (c4m_str_codepoint_len(lit_u8) != 0) {
+        *err = c4m_err_parse_no_lit_mod_match;
+        return NULL;
+    }
+
+    return s_u8;
 }
 
-static bool
+bool
 c4m_str_eq(c4m_str_t *s1, c4m_str_t *s2)
 {
     bool s1_is_u32 = c4m_str_is_u32(s1);
@@ -1124,6 +1278,20 @@ c4m_string_format(c4m_str_t *obj, c4m_fmt_spec_t *spec)
     return obj;
 }
 
+c4m_xlist_t *
+c4m_u8_map(const c4m_xlist_t *inlist)
+{
+    int len = c4m_xlist_len(inlist);
+
+    c4m_xlist_t *result = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+
+    for (int i = 0; i < len; i++) {
+        c4m_xlist_append(result, c4m_to_utf8(c4m_xlist_get(inlist, i, NULL)));
+    }
+
+    return result;
+}
+
 const c4m_vtable_t c4m_u8str_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
@@ -1135,7 +1303,7 @@ const c4m_vtable_t c4m_u8str_vtable = {
         (c4m_vtable_entry)c4m_string_unmarshal,
         (c4m_vtable_entry)c4m_str_can_coerce_to,
         (c4m_vtable_entry)c4m_str_coerce_to,
-        NULL, // From lit,
+        (c4m_vtable_entry)c4m_str_lit,
         (c4m_vtable_entry)c4m_str_copy,
         (c4m_vtable_entry)c4m_str_concat,
         NULL, // Subtract

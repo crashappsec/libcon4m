@@ -9,12 +9,12 @@ extern c4m_utf8_t *token_type_to_string(c4m_token_kind_t);
 static inline c4m_utf8_t *
 c4m_token_raw_content(c4m_token_t *tok)
 {
-    int64_t      diff = tok->end_ptr - tok->start_ptr;
+    int64_t      diff = tok->end_ptr - tok->start_ptr - 2 * tok->adjustment;
     c4m_utf32_t *u32  = c4m_new(c4m_tspec_utf32(),
                                c4m_kw("length",
                                       c4m_ka(diff),
                                       "codepoints",
-                                      tok->start_ptr));
+                                      tok->start_ptr + tok->adjustment));
 
     return c4m_to_utf8(u32);
 }

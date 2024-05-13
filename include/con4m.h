@@ -1,7 +1,5 @@
 #pragma once
 
-typedef void *object_t;
-
 // Everything includes this; the ordering here is somewhat important
 // due to interdependencies, though they can always be solved via
 // prototyping.
@@ -26,8 +24,8 @@ typedef void *object_t;
 #include "con4m/box.h"
 
 // Extra data structure stuff.
-#include "con4m/set.h"
 #include "con4m/tree.h"
+#include "con4m/tree_pattern.h"
 #include "con4m/buffer.h"
 #include "con4m/tuple.h"
 
@@ -76,6 +74,9 @@ typedef void *object_t;
 
 #include "con4m/fp.h"
 
+// Path handling utilities.
+#include "con4m/path.h"
+
 // Yes we use cryptographic hashes internally for type IDing.
 #include "crypto/sha.h"
 
@@ -87,3 +88,10 @@ typedef void *object_t;
 #include "frontend/errors.h"
 #include "frontend/lex.h"
 #include "frontend/parse.h"
+#include "frontend/scope.h"
+#include "frontend/spec.h"
+#include "frontend/treematch.h"
+#include "frontend/partial.h"
+#include "frontend/cfgs.h"
+
+#include "con4m/set.h"

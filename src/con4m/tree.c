@@ -186,6 +186,18 @@ c4m_tree_str_transform(c4m_tree_node_t *t, c4m_str_t *(*fn)(void *))
     return result;
 }
 
+void
+c4m_tree_walk(c4m_tree_node_t *t, c4m_walker_fn callback)
+{
+    int64_t num_kids = c4m_tree_get_number_children(t);
+
+    (*callback)(t);
+
+    for (int64_t i = 0; i < num_kids; i++) {
+        c4m_tree_walk(c4m_tree_get_child(t, i), callback);
+    }
+}
+
 const c4m_vtable_t c4m_tree_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {

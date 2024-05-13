@@ -22,12 +22,15 @@
 #include <setjmp.h>
 #include <netdb.h>
 #include <dlfcn.h>
+#include <pwd.h>
 
 #include <sys/select.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
+#include <sys/param.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>

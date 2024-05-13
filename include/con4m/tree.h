@@ -13,6 +13,8 @@ extern void             c4m_tree_adopt_and_prepend(c4m_tree_node_t *,
 extern c4m_tree_node_t *
 c4m_tree_str_transform(c4m_tree_node_t *, c4m_str_t *(*fn)(void *));
 
+void c4m_tree_walk(c4m_tree_node_t *, c4m_walker_fn);
+
 static inline c4m_obj_t
 c4m_tree_get_contents(c4m_tree_node_t *t)
 {

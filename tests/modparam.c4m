@@ -11,6 +11,12 @@ func example_checker(x) {
   if (x % 2) != 0 {
     result = "Parameter value must be even."
   }
+  elif (y % 7) != 3 {
+    result = "I guess"
+  }
+  else {
+    result = "still empty"
+  }
 }
 
 parameter var example1 {
@@ -20,7 +26,7 @@ parameter var example1 {
   validator: func example_checker(int) -> string
 }
 
-parameter var example2 {
+parameter example.two {
   "This should be some documentation."
   "Also this."
   validator: func example_checker(int) -> string
@@ -31,4 +37,3 @@ parameter var example2 {
 print(example1)
 print(example2)
 assert false
-

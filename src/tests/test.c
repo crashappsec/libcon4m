@@ -1,3 +1,4 @@
+#define C4M_USE_INTERNAL_API
 #include "con4m.h"
 
 c4m_style_t style1;
@@ -577,19 +578,36 @@ c4m_rich_lit_test()
     c4m_print(test, test, c4m_kw("no_color", c4m_ka(true), "sep", c4m_ka('&')));
 }
 
+bool
+test_tree_search(int64_t kind_as_64, c4m_tree_node_t *node)
+{
+    c4m_node_kind_t kind  = (c4m_node_kind_t)(unsigned int)kind_as_64;
+    c4m_pnode_t    *pnode = c4m_tree_get_contents(node);
+
+    if (kind == c4m_nt_error) {
+        return true;
+    }
+
+    return kind == pnode->kind;
+}
+
+#if 1
 void
 test_compiler()
 {
-    c4m_xlist_t *files  = c4m_get_program_arguments();
-    int64_t      l      = c4m_xlist_len(files);
-    c4m_str_t   *mname  = c4m_rich_lit("test1");
-    c4m_utf8_t  *joiner = c4m_new_utf8("../tests/");
-    c4m_utf8_t  *slash  = c4m_get_slash_const();
+    c4m_xlist_t     *files  = c4m_get_program_arguments();
+    int64_t          l      = c4m_xlist_len(files);
+    c4m_utf8_t      *joiner = c4m_new_utf8("../tests/");
+    c4m_utf8_t      *slash  = c4m_get_slash_const();
+    c4m_compile_ctx *ctx;
+
+    if (l < 1) {
+        return;
+    }
 
     for (int64_t i = 0; i < l; i++) {
-        c4m_utf8_t           *fname = c4m_xlist_get(files, i, NULL);
-        c4m_utf8_t           *path  = c4m_xlist_get(files, i, NULL);
-        c4m_file_compile_ctx *ctx;
+        c4m_utf8_t *fname = c4m_xlist_get(files, i, NULL);
+        c4m_utf8_t *path;
 
         if (c4m_str_find(fname, slash) == -1) {
             path = c4m_str_concat(joiner, fname);
@@ -598,26 +616,13 @@ test_compiler()
             path = fname;
         }
 
-        ctx = c4m_new_compile_ctx(
-            mname,
-            c4m_kw("uri_path", c4m_ka(path)));
+        ctx = c4m_compile_from_entry_point(path);
 
-        c4m_stream_t *stream = c4m_load_code(ctx);
-        if (stream == NULL) {
-            c4m_print(c4m_cstr_format("[red]error: [/] Couldn't read file: {}",
-                                      fname));
-            continue;
-        }
-        if (c4m_lex(ctx, stream) == false) {
-            c4m_print(c4m_cstr_format("[red]error: [/] Lex failed for: {}",
-                                      fname));
-            c4m_print(c4m_format_errors(ctx));
-            continue;
-        }
+        c4m_print(c4m_format_tokens(ctx->entry_point));
 
-        c4m_print(c4m_format_tokens(ctx));
-        c4m_parse(ctx);
-        c4m_print(c4m_format_parse_tree(ctx));
+        if (ctx->entry_point->parse_tree) {
+            c4m_print(c4m_format_parse_tree(ctx->entry_point));
+        }
 
         c4m_print(c4m_cstr_format("[atomic lime]info: [/] Finished parsing: {}",
                                   fname));
@@ -629,6 +634,9 @@ test_compiler()
         }
     }
 }
+#else
+#define test_compiler(...)
+#endif
 
 void
 test_format()
@@ -650,6 +658,36 @@ test_format()
                         c4m_box_u32(100),
                         c4m_rich_lit("Hello"));
     c4m_print(s);
+}
+
+void
+test_path()
+{
+    c4m_utf8_t *user = c4m_get_user_name();
+
+    c4m_utf8_t *tests[] = {
+        c4m_new_utf8("/"),
+        c4m_cstr_format("/home/{}/dev/libcon4m/", user),
+        c4m_cstr_format("~{}/dev/libcon4m/", user),
+        c4m_cstr_format("~{}/dev/libcon4m/../con4m////src//", user),
+        c4m_cstr_format("~{}/dev/libcon4m/.././con4m/././///src//", user),
+        c4m_new_utf8(""),
+        c4m_new_utf8("~"),
+        NULL,
+    };
+
+    c4m_utf8_t *one;
+    int         i = 0;
+
+    c4m_print(c4m_cstr_format("[h2]Path resolution tests"));
+
+    while ((one = tests[i++]) != NULL) {
+        c4m_print(c4m_cstr_format(
+            "[h4]Test #{}:[/]\n[u]input:[/] [i]{}[/]\n[u]output:[/] [em]{}\n",
+            c4m_box_u64(i),
+            one,
+            c4m_resolve_path(one)));
+    }
 }
 
 #undef STACK_SCAN_TEST
@@ -695,6 +733,7 @@ main(int argc, char **argv, char **envp)
         c4m_print(c4m_box_i32((int32_t)-1));
 
         test_format();
+        test_path();
         test_compiler();
 
         C4M_STATIC_ASCII_STR(local_test, "Goodbye!");

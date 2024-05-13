@@ -464,12 +464,18 @@ buffer_set_slice(c4m_buf_t *b, int64_t start, int64_t end, c4m_buf_t *val)
 }
 
 static c4m_obj_t
-buffer_lit(char *s, c4m_lit_syntax_t st, char *litmod, c4m_lit_error_t *err)
+buffer_lit(c4m_utf8_t          *su8,
+           c4m_lit_syntax_t     st,
+           c4m_utf8_t          *lu8,
+           c4m_compile_error_t *err)
 {
+    char *s      = su8->data;
+    char *litmod = lu8->data;
+
     if (!strcmp(litmod, "h") || !strcmp(litmod, "hex")) {
         int length = strlen(s);
         if (length & 2) {
-            err->code = LE_WrongNumDigits;
+            *err = c4m_err_parse_lit_odd_hex;
             return NULL;
         }
         return c4m_new(c4m_tspec_buffer(),

@@ -37,7 +37,7 @@
  */
 
 // clang-format off
-#ifdef HAVE___INT128_T
+#ifndef NO___INT128_T
 typedef __int128_t hatrack_hash_t;
 #else
 typedef struct {
@@ -201,7 +201,7 @@ hatrack_new_size(uint64_t last_bucket, uint64_t size)
     return table_size;
 }
 
-#ifdef HAVE___INT128_T
+#ifndef NO___INT128_T
 
 static inline bool
 hatrack_hashes_eq(hatrack_hash_t hv1, hatrack_hash_t hv2)
@@ -219,7 +219,7 @@ hatrack_hashes_eq(hatrack_hash_t hv1, hatrack_hash_t hv2)
 
 #endif
 
-#ifdef HAVE___INT128_T
+#ifndef NO___INT128_T
 static inline bool
 hatrack_hash_gt(hatrack_hash_t hv1, hatrack_hash_t hv2)
 {
@@ -249,7 +249,7 @@ hatrack_hash_gt(hatrack_hash_t hv1, hatrack_hash_t hv2)
  * tables).
  */
 
-#ifdef HAVE___INT128_T
+#ifndef NO___INT128_T
 
 static inline bool
 hatrack_bucket_unreserved(hatrack_hash_t hv)
@@ -283,7 +283,7 @@ hatrack_bucket_unreserved(hatrack_hash_t hv)
  * we consider the most significant chunk).
  */
 
-#ifdef HAVE___INT128_T
+#ifndef NO___INT128_T
 
 static inline uint64_t
 hatrack_bucket_index(hatrack_hash_t hv, uint64_t last_slot)
@@ -301,7 +301,7 @@ hatrack_bucket_index(hatrack_hash_t hv, uint64_t last_slot)
 
 #endif
 
-#ifdef HAVE___INT128_T
+#ifndef NO___INT128_T
 
 static inline void
 hatrack_bucket_initialize(hatrack_hash_t *hv)

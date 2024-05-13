@@ -35,5 +35,5 @@ hatrack_quicksort_cmp(const void *bucket1, const void *bucket2)
     item1 = (hatrack_view_t *)bucket1;
     item2 = (hatrack_view_t *)bucket2;
 
-    return item1->sort_epoch - item2->sort_epoch;
+    return item2->sort_epoch - item1->sort_epoch;
 }

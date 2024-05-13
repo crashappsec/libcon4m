@@ -116,19 +116,19 @@ extern bool         c4m_is_read_only_memory(volatile void *);
 
 // #define GC_TRACE
 #ifdef GC_TRACE
-extern int c4m_gc_trace;
+extern int c4m_gc_trace_on;
 
-#define gcm_gc_trace(...)                               \
+#define c4m_gc_trace(...)                               \
     {                                                   \
-        if (c4m_gc_trace) {                             \
+        if (c4m_gc_trace_on) {                          \
             fprintf(stderr, "gc_trace:%s: ", __func__); \
             fprintf(stderr, __VA_ARGS__);               \
             fputc('\n', stderr);                        \
         }                                               \
     }
 
-#define c4m_trace_on()  c4m_gc_trace = 1
-#define c4m_trace_off() c4m_gc_trace = 0
+#define c4m_trace_on()  c4m_gc_trace_on = 1
+#define c4m_trace_off() c4m_gc_trace_on = 0
 
 #else
 #define c4m_gc_trace(...)

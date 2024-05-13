@@ -168,6 +168,9 @@ hatrack_set_contains(hatrack_set_t *self, void *item)
     return ret;
 }
 
+static hatrack_hash_t
+hatrack_dict_get_hash_value(hatrack_dict_t *self, void *key);
+
 bool
 hatrack_set_put(hatrack_set_t *self, void *item)
 {
@@ -251,6 +254,42 @@ void *
 hatrack_set_items_sort(hatrack_set_t *self, uint64_t *num)
 {
     return hatrack_set_items_base(self, num, true);
+}
+
+void *
+hatrack_set_any_item(hatrack_set_t *self, bool *found)
+{
+    mmm_start_basic_op();
+    uint64_t           i;
+    hatrack_hash_t     hv;
+    woolhat_history_t *bucket;
+    woolhat_record_t  *head;
+    woolhat_store_t   *store;
+    woolhat_state_t    state;
+
+    store = atomic_read(&self->woolhat_instance.store_current);
+
+    for (i = 0; i <= store->last_slot; i++) {
+        bucket = &store->hist_buckets[i];
+        hv     = atomic_read(&bucket->hv);
+
+        if (hatrack_bucket_unreserved(hv)) {
+            continue;
+        }
+
+        state = atomic_read(&bucket->state);
+        head  = state.head;
+
+        if (head && !head->deleted) {
+#ifndef WOOLHAT_DONT_LINEARIZE_GET
+            mmm_help_commit(head);
+#endif
+            mmm_end_op();
+            return hatrack_found(found, head->item);
+        }
+    }
+    mmm_end_op();
+    return hatrack_not_found(found);
 }
 
 /* hatrack_set_is_eq(A, B)
@@ -854,5 +893,72 @@ hatrack_set_epoch_sort_cmp(const void *b1, const void *b2)
     item1 = (hatrack_set_view_t *)b1;
     item2 = (hatrack_set_view_t *)b2;
 
-    return item1->sort_epoch - item2->sort_epoch;
+    return item2->sort_epoch - item1->sort_epoch;
+}
+
+static hatrack_hash_t
+hatrack_dict_get_hash_value(hatrack_dict_t *self, void *key)
+{
+    hatrack_hash_t hv;
+    int32_t        offset;
+    uint8_t       *loc_to_hash;
+
+    switch (self->key_type) {
+    case HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM:
+        return (*self->hash_info.custom_hash)(key);
+
+    case HATRACK_DICT_KEY_TYPE_INT:
+        return hash_int((uint64_t)key);
+
+    case HATRACK_DICT_KEY_TYPE_REAL:
+        return hash_double(*(double *)key);
+
+    case HATRACK_DICT_KEY_TYPE_CSTR:
+        return hash_cstr((char *)key);
+
+    case HATRACK_DICT_KEY_TYPE_PTR:
+        return hash_pointer(key);
+
+    default:
+        break;
+    }
+
+    offset = self->hash_info.offsets.cache_offset;
+
+    if (offset != (int32_t)HATRACK_DICT_NO_CACHE) {
+        hv = *(hatrack_hash_t *)(((uint8_t *)key) + offset);
+
+        if (!hatrack_bucket_unreserved(hv)) {
+            return hv;
+        }
+    }
+
+    loc_to_hash = (uint8_t *)key;
+
+    if (self->hash_info.offsets.hash_offset) {
+        loc_to_hash += self->hash_info.offsets.hash_offset;
+    }
+
+    switch (self->key_type) {
+    case HATRACK_DICT_KEY_TYPE_OBJ_INT:
+        hv = hash_int((uint64_t)loc_to_hash);
+        break;
+    case HATRACK_DICT_KEY_TYPE_OBJ_REAL:
+        hv = hash_double(*(double *)loc_to_hash);
+        break;
+    case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
+        hv = hash_cstr(*(char **)loc_to_hash);
+        break;
+    case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
+        hv = hash_pointer(loc_to_hash);
+        break;
+    default:
+        abort();
+    }
+
+    if (offset != (int32_t)HATRACK_DICT_NO_CACHE) {
+        *(hatrack_hash_t *)(((uint8_t *)key) + offset) = hv;
+    }
+
+    return hv;
 }

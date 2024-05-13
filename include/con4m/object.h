@@ -47,7 +47,9 @@ extern uint64_t          *c4m_gc_ptr_info(c4m_builtin_t);
 extern c4m_str_t         *c4m_repr(void *, c4m_type_t *, to_str_use_t);
 extern bool               c4m_can_coerce(c4m_type_t *, c4m_type_t *);
 extern c4m_obj_t          c4m_coerce(void *, c4m_type_t *, c4m_type_t *);
+extern c4m_obj_t          c4m_coerce_object(const c4m_obj_t, c4m_type_t *);
 extern c4m_obj_t          c4m_copy_object(c4m_obj_t);
+extern c4m_obj_t          c4m_copy_object_of_type(c4m_obj_t, c4m_type_t *);
 extern c4m_obj_t          c4m_add(c4m_obj_t, c4m_obj_t);
 extern c4m_obj_t          c4m_sub(c4m_obj_t, c4m_obj_t);
 extern c4m_obj_t          c4m_mul(c4m_obj_t, c4m_obj_t);
@@ -97,6 +99,8 @@ extern const c4m_vtable_t c4m_stream_vtable;
 extern const c4m_vtable_t c4m_kargs_vtable;
 extern const c4m_vtable_t c4m_vm_vtable;
 extern const c4m_vtable_t c4m_parse_node_vtable;
+extern const c4m_vtable_t c4m_partial_lit_vtable;
+extern const c4m_vtable_t c4m_callback_vtable;
 
 extern const uint64_t c4m_pmap_first_word[2];
 extern const uint64_t c4m_rs_pmap[2];

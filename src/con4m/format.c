@@ -308,7 +308,7 @@ apply_padding_and_alignment(c4m_utf8_t *instr, c4m_fmt_spec_t *spec)
 {
     int64_t tofill = spec->width - c4m_str_codepoint_len(instr);
 
-    if (tofill < 0) {
+    if (tofill <= 0) {
         return instr;
     }
 
@@ -370,9 +370,10 @@ lookup_arg_strings(c4m_fmt_info_t *specs, c4m_dict_t *args)
 
         i++;
 
-        obj = hatrack_dict_get(args, key, NULL);
+        bool found = false;
+        obj        = hatrack_dict_get(args, key, &found);
 
-        if (obj == NULL) {
+        if (!found) {
             c4m_utf8_t *err = c4m_new(
                 c4m_tspec_utf8(),
                 c4m_kw("cstring", c4m_ka("Format parameter not found: ")));
@@ -484,9 +485,17 @@ assemble_formatted_result(c4m_str_t *fmt, c4m_xlist_t *arg_strings)
             // For now, we will not copy over styles from the format call.
             // Might do that later.
             arg  = c4m_xlist_get(arg_strings, arg_ix++, NULL);
-            arg  = c4m_to_utf32(arg);
             alen = c4m_str_codepoint_len(arg);
+            arg  = c4m_to_utf32(arg);
             argp = (c4m_codepoint_t *)arg->data;
+
+            // If we have a null string and there's a style around it,
+            // things are broken without this kludge. But to be quite
+            // honest, I don't understand why it's broken or why this
+            // kludge works??
+            if (alen == 0) {
+                alen = 1;
+            }
 
             style_adjustment(result, out_ix, alen - 2);
 
@@ -558,15 +567,15 @@ c4m_str_vformat(c4m_str_t *fmt, c4m_dict_t *args)
 }
 
 c4m_utf8_t *
-c4m_base_format(c4m_str_t *fmt, va_list args)
+c4m_base_format(c4m_str_t *fmt, int nargs, va_list args)
 {
     c4m_obj_t   one;
-    int64_t     argc = 0;
     c4m_dict_t *dict = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
                                               c4m_tspec_ref()));
 
-    while ((one = va_arg(args, c4m_obj_t)) != NULL) {
-        c4m_utf8_t *key = c4m_str_from_int(argc++);
+    for (int i = 0; i < nargs; i++) {
+        one             = va_arg(args, c4m_obj_t);
+        c4m_utf8_t *key = c4m_str_from_int(i);
         hatrack_dict_add(dict, key, one);
     }
 
@@ -574,26 +583,26 @@ c4m_base_format(c4m_str_t *fmt, va_list args)
 }
 
 c4m_utf8_t *
-_c4m_str_format(c4m_str_t *fmt, ...)
+_c4m_str_format(c4m_str_t *fmt, int nargs, ...)
 {
     va_list     args;
     c4m_utf8_t *result;
 
-    va_start(args, fmt);
-    result = c4m_base_format(fmt, args);
+    va_start(args, nargs);
+    result = c4m_base_format(fmt, nargs, args);
     va_end(args);
 
     return result;
 }
 
 c4m_utf8_t *
-_c4m_cstr_format(char *fmt, ...)
+_c4m_cstr_format(char *fmt, int nargs, ...)
 {
     va_list     args;
     c4m_utf8_t *result;
 
-    va_start(args, fmt);
-    result = c4m_base_format(c4m_new_utf8(fmt), args);
+    va_start(args, nargs);
+    result = c4m_base_format(c4m_new_utf8(fmt), nargs, args);
     va_end(args);
 
     return result;
