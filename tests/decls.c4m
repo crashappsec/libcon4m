@@ -1,0 +1,3 @@
+global const x: int
+const y, z: int, x: bool = 8
+var a, b = 2, c
