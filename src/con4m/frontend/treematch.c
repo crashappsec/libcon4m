@@ -292,9 +292,8 @@ handle_dict_or_litmodded_but_empty:
         litmod = get_litmod(pnode);
         if (litmod && c4m_str_codepoint_len(litmod) != 0) {
             goto handle_dict_or_litmodded_but_empty;
-
-            return c4m_new(c4m_tspec_partial_lit(), 0, C4M_T_VOID);
         }
+        return c4m_new(c4m_tspec_partial_lit(), 0, C4M_T_VOID);
 
     case c4m_nt_lit_callback:
         return node_to_callback(ctx, node);

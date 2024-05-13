@@ -1,5 +1,5 @@
 #pragma once
-#import "con4m.h"
+#include "con4m.h"
 
 static inline bool
 c4m_is_partial_lit(const c4m_obj_t o)

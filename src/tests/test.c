@@ -597,7 +597,6 @@ test_compiler()
 {
     c4m_xlist_t     *files  = c4m_get_program_arguments();
     int64_t          l      = c4m_xlist_len(files);
-    c4m_str_t       *mname  = c4m_rich_lit("test1");
     c4m_utf8_t      *joiner = c4m_new_utf8("../tests/");
     c4m_utf8_t      *slash  = c4m_get_slash_const();
     c4m_compile_ctx *ctx;

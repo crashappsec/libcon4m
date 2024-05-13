@@ -206,10 +206,13 @@ validate_int_enum_vals(pass_ctx *ctx, c4m_xlist_t *items)
     switch (bits) {
     case 8:
         result = neg ? c4m_tspec_i8() : c4m_tspec_u8();
+        break;
     case 32:
         result = neg ? c4m_tspec_i32() : c4m_tspec_u32();
+        break;
     default:
         result = neg ? c4m_tspec_i64() : c4m_tspec_u64();
+        break;
     }
 
     for (int i = 0; i < n; i++) {
