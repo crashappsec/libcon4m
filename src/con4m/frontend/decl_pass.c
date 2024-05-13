@@ -163,18 +163,17 @@ validate_int_enum_vals(pass_ctx *ctx, c4m_xlist_t *items)
         case 64:
             if (dtinfo->typeid == C4M_T_INT) {
                 neg = true;
-                break;
             }
+            break;
+
         case 32:
             if (dtinfo->typeid == C4M_T_I32) {
                 neg = true;
-                break;
             }
             break;
         case 8:
             if (dtinfo->typeid == C4M_T_I8) {
                 neg = true;
-                break;
             }
             break;
 
