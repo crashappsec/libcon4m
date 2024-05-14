@@ -17,4 +17,5 @@ extern c4m_file_compile_ctx *c4m_init_from_use(c4m_compile_ctx *,
 
 #ifdef C4M_USE_INTERNAL_API
 extern void c4m_file_decl_pass(c4m_compile_ctx *, c4m_file_compile_ctx *);
+extern void c4m_check_pass(c4m_compile_ctx *);
 #endif

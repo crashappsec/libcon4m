@@ -965,5 +965,7 @@ c4m_compile_from_entry_point(c4m_str_t *location)
         return result;
     }
 
+    c4m_check_pass(result);
+
     return result;
 }

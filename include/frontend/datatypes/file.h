@@ -38,7 +38,7 @@ typedef struct c4m_file_compile_ctx {
     c4m_scope_t            *imports;
     c4m_dict_t             *parameters;
     c4m_spec_t             *local_confspecs;
-    c4m_cfg_node_t         *cfg;
+    c4m_cfg_node_t         *cfg; // CFG for the module top-level.
     c4m_utf8_t             *short_doc;
     c4m_utf8_t             *long_doc;
     unsigned int            fatal_errors : 1;

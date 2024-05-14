@@ -102,6 +102,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/frontend/cfg.c',
             'src/con4m/frontend/treematch.c',
             'src/con4m/frontend/decl_pass.c',
+            'src/con4m/frontend/check_pass.c',
             ]
 
 hat_primary = ['src/hatrack/support/hatrack_common.c',

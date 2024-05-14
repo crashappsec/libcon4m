@@ -935,6 +935,9 @@ handle_func_decl(pass1_ctx *ctx)
         sym->value         = (void *)decl;
     }
 
+    c4m_pnode_t *pnode = get_pnode(tnode);
+    pnode->value       = (c4m_obj_t)sym;
+
     process_children(ctx);
 }
 
