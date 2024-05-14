@@ -9,7 +9,7 @@ typedef enum {
     c4m_compile_status_generated_code
 } c4m_file_compile_status;
 
-typedef struct {
+typedef struct c4m_file_compile_ctx {
     // The module_id is calculated by combining the package name and
     // the module name, then hashing it with SHA256. This is not
     // necessarily derived from the URI path.

@@ -114,6 +114,6 @@ extern bool         c4m_str_eq(c4m_str_t *, c4m_str_t *);
 
 extern const uint64_t c4m_pmap_str[2];
 
-#ifdef C4M_INTERNAL_API
+#ifdef C4M_USE_INTERNAL_API
 extern void c4m_internal_utf8_set_codepoint_count(c4m_utf8_t *);
 #endif

@@ -3,7 +3,6 @@
 
 typedef enum : int8_t {
     sk_module,
-    sk_package,
     sk_func,
     sk_extern_func,
     sk_enum_type,
@@ -11,7 +10,6 @@ typedef enum : int8_t {
     sk_attr,
     sk_variable,
     sk_formal,
-    // Will be adding more for sure.
     sk_num_sym_kinds
 } c4m_symbol_kind;
 
@@ -46,24 +44,30 @@ typedef struct {
     unsigned int ffi_allocs : 1;
 } c4m_fn_param_info_t;
 
-typedef struct {
+typedef struct c4m_scope_entry_t {
     // The `value` field gets the proper value for vars and enums, but
     // for other types, it gets a pointer to one of the specific data
     // structures in this file.
 
-    c4m_obj_t           value;
-    c4m_utf8_t         *path;
-    c4m_utf8_t         *name;
-    c4m_tree_node_t    *declaration_node;
-    c4m_xlist_t        *use_locations;
-    c4m_xlist_t        *lhs_locations;
-    uint32_t            offset;
-    uint32_t            size;
-    uint8_t             flags;
-    c4m_symbol_kind     kind;
-    c4m_type_t         *declared_type;
-    c4m_type_t         *inferred_type;
-    struct c4m_scope_t *my_scope;
+    c4m_obj_t                 value;
+    c4m_utf8_t               *path;
+    c4m_utf8_t               *name;
+    c4m_tree_node_t          *declaration_node;
+    c4m_xlist_t              *use_locations;
+    c4m_xlist_t              *lhs_locations;
+    uint32_t                  offset;
+    uint32_t                  size;
+    uint8_t                   flags;
+    c4m_symbol_kind           kind;
+    c4m_type_t               *declared_type;
+    c4m_type_t               *inferred_type;
+    struct c4m_scope_t       *my_scope;
+    // When we merge variable declarations in multiple scopes, we
+    // leave local parse trees point to the local copy of the symbol.
+    // This allows them to find the one we chose as authoritive if
+    // needed.
+    struct c4m_scope_entry_t *authoritative_symbol;
+
 } c4m_scope_entry_t;
 
 typedef struct {

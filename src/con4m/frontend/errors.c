@@ -654,6 +654,78 @@ static error_info_t error_info[] = {
         "HTTP and HTTPS support is not yet back in Con4m.",
         false,
     },
+    [c4m_info_recursive_use] = {
+        c4m_info_recursive_use,
+        "recursive_use",
+        "This [em]use[/] creates a cyclic import. Items imported from here "
+        "will be available, but if there are analysis conflicts in redeclared "
+        "symbols, the errors could end up confusing.",
+        false,
+    },
+    [c4m_err_self_recursive_use] = {
+        c4m_err_self_recursive_use,
+        "self_recursive_use",
+
+        "[em]use[/] statements are not allowed to directly import the current "
+        "module.",
+        false,
+    },
+    [c4m_err_redecl_kind] = {
+        c4m_err_redecl_kind,
+        "redecl_kind",
+        "Global symbol [em]{}[/] was previously declared as a [i]{}[/], so "
+        "cannot be redeclared as a [i]{}[/]. Previous declaration was: "
+        "[strong]{}[/]",
+        true,
+    },
+    [c4m_err_no_redecl] = {
+        c4m_err_no_redecl,
+        "no_redecl",
+        "Redeclaration of [i]{}[/] [em]{}[/] is not allowed. Previous "
+        "definition's location was: [strong]{}[/]",
+        true,
+    },
+    [c4m_err_redecl_neq_generics] = {
+        c4m_err_redecl_neq_generics,
+        "redecl_neq_generics",
+        "Redeclaration of [em]{}[/] uses {} type when "
+        "re-declared in a different module (redeclarations that name a "
+        "type, must name the exact same time as in other modules). "
+        "Previous type was: [em]{}[/] vs. current type: [em]{}[/]."
+        "Previous definition's location was: [strong]{}[/]",
+        true,
+    },
+    [c4m_err_spec_redef_section] = {
+        c4m_err_spec_redef_section,
+        "redef_section",
+        "Redefinition of [i]confspec[/] sections is not allowed. You can "
+        "add data to the [i]root[/] section, but no named sections may "
+        "appear twice in any program. Previous declaration of "
+        "section [em]{}[/] was: [strong]{}[/]",
+        true,
+    },
+    [c4m_err_spec_redef_field] = {
+        c4m_err_spec_redef_field,
+        "redef_field",
+        "Redefinition of [i]confspec[/] fields are not allowed. You can "
+        "add new fields to the [i]root[/] section, but no new ones. "
+        "Previous declaration of field [em]{}[/] was: [strong]{}[/]",
+        true,
+    },
+    [c4m_err_spec_locked] = {
+        c4m_err_spec_locked,
+        "spec_locked",
+        "The configuration file spec has been programatically locked, "
+        "and as such, cannot be changed here.",
+        false,
+    },
+    [c4m_err_dupe_validator] = {
+        c4m_err_dupe_validator,
+        "dupe_validator",
+        "The root section already has a validator; currently only a single "
+        "validator is supported.",
+        false,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",

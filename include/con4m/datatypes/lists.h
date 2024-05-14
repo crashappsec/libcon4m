@@ -11,6 +11,6 @@ typedef struct {
     int64_t **data;
 } c4m_xlist_t;
 
-// This needs fw referencing, because this gets read before hatrack.
-// I think it's the build system's fault?
 typedef struct flexarray_t flexarray_t;
+
+typedef struct hatstack_t c4m_stack_t;

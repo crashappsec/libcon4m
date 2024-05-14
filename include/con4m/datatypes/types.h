@@ -40,3 +40,11 @@ typedef struct {
     c4m_dict_t      *store;
     _Atomic uint64_t next_tid;
 } c4m_type_env_t;
+
+typedef enum {
+    c4m_type_match_exact,
+    c4m_type_match_left_more_specific,
+    c4m_type_match_right_more_specific,
+    c4m_type_match_both_have_more_generic_bits,
+    c4m_type_cant_match,
+} c4m_type_exact_result_t;

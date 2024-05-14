@@ -169,6 +169,7 @@ output_token(lex_state_t *state, c4m_token_kind_t kind)
 {
     c4m_token_t *tok  = c4m_gc_alloc(c4m_token_t);
     tok->kind         = kind;
+    tok->module       = state->ctx;
     tok->start_ptr    = state->start;
     tok->end_ptr      = state->pos;
     tok->token_id     = ++state->token_id;

@@ -449,7 +449,7 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
         return c4m_tspec_fn(t, args, va);
 
     default:
-        C4M_CRAISE("Reached code that should be unreachable.");
+        unreachable();
     }
 }
 

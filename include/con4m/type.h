@@ -31,6 +31,19 @@ extern c4m_type_t     *c4m_get_promotion_type(c4m_type_t *,
 extern void            c4m_initialize_global_types();
 extern c4m_type_hash_t c4m_type_hash(c4m_type_t *node, c4m_type_env_t *env);
 
+extern c4m_type_env_t *c4m_global_type_env;
+
+extern c4m_type_exact_result_t
+c4m_type_cmp_exact_env(c4m_type_t *,
+                       c4m_type_t *,
+                       c4m_type_env_t *);
+
+static inline c4m_type_exact_result_t
+c4m_type_cmp_exact(c4m_type_t *t1, c4m_type_t *t2)
+{
+    return c4m_type_cmp_exact_env(t1, t2, c4m_global_type_env);
+}
+
 static inline c4m_dt_kind_t
 c4m_tspec_get_base(c4m_type_t *n)
 {
@@ -84,8 +97,6 @@ c4m_tenv_next_tid(c4m_type_env_t *env)
 {
     return atomic_fetch_add(&env->next_tid, 1);
 }
-
-extern c4m_type_env_t *c4m_global_type_env;
 
 static inline c4m_type_t *
 c4m_merge_types(c4m_type_t *t1, c4m_type_t *t2)

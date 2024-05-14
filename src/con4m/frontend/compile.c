@@ -1,4 +1,4 @@
-#define C4M_INTERNAL_API
+#define C4M_USE_INTERNAL_API
 #include "con4m.h"
 
 static c4m_xlist_t *con4m_path       = NULL;
@@ -656,10 +656,296 @@ c4m_perform_module_loads(c4m_compile_ctx *ctx)
         c4m_initial_load_one(ctx, cur);
 
         cur->status = c4m_compile_status_code_loaded;
+        if (cur->fatal_errors) {
+            ctx->fatality = true;
+        }
 
         c4m_set_put(ctx->processed, cur);
         c4m_set_remove(ctx->backlog, cur);
     }
+}
+
+#ifdef C4M_PASS1_UNIT_TESTS
+static void
+test_ordering(c4m_compile_ctx *cctx)
+{
+    c4m_file_compile_ctx *file;
+
+    for (int i = 0; i < c4m_xlist_len(cctx->module_ordering); i++) {
+        file = c4m_xlist_get(cctx->module_ordering, i, NULL);
+
+        c4m_print(c4m_cstr_format("[h2]{}[/]", file->path));
+    }
+}
+#endif
+
+typedef struct topologic_search_ctx {
+    c4m_file_compile_ctx *cur;
+    c4m_xlist_t          *visiting;
+    c4m_compile_ctx      *cctx;
+} tsearch_ctx;
+
+static void
+topological_order_process(tsearch_ctx *ctx)
+{
+    c4m_file_compile_ctx *cur = ctx->cur;
+
+    if (c4m_xlist_contains(ctx->visiting, cur)) {
+        // Cycle. I intend to add an info message here, otherwise
+        // could avoid popping and just get this down to one test.
+        return;
+    }
+
+    // If it already got added to the partial ordering, we don't need to
+    // process it when it gets re-imported somewhere else.
+    if (c4m_xlist_contains(ctx->cctx->module_ordering, cur)) {
+        return;
+    }
+
+    if (cur->imports == NULL || cur->imports->symbols == NULL) {
+        c4m_xlist_append(ctx->cctx->module_ordering, cur);
+        return;
+    }
+
+    c4m_xlist_append(ctx->visiting, cur);
+
+    uint64_t              num_imports;
+    hatrack_dict_value_t *imports = hatrack_dict_values(cur->imports->symbols,
+                                                        &num_imports);
+
+    for (uint64_t i = 0; i < num_imports; i++) {
+        c4m_scope_entry_t    *sym  = imports[i];
+        c4m_tree_node_t      *n    = sym->declaration_node;
+        c4m_pnode_t          *pn   = c4m_tree_get_contents(n);
+        c4m_file_compile_ctx *next = (c4m_file_compile_ctx *)pn->value;
+
+        if (next != cur) {
+            ctx->cur = next;
+            topological_order_process(ctx);
+        }
+        else {
+            ctx->cctx->fatality = true;
+            c4m_add_error(cur, c4m_err_self_recursive_use, n);
+        }
+    }
+
+    c4m_file_compile_ctx *popped = c4m_xlist_pop(ctx->visiting);
+
+    assert(popped == cur);
+
+    c4m_xlist_append(ctx->cctx->module_ordering, cur);
+}
+
+static void
+build_topological_ordering(c4m_compile_ctx *cctx)
+{
+    // While we don't strictly need this partial ordering, once we get
+    // through phase 1 where we've pulled out symbols per-module, we
+    // will process merging those symbols using a partial ordering, so
+    // that, whenever possiblle, conflicts are raised when processing
+    // the dependent code.
+    //
+    // That may not always happen with cycles, of course. We break
+    // those cycles via keeping a "visiting" stack in a depth-first
+    // search.
+
+    tsearch_ctx search_state = {
+        .cur      = cctx->entry_point,
+        .visiting = c4m_new(c4m_tspec_xlist(c4m_tspec_ref())),
+        .cctx     = cctx,
+    };
+
+    cctx->module_ordering = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+
+    topological_order_process(&search_state);
+}
+
+static void
+merge_one_plain_scope(c4m_compile_ctx      *cctx,
+                      c4m_file_compile_ctx *fctx,
+                      c4m_scope_t          *local,
+                      c4m_scope_t          *global)
+
+{
+    uint64_t              num_symbols;
+    hatrack_dict_value_t *items;
+    c4m_scope_entry_t    *new_sym;
+    c4m_scope_entry_t    *old_sym;
+
+    items = hatrack_dict_values(local->symbols, &num_symbols);
+
+    for (uint64_t i = 0; i < num_symbols; i++) {
+        new_sym = items[i];
+
+        if (hatrack_dict_add(global->symbols,
+                             new_sym->name,
+                             new_sym)) {
+            continue;
+        }
+
+        old_sym = hatrack_dict_get(global->symbols,
+                                   new_sym->name,
+                                   NULL);
+        if (c4m_merge_symbols(fctx, new_sym, old_sym)) {
+            hatrack_dict_put(global->symbols, new_sym->name, old_sym);
+        }
+    }
+}
+
+static void
+merge_var_scope(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
+{
+    merge_one_plain_scope(cctx, fctx, fctx->global_scope, cctx->final_globals);
+}
+
+static void
+merge_attrs(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
+{
+    merge_one_plain_scope(cctx, fctx, fctx->attribute_scope, cctx->final_attrs);
+}
+
+static void
+merge_one_confspec(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
+{
+    if (fctx->local_confspecs == NULL) {
+        return;
+    }
+
+    if (cctx->final_spec == NULL) {
+        cctx->final_spec = c4m_new_spec();
+    }
+
+    uint64_t              num_sections;
+    c4m_dict_t           *fspecs = cctx->final_spec->section_specs;
+    hatrack_dict_value_t *sections;
+
+    sections = hatrack_dict_values(fctx->local_confspecs->section_specs,
+                                   &num_sections);
+
+    if (num_sections || fctx->local_confspecs->root_section) {
+        if (cctx->final_spec->locked) {
+            c4m_add_error(fctx,
+                          c4m_err_spec_locked,
+                          fctx->local_confspecs->declaration_node);
+        }
+    }
+
+    for (uint64_t i = 0; i < num_sections; i++) {
+        c4m_spec_section_t *cur = sections[i];
+
+        if (hatrack_dict_add(fspecs, cur->name, cur)) {
+            continue;
+        }
+
+        c4m_spec_section_t *old = hatrack_dict_get(fspecs, cur->name, NULL);
+
+        c4m_add_error(fctx,
+                      c4m_err_spec_redef_section,
+                      cur->declaration_node,
+                      cur->name,
+                      c4m_node_get_loc_str(old->declaration_node));
+    }
+
+    c4m_spec_section_t *root_adds = fctx->local_confspecs->root_section;
+    c4m_spec_section_t *true_root = cctx->final_spec->root_section;
+    uint64_t            num_fields;
+
+    if (root_adds == NULL) {
+        return;
+    }
+
+    hatrack_dict_value_t *fields = hatrack_dict_values(root_adds->fields,
+                                                       &num_fields);
+    for (uint64_t i = 0; i < num_fields; i++) {
+        c4m_spec_field_t *cur = fields[i];
+
+        if (hatrack_dict_add(true_root->fields, cur->name, cur)) {
+            continue;
+        }
+
+        c4m_spec_field_t *old = hatrack_dict_get(root_adds->fields,
+                                                 cur->name,
+                                                 NULL);
+
+        c4m_add_error(fctx,
+                      c4m_err_spec_redef_field,
+                      cur->declaration_node,
+                      cur->name,
+                      c4m_node_get_loc_str(old->declaration_node));
+    }
+
+    if (root_adds->allowed_sections != NULL) {
+        if (true_root->allowed_sections == NULL) {
+            true_root->allowed_sections = c4m_new(
+                c4m_tspec_set(c4m_tspec_ref()));
+        }
+
+        uint64_t num_allows;
+        void   **allows = c4m_set_items(root_adds->allowed_sections,
+                                      &num_allows);
+
+        for (uint64_t i = 0; i < num_allows; i++) {
+            if (!c4m_set_add(true_root->allowed_sections, allows[i])) {
+                c4m_add_warning(fctx,
+                                c4m_warn_dupe_allow,
+                                root_adds->declaration_node);
+            }
+        }
+    }
+
+    if (root_adds->required_sections != NULL) {
+        if (true_root->required_sections == NULL) {
+            true_root->required_sections = c4m_new(
+                c4m_tspec_set(c4m_tspec_ref()));
+        }
+
+        uint64_t num_reqs;
+        void   **reqs = c4m_set_items(root_adds->required_sections,
+                                    &num_reqs);
+
+        for (uint64_t i = 0; i < num_reqs; i++) {
+            if (!c4m_set_add(true_root->required_sections, reqs[i])) {
+                c4m_add_warning(fctx,
+                                c4m_warn_dupe_require,
+                                root_adds->declaration_node);
+            }
+        }
+    }
+
+    if (root_adds->validator == NULL) {
+        return;
+    }
+
+    if (true_root->validator != NULL) {
+        c4m_add_error(fctx,
+                      c4m_err_dupe_validator,
+                      root_adds->declaration_node);
+    }
+    else {
+        true_root->validator = root_adds->validator;
+    }
+}
+
+static void
+merge_global_info(c4m_compile_ctx *cctx)
+{
+    c4m_file_compile_ctx *fctx;
+
+    build_topological_ordering(cctx);
+
+#ifdef C4M_PASS1_UNIT_TESTS
+    test_ordering(cctx);
+#endif
+
+    uint64_t mod_len = c4m_xlist_len(cctx->module_ordering);
+
+    for (uint64_t i = 0; i < mod_len; i++) {
+        fctx = c4m_xlist_get(cctx->module_ordering, i, NULL);
+        merge_var_scope(cctx, fctx);
+        merge_one_confspec(cctx, fctx);
+    }
+
+    merge_attrs(cctx, fctx);
 }
 
 c4m_compile_ctx *
@@ -668,6 +954,16 @@ c4m_compile_from_entry_point(c4m_str_t *location)
     c4m_compile_ctx *result = c4m_new_compile_context(location);
 
     c4m_perform_module_loads(result);
+
+    if (result->fatality) {
+        return result;
+    }
+
+    merge_global_info(result);
+
+    if (result->fatality) {
+        return result;
+    }
 
     return result;
 }

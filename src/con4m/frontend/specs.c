@@ -7,7 +7,6 @@ c4m_new_spec()
 
     result->section_specs = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
                                                    c4m_tspec_ref()));
-    result->errors        = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
 
     return result;
 }

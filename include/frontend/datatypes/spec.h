@@ -58,7 +58,5 @@ typedef struct {
     c4m_utf8_t         *long_doc;
     c4m_spec_section_t *root_section;
     c4m_dict_t         *section_specs;
-    c4m_xlist_t        *errors; // an xlist of c4m_compile_errors
-    unsigned int        used   : 1;
     unsigned int        locked : 1;
 } c4m_spec_t;

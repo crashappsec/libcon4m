@@ -216,3 +216,13 @@ c4m_raise_errno()
 {
     c4m_raise_errcode(errno);
 }
+
+#define unreachable()                                       \
+    {                                                       \
+        c4m_utf8_t *s = c4m_cstr_format(                    \
+            "Reached code that the developer "              \
+            "(wrongly) believed was unreachable, at {}:{}", \
+            c4m_new_utf8(__FILE__),                         \
+            c4m_box_i32(__LINE__));                         \
+        C4M_RAISE(s);                                       \
+    }

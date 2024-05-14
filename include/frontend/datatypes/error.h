@@ -108,6 +108,15 @@ typedef enum {
     c4m_warn_no_tls,
     c4m_err_search_path,
     c4m_err_no_http,
+    c4m_info_recursive_use,
+    c4m_err_self_recursive_use,
+    c4m_err_redecl_kind,
+    c4m_err_no_redecl,
+    c4m_err_redecl_neq_generics,
+    c4m_err_spec_redef_section,
+    c4m_err_spec_redef_field,
+    c4m_err_spec_locked,
+    c4m_err_dupe_validator,
     c4m_err_last,
 } c4m_compile_error_t;
 

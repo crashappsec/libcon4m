@@ -10,58 +10,10 @@
 // finish walking down to the expression level, and do initial work on
 // literal extraction too.
 
-typedef struct {
-    c4m_tree_node_t      *cur_tnode;
-    c4m_pnode_t          *cur;
-    c4m_spec_t           *spec;
-    c4m_file_compile_ctx *file_ctx;
-    c4m_scope_t          *static_scope;
-} pass_ctx;
-
-static inline c4m_tree_node_t *
-get_match(pass_ctx *ctx, c4m_tpat_node_t *pattern)
-{
-    return get_match_on_node(ctx->cur_tnode, pattern);
-}
-
-static inline c4m_xlist_t *
-apply_pattern(pass_ctx *ctx, c4m_tpat_node_t *pattern)
-{
-    return apply_pattern_on_node(ctx->cur_tnode, pattern);
-}
+static void pass_dispatch(pass1_ctx *ctx);
 
 static inline void
-set_current_node(pass_ctx *ctx, c4m_tree_node_t *n)
-{
-    ctx->cur_tnode = n;
-    ctx->cur       = c4m_tree_get_contents(n);
-}
-
-static inline bool
-node_down(pass_ctx *ctx, int i)
-{
-    c4m_tree_node_t *n = ctx->cur_tnode;
-
-    if (i >= n->num_kids) {
-        return false;
-    }
-
-    assert(n->children[i]->parent == n);
-    set_current_node(ctx, n->children[i]);
-
-    return true;
-}
-
-static inline void
-node_up(pass_ctx *ctx)
-{
-    set_current_node(ctx, ctx->cur_tnode->parent);
-}
-
-static void pass_dispatch(pass_ctx *ctx);
-
-static inline void
-process_children(pass_ctx *ctx)
+process_children(pass1_ctx *ctx)
 {
     c4m_tree_node_t *n = ctx->cur_tnode;
 
@@ -72,20 +24,8 @@ process_children(pass_ctx *ctx)
     }
 }
 
-static inline c4m_node_kind_t
-cur_node_type(pass_ctx *ctx)
-{
-    return ctx->cur->kind;
-}
-
-static inline c4m_tree_node_t *
-cur_node(pass_ctx *ctx)
-{
-    return ctx->cur_tnode;
-}
-
 static inline void
-handle_literal(pass_ctx *ctx)
+handle_literal(pass1_ctx *ctx)
 {
     c4m_tree_node_t *tnode = cur_node(ctx);
     c4m_pnode_t     *pnode = get_pnode(tnode);
@@ -94,7 +34,7 @@ handle_literal(pass_ctx *ctx)
 }
 
 static void
-validate_str_enum_vals(pass_ctx *ctx, c4m_xlist_t *items)
+validate_str_enum_vals(pass1_ctx *ctx, c4m_xlist_t *items)
 {
     c4m_set_t *set = c4m_new(c4m_tspec_set(c4m_tspec_utf8()));
     int64_t    n   = c4m_xlist_len(items);
@@ -118,7 +58,7 @@ validate_str_enum_vals(pass_ctx *ctx, c4m_xlist_t *items)
 }
 
 static c4m_type_t *
-validate_int_enum_vals(pass_ctx *ctx, c4m_xlist_t *items)
+validate_int_enum_vals(pass1_ctx *ctx, c4m_xlist_t *items)
 {
     c4m_set_t  *set           = c4m_new(c4m_tspec_set(c4m_tspec_u64()));
     int64_t     n             = c4m_xlist_len(items);
@@ -240,7 +180,7 @@ validate_int_enum_vals(pass_ctx *ctx, c4m_xlist_t *items)
 // so that we can do proper value checking.
 
 static void
-handle_enum_decl(pass_ctx *ctx)
+handle_enum_decl(pass1_ctx *ctx)
 {
     c4m_tree_node_t   *item;
     c4m_tree_node_t   *tnode  = get_match(ctx, c4m_first_kid_id);
@@ -360,7 +300,7 @@ handle_enum_decl(pass_ctx *ctx)
 }
 
 static void
-handle_var_decl(pass_ctx *ctx)
+handle_var_decl(pass1_ctx *ctx)
 {
     c4m_tree_node_t *n         = cur_node(ctx);
     c4m_xlist_t     *quals     = apply_pattern_on_node(n,
@@ -394,7 +334,8 @@ handle_var_decl(pass_ctx *ctx)
     c4m_xlist_t *syms = apply_pattern_on_node(n, c4m_sym_decls);
     for (int i = 0; i < c4m_xlist_len(syms); i++) {
         c4m_tree_node_t *one_set   = c4m_xlist_get(syms, i, NULL);
-        c4m_xlist_t     *var_names = apply_pattern_on_node(one_set, c4m_sym_names);
+        c4m_xlist_t     *var_names = apply_pattern_on_node(one_set,
+                                                       c4m_sym_names);
         c4m_tree_node_t *type_node = get_match_on_node(one_set, c4m_sym_type);
         c4m_tree_node_t *init      = get_match_on_node(one_set, c4m_sym_init);
         c4m_type_t      *type      = NULL;
@@ -432,7 +373,7 @@ handle_var_decl(pass_ctx *ctx)
 }
 
 static void
-handle_param_block(pass_ctx *ctx)
+handle_param_block(pass1_ctx *ctx)
 {
     // Reminder to self: make sure to check for not const in the decl.
     // That really needs to happen at the end of the pass through :)
@@ -484,7 +425,7 @@ handle_param_block(pass_ctx *ctx)
             prop->default_value = node_literal(ctx->file_ctx, lit, NULL);
             break;
         default:
-            C4M_CRAISE("Reached supposedly unreachable code.");
+            unreachable();
         }
     }
 
@@ -530,7 +471,7 @@ handle_param_block(pass_ctx *ctx)
 }
 
 static void
-one_section_prop(pass_ctx           *ctx,
+one_section_prop(pass1_ctx          *ctx,
                  c4m_spec_section_t *section,
                  c4m_tree_node_t    *n)
 {
@@ -611,7 +552,7 @@ one_section_prop(pass_ctx           *ctx,
 }
 
 static void
-one_field(pass_ctx           *ctx,
+one_field(pass1_ctx          *ctx,
           c4m_spec_section_t *section,
           c4m_tree_node_t    *tnode)
 {
@@ -747,7 +688,7 @@ one_field(pass_ctx           *ctx,
 }
 
 static void
-handle_section_spec(pass_ctx *ctx)
+handle_section_spec(pass1_ctx *ctx)
 {
     c4m_spec_t         *spec     = ctx->spec;
     c4m_spec_section_t *section  = c4m_gc_alloc(c4m_spec_section_t);
@@ -813,7 +754,7 @@ handle_section_spec(pass_ctx *ctx)
 }
 
 static void
-handle_config_spec(pass_ctx *ctx)
+handle_config_spec(pass1_ctx *ctx)
 {
     c4m_tree_node_t *tnode = cur_node(ctx);
     c4m_pnode_t     *pnode = get_pnode(tnode);
@@ -855,7 +796,7 @@ new_sig_info(int num_params)
 }
 
 static c4m_sig_info_t *
-extract_fn_sig_info(pass_ctx        *ctx,
+extract_fn_sig_info(pass1_ctx       *ctx,
                     c4m_tree_node_t *tree)
 {
     c4m_xlist_t    *decls     = apply_pattern_on_node(tree,
@@ -966,7 +907,7 @@ extract_fn_sig_info(pass_ctx        *ctx,
 }
 
 static void
-handle_func_decl(pass_ctx *ctx)
+handle_func_decl(pass1_ctx *ctx)
 {
     c4m_tree_node_t   *tnode = cur_node(ctx);
     c4m_fn_decl_t     *decl  = c4m_gc_alloc(c4m_fn_decl_t);
@@ -998,7 +939,7 @@ handle_func_decl(pass_ctx *ctx)
 }
 
 static void
-handle_extern_block(pass_ctx *ctx)
+handle_extern_block(pass1_ctx *ctx)
 {
     c4m_ffi_decl_t  *info          = c4m_gc_alloc(c4m_ffi_info_t);
     c4m_utf8_t      *external_name = node_text(get_match(ctx, c4m_first_kid_id));
@@ -1140,7 +1081,7 @@ next_alloc:
 }
 
 static void
-handle_use_stmt(pass_ctx *ctx)
+handle_use_stmt(pass1_ctx *ctx)
 {
     c4m_tree_node_t   *uri    = get_match(ctx, c4m_use_uri);
     c4m_tree_node_t   *member = get_match(ctx, c4m_member_last);
@@ -1190,7 +1131,7 @@ handle_use_stmt(pass_ctx *ctx)
 }
 
 static void
-pass_dispatch(pass_ctx *ctx)
+pass_dispatch(pass1_ctx *ctx)
 {
     c4m_scope_t *saved_scope;
     c4m_pnode_t *pnode  = get_pnode(cur_node(ctx));
@@ -1286,7 +1227,7 @@ c4m_file_decl_pass(c4m_compile_ctx *cctx, c4m_file_compile_ctx *file_ctx)
 
     setup_treematch_patterns();
 
-    pass_ctx ctx = {
+    pass1_ctx ctx = {
         .file_ctx = file_ctx,
     };
 
@@ -1315,5 +1256,9 @@ c4m_file_decl_pass(c4m_compile_ctx *cctx, c4m_file_compile_ctx *file_ctx)
 
     pass_dispatch(&ctx);
     find_dependencies(cctx, file_ctx);
+    if (file_ctx->fatal_errors) {
+        cctx->fatality = true;
+    }
+
     return;
 }

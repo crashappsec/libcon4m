@@ -1,4 +1,4 @@
-#define C4M_INTERNAL_API
+#define C4M_USE_INTERNAL_API
 
 #include "con4m.h"
 

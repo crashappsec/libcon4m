@@ -15,6 +15,6 @@ extern c4m_file_compile_ctx *c4m_init_from_use(c4m_compile_ctx *,
 #define c4m_set_package_search_path(x, ...) \
     _c4m_set_package_search_path(x, KFUNC(__VA_ARGS__))
 
-#ifdef C4M_INTERNAL_API
+#ifdef C4M_USE_INTERNAL_API
 extern void c4m_file_decl_pass(c4m_compile_ctx *, c4m_file_compile_ctx *);
 #endif

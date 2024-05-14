@@ -268,7 +268,7 @@ type_hash_and_dedupe(c4m_type_t **nodeptr, c4m_type_env_t *env)
         node->typeid = node->details->base_type->typeid;
         return node->typeid;
     case C4M_DT_KIND_type_var:
-        assert(false); // unreachable; typeid should always be set.
+        unreachable();
     default:
         ctx.env      = env;
         ctx.sha      = c4m_new(c4m_tspec_hash());
@@ -706,12 +706,109 @@ unify_sub_nodes:
         // Either not implemented yet or covered before the switch.
         // These are all implemented in the Nim checker but won't
         // be moved until Con4m is using them.
-        assert(false);
+        unreachable();
     }
 
     type_hash_and_dedupe(&result, env);
 
     return result;
+}
+
+// 'exact' match is mainly used for comparing declarations to
+// other types.
+c4m_type_exact_result_t
+c4m_type_cmp_exact_env(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
+{
+    t1 = c4m_resolve_type_aliases(t1, env);
+    t2 = c4m_resolve_type_aliases(t1, env);
+
+    if (t1->typeid == t2->typeid) {
+        return c4m_type_match_exact;
+    }
+
+    if (t1->typeid == C4M_T_UTF8 && t2->typeid == C4M_T_UTF32) {
+        return c4m_type_match_exact;
+    }
+    if (t1->typeid == C4M_T_UTF32 && t2->typeid == C4M_T_UTF8) {
+        return c4m_type_match_exact;
+    }
+
+    if (t1->typeid == C4M_T_ERROR || t2->typeid == C4M_T_ERROR) {
+        return c4m_type_cant_match;
+    }
+
+    c4m_dt_kind_t b1 = c4m_tspec_get_base(t1);
+    c4m_dt_kind_t b2 = c4m_tspec_get_base(t2);
+
+    if (b1 != b2) {
+        if (b1 == C4M_DT_KIND_type_var) {
+            return c4m_type_match_right_more_specific;
+        }
+        if (b2 == C4M_DT_KIND_type_var) {
+            return c4m_type_match_left_more_specific;
+        }
+
+        return c4m_type_cant_match;
+    }
+
+    int  n1    = c4m_tspec_get_num_params(t1);
+    int  n2    = c4m_tspec_get_num_params(t2);
+    bool err   = false;
+    bool left  = false;
+    bool right = false;
+
+    if (n1 != n2) {
+        return c4m_type_cant_match;
+    }
+
+    if ((t1->details->flags ^ t2->details->flags) & C4M_FN_TY_VARARGS) {
+        return c4m_type_cant_match;
+    }
+
+    for (int i = 0; i < n1; i++) {
+        c4m_xlist_t *p1;
+        c4m_xlist_t *p2;
+        c4m_type_t  *sub1;
+        c4m_type_t  *sub2;
+
+        p1   = c4m_tspec_get_params(t1);
+        p2   = c4m_tspec_get_params(t2);
+        sub1 = c4m_xlist_get(p1, i, NULL);
+        sub2 = c4m_xlist_get(p2, i, NULL);
+
+        switch (c4m_type_cmp_exact(sub1, sub2)) {
+        case c4m_type_match_exact:
+            continue;
+        case c4m_type_cant_match:
+            return c4m_type_cant_match;
+        case c4m_type_match_left_more_specific:
+            err  = true;
+            left = true;
+            continue;
+        case c4m_type_match_right_more_specific:
+            err   = true;
+            right = true;
+            continue;
+        case c4m_type_match_both_have_more_generic_bits:
+            err   = true;
+            left  = true;
+            right = true;
+            continue;
+        }
+    }
+
+    if (!err) {
+        return c4m_type_match_exact;
+    }
+    if (left && right) {
+        return c4m_type_match_both_have_more_generic_bits;
+    }
+    if (left) {
+        return c4m_type_match_left_more_specific;
+    }
+    else { // right only
+        return c4m_type_match_right_more_specific;
+    }
 }
 
 static c4m_str_t *internal_type_repr(c4m_type_t *, c4m_dict_t *, int64_t *);

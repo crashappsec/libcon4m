@@ -70,6 +70,16 @@ c4m_xlist_append(c4m_xlist_t *list, void *item)
     return;
 }
 
+void *
+c4m_xlist_pop(c4m_xlist_t *list)
+{
+    if (list->append_ix == 0) {
+        C4M_CRAISE("Pop called on empty xlist.");
+    }
+
+    return c4m_xlist_get(list, --list->append_ix, NULL);
+}
+
 void
 c4m_xlist_plus_eq(c4m_xlist_t *l1, c4m_xlist_t *l2)
 {
@@ -392,6 +402,12 @@ c4m_xlist_contains(c4m_xlist_t *list, c4m_obj_t item)
     c4m_type_t *item_type = c4m_get_my_type(item);
 
     for (int i = 0; i < len; i++) {
+        if (!item_type) {
+            // Don't know why ref is giving me no item type yet,
+            // so this is a tmp fix.
+            return item == c4m_xlist_get(list, i, NULL);
+        }
+
         if (c4m_eq(item_type, item, c4m_xlist_get(list, i, NULL))) {
             return true;
         }
