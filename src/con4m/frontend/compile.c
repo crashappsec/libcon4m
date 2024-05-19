@@ -597,7 +597,7 @@ c4m_new_compile_context(c4m_str_t *input)
 static void
 c4m_initial_load_one(c4m_compile_ctx *cctx, c4m_file_compile_ctx *ctx)
 {
-    c4m_stream_t *stream;
+    c4m_stream_t *stream = NULL;
 
     if (ctx->fatal_errors) {
         return;
@@ -611,6 +611,7 @@ c4m_initial_load_one(c4m_compile_ctx *cctx, c4m_file_compile_ctx *ctx)
             c4m_parse(ctx);
             c4m_file_decl_pass(cctx, ctx);
         }
+        c4m_stream_close(stream);
     }
     C4M_EXCEPT
     {
@@ -637,8 +638,50 @@ c4m_initial_load_one(c4m_compile_ctx *cctx, c4m_file_compile_ctx *ctx)
                             c4m_err_open_file,
                             ctx->path,
                             msg);
+
+        if (stream != NULL) {
+            c4m_stream_close(stream);
+        }
     }
     C4M_TRY_END;
+}
+
+static c4m_utf8_t *str_to_type_tmp_path = NULL;
+
+c4m_type_t *
+c4m_str_to_type(c4m_utf8_t *str)
+{
+    if (str_to_type_tmp_path == NULL) {
+        str_to_type_tmp_path = c4m_new_utf8("<< string evaluation >>");
+        c4m_gc_register_root(&str_to_type_tmp_path, 1);
+    }
+
+    c4m_type_t          *result = NULL;
+    c4m_stream_t        *stream = c4m_string_instream(str);
+    c4m_file_compile_ctx ctx    = {
+           .module_id = 0xffffffff,
+           .path      = str_to_type_tmp_path,
+           .module    = str_to_type_tmp_path,
+    };
+
+    if (c4m_lex(&ctx, stream) != false) {
+        c4m_parse_type(&ctx);
+    }
+
+    c4m_stream_close(stream);
+
+    if (ctx.parse_tree != NULL) {
+        c4m_dict_t *type_ctx = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
+                                                      c4m_tspec_ref()));
+
+        result = c4m_node_to_type(&ctx, ctx.parse_tree, type_ctx);
+    }
+
+    if (ctx.parse_tree == NULL || c4m_fatal_error_in_module(&ctx)) {
+        C4M_CRAISE("Invalid type.");
+    }
+
+    return result;
 }
 
 // This loads all modules up through symbol declaration.

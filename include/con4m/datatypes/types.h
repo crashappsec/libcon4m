@@ -7,12 +7,7 @@ typedef uint64_t c4m_type_hash_t;
 typedef struct c4m_type_info_t c4m_type_info_t;
 
 typedef struct c4m_type_t {
-    // The `typeid field` is EITHER the node's type ID, or a forwarding link
-    // to another node in the graph. The rest of the data is accessed via
-    // indirection, so that we can easily use CAS when this needs to be
-    // multi-threaded (not sure that it would actually ever be necessary.)
-    // But each type spec will always get a unique details node.
-
+    c4m_type_hash_t fw;
     c4m_type_hash_t typeid;
     c4m_type_info_t *details;
 } c4m_type_t;
@@ -22,18 +17,17 @@ typedef struct c4m_type_info_t {
     c4m_dt_info_t *base_type;
     c4m_xlist_t   *items;
     c4m_dict_t    *props; // Object properties. maps name to type node.
-    // 'Locked' means this type node cannot forward, even though it
-    //  might have type variables. That causes the system to
-    //  copy. That is used for function signatures for instance, to
-    //  keep calls from restricting generic types.
-    //
-    // Basically think of locked types as fully resolved in one
-    // universe, but being copied over into others.
-
-    uint8_t flags;
+    uint8_t        flags;
 } c4m_type_info_t;
 
 #define C4M_FN_TY_VARARGS 1
+// 'Locked' means this type node cannot forward, even though it might
+//  have type variables. That causes the system to copy. That is used
+//  for function signatures for instance, to keep calls from
+//  restricting generic types.
+//
+// Basically think of locked types as fully resolved in one universe,
+// but being copied over into others.
 #define C4M_FN_TY_LOCK    2
 
 typedef struct {

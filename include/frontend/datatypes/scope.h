@@ -14,8 +14,14 @@ typedef enum : int8_t {
 } c4m_symbol_kind;
 
 enum {
-    C4M_F_HAS_DEFAULT_VALUE = 1,
-    C4M_F_IS_CONST          = 2,
+    C4M_F_HAS_INITIALIZER  = 1,
+    C4M_F_DECLARED_CONST   = 2,
+    C4M_F_IS_DECLARED      = 4,
+    C4M_F_TYPE_IS_DECLARED = 8,
+    // 'const' means user immutable not static. This is for iteration
+    // variables on loops, etc.
+    C4M_F_USER_IMMUTIBLE   = 0x10,
+    C4M_F_ALL_SYM_FLAGS    = 0x1f,
 };
 
 typedef enum c4m_scope_kind {
@@ -49,25 +55,17 @@ typedef struct c4m_scope_entry_t {
     // for other types, it gets a pointer to one of the specific data
     // structures in this file.
 
-    c4m_obj_t                 value;
-    c4m_utf8_t               *path;
-    c4m_utf8_t               *name;
-    c4m_tree_node_t          *declaration_node;
-    c4m_xlist_t              *use_locations;
-    c4m_xlist_t              *lhs_locations;
-    uint32_t                  offset;
-    uint32_t                  size;
-    uint8_t                   flags;
-    c4m_symbol_kind           kind;
-    c4m_type_t               *declared_type;
-    c4m_type_t               *inferred_type;
-    struct c4m_scope_t       *my_scope;
-    // When we merge variable declarations in multiple scopes, we
-    // leave local parse trees point to the local copy of the symbol.
-    // This allows them to find the one we chose as authoritive if
-    // needed.
-    struct c4m_scope_entry_t *authoritative_symbol;
-
+    c4m_obj_t           value;
+    c4m_utf8_t         *path;
+    c4m_utf8_t         *name;
+    c4m_tree_node_t    *declaration_node;
+    uint32_t            offset;
+    uint32_t            size;
+    uint8_t             flags;
+    c4m_symbol_kind     kind;
+    c4m_type_t         *type;
+    struct c4m_scope_t *my_scope;
+    c4m_tree_node_t    *type_declaration_node;
 } c4m_scope_entry_t;
 
 typedef struct {

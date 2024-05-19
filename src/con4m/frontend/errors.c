@@ -463,12 +463,19 @@ static error_info_t error_info[] = {
         "Declared type may not have a negative value.",
         false,
     },
+    [c4m_err_parse_for_assign_vars] = {
+        c4m_err_parse_for_assign_vars,
+        "for_assign_vars",
+        "Too many assignment variables in [em]for[/] loop. Must have one in "
+        "most cases, and two when iterating over a dictionary type.",
+        false,
+    },
     [c4m_err_invalid_redeclaration] = {
         c4m_err_invalid_redeclaration,
         "invalid_redeclaration",
         "Re-declaration of [em]{}[/] is not allowed here; "
         "previous declaration of "
-        "{} was here: [i]{}:{}:{}[/]",
+        "{} was here: [i]{}[/]",
         true,
     },
     [c4m_err_omit_string_enum_value] = {
@@ -725,6 +732,52 @@ static error_info_t error_info[] = {
         "The root section already has a validator; currently only a single "
         "validator is supported.",
         false,
+    },
+    [c4m_err_decl_mismatch] = {
+        c4m_err_decl_mismatch,
+        "decl_mismatch",
+        "Right-hand side of assignment has a type [em]({})[/] that is not "
+        "compatable with the declared type of the left-hand side [em]({})[/]. "
+        "Previous declaration location is: [i]{}[/]",
+        true,
+    },
+    [c4m_err_inconsistent_type] = {
+        c4m_err_inconsistent_type,
+        "inconsistent_type",
+        "The type here [em]({})[/] is not compatable with the "
+        "declared type of this vairable [em]({})[/]. "
+        "Declaration location is: [i]{}[/]",
+        true,
+
+    },
+    [c4m_err_decl_mask] = {
+        c4m_err_decl_mask,
+        "decl_mask",
+        "This variable cannot be declared in the [em]{}[/] scope because "
+        "there is already a {}-level declaration in the same module at: [i]{}",
+        true,
+    },
+    [c4m_warn_attr_mask] = {
+        c4m_warn_attr_mask,
+        "attr_mask",
+        "This module-level declaration shares a name with an attribute."
+        "The module definition will be used throughout this module, "
+        "and the attribute will not be available.",
+        false,
+    },
+    [c4m_err_attr_mask] = {
+        c4m_err_attr_mask,
+        "attr_mask",
+        "This global declaration is invalid, because it has the same "
+        "name as an existing attribute.",
+        false,
+    },
+    [c4m_err_label_target] = {
+        c4m_err_label_target,
+        "label_target",
+        "The label target [em]{}[/] for this [i]{}[/] statement is not an "
+        "enclosing loop.",
+        true,
     },
     [c4m_err_last] = {
         c4m_err_last,

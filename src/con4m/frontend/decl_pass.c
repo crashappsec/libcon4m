@@ -22,6 +22,36 @@ process_children(pass1_ctx *ctx)
         pass_dispatch(ctx);
         node_up(ctx);
     }
+
+    if (n->num_kids == 1) {
+        c4m_pnode_t *pparent = get_pnode(n);
+        c4m_pnode_t *pkid    = get_pnode(n->children[0]);
+        pparent->value       = pkid->value;
+    }
+}
+
+static inline c4m_scope_entry_t *
+declare_sym(pass1_ctx       *ctx,
+            c4m_scope_t     *scope,
+            c4m_utf8_t      *name,
+            c4m_tree_node_t *node,
+            c4m_symbol_kind  kind,
+            bool            *success,
+            bool             err_if_present)
+{
+    c4m_scope_entry_t *result = c4m_declare_symbol(ctx->file_ctx,
+                                                   scope,
+                                                   name,
+                                                   node,
+                                                   kind,
+                                                   success,
+                                                   err_if_present);
+
+    c4m_shadow_check(ctx->file_ctx, result, scope);
+
+    result->flags |= C4M_F_IS_DECLARED;
+
+    return result;
 }
 
 static inline void
@@ -48,7 +78,9 @@ validate_str_enum_vals(pass1_ctx *ctx, c4m_xlist_t *items)
             continue;
         }
 
-        c4m_utf8_t *val = (c4m_utf8_t *)pnode->value;
+        c4m_scope_entry_t *sym = pnode->extra_info;
+        c4m_utf8_t        *val = (c4m_utf8_t *)pnode->value;
+        sym->value             = val;
 
         if (!c4m_set_add(set, val)) {
             c4m_add_error(ctx->file_ctx, c4m_err_dupe_enum, tnode);
@@ -159,7 +191,9 @@ validate_int_enum_vals(pass1_ctx *ctx, c4m_xlist_t *items)
         c4m_pnode_t     *pnode = get_pnode(tnode);
 
         if (c4m_tree_get_number_children(tnode) != 0) {
-            pnode->value = c4m_coerce_object(pnode->value, result);
+            // pnode->value           = c4m_coerce_object(pnode->value, result);
+            c4m_scope_entry_t *sym = pnode->extra_info;
+            sym->value             = pnode->value;
             continue;
         }
 
@@ -167,7 +201,10 @@ validate_int_enum_vals(pass1_ctx *ctx, c4m_xlist_t *items)
             next_implicit++;
         }
 
-        pnode->value = c4m_coerce_object(c4m_box_u64(next_implicit++), result);
+        pnode->value           = c4m_coerce_object(c4m_box_u64(next_implicit++),
+                                         result);
+        c4m_scope_entry_t *sym = pnode->extra_info;
+        sym->value             = pnode->value;
     }
 
     return result;
@@ -191,6 +228,7 @@ handle_enum_decl(pass1_ctx *ctx)
     bool               is_str = false;
     c4m_scope_t       *scope;
     c4m_utf8_t        *varname;
+    c4m_type_t        *inferred_type;
 
     if (cur_node_type(ctx) == c4m_nt_global_enum) {
         scope = ctx->file_ctx->global_scope;
@@ -199,23 +237,28 @@ handle_enum_decl(pass1_ctx *ctx)
         scope = ctx->file_ctx->module_scope;
     }
 
+    inferred_type = c4m_tspec_typevar();
+
     if (id != NULL) {
-        idsym = c4m_declare_symbol(ctx->file_ctx,
-                                   scope,
-                                   identifier_text(id->token),
-                                   tnode,
-                                   sk_enum_type,
-                                   NULL,
-                                   true);
+        idsym = declare_sym(ctx,
+                            scope,
+                            identifier_text(id->token),
+                            tnode,
+                            sk_enum_type,
+                            NULL,
+                            true);
+
+        idsym->type = inferred_type;
     }
 
     for (int i = 0; i < n; i++) {
+        c4m_pnode_t *pnode;
+
         item    = c4m_xlist_get(items, i, NULL);
         varname = node_text(item);
+        pnode   = get_pnode(item);
 
         if (node_num_kids(item) != 0) {
-            c4m_pnode_t *pnode = get_pnode(item);
-
             pnode->value = node_simp_literal(c4m_tree_get_child(item, 0));
 
             if (!c4m_obj_is_int_type(pnode->value)) {
@@ -255,29 +298,34 @@ handle_enum_decl(pass1_ctx *ctx)
             }
         }
 
-        c4m_declare_symbol(ctx->file_ctx,
-                           scope,
-                           varname,
-                           item,
-                           sk_enum_val,
-                           NULL,
-                           true);
+        c4m_scope_entry_t *item_sym = declare_sym(ctx,
+                                                  scope,
+                                                  varname,
+                                                  item,
+                                                  sk_enum_val,
+                                                  NULL,
+                                                  true);
+        if (idsym) {
+            item_sym->type = idsym->type;
+        }
+        else {
+            item_sym->type = inferred_type;
+        }
+        pnode->extra_info = item_sym;
     }
 
     if (is_str) {
         validate_str_enum_vals(ctx, items);
-        if (idsym != NULL) {
-            idsym->inferred_type = c4m_tspec_utf8();
-        }
+        c4m_merge_types(inferred_type, c4m_tspec_utf8());
     }
     else {
         c4m_type_t *ty = validate_int_enum_vals(ctx, items);
-        if (idsym != NULL) {
-            idsym->inferred_type = ty;
-        }
+        // TODO: fix this to cooerce properly.
+        c4m_print(inferred_type);
+        c4m_merge_types(inferred_type, c4m_tspec_i64());
     }
 
-#ifdef C4M_PASS1_UNIT_TESTS
+#ifndef C4M_PASS1_UNIT_TESTS
     if (id == NULL) {
         printf("Anonymous enum (%lld kids).\n", c4m_xlist_len(items));
     }
@@ -332,6 +380,7 @@ handle_var_decl(pass1_ctx *ctx)
     }
 
     c4m_xlist_t *syms = apply_pattern_on_node(n, c4m_sym_decls);
+
     for (int i = 0; i < c4m_xlist_len(syms); i++) {
         c4m_tree_node_t *one_set   = c4m_xlist_get(syms, i, NULL);
         c4m_xlist_t     *var_names = apply_pattern_on_node(one_set,
@@ -344,29 +393,62 @@ handle_var_decl(pass1_ctx *ctx)
             type = c4m_node_to_type(ctx->file_ctx, type_node, NULL);
         }
 
-        for (int i = 0; i < c4m_xlist_len(var_names); i++) {
-            c4m_tree_node_t   *name_node = c4m_xlist_get(var_names, i, NULL);
+        for (int j = 0; j < c4m_xlist_len(var_names); j++) {
+            c4m_tree_node_t   *name_node = c4m_xlist_get(var_names, j, NULL);
             c4m_utf8_t        *name      = node_text(name_node);
-            c4m_scope_entry_t *sym       = c4m_declare_symbol(ctx->file_ctx,
-                                                        scope,
-                                                        name,
-                                                        name_node,
-                                                        sk_variable,
-                                                        NULL,
-                                                        true);
+            c4m_scope_entry_t *sym       = declare_sym(ctx,
+                                                 scope,
+                                                 name,
+                                                 name_node,
+                                                 sk_variable,
+                                                 NULL,
+                                                 true);
 
             if (sym != NULL) {
-                if (type) {
-                    sym->declared_type = type;
+                c4m_pnode_t *pn = get_pnode(name_node);
+                pn->value       = (void *)sym;
 
-                    if (is_const) {
-                        sym->flags = C4M_F_IS_CONST;
+                if (is_const) {
+                    sym->flags |= C4M_F_DECLARED_CONST;
+                }
+
+                if (init != NULL && j + 1 == c4m_xlist_len(var_names)) {
+                    set_current_node(ctx, init);
+                    process_children(ctx);
+                    set_current_node(ctx, n);
+
+                    sym->flags |= C4M_F_HAS_INITIALIZER;
+
+                    c4m_pnode_t *initpn   = get_pnode(init);
+                    c4m_type_t  *inf_type = c4m_get_my_type(initpn->value);
+
+                    if (!is_partial_type(inf_type)) {
+                        sym->value = initpn->value;
+                        sym->type  = inf_type;
+                    }
+
+                    else {
+                        sym->value = init;
+                    }
+
+                    if (type) {
+                        sym->flags |= C4M_F_TYPE_IS_DECLARED;
+                        if (!c4m_tspecs_are_compat(inf_type, type)) {
+                            c4m_add_error(ctx->file_ctx,
+                                          c4m_err_inconsistent_type,
+                                          name_node,
+                                          inf_type,
+                                          type,
+                                          c4m_node_get_loc_str(type_node));
+                        }
                     }
                 }
-            }
-
-            if (init != NULL && i + 1 == c4m_xlist_len(var_names)) {
-                sym->value = init;
+                else {
+                    if (type) {
+                        sym->type = type;
+                        sym->flags |= C4M_F_TYPE_IS_DECLARED;
+                    }
+                }
             }
         }
     }
@@ -437,35 +519,35 @@ handle_param_block(pass1_ctx *ctx)
     if (attr) {
         sym = c4m_lookup_symbol(ctx->file_ctx->attribute_scope, sym_name);
         if (sym) {
-            if (c4m_sym_is_const(sym)) {
+            if (c4m_sym_is_declared_const(sym)) {
                 c4m_add_error(ctx->file_ctx, c4m_err_const_param, name_node);
             }
         }
         else {
-            sym = c4m_declare_symbol(ctx->file_ctx,
-                                     ctx->file_ctx->attribute_scope,
-                                     sym_name,
-                                     name_node,
-                                     sk_attr,
-                                     NULL,
-                                     false);
+            sym = declare_sym(ctx,
+                              ctx->file_ctx->attribute_scope,
+                              sym_name,
+                              name_node,
+                              sk_attr,
+                              NULL,
+                              false);
         }
     }
     else {
         sym = c4m_lookup_symbol(ctx->file_ctx->module_scope, sym_name);
         if (sym) {
-            if (c4m_sym_is_const(sym)) {
+            if (c4m_sym_is_declared_const(sym)) {
                 c4m_add_error(ctx->file_ctx, c4m_err_const_param, name_node);
             }
         }
         else {
-            sym = c4m_declare_symbol(ctx->file_ctx,
-                                     ctx->file_ctx->module_scope,
-                                     sym_name,
-                                     name_node,
-                                     sk_variable,
-                                     NULL,
-                                     false);
+            sym = declare_sym(ctx,
+                              ctx->file_ctx->module_scope,
+                              sym_name,
+                              name_node,
+                              sk_variable,
+                              NULL,
+                              false);
         }
     }
 }
@@ -856,13 +938,13 @@ extract_fn_sig_info(pass1_ctx       *ctx,
             pi->name                 = node_text(kid);
             pi->type                 = c4m_tspec_typevar();
 
-            c4m_declare_symbol(ctx->file_ctx,
-                               info->fn_scope,
-                               pi->name,
-                               kid,
-                               sk_formal,
-                               NULL,
-                               true);
+            declare_sym(ctx,
+                        info->fn_scope,
+                        pi->name,
+                        kid,
+                        sk_formal,
+                        NULL,
+                        true);
 
             c4m_xlist_append(ptypes, pi->type);
         }
@@ -877,13 +959,13 @@ extract_fn_sig_info(pass1_ctx       *ctx,
         pi->name                 = node_text(kid);
         pi->type                 = type;
 
-        c4m_declare_symbol(ctx->file_ctx,
-                           info->fn_scope,
-                           pi->name,
-                           kid,
-                           sk_formal,
-                           NULL,
-                           true);
+        declare_sym(ctx,
+                    info->fn_scope,
+                    pi->name,
+                    kid,
+                    sk_formal,
+                    NULL,
+                    true);
 
         c4m_xlist_append(ptypes, pi->type);
     }
@@ -921,18 +1003,18 @@ handle_func_decl(pass1_ctx *ctx)
         decl->private = 1;
     }
 
-    sym = c4m_declare_symbol(ctx->file_ctx,
-                             ctx->file_ctx->module_scope,
-                             name,
-                             tnode,
-                             sk_func,
-                             NULL,
-                             true);
+    sym = declare_sym(ctx,
+                      ctx->file_ctx->module_scope,
+                      name,
+                      tnode,
+                      sk_func,
+                      NULL,
+                      true);
 
     if (sym) {
-        sym->declared_type = decl->signature_info->full_type;
-        ctx->static_scope  = decl->signature_info->fn_scope;
-        sym->value         = (void *)decl;
+        sym->type         = decl->signature_info->full_type;
+        ctx->static_scope = decl->signature_info->fn_scope;
+        sym->value        = (void *)decl;
     }
 
     c4m_pnode_t *pnode = get_pnode(tnode);
@@ -1069,17 +1151,17 @@ next_alloc:
         }
     }
 
-    c4m_scope_entry_t *sym = c4m_declare_symbol(ctx->file_ctx,
-                                                ctx->file_ctx->module_scope,
-                                                info->local_name,
-                                                get_match(ctx, c4m_first_kid_id),
-                                                sk_extern_func,
-                                                NULL,
-                                                true);
+    c4m_scope_entry_t *sym = declare_sym(ctx,
+                                         ctx->file_ctx->module_scope,
+                                         info->local_name,
+                                         get_match(ctx, c4m_first_kid_id),
+                                         sk_extern_func,
+                                         NULL,
+                                         true);
 
     if (sym) {
-        sym->declared_type = info->local_params->full_type;
-        sym->value         = (void *)info;
+        sym->type  = info->local_params->full_type;
+        sym->value = (void *)info;
     }
 }
 
@@ -1115,13 +1197,13 @@ handle_use_stmt(pass1_ctx *ctx)
         full = mi->specified_module;
     }
 
-    c4m_scope_entry_t *sym = c4m_declare_symbol(ctx->file_ctx,
-                                                ctx->file_ctx->imports,
-                                                full,
-                                                cur_node(ctx),
-                                                sk_module,
-                                                &status,
-                                                false);
+    c4m_scope_entry_t *sym = declare_sym(ctx,
+                                         ctx->file_ctx->imports,
+                                         full,
+                                         cur_node(ctx),
+                                         sk_module,
+                                         &status,
+                                         false);
 
     if (!status) {
         c4m_add_info(ctx->file_ctx,

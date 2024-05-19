@@ -78,6 +78,7 @@ typedef enum {
     c4m_err_parse_lit_underflow,
     c4m_err_parse_lit_odd_hex,
     c4m_err_parse_lit_invalid_neg,
+    c4m_err_parse_for_assign_vars,
     c4m_err_invalid_redeclaration,
     c4m_err_omit_string_enum_value,
     c4m_err_invalid_enum_lit_type,
@@ -117,6 +118,12 @@ typedef enum {
     c4m_err_spec_redef_field,
     c4m_err_spec_locked,
     c4m_err_dupe_validator,
+    c4m_err_decl_mismatch,
+    c4m_err_inconsistent_type,
+    c4m_err_decl_mask,
+    c4m_warn_attr_mask,
+    c4m_err_attr_mask,
+    c4m_err_label_target,
     c4m_err_last,
 } c4m_compile_error_t;
 

@@ -117,7 +117,7 @@ static c4m_tree_node_t *index_expr(parse_ctx *, c4m_tree_node_t *);
 static c4m_tree_node_t *call_expr(parse_ctx *, c4m_tree_node_t *);
 static c4m_tree_node_t *section(parse_ctx *, c4m_tree_node_t *);
 static bool             literal(parse_ctx *);
-static void             label_stmt(parse_ctx *);
+static c4m_tree_node_t *label_stmt(parse_ctx *);
 static void             assert_stmt(parse_ctx *);
 static void             use_stmt(parse_ctx *);
 static void             basic_member_expr(parse_ctx *);
@@ -354,6 +354,7 @@ _add_parse_error(parse_ctx *ctx, c4m_compile_error_t code, ...)
                        tok_cur(ctx),
                        c4m_err_severity_error,
                        args);
+    ctx->file_ctx->fatal_errors = 1;
     va_end(args);
 }
 
@@ -1508,17 +1509,21 @@ static void
 for_var_list(parse_ctx *ctx)
 {
     start_node(ctx, c4m_nt_variable_decls, false);
-    start_node(ctx, c4m_nt_decl_qualifiers, false);
-    end_node(ctx);
 
-    while (true) {
-        identifier(ctx);
-        if (tok_kind(ctx) != c4m_tt_comma) {
-            end_node(ctx);
-            return;
-        }
-        consume(ctx);
+    identifier(ctx);
+    if (tok_kind(ctx) != c4m_tt_comma) {
+        end_node(ctx);
+        return;
     }
+    consume(ctx);
+    identifier(ctx);
+
+    if (tok_kind(ctx) == c4m_tt_comma) {
+        add_parse_error(ctx, c4m_err_parse_for_assign_vars);
+        consume(ctx); // Attempt to recover by skipping the comma
+        consume(ctx); // AND the likely ID token.
+    }
+    end_node(ctx);
 }
 
 static bool
@@ -1550,7 +1555,6 @@ range(parse_ctx *ctx)
     }
     consume(ctx);
     adopt_kid(ctx, expression(ctx));
-    end_of_statement(ctx);
     end_node(ctx);
 }
 
@@ -1578,11 +1582,21 @@ property_range(parse_ctx *ctx)
 }
 
 static void
-for_stmt(parse_ctx *ctx)
+for_stmt(parse_ctx *ctx, bool label)
 {
+    c4m_tree_node_t *label_node = NULL;
     c4m_tree_node_t *expr;
 
+    if (label) {
+        label_node = label_stmt(ctx);
+    }
+
     start_node(ctx, c4m_nt_for, true);
+
+    if (label) {
+        adopt_kid(ctx, label_node);
+    }
+
     for_var_list(ctx);
 
     switch (match(ctx, c4m_tt_in, c4m_tt_from)) {
@@ -1592,6 +1606,10 @@ for_stmt(parse_ctx *ctx)
 
         if (!optional_range(ctx, expr)) {
             adopt_kid(ctx, expr);
+            // Denote we have an object-loop to make for easy testing
+            // in pass 2
+            c4m_pnode_t *pn = c4m_tree_get_contents(ctx->cur);
+            pn->extra_info  = (void *)~0;
         }
         break;
     case c4m_tt_from:
@@ -1608,17 +1626,30 @@ for_stmt(parse_ctx *ctx)
     ctx->loop_depth += 1;
     body(ctx, NULL);
     ctx->loop_depth -= 1;
+    end_node(ctx);
 }
 
 static void
-while_stmt(parse_ctx *ctx)
+while_stmt(parse_ctx *ctx, bool label)
 {
+    c4m_tree_node_t *label_node = NULL;
+
+    if (label) {
+        label_node = label_stmt(ctx);
+    }
+
     start_node(ctx, c4m_nt_while, true);
+
+    if (label) {
+        adopt_kid(ctx, label_node);
+    }
+
     adopt_kid(ctx, expression(ctx));
 
     ctx->loop_depth += 1;
     body(ctx, NULL);
     ctx->loop_depth -= 1;
+    end_node(ctx);
 }
 
 static void
@@ -1661,10 +1692,10 @@ case_body(parse_ctx *ctx)
                 if_stmt(ctx);
                 continue;
             case c4m_tt_for:
-                for_stmt(ctx);
+                for_stmt(ctx, false);
                 continue;
             case c4m_tt_while:
-                while_stmt(ctx);
+                while_stmt(ctx, false);
                 continue;
             case c4m_tt_typeof:
                 typeof_stmt(ctx);
@@ -1691,8 +1722,10 @@ case_body(parse_ctx *ctx)
                 if (lookahead(ctx, 1, false) == c4m_tt_colon) {
                     switch (lookahead(ctx, 2, true)) {
                     case c4m_tt_for:
+                        for_stmt(ctx, true);
+                        continue;
                     case c4m_tt_while:
-                        label_stmt(ctx);
+                        while_stmt(ctx, true);
                         continue;
                     default:
                         break; // fall through to text_matches tho.
@@ -2122,13 +2155,17 @@ first_sym:
     return result;
 }
 
-static void
+static c4m_tree_node_t *
 label_stmt(parse_ctx *ctx)
 {
-    start_node(ctx, c4m_nt_label, true);
+    c4m_tree_node_t *result;
+
+    temporary_tree(ctx, c4m_nt_label);
+    consume(ctx);
     consume(ctx); // Colon got validated via lookahead.
     opt_one_newline(ctx);
-    end_node(ctx);
+    result = restore_tree(ctx);
+    return result;
 }
 
 static void
@@ -3661,10 +3698,10 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
                 if_stmt(ctx);
                 continue;
             case c4m_tt_for:
-                for_stmt(ctx);
+                for_stmt(ctx, false);
                 continue;
             case c4m_tt_while:
-                while_stmt(ctx);
+                while_stmt(ctx, false);
                 continue;
             case c4m_tt_typeof:
                 typeof_stmt(ctx);
@@ -3691,8 +3728,10 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
                 if (lookahead(ctx, 1, false) == c4m_tt_colon) {
                     switch (lookahead(ctx, 2, true)) {
                     case c4m_tt_for:
+                        for_stmt(ctx, true);
+                        continue;
                     case c4m_tt_while:
-                        label_stmt(ctx);
+                        while_stmt(ctx, true);
                         continue;
                     default:
                         break; // fall through.
@@ -3797,10 +3836,10 @@ module(parse_ctx *ctx)
                 if_stmt(ctx);
                 continue;
             case c4m_tt_for:
-                for_stmt(ctx);
+                for_stmt(ctx, false);
                 continue;
             case c4m_tt_while:
-                while_stmt(ctx);
+                while_stmt(ctx, false);
                 continue;
             case c4m_tt_typeof:
                 typeof_stmt(ctx);
@@ -3836,8 +3875,10 @@ module(parse_ctx *ctx)
                 if (lookahead(ctx, 1, false) == c4m_tt_colon) {
                     switch (lookahead(ctx, 2, true)) {
                     case c4m_tt_for:
+                        for_stmt(ctx, true);
+                        continue;
                     case c4m_tt_while:
-                        label_stmt(ctx);
+                        while_stmt(ctx, true);
                         continue;
                     default:
                         break; // fall through.
@@ -3970,6 +4011,27 @@ c4m_format_parse_tree(c4m_file_compile_ctx *ctx)
                          c4m_kw("converter", c4m_ka(repr_one_node)));
 }
 
+static inline void
+prime_tokens(parse_ctx *ctx)
+{
+    // tok_cur() doesn't skip comment tokens; consume() does.  So if a
+    // module starts w/ something that is always skipped, we need to
+    // skip it up front, or add an extra check to tok_cur.
+    while (true) {
+        switch (tok_kind(ctx)) {
+        case c4m_tt_newline:
+        case c4m_tt_long_comment:
+        case c4m_tt_line_comment:
+        case c4m_tt_space:
+            ctx->token_ix++;
+            continue;
+        default:
+            break;
+        }
+        break;
+    }
+}
+
 bool
 c4m_parse(c4m_file_compile_ctx *file_ctx)
 {
@@ -3986,25 +4048,43 @@ c4m_parse(c4m_file_compile_ctx *file_ctx)
         .root_stack   = c4m_new(c4m_tspec_stack(c4m_tspec_parse_node())),
     };
 
-    // tok_cur() doesn't skip comment tokens; consume() does.  So if a
-    // module starts w/ something that is always skipped, we need to
-    // skip it up front, or add an extra check to tok_cur.
-    while (true) {
-        switch (tok_kind(&ctx)) {
-        case c4m_tt_newline:
-        case c4m_tt_long_comment:
-        case c4m_tt_line_comment:
-        case c4m_tt_space:
-            ctx.token_ix++;
-            continue;
-        default:
-            break;
-        }
-        break;
-    }
+    prime_tokens(&ctx);
 
     file_ctx->parse_tree = module(&ctx);
+
     return file_ctx->parse_tree != NULL;
+}
+
+bool
+c4m_parse_type(c4m_file_compile_ctx *file_ctx)
+{
+    if (c4m_fatal_error_in_module(file_ctx)) {
+        return false;
+    }
+
+    parse_ctx ctx = {
+        .cur          = NULL,
+        .file_ctx     = file_ctx,
+        .cached_token = NULL,
+        .token_ix     = 0,
+        .cache_ix     = -1,
+        .root_stack   = c4m_new(c4m_tspec_stack(c4m_tspec_parse_node())),
+    };
+
+    prime_tokens(&ctx);
+
+    c4m_pnode_t     *root = c4m_new(c4m_tspec_parse_node(), ctx, c4m_nt_lit_tspec);
+    c4m_tree_node_t *t    = c4m_new(c4m_tspec_tree(c4m_tspec_parse_node()),
+                                 c4m_kw("contents", c4m_ka(root)));
+
+    ctx.cur              = t;
+    file_ctx->parse_tree = ctx.cur;
+
+    type_spec(&ctx);
+
+    file_ctx->parse_tree = file_ctx->parse_tree->children[0];
+
+    return true;
 }
 
 const c4m_vtable_t c4m_parse_node_vtable = {

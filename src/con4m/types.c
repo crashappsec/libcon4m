@@ -1,4 +1,34 @@
+#define C4M_USE_INTERNAL_API
+
 #include "con4m.h"
+
+#ifdef C4M_TYPE_LOG
+
+static bool log_types = false;
+
+#define type_log(x, y)                                              \
+    if (log_types) {                                                \
+        c4m_print(c4m_cstr_format("[h2]{}:[/] [h1]{}[/] (line {})", \
+                                  c4m_new_utf8(x),                  \
+                                  y,                                \
+                                  c4m_box_i64(__LINE__)));          \
+    }
+
+void
+type_log_on()
+{
+    log_types = true;
+}
+
+void
+type_log_off()
+{
+    log_types = false;
+}
+
+#else
+#define type_log(x, y)
+#endif
 
 // Hashing a tree-based data structure down to a single integer can
 // save a lot of work if the user does want to do any dynamic type
@@ -161,23 +191,12 @@ c4m_type_t *type_node_for_list_of_type_objects;
 c4m_type_t *
 c4m_resolve_type_aliases(c4m_type_t *node, c4m_type_env_t *env)
 {
-    while (true) {
-        c4m_type_t *tmp = hatrack_dict_get(env->store,
-                                           (void *)node->typeid,
-                                           NULL);
-
-        if (tmp == NULL) {
-            hatrack_dict_put(env->store, (void *)node->typeid, node);
-            return node;
-        }
-        if (c4m_tspec_is_concrete(node)) {
-            return node;
-        }
-        if (tmp->typeid == node->typeid) {
-            return node;
-        }
-        node = tmp;
+    while (node->fw && node->fw != node->typeid) {
+        node = hatrack_dict_get(env->store, (void *)node->fw, NULL);
+        assert(node != NULL);
     }
+
+    return node;
 }
 
 c4m_type_t *
@@ -258,6 +277,7 @@ type_hash_and_dedupe(c4m_type_t **nodeptr, c4m_type_env_t *env)
     type_hash_ctx ctx;
 
     if (node->typeid != 0) {
+        hatrack_dict_add(env->store, (void *)node->typeid, node);
         return node->typeid;
     }
 
@@ -266,6 +286,7 @@ type_hash_and_dedupe(c4m_type_t **nodeptr, c4m_type_env_t *env)
     case C4M_DT_KIND_primitive:
     case C4M_DT_KIND_internal:
         node->typeid = node->details->base_type->typeid;
+        assert(hatrack_dict_add(env->store, (void *)node->typeid, node));
         return node->typeid;
     case C4M_DT_KIND_type_var:
         unreachable();
@@ -304,7 +325,7 @@ c4m_type_hash(c4m_type_t *node, c4m_type_env_t *env)
 }
 
 static void
-c4m_type_env_init(c4m_type_env_t *env, va_list args)
+c4m_type_env_init(c4m_type_env_t *env, void *ignore)
 {
     env->store = c4m_new(c4m_tspec_dict(c4m_tspec_u64(), c4m_tspec_typespec()));
     atomic_store(&env->next_tid, 1LLU << 63);
@@ -523,12 +544,16 @@ c4m_unify(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
     int          num_params;
 
     t1 = c4m_resolve_type_aliases(t1, env);
-    t2 = c4m_resolve_type_aliases(t1, env);
+    t2 = c4m_resolve_type_aliases(t2, env);
 
     t1 = copy_if_needed(t1, env);
     t2 = copy_if_needed(t2, env);
 
+    type_log("t1", t1);
+    type_log("t2", t2);
+
     if (t1->typeid == t2->typeid) {
+        type_log("unify(t1, t2)", t1);
         return t1;
     }
 
@@ -536,13 +561,16 @@ c4m_unify(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
     // are available on each. We'll just always return C4M_T_UTF8 in
     // these cases.
     if (t1->typeid == C4M_T_UTF8 && t2->typeid == C4M_T_UTF32) {
+        type_log("unify(t1, t2)", t1);
         return t1;
     }
     if (t1->typeid == C4M_T_UTF32 && t2->typeid == C4M_T_UTF8) {
+        type_log("unify(t1, t2)", t2);
         return t2;
     }
 
     if (t1->typeid == C4M_T_ERROR || t2->typeid == C4M_T_ERROR) {
+        type_log("unify(t1, t2)", type_error());
         return type_error();
     }
 
@@ -550,6 +578,7 @@ c4m_unify(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
         // Concrete, but not the same. Types are not equivolent.
         // While casting may be possible, that doesn't happen here;
         // unification is about type equivolence, not coercion!
+        type_log("unify(t1, t2)", type_error());
         return type_error();
     }
 
@@ -559,6 +588,7 @@ c4m_unify(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
     if (b1 != b2) {
         if (b1 != C4M_DT_KIND_type_var) {
             if (b2 != C4M_DT_KIND_type_var) {
+                type_log("unify(t1, t2)", type_error());
                 return type_error();
             }
 
@@ -576,14 +606,16 @@ c4m_unify(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
     else {
         if (b1 != b2) {
             // Lists and queues are not type compatable, for example.
+            type_log("unify(t1, t2)", type_error());
             return type_error();
         }
     }
 
     switch (b1) {
     case C4M_DT_KIND_type_var:
-        t1->typeid = t2->typeid; // Forward t1 to t2.
-        result     = t2;
+        hatrack_dict_put(env->store, (void *)t1->typeid, t2);
+        t1->fw = t2->typeid; // Forward t1 to t2.
+        result = t2;
         break;
 
     case C4M_DT_KIND_list:
@@ -592,6 +624,7 @@ c4m_unify(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
         num_params = c4m_tspec_get_num_params(t1);
 
         if (num_params != c4m_tspec_get_num_params(t2)) {
+            type_log("unify(t1, t2)", type_error());
             return type_error();
         }
 
@@ -607,6 +640,7 @@ unify_sub_nodes:
             sub_result = c4m_unify(sub1, sub2, env);
 
             if (c4m_tspec_is_error(sub_result)) {
+                type_log("unify(t1, t2)", sub_result);
                 return sub_result;
             }
             c4m_xlist_append(new_subs, sub_result);
@@ -632,6 +666,7 @@ unify_sub_nodes:
         // functions, it's only because we're trying to unify two formals.
         if ((t1->details->flags ^ t2->details->flags) & C4M_FN_TY_VARARGS) {
             if (f1_params != f2_params) {
+                type_log("unify(t1, t2)", type_error());
                 return type_error();
             }
 
@@ -653,13 +688,14 @@ unify_sub_nodes:
 
         // -1 here because varargs params are optional.
         if (f2_params < f1_params - 1) {
+            type_log("unify(t1, t2)", type_error());
             return type_error();
         }
 
         // The last item is always the return type, so we have to
         // unify the last items, plus any items before varargs.  Then,
         // if there are any items in type2, they each need to unify
-        // with t1's varargs parameter.
+        // with t1's va;l;rargs parameter.
         p1       = c4m_tspec_get_params(t1);
         p2       = c4m_tspec_get_params(t2);
         new_subs = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()),
@@ -679,6 +715,7 @@ unify_sub_nodes:
         sub_result = c4m_unify(sub1, sub2, env);
 
         if (c4m_tspec_is_error(sub_result)) {
+            type_log("unify(t1, t2)", sub_result);
             return sub_result;
         }
         // Now, check any varargs.
@@ -688,6 +725,7 @@ unify_sub_nodes:
             sub2       = c4m_xlist_get(p2, i, NULL);
             sub_result = c4m_unify(sub1, sub2, env);
             if (c4m_tspec_is_error(sub_result)) {
+                type_log("unify(t1, t2)", sub_result);
                 return sub_result;
             }
         }
@@ -711,6 +749,7 @@ unify_sub_nodes:
 
     type_hash_and_dedupe(&result, env);
 
+    type_log("unify(t1, t2)", result);
     return result;
 }
 
@@ -948,6 +987,7 @@ internal_type_repr(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
     switch (info->base_type->dt_kind) {
     case C4M_DT_KIND_nil:
     case C4M_DT_KIND_primitive:
+    case C4M_DT_KIND_internal:
         return c4m_new(c4m_tspec_utf8(),
                        c4m_kw("cstring", c4m_ka(info->base_type->name)));
     case C4M_DT_KIND_type_var:
@@ -972,7 +1012,9 @@ c4m_tspec_repr(c4m_type_t *t, to_str_use_t how)
                                                c4m_tspec_utf8()));
     int64_t     n     = 0;
 
-    return internal_type_repr(t, memos, &n);
+    return internal_type_repr(c4m_resolve_type_aliases(t, c4m_global_type_env),
+                              memos,
+                              &n);
 }
 
 extern void        c4m_marshal_compact_type(c4m_type_t *t, c4m_stream_t *s);
@@ -1132,6 +1174,7 @@ c4m_initialize_global_types()
         list->length       = 1;
         ts->details->items = list;
 
+        c4m_type_env_init(c4m_global_type_env, NULL);
         // Theoretically, we should be able to marshal these now.
     }
 }
@@ -1318,6 +1361,8 @@ c4m_tspec_fn_va(c4m_type_t *return_type, int64_t nparams, ...)
     return result;
 }
 
+// This one explicitly sets the varargs flag, as opposed to the one above that
+// simply just takes variable # of args as an input.
 c4m_type_t *
 c4m_tspec_varargs_fn(c4m_type_t *return_type, int64_t nparams, ...)
 {
@@ -1443,4 +1488,125 @@ c4m_get_promotion_type(c4m_type_t *t1, c4m_type_t *t2, int *warning)
     default:
         return c4m_tspec_i8();
     }
+}
+
+void
+c4m_clean_environment()
+{
+    c4m_base_obj_t *envobj = c4m_gc_raw_alloc(
+        sizeof(c4m_type_env_t) + sizeof(c4m_base_obj_t),
+        GC_SCAN_ALL);
+
+    c4m_base_obj_t *envstore = c4m_gc_alloc(c4m_dict_t);
+    c4m_type_env_t *new_env  = (c4m_type_env_t *)envobj->data;
+    new_env->store           = (c4m_dict_t *)envstore->data;
+    hatrack_dict_init(new_env->store, HATRACK_DICT_KEY_TYPE_INT);
+
+    hatrack_dict_item_t *items;
+    uint64_t             len;
+
+    items = hatrack_dict_items_sort(c4m_global_type_env->store, &len);
+
+    for (uint64_t i = 0; i < len; i++) {
+        c4m_type_t *t = items[i].value;
+
+        if (t->typeid != (uint64_t)items[i].key) {
+            continue;
+        }
+
+        if (c4m_tspec_get_base(t) != C4M_DT_KIND_type_var) {
+            hatrack_dict_put(new_env->store, (void *)t->typeid, t);
+        }
+
+        int nparams = c4m_xlist_len(t->details->items);
+        for (int i = 0; i < nparams; i++) {
+            c4m_type_t *it = c4m_tspec_get_param(t, i);
+            it             = c4m_resolve_type_aliases(it, c4m_global_type_env);
+
+            if (c4m_tspec_get_base(it) == C4M_DT_KIND_type_var) {
+                hatrack_dict_put(new_env->store, (void *)t->typeid, t);
+            }
+        }
+    }
+
+    c4m_global_type_env = new_env;
+}
+
+c4m_grid_t *
+c4m_format_global_type_environment()
+{
+    uint64_t             len;
+    hatrack_dict_item_t *items;
+    c4m_grid_t          *grid = c4m_new(c4m_tspec_grid(),
+                               c4m_kw("start_cols",
+                                      c4m_ka(3),
+                                      "header_rows",
+                                      c4m_ka(1),
+                                      "stripe",
+                                      c4m_ka(true)));
+    c4m_xlist_t         *row  = c4m_new_table_row();
+
+    items = hatrack_dict_items_sort(c4m_global_type_env->store, &len);
+
+    c4m_xlist_append(row, c4m_new_utf8("Id"));
+    c4m_xlist_append(row, c4m_new_utf8("Value"));
+    c4m_xlist_append(row, c4m_new_utf8("Base Type"));
+    c4m_grid_add_row(grid, row);
+
+    for (uint64_t i = 0; i < len; i++) {
+        c4m_type_t *t = items[i].value;
+
+        // This skips forwarded nodes.
+        if (t->typeid != (uint64_t)items[i].key) {
+            continue;
+        }
+
+        c4m_utf8_t *base_name;
+
+        switch (c4m_tspec_get_base(t)) {
+        case C4M_DT_KIND_nil:
+            base_name = c4m_new_utf8("nil");
+            break;
+        case C4M_DT_KIND_primitive:
+            base_name = c4m_new_utf8("primitive");
+            break;
+        case C4M_DT_KIND_internal: // Internal primitives.
+            base_name = c4m_new_utf8("internal");
+            break;
+        case C4M_DT_KIND_type_var:
+            base_name = c4m_new_utf8("var");
+            break;
+        case C4M_DT_KIND_list:
+            base_name = c4m_new_utf8("list");
+            break;
+        case C4M_DT_KIND_dict:
+            base_name = c4m_new_utf8("dict");
+            break;
+        case C4M_DT_KIND_tuple:
+            base_name = c4m_new_utf8("tuple");
+            break;
+        case C4M_DT_KIND_func:
+            base_name = c4m_new_utf8("func");
+            break;
+        case C4M_DT_KIND_maybe:
+            base_name = c4m_new_utf8("maybe");
+            break;
+        case C4M_DT_KIND_object:
+            base_name = c4m_new_utf8("object");
+            break;
+        case C4M_DT_KIND_oneof:
+            base_name = c4m_new_utf8("oneof");
+            break;
+        }
+
+        row = c4m_new_table_row();
+        c4m_xlist_append(row, c4m_cstr_format("{:x}", c4m_box_i64(t->typeid)));
+        c4m_xlist_append(row, c4m_tspec_repr(t, 0));
+        c4m_xlist_append(row, base_name);
+        c4m_grid_add_row(grid, row);
+    }
+    c4m_set_column_style(grid, 0, "snap");
+    c4m_set_column_style(grid, 1, "snap");
+    c4m_set_column_style(grid, 2, "snap");
+    return grid;
 }

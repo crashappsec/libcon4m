@@ -28,3 +28,4 @@ extern c4m_cfg_node_t *c4m_cfg_add_call(c4m_cfg_node_t *,
 extern c4m_cfg_node_t *c4m_cfg_add_use(c4m_cfg_node_t *,
                                        c4m_tree_node_t *,
                                        c4m_scope_entry_t *);
+extern c4m_grid_t     *c4m_cfg_repr(c4m_cfg_node_t *);

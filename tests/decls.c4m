@@ -1,3 +1,16 @@
 global const x: int
-const y, z: int, x: bool = 8
-var a, b = 2, c
+const y = -12, z: int, abc : bool = true, xyz: int = 8000
+var a, b: int = 2, c = 4
+cxcsd
+foo: for moo, moo2 in [1,2,3,4] {
+  n
+  break foo
+}
+x
+for l from 1 to 10 {
+  m
+  break;
+}
+for zzzz from qwerty[2] to 100 {
+dsflkjfslkdj
+}

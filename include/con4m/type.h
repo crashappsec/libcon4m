@@ -19,6 +19,7 @@ extern c4m_type_t     *c4m_tspec_set(c4m_type_t *);
 extern c4m_type_t     *c4m_tspec_tuple(int64_t, ...);
 extern c4m_type_t     *c4m_tspec_tuple_from_xlist(c4m_xlist_t *);
 extern c4m_type_t     *c4m_tspec_fn(c4m_type_t *, c4m_xlist_t *, bool);
+extern c4m_type_t     *c4m_tspec_fn_va(c4m_type_t *, int64_t, ...);
 extern c4m_type_t     *c4m_tspec_varargs_fn_va(c4m_type_t *, int64_t, ...);
 extern c4m_type_t     *c4m_tspec_varargs_fn(c4m_type_t *, int64_t, ...);
 extern c4m_type_t     *c4m_global_resolve_type(c4m_type_t *);
@@ -46,12 +47,6 @@ c4m_type_cmp_exact(c4m_type_t *t1, c4m_type_t *t2)
 
 static inline c4m_dt_kind_t
 c4m_tspec_get_base(c4m_type_t *n)
-{
-    return n->details->base_type->dt_kind;
-}
-
-static inline c4m_dt_kind_t
-c4m_tspec_get_type_kind(c4m_type_t *n)
 {
     return n->details->base_type->dt_kind;
 }
@@ -447,6 +442,12 @@ c4m_tspec_is_int_type(c4m_type_t *t)
 }
 
 static inline bool
+c4m_tspec_is_tvar(c4m_type_t *t)
+{
+    return (c4m_tspec_get_base(t) == C4M_T_GENERIC);
+}
+
+static inline bool
 c4m_obj_is_int_type(const c4m_obj_t *obj)
 {
     c4m_base_obj_t *base = (c4m_base_obj_t *)c4m_object_header(obj);
@@ -459,3 +460,22 @@ c4m_type_is_value_type(c4m_type_t *t)
 {
     return c4m_tspec_get_data_type_info(t)->by_value;
 }
+
+#ifdef C4M_USE_INTERNAL_API
+extern c4m_grid_t *c4m_format_global_type_environment();
+extern void        c4m_clean_environment();
+
+static inline bool
+is_partial_type(c4m_type_t *t)
+{
+    return c4m_tspec_get_base_tid(t) == C4M_T_PARTIAL_LIT;
+}
+
+#ifdef C4M_TYPE_LOG
+extern void type_log_on();
+extern void type_log_off();
+#else
+#define type_log_on()
+#define type_log_off()
+#endif
+#endif

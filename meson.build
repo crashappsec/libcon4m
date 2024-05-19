@@ -119,7 +119,8 @@ hat_primary = ['src/hatrack/support/hatrack_common.c',
                'src/hatrack/queue/hatring.c',
                'src/hatrack/queue/stack.c',
                'src/hatrack/queue/debug.c',
-               'src/hatrack/queue/logring.c']
+               'src/hatrack/queue/logring.c'
+               ]
 
 hat_hashref = ['src/hatrack/hash/ballcap.c',
                'src/hatrack/hash/duncecap.c',

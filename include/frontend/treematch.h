@@ -112,5 +112,6 @@ extern c4m_tpat_node_t *c4m_sym_decls;
 extern c4m_tpat_node_t *c4m_sym_names;
 extern c4m_tpat_node_t *c4m_sym_type;
 extern c4m_tpat_node_t *c4m_sym_init;
+extern c4m_tpat_node_t *c4m_loop_vars;
 
 #endif

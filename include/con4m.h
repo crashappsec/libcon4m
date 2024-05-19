@@ -1,4 +1,5 @@
 #pragma once
+#define C4M_TYPE_LOG
 
 // Everything includes this; the ordering here is somewhat important
 // due to interdependencies, though they can always be solved via
