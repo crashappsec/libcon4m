@@ -147,7 +147,7 @@ type_check_node_against_sym(pass2_ctx         *ctx,
     }
 
     else {
-        if (c4m_tspec_is_error(pnode->type)) {
+        if (pnode->type && c4m_tspec_is_error(pnode->type)) {
             return; // Already errored for this node.
         }
     }
@@ -437,8 +437,6 @@ initial_function_resolution(pass2_ctx       *ctx,
 
         return NULL;
     }
-    // TODO: ADD CFG NODE.
-    // TODO: Fix def/use up for this.
 }
 
 static void base_check_pass_dispatch(pass2_ctx *);
@@ -1563,10 +1561,6 @@ base_check_pass_dispatch(pass2_ctx *ctx)
     default:
         process_children(ctx);
         break;
-    }
-
-    if (pnode->type == NULL) {
-        pnode->type = c4m_tspec_typevar();
     }
 }
 
