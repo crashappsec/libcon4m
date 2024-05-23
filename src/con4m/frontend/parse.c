@@ -4083,7 +4083,11 @@ repr_one_node(c4m_pnode_t *one)
 
     c4m_utf8_t *result = c4m_cstr_format(fmt, name, xtra, doc);
 
-    //    c4m_print(c4m_hex_dump(result->data, result->byte_len));
+    if (one->type != NULL) {
+        result = c4m_str_concat(result,
+                                c4m_cstr_format("[h6]{}", one->type));
+    }
+
     return result;
 }
 

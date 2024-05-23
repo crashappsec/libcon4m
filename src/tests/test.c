@@ -649,6 +649,7 @@ test_compiler()
 
     // c4m_clean_environment();
     // c4m_print(c4m_format_global_type_environment());
+    c4m_print_parse_node(ctx->entry_point->parse_tree);
 }
 #else
 #define test_compiler(...)

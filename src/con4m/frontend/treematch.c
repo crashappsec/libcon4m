@@ -201,7 +201,7 @@ node_literal(c4m_file_compile_ctx *ctx,
         ERROR_ON_BAD_LITMOD(ctx, base_type, node, litmod, "list");
 
         n       = c4m_tree_get_number_children(node);
-        partial = c4m_new(c4m_tspec_partial_lit(), n, base_type);
+        partial = c4m_new(c4m_tspec_partial_lit(), n, base_type, node);
 
         c4m_xlist_append(partial->type->details->items, c4m_tspec_typevar());
 
@@ -227,12 +227,12 @@ handle_dict_or_litmodded_but_empty:
         ERROR_ON_BAD_LITMOD(ctx, base_type, node, litmod, "dict");
 
         n       = c4m_tree_get_number_children(node);
-        partial = c4m_new(c4m_tspec_partial_lit(), n, base_type);
+        partial = c4m_new(c4m_tspec_partial_lit(), n, base_type, node);
 
         c4m_xlist_append(partial->type->details->items, c4m_tspec_typevar());
         c4m_xlist_append(partial->type->details->items, c4m_tspec_typevar());
 
-        for (int i = 0; i < n; n++) {
+        for (int i = 0; i < n; i++) {
             one               = node_literal(ctx,
                                c4m_tree_get_child(node, i),
                                type_ctx);
@@ -253,7 +253,7 @@ handle_dict_or_litmodded_but_empty:
         ERROR_ON_BAD_LITMOD(ctx, base_type, node, litmod, "set");
 
         n       = c4m_tree_get_number_children(node);
-        partial = c4m_new(c4m_tspec_partial_lit(), n, base_type);
+        partial = c4m_new(c4m_tspec_partial_lit(), n, base_type, node);
 
         c4m_xlist_append(partial->type->details->items, c4m_tspec_typevar());
 

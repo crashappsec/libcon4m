@@ -1172,20 +1172,15 @@ internal_repr_tv(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
 
         if (num) {
             c4m_type_t *sub = c4m_tspec_get_param(t, 0);
-            c4m_utf8_t *one = internal_type_repr(
-                c4m_resolve_type_aliases(sub,
-                                         c4m_global_type_env),
-                memos,
-                nexttv);
+            c4m_utf8_t *one = internal_type_repr(sub, memos, nexttv);
+
             res = c4m_cstr_format("{}{}", res, one);
         }
 
         for (int i = 1; i < num; i++) {
-            c4m_utf8_t *one = internal_type_repr(
-                c4m_resolve_type_aliases(c4m_tspec_get_param(t, i),
-                                         c4m_global_type_env),
-                memos,
-                nexttv);
+            c4m_utf8_t *one = internal_type_repr(c4m_tspec_get_param(t, i),
+                                                 memos,
+                                                 nexttv);
 
             res = c4m_cstr_format("{}, {}", res, one);
         }
@@ -1301,6 +1296,8 @@ first_loop_start:
 c4m_str_t *
 internal_type_repr(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
 {
+    t = c4m_resolve_type_aliases(t, c4m_global_type_env);
+
     c4m_type_info_t *info = t->details;
 
     switch (info->base_type->dt_kind) {

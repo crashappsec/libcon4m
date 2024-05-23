@@ -120,6 +120,7 @@ typedef enum {
     c4m_err_dupe_validator,
     c4m_err_decl_mismatch,
     c4m_err_inconsistent_type,
+    c4m_err_inconsistent_infer_type,
     c4m_err_decl_mask,
     c4m_warn_attr_mask,
     c4m_err_attr_mask,
@@ -135,12 +136,16 @@ typedef enum {
     c4m_err_slice_on_dict,
     c4m_err_bad_slice_ix,
     c4m_err_dupe_label,
-    c4m_err_last,
     c4m_err_iter_name_conflict,
     c4m_err_dict_one_var_for,
     c4m_err_future_dynamic_typecheck,
     c4m_err_iterate_on_non_container,
     c4m_warn_shadowed_var,
+    c4m_err_unary_minus_type,
+    c4m_err_cannot_cmp,
+    c4m_err_range_type,
+    c4m_err_last,
+
 } c4m_compile_error_t;
 
 #define c4m_err_no_error c4m_err_last

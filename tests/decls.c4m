@@ -8,12 +8,12 @@ global const x: int
 const y = -12, z: int, abc : bool = true, xyz: int = 8000
 var a, b: int = 2, c = 4
 cxcsd
-foo: for moo, moo2 in [1,2,3,4] {
+foo: for moo, moo2 in { 1 : "foo", 2: "4" } {
   n
   break foo
 }
 x
-for lololo from 1 to 10 {
+for lololo from 1 to "fuck" {
   m
   break;
 }
@@ -34,4 +34,7 @@ oopsie = xyz + y
 
 if (noidea == 2) {
   noidea += 1
+}
+if (2 < "foo") {
+   x = - "foo"
 }

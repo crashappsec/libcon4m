@@ -22,9 +22,13 @@
 // data structure.
 
 typedef struct {
-    c4m_type_t  *type;
-    unsigned int num_items : 31;
-    unsigned int empty_container;
-    uint64_t    *cached_state;
-    c4m_obj_t   *items;
+    c4m_type_t      *type;
+    unsigned int     num_items         : 30;
+    unsigned int     empty_container   : 1;
+    unsigned int     empty_dict_or_set : 1;
+    // This is a bit field that keeps track of which items are themselves
+    // partially evaluated.
+    uint64_t        *cached_state;
+    c4m_obj_t       *items;
+    c4m_tree_node_t *node;
 } c4m_partial_lit_t;

@@ -745,10 +745,16 @@ static error_info_t error_info[] = {
         c4m_err_inconsistent_type,
         "inconsistent_type",
         "The type here [em]({})[/] is not compatable with the "
-        "declared type of this vairable [em]({})[/]. "
+        "declared type of this variable [em]({})[/]. "
         "Declaration location is: [i]{}[/]",
         true,
-
+    },
+    [c4m_err_inconsistent_infer_type] = {
+        c4m_err_inconsistent_infer_type,
+        "inconsistent_type",
+        "The type here [em]({})[/] is not compatable with the "
+        "expected type: [em]({})[/]. ",
+        true,
     },
     [c4m_err_decl_mask] = {
         c4m_err_decl_mask,
@@ -888,6 +894,25 @@ static error_info_t error_info[] = {
         "Cannot iterate over this value, as it is not a container type "
         "(current type is [em]{}[/])",
         true,
+    },
+    [c4m_err_unary_minus_type] = {
+        c4m_err_unary_minus_type,
+        "unary_minus_type",
+        "Unary minus currently only allowed on signed int types.",
+        false,
+    },
+    [c4m_err_cannot_cmp] = {
+        c4m_err_cannot_cmp,
+        "cannot_cmp",
+        "The two sides of the comparison have incompatible types: "
+        "[em]{}[/] vs [em]{}[/]",
+        true,
+    },
+    [c4m_err_range_type] = {
+        c4m_err_range_type,
+        "range_type",
+        "Ranges must consist of two int values.",
+        false,
     },
     [c4m_err_last] = {
         c4m_err_last,

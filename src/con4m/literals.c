@@ -267,20 +267,69 @@ c4m_parse_simple_lit(c4m_token_t *tok)
     return err;
 }
 
+bool
+c4m_type_has_list_syntax(c4m_type_t *t)
+{
+    uint64_t bi      = t->details->base_type->typeid;
+    int      word    = ((int)bi) / 64;
+    int      bit     = ((int)bi) % 64;
+    uint64_t to_test = 1UL << bit;
+
+    return list_types[word] & to_test;
+}
+
+bool
+c4m_type_has_dict_syntax(c4m_type_t *t)
+{
+    uint64_t bi      = t->details->base_type->typeid;
+    int      word    = ((int)bi) / 64;
+    int      bit     = ((int)bi) % 64;
+    uint64_t to_test = 1UL << bit;
+
+    return dict_types[word] & to_test;
+}
+
+bool
+c4m_type_has_set_syntax(c4m_type_t *t)
+{
+    uint64_t bi      = t->details->base_type->typeid;
+    int      word    = ((int)bi) / 64;
+    int      bit     = ((int)bi) % 64;
+    uint64_t to_test = 1UL << bit;
+
+    return set_types[word] & to_test;
+}
+
+bool
+c4m_type_has_tuple_syntax(c4m_type_t *t)
+{
+    uint64_t bi      = t->details->base_type->typeid;
+    int      word    = ((int)bi) / 64;
+    int      bit     = ((int)bi) % 64;
+    uint64_t to_test = 1UL << bit;
+
+    return tuple_types[word] & to_test;
+}
+
 static void
 partial_literal_init(c4m_partial_lit_t *partial, va_list args)
 {
-    int           n         = va_arg(args, int);
-    c4m_builtin_t base_type = va_arg(args, c4m_builtin_t);
+    int              n         = va_arg(args, int);
+    c4m_builtin_t    base_type = va_arg(args, c4m_builtin_t);
+    c4m_tree_node_t *node      = va_arg(args, c4m_tree_node_t *);
 
     partial->num_items = n;
     partial->items     = c4m_gc_array_alloc(c4m_obj_t, n);
     partial->type      = c4m_new(c4m_tspec_typespec(),
                             c4m_global_type_env,
                             base_type);
+    partial->node      = node;
 
     if (!n) {
         partial->empty_container = 1;
+        if (base_type == C4M_T_VOID) {
+            partial->empty_dict_or_set = 1;
+        }
         return;
     }
 

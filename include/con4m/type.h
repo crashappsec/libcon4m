@@ -47,6 +47,10 @@ extern void      c4m_remove_list_options(c4m_type_t *);
 extern void      c4m_remove_dict_options(c4m_type_t *);
 extern void      c4m_remove_set_options(c4m_type_t *);
 extern void      c4m_remove_tuple_options(c4m_type_t *);
+extern bool      c4m_type_has_list_syntax(c4m_type_t *);
+extern bool      c4m_type_has_dict_syntax(c4m_type_t *);
+extern bool      c4m_type_has_set_syntax(c4m_type_t *);
+extern bool      c4m_type_has_tuple_syntax(c4m_type_t *);
 
 extern c4m_type_env_t *c4m_global_type_env;
 

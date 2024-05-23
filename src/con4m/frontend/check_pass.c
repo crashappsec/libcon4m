@@ -6,7 +6,6 @@ typedef struct {
     c4m_type_t        *sig;
     c4m_tree_node_t   *loc;
     c4m_scope_entry_t *resolution;
-    c4m_type_t        *deferred_container_type;
     unsigned int       polymorphic : 1;
     unsigned int       deferred    : 1;
 } call_resolution_info_t;
@@ -66,15 +65,32 @@ get_pnode_type(c4m_tree_node_t *node)
     return pnode->type;
 }
 
+static inline c4m_type_t *
+merge_or_err(pass2_ctx *ctx, c4m_type_t *new_t, c4m_type_t *old_t)
+{
+    c4m_type_t *result = c4m_merge_types(new_t, old_t);
+    if (c4m_tspec_is_error(result)) {
+        if (!c4m_tspec_is_error(new_t) && !c4m_tspec_is_error(old_t)) {
+            c4m_add_error(ctx->file_ctx,
+                          c4m_err_inconsistent_infer_type,
+                          ctx->node,
+                          new_t,
+                          old_t);
+        }
+    }
+
+    return result;
+}
+
 static inline void
-set_node_type(c4m_tree_node_t *node, c4m_type_t *type)
+set_node_type(pass2_ctx *ctx, c4m_tree_node_t *node, c4m_type_t *type)
 {
     c4m_pnode_t *pnode = get_pnode(node);
     if (pnode->type == NULL) {
         pnode->type = type;
     }
     else {
-        c4m_merge_types(pnode->type, type);
+        merge_or_err(ctx, pnode->type, type);
     }
 }
 
@@ -172,6 +188,100 @@ type_check_nodes(c4m_tree_node_t *n1, c4m_tree_node_t *n2)
     c4m_pnode_t *pnode2 = get_pnode(n2);
 
     return c4m_merge_types(pnode1->type, pnode2->type);
+}
+
+static inline c4m_type_t *
+type_check_node_against_type(c4m_tree_node_t *n, c4m_type_t *t)
+{
+    c4m_pnode_t *pnode = get_pnode(n);
+
+    return c4m_merge_types(pnode->type, t);
+}
+
+// Extract type info from partials.
+#define extract_type(obj, varname)                  \
+    if (c4m_is_partial_lit(obj)) {                  \
+        varname = ((c4m_partial_lit_t *)obj)->type; \
+    }                                               \
+    else {                                          \
+        varname = c4m_get_my_type(obj);             \
+    }
+
+static inline void
+calculate_partial_dict_type(pass2_ctx *ctx, c4m_partial_lit_t *partial)
+{
+    c4m_type_t *key_type   = c4m_tspec_get_param(partial->type, 0);
+    c4m_type_t *value_type = c4m_tspec_get_param(partial->type, 1);
+    int         n          = partial->num_items;
+    int         i          = 0;
+
+    while (i < n) {
+        c4m_obj_t   obj = partial->items[i++];
+        c4m_type_t *one_type;
+
+        extract_type(obj, one_type);
+        merge_or_err(ctx, one_type, key_type);
+
+        obj = partial->items[i++];
+        extract_type(obj, one_type);
+        merge_or_err(ctx, one_type, value_type);
+    }
+}
+
+static inline void
+calculate_partial_tuple_type(pass2_ctx *ctx, c4m_partial_lit_t *partial)
+{
+    int n = partial->num_items;
+
+    for (int i = 0; i < n; i++) {
+        c4m_obj_t   obj = partial->items[i];
+        c4m_type_t *t;
+
+        extract_type(obj, t);
+
+        merge_or_err(ctx, t, c4m_tspec_get_param(partial->type, i));
+    }
+}
+
+static inline void
+calculate_partial_list_or_set_type(pass2_ctx *ctx, c4m_partial_lit_t *partial)
+{
+    int         n         = partial->num_items;
+    c4m_type_t *item_type = c4m_tspec_get_param(partial->type, 0);
+
+    printf("The list has %d items.\n", n);
+
+    for (int i = 0; i < n; i++) {
+        c4m_obj_t   obj = partial->items[i];
+        c4m_type_t *t;
+
+        extract_type(obj, t);
+
+        merge_or_err(ctx, t, item_type);
+    }
+}
+
+static void
+c4m_calculate_partial_type(pass2_ctx *ctx, c4m_partial_lit_t *partial)
+{
+    if (partial->empty_container) {
+        if (partial->empty_dict_or_set) {
+            partial->type = c4m_tspec_typevar();
+            c4m_remove_list_options(partial->type);
+            c4m_remove_tuple_options(partial->type);
+        }
+        return;
+    }
+
+    if (c4m_type_has_dict_syntax(partial->type)) {
+        calculate_partial_dict_type(ctx, partial);
+        return;
+    }
+    if (c4m_type_has_tuple_syntax(partial->type)) {
+        calculate_partial_tuple_type(ctx, partial);
+        return;
+    }
+    calculate_partial_list_or_set_type(ctx, partial);
 }
 
 // This maps names to how many arguments the function takes.  If
@@ -304,13 +414,17 @@ initial_function_resolution(pass2_ctx       *ctx,
 
         if (!(sym->flags & C4M_F_FN_PASS_DONE)) {
             info->deferred = 1;
-            set_node_type(call_loc,
+            set_node_type(ctx,
+                          call_loc,
                           c4m_tspec_get_param(info->sig, sig_params - 1));
             return info;
         }
 
-        c4m_merge_types(c4m_global_copy(sym->type), info->sig);
-        set_node_type(call_loc, c4m_tspec_get_param(info->sig, sig_params - 1));
+        merge_or_err(ctx, c4m_global_copy(sym->type), info->sig);
+
+        set_node_type(ctx,
+                      call_loc,
+                      c4m_tspec_get_param(info->sig, sig_params - 1));
 
         return info;
 
@@ -545,6 +659,7 @@ lookup_or_add(pass2_ctx *ctx, c4m_utf8_t *name)
     return result;
 }
 
+// TODO-- migrate the inferences here.
 static void
 handle_index(pass2_ctx *ctx)
 {
@@ -566,7 +681,7 @@ handle_index(pass2_ctx *ctx)
     if (!c4m_tspec_is_int_type(ix1_type)) {
         if (!c4m_tspec_is_tvar(ix1_type)) {
             c4m_type_t *tmp = c4m_tspec_dict(ix1_type, c4m_tspec_typevar());
-            container_type  = c4m_merge_types(tmp, container_type);
+            container_type  = merge_or_err(ctx, tmp, container_type);
 
             if (num_kids == 3) {
                 c4m_add_error(ctx->file_ctx,
@@ -591,11 +706,11 @@ handle_index(pass2_ctx *ctx)
         }
 
         if (c4m_tspec_is_tvar(ix1_type)) {
-            c4m_merge_types(ix1_type, c4m_tspec_i32());
+            merge_or_err(ctx, ix1_type, c4m_tspec_i32());
         }
 
-        if (c4m_tspec_is_tvar(ix1_type)) {
-            c4m_merge_types(ix1_type, c4m_tspec_i32());
+        if (c4m_tspec_is_tvar(ix2_type)) {
+            merge_or_err(ctx, ix2_type, c4m_tspec_i32());
         }
 
         info = initial_function_resolution(
@@ -607,8 +722,6 @@ handle_index(pass2_ctx *ctx)
                                  ix1_type,
                                  ix2_type),
             ctx->node);
-
-        info->deferred_container_type = container_type;
     }
     else {
         info = initial_function_resolution(
@@ -619,8 +732,6 @@ handle_index(pass2_ctx *ctx)
                                  container_type,
                                  ix1_type),
             ctx->node);
-
-        info->deferred_container_type = container_type;
     }
 
     c4m_xlist_append(ctx->deferred_calls, info);
@@ -1023,7 +1134,7 @@ handle_for(pass2_ctx *ctx)
     if (li->ranged) {
         // Ranged fors are easy enough. The assigned variable is
         // always based on the range type.
-        c4m_merge_types(li->lvar_1->type, container_pnode->type);
+        merge_or_err(ctx, li->lvar_1->type, container_pnode->type);
     }
     else {
         // If there are two variables, we can infer that the container is
@@ -1045,13 +1156,13 @@ handle_for(pass2_ctx *ctx)
             c4m_remove_list_options(cinfo);
             c4m_remove_set_options(cinfo);
             c4m_remove_tuple_options(cinfo);
-            c4m_merge_types(cinfo, container_pnode->type);
+            merge_or_err(ctx, cinfo, container_pnode->type);
         }
         else {
             cinfo = c4m_tspec_typevar();
             c4m_remove_tuple_options(cinfo);
             c4m_remove_dict_options(cinfo);
-            c4m_merge_types(container_pnode->type, cinfo);
+            merge_or_err(ctx, container_pnode->type, cinfo);
         }
     }
 }
@@ -1088,6 +1199,7 @@ handle_while(pass2_ctx *ctx)
 
     base_check_pass_dispatch(ctx);
     c4m_cfg_exit_block(ctx->cfg, n);
+
     c4m_cfg_node_t *tmp = c4m_cfg_enter_block(branch, n->children[expr_ix]);
 
     branch->contents.branches.branch_targets[1] = tmp;
@@ -1103,12 +1215,20 @@ static void
 handle_range(pass2_ctx *ctx)
 {
     process_children(ctx);
-    set_node_type(ctx->node,
+    set_node_type(ctx,
+                  ctx->node,
                   type_check_nodes(ctx->node->children[0],
                                    ctx->node->children[1]));
-    c4m_merge_types(get_pnode_type(ctx->node), c4m_tspec_i64());
+
+    if (c4m_tspec_is_error(
+            c4m_merge_types(get_pnode_type(ctx->node), c4m_tspec_i64()))) {
+        c4m_add_error(ctx->file_ctx,
+                      c4m_err_range_type,
+                      ctx->node);
+    }
 }
 
+// TODO
 static void
 handle_casing_statement(pass2_ctx *ctx)
 {
@@ -1156,7 +1276,7 @@ builtin_bincall(pass2_ctx *ctx)
     case c4m_op_bitand:
     case c4m_op_bitor:
     case c4m_op_bitxor:
-        set_node_type(ctx->node, c4m_merge_types(tleft, tright));
+        set_node_type(ctx, ctx->node, merge_or_err(ctx, tleft, tright));
         return;
     case c4m_op_lt:
     case c4m_op_lte:
@@ -1164,8 +1284,8 @@ builtin_bincall(pass2_ctx *ctx)
     case c4m_op_gte:
     case c4m_op_eq:
     case c4m_op_neq:
-        c4m_merge_types(tleft, tright);
-        set_node_type(ctx->node, c4m_tspec_bool());
+        merge_or_err(ctx, tleft, tright);
+        set_node_type(ctx, ctx->node, c4m_tspec_bool());
         return;
     default:
         unreachable();
@@ -1207,8 +1327,9 @@ base_handle_assign(pass2_ctx *ctx, bool binop)
     def_use_context_exit(ctx);
 
     if (!binop) {
-        c4m_merge_types(get_pnode_type(saved->children[0]),
-                        get_pnode_type(saved->children[1]));
+        merge_or_err(ctx,
+                     get_pnode_type(saved->children[0]),
+                     get_pnode_type(saved->children[1]));
     }
 
     ctx->node = saved;
@@ -1226,6 +1347,7 @@ handle_binop_assign(pass2_ctx *ctx)
     base_handle_assign(ctx, true);
 }
 
+// TODO
 static void
 handle_section_decl(pass2_ctx *ctx)
 {
@@ -1244,7 +1366,7 @@ handle_identifier(pass2_ctx *ctx)
 
     c4m_scope_entry_t *sym = (void *)lookup_or_add(ctx, id);
     pnode->value           = (void *)sym;
-    set_node_type(ctx->node, sym->type);
+    set_node_type(ctx, ctx->node, sym->type);
 }
 
 static void
@@ -1257,7 +1379,10 @@ check_literal(pass2_ctx *ctx)
         pnode->type = c4m_get_my_type(pnode->value);
     }
     else {
-        pnode->type = ((c4m_partial_lit_t *)pnode->value)->type;
+        c4m_partial_lit_t *partial = (c4m_partial_lit_t *)pnode->value;
+
+        c4m_calculate_partial_type(ctx, partial);
+        pnode->type = partial->type;
     }
 }
 
@@ -1305,13 +1430,36 @@ handle_cmp(pass2_ctx *ctx)
     c4m_pnode_t     *pn = get_pnode(tn);
 
     process_children(ctx);
-    pn->type = type_check_nodes(tn->children[0], tn->children[1]);
+
+    if (c4m_tspec_is_error(
+            type_check_nodes(tn->children[0], tn->children[1]))) {
+        pn->type = c4m_tspec_error();
+        c4m_add_error(ctx->file_ctx,
+                      c4m_err_cannot_cmp,
+                      tn,
+                      get_pnode_type(tn->children[0]),
+                      get_pnode_type(tn->children[1]));
+    }
+    else {
+        pn->type = c4m_tspec_bool();
+    }
 }
 
 static void
 handle_unary_op(pass2_ctx *ctx)
 {
     process_children(ctx);
+
+    c4m_utf8_t *text = node_text(ctx->node);
+
+    if (!strcmp(text->data, "-")) {
+        if (c4m_tspec_is_error(
+                type_check_node_against_type(ctx->node, c4m_tspec_i64()))) {
+            c4m_add_error(ctx->file_ctx,
+                          c4m_err_unary_minus_type,
+                          ctx->node);
+        }
+    }
 }
 
 static void
@@ -1504,6 +1652,7 @@ check_pass_toplevel_dispatch(pass2_ctx *ctx)
     }
 }
 
+// TODO
 static void
 check_pass_fn_dispatch(pass2_ctx *ctx)
 {
