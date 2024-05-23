@@ -488,11 +488,7 @@ c4m_tspec_copy(c4m_type_t *node, c4m_type_env_t *env)
         return result;
     }
     else {
-        result = c4m_new(c4m_tspec_typespec(),
-                         c4m_kw("name",
-                                c4m_ka(ts_from->name),
-                                "base_id",
-                                c4m_ka(ts_from->base_type->typeid)));
+        result = c4m_new(c4m_tspec_typespec(), env, ts_from->base_type->typeid);
     }
 
     int          n       = c4m_tspec_get_num_params(node);

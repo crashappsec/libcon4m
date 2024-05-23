@@ -121,14 +121,14 @@ setup_treematch_patterns()
     c4m_loop_vars         = tfind(c4m_nt_variable_decls,
                           0,
                           tcount_content(c4m_nt_identifier, 1, 2, 1));
-    c4m_case_branches     = tmatch(c4m_nt_switch,
+    c4m_case_branches     = tmatch(nt_any,
                                0,
-                               tcontent(c4m_nt_expression, 0),
+                               tcontent(nt_any, 0),
                                tcount_content(c4m_nt_case, 1, max_nodes, 1),
                                tcount_content(c4m_nt_else, 0, 1, 0));
-    c4m_case_else         = tmatch(c4m_nt_switch,
+    c4m_case_else         = tmatch(nt_any,
                            0,
-                           tcontent(c4m_nt_expression, 0),
+                           tcontent(nt_any, 0),
                            tcount_content(c4m_nt_case, 1, max_nodes, 0),
                            tcount_content(c4m_nt_else, 0, 1, 1));
 

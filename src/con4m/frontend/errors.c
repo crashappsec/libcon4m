@@ -921,6 +921,27 @@ static error_info_t error_info[] = {
         "The type of the object being switched on ([em]{}[/])",
         true,
     },
+    [c4m_err_concrete_typeof] = {
+        c4m_err_concrete_typeof,
+        "concrete_typeof",
+        "[em]typeof[/] requires the expression to be of a variable type, "
+        "but in this context it is always a [em]{}",
+        true,
+    },
+    [c4m_warn_type_overlap] = {
+        c4m_warn_type_overlap,
+        "type_overlap",
+        "This case in the [em]typeof[/] statement has a type [em]{}[/] "
+        "that overlaps with a previous case type: [em]{}[/]",
+        true,
+    },
+    [c4m_err_dead_branch] = {
+        c4m_err_dead_branch,
+        "dead_branch",
+        "This type case ([em]{}[/] is not compatable with the constraints "
+        "for the variable you're testing (i.e., this is not a subtype)",
+        true,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",
