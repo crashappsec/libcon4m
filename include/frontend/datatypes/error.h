@@ -144,6 +144,7 @@ typedef enum {
     c4m_err_unary_minus_type,
     c4m_err_cannot_cmp,
     c4m_err_range_type,
+    c4m_err_switch_case_type,
     c4m_err_last,
 
 } c4m_compile_error_t;

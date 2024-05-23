@@ -401,6 +401,7 @@ kid_match_from(search_ctx_t    *ctx,
 
             ctx->captures = merge_captures(ctx->captures, one_set);
         }
+
         return true;
     }
 
@@ -440,6 +441,13 @@ kid_match_from(search_ctx_t    *ctx,
                            next_child + i,
                            next_pattern,
                            next_contents)) {
+            ctx->captures = merge_captures(ctx->captures, copy);
+            if (kid_capture_ix < c4m_xlist_len(kid_captures)) {
+                c4m_set_t *one_set = c4m_xlist_get(kid_captures,
+                                                   kid_capture_ix,
+                                                   NULL);
+                ctx->captures      = merge_captures(ctx->captures, one_set);
+            }
             return true;
         }
         else {

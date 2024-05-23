@@ -385,8 +385,20 @@ c4m_format_scope(c4m_scope_t *scope)
 
         c4m_xlist_append(row, entry->name);
 
-        if (entry->kind == sk_variable && entry->flags & C4M_F_DECLARED_CONST) {
-            c4m_xlist_append(row, c4m_new_utf8("const"));
+        if (entry->kind == sk_variable) {
+            if (entry->flags & C4M_F_DECLARED_CONST) {
+                c4m_xlist_append(row, c4m_new_utf8("const"));
+            }
+            else {
+                if (entry->flags & C4M_F_USER_IMMUTIBLE) {
+                    c4m_xlist_append(row, c4m_new_utf8("loop var"));
+                }
+                else {
+                    c4m_xlist_append(row,
+                                     c4m_new_utf8(
+                                         c4m_symbol_kind_names[entry->kind]));
+                }
+            }
         }
         else {
             c4m_xlist_append(row,
@@ -406,7 +418,7 @@ c4m_format_scope(c4m_scope_t *scope)
                 c4m_xlist_append(row, c4m_cstr_format("[red]not set[/]"));
             }
             else {
-                if (is_partial_type(c4m_get_my_type(entry->value))) {
+                if (c4m_is_partial_type(c4m_get_my_type(entry->value))) {
                     c4m_xlist_append(row, c4m_cstr_format("[yellow]TBD"));
                 }
                 else {

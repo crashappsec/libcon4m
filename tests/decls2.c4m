@@ -13,7 +13,7 @@ foo: for moo, moo2 in { 1 : "foo", 2: "4" } {
   break foo
 }
 x
-for lololo from 1 to 2 {
+for lololo from 1 to "oops" {
   m
   break;
 }
@@ -35,13 +35,6 @@ oopsie = xyz + y
 if (noidea == 2) {
   noidea += 1
 }
-if (2 < foo) {
-   x = - 18
+if (2 < "foo") {
+   x = - "foo"
 }
-
-index_test = foobar[2]
-
-foobar = [1,2]
-
-assert(foobar == [4])
-//assert(foobar == [index_test])

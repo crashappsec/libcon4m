@@ -7,8 +7,9 @@ typedef uint64_t c4m_type_hash_t;
 typedef struct c4m_type_info_t c4m_type_info_t;
 
 typedef struct {
-    uint64_t   *container_options;
-    c4m_dict_t *props; // Object properties. maps prop name to type node.
+    uint64_t          *container_options;
+    struct c4m_type_t *value_type;
+    c4m_dict_t        *props; // Object properties. maps prop name to type node.
 } tv_options_t;
 
 typedef struct c4m_type_t {

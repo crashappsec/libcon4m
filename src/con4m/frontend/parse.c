@@ -3643,7 +3643,6 @@ section(parse_ctx *ctx, c4m_tree_node_t *node)
     c4m_pnode_t *lhs = (c4m_pnode_t *)c4m_tree_get_contents(node);
 
     if (lhs->kind != c4m_nt_expression || !c4m_tree_get_number_children(node)) {
-        printf("Bad start 1.\n");
 bad_start:
         raise_err_at_node(ctx,
                           current_parse_node(ctx),
@@ -3654,13 +3653,12 @@ bad_start:
     lhs = c4m_tree_get_contents(c4m_tree_get_child(node, 0));
 
     if (lhs->kind != c4m_nt_identifier) {
-        printf("Bad start 2.\n");
         goto bad_start;
     }
 
     c4m_tree_node_t *result = temporary_tree(ctx, c4m_nt_section);
 
-    adopt_kid(ctx, node);
+    adopt_kid(ctx, c4m_tree_get_child(node, 0));
 
     switch (match(ctx,
                   c4m_tt_identifier,
@@ -4144,6 +4142,10 @@ c4m_parse(c4m_file_compile_ctx *file_ctx)
     prime_tokens(&ctx);
 
     file_ctx->parse_tree = module(&ctx);
+
+    if (file_ctx->parse_tree == NULL) {
+        file_ctx->fatal_errors = 1;
+    }
 
     return file_ctx->parse_tree != NULL;
 }

@@ -422,7 +422,7 @@ handle_var_decl(pass1_ctx *ctx)
                     c4m_pnode_t *initpn   = get_pnode(init);
                     c4m_type_t  *inf_type = c4m_get_my_type(initpn->value);
 
-                    if (!is_partial_type(inf_type)) {
+                    if (!c4m_is_partial_type(inf_type)) {
                         sym->value = initpn->value;
                         sym->type  = inf_type;
                     }

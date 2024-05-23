@@ -52,6 +52,15 @@ extern bool      c4m_type_has_dict_syntax(c4m_type_t *);
 extern bool      c4m_type_has_set_syntax(c4m_type_t *);
 extern bool      c4m_type_has_tuple_syntax(c4m_type_t *);
 
+static inline void
+c4m_remove_all_container_options(c4m_type_t *t)
+{
+    c4m_remove_list_options(t);
+    c4m_remove_dict_options(t);
+    c4m_remove_set_options(t);
+    c4m_remove_tuple_options(t);
+}
+
 extern c4m_type_env_t *c4m_global_type_env;
 
 extern c4m_type_exact_result_t
@@ -432,7 +441,7 @@ c4m_tspec_typevar()
 }
 
 static inline c4m_type_t *
-c4m_tspec_any_list()
+c4m_tspec_any_list(c4m_type_t *item_type)
 {
     c4m_type_t   *result = c4m_new(c4m_tspec_typespec(),
                                  c4m_global_type_env,
@@ -441,25 +450,62 @@ c4m_tspec_any_list()
 
     result->details->tsi   = tsi;
     tsi->container_options = c4m_get_list_bitfield();
+    result->details->items = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+
+    if (item_type == NULL) {
+        item_type = c4m_tspec_typevar();
+    }
+
+    c4m_xlist_append(result->details->items, item_type);
+
     return result;
 }
 
 static inline c4m_type_t *
-c4m_tspec_any_dict()
+c4m_tspec_any_dict(c4m_type_t *key, c4m_type_t *value)
 {
-    // Currently, we don't support multiple dict types,
-    // so for now just return a dict.
+    c4m_type_t   *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_GENERIC);
+    tv_options_t *tsi    = c4m_gc_alloc(tv_options_t);
 
-    return c4m_tspec_dict(c4m_tspec_typevar(), c4m_tspec_typevar());
+    result->details->tsi   = tsi;
+    tsi->container_options = c4m_get_dict_bitfield();
+    result->details->items = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+
+    if (key == NULL) {
+        key = c4m_tspec_typevar();
+    }
+
+    if (value == NULL) {
+        value = c4m_tspec_typevar();
+    }
+
+    c4m_xlist_append(result->details->items, key);
+    c4m_xlist_append(result->details->items, value);
+
+    return result;
 }
 
 static inline c4m_type_t *
-c4m_tspec_any_set()
+c4m_tspec_any_set(c4m_type_t *item_type)
 {
-    // Currently, we don't support multiple dict types,
-    // so for now just return a dict.
+    c4m_type_t   *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_GENERIC);
+    tv_options_t *tsi    = c4m_gc_alloc(tv_options_t);
 
-    return c4m_tspec_set(c4m_tspec_typevar());
+    result->details->tsi   = tsi;
+    tsi->container_options = c4m_get_set_bitfield();
+    result->details->items = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+
+    if (item_type == NULL) {
+        item_type = c4m_tspec_typevar();
+    }
+
+    c4m_xlist_append(result->details->items, item_type);
+
+    return result;
 }
 
 static inline bool
@@ -501,7 +547,7 @@ c4m_tspec_is_int_type(c4m_type_t *t)
 static inline bool
 c4m_tspec_is_tvar(c4m_type_t *t)
 {
-    return (c4m_tspec_get_base(t) == C4M_T_GENERIC);
+    return (c4m_tspec_get_base(t) == C4M_DT_KIND_type_var);
 }
 
 static inline bool
@@ -521,12 +567,6 @@ c4m_type_is_value_type(c4m_type_t *t)
 #ifdef C4M_USE_INTERNAL_API
 extern c4m_grid_t *c4m_format_global_type_environment();
 extern void        c4m_clean_environment();
-
-static inline bool
-is_partial_type(c4m_type_t *t)
-{
-    return c4m_tspec_get_base_tid(t) == C4M_T_PARTIAL_LIT;
-}
 
 #ifdef C4M_TYPE_LOG
 extern void type_log_on();

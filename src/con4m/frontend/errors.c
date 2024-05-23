@@ -914,6 +914,13 @@ static error_info_t error_info[] = {
         "Ranges must consist of two int values.",
         false,
     },
+    [c4m_err_switch_case_type] = {
+        c4m_err_switch_case_type,
+        "switch_case_type",
+        "This switch branch has a type ([em]{}[/]) that doesn't match"
+        "The type of the object being switched on ([em]{}[/])",
+        true,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",

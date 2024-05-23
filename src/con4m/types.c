@@ -10,7 +10,7 @@ static bool log_types = false;
     if (log_types) {                                                \
         c4m_print(c4m_cstr_format("[h2]{}:[/] [h1]{}[/] (line {})", \
                                   c4m_new_utf8(x),                  \
-                                  y,                                \
+                                  c4m_global_resolve_type(y),       \
                                   c4m_box_i64(__LINE__)));          \
     }
 
@@ -271,7 +271,9 @@ internal_type_hash(c4m_type_t *node, type_hash_ctx *ctx)
     c4m_sha_int_update(ctx->sha, n);
 
     for (size_t i = 0; i < n; i++) {
-        internal_type_hash(c4m_xlist_get(deets->items, i, NULL), ctx);
+        c4m_type_t *t = c4m_xlist_get(deets->items, i, NULL);
+
+        internal_type_hash(t, ctx);
     }
 }
 
@@ -293,7 +295,7 @@ type_hash_and_dedupe(c4m_type_t **nodeptr, c4m_type_env_t *env)
     case C4M_DT_KIND_primitive:
     case C4M_DT_KIND_internal:
         node->typeid = node->details->base_type->typeid;
-        assert(hatrack_dict_add(env->store, (void *)node->typeid, node));
+        hatrack_dict_add(env->store, (void *)node->typeid, node);
         return node->typeid;
     case C4M_DT_KIND_type_var:
         unreachable();
@@ -301,6 +303,7 @@ type_hash_and_dedupe(c4m_type_t **nodeptr, c4m_type_env_t *env)
         ctx.env      = env;
         ctx.sha      = c4m_new(c4m_tspec_hash());
         ctx.tv_count = 0;
+        ctx.memos    = hatrack_dict_new(HATRACK_DICT_KEY_TYPE_PTR);
 
         internal_type_hash(node, &ctx);
 
@@ -329,6 +332,13 @@ c4m_type_hash_t
 c4m_type_hash(c4m_type_t *node, c4m_type_env_t *env)
 {
     return type_hash_and_dedupe(&node, env);
+}
+
+static inline c4m_type_hash_t
+type_rehash(c4m_type_t *node, c4m_type_env_t *env)
+{
+    node->typeid = 0;
+    return c4m_type_hash(node, env);
 }
 
 static void
@@ -579,6 +589,7 @@ unify_type_variables(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
     }
 
     if (num_options == 0) {
+        type_log("unify(t1, t2)", type_error());
         return type_error();
     }
 
@@ -602,6 +613,7 @@ unify_type_variables(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
                 c4m_type_t *sub2 = c4m_tspec_get_param(t2, i);
                 c4m_type_t *sub3 = c4m_unify(sub1, sub2, env);
                 if (c4m_tspec_is_error(sub3)) {
+                    type_log("unify(t1, t2)", type_error());
                     return type_error();
                 }
 
@@ -661,6 +673,7 @@ unify_type_variables(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
         known_arglen = true;
 
         if (nparams > 1) {
+            type_log("unify(t1, t2)", type_error());
             return type_error();
         }
         if (nparams == 0) {
@@ -672,6 +685,7 @@ unify_type_variables(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
         known_arglen = true;
 
         if (nparams > 2) {
+            type_log("unify(t1, t2)", type_error());
             return type_error();
         }
         while (nparams < 2) {
@@ -696,6 +710,7 @@ unify_type_variables(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
 
     if (num_options == 0) {
         if (t1_arg_ct || t2_arg_ct) {
+            type_log("unify(t1, t2)", type_error());
             return type_error();
         }
         // Otherwise, it's a type variable that MUST point to a concrete type.
@@ -720,16 +735,75 @@ unify_type_variables(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
             break;
         }
 
+        c4m_type_t *last = c4m_tspec_get_param(result, nparams - 1);
+
+        if (t1_opts->value_type != 0) {
+            // This is supposed to be caught by the index node not
+            // being a constant, but that's not done yet.
+            if (tuple_ok) {
+                type_log("unify(t1, t2)", type_error());
+                return type_error();
+            }
+
+            if (c4m_tspec_is_error(c4m_unify(t1_opts->value_type, last, env))) {
+                type_log("unify(t1, t2)", type_error());
+                return type_error();
+            }
+        }
+
+        if (t2_opts->value_type != 0) {
+            if (tuple_ok) {
+                type_log("unify(t1, t2)", type_error());
+                return type_error();
+            }
+
+            if (c4m_tspec_is_error(c4m_unify(t1_opts->value_type, last, env))) {
+                type_log("unify(t1, t2)", type_error());
+                return type_error();
+            }
+        }
         c4m_dt_info_t *dt_info = (c4m_dt_info_t *)&c4m_base_type_info[baseid];
 
         result->details->base_type = dt_info;
-        result->typeid             = 0; // Zero for c4m_type_hash to fill in.
-        c4m_type_hash(result, env);
+        type_rehash(result, env);
+    }
+    else {
+        if (!t1_opts->value_type && t2_opts->value_type) {
+            t1_opts->value_type = c4m_tspec_typevar();
+        }
+
+        if (!t2_opts->value_type && t1_opts->value_type) {
+            t2_opts->value_type = c4m_tspec_typevar();
+        }
+
+        if (t1_opts->value_type) {
+            if (c4m_tspec_is_error(c4m_unify(t1_opts->value_type,
+                                             t2_opts->value_type,
+                                             env))) {
+                type_log("unify(t1, t2)", type_error());
+                return type_error();
+            }
+        }
     }
 
     t1->fw = result->typeid;
     t2->fw = result->typeid;
 
+    if (nparams != 0 && res_opts->value_type != NULL) {
+        if (c4m_tspec_is_error(c4m_unify(t1_opts->value_type,
+                                         t2_opts->value_type,
+                                         env))) {
+            if (c4m_tspec_is_error(c4m_unify(res_opts->value_type,
+                                             c4m_tspec_get_param(result,
+                                                                 nparams - 1),
+                                             env))) {
+                type_log("unify(t1, t2)", type_error());
+                return type_error();
+            }
+        }
+    }
+
+    type_log("unify(t1, t2)", result);
     return result;
 }
 
@@ -741,8 +815,8 @@ unify_tv_with_concrete_type(c4m_type_t     *t1,
     switch (t2->details->base_type->dt_kind) {
     case C4M_DT_KIND_primitive:
     case C4M_DT_KIND_internal:
-        hatrack_dict_put(env->store, (void *)t1->typeid, t2);
         t1->fw = t2->typeid; // Forward t1 to t2.
+        type_log("unify(t1, t2)", t2);
         return t2;
     case C4M_DT_KIND_nil:
         unreachable();
@@ -756,6 +830,7 @@ unify_tv_with_concrete_type(c4m_type_t     *t1,
     tv_options_t *t1_opts = t1->details->tsi;
 
     if (!(t1_opts->container_options[word] & (1UL << bit))) {
+        type_log("unify(t1, t2)", type_error());
         return type_error();
     }
 
@@ -765,12 +840,32 @@ unify_tv_with_concrete_type(c4m_type_t     *t1,
                                     env);
 
         if (c4m_tspec_is_error(sub)) {
+            type_log("unify(t1, t2)", type_error());
             return sub;
         }
     }
 
-    hatrack_dict_put(env->store, (void *)t1->typeid, t2);
+    if (t1_opts->value_type != 0) {
+        if (c4m_type_has_tuple_syntax(t2)) {
+            // This is supposed to be caught by the index node not
+            // being a constant, but that's not done yet.
+            return type_error();
+        }
+        int         n   = c4m_tspec_get_num_params(t2);
+        c4m_type_t *sub = c4m_unify(c4m_tspec_get_param(t2, n - 1),
+                                    t1_opts->value_type,
+                                    env);
+
+        if (c4m_tspec_is_error(sub)) {
+            type_log("unify(t1, t2)", type_error());
+            return sub;
+        }
+    }
+
+    type_rehash(t2, env);
     t1->fw = t2->typeid; // Forward t1 to t2.
+
+    type_log("unify(t1, t2)", t2);
     return t2;
 }
 
@@ -792,8 +887,23 @@ c4m_unify(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
     t1 = copy_if_needed(t1, env);
     t2 = copy_if_needed(t2, env);
 
+    if (c4m_is_partial_type(t1) || c4m_is_partial_type(t2)) {
+        abort();
+    }
     type_log("t1", t1);
     type_log("t2", t2);
+
+    // This is going to re-check the structure, just to cover any
+    // cases where we didn't or couldn't update it before.
+    //
+    // This needs to be here, for reasons I don't even understand;
+    // I'm clearly missing a needed rehash in a previous call.
+    if (c4m_tspec_is_concrete(t1)) {
+        type_rehash(t1, env);
+    }
+    if (c4m_tspec_is_concrete(t2)) {
+        type_rehash(t2, env);
+    }
 
     if (t1->typeid == t2->typeid) {
         type_log("unify(t1, t2)", t1);

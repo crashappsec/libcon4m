@@ -62,7 +62,7 @@ static inline c4m_type_t *
 get_pnode_type(c4m_tree_node_t *node)
 {
     c4m_pnode_t *pnode = get_pnode(node);
-    return pnode->type;
+    return c4m_resolve_type_aliases(pnode->type, c4m_global_type_env);
 }
 
 static inline c4m_type_t *
@@ -619,10 +619,14 @@ sym_lookup(pass2_ctx *ctx, c4m_utf8_t *name)
     else {
         // TODO: Object resolution.
         if (c4m_str_find(name, dot) != -1) {
-            // TODO: lookup first.
-            result = c4m_add_inferred_symbol(ctx->file_ctx,
-                                             ctx->attr_scope,
-                                             name);
+            result = c4m_symbol_lookup(NULL, NULL, NULL, ctx->attr_scope, name);
+
+            if (!result) {
+                result = c4m_add_inferred_symbol(ctx->file_ctx,
+                                                 ctx->attr_scope,
+                                                 name);
+            }
+
             return result;
         }
     }
@@ -657,7 +661,6 @@ lookup_or_add(pass2_ctx *ctx, c4m_utf8_t *name)
     return result;
 }
 
-// TODO-- migrate the inferences here.
 static void
 handle_index(pass2_ctx *ctx)
 {
@@ -668,34 +671,33 @@ handle_index(pass2_ctx *ctx)
     c4m_type_t  *ix1_type;
     c4m_type_t  *ix2_type;
 
-    assert(pnode->type == NULL);
-
     process_child(ctx, 0);
     container_type = get_pnode_type(ctx->node->children[0]);
     use_context_enter(ctx);
     process_child(ctx, 1);
-    ix1_type = get_pnode_type(ctx->node->children[1]);
+    ix1_type    = get_pnode_type(ctx->node->children[1]);
+    pnode->type = node_type;
 
     if (!c4m_tspec_is_int_type(ix1_type)) {
-        if (!c4m_tspec_is_tvar(ix1_type)) {
-            c4m_type_t *tmp = c4m_tspec_dict(ix1_type, c4m_tspec_typevar());
-            container_type  = merge_or_err(ctx, tmp, container_type);
-
-            if (num_kids == 3) {
-                c4m_add_error(ctx->file_ctx,
-                              c4m_err_slice_on_dict,
-                              ctx->node);
-                return;
-            }
+        if (num_kids == 3) {
+            c4m_add_error(ctx->file_ctx,
+                          c4m_err_slice_on_dict,
+                          ctx->node);
+            return;
         }
+
+        c4m_type_t *tmp = c4m_tspec_any_dict(ix1_type, NULL);
+        container_type  = merge_or_err(ctx, tmp, container_type);
     }
 
-    call_resolution_info_t *info;
+    call_resolution_info_t *info = NULL;
 
     if (num_kids == 3) {
         process_child(ctx, 2);
         ix2_type = get_pnode_type(ctx->node->children[2]);
 
+        // This would give too generic an error if we just try to
+        // merge first.
         if (!c4m_tspec_is_int_type(ix2_type) && !c4m_tspec_is_tvar(ix2_type)) {
             c4m_add_error(ctx->file_ctx,
                           c4m_err_bad_slice_ix,
@@ -732,10 +734,26 @@ handle_index(pass2_ctx *ctx)
             ctx->node);
     }
 
+    if (c4m_tspec_is_tvar(container_type)) {
+        tv_options_t *tsi = container_type->details->tsi;
+
+        if (tsi->value_type == NULL) {
+            tsi->value_type = c4m_tspec_typevar();
+        }
+
+        merge_or_err(ctx, node_type, tsi->value_type);
+    }
+
+    else {
+        int         nparams = c4m_tspec_get_num_params(container_type);
+        c4m_type_t *tmp     = c4m_tspec_get_param(container_type, nparams - 1);
+
+        merge_or_err(ctx, node_type, tmp);
+    }
+
     c4m_xlist_append(ctx->deferred_calls, info);
 
     def_use_context_exit(ctx);
-
     pnode->extra_info = info;
 }
 
@@ -851,8 +869,8 @@ loop_push_ix_var(pass2_ctx *ctx, c4m_loop_info_t *li)
                                             ctx->local_scope,
                                             ix_var_name);
 
-    li->loop_ix->flags = C4M_F_ALL_CONTAINER_FLAGS;
-    li->loop_ix->type  = c4m_tspec_u32();
+    li->loop_ix->type = c4m_tspec_u32();
+    li->loop_ix->flags |= C4M_F_USER_IMMUTIBLE;
 
     add_def(ctx, li->loop_ix, false);
 
@@ -871,11 +889,11 @@ loop_push_ix_var(pass2_ctx *ctx, c4m_loop_info_t *li)
             return;
         }
 
-        li->named_loop_ix        = c4m_add_inferred_symbol(ctx->file_ctx,
+        li->named_loop_ix       = c4m_add_inferred_symbol(ctx->file_ctx,
                                                     ctx->local_scope,
                                                     li->label_ix);
-        li->named_loop_ix->flags = C4M_F_ALL_CONTAINER_FLAGS;
-        li->named_loop_ix->type  = c4m_tspec_u32();
+        li->named_loop_ix->type = c4m_tspec_u32();
+        li->named_loop_ix->flags |= C4M_F_USER_IMMUTIBLE;
 
         add_def(ctx, li->named_loop_ix, false);
     }
@@ -979,24 +997,24 @@ handle_for(pass2_ctx *ctx)
                                           NULL,
                                           last_var_name);
 
-    li->loop_last        = c4m_add_or_replace_symbol(ctx->file_ctx,
+    li->loop_last = c4m_add_or_replace_symbol(ctx->file_ctx,
                                               ctx->local_scope,
                                               last_var_name);
-    li->loop_last->flags = C4M_F_ALL_CONTAINER_FLAGS;
-    li->loop_last->type  = c4m_tspec_u32();
+    li->loop_last->flags |= C4M_F_USER_IMMUTIBLE;
+    li->loop_last->type = c4m_tspec_u32();
 
     add_def(ctx, li->loop_last, true);
 
     if (li->label != NULL) {
-        li->label_last             = c4m_to_utf8(c4m_str_concat(li->label,
+        li->label_last            = c4m_to_utf8(c4m_str_concat(li->label,
                                                     last_var_name));
-        li->named_loop_last        = c4m_add_inferred_symbol(ctx->file_ctx,
+        li->named_loop_last       = c4m_add_inferred_symbol(ctx->file_ctx,
                                                       ctx->local_scope,
                                                       li->label_last);
-        li->named_loop_last->flags = C4M_F_ALL_CONTAINER_FLAGS;
-        li->named_loop_last->type  = c4m_tspec_u32();
+        li->named_loop_last->type = c4m_tspec_u32();
+        li->named_loop_last->flags |= C4M_F_USER_IMMUTIBLE;
 
-        add_def(ctx, li->loop_last, false);
+        add_def(ctx, li->named_loop_last, false);
     }
 
     // Now, process the assignment of the variable(s) to put per-loop
@@ -1029,8 +1047,8 @@ handle_for(pass2_ctx *ctx)
     li->lvar_1                   = c4m_add_or_replace_symbol(ctx->file_ctx,
                                            ctx->local_scope,
                                            var1_name);
-    li->lvar_1->flags            = C4M_F_ALL_CONTAINER_FLAGS;
     li->lvar_1->declaration_node = var_node1;
+    li->lvar_1->flags |= C4M_F_USER_IMMUTIBLE;
 
     if (li->shadowed_lvar_1 != NULL) {
         c4m_add_warning(ctx->file_ctx,
@@ -1050,8 +1068,8 @@ handle_for(pass2_ctx *ctx)
         li->lvar_2                   = c4m_add_or_replace_symbol(ctx->file_ctx,
                                                ctx->local_scope,
                                                var2_name);
-        li->lvar_2->flags            = C4M_F_ALL_CONTAINER_FLAGS;
         li->lvar_2->declaration_node = var_node2;
+        li->lvar_2->flags |= C4M_F_USER_IMMUTIBLE;
 
         if (li->shadowed_lvar_2 != NULL) {
             c4m_add_warning(ctx->file_ctx,
@@ -1230,7 +1248,75 @@ handle_range(pass2_ctx *ctx)
 static void
 handle_casing_statement(pass2_ctx *ctx)
 {
-    process_children(ctx);
+    c4m_tree_node_t *saved        = ctx->node;
+    c4m_xlist_t     *branches     = use_pattern(ctx, c4m_case_branches);
+    c4m_tree_node_t *elsenode     = get_match_on_node(saved, c4m_case_else);
+    c4m_tree_node_t *variant_node = saved->children[0];
+    c4m_cfg_node_t  *entrance;
+    c4m_cfg_node_t  *cfgbranch;
+    int              ncases = c4m_xlist_len(branches);
+
+    entrance = c4m_cfg_enter_block(ctx->cfg, saved);
+    ctx->cfg = entrance;
+
+    ctx->node = variant_node;
+    base_check_pass_dispatch(ctx);
+
+    // For the CFG's purposes, pretend we evaluate all case exprs
+    // w/o short circuit, before the branch.
+
+    for (int i = 0; i < ncases; i++) {
+        c4m_tree_node_t *branch = c4m_xlist_get(branches, i, NULL);
+        c4m_pnode_t     *pcond  = get_pnode(branch);
+        ctx->node               = branch->children[0];
+
+        base_check_pass_dispatch(ctx);
+
+        pcond->type = type_check_nodes(variant_node, ctx->node);
+        if (c4m_tspec_is_error(pcond->type)) {
+            c4m_add_error(ctx->file_ctx,
+                          c4m_err_switch_case_type,
+                          ctx->node,
+                          get_pnode_type(ctx->node),
+                          get_pnode_type(variant_node));
+            return;
+        }
+    }
+
+    cfgbranch = c4m_cfg_block_new_branch_node(ctx->cfg,
+                                              ncases + 1,
+                                              NULL,
+                                              ctx->node);
+
+    for (int i = 0; i < ncases; i++) {
+        c4m_tree_node_t *branch = c4m_xlist_get(branches, i, NULL);
+        ctx->node               = branch->children[1];
+        ctx->cfg                = c4m_cfg_enter_block(cfgbranch, ctx->node);
+
+        cfgbranch->contents.branches.branch_targets[i] = ctx->cfg;
+
+        base_check_pass_dispatch(ctx);
+        c4m_cfg_exit_block(ctx->cfg, ctx->node);
+    }
+
+    if (elsenode != NULL) {
+        ctx->node = elsenode;
+        ctx->cfg  = c4m_cfg_enter_block(cfgbranch, ctx->node);
+
+        cfgbranch->contents.branches.branch_targets[ncases] = ctx->cfg;
+        base_check_pass_dispatch(ctx);
+        c4m_cfg_exit_block(ctx->cfg, ctx->node);
+    }
+    else {
+        // Dummy CFG node for when we don't match any case.
+        c4m_cfg_node_t *tmp = c4m_cfg_enter_block(cfgbranch, saved);
+
+        cfgbranch->contents.branches.branch_targets[ncases] = tmp;
+        c4m_cfg_exit_block(tmp, saved);
+    }
+
+    ctx->cfg  = entrance->contents.block_entrance.exit_node;
+    ctx->node = saved;
 }
 
 static void
@@ -1345,11 +1431,36 @@ handle_binop_assign(pass2_ctx *ctx)
     base_handle_assign(ctx, true);
 }
 
-// TODO
 static void
 handle_section_decl(pass2_ctx *ctx)
 {
-    process_children(ctx);
+    c4m_tree_node_t *saved      = ctx->node;
+    int              n          = saved->num_kids - 1;
+    c4m_utf8_t      *saved_path = ctx->current_section_prefix;
+
+    if (saved_path == NULL) {
+        ctx->current_section_prefix = node_text(saved->children[0]);
+    }
+    else {
+        ctx->current_section_prefix = c4m_cstr_format(
+            "{}.{}",
+            saved_path,
+            node_text(saved->children[0]));
+    }
+
+    if (n == 2) {
+        ctx->current_section_prefix = c4m_cstr_format(
+            "{}.{}",
+            ctx->current_section_prefix,
+            node_text(saved->children[1]));
+    }
+
+    c4m_print_parse_node(ctx->node);
+
+    ctx->node = saved->children[n];
+    base_check_pass_dispatch(ctx);
+    ctx->current_section_prefix = saved_path;
+    ctx->node                   = saved;
 }
 
 static void
@@ -1664,7 +1775,7 @@ check_module_toplevel(pass2_ctx *ctx)
     use_context_enter(ctx);
     check_pass_toplevel_dispatch(ctx);
     def_use_context_exit(ctx);
-    // c4m_cfg_exit_block(ctx->cfg, ctx->file_ctx->parse_tree);
+    c4m_cfg_exit_block(ctx->cfg, ctx->file_ctx->parse_tree);
 }
 
 static void
