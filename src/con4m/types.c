@@ -1,7 +1,7 @@
 #define C4M_USE_INTERNAL_API
-
 #include "con4m.h"
 
+#define C4M_TYPE_LOG
 #ifdef C4M_TYPE_LOG
 
 static bool log_types = false;
@@ -191,9 +191,16 @@ c4m_type_t *type_node_for_list_of_type_objects;
 c4m_type_t *
 c4m_resolve_type_aliases(c4m_type_t *node, c4m_type_env_t *env)
 {
+    c4m_type_t *next;
     while (node->fw && node->fw != node->typeid) {
-        node = hatrack_dict_get(env->store, (void *)node->fw, NULL);
-        assert(node != NULL);
+        next = hatrack_dict_get(env->store, (void *)node->fw, NULL);
+
+        if (next == NULL) {
+            hatrack_dict_put(env->store, (void *)node->typeid, node);
+            return node;
+        }
+
+        node = next;
     }
 
     return node;
@@ -342,7 +349,10 @@ c4m_type_env_init(c4m_type_env_t *env, void *ignore)
 }
 
 static void
-c4m_type_env_marshal(c4m_type_env_t *env, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
+c4m_type_env_marshal(c4m_type_env_t *env,
+                     c4m_stream_t   *s,
+                     c4m_dict_t     *memos,
+                     int64_t        *mid)
 {
     c4m_sub_marshal(env->store, s, memos, mid);
     c4m_marshal_u64(atomic_load(&env->next_tid), s);
@@ -380,7 +390,9 @@ c4m_tspec_init(c4m_type_t *n, va_list args)
     n->details = c4m_gc_alloc(c4m_type_info_t);
 
     if (env == NULL && base_id == 0) {
-        // This short circuit should be used when unmarshaling only.
+        // This short circuit should be used when unmarshaling or
+        // when creating an internal container inference type.
+        //
         // We basically only jump down to add the items xlist, if
         // needed, which is controlled by a 3rd param after the
         // two typical params.
@@ -390,11 +402,11 @@ c4m_tspec_init(c4m_type_t *n, va_list args)
         return;
     }
 
-    if (base_id > C4M_T_GENERIC || base_id < C4M_T_ERROR) {
+    if (base_id >= C4M_NUM_BUILTIN_DTS || base_id < C4M_T_ERROR) {
         C4M_CRAISE("Invalid type ID.");
     }
 
-    if (base_id == C4M_T_GENERIC) {
+    if (base_id >= C4M_T_GENERIC) {
         n->typeid = c4m_tenv_next_tid(env);
     }
 
@@ -449,31 +461,43 @@ c4m_tspec_copy(c4m_type_t *node, c4m_type_env_t *env)
     if (c4m_tspec_is_concrete(node)) {
         return node;
     }
-
     c4m_type_info_t *ts_from = node->details;
+    c4m_type_t      *result;
 
     if (ts_from->base_type->dt_kind == C4M_DT_KIND_type_var) {
-        return c4m_new_typevar(env);
+        result                 = c4m_new_typevar(env);
+        tv_options_t *oldtsi   = ts_from->tsi;
+        tv_options_t *newtsi   = result->details->tsi;
+        uint64_t     *old_opts = oldtsi->container_options;
+        uint64_t     *new_opts = newtsi->container_options;
+
+        for (int i = 0; i < c4m_get_num_bitfield_words(); i++) {
+            new_opts[i] = old_opts[i];
+        }
+
+        return result;
+    }
+    else {
+        result = c4m_new(c4m_tspec_typespec(),
+                         c4m_kw("name",
+                                c4m_ka(ts_from->name),
+                                "base_id",
+                                c4m_ka(ts_from->base_type->typeid)));
     }
 
-    c4m_type_t      *result  = c4m_new(c4m_tspec_typespec(),
-                                 c4m_kw("name",
-                                        c4m_ka(ts_from->name),
-                                        "base_id",
-                                        c4m_ka(ts_from->base_type->typeid)));
-    int              n       = c4m_tspec_get_num_params(node);
-    c4m_xlist_t     *to_copy = c4m_tspec_get_params(node);
-    c4m_type_info_t *ts_to   = result->details;
-    ts_to->flags             = ts_from->flags & ~C4M_FN_TY_LOCK;
+    int          n       = c4m_tspec_get_num_params(node);
+    c4m_xlist_t *to_copy = c4m_tspec_get_params(node);
+    c4m_xlist_t *ts_dst  = result->details->items;
 
     for (int i = 0; i < n; i++) {
         c4m_type_t *original = c4m_xlist_get(to_copy, i, NULL);
         c4m_type_t *copy     = c4m_tspec_copy(original, env);
 
-        c4m_xlist_append(ts_to->items, copy);
+        c4m_xlist_append(ts_dst, copy);
     }
 
     c4m_type_hash(result, env);
+
     return result;
 }
 
@@ -530,6 +554,225 @@ c4m_tspec_is_concrete(c4m_type_t *node)
 
 // Just makes things a bit more clear.
 #define type_error c4m_tspec_error
+
+static c4m_type_t *
+unify_type_variables(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
+{
+    int           bf_words    = c4m_get_num_bitfield_words();
+    int64_t       num_options = 0;
+    c4m_type_t   *result      = c4m_new_typevar(env);
+    tv_options_t *t1_opts     = t1->details->tsi;
+    tv_options_t *t2_opts     = t2->details->tsi;
+    tv_options_t *res_opts    = result->details->tsi;
+    int           t1_arg_ct   = c4m_tspec_get_num_params(t1);
+    bool          t1_fixed_ct = !(t1->details->flags & C4M_FN_UNKNOWN_TV_LEN);
+    int           t2_arg_ct   = c4m_tspec_get_num_params(t2);
+    bool          t2_fixed_ct = !(t2->details->flags & C4M_FN_UNKNOWN_TV_LEN);
+
+    for (int i = 0; i < bf_words; i++) {
+        uint64_t one    = t1_opts->container_options[i];
+        uint64_t other  = t2_opts->container_options[i];
+        uint64_t merged = one & other;
+
+        num_options += __builtin_popcountll(merged);
+        res_opts->container_options[i] = merged;
+    }
+
+    if (num_options == 0) {
+        return type_error();
+    }
+
+    // Okay, now we need to look at any info we have on type
+    // parameters.
+
+    int nparams = max(t1_arg_ct, t2_arg_ct);
+
+    for (int i = 0; i < nparams; i++) {
+        if (i >= t1_arg_ct) {
+            c4m_xlist_append(result->details->items,
+                             c4m_tspec_get_param(t2, i));
+        }
+        else {
+            if (i >= t2_arg_ct) {
+                c4m_xlist_append(result->details->items,
+                                 c4m_tspec_get_param(t1, i));
+            }
+            else {
+                c4m_type_t *sub1 = c4m_tspec_get_param(t1, i);
+                c4m_type_t *sub2 = c4m_tspec_get_param(t2, i);
+                c4m_type_t *sub3 = c4m_unify(sub1, sub2, env);
+                if (c4m_tspec_is_error(sub3)) {
+                    return type_error();
+                }
+
+                c4m_xlist_append(result->details->items, sub3);
+            }
+        }
+    }
+
+    bool list_ok      = c4m_tuple_syntax_possible(result);
+    bool set_ok       = c4m_set_syntax_possible(result);
+    bool dict_ok      = c4m_dict_syntax_possible(result);
+    bool tuple_ok     = c4m_tuple_syntax_possible(result);
+    bool known_arglen = t1_fixed_ct | t2_fixed_ct;
+    bool recal_pop    = false;
+
+    if (known_arglen) {
+        switch (nparams) {
+        case 1:
+            if (dict_ok) {
+                c4m_remove_dict_options(result);
+                recal_pop = true;
+            }
+            if (tuple_ok) {
+                c4m_remove_tuple_options(result);
+                recal_pop = true;
+            }
+            break;
+        case 2:
+            if (list_ok) {
+                c4m_remove_tuple_options(result);
+                recal_pop = true;
+            }
+            if (set_ok) {
+                c4m_remove_set_options(result);
+                recal_pop = true;
+            }
+            break;
+        default:
+            // Has to be tuple syntax.
+            if (list_ok) {
+                c4m_remove_tuple_options(result);
+                recal_pop = true;
+            }
+            if (set_ok) {
+                c4m_remove_set_options(result);
+                recal_pop = true;
+            }
+            if (dict_ok) {
+                c4m_remove_dict_options(result);
+                recal_pop = true;
+            }
+            break;
+        }
+    }
+
+    if (!dict_ok && !tuple_ok) {
+        known_arglen = true;
+
+        if (nparams > 1) {
+            return type_error();
+        }
+        if (nparams == 0) {
+            c4m_xlist_append(result->details->items, c4m_new_typevar(env));
+        }
+    }
+
+    if (!tuple_ok && !list_ok && !set_ok) {
+        known_arglen = true;
+
+        if (nparams > 2) {
+            return type_error();
+        }
+        while (nparams < 2) {
+            c4m_xlist_append(result->details->items, c4m_new_typevar(env));
+        }
+    }
+
+    if (known_arglen) {
+        result->details->flags = 0;
+    }
+    else {
+        result->details->flags = C4M_FN_UNKNOWN_TV_LEN;
+    }
+
+    if (recal_pop) {
+        num_options = 0;
+
+        for (int i = 0; i < bf_words; i++) {
+            num_options += __builtin_popcountll(res_opts->container_options[i]);
+        }
+    }
+
+    if (num_options == 0) {
+        if (t1_arg_ct || t2_arg_ct) {
+            return type_error();
+        }
+        // Otherwise, it's a type variable that MUST point to a concrete type.
+    }
+    if (num_options == 1) {
+        uint64_t baseid = 0;
+
+        for (int i = 0; i < bf_words; i++) {
+            uint64_t val = res_opts->container_options[i];
+
+            // It at least used to be the case that clzll on an empty
+            // word gives arch dependent results (either 64 or 63).
+            // So special case to be safe.
+            if (!val) {
+                baseid += 64;
+                continue;
+            }
+
+            // If the 0th bit is set, we want to return 0.
+            // If the 64th bit is set, we want to return 63.
+            baseid += 63 - __builtin_clzll(val);
+            break;
+        }
+
+        c4m_dt_info_t *dt_info = (c4m_dt_info_t *)&c4m_base_type_info[baseid];
+
+        result->details->base_type = dt_info;
+        result->typeid             = 0; // Zero for c4m_type_hash to fill in.
+        c4m_type_hash(result, env);
+    }
+
+    t1->fw = result->typeid;
+    t2->fw = result->typeid;
+
+    return result;
+}
+
+static c4m_type_t *
+unify_tv_with_concrete_type(c4m_type_t     *t1,
+                            c4m_type_t     *t2,
+                            c4m_type_env_t *env)
+{
+    switch (t2->details->base_type->dt_kind) {
+    case C4M_DT_KIND_primitive:
+    case C4M_DT_KIND_internal:
+        hatrack_dict_put(env->store, (void *)t1->typeid, t2);
+        t1->fw = t2->typeid; // Forward t1 to t2.
+        return t2;
+    case C4M_DT_KIND_nil:
+        unreachable();
+    default:
+        break;
+    }
+
+    uint32_t      baseid  = (uint32_t)t2->details->base_type->typeid;
+    int           word    = ((int)baseid) / 64;
+    int           bit     = ((int)baseid) % 64;
+    tv_options_t *t1_opts = t1->details->tsi;
+
+    if (!(t1_opts->container_options[word] & (1UL << bit))) {
+        return type_error();
+    }
+
+    for (int i = 0; i < c4m_tspec_get_num_params(t1); i++) {
+        c4m_type_t *sub = c4m_unify(c4m_tspec_get_param(t1, i),
+                                    c4m_tspec_get_param(t2, i),
+                                    env);
+
+        if (c4m_tspec_is_error(sub)) {
+            return sub;
+        }
+    }
+
+    hatrack_dict_put(env->store, (void *)t1->typeid, t2);
+    t1->fw = t2->typeid; // Forward t1 to t2.
+    return t2;
+}
 
 c4m_type_t *
 c4m_unify(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
@@ -603,20 +846,16 @@ c4m_unify(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
             b2    = bswap;
         }
     }
-    else {
-        if (b1 != b2) {
-            // Lists and queues are not type compatable, for example.
-            type_log("unify(t1, t2)", type_error());
-            return type_error();
-        }
-    }
 
     switch (b1) {
     case C4M_DT_KIND_type_var:
-        hatrack_dict_put(env->store, (void *)t1->typeid, t2);
-        t1->fw = t2->typeid; // Forward t1 to t2.
-        result = t2;
-        break;
+
+        if (b2 == C4M_DT_KIND_type_var) {
+            return unify_type_variables(t1, t2, env);
+        }
+        else {
+            return unify_tv_with_concrete_type(t1, t2, env);
+        }
 
     case C4M_DT_KIND_list:
     case C4M_DT_KIND_dict:
@@ -755,6 +994,9 @@ unify_sub_nodes:
 
 // 'exact' match is mainly used for comparing declarations to
 // other types.
+//
+// TODO: Need to revisit this with the new generics.
+//
 c4m_type_exact_result_t
 c4m_type_cmp_exact_env(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
 {
@@ -850,8 +1092,6 @@ c4m_type_cmp_exact_env(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
     }
 }
 
-static c4m_str_t *internal_type_repr(c4m_type_t *, c4m_dict_t *, int64_t *);
-
 // This is just hex w/ a different char set; max size would be 18 digits.
 static const char tv_letters[] = "jtvwxyzabcdefghi";
 
@@ -878,6 +1118,85 @@ internal_repr_tv(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
 
     if (s != NULL) {
         return s;
+    }
+
+    if (c4m_partial_inference(t)) {
+        bool         list_ok  = c4m_list_syntax_possible(t);
+        bool         set_ok   = c4m_set_syntax_possible(t);
+        bool         dict_ok  = c4m_dict_syntax_possible(t);
+        bool         tuple_ok = c4m_tuple_syntax_possible(t);
+        int          num_ok   = 0;
+        c4m_xlist_t *parts    = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+        c4m_utf8_t  *res;
+
+        if (list_ok) {
+            num_ok++;
+            c4m_xlist_append(parts, c4m_new_utf8("some_list"));
+        }
+        // For now, hardcode knowing we don't expose other options.
+        if (dict_ok) {
+            num_ok++;
+            c4m_xlist_append(parts, c4m_new_utf8("dict"));
+        }
+        if (set_ok) {
+            num_ok++;
+            c4m_xlist_append(parts, c4m_new_utf8("set"));
+        }
+        if (tuple_ok) {
+            c4m_xlist_append(parts, c4m_new_utf8("tuple"));
+            num_ok++;
+        }
+
+        switch (num_ok) {
+        case 0:
+            return c4m_new_utf8("$non_container");
+        case 1:
+            if (list_ok) {
+                res = c4m_new_utf8("$some_list[");
+            }
+            else {
+                res = c4m_cstr_format("{}{}",
+                                      c4m_xlist_get(parts, 0, NULL),
+                                      c4m_new_utf8("["));
+            }
+            break;
+        default:
+            res = c4m_cstr_format("${}{}",
+                                  c4m_str_join(parts,
+                                               c4m_new_utf8("_or_")),
+                                  c4m_new_utf8("["));
+            break;
+        }
+
+        int num = c4m_tspec_get_num_params(t);
+
+        if (num) {
+            c4m_type_t *sub = c4m_tspec_get_param(t, 0);
+            c4m_utf8_t *one = internal_type_repr(
+                c4m_resolve_type_aliases(sub,
+                                         c4m_global_type_env),
+                memos,
+                nexttv);
+            res = c4m_cstr_format("{}{}", res, one);
+        }
+
+        for (int i = 1; i < num; i++) {
+            c4m_utf8_t *one = internal_type_repr(
+                c4m_resolve_type_aliases(c4m_tspec_get_param(t, i),
+                                         c4m_global_type_env),
+                memos,
+                nexttv);
+
+            res = c4m_cstr_format("{}, {}", res, one);
+        }
+
+        if (t->details->flags & C4M_FN_UNKNOWN_TV_LEN) {
+            res = c4m_cstr_format("{}...]", res);
+        }
+        else {
+            res = c4m_cstr_format("{}]", res);
+        }
+        return res;
     }
 
     if (t->details->name != NULL) {
@@ -979,7 +1298,7 @@ first_loop_start:
     return c4m_str_join(to_join, NULL);
 }
 
-static c4m_str_t *
+c4m_str_t *
 internal_type_repr(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
 {
     c4m_type_info_t *info = t->details;
@@ -1399,6 +1718,7 @@ c4m_tspec_fn(c4m_type_t *ret, c4m_xlist_t *params, bool va)
     c4m_xlist_t *items  = result->details->items;
     int          n      = c4m_xlist_len(params);
 
+    // Copy the list to be safe.
     for (int i = 0; i < n; i++) {
         c4m_xlist_append(items, c4m_xlist_get(params, i, NULL));
     }
@@ -1537,14 +1857,17 @@ c4m_format_global_type_environment()
 {
     uint64_t             len;
     hatrack_dict_item_t *items;
-    c4m_grid_t          *grid = c4m_new(c4m_tspec_grid(),
+    c4m_grid_t          *grid  = c4m_new(c4m_tspec_grid(),
                                c4m_kw("start_cols",
                                       c4m_ka(3),
                                       "header_rows",
                                       c4m_ka(1),
                                       "stripe",
                                       c4m_ka(true)));
-    c4m_xlist_t         *row  = c4m_new_table_row();
+    c4m_xlist_t         *row   = c4m_new_table_row();
+    c4m_dict_t          *memos = c4m_new(c4m_tspec_dict(c4m_tspec_ref(),
+                                               c4m_tspec_utf8()));
+    int64_t              n     = 0;
 
     items = hatrack_dict_items_sort(c4m_global_type_env->store, &len);
 
@@ -1601,7 +1924,8 @@ c4m_format_global_type_environment()
 
         row = c4m_new_table_row();
         c4m_xlist_append(row, c4m_cstr_format("{:x}", c4m_box_i64(t->typeid)));
-        c4m_xlist_append(row, c4m_tspec_repr(t, 0));
+        c4m_xlist_append(row,
+                         internal_type_repr(t, memos, &n));
         c4m_xlist_append(row, base_name);
         c4m_grid_add_row(grid, row);
     }

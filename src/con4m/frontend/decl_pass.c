@@ -464,6 +464,7 @@ handle_param_block(pass1_ctx *ctx)
     c4m_pnode_t             *pnode     = get_pnode(root);
     c4m_tree_node_t         *name_node = c4m_tree_get_child(root, 0);
     c4m_utf8_t              *sym_name  = node_text(name_node);
+    c4m_utf8_t              *dot       = c4m_new_utf8(".");
     int                      nkids     = c4m_tree_get_number_children(root);
     c4m_scope_entry_t       *sym;
     bool                     attr;
@@ -481,7 +482,7 @@ handle_param_block(pass1_ctx *ctx)
         int num_members = c4m_tree_get_number_children(name_node);
 
         for (int i = 1; i < num_members; i++) {
-            sym_name = c4m_str_concat(sym_name, c4m_new_utf8("."));
+            sym_name = c4m_str_concat(sym_name, dot);
             sym_name = c4m_str_concat(sym_name,
                                       node_text(
                                           c4m_tree_get_child(name_node, i)));
@@ -973,7 +974,7 @@ extract_fn_sig_info(pass1_ctx       *ctx,
     c4m_tree_node_t *retnode = get_match_on_node(tree, c4m_return_extract);
 
     if (!retnode) {
-        info->return_info.type = c4m_tspec_void();
+        info->return_info.type = c4m_tspec_typevar();
     }
     else {
         info->return_info.type = c4m_node_to_type(ctx->file_ctx,

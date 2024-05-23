@@ -2,7 +2,7 @@
 #include "con4m.h"
 
 // clang-format off
-static char *symbol_kind_names[sk_num_sym_kinds] = {
+char *c4m_symbol_kind_names[sk_num_sym_kinds] = {
     [sk_module]      = "module",
     [sk_func]        = "function",
     [sk_extern_func] = "extern function",
@@ -14,12 +14,6 @@ static char *symbol_kind_names[sk_num_sym_kinds] = {
 };
 // clang-format on
 
-static inline c4m_utf8_t *
-sym_kind_name(c4m_scope_entry_t *sym)
-{
-    return c4m_new_utf8(symbol_kind_names[sym->kind]);
-}
-
 c4m_scope_t *
 c4m_new_scope(c4m_scope_t *parent, c4m_scope_kind kind)
 {
@@ -29,6 +23,26 @@ c4m_new_scope(c4m_scope_t *parent, c4m_scope_kind kind)
                                              c4m_tspec_ref()));
     result->kind        = kind;
     return result;
+}
+
+c4m_utf8_t *
+c4m_sym_get_best_ref_loc(c4m_scope_entry_t *sym)
+{
+    c4m_tree_node_t *node = sym->declaration_node;
+
+    if (node == NULL && sym->sym_defs != NULL) {
+        node = c4m_xlist_get(sym->sym_defs, 0, NULL);
+    }
+
+    if (node == NULL && sym->sym_uses != NULL) {
+        node = c4m_xlist_get(sym->sym_defs, 0, NULL);
+    }
+
+    if (node) {
+        return c4m_node_get_loc_str(node);
+    }
+
+    unreachable();
 }
 
 void
@@ -137,7 +151,7 @@ c4m_declare_symbol(c4m_file_compile_ctx *ctx,
                   c4m_err_invalid_redeclaration,
                   node,
                   name,
-                  sym_kind_name(old),
+                  c4m_sym_kind_name(old),
                   c4m_node_get_loc_str(old->declaration_node));
 
     return old;
@@ -179,6 +193,8 @@ c4m_add_or_replace_symbol(c4m_file_compile_ctx *ctx,
     return entry;
 }
 
+// There's also a "c4m_symbol_lookup" below. We should resolve
+// these names by deleting this and rewriting any call sites (TODO).
 c4m_scope_entry_t *
 c4m_lookup_symbol(c4m_scope_t *scope, c4m_utf8_t *name)
 {
@@ -266,8 +282,8 @@ c4m_merge_symbols(c4m_file_compile_ctx *ctx1,
                       c4m_err_redecl_kind,
                       sym1->declaration_node,
                       sym1->name,
-                      sym_kind_name(sym2),
-                      sym_kind_name(sym1),
+                      c4m_sym_kind_name(sym2),
+                      c4m_sym_kind_name(sym1),
                       c4m_node_get_loc_str(sym2->declaration_node));
         return false;
     }
@@ -281,7 +297,7 @@ c4m_merge_symbols(c4m_file_compile_ctx *ctx1,
                       c4m_err_no_redecl,
                       sym1->declaration_node,
                       sym1->name,
-                      sym_kind_name(sym1),
+                      c4m_sym_kind_name(sym1),
                       c4m_node_get_loc_str(sym2->declaration_node));
         return false;
 
@@ -328,6 +344,7 @@ c4m_symbol_lookup(c4m_scope_t *local_scope,
     one_scope_lookup(module_scope, name);
     one_scope_lookup(global_scope, name);
     one_scope_lookup(attr_scope, name);
+
     return NULL;
 }
 
@@ -346,6 +363,9 @@ c4m_format_scope(c4m_scope_t *scope)
     c4m_xlist_t          *row        = c4m_new_table_row();
     c4m_utf8_t           *decl_const = c4m_new_utf8("declared");
     c4m_utf8_t           *inf_const  = c4m_new_utf8("inferred");
+    c4m_dict_t           *memos      = c4m_new(c4m_tspec_dict(c4m_tspec_ref(),
+                                               c4m_tspec_utf8()));
+    int64_t               nexttid    = 0;
 
     values = hatrack_dict_values_sort(scope->symbols,
                                       &len);
@@ -369,12 +389,16 @@ c4m_format_scope(c4m_scope_t *scope)
             c4m_xlist_append(row, c4m_new_utf8("const"));
         }
         else {
-            c4m_xlist_append(row, c4m_new_utf8(symbol_kind_names[entry->kind]));
+            c4m_xlist_append(row,
+                             c4m_new_utf8(c4m_symbol_kind_names[entry->kind]));
         }
+
+        c4m_type_t *symtype = c4m_get_sym_type(entry);
+        symtype             = c4m_resolve_type_aliases(symtype, c4m_global_type_env);
 
         c4m_xlist_append(row,
                          c4m_cstr_format("[em]{} [/][i]({})",
-                                         c4m_get_sym_type(entry),
+                                         internal_type_repr(symtype, memos, &nexttid),
                                          kind));
 
         if (c4m_sym_is_declared_const(entry)) {

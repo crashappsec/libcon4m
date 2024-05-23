@@ -30,6 +30,7 @@ extern c4m_scope_entry_t *c4m_add_inferred_symbol(c4m_file_compile_ctx *,
 extern c4m_scope_entry_t *c4m_add_or_replace_symbol(c4m_file_compile_ctx *,
                                                     c4m_scope_t *,
                                                     c4m_utf8_t *);
+extern c4m_utf8_t        *c4m_sym_get_best_ref_loc(c4m_scope_entry_t *);
 
 static inline bool
 c4m_sym_is_declared_const(c4m_scope_entry_t *sym)
@@ -47,6 +48,14 @@ static inline bool
 c4m_type_is_declared(c4m_scope_entry_t *sym)
 {
     return (bool)(sym->flags & C4M_F_TYPE_IS_DECLARED);
+}
+
+extern char *c4m_symbol_kind_names[sk_num_sym_kinds];
+
+static inline c4m_utf8_t *
+c4m_sym_kind_name(c4m_scope_entry_t *sym)
+{
+    return c4m_new_utf8(c4m_symbol_kind_names[sym->kind]);
 }
 
 #endif

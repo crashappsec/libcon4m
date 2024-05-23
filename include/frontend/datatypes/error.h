@@ -124,7 +124,23 @@ typedef enum {
     c4m_warn_attr_mask,
     c4m_err_attr_mask,
     c4m_err_label_target,
+    c4m_err_fn_not_found,
+    c4m_err_num_params,
+    c4m_err_calling_non_fn,
+    c4m_err_spec_needs_field,
+    c4m_err_field_not_spec,
+    c4m_err_field_not_allowed,
+    c4m_err_undefined_section,
+    c4m_err_section_not_allowed,
+    c4m_err_slice_on_dict,
+    c4m_err_bad_slice_ix,
+    c4m_err_dupe_label,
     c4m_err_last,
+    c4m_err_iter_name_conflict,
+    c4m_err_dict_one_var_for,
+    c4m_err_future_dynamic_typecheck,
+    c4m_err_iterate_on_non_container,
+    c4m_warn_shadowed_var,
 } c4m_compile_error_t;
 
 #define c4m_err_no_error c4m_err_last

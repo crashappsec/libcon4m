@@ -779,6 +779,116 @@ static error_info_t error_info[] = {
         "enclosing loop.",
         true,
     },
+    [c4m_err_fn_not_found] = {
+        c4m_err_fn_not_found,
+        "fn_not_found",
+        "Could not find an implementation for the function [em]{}[/].",
+        true,
+    },
+    [c4m_err_num_params] = {
+        c4m_err_num_params,
+        "num_params",
+        "Wrong number of parameters in call to function [em]{}[/]. "
+        "Call site used [i]{}[/] parameters, but the implementation of "
+        "that function requires [i]{}[/] parameters.",
+        true,
+    },
+    [c4m_err_calling_non_fn] = {
+        c4m_err_calling_non_fn,
+        "calling_non_fn",
+        "Cannot call [em]{}[/]; it is a [i]{}[/] not a function.",
+        true,
+    },
+    [c4m_err_spec_needs_field] = {
+        c4m_err_spec_needs_field,
+        "spec_needs_field",
+        "Attribute specification says [em]{}[/] must be a [i]{}[/]. It cannot "
+        "be used as a field here.",
+        true,
+    },
+    [c4m_err_field_not_spec] = {
+        c4m_err_field_not_spec,
+        "field_not_spec",
+        "Attribute [em]{}[/] does not follow the specticiation. The component "
+        "[em]{}[/] is expected to refer to a field, not a "
+        "configuration section.",
+        true,
+    },
+    [c4m_err_undefined_section] = {
+        c4m_err_undefined_section,
+        "undefined_section",
+        "The config file spec doesn't support a section named [em]{}[/].",
+        true,
+    },
+    [c4m_err_section_not_allowed] = {
+        c4m_err_section_not_allowed,
+        "section_not_allowed",
+        "The config file spec does not allow [em]{}[/] to be a subsection "
+        "here.",
+        true,
+    },
+    [c4m_err_slice_on_dict] = {
+        c4m_err_slice_on_dict,
+        "slice_on_dict",
+        "The slice operator is not supported for data types using dictionary "
+        "syntax (e.g., dictionaries or sets).",
+        false,
+    },
+    [c4m_err_bad_slice_ix] = {
+        c4m_err_bad_slice_ix,
+        "bad_slice_ix",
+        "The slice operator only supports integer indices.",
+        false,
+    },
+    [c4m_err_dupe_label] = {
+        c4m_err_dupe_label,
+        "dupe_label",
+        "The loop label [em]{}[/] cannot be used in multiple nested loops. "
+        "Note that, in the future, this constraint might apply per-function "
+        "context as well.",
+        true,
+    },
+    [c4m_err_iter_name_conflict] = {
+        c4m_err_iter_name_conflict,
+        "iter_name_conflict",
+        "Loop iteration over a dictionary requires two different loop "
+        "variable names. Rename one of them.",
+        false,
+    },
+    [c4m_warn_shadowed_var] = {
+        c4m_warn_shadowed_var,
+        "shadowed_var",
+        "Declaration of [em]{}[/] shadows a [i]{}[/] that would otherwise "
+        "be in scope here. Shadow value's first location: [i]{}[/]",
+        true,
+    },
+    [c4m_err_dict_one_var_for] = {
+        c4m_err_dict_one_var_for,
+        "dict_one_var_for",
+        "When using [em]for[/] loops to iterate over a dictionary, "
+        "you need to define two variables, one to hold the [i]key[/], "
+        "the other to hold the associated value.",
+        false,
+    },
+    [c4m_err_future_dynamic_typecheck] = {
+        c4m_err_future_dynamic_typecheck,
+        "future_dynamic_typecheck",
+        "There isn't enough syntactic context at this point for the system "
+        "to properly keep track of type info. Usually this happens when "
+        "using containers, when we cannot determine, for instance, dict vs. "
+        "set vs. list. In the future, this will be fine; in some cases "
+        "we will keep more type info, and in others, we will convert to "
+        "a runtime check. But for now, please add a type annotation that "
+        "at least unambiguously specifies a container type.",
+        false,
+    },
+    [c4m_err_iterate_on_non_container] = {
+        c4m_err_iterate_on_non_container,
+        "iterate_on_non_container",
+        "Cannot iterate over this value, as it is not a container type "
+        "(current type is [em]{}[/])",
+        true,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",

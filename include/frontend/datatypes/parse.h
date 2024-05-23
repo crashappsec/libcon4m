@@ -78,6 +78,26 @@ typedef enum {
     c4m_nt_expression,
 } c4m_node_kind_t;
 
+typedef enum : int64_t {
+    c4m_op_plus,
+    c4m_op_minus,
+    c4m_op_mul,
+    c4m_op_mod,
+    c4m_op_div,
+    c4m_op_fdiv,
+    c4m_op_shl,
+    c4m_op_shr,
+    c4m_op_bitand,
+    c4m_op_bitor,
+    c4m_op_bitxor,
+    c4m_op_lt,
+    c4m_op_lte,
+    c4m_op_gt,
+    c4m_op_gte,
+    c4m_op_eq,
+    c4m_op_neq,
+} c4m_operator_t;
+
 typedef struct {
     c4m_token_t *comment_tok;
     int          sibling_id;
@@ -95,8 +115,8 @@ typedef struct {
     c4m_xlist_t        *comments;
     int                 total_kids;
     int                 sibling_id;
-    void               *extra_info;
     c4m_obj_t          *value;
+    void               *extra_info;
     struct c4m_scope_t *static_scope;
     c4m_type_t         *type;
 } c4m_pnode_t;

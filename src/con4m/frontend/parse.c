@@ -731,6 +731,23 @@ restore_tree(parse_ctx *ctx)
     return result;
 }
 
+#define binop_restore_and_return(ctx, op)            \
+    {                                                \
+        c4m_tree_node_t *result = restore_tree(ctx); \
+        c4m_pnode_t     *pnode  = get_pnode(result); \
+        pnode->extra_info       = (void *)op;        \
+        return result;                               \
+    }
+
+#define binop_assign(ctx, expr, op)                                        \
+    {                                                                      \
+        c4m_tree_node_t *tmp = assign(ctx, expr, c4m_nt_binary_assign_op); \
+        c4m_pnode_t     *pn  = get_pnode(tmp);                             \
+                                                                           \
+        pn->extra_info = (void *)(op);                                     \
+        adopt_kid(ctx, tmp);                                               \
+    }
+
 static void
 opt_newlines(parse_ctx *ctx)
 {
@@ -1440,16 +1457,34 @@ lock_attr(parse_ctx *ctx)
 
     switch (tok_kind(ctx)) {
     case c4m_tt_plus_eq:
+        binop_assign(ctx, expr, c4m_op_plus);
+        break;
     case c4m_tt_minus_eq:
+        binop_assign(ctx, expr, c4m_op_minus);
+        break;
     case c4m_tt_mul_eq:
+        binop_assign(ctx, expr, c4m_op_mul);
+        break;
     case c4m_tt_div_eq:
+        binop_assign(ctx, expr, c4m_op_div);
+        break;
     case c4m_tt_mod_eq:
-    case c4m_tt_bit_and_eq:
+        binop_assign(ctx, expr, c4m_op_mod);
+        break;
     case c4m_tt_bit_or_eq:
+        binop_assign(ctx, expr, c4m_op_bitor);
+        break;
     case c4m_tt_bit_xor_eq:
+        binop_assign(ctx, expr, c4m_op_bitxor);
+        break;
+    case c4m_tt_bit_and_eq:
+        binop_assign(ctx, expr, c4m_op_bitand);
+        break;
     case c4m_tt_shl_eq:
+        binop_assign(ctx, expr, c4m_op_shl);
+        break;
     case c4m_tt_shr_eq:
-        adopt_kid(ctx, assign(ctx, expr, c4m_nt_binary_assign_op));
+        binop_assign(ctx, expr, c4m_op_shr);
         break;
     case c4m_tt_colon:
     case c4m_tt_assign:
@@ -1759,16 +1794,34 @@ case_body(parse_ctx *ctx)
                 expr = expression(ctx);
                 switch (tok_kind(ctx)) {
                 case c4m_tt_plus_eq:
+                    binop_assign(ctx, expr, c4m_op_plus);
+                    continue;
                 case c4m_tt_minus_eq:
+                    binop_assign(ctx, expr, c4m_op_minus);
+                    continue;
                 case c4m_tt_mul_eq:
+                    binop_assign(ctx, expr, c4m_op_mul);
+                    continue;
                 case c4m_tt_div_eq:
+                    binop_assign(ctx, expr, c4m_op_div);
+                    continue;
                 case c4m_tt_mod_eq:
+                    binop_assign(ctx, expr, c4m_op_mod);
+                    continue;
                 case c4m_tt_bit_or_eq:
+                    binop_assign(ctx, expr, c4m_op_bitor);
+                    continue;
                 case c4m_tt_bit_xor_eq:
+                    binop_assign(ctx, expr, c4m_op_bitxor);
+                    continue;
                 case c4m_tt_bit_and_eq:
+                    binop_assign(ctx, expr, c4m_op_bitand);
+                    continue;
                 case c4m_tt_shl_eq:
+                    binop_assign(ctx, expr, c4m_op_shl);
+                    continue;
                 case c4m_tt_shr_eq:
-                    adopt_kid(ctx, assign(ctx, expr, c4m_nt_binary_assign_op));
+                    binop_assign(ctx, expr, c4m_op_shr);
                     continue;
                 case c4m_tt_colon:
                 case c4m_tt_assign:
@@ -3051,7 +3104,7 @@ shl_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, shl_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_shl);
     }
 
     return not_expr(ctx);
@@ -3081,7 +3134,7 @@ shr_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, shr_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_shr);
     }
 
     return shl_expr(ctx);
@@ -3111,7 +3164,7 @@ div_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, div_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_div);
     }
 
     return shr_expr(ctx);
@@ -3141,7 +3194,7 @@ mul_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, mul_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_mul);
     }
 
     return div_expr(ctx);
@@ -3171,7 +3224,7 @@ mod_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, mod_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_mod);
     }
 
     return mul_expr(ctx);
@@ -3201,7 +3254,7 @@ minus_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, minus_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_minus);
     }
 
     return mod_expr(ctx);
@@ -3231,7 +3284,7 @@ plus_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, plus_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_plus);
     }
 
     return minus_expr(ctx);
@@ -3261,7 +3314,7 @@ lt_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_cmp);
         consume(ctx);
         adopt_kid(ctx, lt_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_lt);
     }
 
     return plus_expr(ctx);
@@ -3291,7 +3344,7 @@ gt_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_cmp);
         consume(ctx);
         adopt_kid(ctx, gt_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_gt);
     }
 
     return lt_expr(ctx);
@@ -3321,7 +3374,7 @@ lte_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_cmp);
         consume(ctx);
         adopt_kid(ctx, lte_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_lte);
     }
 
     return gt_expr(ctx);
@@ -3351,7 +3404,7 @@ gte_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_cmp);
         consume(ctx);
         adopt_kid(ctx, gte_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_gte);
     }
 
     return lte_expr(ctx);
@@ -3381,7 +3434,7 @@ eq_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_cmp);
         consume(ctx);
         adopt_kid(ctx, eq_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_eq);
     }
 
     return gte_expr(ctx);
@@ -3411,7 +3464,7 @@ bit_and_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, bit_and_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_bitand);
     }
 
     return eq_expr(ctx);
@@ -3441,7 +3494,7 @@ bit_xor_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, bit_xor_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_bitxor);
     }
 
     return bit_and_expr(ctx);
@@ -3471,7 +3524,7 @@ bit_or_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, bit_or_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_bitor);
     }
 
     return bit_xor_expr(ctx);
@@ -3501,7 +3554,7 @@ ne_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_cmp);
         consume(ctx);
         adopt_kid(ctx, ne_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_neq);
     }
 
     return bit_or_expr(ctx);
@@ -3765,16 +3818,34 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
                 expr = expression(ctx);
                 switch (tok_kind(ctx)) {
                 case c4m_tt_plus_eq:
+                    binop_assign(ctx, expr, c4m_op_plus);
+                    continue;
                 case c4m_tt_minus_eq:
+                    binop_assign(ctx, expr, c4m_op_minus);
+                    continue;
                 case c4m_tt_mul_eq:
+                    binop_assign(ctx, expr, c4m_op_mul);
+                    continue;
                 case c4m_tt_div_eq:
+                    binop_assign(ctx, expr, c4m_op_div);
+                    continue;
                 case c4m_tt_mod_eq:
+                    binop_assign(ctx, expr, c4m_op_mod);
+                    continue;
                 case c4m_tt_bit_or_eq:
+                    binop_assign(ctx, expr, c4m_op_bitor);
+                    continue;
                 case c4m_tt_bit_xor_eq:
+                    binop_assign(ctx, expr, c4m_op_bitxor);
+                    continue;
                 case c4m_tt_bit_and_eq:
+                    binop_assign(ctx, expr, c4m_op_bitand);
+                    continue;
                 case c4m_tt_shl_eq:
+                    binop_assign(ctx, expr, c4m_op_shl);
+                    continue;
                 case c4m_tt_shr_eq:
-                    adopt_kid(ctx, assign(ctx, expr, c4m_nt_binary_assign_op));
+                    binop_assign(ctx, expr, c4m_op_shr);
                     continue;
                 case c4m_tt_colon:
                 case c4m_tt_assign:
@@ -3917,16 +3988,34 @@ module(parse_ctx *ctx)
 
                 switch (tok_kind(ctx)) {
                 case c4m_tt_plus_eq:
+                    binop_assign(ctx, expr, c4m_op_plus);
+                    continue;
                 case c4m_tt_minus_eq:
+                    binop_assign(ctx, expr, c4m_op_minus);
+                    continue;
                 case c4m_tt_mul_eq:
+                    binop_assign(ctx, expr, c4m_op_mul);
+                    continue;
                 case c4m_tt_div_eq:
+                    binop_assign(ctx, expr, c4m_op_div);
+                    continue;
                 case c4m_tt_mod_eq:
+                    binop_assign(ctx, expr, c4m_op_mod);
+                    continue;
                 case c4m_tt_bit_or_eq:
+                    binop_assign(ctx, expr, c4m_op_bitor);
+                    continue;
                 case c4m_tt_bit_xor_eq:
+                    binop_assign(ctx, expr, c4m_op_bitxor);
+                    continue;
                 case c4m_tt_bit_and_eq:
+                    binop_assign(ctx, expr, c4m_op_bitand);
+                    continue;
                 case c4m_tt_shl_eq:
+                    binop_assign(ctx, expr, c4m_op_shl);
+                    continue;
                 case c4m_tt_shr_eq:
-                    adopt_kid(ctx, assign(ctx, expr, c4m_nt_binary_assign_op));
+                    binop_assign(ctx, expr, c4m_op_shr);
                     continue;
                 case c4m_tt_colon:
                 case c4m_tt_assign:

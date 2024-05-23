@@ -34,7 +34,6 @@ typedef struct {
     unsigned int     validate_range    : 1;
     unsigned int     validate_choice   : 1;
     unsigned int     have_type_pointer : 1;
-
 } c4m_spec_field_t;
 
 typedef struct {
@@ -60,3 +59,30 @@ typedef struct {
     c4m_dict_t         *section_specs;
     unsigned int        locked : 1;
 } c4m_spec_t;
+
+typedef enum {
+    c4m_attr_invalid,
+    c4m_attr_field,
+    c4m_attr_user_def_field,
+    c4m_attr_object_type,
+    c4m_attr_singleton,
+    c4m_attr_instance
+} c4m_attr_status_t;
+
+typedef enum {
+    c4m_attr_no_error,
+    c4m_attr_err_sec_under_field,
+    c4m_attr_err_field_not_allowed,
+    c4m_attr_err_no_such_sec,
+    c4m_attr_err_sec_not_allowed,
+} c4m_attr_error_t;
+
+typedef struct {
+    c4m_attr_status_t kind;
+    union {
+        c4m_spec_section_t *sec_info;
+        c4m_spec_field_t   *field_info;
+    } info;
+    c4m_attr_error_t err;
+    c4m_utf8_t      *err_arg;
+} c4m_attr_info_t;

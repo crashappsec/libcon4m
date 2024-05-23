@@ -14,14 +14,15 @@ typedef enum : int8_t {
 } c4m_symbol_kind;
 
 enum {
-    C4M_F_HAS_INITIALIZER  = 1,
-    C4M_F_DECLARED_CONST   = 2,
-    C4M_F_IS_DECLARED      = 4,
-    C4M_F_TYPE_IS_DECLARED = 8,
+    C4M_F_HAS_INITIALIZER     = 1,
+    C4M_F_DECLARED_CONST      = 2,
+    C4M_F_IS_DECLARED         = 4,
+    C4M_F_TYPE_IS_DECLARED    = 8,
     // 'const' means user immutable not static. This is for iteration
     // variables on loops, etc.
-    C4M_F_USER_IMMUTIBLE   = 0x10,
-    C4M_F_ALL_SYM_FLAGS    = 0x1f,
+    C4M_F_USER_IMMUTIBLE      = 0x10,
+    C4M_F_ALL_CONTAINER_FLAGS = 0x1f,
+    C4M_F_FN_PASS_DONE        = 0x20,
 };
 
 typedef enum c4m_scope_kind {
@@ -66,6 +67,9 @@ typedef struct c4m_scope_entry_t {
     c4m_type_t         *type;
     struct c4m_scope_t *my_scope;
     c4m_tree_node_t    *type_declaration_node;
+    void               *other_info;
+    c4m_xlist_t        *sym_defs;
+    c4m_xlist_t        *sym_uses;
 } c4m_scope_entry_t;
 
 typedef struct {

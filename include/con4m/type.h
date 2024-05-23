@@ -20,7 +20,6 @@ extern c4m_type_t     *c4m_tspec_tuple(int64_t, ...);
 extern c4m_type_t     *c4m_tspec_tuple_from_xlist(c4m_xlist_t *);
 extern c4m_type_t     *c4m_tspec_fn(c4m_type_t *, c4m_xlist_t *, bool);
 extern c4m_type_t     *c4m_tspec_fn_va(c4m_type_t *, int64_t, ...);
-extern c4m_type_t     *c4m_tspec_varargs_fn_va(c4m_type_t *, int64_t, ...);
 extern c4m_type_t     *c4m_tspec_varargs_fn(c4m_type_t *, int64_t, ...);
 extern c4m_type_t     *c4m_global_resolve_type(c4m_type_t *);
 extern c4m_type_t     *c4m_global_copy(c4m_type_t *);
@@ -31,6 +30,23 @@ extern c4m_type_t     *c4m_get_promotion_type(c4m_type_t *,
                                               int *);
 extern void            c4m_initialize_global_types();
 extern c4m_type_hash_t c4m_type_hash(c4m_type_t *node, c4m_type_env_t *env);
+
+extern uint64_t *c4m_get_list_bitfield();
+extern uint64_t *c4m_get_dict_bitfield();
+extern uint64_t *c4m_get_set_bitfield();
+extern uint64_t *c4m_get_tuple_bitfield();
+extern uint64_t *c4m_get_all_containers_bitfield();
+extern uint64_t *c4m_get_no_containers_bitfield();
+extern int       c4m_get_num_bitfield_words();
+extern bool      c4m_partial_inference(c4m_type_t *);
+extern bool      c4m_list_syntax_possible(c4m_type_t *);
+extern bool      c4m_dict_syntax_possible(c4m_type_t *);
+extern bool      c4m_set_syntax_possible(c4m_type_t *);
+extern bool      c4m_tuple_syntax_possible(c4m_type_t *);
+extern void      c4m_remove_list_options(c4m_type_t *);
+extern void      c4m_remove_dict_options(c4m_type_t *);
+extern void      c4m_remove_set_options(c4m_type_t *);
+extern void      c4m_remove_tuple_options(c4m_type_t *);
 
 extern c4m_type_env_t *c4m_global_type_env;
 
@@ -394,7 +410,13 @@ c4m_tspec_partial_lit()
 static inline c4m_type_t *
 c4m_new_typevar(c4m_type_env_t *env)
 {
-    c4m_type_t *result = c4m_new(c4m_tspec_typespec(), env, C4M_T_GENERIC);
+    c4m_type_t   *result = c4m_new(c4m_tspec_typespec(), env, C4M_T_GENERIC);
+    tv_options_t *tsi    = c4m_gc_alloc(tv_options_t);
+
+    result->details->tsi   = tsi;
+    tsi->container_options = c4m_get_all_containers_bitfield();
+    result->details->items = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+    result->details->flags = C4M_FN_UNKNOWN_TV_LEN;
 
     return result;
 }
@@ -403,6 +425,37 @@ static inline c4m_type_t *
 c4m_tspec_typevar()
 {
     return c4m_new_typevar(c4m_global_type_env);
+}
+
+static inline c4m_type_t *
+c4m_tspec_any_list()
+{
+    c4m_type_t   *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_GENERIC);
+    tv_options_t *tsi    = c4m_gc_alloc(tv_options_t);
+
+    result->details->tsi   = tsi;
+    tsi->container_options = c4m_get_list_bitfield();
+    return result;
+}
+
+static inline c4m_type_t *
+c4m_tspec_any_dict()
+{
+    // Currently, we don't support multiple dict types,
+    // so for now just return a dict.
+
+    return c4m_tspec_dict(c4m_tspec_typevar(), c4m_tspec_typevar());
+}
+
+static inline c4m_type_t *
+c4m_tspec_any_set()
+{
+    // Currently, we don't support multiple dict types,
+    // so for now just return a dict.
+
+    return c4m_tspec_set(c4m_tspec_typevar());
 }
 
 static inline bool
