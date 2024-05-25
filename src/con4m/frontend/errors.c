@@ -752,8 +752,8 @@ static error_info_t error_info[] = {
     [c4m_err_inconsistent_infer_type] = {
         c4m_err_inconsistent_infer_type,
         "inconsistent_type",
-        "The type here [em]({})[/] is not compatable with the "
-        "expected type: [em]({})[/]. ",
+        "The previous type, [em]{}[/], is not compatable with the "
+        "type used in this context ([em]{}[/]). ",
         true,
     },
     [c4m_err_decl_mask] = {
@@ -940,6 +940,53 @@ static error_info_t error_info[] = {
         "dead_branch",
         "This type case ([em]{}[/] is not compatable with the constraints "
         "for the variable you're testing (i.e., this is not a subtype)",
+        true,
+    },
+    [c4m_err_no_ret] = {
+        c4m_err_no_ret,
+        "no_ret",
+        "Function was declared with a return type [em]{}[/em], but no "
+        "values were returned.",
+        true,
+    },
+    [c4m_err_use_no_def] = {
+        c4m_err_use_no_def,
+        "use_no_def",
+        "Variable is used, but not ever set.",
+        false,
+    },
+    [c4m_err_declared_incompat] = {
+        c4m_err_declared_incompat,
+        "declared_incompat",
+        "The declared type ([em]{}[/]) is not compatable with the type as "
+        "used in the function ([em]{}[/])",
+        true,
+    },
+    [c4m_err_too_general] = {
+        c4m_err_too_general,
+        "too_general",
+        "The declared type ([em]{}[/]) is more generic than the implementation "
+        "requires ([em]{}[/]). Please use the more specific type (or remove "
+        "the declaration)",
+        true,
+    },
+    [c4m_warn_unused_param] = {
+        c4m_warn_unused_param,
+        "unused_param",
+        "The parameter [em]{}[/] is declared, but not used.",
+        true,
+    },
+    [c4m_warn_def_without_use] = {
+        c4m_warn_def_without_use,
+        "def_without_use",
+        "Variable [em]{}[/] is explicitly declared, but not used.",
+        true,
+    },
+    [c4m_err_call_type_err] = {
+        c4m_err_call_type_err,
+        "call_type_err",
+        "Type inferred at call site ([em]{}[/]) is not compatiable with "
+        "the implementated type ([em]{}[/]).",
         true,
     },
     [c4m_err_last] = {

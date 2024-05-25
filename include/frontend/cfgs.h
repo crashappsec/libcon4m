@@ -10,7 +10,8 @@ extern c4m_cfg_node_t *c4m_cfg_block_new_branch_node(c4m_cfg_node_t *,
                                                      c4m_utf8_t *,
                                                      c4m_tree_node_t *);
 extern c4m_cfg_node_t *c4m_cfg_add_return(c4m_cfg_node_t *,
-                                          c4m_tree_node_t *);
+                                          c4m_tree_node_t *,
+                                          c4m_cfg_node_t *);
 extern c4m_cfg_node_t *c4m_cfg_add_continue(c4m_cfg_node_t *,
                                             c4m_tree_node_t *,
                                             c4m_utf8_t *);
@@ -29,3 +30,9 @@ extern c4m_cfg_node_t *c4m_cfg_add_use(c4m_cfg_node_t *,
                                        c4m_tree_node_t *,
                                        c4m_scope_entry_t *);
 extern c4m_grid_t     *c4m_cfg_repr(c4m_cfg_node_t *);
+
+static inline c4m_cfg_node_t *
+c4m_cfg_exit_node(c4m_cfg_node_t *block_entry)
+{
+    return block_entry->contents.block_entrance.exit_node;
+}

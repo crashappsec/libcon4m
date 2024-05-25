@@ -18,7 +18,8 @@ add_child(c4m_cfg_node_t *parent, c4m_cfg_node_t *child)
         branch_info->branch_targets[branch_info->next_to_process++] = child;
         return;
     case c4m_cfg_jump:
-        C4M_CRAISE("Reached supposedly unreachable code.");
+        parent->contents.jump.dead_code = child;
+        return;
     default:
         parent->contents.flow.next_node = child;
     }
@@ -53,7 +54,7 @@ c4m_cfg_enter_block(c4m_cfg_node_t  *parent,
 c4m_cfg_node_t *
 c4m_cfg_exit_block(c4m_cfg_node_t *parent, c4m_tree_node_t *treeloc)
 {
-    if (!parent || parent->kind == c4m_cfg_jump) {
+    if (!parent) {
         return NULL;
     }
 
@@ -100,7 +101,9 @@ c4m_cfg_block_new_branch_node(c4m_cfg_node_t  *parent,
 }
 
 c4m_cfg_node_t *
-c4m_cfg_add_return(c4m_cfg_node_t *parent, c4m_tree_node_t *treeloc)
+c4m_cfg_add_return(c4m_cfg_node_t  *parent,
+                   c4m_tree_node_t *treeloc,
+                   c4m_cfg_node_t  *fn_exit_node)
 {
     c4m_cfg_node_t *result = c4m_gc_alloc(c4m_cfg_node_t);
 
@@ -110,15 +113,9 @@ c4m_cfg_add_return(c4m_cfg_node_t *parent, c4m_tree_node_t *treeloc)
     result->reference_location = treeloc;
     result->parent             = parent;
 
-    while (parent->parent != NULL) {
-        parent = parent->parent;
-    }
+    c4m_xlist_append(fn_exit_node->contents.block_exit.inbound_links, result);
 
-    c4m_cfg_node_t *target = parent->contents.block_entrance.exit_node;
-
-    c4m_xlist_append(target->contents.block_exit.inbound_links, result);
-
-    result->contents.jump.target = target;
+    result->contents.jump.target = fn_exit_node;
 
     return result;
 }
@@ -232,7 +229,7 @@ c4m_cfg_add_break(c4m_cfg_node_t  *parent,
             break;
         }
         if (cur->parent == NULL) {
-            return NULL;
+            return result;
         }
         cur = cur->parent;
     }
@@ -302,6 +299,10 @@ c4m_cfg_repr_internal(c4m_cfg_node_t  *node,
     uint64_t         node_addr = (uint64_t)(void *)node;
     uint64_t         link_addr;
 
+    if (!node) {
+        return NULL;
+    }
+
     switch (node->kind) {
     case c4m_cfg_block_entrance:
         link      = node->contents.block_entrance.exit_node;
@@ -317,8 +318,15 @@ c4m_cfg_repr_internal(c4m_cfg_node_t  *node,
                               c4m_box_i64(node_addr));
         break;
     case c4m_cfg_node_branch:
-        str = c4m_cstr_format("@{:x}: [em]branch",
-                              c4m_box_i64(node_addr));
+        if (node->contents.branches.label != NULL) {
+            str = c4m_cstr_format("@{:x}: [em]branch[/] [h1]{}[/]",
+                                  c4m_box_i64(node_addr),
+                                  node->contents.branches.label);
+        }
+        else {
+            str = c4m_cstr_format("@{:x}: [em]branch",
+                                  c4m_box_i64(node_addr));
+        }
         break;
     case c4m_cfg_use:
         str = c4m_cstr_format("@{:x}: [em]USE[/] {}",
@@ -381,8 +389,6 @@ c4m_cfg_repr_internal(c4m_cfg_node_t  *node,
                                   node,
                                   c4m_cstr_format("b{}", c4m_box_i64(i)));
         }
-        break;
-    case c4m_cfg_jump:
         break;
     case c4m_cfg_block_exit:
         link = node->contents.flow.next_node;

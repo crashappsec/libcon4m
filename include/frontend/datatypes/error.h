@@ -148,6 +148,13 @@ typedef enum {
     c4m_err_concrete_typeof,
     c4m_warn_type_overlap,
     c4m_err_dead_branch,
+    c4m_err_no_ret,
+    c4m_err_use_no_def,
+    c4m_err_declared_incompat,
+    c4m_err_too_general,
+    c4m_warn_unused_param,
+    c4m_warn_def_without_use,
+    c4m_err_call_type_err,
     c4m_err_last,
 
 } c4m_compile_error_t;

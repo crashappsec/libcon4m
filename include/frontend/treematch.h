@@ -115,5 +115,7 @@ extern c4m_tpat_node_t *c4m_sym_init;
 extern c4m_tpat_node_t *c4m_loop_vars;
 extern c4m_tpat_node_t *c4m_case_branches;
 extern c4m_tpat_node_t *c4m_case_else;
+extern c4m_tpat_node_t *c4m_elif_branches;
+extern c4m_tpat_node_t *c4m_else_condition;
 
 #endif

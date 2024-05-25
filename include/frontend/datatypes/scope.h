@@ -28,6 +28,7 @@ typedef enum c4m_scope_kind {
     C4M_SCOPE_GLOBAL,
     C4M_SCOPE_MODULE,
     C4M_SCOPE_LOCAL,
+    C4M_SCOPE_FORMALS,
     C4M_SCOPE_ATTRIBUTES,
     C4M_SCOPE_IMPORTS,
 } c4m_scope_kind;
@@ -90,6 +91,7 @@ typedef struct c4m_scope_t {
 typedef struct {
     c4m_type_t          *full_type;
     c4m_scope_t         *fn_scope;
+    c4m_scope_t         *formals;
     c4m_fn_param_info_t *param_info;
     c4m_fn_param_info_t  return_info;
     int                  num_params;

@@ -37,6 +37,8 @@ c4m_tpat_node_t *c4m_sym_init;
 c4m_tpat_node_t *c4m_loop_vars;
 c4m_tpat_node_t *c4m_case_branches;
 c4m_tpat_node_t *c4m_case_else;
+c4m_tpat_node_t *c4m_elif_branches;
+c4m_tpat_node_t *c4m_else_condition;
 
 void
 setup_treematch_patterns()
@@ -131,6 +133,18 @@ setup_treematch_patterns()
                            tcontent(nt_any, 0),
                            tcount_content(c4m_nt_case, 1, max_nodes, 0),
                            tcount_content(c4m_nt_else, 0, 1, 1));
+    c4m_elif_branches     = tmatch(nt_any,
+                               0,
+                               tcontent(c4m_nt_cmp, 0),
+                               tcontent(c4m_nt_body, 0),
+                               tcount_content(c4m_nt_elif, 0, max_nodes, 1),
+                               tcount_content(c4m_nt_else, 0, 1, 0));
+    c4m_else_condition    = tmatch(nt_any,
+                                0,
+                                tcontent(c4m_nt_cmp, 0),
+                                tcontent(c4m_nt_body, 0),
+                                tcount_content(c4m_nt_elif, 0, max_nodes, 0),
+                                tcount_content(c4m_nt_else, 0, 1, 1));
 
     c4m_gc_register_root(&c4m_first_kid_id, 1);
     c4m_gc_register_root(&c4m_enum_items, 1);
@@ -153,6 +167,8 @@ setup_treematch_patterns()
     c4m_gc_register_root(&c4m_loop_vars, 1);
     c4m_gc_register_root(&c4m_case_branches, 1);
     c4m_gc_register_root(&c4m_case_else, 1);
+    c4m_gc_register_root(&c4m_elif_branches, 1);
+    c4m_gc_register_root(&c4m_else_condition, 1);
 }
 
 c4m_obj_t

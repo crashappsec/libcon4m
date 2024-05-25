@@ -9,3 +9,5 @@ switch x {
     else:
         y = -1
   }
+
+y *= 2

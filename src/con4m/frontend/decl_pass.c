@@ -319,9 +319,8 @@ handle_enum_decl(pass1_ctx *ctx)
         c4m_merge_types(inferred_type, c4m_tspec_utf8());
     }
     else {
-        c4m_type_t *ty = validate_int_enum_vals(ctx, items);
+        /*c4m_type_t *ty = */ validate_int_enum_vals(ctx, items);
         // TODO: fix this to cooerce properly.
-        c4m_print(inferred_type);
         c4m_merge_types(inferred_type, c4m_tspec_i64());
     }
 
@@ -892,6 +891,7 @@ extract_fn_sig_info(pass1_ctx       *ctx,
 
     // Allocate space for parameters by counting how many variable
     // names we find.
+
     for (int i = 0; i < ndecls; i++) {
         c4m_tree_node_t *node  = c4m_xlist_get(decls, i, NULL);
         int              kidct = c4m_tree_get_number_children(node);
@@ -911,6 +911,8 @@ extract_fn_sig_info(pass1_ctx       *ctx,
     info           = new_sig_info(nparams);
     info->fn_scope = c4m_new_scope(ctx->file_ctx->module_scope,
                                    C4M_SCOPE_LOCAL);
+    info->formals  = c4m_new_scope(ctx->file_ctx->module_scope,
+                                  C4M_SCOPE_FORMALS);
 
     // Now, we loop through the parameter trees again. In function
     // declarations, named variables with omitted types are given a
@@ -918,9 +920,10 @@ extract_fn_sig_info(pass1_ctx       *ctx,
     // values get a type variable.
 
     for (int i = 0; i < ndecls; i++) {
-        c4m_tree_node_t *node  = c4m_xlist_get(decls, i, NULL);
-        int              kidct = c4m_tree_get_number_children(node);
-        c4m_type_t      *type  = NULL;
+        c4m_tree_node_t *node     = c4m_xlist_get(decls, i, NULL);
+        int              kidct    = c4m_tree_get_number_children(node);
+        c4m_type_t      *type     = NULL;
+        bool             got_type = false;
 
         if (kidct > 1) {
             c4m_tree_node_t *kid   = c4m_tree_get_child(node, kidct - 1);
@@ -929,6 +932,7 @@ extract_fn_sig_info(pass1_ctx       *ctx,
             if (pnode->kind != c4m_nt_identifier) {
                 type = c4m_node_to_type(ctx->file_ctx, kid, NULL);
                 kidct--;
+                got_type = true;
             }
         }
 
@@ -940,10 +944,22 @@ extract_fn_sig_info(pass1_ctx       *ctx,
             pi->type                 = c4m_tspec_typevar();
 
             declare_sym(ctx,
-                        info->fn_scope,
+                        info->formals,
                         pi->name,
                         kid,
                         sk_formal,
+                        NULL,
+                        true);
+
+            // Redeclare in the 'actual' scope. If there's a declared
+            // type this won't get it; it will be fully inferred, and
+            // then we'll compare against the declared type at the
+            // end.
+            declare_sym(ctx,
+                        info->fn_scope,
+                        pi->name,
+                        kid,
+                        sk_variable,
                         NULL,
                         true);
 
@@ -960,32 +976,70 @@ extract_fn_sig_info(pass1_ctx       *ctx,
         pi->name                 = node_text(kid);
         pi->type                 = type;
 
+        c4m_scope_entry_t *formal = declare_sym(ctx,
+                                                info->formals,
+                                                pi->name,
+                                                kid,
+                                                sk_formal,
+                                                NULL,
+                                                true);
+
+        formal->type = type;
+        if (got_type) {
+            formal->flags |= C4M_F_TYPE_IS_DECLARED;
+        }
+
         declare_sym(ctx,
                     info->fn_scope,
                     pi->name,
                     kid,
-                    sk_formal,
+                    sk_variable,
                     NULL,
                     true);
 
-        c4m_xlist_append(ptypes, pi->type);
+        c4m_xlist_append(ptypes, pi->type ? pi->type : c4m_tspec_typevar());
     }
 
     c4m_tree_node_t *retnode = get_match_on_node(tree, c4m_return_extract);
 
-    if (!retnode) {
-        info->return_info.type = c4m_tspec_typevar();
-    }
-    else {
+    c4m_scope_entry_t *formal = declare_sym(ctx,
+                                            info->formals,
+                                            c4m_new_utf8("$result"),
+                                            retnode,
+                                            sk_formal,
+                                            NULL,
+                                            true);
+    if (retnode) {
         info->return_info.type = c4m_node_to_type(ctx->file_ctx,
                                                   retnode,
                                                   NULL);
+        formal->type           = info->return_info.type;
+        formal->flags |= C4M_F_TYPE_IS_DECLARED;
     }
+    else {
+        formal->type = c4m_tspec_typevar();
+    }
+
+    declare_sym(ctx,
+                info->fn_scope,
+                c4m_new_utf8("$result"),
+                ctx->cur_tnode,
+                sk_variable,
+                NULL,
+                true);
 
     // Now fill out the 'local_type' field of the ffi decl.
     // TODO: support varargs.
-    info->full_type = c4m_tspec_fn(info->return_info.type, ptypes, false);
+    //
+    // Note that this will get replaced once we do some checking.
 
+    c4m_type_t *ret_for_sig = info->return_info.type;
+
+    if (!ret_for_sig) {
+        ret_for_sig = c4m_tspec_typevar();
+    }
+
+    info->full_type = c4m_tspec_fn(ret_for_sig, ptypes, false);
     return info;
 }
 
@@ -1013,15 +1067,18 @@ handle_func_decl(pass1_ctx *ctx)
                       true);
 
     if (sym) {
-        sym->type         = decl->signature_info->full_type;
-        ctx->static_scope = decl->signature_info->fn_scope;
-        sym->value        = (void *)decl;
+        sym->type  = decl->signature_info->full_type;
+        sym->value = (void *)decl;
     }
+
+    ctx->static_scope = decl->signature_info->fn_scope;
 
     c4m_pnode_t *pnode = get_pnode(tnode);
     pnode->value       = (c4m_obj_t)sym;
 
+    node_down(ctx, tnode->num_kids - 1);
     process_children(ctx);
+    node_up(ctx);
 }
 
 static void

@@ -815,7 +815,8 @@ unify_tv_with_concrete_type(c4m_type_t     *t1,
         type_log("unify(t1, t2)", t2);
         return t2;
     case C4M_DT_KIND_nil:
-        unreachable();
+        t1->fw = t2->typeid;
+        return t2;
     default:
         break;
     }
@@ -886,8 +887,6 @@ c4m_unify(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
     if (c4m_is_partial_type(t1) || c4m_is_partial_type(t2)) {
         abort();
     }
-    type_log("t1", t1);
-    type_log("t2", t2);
 
     // This is going to re-check the structure, just to cover any
     // cases where we didn't or couldn't update it before.
@@ -900,6 +899,9 @@ c4m_unify(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
     if (c4m_tspec_is_concrete(t2)) {
         type_rehash(t2, env);
     }
+
+    type_log("t1", t1);
+    type_log("t2", t2);
 
     if (t1->typeid == t2->typeid) {
         type_log("unify(t1, t2)", t1);
@@ -980,8 +982,18 @@ unify_sub_nodes:
                            c4m_kw("length", c4m_ka(num_params)));
 
         for (int i = 0; i < num_params; i++) {
-            sub1       = c4m_xlist_get(p1, i, NULL);
-            sub2       = c4m_xlist_get(p2, i, NULL);
+            sub1 = c4m_xlist_get(p1, i, NULL);
+            sub2 = c4m_xlist_get(p2, i, NULL);
+
+            if (sub1 == NULL) {
+                sub1 = c4m_tspec_typevar();
+                c4m_xlist_set(p1, i, sub1);
+            }
+            if (sub2 == NULL) {
+                sub2 = c4m_tspec_typevar();
+                c4m_xlist_set(p1, i, sub2);
+            }
+
             sub_result = c4m_unify(sub1, sub2, env);
 
             if (c4m_tspec_is_error(sub_result)) {
@@ -1009,7 +1021,7 @@ unify_sub_nodes:
         }
         // Actuals will never be varargs, so if we have two vararg
         // functions, it's only because we're trying to unify two formals.
-        if ((t1->details->flags ^ t2->details->flags) & C4M_FN_TY_VARARGS) {
+        if (!((t1->details->flags & t2->details->flags) & C4M_FN_TY_VARARGS)) {
             if (f1_params != f2_params) {
                 type_log("unify(t1, t2)", type_error());
                 return type_error();
@@ -1055,8 +1067,16 @@ unify_sub_nodes:
         }
 
         // This checks the return type.
-        sub1       = c4m_xlist_get(p1, f1_params - 1, NULL);
-        sub2       = c4m_xlist_get(p2, f2_params - 1, NULL);
+        sub1 = c4m_xlist_get(p1, f1_params - 1, NULL);
+        sub2 = c4m_xlist_get(p2, f2_params - 1, NULL);
+
+        if (!sub1) {
+            sub1 = c4m_tspec_void();
+        }
+        if (!sub2) {
+            sub2 = c4m_tspec_void();
+        }
+
         sub_result = c4m_unify(sub1, sub2, env);
 
         if (c4m_tspec_is_error(sub_result)) {
@@ -1392,7 +1412,10 @@ first_loop_start:
     c4m_xlist_append(to_join, c4m_get_arrow_const());
 
     subnode = c4m_xlist_get(info->items, num_types - 1, NULL);
-    substr  = internal_type_repr(subnode, memos, nexttv);
+
+    if (subnode) {
+        substr = internal_type_repr(subnode, memos, nexttv);
+    }
 
     c4m_xlist_append(to_join, substr);
 
