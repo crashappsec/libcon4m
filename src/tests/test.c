@@ -13,6 +13,37 @@ C4M_STATIC_ASCII_STR(str_test,
 c4m_stream_t *sout;
 c4m_stream_t *serr;
 
+static void
+collect_and_print_stats()
+{
+    uint64_t used, available, total, live;
+    uint64_t allocs_pre, allocs_post;
+
+    c4m_gc_heap_stats(&used, &available, &total);
+    allocs_pre = get_alloc_counter();
+    c4m_gc_thread_collect();
+    c4m_gc_heap_stats(&live, NULL, NULL);
+    allocs_post = get_alloc_counter();
+
+    c4m_print(
+        c4m_cstr_format(
+            "[b]Heap Usage:[/] [em]{:,} kb[/] of [i]{:,} kb[/] ({:,} kb free)",
+            c4m_box_u64(used / 1024),
+            c4m_box_u64(total / 1024),
+            c4m_box_u64(available / 1024)));
+    c4m_print(
+        c4m_cstr_format(
+            "[b][i] Copied [em]{:,}[/] allocation records. "
+            "Trashed [em]{:,}[/] records.",
+            c4m_box_u64(allocs_post),
+            c4m_box_u64(allocs_pre - allocs_post)));
+    c4m_print(
+        c4m_cstr_format(
+            "[b]New Usage:[/] [em]{:,} kb[/] ([i]{} kb[/] collected)",
+            c4m_box_u64(live / 1024),
+            c4m_box_u64((used - live) / 1024)));
+}
+
 void
 test1()
 {
@@ -81,7 +112,7 @@ test1()
 
     printf("\n");
 
-    c4m_gc_thread_collect();
+    collect_and_print_stats();
 
     printf("s is now at: %p\n Let's render s again.\n", s);
     c4m_ansi_render(s, sout);
@@ -157,7 +188,7 @@ test2()
     c4m_ansi_render(dump2, serr);
 
     c4m_ansi_render_to_width(to_wrap, term_width, 0, sout);
-    c4m_gc_thread_collect();
+    collect_and_print_stats();
     return to_wrap;
 }
 
@@ -240,7 +271,7 @@ test4()
         c4m_ansi_render((c4m_str_t *)(view[i].key), serr);
     }
 
-    c4m_gc_thread_collect();
+    collect_and_print_stats();
 }
 
 void
@@ -792,4 +823,6 @@ main(int argc, char **argv, char **envp)
            (void *)bottom,
            (unsigned long long)q);
 #endif
+
+    collect_and_print_stats();
 }

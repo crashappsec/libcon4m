@@ -19,6 +19,14 @@ static uint64_t                  page_bytes;
 static uint64_t                  page_modulus;
 static uint64_t                  modulus_mask;
 
+#ifdef C4M_ALLOC_STATS
+uint64_t
+get_alloc_counter()
+{
+    return current_heap->alloc_counter;
+}
+#endif
+
 static void
 c4m_get_stack_bounds(uint64_t *top, uint64_t *bottom)
 {
@@ -50,6 +58,26 @@ c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom)
     uint64_t local = 0;
     c4m_get_stack_bounds(top, bottom);
     *top = (uint64_t)(&local);
+}
+
+void
+c4m_gc_heap_stats(uint64_t *used, uint64_t *available, uint64_t *total)
+{
+    uint64_t start = (uint64_t)current_heap;
+    uint64_t end   = (uint64_t)current_heap->heap_end;
+    uint64_t cur   = (uint64_t)current_heap->next_alloc;
+
+    if (used != NULL) {
+        *used = cur - start;
+    }
+
+    if (available != NULL) {
+        *available = end - cur;
+    }
+
+    if (total != NULL) {
+        *total = end - start;
+    }
 }
 
 static void *
@@ -101,7 +129,7 @@ c4m_initialize_gc()
 }
 
 static void *
-raw_arena_alloc(uint64_t len)
+raw_arena_alloc(uint64_t len, void **end)
 {
     if (len & page_modulus) {
         len = (len & modulus_mask) + page_bytes;
@@ -120,6 +148,8 @@ raw_arena_alloc(uint64_t len)
 
     mprotect(full_alloc, page_bytes, PROT_NONE);
     mprotect(guard, page_bytes, PROT_NONE);
+
+    *end = guard;
 
     c4m_gc_trace("arena:mmap:@%p-@%p:%llu", ret, ret + len, len);
 
@@ -140,7 +170,8 @@ c4m_expand_arena(size_t num_words, c4m_arena_t **cur_ptr)
         num_words  = allocation >> 3;
     }
 
-    c4m_arena_t *new_arena = raw_arena_alloc(allocation);
+    void        *arena_end;
+    c4m_arena_t *new_arena = raw_arena_alloc(allocation, &arena_end);
 
     uint64_t arena_id = atomic_fetch_add(&num_arenas, 1);
     // Really this creates another linked arena. We'll call it
@@ -150,7 +181,7 @@ c4m_expand_arena(size_t num_words, c4m_arena_t **cur_ptr)
 
     new_arena->next_alloc     = (c4m_alloc_hdr *)new_arena->data;
     new_arena->previous       = current;
-    new_arena->heap_end       = (uint64_t *)(&(new_arena->data[num_words]));
+    new_arena->heap_end       = arena_end;
     new_arena->arena_id       = arena_id;
     new_arena->late_mutations = calloc(sizeof(queue_t), 1);
 
@@ -349,9 +380,10 @@ update_traced_pointer(uint64_t **addr, uint64_t **expected, uint64_t *new)
 static inline c4m_alloc_hdr *
 header_scan(uint64_t *ptr, uint64_t *stop_location, uint64_t *offset)
 {
-    // First go back by the length of an alloc_hdr, as this is the
-    // earliest we would find a guard.
-    uint64_t *p = ptr;
+    uint64_t *p = (uint64_t *)(((uint64_t)ptr) & ~0x000000000000000f);
+
+    // First header is always at least a full word behind the pointer.
+    --p;
 
     while (p >= stop_location) {
         if (*p == c4m_gc_guard) {
@@ -363,10 +395,10 @@ header_scan(uint64_t *ptr, uint64_t *stop_location, uint64_t *offset)
                          result->data,
                          (int)(((char *)result->next_addr) - (char *)result->data),
                          (int)(((char *)result->next_addr) - (char *)result));
+            *offset = ((uint64_t)ptr) - ((uint64_t)p);
             return result;
         }
         p -= 1;
-        *offset = *offset - 1;
     }
     fprintf(stderr,
             "Corrupted heap; could not find an allocation record for "
@@ -435,9 +467,9 @@ process_traced_pointer(uint64_t   **addr,
     uint64_t len = sizeof(uint64_t) * (uint64_t)(hdr->next_addr - hdr->data);
 
 #ifdef ALLOW_POINTER_MAPS
-    uint64_t *forward = c4m_alloc_from_arena(&new_arena, len, hdr->ptr_map);
+    uint64_t *forward = c4m_alloc_from_arena(&new_arena, len / 8, hdr->ptr_map);
 #else
-    uint64_t *forward = c4m_alloc_from_arena(&new_arena, len, GC_SCAN_ALL);
+    uint64_t *forward = c4m_alloc_from_arena(&new_arena, len / 8, GC_SCAN_ALL);
 #endif
 
     // Forward before we descend.
@@ -445,10 +477,11 @@ process_traced_pointer(uint64_t   **addr,
     uint64_t *new_ptr = forward + (ptr - hdr->data);
 
     c4m_gc_trace(
-        "needs_fw:ptr:@%p:new_ptr:@%p:record:@%p:@newrecord:@%p"
-        "tospace:@%p",
+        "needs_fw:ptr:@%p:new_ptr:@%p:len:%llx:record:@%p:@newrecord:@%p"
+        ":tospace:@%p",
         ptr,
         new_ptr,
+        len,
         hdr,
         &(((c4m_alloc_hdr *)forward)[-1]),
         new_arena);
@@ -456,6 +489,10 @@ process_traced_pointer(uint64_t   **addr,
     update_traced_pointer(addr, (uint64_t **)ptr, new_ptr);
 
     update_internal_allocation_pointers(hdr, start, end, new_arena);
+
+#ifdef C4M_ALLOC_STATS
+    new_arena->alloc_counter++;
+#endif
 
     memcpy(forward, hdr->data, len);
     atomic_store(&hdr->flags,
