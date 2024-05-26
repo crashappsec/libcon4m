@@ -14,14 +14,15 @@ typedef enum : int8_t {
 } c4m_symbol_kind;
 
 enum {
-    C4M_F_HAS_INITIALIZER  = 1,
-    C4M_F_DECLARED_CONST   = 2,
-    C4M_F_IS_DECLARED      = 4,
-    C4M_F_TYPE_IS_DECLARED = 8,
+    C4M_F_HAS_INITIALIZER  = 0x01,
+    C4M_F_DECLARED_CONST   = 0x02,
+    C4M_F_DECLARED_LET     = 0x04,
+    C4M_F_IS_DECLARED      = 0x08,
+    C4M_F_TYPE_IS_DECLARED = 0x10,
     // 'const' means user immutable not static. This is for iteration
     // variables on loops, etc.
-    C4M_F_USER_IMMUTIBLE   = 0x10,
-    C4M_F_FN_PASS_DONE     = 0x20,
+    C4M_F_USER_IMMUTIBLE   = 0x20,
+    C4M_F_FN_PASS_DONE     = 0x40,
 };
 
 typedef enum c4m_scope_kind {
@@ -104,6 +105,7 @@ typedef struct {
     c4m_sig_info_t        *signature_info;
     struct c4m_cfg_node_t *cfg;
     unsigned int private : 1;
+    unsigned int once    : 1;
 } c4m_fn_decl_t;
 
 typedef struct {

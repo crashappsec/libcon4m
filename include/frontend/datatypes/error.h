@@ -49,6 +49,7 @@ typedef enum {
     c4m_err_parse_1_item_tuple,
     c4m_err_parse_decl_kw_x2,
     c4m_err_parse_decl_2_scopes,
+    c4m_err_parse_decl_const_not_const,
     c4m_err_parse_case_else_or_end,
     c4m_err_parse_case_body_start,
     c4m_err_parse_empty_enum,
@@ -155,6 +156,7 @@ typedef enum {
     c4m_warn_unused_param,
     c4m_warn_def_without_use,
     c4m_err_call_type_err,
+    c4m_err_single_def,
     c4m_err_last,
 
 } c4m_compile_error_t;

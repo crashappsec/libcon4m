@@ -986,7 +986,7 @@ do_recursive_if(pass2_ctx *ctx, condition_chain_t *info, int cond)
         do_recursive_if(ctx, info + 1, cond + 1);
     }
 
-    ctx->cfg = c4m_cfg_exit_block(ctx->cfg, info->condition_node);
+    c4m_cfg_exit_block(ctx->cfg, info->condition_node);
 
     return;
 }
@@ -1037,7 +1037,11 @@ handle_if(pass2_ctx *ctx)
     chain[l].body_node      = get_match_on_node(saved, c4m_else_condition);
     chain[l].condition_node = NULL;
 
+    c4m_cfg_node_t *enter = c4m_cfg_enter_block(ctx->cfg, saved);
+    ctx->cfg              = enter;
     do_recursive_if(ctx, chain, 1);
+    c4m_cfg_exit_block(ctx->cfg, saved);
+    ctx->cfg = c4m_cfg_exit_node(enter);
 }
 
 static void
@@ -1229,7 +1233,7 @@ handle_for(pass2_ctx *ctx)
     // This sets up an empty block for the code that runs when the
     // loop condition is false.
     ctx->cfg = c4m_cfg_enter_block(ctx->cfg, n);
-    ctx->cfg = c4m_cfg_exit_block(ctx->cfg, n);
+    c4m_cfg_exit_block(ctx->cfg, n);
 
     // Here, it's time to clean up. We need to reset the tree and the
     // loop stack, and remove our iteration variable(s) from the
@@ -1339,7 +1343,7 @@ handle_while(pass2_ctx *ctx)
     ctx->node = n->children[expr_ix];
 
     base_check_pass_dispatch(ctx);
-    ctx->cfg = c4m_cfg_exit_block(ctx->cfg, n);
+    c4m_cfg_exit_block(ctx->cfg, n);
 
     next_branch(ctx, branch);
 
@@ -1460,7 +1464,7 @@ handle_typeof_statement(pass2_ctx *ctx)
             ctx->cfg = c4m_cfg_enter_block(ctx->cfg, ctx->node);
 
             base_check_pass_dispatch(ctx);
-            ctx->cfg = c4m_cfg_exit_block(ctx->cfg, ctx->node);
+            c4m_cfg_exit_block(ctx->cfg, ctx->node);
         }
 
         next_branch(ctx, cfgbranch);
@@ -1470,13 +1474,12 @@ handle_typeof_statement(pass2_ctx *ctx)
             ctx->cfg  = c4m_cfg_enter_block(ctx->cfg, ctx->node);
 
             base_check_pass_dispatch(ctx);
-            ctx->cfg = c4m_cfg_exit_block(ctx->cfg, ctx->node);
+            c4m_cfg_exit_block(ctx->cfg, ctx->node);
         }
         else {
             // Dummy CFG node for when we don't match any case.
             ctx->cfg = c4m_cfg_enter_block(ctx->cfg, saved);
-
-            ctx->cfg = c4m_cfg_exit_block(ctx->cfg, saved);
+            c4m_cfg_exit_block(ctx->cfg, saved);
         }
 
         ctx->cfg  = c4m_cfg_exit_node(entrance);
@@ -1563,7 +1566,7 @@ handle_switch_statement(pass2_ctx *ctx)
         ctx->cfg  = c4m_cfg_enter_block(ctx->cfg, ctx->node);
 
         base_check_pass_dispatch(ctx);
-        ctx->cfg = c4m_cfg_exit_block(ctx->cfg, ctx->node);
+        c4m_cfg_exit_block(ctx->cfg, ctx->node);
     }
     else {
         // Dummy CFG node for when we don't match any case.
@@ -2168,6 +2171,34 @@ check_user_decl(fn_check_ctx *ctx)
                         ctx->sym->declaration_node,
                         ctx->sym->name);
     }
+
+    uint64_t flags = ctx->sym->flags;
+
+    if (ctx->num_defs > 1 && (flags & (C4M_F_DECLARED_LET | C4M_F_DECLARED_CONST))) {
+        c4m_utf8_t *var_kind;
+        if (flags & C4M_F_DECLARED_LET) {
+            var_kind = c4m_new_utf8("let");
+        }
+        else {
+            var_kind = c4m_new_utf8("const");
+        }
+
+        c4m_tree_node_t *first_def = c4m_xlist_get(ctx->sym->sym_defs,
+                                                   0,
+                                                   NULL);
+
+        for (int i = 1; i < ctx->num_defs; i++) {
+            c4m_tree_node_t *bad_def = c4m_xlist_get(ctx->sym->sym_defs,
+                                                     1,
+                                                     NULL);
+
+            c4m_add_error(ctx->pass_ctx->file_ctx,
+                          c4m_err_single_def,
+                          bad_def,
+                          var_kind,
+                          c4m_node_get_loc_str(first_def));
+        }
+    }
 }
 
 static void
@@ -2251,7 +2282,11 @@ check_module_toplevel(pass2_ctx *ctx)
     use_context_enter(ctx);
     check_pass_toplevel_dispatch(ctx);
     def_use_context_exit(ctx);
-    ctx->cfg = c4m_cfg_exit_block(ctx->cfg, ctx->file_ctx->parse_tree);
+
+    // TODO: Check symbol rules for let / const for module level symbols.
+    // If we're the topmost scope w/ a global, make sure it's defined at the module
+    // level, and if it's not, give a warning saying we're going to use a default
+    // initializer.
 }
 
 static void
@@ -2273,8 +2308,6 @@ process_function_definitions(pass2_ctx *ctx)
         ctx->node = fn_root->children[fn_root->num_kids - 1];
         process_children(ctx);
         def_use_context_exit(ctx);
-        ctx->cfg = c4m_cfg_exit_block(ctx->cfg, ctx->node);
-
         check_function(ctx, sym);
 
         sym->flags = sym->flags | C4M_F_FN_PASS_DONE;

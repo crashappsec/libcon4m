@@ -287,6 +287,14 @@ static error_info_t error_info[] = {
         "Invalid declaration; cannot be both global and local ([em]var[/])",
         false,
     },
+    [c4m_err_parse_decl_const_not_const] = {
+        c4m_err_parse_decl_const_not_const,
+        "const_not_const",
+        "Cannot declare variables to be both "
+        "[em]once[/] (each instantiation can be set dynamically once) and "
+        "[em]const[/] (must have a value that can be fully computed before running).",
+        false,
+    },
     [c4m_err_parse_case_else_or_end] = {
         c4m_err_parse_case_else_or_end,
         "case_else_or_end",
@@ -987,6 +995,13 @@ static error_info_t error_info[] = {
         "call_type_err",
         "Type inferred at call site ([em]{}[/]) is not compatiable with "
         "the implementated type ([em]{}[/]).",
+        true,
+    },
+    [c4m_err_single_def] = {
+        c4m_err_single_def,
+        "single_def",
+        "Variable declared using [em]{}[/] may only be assigned in a single "
+        "location. The first declaration is: [i]{}[/]",
         true,
     },
     [c4m_err_last] = {

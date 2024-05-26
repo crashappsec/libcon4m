@@ -45,6 +45,8 @@ typedef enum {
     c4m_nt_enum_item,
     c4m_nt_identifier,
     c4m_nt_func_def,
+    c4m_nt_func_mods,
+    c4m_nt_func_mod,
     c4m_nt_formals,
     c4m_nt_varargs_param,
     c4m_nt_member,

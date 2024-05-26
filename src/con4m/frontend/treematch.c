@@ -17,9 +17,11 @@ tcmp(int64_t kind_as_64, c4m_tree_node_t *node)
 }
 
 c4m_tpat_node_t *c4m_first_kid_id = NULL;
+c4m_tpat_node_t *c4m_2nd_kid_id;
 c4m_tpat_node_t *c4m_enum_items;
 c4m_tpat_node_t *c4m_member_prefix;
 c4m_tpat_node_t *c4m_member_last;
+c4m_tpat_node_t *c4m_func_mods;
 c4m_tpat_node_t *c4m_use_uri;
 c4m_tpat_node_t *c4m_extern_params;
 c4m_tpat_node_t *c4m_extern_return;
@@ -51,6 +53,11 @@ setup_treematch_patterns()
                               0,
                               tmatch(c4m_nt_identifier, 1),
                               tcount_content(nt_any, 0, max_nodes, 0));
+    c4m_2nd_kid_id    = tmatch(nt_any,
+                            0,
+                            tcontent(nt_any, 0),
+                            tmatch(c4m_nt_identifier, 1),
+                            tcount_content(nt_any, 0, max_nodes, 0));
     // Skips the identifier if there, and returns all the enum items,
     // regardless of the subtree shape.
     c4m_enum_items    = tmatch(nt_any,
@@ -68,15 +75,16 @@ setup_treematch_patterns()
                               0,
                               tcount(c4m_nt_identifier, 0, max_nodes, 1),
                               tmatch(c4m_nt_identifier, 0));
-
-    c4m_extern_params = tfind(
-        c4m_nt_extern_sig,
-        0,
-        tcount_content(c4m_nt_extern_param, 0, max_nodes, 1),
-        tcount_content(c4m_nt_lit_tspec_return_type,
-                       0,
-                       1,
-                       0));
+    c4m_func_mods     = tfind(c4m_nt_func_mods,
+                          0,
+                          tcount(c4m_nt_func_mod, 0, max_nodes, 1));
+    c4m_extern_params = tfind(c4m_nt_extern_sig,
+                              0,
+                              tcount_content(c4m_nt_extern_param, 0, max_nodes, 1),
+                              tcount_content(c4m_nt_lit_tspec_return_type,
+                                             0,
+                                             1,
+                                             0));
     c4m_extern_return = tfind(
         c4m_nt_extern_sig,
         0,
@@ -147,9 +155,11 @@ setup_treematch_patterns()
                                 tcount_content(c4m_nt_else, 0, 1, 1));
 
     c4m_gc_register_root(&c4m_first_kid_id, 1);
+    c4m_gc_register_root(&c4m_2nd_kid_id, 1);
     c4m_gc_register_root(&c4m_enum_items, 1);
     c4m_gc_register_root(&c4m_member_prefix, 1);
     c4m_gc_register_root(&c4m_member_last, 1);
+    c4m_gc_register_root(&c4m_func_mods, 1);
     c4m_gc_register_root(&c4m_use_uri, 1);
     c4m_gc_register_root(&c4m_extern_params, 1);
     c4m_gc_register_root(&c4m_extern_return, 1);

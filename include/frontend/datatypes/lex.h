@@ -57,6 +57,8 @@ typedef enum {
     c4m_tt_var,
     c4m_tt_global,
     c4m_tt_const,
+    c4m_tt_once,
+    c4m_tt_let,
     c4m_tt_private,
     c4m_tt_backtick,
     c4m_tt_arrow,

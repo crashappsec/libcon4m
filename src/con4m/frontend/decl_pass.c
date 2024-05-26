@@ -353,6 +353,7 @@ handle_var_decl(pass1_ctx *ctx)
     c4m_xlist_t     *quals     = apply_pattern_on_node(n,
                                                c4m_qualifier_extract);
     bool             is_const  = false;
+    bool             is_let    = false;
     bool             is_global = false;
     c4m_scope_t     *scope;
 
@@ -365,6 +366,8 @@ handle_var_decl(pass1_ctx *ctx)
         case 'c':
             is_const = true;
             continue;
+        case 'l':
+            is_let = true;
         default:
             continue;
         }
@@ -409,6 +412,9 @@ handle_var_decl(pass1_ctx *ctx)
 
                 if (is_const) {
                     sym->flags |= C4M_F_DECLARED_CONST;
+                }
+                if (is_let) {
+                    sym->flags |= C4M_F_DECLARED_LET;
                 }
 
                 if (init != NULL && j + 1 == c4m_xlist_len(var_names)) {
@@ -1046,16 +1052,26 @@ extract_fn_sig_info(pass1_ctx       *ctx,
 static void
 handle_func_decl(pass1_ctx *ctx)
 {
+    // YOU ARE HERE- HANDLE `ONCE` modifier.
     c4m_tree_node_t   *tnode = cur_node(ctx);
     c4m_fn_decl_t     *decl  = c4m_gc_alloc(c4m_fn_decl_t);
-    c4m_utf8_t        *name  = node_text(get_match(ctx, c4m_first_kid_id));
+    c4m_utf8_t        *name  = node_text(get_match(ctx, c4m_2nd_kid_id));
+    c4m_xlist_t       *mods  = apply_pattern(ctx, c4m_func_mods);
+    int                nmods = c4m_xlist_len(mods);
     c4m_scope_entry_t *sym;
 
     decl->signature_info = extract_fn_sig_info(ctx, cur_node(ctx));
 
-    // test to see if it's private.
-    if (node_text(tnode)->data[0] == 'p') {
-        decl->private = 1;
+    for (int i = 0; i < nmods; i++) {
+        c4m_tree_node_t *mod_node = c4m_xlist_get(mods, i, NULL);
+        switch (node_text(mod_node)->data[0]) {
+        case 'p':
+            decl->private = 1;
+            break;
+        default:
+            decl->once = 1;
+            break;
+        }
     }
 
     sym = declare_sym(ctx,

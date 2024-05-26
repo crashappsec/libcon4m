@@ -406,11 +406,14 @@ c4m_format_scope(c4m_scope_t *scope)
         }
 
         c4m_type_t *symtype = c4m_get_sym_type(entry);
-        symtype             = c4m_resolve_type_aliases(symtype, c4m_global_type_env);
+        symtype             = c4m_resolve_type_aliases(symtype,
+                                           c4m_global_type_env);
 
         c4m_xlist_append(row,
                          c4m_cstr_format("[em]{} [/][i]({})",
-                                         internal_type_repr(symtype, memos, &nexttid),
+                                         internal_type_repr(symtype,
+                                                            memos,
+                                                            &nexttid),
                                          kind));
 
         if (c4m_sym_is_declared_const(entry)) {

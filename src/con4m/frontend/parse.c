@@ -253,7 +253,9 @@ static const node_type_info_t node_type_info[] = {
     { "nt_global_enum", 0, 0, 0, 0, 0, },
     { "nt_enum_item", 1, 0, 0, 0, 0, },
     { "nt_identifier", 1, 1, 0, 0, 0, },
-    { "nt_func_def", 1, 0, 0, 1, 0, },
+    { "nt_func_def", 0, 0, 0, 1, 0, },
+    { "nt_func_mods", 0, 0, 0, 0, 0, },
+    { "nt_func_mod", 1, 0, 0, 0, 0, },
     { "nt_formals", 0, 0, 0, 0, 0, },
     { "nt_varargs_param", 0, 0, 0, 0, 0, },
     { "nt_member", 0, 0, 0, 0, 0, },
@@ -1716,6 +1718,7 @@ case_body(parse_ctx *ctx)
             case c4m_tt_enum:
                 err_skip_stmt(ctx, c4m_err_parse_enums_are_toplevel);
                 continue;
+            case c4m_tt_once:
             case c4m_tt_private:
             case c4m_tt_func:
                 err_skip_stmt(ctx, c4m_err_parse_funcs_are_toplevel);
@@ -1750,6 +1753,7 @@ case_body(parse_ctx *ctx)
             case c4m_tt_global:
             case c4m_tt_var:
             case c4m_tt_const:
+            case c4m_tt_let:
                 variable_decl(ctx);
                 end_of_statement(ctx);
                 continue;
@@ -2111,16 +2115,46 @@ finish_formals:
 static void
 func_def(parse_ctx *ctx)
 {
-    if (tok_kind(ctx) == c4m_tt_private) {
-        start_node(ctx, c4m_nt_func_def, true);
-        if (!expect(ctx, c4m_tt_func)) {
-            THROW('!');
+    bool got_private = false;
+    bool got_once    = false;
+
+    start_node(ctx, c4m_nt_func_def, false);
+    start_node(ctx, c4m_nt_func_mods, false);
+
+    while (true) {
+        switch (tok_kind(ctx)) {
+        case c4m_tt_private:
+            if (got_private) {
+                err_skip_stmt(ctx, c4m_err_parse_decl_kw_x2);
+                return;
+            }
+
+            start_node(ctx, c4m_nt_func_mod, true);
+            end_node(ctx);
+            got_private = true;
+            continue;
+
+        case c4m_tt_once:
+            if (got_once) {
+                err_skip_stmt(ctx, c4m_err_parse_decl_kw_x2);
+                return;
+            }
+
+            start_node(ctx, c4m_nt_func_mod, true);
+            end_node(ctx);
+            got_once = true;
+            continue;
+        case c4m_tt_func:
+            consume(ctx);
+            break;
+        default:
+            expect(ctx, c4m_tt_func);
+            return;
         }
-    }
-    else {
-        start_node(ctx, c4m_nt_func_def, true);
+        break;
     }
 
+    end_node(ctx);
     ctx->in_function = true;
     identifier(ctx);
     formal_list(ctx);
@@ -2143,6 +2177,7 @@ variable_decl(parse_ctx *ctx)
     bool got_var    = false;
     bool got_global = false;
     bool got_const  = false;
+    bool got_let    = false;
 
     start_node(ctx, c4m_nt_variable_decls, false);
     start_node(ctx, c4m_nt_decl_qualifiers, false);
@@ -2169,6 +2204,16 @@ variable_decl(parse_ctx *ctx)
             }
             got_global = true;
             break;
+        case c4m_tt_let:
+            start_node(ctx, c4m_nt_identifier, true);
+            end_node(ctx);
+            if (got_let) {
+                end_node(ctx);
+                err_skip_stmt(ctx, c4m_err_parse_decl_kw_x2);
+                return c4m_nt_error;
+            }
+            got_let = true;
+            break;
         case c4m_tt_const:
             start_node(ctx, c4m_nt_identifier, true);
             end_node(ctx);
@@ -2190,6 +2235,12 @@ done_with_qualifiers:
     if (got_var && got_global) {
         end_node(ctx);
         err_skip_stmt(ctx, c4m_err_parse_decl_2_scopes);
+        return c4m_nt_error;
+    }
+
+    if (got_const && got_let) {
+        end_node(ctx);
+        err_skip_stmt(ctx, c4m_err_parse_decl_const_not_const);
         return c4m_nt_error;
     }
 
@@ -3738,6 +3789,7 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
             case c4m_tt_enum:
                 err_skip_stmt(ctx, c4m_err_parse_enums_are_toplevel);
                 continue;
+            case c4m_tt_once:
             case c4m_tt_private:
             case c4m_tt_func:
                 err_skip_stmt(ctx, c4m_err_parse_funcs_are_toplevel);
@@ -3772,6 +3824,7 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
             case c4m_tt_global:
             case c4m_tt_var:
             case c4m_tt_const:
+            case c4m_tt_let:
                 variable_decl(ctx);
                 end_of_statement(ctx);
                 continue;
@@ -3925,6 +3978,7 @@ module(parse_ctx *ctx)
             case c4m_tt_return:
                 err_skip_stmt(ctx, c4m_err_parse_return_outside_func);
                 continue;
+            case c4m_tt_once:
             case c4m_tt_private:
             case c4m_tt_func:
                 func_def(ctx);
@@ -3937,6 +3991,7 @@ module(parse_ctx *ctx)
                 // fallthrough
             case c4m_tt_var:
             case c4m_tt_const:
+            case c4m_tt_let:
                 variable_decl(ctx);
                 end_of_statement(ctx);
                 continue;
