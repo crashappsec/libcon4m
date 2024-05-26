@@ -62,10 +62,6 @@ test1()
     c4m_str_t *s3 = c4m_new(c4m_tspec_utf8(),
                             c4m_kw("cstring", c4m_ka(" magic?\n")));
 
-    // c4m_gc_register_root(&s1, 1);
-    // c4m_gc_register_root(&s2, 1);
-    // c4m_gc_register_root(&s3, 1);
-
     c4m_ansi_render(s1, sout);
     c4m_ansi_render(s2, sout);
     c4m_ansi_render(s3, sout);
@@ -86,9 +82,6 @@ test1()
     printf("That was at %p\n", s);
 
     c4m_break_info_t *g;
-
-    // c4m_gc_register_root(&s, 1);
-    // c4m_gc_register_root(&g, 1);
 
     g = c4m_get_grapheme_breaks(s, 1, 10);
 
@@ -253,8 +246,6 @@ test4()
 
     c4m_dict_t *d = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
                                            c4m_tspec_ref()));
-
-    c4m_gc_register_root(&d, 1);
 
     hatrack_dict_put(d, w1, "w1");
     hatrack_dict_put(d, w2, "w2");
@@ -762,7 +753,6 @@ main(int argc, char **argv, char **envp)
         test1();
         // style1 = apply_bg_color(style1, "alice blue");
         c4m_str_t *to_slice = test2();
-        // c4m_gc_register_root(&to_slice, 1);
         test3(to_slice);
         to_slice = NULL;
         test4();

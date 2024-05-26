@@ -305,6 +305,9 @@ handle_enum_decl(pass1_ctx *ctx)
                                                   sk_enum_val,
                                                   NULL,
                                                   true);
+
+        item_sym->flags |= C4M_F_DECLARED_CONST;
+
         if (idsym) {
             item_sym->type = idsym->type;
         }
@@ -324,7 +327,7 @@ handle_enum_decl(pass1_ctx *ctx)
         c4m_merge_types(inferred_type, c4m_tspec_i64());
     }
 
-#ifndef C4M_PASS1_UNIT_TESTS
+#ifdef C4M_PASS1_UNIT_TESTS
     if (id == NULL) {
         printf("Anonymous enum (%lld kids).\n", c4m_xlist_len(items));
     }

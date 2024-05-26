@@ -57,20 +57,21 @@ typedef struct c4m_scope_entry_t {
     // for other types, it gets a pointer to one of the specific data
     // structures in this file.
 
-    c4m_obj_t           value;
-    c4m_utf8_t         *path;
-    c4m_utf8_t         *name;
-    c4m_tree_node_t    *declaration_node;
-    uint32_t            offset;
-    uint32_t            size;
-    uint8_t             flags;
-    c4m_symbol_kind     kind;
-    c4m_type_t         *type;
-    struct c4m_scope_t *my_scope;
-    c4m_tree_node_t    *type_declaration_node;
-    void               *other_info;
-    c4m_xlist_t        *sym_defs;
-    c4m_xlist_t        *sym_uses;
+    c4m_obj_t                 value;
+    c4m_utf8_t               *path;
+    c4m_utf8_t               *name;
+    c4m_tree_node_t          *declaration_node;
+    uint32_t                  offset;
+    uint32_t                  size;
+    uint8_t                   flags;
+    c4m_symbol_kind           kind;
+    c4m_type_t               *type;
+    struct c4m_scope_t       *my_scope;
+    c4m_tree_node_t          *type_declaration_node;
+    void                     *other_info;
+    c4m_xlist_t              *sym_defs;
+    c4m_xlist_t              *sym_uses;
+    struct c4m_scope_entry_t *linked_symbol;
 } c4m_scope_entry_t;
 
 typedef struct {

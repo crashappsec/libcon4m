@@ -2158,24 +2158,45 @@ check_formal_param(fn_check_ctx *ctx)
 static void
 check_user_decl(fn_check_ctx *ctx)
 {
+    if (ctx->num_defs == 0 && ctx->num_uses == 0) {
+        c4m_add_warning(ctx->pass_ctx->file_ctx,
+                        c4m_warn_unused_decl,
+                        ctx->sym->declaration_node,
+                        ctx->sym->name);
+        return;
+    }
+
     if (ctx->num_defs == 0) {
+        c4m_tree_node_t *loc = ctx->sym->declaration_node;
+        if (loc == NULL) {
+            loc = c4m_xlist_get(ctx->sym->sym_uses, 0, NULL);
+        }
+
         c4m_add_error(ctx->pass_ctx->file_ctx,
                       c4m_err_use_no_def,
-                      ctx->sym->declaration_node,
+                      loc,
                       ctx->sym->name);
+        return;
     }
 
     if (ctx->num_uses == 0) {
+        c4m_tree_node_t *loc = ctx->sym->declaration_node;
+        if (loc == NULL) {
+            loc = c4m_xlist_get(ctx->sym->sym_defs, 0, NULL);
+        }
+
         c4m_add_warning(ctx->pass_ctx->file_ctx,
                         c4m_warn_def_without_use,
-                        ctx->sym->declaration_node,
+                        loc,
                         ctx->sym->name);
     }
 
-    uint64_t flags = ctx->sym->flags;
+    uint64_t mask  = C4M_F_DECLARED_LET | C4M_F_DECLARED_CONST;
+    uint64_t flags = ctx->sym->flags & mask;
 
-    if (ctx->num_defs > 1 && (flags & (C4M_F_DECLARED_LET | C4M_F_DECLARED_CONST))) {
+    if (ctx->num_defs > 1 && flags) {
         c4m_utf8_t *var_kind;
+
         if (flags & C4M_F_DECLARED_LET) {
             var_kind = c4m_new_utf8("let");
         }
@@ -2282,11 +2303,6 @@ check_module_toplevel(pass2_ctx *ctx)
     use_context_enter(ctx);
     check_pass_toplevel_dispatch(ctx);
     def_use_context_exit(ctx);
-
-    // TODO: Check symbol rules for let / const for module level symbols.
-    // If we're the topmost scope w/ a global, make sure it's defined at the module
-    // level, and if it's not, give a warning saying we're going to use a default
-    // initializer.
 }
 
 static void
@@ -2314,6 +2330,185 @@ process_function_definitions(pass2_ctx *ctx)
     }
 }
 
+static void
+check_module_variable(c4m_file_compile_ctx *ctx, c4m_scope_entry_t *sym)
+{
+    int num_defs = c4m_xlist_len(sym->sym_defs);
+    int num_uses = c4m_xlist_len(sym->sym_uses);
+
+    if (num_defs == 0 && num_uses == 0) {
+        c4m_add_warning(ctx,
+                        c4m_warn_unused_decl,
+                        sym->declaration_node,
+                        sym->name);
+        return;
+    }
+
+    if (num_defs == 0) {
+        c4m_tree_node_t *loc = sym->declaration_node;
+
+        if (loc == NULL) {
+            loc = c4m_xlist_get(sym->sym_uses, 0, NULL);
+        }
+        c4m_add_error(ctx,
+                      c4m_err_use_no_def,
+                      loc,
+                      sym->name);
+        return;
+    }
+
+    if (num_uses == 0) {
+        c4m_tree_node_t *loc = sym->declaration_node;
+
+        if (loc == NULL) {
+            loc = c4m_xlist_get(sym->sym_defs, 0, NULL);
+        }
+        c4m_add_warning(ctx,
+                        c4m_warn_def_without_use,
+                        loc,
+                        sym->name);
+    }
+
+    uint64_t mask  = C4M_F_DECLARED_LET | C4M_F_DECLARED_CONST;
+    uint64_t flags = sym->flags & mask;
+
+    if (num_defs > 1 && flags) {
+        c4m_utf8_t *var_kind;
+
+        if (flags & C4M_F_DECLARED_LET) {
+            var_kind = c4m_new_utf8("let");
+        }
+        else {
+            var_kind = c4m_new_utf8("const");
+        }
+
+        c4m_tree_node_t *first_def = c4m_xlist_get(sym->sym_defs, 0, NULL);
+
+        for (int i = 1; i < num_defs; i++) {
+            c4m_tree_node_t *bad_def = c4m_xlist_get(sym->sym_defs, 1, NULL);
+
+            c4m_add_error(ctx,
+                          c4m_err_single_def,
+                          bad_def,
+                          var_kind,
+                          c4m_node_get_loc_str(first_def));
+        }
+    }
+}
+
+static void
+check_my_global_variable(c4m_file_compile_ctx *ctx, c4m_scope_entry_t *sym)
+{
+    int num_defs = c4m_xlist_len(sym->sym_defs);
+    int num_uses = c4m_xlist_len(sym->sym_uses);
+
+    if (num_defs == 0 && num_uses != 0) {
+        c4m_tree_node_t *loc = sym->declaration_node;
+
+        if (loc == NULL) {
+            loc = c4m_xlist_get(sym->sym_uses, 0, NULL);
+        }
+        c4m_add_error(ctx,
+                      c4m_err_use_no_def,
+                      loc,
+                      sym->name);
+        return;
+    }
+
+    if (num_uses == 0) {
+        c4m_tree_node_t *loc = sym->declaration_node;
+
+        if (loc == NULL) {
+            loc = c4m_xlist_get(sym->sym_defs, 0, NULL);
+        }
+        c4m_add_info(ctx,
+                     c4m_global_def_without_use,
+                     loc,
+                     sym->name);
+    }
+
+    uint64_t mask  = C4M_F_DECLARED_LET | C4M_F_DECLARED_CONST;
+    uint64_t flags = sym->flags & mask;
+
+    if (num_defs > 1 && flags) {
+        c4m_utf8_t *var_kind;
+
+        if (flags & C4M_F_DECLARED_LET) {
+            var_kind = c4m_new_utf8("let");
+        }
+        else {
+            var_kind = c4m_new_utf8("const");
+        }
+
+        c4m_tree_node_t *first_def = c4m_xlist_get(sym->sym_defs, 0, NULL);
+
+        for (int i = 1; i < num_defs; i++) {
+            c4m_tree_node_t *bad_def = c4m_xlist_get(sym->sym_defs, 1, NULL);
+
+            c4m_add_error(ctx,
+                          c4m_err_single_def,
+                          bad_def,
+                          var_kind,
+                          c4m_node_get_loc_str(first_def));
+        }
+    }
+}
+
+static void
+check_used_global_variable(c4m_file_compile_ctx *ctx, c4m_scope_entry_t *sym)
+{
+    int num_defs = c4m_xlist_len(sym->sym_defs);
+    int num_uses = c4m_xlist_len(sym->sym_uses);
+
+    if (num_defs > 0) {
+        c4m_tree_node_t *first_node = sym->linked_symbol->declaration_node;
+
+        c4m_add_error(ctx,
+                      c4m_err_global_remote_def,
+                      sym->declaration_node,
+                      sym->name,
+                      c4m_node_get_loc_str(first_node));
+        return;
+    }
+
+    if (num_uses == 0) {
+        c4m_add_warning(ctx,
+                        c4m_err_global_remote_unused,
+                        sym->declaration_node,
+                        sym->name);
+        return;
+    }
+}
+
+static void
+validate_module_variables(c4m_file_compile_ctx *ctx)
+{
+    uint64_t           n;
+    c4m_scope_entry_t *entry;
+    void             **view;
+
+    view = hatrack_dict_values_sort(ctx->module_scope->symbols, &n);
+
+    for (uint64_t i = 0; i < n; i++) {
+        entry = view[i];
+        if (entry->kind == sk_variable) {
+            check_module_variable(ctx, entry);
+        }
+    }
+
+    view = hatrack_dict_values_sort(ctx->global_scope->symbols, &n);
+
+    for (uint64_t i = 0; i < n; i++) {
+        entry = view[i];
+        if (entry->kind == sk_variable && entry->linked_symbol == NULL) {
+            check_my_global_variable(ctx, entry);
+        }
+        else {
+            check_used_global_variable(ctx, entry);
+        }
+    }
+}
+
 static c4m_xlist_t *
 module_check_pass(c4m_compile_ctx *cctx, c4m_file_compile_ctx *file_ctx)
 {
@@ -2336,6 +2531,7 @@ module_check_pass(c4m_compile_ctx *cctx, c4m_file_compile_ctx *file_ctx)
 
     check_module_toplevel(&ctx);
     process_function_definitions(&ctx);
+    validate_module_variables(file_ctx);
 
     return ctx.deferred_calls;
 }

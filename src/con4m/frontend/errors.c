@@ -1004,6 +1004,41 @@ static error_info_t error_info[] = {
         "location. The first declaration is: [i]{}[/]",
         true,
     },
+    [c4m_warn_unused_decl] = {
+        c4m_warn_unused_decl,
+        "unused_decl",
+        "Declared variable [em]{}[/] is unused.",
+        true,
+    },
+    [c4m_err_global_remote_def] = {
+        c4m_err_global_remote_def,
+        "global_remote_def",
+        "Global variable [em]{}[/] can only be set in the module that first "
+        "declares it. The symbol's origin is: [i]{}",
+        true,
+    },
+    [c4m_err_global_remote_unused] = {
+        c4m_err_global_remote_unused,
+        "global_remote_unused",
+        "Global variable [em]{}[/] is imported via the [i]global[/] keyword, "
+        "but is not used here.",
+        true,
+    },
+    [c4m_info_unused_global_decl] = {
+        c4m_info_unused_global_decl,
+        "unused_global_decl",
+        "Global variable",
+        true,
+    },
+    [c4m_global_def_without_use] = {
+        c4m_global_def_without_use,
+        "def_without_use",
+        "This module is the first to declare the global variable[em]{}[/], "
+        "but it is not explicitly initialized. It will be set to a default "
+        "value at the beginning of the program.",
+        true,
+    },
+
     [c4m_err_last] = {
         c4m_err_last,
         "last",

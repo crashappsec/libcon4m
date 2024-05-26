@@ -157,6 +157,11 @@ typedef enum {
     c4m_warn_def_without_use,
     c4m_err_call_type_err,
     c4m_err_single_def,
+    c4m_warn_unused_decl,
+    c4m_err_global_remote_def,
+    c4m_err_global_remote_unused,
+    c4m_info_unused_global_decl,
+    c4m_global_def_without_use,
     c4m_err_last,
 
 } c4m_compile_error_t;

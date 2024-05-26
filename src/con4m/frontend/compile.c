@@ -831,6 +831,7 @@ merge_one_plain_scope(c4m_compile_ctx      *cctx,
                                    NULL);
         if (c4m_merge_symbols(fctx, new_sym, old_sym)) {
             hatrack_dict_put(global->symbols, new_sym->name, old_sym);
+            new_sym->linked_symbol = old_sym;
         }
     }
 }
