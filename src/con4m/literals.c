@@ -4,6 +4,71 @@ static c4m_dict_t *mod_map[ST_MAX] = {
     NULL,
 };
 
+// TODO: Change this when adding objects.
+static int       container_bitfield_words = (C4M_NUM_BUILTIN_DTS + 63) / 64;
+static uint64_t *list_types               = NULL;
+static uint64_t *dict_types;
+static uint64_t *set_types;
+static uint64_t *tuple_types;
+static uint64_t *all_container_types;
+
+static inline void
+no_more_containers()
+{
+    all_container_types = c4m_gc_array_alloc(uint64_t,
+                                             container_bitfield_words);
+
+    for (int i = 0; i < container_bitfield_words; i++) {
+        all_container_types[i] = list_types[i] | dict_types[i];
+        all_container_types[i] |= set_types[i] | tuple_types[i];
+    }
+}
+
+static void
+initialize_container_bitfields()
+{
+    if (list_types == NULL) {
+        list_types  = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+        dict_types  = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+        set_types   = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+        tuple_types = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+        c4m_gc_register_root(&list_types, 1);
+        c4m_gc_register_root(&dict_types, 1);
+        c4m_gc_register_root(&set_types, 1);
+        c4m_gc_register_root(&tuple_types, 1);
+        c4m_gc_register_root(&all_container_types, 1);
+    }
+}
+
+void
+c4m_register_container_type(c4m_builtin_t    bi,
+                            c4m_lit_syntax_t st,
+                            bool             alt_syntax)
+{
+    initialize_container_bitfields();
+    int word = ((int)bi) / 64;
+    int bit  = ((int)bi) % 64;
+
+    switch (st) {
+    case ST_List:
+        list_types[word] |= 1UL << bit;
+        return;
+    case ST_Dict:
+        if (alt_syntax) {
+            set_types[word] |= 1UL << bit;
+        }
+        else {
+            dict_types[word] |= 1UL << bit;
+        }
+        return;
+    case ST_Tuple:
+        tuple_types[word] |= 1UL << bit;
+        return;
+    default:
+        unreachable();
+    }
+}
+
 void
 c4m_register_literal(c4m_lit_syntax_t st, char *mod, c4m_builtin_t bi)
 {
@@ -11,6 +76,23 @@ c4m_register_literal(c4m_lit_syntax_t st, char *mod, c4m_builtin_t bi)
                           c4m_new_utf8(mod),
                           (void *)(int64_t)bi)) {
         C4M_CRAISE("Duplicate literal modifier for this syntax type.");
+    }
+
+    switch (st) {
+    case ST_List:
+    case ST_Tuple:
+        c4m_register_container_type(bi, st, false);
+        return;
+    case ST_Dict:
+        if (bi == C4M_T_SET) {
+            c4m_register_container_type(bi, st, true);
+        }
+        else {
+            c4m_register_container_type(bi, st, false);
+        }
+        return;
+    default:
+        return;
     }
 }
 
@@ -125,6 +207,7 @@ c4m_init_literal_handling()
         c4m_register_literal(ST_Tuple, "", C4M_T_TUPLE);
         c4m_register_literal(ST_Tuple, "t", C4M_T_TUPLE);
         c4m_register_literal(ST_Tuple, "tuple", C4M_T_TUPLE);
+        no_more_containers();
     }
 }
 
@@ -184,20 +267,69 @@ c4m_parse_simple_lit(c4m_token_t *tok)
     return err;
 }
 
+bool
+c4m_type_has_list_syntax(c4m_type_t *t)
+{
+    uint64_t bi      = t->details->base_type->typeid;
+    int      word    = ((int)bi) / 64;
+    int      bit     = ((int)bi) % 64;
+    uint64_t to_test = 1UL << bit;
+
+    return list_types[word] & to_test;
+}
+
+bool
+c4m_type_has_dict_syntax(c4m_type_t *t)
+{
+    uint64_t bi      = t->details->base_type->typeid;
+    int      word    = ((int)bi) / 64;
+    int      bit     = ((int)bi) % 64;
+    uint64_t to_test = 1UL << bit;
+
+    return dict_types[word] & to_test;
+}
+
+bool
+c4m_type_has_set_syntax(c4m_type_t *t)
+{
+    uint64_t bi      = t->details->base_type->typeid;
+    int      word    = ((int)bi) / 64;
+    int      bit     = ((int)bi) % 64;
+    uint64_t to_test = 1UL << bit;
+
+    return set_types[word] & to_test;
+}
+
+bool
+c4m_type_has_tuple_syntax(c4m_type_t *t)
+{
+    uint64_t bi      = t->details->base_type->typeid;
+    int      word    = ((int)bi) / 64;
+    int      bit     = ((int)bi) % 64;
+    uint64_t to_test = 1UL << bit;
+
+    return tuple_types[word] & to_test;
+}
+
 static void
 partial_literal_init(c4m_partial_lit_t *partial, va_list args)
 {
-    int           n         = va_arg(args, int);
-    c4m_builtin_t base_type = va_arg(args, c4m_builtin_t);
+    int              n         = va_arg(args, int);
+    c4m_builtin_t    base_type = va_arg(args, c4m_builtin_t);
+    c4m_tree_node_t *node      = va_arg(args, c4m_tree_node_t *);
 
     partial->num_items = n;
     partial->items     = c4m_gc_array_alloc(c4m_obj_t, n);
     partial->type      = c4m_new(c4m_tspec_typespec(),
                             c4m_global_type_env,
                             base_type);
+    partial->node      = node;
 
     if (!n) {
         partial->empty_container = 1;
+        if (base_type == C4M_T_VOID) {
+            partial->empty_dict_or_set = 1;
+        }
         return;
     }
 
@@ -223,3 +355,188 @@ const c4m_vtable_t c4m_partial_lit_vtable = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)partial_literal_init,
     },
 };
+
+int
+c4m_get_num_bitfield_words()
+{
+    return container_bitfield_words;
+}
+
+uint64_t *
+c4m_get_list_bitfield()
+{
+    c4m_init_literal_handling();
+
+    uint64_t *result = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+    for (int i = 0; i < container_bitfield_words; i++) {
+        result[i] = list_types[i];
+    }
+
+    return result;
+}
+
+uint64_t *
+c4m_get_dict_bitfield()
+{
+    c4m_init_literal_handling();
+
+    uint64_t *result = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+    for (int i = 0; i < container_bitfield_words; i++) {
+        result[i] = dict_types[i];
+    }
+
+    return result;
+}
+
+uint64_t *
+c4m_get_set_bitfield()
+{
+    c4m_init_literal_handling();
+
+    uint64_t *result = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+    for (int i = 0; i < container_bitfield_words; i++) {
+        result[i] = set_types[i];
+    }
+
+    return result;
+}
+
+uint64_t *
+c4m_get_tuple_bitfield()
+{
+    c4m_init_literal_handling();
+
+    uint64_t *result = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+    for (int i = 0; i < container_bitfield_words; i++) {
+        result[i] = tuple_types[i];
+    }
+
+    return result;
+}
+
+uint64_t *
+c4m_get_all_containers_bitfield()
+{
+    c4m_init_literal_handling();
+
+    uint64_t *result = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+    for (int i = 0; i < container_bitfield_words; i++) {
+        result[i] = all_container_types[i];
+    }
+
+    return result;
+}
+
+bool
+c4m_partial_inference(c4m_type_t *t)
+{
+    tv_options_t *tsi = t->details->tsi;
+
+    for (int i = 0; i < container_bitfield_words; i++) {
+        if (tsi->container_options[i] ^ all_container_types[i]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+uint64_t *
+c4m_get_no_containers_bitfield()
+{
+    c4m_init_literal_handling();
+
+    return c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+}
+
+bool
+c4m_list_syntax_possible(c4m_type_t *t)
+{
+    tv_options_t *tsi = t->details->tsi;
+
+    for (int i = 0; i < container_bitfield_words; i++) {
+        if (tsi->container_options[i] & list_types[i]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool
+c4m_dict_syntax_possible(c4m_type_t *t)
+{
+    tv_options_t *tsi = t->details->tsi;
+
+    for (int i = 0; i < container_bitfield_words; i++) {
+        if (tsi->container_options[i] & dict_types[i]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool
+c4m_set_syntax_possible(c4m_type_t *t)
+{
+    tv_options_t *tsi = t->details->tsi;
+
+    for (int i = 0; i < container_bitfield_words; i++) {
+        if (tsi->container_options[i] & set_types[i]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool
+c4m_tuple_syntax_possible(c4m_type_t *t)
+{
+    tv_options_t *tsi = t->details->tsi;
+
+    for (int i = 0; i < container_bitfield_words; i++) {
+        if (tsi->container_options[i] & tuple_types[i]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void
+c4m_remove_list_options(c4m_type_t *t)
+{
+    tv_options_t *tsi = t->details->tsi;
+    for (int i = 0; i < container_bitfield_words; i++) {
+        tsi->container_options[i] &= ~(list_types[i]);
+    }
+}
+
+void
+c4m_remove_set_options(c4m_type_t *t)
+{
+    tv_options_t *tsi = t->details->tsi;
+    for (int i = 0; i < container_bitfield_words; i++) {
+        tsi->container_options[i] &= ~(set_types[i]);
+    }
+}
+
+void
+c4m_remove_dict_options(c4m_type_t *t)
+{
+    tv_options_t *tsi = t->details->tsi;
+    for (int i = 0; i < container_bitfield_words; i++) {
+        tsi->container_options[i] &= ~(dict_types[i]);
+    }
+}
+
+void
+c4m_remove_tuple_options(c4m_type_t *t)
+{
+    tv_options_t *tsi = t->details->tsi;
+    for (int i = 0; i < container_bitfield_words; i++) {
+        tsi->container_options[i] &= ~(tuple_types[i]);
+    }
+}

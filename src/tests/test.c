@@ -13,6 +13,37 @@ C4M_STATIC_ASCII_STR(str_test,
 c4m_stream_t *sout;
 c4m_stream_t *serr;
 
+static void
+collect_and_print_stats()
+{
+    uint64_t used, available, total, live;
+    uint64_t allocs_pre, allocs_post;
+
+    c4m_gc_heap_stats(&used, &available, &total);
+    allocs_pre = get_alloc_counter();
+    c4m_gc_thread_collect();
+    c4m_gc_heap_stats(&live, NULL, NULL);
+    allocs_post = get_alloc_counter();
+
+    c4m_print(
+        c4m_cstr_format(
+            "[b]Heap Usage:[/] [em]{:,} kb[/] of [i]{:,} kb[/] ({:,} kb free)",
+            c4m_box_u64(used / 1024),
+            c4m_box_u64(total / 1024),
+            c4m_box_u64(available / 1024)));
+    c4m_print(
+        c4m_cstr_format(
+            "[b][i] Copied [em]{:,}[/] allocation records. "
+            "Trashed [em]{:,}[/] records.",
+            c4m_box_u64(allocs_post),
+            c4m_box_u64(allocs_pre - allocs_post)));
+    c4m_print(
+        c4m_cstr_format(
+            "[b]New Usage:[/] [em]{:,} kb[/] ([i]{} kb[/] collected)",
+            c4m_box_u64(live / 1024),
+            c4m_box_u64((used - live) / 1024)));
+}
+
 void
 test1()
 {
@@ -30,10 +61,6 @@ test1()
                             c4m_kw("cstring", c4m_ka(" world!")));
     c4m_str_t *s3 = c4m_new(c4m_tspec_utf8(),
                             c4m_kw("cstring", c4m_ka(" magic?\n")));
-
-    // c4m_gc_register_root(&s1, 1);
-    // c4m_gc_register_root(&s2, 1);
-    // c4m_gc_register_root(&s3, 1);
 
     c4m_ansi_render(s1, sout);
     c4m_ansi_render(s2, sout);
@@ -55,9 +82,6 @@ test1()
     printf("That was at %p\n", s);
 
     c4m_break_info_t *g;
-
-    // c4m_gc_register_root(&s, 1);
-    // c4m_gc_register_root(&g, 1);
 
     g = c4m_get_grapheme_breaks(s, 1, 10);
 
@@ -81,7 +105,7 @@ test1()
 
     printf("\n");
 
-    c4m_gc_thread_collect();
+    collect_and_print_stats();
 
     printf("s is now at: %p\n Let's render s again.\n", s);
     c4m_ansi_render(s, sout);
@@ -157,7 +181,7 @@ test2()
     c4m_ansi_render(dump2, serr);
 
     c4m_ansi_render_to_width(to_wrap, term_width, 0, sout);
-    c4m_gc_thread_collect();
+    collect_and_print_stats();
     return to_wrap;
 }
 
@@ -223,8 +247,6 @@ test4()
     c4m_dict_t *d = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
                                            c4m_tspec_ref()));
 
-    c4m_gc_register_root(&d, 1);
-
     hatrack_dict_put(d, w1, "w1");
     hatrack_dict_put(d, w2, "w2");
     hatrack_dict_put(d, w3, "w3");
@@ -240,7 +262,7 @@ test4()
         c4m_ansi_render((c4m_str_t *)(view[i].key), serr);
     }
 
-    c4m_gc_thread_collect();
+    collect_and_print_stats();
 }
 
 void
@@ -618,10 +640,10 @@ test_compiler()
 
         ctx = c4m_compile_from_entry_point(path);
 
-        c4m_print(c4m_format_tokens(ctx->entry_point));
+        // c4m_print(c4m_format_tokens(ctx->entry_point));
 
         if (ctx->entry_point->parse_tree) {
-            c4m_print(c4m_format_parse_tree(ctx->entry_point));
+            // c4m_print(c4m_format_parse_tree(ctx->entry_point));
         }
 
         c4m_print(c4m_cstr_format("[atomic lime]info: [/] Finished parsing: {}",
@@ -632,7 +654,24 @@ test_compiler()
         if (err_output != NULL) {
             c4m_print(err_output);
         }
+        else {
+            c4m_print(c4m_cfg_repr(ctx->entry_point->cfg));
+            c4m_print(c4m_rich_lit("[h2]Global Scope"));
+            c4m_print(c4m_format_scope(ctx->final_globals));
+            c4m_print(c4m_rich_lit("[h2]Module Scope for entry point module"));
+            c4m_print(c4m_format_scope(ctx->entry_point->module_scope));
+        }
     }
+    c4m_print(c4m_str_to_type(c4m_new_utf8("(dict[`x, list[int]]) -> int")));
+
+    // TODO: We need to mark unlocked types with sub-variables at some point,
+    // so they don't get clobbered.
+    //
+    // E.g.,  (dict[`x, list[int]]) -> int
+
+    // c4m_clean_environment();
+    // c4m_print(c4m_format_global_type_environment());
+    c4m_print_parse_node(ctx->entry_point->parse_tree);
 }
 #else
 #define test_compiler(...)
@@ -714,7 +753,6 @@ main(int argc, char **argv, char **envp)
         test1();
         // style1 = apply_bg_color(style1, "alice blue");
         c4m_str_t *to_slice = test2();
-        // c4m_gc_register_root(&to_slice, 1);
         test3(to_slice);
         to_slice = NULL;
         test4();
@@ -775,4 +813,6 @@ main(int argc, char **argv, char **envp)
            (void *)bottom,
            (unsigned long long)q);
 #endif
+
+    collect_and_print_stats();
 }

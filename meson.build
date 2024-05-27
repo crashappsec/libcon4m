@@ -102,6 +102,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/frontend/cfg.c',
             'src/con4m/frontend/treematch.c',
             'src/con4m/frontend/decl_pass.c',
+            'src/con4m/frontend/check_pass.c',
             ]
 
 hat_primary = ['src/hatrack/support/hatrack_common.c',
@@ -118,7 +119,8 @@ hat_primary = ['src/hatrack/support/hatrack_common.c',
                'src/hatrack/queue/hatring.c',
                'src/hatrack/queue/stack.c',
                'src/hatrack/queue/debug.c',
-               'src/hatrack/queue/logring.c']
+               'src/hatrack/queue/logring.c'
+               ]
 
 hat_hashref = ['src/hatrack/hash/ballcap.c',
                'src/hatrack/hash/duncecap.c',

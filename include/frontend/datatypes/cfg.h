@@ -25,6 +25,7 @@ typedef struct {
 } c4m_cfg_block_exit_info_t;
 
 typedef struct {
+    c4m_cfg_node_t *dead_code;
     c4m_cfg_node_t *target;
 } c4m_cfg_jump_info_t;
 

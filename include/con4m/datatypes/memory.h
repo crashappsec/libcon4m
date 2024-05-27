@@ -1,6 +1,9 @@
 #pragma once
-
 #include "con4m.h"
+
+#ifndef C4M_DISABLE_ALLOC_STATS
+#define C4M_ALLOC_STATS
+#endif
 
 #define C4M_FORCED_ALIGNMENT 16
 
@@ -63,6 +66,9 @@ typedef struct c4m_arena_t {
     queue_t            *late_mutations;
     uint64_t           *heap_end;
     uint64_t            arena_id;
+#ifdef C4M_ALLOC_STATS
+    uint64_t alloc_counter;
+#endif
 
     // This must be 16-byte aligned!
     alignas(C4M_FORCED_ALIGNMENT) uint64_t data[];

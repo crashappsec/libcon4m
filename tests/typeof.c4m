@@ -1,0 +1,15 @@
+
+typeof x {
+    case int:
+       y = x 
+    case bool:
+       z = x
+    case string:
+       a = "foo" + x
+       qwerty = uio
+    case list[`x]:
+      y = 1
+    else:
+        y = -1
+  }
+z = false

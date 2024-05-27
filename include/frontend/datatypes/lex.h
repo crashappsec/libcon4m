@@ -57,6 +57,8 @@ typedef enum {
     c4m_tt_var,
     c4m_tt_global,
     c4m_tt_const,
+    c4m_tt_once,
+    c4m_tt_let,
     c4m_tt_private,
     c4m_tt_backtick,
     c4m_tt_arrow,
@@ -85,17 +87,18 @@ typedef enum {
 } c4m_token_kind_t;
 
 typedef struct {
-    c4m_codepoint_t *start_ptr;
-    c4m_codepoint_t *end_ptr;
-    c4m_utf32_t     *literal_modifier;
-    void            *literal_value; // Once parsed.
-    c4m_token_kind_t kind;
-    int              token_id;
-    int              line_no;
-    int              line_offset;
+    struct c4m_file_compile_ctx *module;
+    c4m_codepoint_t             *start_ptr;
+    c4m_codepoint_t             *end_ptr;
+    c4m_utf32_t                 *literal_modifier;
+    void                        *literal_value; // Once parsed.
+    c4m_token_kind_t             kind;
+    int                          token_id;
+    int                          line_no;
+    int                          line_offset;
     // Original index relative to all added tokens under a parse node.
     // We do this because we don't keep the comments in the main tree,
     // we stash them with the node payload.
-    uint16_t         child_ix;
-    uint8_t          adjustment; // For keeping track of quoting.
+    uint16_t                     child_ix;
+    uint8_t                      adjustment; // For keeping track of quoting.
 } c4m_token_t;

@@ -16,5 +16,7 @@ c4m_token_raw_content(c4m_token_t *tok)
                                       "codepoints",
                                       tok->start_ptr + tok->adjustment));
 
-    return c4m_to_utf8(u32);
+    c4m_utf8_t *result = c4m_to_utf8(u32);
+
+    return result;
 }

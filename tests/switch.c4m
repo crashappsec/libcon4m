@@ -1,0 +1,13 @@
+
+switch x {
+    case a:
+       y = x 
+    case b:
+       y = 1 + x
+    case c:
+       y = 100 + x
+    else:
+        y = -1
+  }
+
+y *= 2

@@ -95,9 +95,11 @@ extern c4m_tree_node_t *get_match_on_node(c4m_tree_node_t *, c4m_tpat_node_t *);
 extern c4m_xlist_t *apply_pattern_on_node(c4m_tree_node_t *, c4m_tpat_node_t *);
 
 extern c4m_tpat_node_t *c4m_first_kid_id;
+extern c4m_tpat_node_t *c4m_2nd_kid_id;
 extern c4m_tpat_node_t *c4m_enum_items;
 extern c4m_tpat_node_t *c4m_member_prefix;
 extern c4m_tpat_node_t *c4m_member_last;
+extern c4m_tpat_node_t *c4m_func_mods;
 extern c4m_tpat_node_t *c4m_use_uri;
 extern c4m_tpat_node_t *c4m_extern_params;
 extern c4m_tpat_node_t *c4m_extern_return;
@@ -112,5 +114,10 @@ extern c4m_tpat_node_t *c4m_sym_decls;
 extern c4m_tpat_node_t *c4m_sym_names;
 extern c4m_tpat_node_t *c4m_sym_type;
 extern c4m_tpat_node_t *c4m_sym_init;
+extern c4m_tpat_node_t *c4m_loop_vars;
+extern c4m_tpat_node_t *c4m_case_branches;
+extern c4m_tpat_node_t *c4m_case_else;
+extern c4m_tpat_node_t *c4m_elif_branches;
+extern c4m_tpat_node_t *c4m_else_condition;
 
 #endif

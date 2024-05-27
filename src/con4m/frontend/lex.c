@@ -169,6 +169,7 @@ output_token(lex_state_t *state, c4m_token_kind_t kind)
 {
     c4m_token_t *tok  = c4m_gc_alloc(c4m_token_t);
     tok->kind         = kind;
+    tok->module       = state->ctx;
     tok->start_ptr    = state->start;
     tok->end_ptr      = state->pos;
     tok->token_id     = ++state->token_id;
@@ -652,6 +653,8 @@ init_keywords()
     add_keyword("in", c4m_tt_in);
     add_keyword("var", c4m_tt_var);
     add_keyword("global", c4m_tt_global);
+    add_keyword("once", c4m_tt_once);
+    add_keyword("let", c4m_tt_let);
     add_keyword("private", c4m_tt_private);
     add_keyword("const", c4m_tt_const);
     add_keyword("is", c4m_tt_cmp);

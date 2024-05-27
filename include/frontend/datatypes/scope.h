@@ -3,7 +3,6 @@
 
 typedef enum : int8_t {
     sk_module,
-    sk_package,
     sk_func,
     sk_extern_func,
     sk_enum_type,
@@ -11,19 +10,26 @@ typedef enum : int8_t {
     sk_attr,
     sk_variable,
     sk_formal,
-    // Will be adding more for sure.
     sk_num_sym_kinds
 } c4m_symbol_kind;
 
 enum {
-    C4M_F_HAS_DEFAULT_VALUE = 1,
-    C4M_F_IS_CONST          = 2,
+    C4M_F_HAS_INITIALIZER  = 0x01,
+    C4M_F_DECLARED_CONST   = 0x02,
+    C4M_F_DECLARED_LET     = 0x04,
+    C4M_F_IS_DECLARED      = 0x08,
+    C4M_F_TYPE_IS_DECLARED = 0x10,
+    // 'const' means user immutable not static. This is for iteration
+    // variables on loops, etc.
+    C4M_F_USER_IMMUTIBLE   = 0x20,
+    C4M_F_FN_PASS_DONE     = 0x40,
 };
 
 typedef enum c4m_scope_kind {
     C4M_SCOPE_GLOBAL,
     C4M_SCOPE_MODULE,
     C4M_SCOPE_LOCAL,
+    C4M_SCOPE_FORMALS,
     C4M_SCOPE_ATTRIBUTES,
     C4M_SCOPE_IMPORTS,
 } c4m_scope_kind;
@@ -46,24 +52,26 @@ typedef struct {
     unsigned int ffi_allocs : 1;
 } c4m_fn_param_info_t;
 
-typedef struct {
+typedef struct c4m_scope_entry_t {
     // The `value` field gets the proper value for vars and enums, but
     // for other types, it gets a pointer to one of the specific data
     // structures in this file.
 
-    c4m_obj_t           value;
-    c4m_utf8_t         *path;
-    c4m_utf8_t         *name;
-    c4m_tree_node_t    *declaration_node;
-    c4m_xlist_t        *use_locations;
-    c4m_xlist_t        *lhs_locations;
-    uint32_t            offset;
-    uint32_t            size;
-    uint8_t             flags;
-    c4m_symbol_kind     kind;
-    c4m_type_t         *declared_type;
-    c4m_type_t         *inferred_type;
-    struct c4m_scope_t *my_scope;
+    c4m_obj_t                 value;
+    c4m_utf8_t               *path;
+    c4m_utf8_t               *name;
+    c4m_tree_node_t          *declaration_node;
+    uint32_t                  offset;
+    uint32_t                  size;
+    uint8_t                   flags;
+    c4m_symbol_kind           kind;
+    c4m_type_t               *type;
+    struct c4m_scope_t       *my_scope;
+    c4m_tree_node_t          *type_declaration_node;
+    void                     *other_info;
+    c4m_xlist_t              *sym_defs;
+    c4m_xlist_t              *sym_uses;
+    struct c4m_scope_entry_t *linked_symbol;
 } c4m_scope_entry_t;
 
 typedef struct {
@@ -85,6 +93,7 @@ typedef struct c4m_scope_t {
 typedef struct {
     c4m_type_t          *full_type;
     c4m_scope_t         *fn_scope;
+    c4m_scope_t         *formals;
     c4m_fn_param_info_t *param_info;
     c4m_fn_param_info_t  return_info;
     int                  num_params;
@@ -97,6 +106,7 @@ typedef struct {
     c4m_sig_info_t        *signature_info;
     struct c4m_cfg_node_t *cfg;
     unsigned int private : 1;
+    unsigned int once    : 1;
 } c4m_fn_decl_t;
 
 typedef struct {

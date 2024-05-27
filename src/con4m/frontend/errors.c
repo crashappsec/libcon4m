@@ -287,6 +287,14 @@ static error_info_t error_info[] = {
         "Invalid declaration; cannot be both global and local ([em]var[/])",
         false,
     },
+    [c4m_err_parse_decl_const_not_const] = {
+        c4m_err_parse_decl_const_not_const,
+        "const_not_const",
+        "Cannot declare variables to be both "
+        "[em]once[/] (each instantiation can be set dynamically once) and "
+        "[em]const[/] (must have a value that can be fully computed before running).",
+        false,
+    },
     [c4m_err_parse_case_else_or_end] = {
         c4m_err_parse_case_else_or_end,
         "case_else_or_end",
@@ -463,12 +471,19 @@ static error_info_t error_info[] = {
         "Declared type may not have a negative value.",
         false,
     },
+    [c4m_err_parse_for_assign_vars] = {
+        c4m_err_parse_for_assign_vars,
+        "for_assign_vars",
+        "Too many assignment variables in [em]for[/] loop. Must have one in "
+        "most cases, and two when iterating over a dictionary type.",
+        false,
+    },
     [c4m_err_invalid_redeclaration] = {
         c4m_err_invalid_redeclaration,
         "invalid_redeclaration",
         "Re-declaration of [em]{}[/] is not allowed here; "
         "previous declaration of "
-        "{} was here: [i]{}:{}:{}[/]",
+        "{} was here: [i]{}[/]",
         true,
     },
     [c4m_err_omit_string_enum_value] = {
@@ -654,6 +669,376 @@ static error_info_t error_info[] = {
         "HTTP and HTTPS support is not yet back in Con4m.",
         false,
     },
+    [c4m_info_recursive_use] = {
+        c4m_info_recursive_use,
+        "recursive_use",
+        "This [em]use[/] creates a cyclic import. Items imported from here "
+        "will be available, but if there are analysis conflicts in redeclared "
+        "symbols, the errors could end up confusing.",
+        false,
+    },
+    [c4m_err_self_recursive_use] = {
+        c4m_err_self_recursive_use,
+        "self_recursive_use",
+
+        "[em]use[/] statements are not allowed to directly import the current "
+        "module.",
+        false,
+    },
+    [c4m_err_redecl_kind] = {
+        c4m_err_redecl_kind,
+        "redecl_kind",
+        "Global symbol [em]{}[/] was previously declared as a [i]{}[/], so "
+        "cannot be redeclared as a [i]{}[/]. Previous declaration was: "
+        "[strong]{}[/]",
+        true,
+    },
+    [c4m_err_no_redecl] = {
+        c4m_err_no_redecl,
+        "no_redecl",
+        "Redeclaration of [i]{}[/] [em]{}[/] is not allowed. Previous "
+        "definition's location was: [strong]{}[/]",
+        true,
+    },
+    [c4m_err_redecl_neq_generics] = {
+        c4m_err_redecl_neq_generics,
+        "redecl_neq_generics",
+        "Redeclaration of [em]{}[/] uses {} type when "
+        "re-declared in a different module (redeclarations that name a "
+        "type, must name the exact same time as in other modules). "
+        "Previous type was: [em]{}[/] vs. current type: [em]{}[/]."
+        "Previous definition's location was: [strong]{}[/]",
+        true,
+    },
+    [c4m_err_spec_redef_section] = {
+        c4m_err_spec_redef_section,
+        "redef_section",
+        "Redefinition of [i]confspec[/] sections is not allowed. You can "
+        "add data to the [i]root[/] section, but no named sections may "
+        "appear twice in any program. Previous declaration of "
+        "section [em]{}[/] was: [strong]{}[/]",
+        true,
+    },
+    [c4m_err_spec_redef_field] = {
+        c4m_err_spec_redef_field,
+        "redef_field",
+        "Redefinition of [i]confspec[/] fields are not allowed. You can "
+        "add new fields to the [i]root[/] section, but no new ones. "
+        "Previous declaration of field [em]{}[/] was: [strong]{}[/]",
+        true,
+    },
+    [c4m_err_spec_locked] = {
+        c4m_err_spec_locked,
+        "spec_locked",
+        "The configuration file spec has been programatically locked, "
+        "and as such, cannot be changed here.",
+        false,
+    },
+    [c4m_err_dupe_validator] = {
+        c4m_err_dupe_validator,
+        "dupe_validator",
+        "The root section already has a validator; currently only a single "
+        "validator is supported.",
+        false,
+    },
+    [c4m_err_decl_mismatch] = {
+        c4m_err_decl_mismatch,
+        "decl_mismatch",
+        "Right-hand side of assignment has a type [em]({})[/] that is not "
+        "compatable with the declared type of the left-hand side [em]({})[/]. "
+        "Previous declaration location is: [i]{}[/]",
+        true,
+    },
+    [c4m_err_inconsistent_type] = {
+        c4m_err_inconsistent_type,
+        "inconsistent_type",
+        "The type here [em]({})[/] is not compatable with the "
+        "declared type of this variable [em]({})[/]. "
+        "Declaration location is: [i]{}[/]",
+        true,
+    },
+    [c4m_err_inconsistent_infer_type] = {
+        c4m_err_inconsistent_infer_type,
+        "inconsistent_type",
+        "The previous type, [em]{}[/], is not compatable with the "
+        "type used in this context ([em]{}[/]). ",
+        true,
+    },
+    [c4m_err_decl_mask] = {
+        c4m_err_decl_mask,
+        "decl_mask",
+        "This variable cannot be declared in the [em]{}[/] scope because "
+        "there is already a {}-level declaration in the same module at: [i]{}",
+        true,
+    },
+    [c4m_warn_attr_mask] = {
+        c4m_warn_attr_mask,
+        "attr_mask",
+        "This module-level declaration shares a name with an attribute."
+        "The module definition will be used throughout this module, "
+        "and the attribute will not be available.",
+        false,
+    },
+    [c4m_err_attr_mask] = {
+        c4m_err_attr_mask,
+        "attr_mask",
+        "This global declaration is invalid, because it has the same "
+        "name as an existing attribute.",
+        false,
+    },
+    [c4m_err_label_target] = {
+        c4m_err_label_target,
+        "label_target",
+        "The label target [em]{}[/] for this [i]{}[/] statement is not an "
+        "enclosing loop.",
+        true,
+    },
+    [c4m_err_fn_not_found] = {
+        c4m_err_fn_not_found,
+        "fn_not_found",
+        "Could not find an implementation for the function [em]{}[/].",
+        true,
+    },
+    [c4m_err_num_params] = {
+        c4m_err_num_params,
+        "num_params",
+        "Wrong number of parameters in call to function [em]{}[/]. "
+        "Call site used [i]{}[/] parameters, but the implementation of "
+        "that function requires [i]{}[/] parameters.",
+        true,
+    },
+    [c4m_err_calling_non_fn] = {
+        c4m_err_calling_non_fn,
+        "calling_non_fn",
+        "Cannot call [em]{}[/]; it is a [i]{}[/] not a function.",
+        true,
+    },
+    [c4m_err_spec_needs_field] = {
+        c4m_err_spec_needs_field,
+        "spec_needs_field",
+        "Attribute specification says [em]{}[/] must be a [i]{}[/]. It cannot "
+        "be used as a field here.",
+        true,
+    },
+    [c4m_err_field_not_spec] = {
+        c4m_err_field_not_spec,
+        "field_not_spec",
+        "Attribute [em]{}[/] does not follow the specticiation. The component "
+        "[em]{}[/] is expected to refer to a field, not a "
+        "configuration section.",
+        true,
+    },
+    [c4m_err_undefined_section] = {
+        c4m_err_undefined_section,
+        "undefined_section",
+        "The config file spec doesn't support a section named [em]{}[/].",
+        true,
+    },
+    [c4m_err_section_not_allowed] = {
+        c4m_err_section_not_allowed,
+        "section_not_allowed",
+        "The config file spec does not allow [em]{}[/] to be a subsection "
+        "here.",
+        true,
+    },
+    [c4m_err_slice_on_dict] = {
+        c4m_err_slice_on_dict,
+        "slice_on_dict",
+        "The slice operator is not supported for data types using dictionary "
+        "syntax (e.g., dictionaries or sets).",
+        false,
+    },
+    [c4m_err_bad_slice_ix] = {
+        c4m_err_bad_slice_ix,
+        "bad_slice_ix",
+        "The slice operator only supports integer indices.",
+        false,
+    },
+    [c4m_err_dupe_label] = {
+        c4m_err_dupe_label,
+        "dupe_label",
+        "The loop label [em]{}[/] cannot be used in multiple nested loops. "
+        "Note that, in the future, this constraint might apply per-function "
+        "context as well.",
+        true,
+    },
+    [c4m_err_iter_name_conflict] = {
+        c4m_err_iter_name_conflict,
+        "iter_name_conflict",
+        "Loop iteration over a dictionary requires two different loop "
+        "variable names. Rename one of them.",
+        false,
+    },
+    [c4m_warn_shadowed_var] = {
+        c4m_warn_shadowed_var,
+        "shadowed_var",
+        "Declaration of [em]{}[/] shadows a [i]{}[/] that would otherwise "
+        "be in scope here. Shadow value's first location: [i]{}[/]",
+        true,
+    },
+    [c4m_err_dict_one_var_for] = {
+        c4m_err_dict_one_var_for,
+        "dict_one_var_for",
+        "When using [em]for[/] loops to iterate over a dictionary, "
+        "you need to define two variables, one to hold the [i]key[/], "
+        "the other to hold the associated value.",
+        false,
+    },
+    [c4m_err_future_dynamic_typecheck] = {
+        c4m_err_future_dynamic_typecheck,
+        "future_dynamic_typecheck",
+        "There isn't enough syntactic context at this point for the system "
+        "to properly keep track of type info. Usually this happens when "
+        "using containers, when we cannot determine, for instance, dict vs. "
+        "set vs. list. In the future, this will be fine; in some cases "
+        "we will keep more type info, and in others, we will convert to "
+        "a runtime check. But for now, please add a type annotation that "
+        "at least unambiguously specifies a container type.",
+        false,
+    },
+    [c4m_err_iterate_on_non_container] = {
+        c4m_err_iterate_on_non_container,
+        "iterate_on_non_container",
+        "Cannot iterate over this value, as it is not a container type "
+        "(current type is [em]{}[/])",
+        true,
+    },
+    [c4m_err_unary_minus_type] = {
+        c4m_err_unary_minus_type,
+        "unary_minus_type",
+        "Unary minus currently only allowed on signed int types.",
+        false,
+    },
+    [c4m_err_cannot_cmp] = {
+        c4m_err_cannot_cmp,
+        "cannot_cmp",
+        "The two sides of the comparison have incompatible types: "
+        "[em]{}[/] vs [em]{}[/]",
+        true,
+    },
+    [c4m_err_range_type] = {
+        c4m_err_range_type,
+        "range_type",
+        "Ranges must consist of two int values.",
+        false,
+    },
+    [c4m_err_switch_case_type] = {
+        c4m_err_switch_case_type,
+        "switch_case_type",
+        "This switch branch has a type ([em]{}[/]) that doesn't match"
+        "The type of the object being switched on ([em]{}[/])",
+        true,
+    },
+    [c4m_err_concrete_typeof] = {
+        c4m_err_concrete_typeof,
+        "concrete_typeof",
+        "[em]typeof[/] requires the expression to be of a variable type, "
+        "but in this context it is always a [em]{}",
+        true,
+    },
+    [c4m_warn_type_overlap] = {
+        c4m_warn_type_overlap,
+        "type_overlap",
+        "This case in the [em]typeof[/] statement has a type [em]{}[/] "
+        "that overlaps with a previous case type: [em]{}[/]",
+        true,
+    },
+    [c4m_err_dead_branch] = {
+        c4m_err_dead_branch,
+        "dead_branch",
+        "This type case ([em]{}[/] is not compatable with the constraints "
+        "for the variable you're testing (i.e., this is not a subtype)",
+        true,
+    },
+    [c4m_err_no_ret] = {
+        c4m_err_no_ret,
+        "no_ret",
+        "Function was declared with a return type [em]{}[/em], but no "
+        "values were returned.",
+        true,
+    },
+    [c4m_err_use_no_def] = {
+        c4m_err_use_no_def,
+        "use_no_def",
+        "Variable is used, but not ever set.",
+        false,
+    },
+    [c4m_err_declared_incompat] = {
+        c4m_err_declared_incompat,
+        "declared_incompat",
+        "The declared type ([em]{}[/]) is not compatable with the type as "
+        "used in the function ([em]{}[/])",
+        true,
+    },
+    [c4m_err_too_general] = {
+        c4m_err_too_general,
+        "too_general",
+        "The declared type ([em]{}[/]) is more generic than the implementation "
+        "requires ([em]{}[/]). Please use the more specific type (or remove "
+        "the declaration)",
+        true,
+    },
+    [c4m_warn_unused_param] = {
+        c4m_warn_unused_param,
+        "unused_param",
+        "The parameter [em]{}[/] is declared, but not used.",
+        true,
+    },
+    [c4m_warn_def_without_use] = {
+        c4m_warn_def_without_use,
+        "def_without_use",
+        "Variable [em]{}[/] is explicitly declared, but not used.",
+        true,
+    },
+    [c4m_err_call_type_err] = {
+        c4m_err_call_type_err,
+        "call_type_err",
+        "Type inferred at call site ([em]{}[/]) is not compatiable with "
+        "the implementated type ([em]{}[/]).",
+        true,
+    },
+    [c4m_err_single_def] = {
+        c4m_err_single_def,
+        "single_def",
+        "Variable declared using [em]{}[/] may only be assigned in a single "
+        "location. The first declaration is: [i]{}[/]",
+        true,
+    },
+    [c4m_warn_unused_decl] = {
+        c4m_warn_unused_decl,
+        "unused_decl",
+        "Declared variable [em]{}[/] is unused.",
+        true,
+    },
+    [c4m_err_global_remote_def] = {
+        c4m_err_global_remote_def,
+        "global_remote_def",
+        "Global variable [em]{}[/] can only be set in the module that first "
+        "declares it. The symbol's origin is: [i]{}",
+        true,
+    },
+    [c4m_err_global_remote_unused] = {
+        c4m_err_global_remote_unused,
+        "global_remote_unused",
+        "Global variable [em]{}[/] is imported via the [i]global[/] keyword, "
+        "but is not used here.",
+        true,
+    },
+    [c4m_info_unused_global_decl] = {
+        c4m_info_unused_global_decl,
+        "unused_global_decl",
+        "Global variable",
+        true,
+    },
+    [c4m_global_def_without_use] = {
+        c4m_global_def_without_use,
+        "def_without_use",
+        "This module is the first to declare the global variable[em]{}[/], "
+        "but it is not explicitly initialized. It will be set to a default "
+        "value at the beginning of the program.",
+        true,
+    },
+
     [c4m_err_last] = {
         c4m_err_last,
         "last",

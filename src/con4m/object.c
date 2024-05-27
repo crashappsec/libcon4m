@@ -423,7 +423,8 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_partial_lit_vtable,
         .dt_kind   = C4M_DT_KIND_internal,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
-    }};
+    },
+};
 
 c4m_obj_t
 _c4m_new(c4m_type_t *type, ...)
@@ -470,15 +471,18 @@ c4m_gc_ptr_info(c4m_builtin_t dtid)
     return (uint64_t *)c4m_base_type_info[dtid].ptr_info;
 }
 
-static const char *repr_err = "Held type does not have a __repr__ function.";
-
 c4m_str_t *
 c4m_value_obj_repr(c4m_obj_t obj)
 {
     // This does NOT work on direct values.
     c4m_repr_fn ptr = (c4m_repr_fn)c4m_vtable(obj)->methods[C4M_BI_TO_STR];
     if (!ptr) {
-        C4M_CRAISE(repr_err);
+        c4m_type_t *t = c4m_get_my_type(obj);
+        uint64_t    x = c4m_tspec_get_data_type_info(t)->typeid;
+
+        return c4m_cstr_format("{}@{:x}",
+                               c4m_new_utf8(c4m_base_type_info[x].name),
+                               c4m_box_u64((uint64_t)obj));
     }
     return (*ptr)(obj, C4M_REPR_VALUE);
 }
@@ -490,7 +494,9 @@ c4m_repr(void *item, c4m_type_t *t, to_str_use_t how)
     c4m_repr_fn p = (c4m_repr_fn)c4m_base_type_info[x].vtable->methods[C4M_BI_TO_STR];
 
     if (!p) {
-        C4M_CRAISE(repr_err);
+        return c4m_cstr_format("{}@{:x}",
+                               c4m_new_utf8(c4m_base_type_info[x].name),
+                               c4m_box_u64((uint64_t)item));
     }
 
     return (*p)(item, how);

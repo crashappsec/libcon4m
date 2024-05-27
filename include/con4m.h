@@ -1,4 +1,5 @@
 #pragma once
+#define C4M_TYPE_LOG
 
 // Everything includes this; the ordering here is somewhat important
 // due to interdependencies, though they can always be solved via
@@ -84,13 +85,13 @@
 #include "con4m/vm.h"
 
 // The front end.
+#include "frontend/treematch.h"
 #include "frontend/compile.h"
 #include "frontend/errors.h"
 #include "frontend/lex.h"
 #include "frontend/parse.h"
 #include "frontend/scope.h"
 #include "frontend/spec.h"
-#include "frontend/treematch.h"
 #include "frontend/partial.h"
 #include "frontend/cfgs.h"
 

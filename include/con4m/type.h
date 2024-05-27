@@ -19,7 +19,7 @@ extern c4m_type_t     *c4m_tspec_set(c4m_type_t *);
 extern c4m_type_t     *c4m_tspec_tuple(int64_t, ...);
 extern c4m_type_t     *c4m_tspec_tuple_from_xlist(c4m_xlist_t *);
 extern c4m_type_t     *c4m_tspec_fn(c4m_type_t *, c4m_xlist_t *, bool);
-extern c4m_type_t     *c4m_tspec_varargs_fn_va(c4m_type_t *, int64_t, ...);
+extern c4m_type_t     *c4m_tspec_fn_va(c4m_type_t *, int64_t, ...);
 extern c4m_type_t     *c4m_tspec_varargs_fn(c4m_type_t *, int64_t, ...);
 extern c4m_type_t     *c4m_global_resolve_type(c4m_type_t *);
 extern c4m_type_t     *c4m_global_copy(c4m_type_t *);
@@ -31,14 +31,51 @@ extern c4m_type_t     *c4m_get_promotion_type(c4m_type_t *,
 extern void            c4m_initialize_global_types();
 extern c4m_type_hash_t c4m_type_hash(c4m_type_t *node, c4m_type_env_t *env);
 
-static inline c4m_dt_kind_t
-c4m_tspec_get_base(c4m_type_t *n)
+extern uint64_t *c4m_get_list_bitfield();
+extern uint64_t *c4m_get_dict_bitfield();
+extern uint64_t *c4m_get_set_bitfield();
+extern uint64_t *c4m_get_tuple_bitfield();
+extern uint64_t *c4m_get_all_containers_bitfield();
+extern uint64_t *c4m_get_no_containers_bitfield();
+extern int       c4m_get_num_bitfield_words();
+extern bool      c4m_partial_inference(c4m_type_t *);
+extern bool      c4m_list_syntax_possible(c4m_type_t *);
+extern bool      c4m_dict_syntax_possible(c4m_type_t *);
+extern bool      c4m_set_syntax_possible(c4m_type_t *);
+extern bool      c4m_tuple_syntax_possible(c4m_type_t *);
+extern void      c4m_remove_list_options(c4m_type_t *);
+extern void      c4m_remove_dict_options(c4m_type_t *);
+extern void      c4m_remove_set_options(c4m_type_t *);
+extern void      c4m_remove_tuple_options(c4m_type_t *);
+extern bool      c4m_type_has_list_syntax(c4m_type_t *);
+extern bool      c4m_type_has_dict_syntax(c4m_type_t *);
+extern bool      c4m_type_has_set_syntax(c4m_type_t *);
+extern bool      c4m_type_has_tuple_syntax(c4m_type_t *);
+
+static inline void
+c4m_remove_all_container_options(c4m_type_t *t)
 {
-    return n->details->base_type->dt_kind;
+    c4m_remove_list_options(t);
+    c4m_remove_dict_options(t);
+    c4m_remove_set_options(t);
+    c4m_remove_tuple_options(t);
+}
+
+extern c4m_type_env_t *c4m_global_type_env;
+
+extern c4m_type_exact_result_t
+c4m_type_cmp_exact_env(c4m_type_t *,
+                       c4m_type_t *,
+                       c4m_type_env_t *);
+
+static inline c4m_type_exact_result_t
+c4m_type_cmp_exact(c4m_type_t *t1, c4m_type_t *t2)
+{
+    return c4m_type_cmp_exact_env(t1, t2, c4m_global_type_env);
 }
 
 static inline c4m_dt_kind_t
-c4m_tspec_get_type_kind(c4m_type_t *n)
+c4m_tspec_get_base(c4m_type_t *n)
 {
     return n->details->base_type->dt_kind;
 }
@@ -84,8 +121,6 @@ c4m_tenv_next_tid(c4m_type_env_t *env)
 {
     return atomic_fetch_add(&env->next_tid, 1);
 }
-
-extern c4m_type_env_t *c4m_global_type_env;
 
 static inline c4m_type_t *
 c4m_merge_types(c4m_type_t *t1, c4m_type_t *t2)
@@ -388,7 +423,13 @@ c4m_tspec_partial_lit()
 static inline c4m_type_t *
 c4m_new_typevar(c4m_type_env_t *env)
 {
-    c4m_type_t *result = c4m_new(c4m_tspec_typespec(), env, C4M_T_GENERIC);
+    c4m_type_t   *result = c4m_new(c4m_tspec_typespec(), env, C4M_T_GENERIC);
+    tv_options_t *tsi    = c4m_gc_alloc(tv_options_t);
+
+    result->details->tsi   = tsi;
+    tsi->container_options = c4m_get_all_containers_bitfield();
+    result->details->items = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+    result->details->flags = C4M_FN_UNKNOWN_TV_LEN;
 
     return result;
 }
@@ -397,6 +438,74 @@ static inline c4m_type_t *
 c4m_tspec_typevar()
 {
     return c4m_new_typevar(c4m_global_type_env);
+}
+
+static inline c4m_type_t *
+c4m_tspec_any_list(c4m_type_t *item_type)
+{
+    c4m_type_t   *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_GENERIC);
+    tv_options_t *tsi    = c4m_gc_alloc(tv_options_t);
+
+    result->details->tsi   = tsi;
+    tsi->container_options = c4m_get_list_bitfield();
+    result->details->items = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+
+    if (item_type == NULL) {
+        item_type = c4m_tspec_typevar();
+    }
+
+    c4m_xlist_append(result->details->items, item_type);
+
+    return result;
+}
+
+static inline c4m_type_t *
+c4m_tspec_any_dict(c4m_type_t *key, c4m_type_t *value)
+{
+    c4m_type_t   *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_GENERIC);
+    tv_options_t *tsi    = c4m_gc_alloc(tv_options_t);
+
+    result->details->tsi   = tsi;
+    tsi->container_options = c4m_get_dict_bitfield();
+    result->details->items = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+
+    if (key == NULL) {
+        key = c4m_tspec_typevar();
+    }
+
+    if (value == NULL) {
+        value = c4m_tspec_typevar();
+    }
+
+    c4m_xlist_append(result->details->items, key);
+    c4m_xlist_append(result->details->items, value);
+
+    return result;
+}
+
+static inline c4m_type_t *
+c4m_tspec_any_set(c4m_type_t *item_type)
+{
+    c4m_type_t   *result = c4m_new(c4m_tspec_typespec(),
+                                 c4m_global_type_env,
+                                 C4M_T_GENERIC);
+    tv_options_t *tsi    = c4m_gc_alloc(tv_options_t);
+
+    result->details->tsi   = tsi;
+    tsi->container_options = c4m_get_set_bitfield();
+    result->details->items = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+
+    if (item_type == NULL) {
+        item_type = c4m_tspec_typevar();
+    }
+
+    c4m_xlist_append(result->details->items, item_type);
+
+    return result;
 }
 
 static inline bool
@@ -436,6 +545,12 @@ c4m_tspec_is_int_type(c4m_type_t *t)
 }
 
 static inline bool
+c4m_tspec_is_tvar(c4m_type_t *t)
+{
+    return (c4m_tspec_get_base(t) == C4M_DT_KIND_type_var);
+}
+
+static inline bool
 c4m_obj_is_int_type(const c4m_obj_t *obj)
 {
     c4m_base_obj_t *base = (c4m_base_obj_t *)c4m_object_header(obj);
@@ -448,3 +563,16 @@ c4m_type_is_value_type(c4m_type_t *t)
 {
     return c4m_tspec_get_data_type_info(t)->by_value;
 }
+
+#ifdef C4M_USE_INTERNAL_API
+extern c4m_grid_t *c4m_format_global_type_environment();
+extern void        c4m_clean_environment();
+
+#ifdef C4M_TYPE_LOG
+extern void type_log_on();
+extern void type_log_off();
+#else
+#define type_log_on()
+#define type_log_off()
+#endif
+#endif

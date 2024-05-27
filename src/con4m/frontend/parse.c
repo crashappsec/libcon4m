@@ -117,7 +117,7 @@ static c4m_tree_node_t *index_expr(parse_ctx *, c4m_tree_node_t *);
 static c4m_tree_node_t *call_expr(parse_ctx *, c4m_tree_node_t *);
 static c4m_tree_node_t *section(parse_ctx *, c4m_tree_node_t *);
 static bool             literal(parse_ctx *);
-static void             label_stmt(parse_ctx *);
+static c4m_tree_node_t *label_stmt(parse_ctx *);
 static void             assert_stmt(parse_ctx *);
 static void             use_stmt(parse_ctx *);
 static void             basic_member_expr(parse_ctx *);
@@ -253,7 +253,9 @@ static const node_type_info_t node_type_info[] = {
     { "nt_global_enum", 0, 0, 0, 0, 0, },
     { "nt_enum_item", 1, 0, 0, 0, 0, },
     { "nt_identifier", 1, 1, 0, 0, 0, },
-    { "nt_func_def", 1, 0, 0, 1, 0, },
+    { "nt_func_def", 0, 0, 0, 1, 0, },
+    { "nt_func_mods", 0, 0, 0, 0, 0, },
+    { "nt_func_mod", 1, 0, 0, 0, 0, },
     { "nt_formals", 0, 0, 0, 0, 0, },
     { "nt_varargs_param", 0, 0, 0, 0, 0, },
     { "nt_member", 0, 0, 0, 0, 0, },
@@ -354,6 +356,7 @@ _add_parse_error(parse_ctx *ctx, c4m_compile_error_t code, ...)
                        tok_cur(ctx),
                        c4m_err_severity_error,
                        args);
+    ctx->file_ctx->fatal_errors = 1;
     va_end(args);
 }
 
@@ -730,6 +733,23 @@ restore_tree(parse_ctx *ctx)
     return result;
 }
 
+#define binop_restore_and_return(ctx, op)            \
+    {                                                \
+        c4m_tree_node_t *result = restore_tree(ctx); \
+        c4m_pnode_t     *pnode  = get_pnode(result); \
+        pnode->extra_info       = (void *)op;        \
+        return result;                               \
+    }
+
+#define binop_assign(ctx, expr, op)                                        \
+    {                                                                      \
+        c4m_tree_node_t *tmp = assign(ctx, expr, c4m_nt_binary_assign_op); \
+        c4m_pnode_t     *pn  = get_pnode(tmp);                             \
+                                                                           \
+        pn->extra_info = (void *)(op);                                     \
+        adopt_kid(ctx, tmp);                                               \
+    }
+
 static void
 opt_newlines(parse_ctx *ctx)
 {
@@ -941,7 +961,7 @@ simple_lit(parse_ctx *ctx)
                 break;
 
             default:
-                C4M_CRAISE("Reached supposedly unreachable code.");
+                unreachable();
             }
 
             c4m_error_from_token(ctx->file_ctx, err, tok, mod, syntax_kind);
@@ -1439,16 +1459,34 @@ lock_attr(parse_ctx *ctx)
 
     switch (tok_kind(ctx)) {
     case c4m_tt_plus_eq:
+        binop_assign(ctx, expr, c4m_op_plus);
+        break;
     case c4m_tt_minus_eq:
+        binop_assign(ctx, expr, c4m_op_minus);
+        break;
     case c4m_tt_mul_eq:
+        binop_assign(ctx, expr, c4m_op_mul);
+        break;
     case c4m_tt_div_eq:
+        binop_assign(ctx, expr, c4m_op_div);
+        break;
     case c4m_tt_mod_eq:
-    case c4m_tt_bit_and_eq:
+        binop_assign(ctx, expr, c4m_op_mod);
+        break;
     case c4m_tt_bit_or_eq:
+        binop_assign(ctx, expr, c4m_op_bitor);
+        break;
     case c4m_tt_bit_xor_eq:
+        binop_assign(ctx, expr, c4m_op_bitxor);
+        break;
+    case c4m_tt_bit_and_eq:
+        binop_assign(ctx, expr, c4m_op_bitand);
+        break;
     case c4m_tt_shl_eq:
+        binop_assign(ctx, expr, c4m_op_shl);
+        break;
     case c4m_tt_shr_eq:
-        adopt_kid(ctx, assign(ctx, expr, c4m_nt_binary_assign_op));
+        binop_assign(ctx, expr, c4m_op_shr);
         break;
     case c4m_tt_colon:
     case c4m_tt_assign:
@@ -1508,17 +1546,21 @@ static void
 for_var_list(parse_ctx *ctx)
 {
     start_node(ctx, c4m_nt_variable_decls, false);
-    start_node(ctx, c4m_nt_decl_qualifiers, false);
-    end_node(ctx);
 
-    while (true) {
-        identifier(ctx);
-        if (tok_kind(ctx) != c4m_tt_comma) {
-            end_node(ctx);
-            return;
-        }
-        consume(ctx);
+    identifier(ctx);
+    if (tok_kind(ctx) != c4m_tt_comma) {
+        end_node(ctx);
+        return;
     }
+    consume(ctx);
+    identifier(ctx);
+
+    if (tok_kind(ctx) == c4m_tt_comma) {
+        add_parse_error(ctx, c4m_err_parse_for_assign_vars);
+        consume(ctx); // Attempt to recover by skipping the comma
+        consume(ctx); // AND the likely ID token.
+    }
+    end_node(ctx);
 }
 
 static bool
@@ -1550,7 +1592,6 @@ range(parse_ctx *ctx)
     }
     consume(ctx);
     adopt_kid(ctx, expression(ctx));
-    end_of_statement(ctx);
     end_node(ctx);
 }
 
@@ -1578,11 +1619,21 @@ property_range(parse_ctx *ctx)
 }
 
 static void
-for_stmt(parse_ctx *ctx)
+for_stmt(parse_ctx *ctx, bool label)
 {
+    c4m_tree_node_t *label_node = NULL;
     c4m_tree_node_t *expr;
 
+    if (label) {
+        label_node = label_stmt(ctx);
+    }
+
     start_node(ctx, c4m_nt_for, true);
+
+    if (label) {
+        adopt_kid(ctx, label_node);
+    }
+
     for_var_list(ctx);
 
     switch (match(ctx, c4m_tt_in, c4m_tt_from)) {
@@ -1592,6 +1643,10 @@ for_stmt(parse_ctx *ctx)
 
         if (!optional_range(ctx, expr)) {
             adopt_kid(ctx, expr);
+            // Denote we have an object-loop to make for easy testing
+            // in pass 2
+            c4m_pnode_t *pn = c4m_tree_get_contents(ctx->cur);
+            pn->extra_info  = (void *)~0;
         }
         break;
     case c4m_tt_from:
@@ -1608,17 +1663,30 @@ for_stmt(parse_ctx *ctx)
     ctx->loop_depth += 1;
     body(ctx, NULL);
     ctx->loop_depth -= 1;
+    end_node(ctx);
 }
 
 static void
-while_stmt(parse_ctx *ctx)
+while_stmt(parse_ctx *ctx, bool label)
 {
+    c4m_tree_node_t *label_node = NULL;
+
+    if (label) {
+        label_node = label_stmt(ctx);
+    }
+
     start_node(ctx, c4m_nt_while, true);
+
+    if (label) {
+        adopt_kid(ctx, label_node);
+    }
+
     adopt_kid(ctx, expression(ctx));
 
     ctx->loop_depth += 1;
     body(ctx, NULL);
     ctx->loop_depth -= 1;
+    end_node(ctx);
 }
 
 static void
@@ -1650,6 +1718,7 @@ case_body(parse_ctx *ctx)
             case c4m_tt_enum:
                 err_skip_stmt(ctx, c4m_err_parse_enums_are_toplevel);
                 continue;
+            case c4m_tt_once:
             case c4m_tt_private:
             case c4m_tt_func:
                 err_skip_stmt(ctx, c4m_err_parse_funcs_are_toplevel);
@@ -1661,10 +1730,10 @@ case_body(parse_ctx *ctx)
                 if_stmt(ctx);
                 continue;
             case c4m_tt_for:
-                for_stmt(ctx);
+                for_stmt(ctx, false);
                 continue;
             case c4m_tt_while:
-                while_stmt(ctx);
+                while_stmt(ctx, false);
                 continue;
             case c4m_tt_typeof:
                 typeof_stmt(ctx);
@@ -1684,6 +1753,7 @@ case_body(parse_ctx *ctx)
             case c4m_tt_global:
             case c4m_tt_var:
             case c4m_tt_const:
+            case c4m_tt_let:
                 variable_decl(ctx);
                 end_of_statement(ctx);
                 continue;
@@ -1691,8 +1761,10 @@ case_body(parse_ctx *ctx)
                 if (lookahead(ctx, 1, false) == c4m_tt_colon) {
                     switch (lookahead(ctx, 2, true)) {
                     case c4m_tt_for:
+                        for_stmt(ctx, true);
+                        continue;
                     case c4m_tt_while:
-                        label_stmt(ctx);
+                        while_stmt(ctx, true);
                         continue;
                     default:
                         break; // fall through to text_matches tho.
@@ -1726,16 +1798,34 @@ case_body(parse_ctx *ctx)
                 expr = expression(ctx);
                 switch (tok_kind(ctx)) {
                 case c4m_tt_plus_eq:
+                    binop_assign(ctx, expr, c4m_op_plus);
+                    continue;
                 case c4m_tt_minus_eq:
+                    binop_assign(ctx, expr, c4m_op_minus);
+                    continue;
                 case c4m_tt_mul_eq:
+                    binop_assign(ctx, expr, c4m_op_mul);
+                    continue;
                 case c4m_tt_div_eq:
+                    binop_assign(ctx, expr, c4m_op_div);
+                    continue;
                 case c4m_tt_mod_eq:
+                    binop_assign(ctx, expr, c4m_op_mod);
+                    continue;
                 case c4m_tt_bit_or_eq:
+                    binop_assign(ctx, expr, c4m_op_bitor);
+                    continue;
                 case c4m_tt_bit_xor_eq:
+                    binop_assign(ctx, expr, c4m_op_bitxor);
+                    continue;
                 case c4m_tt_bit_and_eq:
+                    binop_assign(ctx, expr, c4m_op_bitand);
+                    continue;
                 case c4m_tt_shl_eq:
+                    binop_assign(ctx, expr, c4m_op_shl);
+                    continue;
                 case c4m_tt_shr_eq:
-                    adopt_kid(ctx, assign(ctx, expr, c4m_nt_binary_assign_op));
+                    binop_assign(ctx, expr, c4m_op_shr);
                     continue;
                 case c4m_tt_colon:
                 case c4m_tt_assign:
@@ -2025,16 +2115,46 @@ finish_formals:
 static void
 func_def(parse_ctx *ctx)
 {
-    if (tok_kind(ctx) == c4m_tt_private) {
-        start_node(ctx, c4m_nt_func_def, true);
-        if (!expect(ctx, c4m_tt_func)) {
-            THROW('!');
+    bool got_private = false;
+    bool got_once    = false;
+
+    start_node(ctx, c4m_nt_func_def, false);
+    start_node(ctx, c4m_nt_func_mods, false);
+
+    while (true) {
+        switch (tok_kind(ctx)) {
+        case c4m_tt_private:
+            if (got_private) {
+                err_skip_stmt(ctx, c4m_err_parse_decl_kw_x2);
+                return;
+            }
+
+            start_node(ctx, c4m_nt_func_mod, true);
+            end_node(ctx);
+            got_private = true;
+            continue;
+
+        case c4m_tt_once:
+            if (got_once) {
+                err_skip_stmt(ctx, c4m_err_parse_decl_kw_x2);
+                return;
+            }
+
+            start_node(ctx, c4m_nt_func_mod, true);
+            end_node(ctx);
+            got_once = true;
+            continue;
+        case c4m_tt_func:
+            consume(ctx);
+            break;
+        default:
+            expect(ctx, c4m_tt_func);
+            return;
         }
-    }
-    else {
-        start_node(ctx, c4m_nt_func_def, true);
+        break;
     }
 
+    end_node(ctx);
     ctx->in_function = true;
     identifier(ctx);
     formal_list(ctx);
@@ -2057,6 +2177,7 @@ variable_decl(parse_ctx *ctx)
     bool got_var    = false;
     bool got_global = false;
     bool got_const  = false;
+    bool got_let    = false;
 
     start_node(ctx, c4m_nt_variable_decls, false);
     start_node(ctx, c4m_nt_decl_qualifiers, false);
@@ -2083,6 +2204,16 @@ variable_decl(parse_ctx *ctx)
             }
             got_global = true;
             break;
+        case c4m_tt_let:
+            start_node(ctx, c4m_nt_identifier, true);
+            end_node(ctx);
+            if (got_let) {
+                end_node(ctx);
+                err_skip_stmt(ctx, c4m_err_parse_decl_kw_x2);
+                return c4m_nt_error;
+            }
+            got_let = true;
+            break;
         case c4m_tt_const:
             start_node(ctx, c4m_nt_identifier, true);
             end_node(ctx);
@@ -2107,6 +2238,12 @@ done_with_qualifiers:
         return c4m_nt_error;
     }
 
+    if (got_const && got_let) {
+        end_node(ctx);
+        err_skip_stmt(ctx, c4m_err_parse_decl_const_not_const);
+        return c4m_nt_error;
+    }
+
     // First symbol name we do not expect a comma, so jump past it.
     goto first_sym;
     while (tok_kind(ctx) == c4m_tt_comma) {
@@ -2122,13 +2259,17 @@ first_sym:
     return result;
 }
 
-static void
+static c4m_tree_node_t *
 label_stmt(parse_ctx *ctx)
 {
-    start_node(ctx, c4m_nt_label, true);
+    c4m_tree_node_t *result;
+
+    temporary_tree(ctx, c4m_nt_label);
+    consume(ctx);
     consume(ctx); // Colon got validated via lookahead.
     opt_one_newline(ctx);
-    end_node(ctx);
+    result = restore_tree(ctx);
+    return result;
 }
 
 static void
@@ -3014,7 +3155,7 @@ shl_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, shl_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_shl);
     }
 
     return not_expr(ctx);
@@ -3044,7 +3185,7 @@ shr_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, shr_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_shr);
     }
 
     return shl_expr(ctx);
@@ -3074,7 +3215,7 @@ div_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, div_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_div);
     }
 
     return shr_expr(ctx);
@@ -3104,7 +3245,7 @@ mul_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, mul_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_mul);
     }
 
     return div_expr(ctx);
@@ -3134,7 +3275,7 @@ mod_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, mod_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_mod);
     }
 
     return mul_expr(ctx);
@@ -3164,7 +3305,7 @@ minus_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, minus_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_minus);
     }
 
     return mod_expr(ctx);
@@ -3194,7 +3335,7 @@ plus_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, plus_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_plus);
     }
 
     return minus_expr(ctx);
@@ -3224,7 +3365,7 @@ lt_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_cmp);
         consume(ctx);
         adopt_kid(ctx, lt_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_lt);
     }
 
     return plus_expr(ctx);
@@ -3254,7 +3395,7 @@ gt_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_cmp);
         consume(ctx);
         adopt_kid(ctx, gt_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_gt);
     }
 
     return lt_expr(ctx);
@@ -3284,7 +3425,7 @@ lte_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_cmp);
         consume(ctx);
         adopt_kid(ctx, lte_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_lte);
     }
 
     return gt_expr(ctx);
@@ -3314,7 +3455,7 @@ gte_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_cmp);
         consume(ctx);
         adopt_kid(ctx, gte_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_gte);
     }
 
     return lte_expr(ctx);
@@ -3344,7 +3485,7 @@ eq_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_cmp);
         consume(ctx);
         adopt_kid(ctx, eq_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_eq);
     }
 
     return gte_expr(ctx);
@@ -3374,7 +3515,7 @@ bit_and_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, bit_and_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_bitand);
     }
 
     return eq_expr(ctx);
@@ -3404,7 +3545,7 @@ bit_xor_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, bit_xor_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_bitxor);
     }
 
     return bit_and_expr(ctx);
@@ -3434,7 +3575,7 @@ bit_or_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_binary_op);
         consume(ctx);
         adopt_kid(ctx, bit_or_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_bitor);
     }
 
     return bit_xor_expr(ctx);
@@ -3464,7 +3605,7 @@ ne_expr(parse_ctx *ctx)
         temporary_tree(ctx, c4m_nt_cmp);
         consume(ctx);
         adopt_kid(ctx, ne_expr_rhs(ctx));
-        return restore_tree(ctx);
+        binop_restore_and_return(ctx, c4m_op_neq);
     }
 
     return bit_or_expr(ctx);
@@ -3553,7 +3694,6 @@ section(parse_ctx *ctx, c4m_tree_node_t *node)
     c4m_pnode_t *lhs = (c4m_pnode_t *)c4m_tree_get_contents(node);
 
     if (lhs->kind != c4m_nt_expression || !c4m_tree_get_number_children(node)) {
-        printf("Bad start 1.\n");
 bad_start:
         raise_err_at_node(ctx,
                           current_parse_node(ctx),
@@ -3564,13 +3704,12 @@ bad_start:
     lhs = c4m_tree_get_contents(c4m_tree_get_child(node, 0));
 
     if (lhs->kind != c4m_nt_identifier) {
-        printf("Bad start 2.\n");
         goto bad_start;
     }
 
     c4m_tree_node_t *result = temporary_tree(ctx, c4m_nt_section);
 
-    adopt_kid(ctx, node);
+    adopt_kid(ctx, c4m_tree_get_child(node, 0));
 
     switch (match(ctx,
                   c4m_tt_identifier,
@@ -3587,7 +3726,7 @@ bad_start:
     case c4m_tt_lbrace:
         break;
     default:
-        abort(); // Should be unreachable.
+        unreachable();
     }
 
     body(ctx, (c4m_pnode_t *)c4m_tree_get_contents(result));
@@ -3650,6 +3789,7 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
             case c4m_tt_enum:
                 err_skip_stmt(ctx, c4m_err_parse_enums_are_toplevel);
                 continue;
+            case c4m_tt_once:
             case c4m_tt_private:
             case c4m_tt_func:
                 err_skip_stmt(ctx, c4m_err_parse_funcs_are_toplevel);
@@ -3661,10 +3801,10 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
                 if_stmt(ctx);
                 continue;
             case c4m_tt_for:
-                for_stmt(ctx);
+                for_stmt(ctx, false);
                 continue;
             case c4m_tt_while:
-                while_stmt(ctx);
+                while_stmt(ctx, false);
                 continue;
             case c4m_tt_typeof:
                 typeof_stmt(ctx);
@@ -3684,6 +3824,7 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
             case c4m_tt_global:
             case c4m_tt_var:
             case c4m_tt_const:
+            case c4m_tt_let:
                 variable_decl(ctx);
                 end_of_statement(ctx);
                 continue;
@@ -3691,8 +3832,10 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
                 if (lookahead(ctx, 1, false) == c4m_tt_colon) {
                     switch (lookahead(ctx, 2, true)) {
                     case c4m_tt_for:
+                        for_stmt(ctx, true);
+                        continue;
                     case c4m_tt_while:
-                        label_stmt(ctx);
+                        while_stmt(ctx, true);
                         continue;
                     default:
                         break; // fall through.
@@ -3726,16 +3869,34 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
                 expr = expression(ctx);
                 switch (tok_kind(ctx)) {
                 case c4m_tt_plus_eq:
+                    binop_assign(ctx, expr, c4m_op_plus);
+                    continue;
                 case c4m_tt_minus_eq:
+                    binop_assign(ctx, expr, c4m_op_minus);
+                    continue;
                 case c4m_tt_mul_eq:
+                    binop_assign(ctx, expr, c4m_op_mul);
+                    continue;
                 case c4m_tt_div_eq:
+                    binop_assign(ctx, expr, c4m_op_div);
+                    continue;
                 case c4m_tt_mod_eq:
+                    binop_assign(ctx, expr, c4m_op_mod);
+                    continue;
                 case c4m_tt_bit_or_eq:
+                    binop_assign(ctx, expr, c4m_op_bitor);
+                    continue;
                 case c4m_tt_bit_xor_eq:
+                    binop_assign(ctx, expr, c4m_op_bitxor);
+                    continue;
                 case c4m_tt_bit_and_eq:
+                    binop_assign(ctx, expr, c4m_op_bitand);
+                    continue;
                 case c4m_tt_shl_eq:
+                    binop_assign(ctx, expr, c4m_op_shl);
+                    continue;
                 case c4m_tt_shr_eq:
-                    adopt_kid(ctx, assign(ctx, expr, c4m_nt_binary_assign_op));
+                    binop_assign(ctx, expr, c4m_op_shr);
                     continue;
                 case c4m_tt_colon:
                 case c4m_tt_assign:
@@ -3797,10 +3958,10 @@ module(parse_ctx *ctx)
                 if_stmt(ctx);
                 continue;
             case c4m_tt_for:
-                for_stmt(ctx);
+                for_stmt(ctx, false);
                 continue;
             case c4m_tt_while:
-                while_stmt(ctx);
+                while_stmt(ctx, false);
                 continue;
             case c4m_tt_typeof:
                 typeof_stmt(ctx);
@@ -3817,6 +3978,7 @@ module(parse_ctx *ctx)
             case c4m_tt_return:
                 err_skip_stmt(ctx, c4m_err_parse_return_outside_func);
                 continue;
+            case c4m_tt_once:
             case c4m_tt_private:
             case c4m_tt_func:
                 func_def(ctx);
@@ -3829,6 +3991,7 @@ module(parse_ctx *ctx)
                 // fallthrough
             case c4m_tt_var:
             case c4m_tt_const:
+            case c4m_tt_let:
                 variable_decl(ctx);
                 end_of_statement(ctx);
                 continue;
@@ -3836,8 +3999,10 @@ module(parse_ctx *ctx)
                 if (lookahead(ctx, 1, false) == c4m_tt_colon) {
                     switch (lookahead(ctx, 2, true)) {
                     case c4m_tt_for:
+                        for_stmt(ctx, true);
+                        continue;
                     case c4m_tt_while:
-                        label_stmt(ctx);
+                        while_stmt(ctx, true);
                         continue;
                     default:
                         break; // fall through.
@@ -3876,16 +4041,34 @@ module(parse_ctx *ctx)
 
                 switch (tok_kind(ctx)) {
                 case c4m_tt_plus_eq:
+                    binop_assign(ctx, expr, c4m_op_plus);
+                    continue;
                 case c4m_tt_minus_eq:
+                    binop_assign(ctx, expr, c4m_op_minus);
+                    continue;
                 case c4m_tt_mul_eq:
+                    binop_assign(ctx, expr, c4m_op_mul);
+                    continue;
                 case c4m_tt_div_eq:
+                    binop_assign(ctx, expr, c4m_op_div);
+                    continue;
                 case c4m_tt_mod_eq:
+                    binop_assign(ctx, expr, c4m_op_mod);
+                    continue;
                 case c4m_tt_bit_or_eq:
+                    binop_assign(ctx, expr, c4m_op_bitor);
+                    continue;
                 case c4m_tt_bit_xor_eq:
+                    binop_assign(ctx, expr, c4m_op_bitxor);
+                    continue;
                 case c4m_tt_bit_and_eq:
+                    binop_assign(ctx, expr, c4m_op_bitand);
+                    continue;
                 case c4m_tt_shl_eq:
+                    binop_assign(ctx, expr, c4m_op_shl);
+                    continue;
                 case c4m_tt_shr_eq:
-                    adopt_kid(ctx, assign(ctx, expr, c4m_nt_binary_assign_op));
+                    binop_assign(ctx, expr, c4m_op_shr);
                     continue;
                 case c4m_tt_colon:
                 case c4m_tt_assign:
@@ -3953,7 +4136,11 @@ repr_one_node(c4m_pnode_t *one)
 
     c4m_utf8_t *result = c4m_cstr_format(fmt, name, xtra, doc);
 
-    //    c4m_print(c4m_hex_dump(result->data, result->byte_len));
+    if (one->type != NULL) {
+        result = c4m_str_concat(result,
+                                c4m_cstr_format("[h6]{}", one->type));
+    }
+
     return result;
 }
 
@@ -3968,6 +4155,27 @@ c4m_format_parse_tree(c4m_file_compile_ctx *ctx)
 {
     return c4m_grid_tree(ctx->parse_tree,
                          c4m_kw("converter", c4m_ka(repr_one_node)));
+}
+
+static inline void
+prime_tokens(parse_ctx *ctx)
+{
+    // tok_cur() doesn't skip comment tokens; consume() does.  So if a
+    // module starts w/ something that is always skipped, we need to
+    // skip it up front, or add an extra check to tok_cur.
+    while (true) {
+        switch (tok_kind(ctx)) {
+        case c4m_tt_newline:
+        case c4m_tt_long_comment:
+        case c4m_tt_line_comment:
+        case c4m_tt_space:
+            ctx->token_ix++;
+            continue;
+        default:
+            break;
+        }
+        break;
+    }
 }
 
 bool
@@ -3986,25 +4194,47 @@ c4m_parse(c4m_file_compile_ctx *file_ctx)
         .root_stack   = c4m_new(c4m_tspec_stack(c4m_tspec_parse_node())),
     };
 
-    // tok_cur() doesn't skip comment tokens; consume() does.  So if a
-    // module starts w/ something that is always skipped, we need to
-    // skip it up front, or add an extra check to tok_cur.
-    while (true) {
-        switch (tok_kind(&ctx)) {
-        case c4m_tt_newline:
-        case c4m_tt_long_comment:
-        case c4m_tt_line_comment:
-        case c4m_tt_space:
-            ctx.token_ix++;
-            continue;
-        default:
-            break;
-        }
-        break;
-    }
+    prime_tokens(&ctx);
 
     file_ctx->parse_tree = module(&ctx);
+
+    if (file_ctx->parse_tree == NULL) {
+        file_ctx->fatal_errors = 1;
+    }
+
     return file_ctx->parse_tree != NULL;
+}
+
+bool
+c4m_parse_type(c4m_file_compile_ctx *file_ctx)
+{
+    if (c4m_fatal_error_in_module(file_ctx)) {
+        return false;
+    }
+
+    parse_ctx ctx = {
+        .cur          = NULL,
+        .file_ctx     = file_ctx,
+        .cached_token = NULL,
+        .token_ix     = 0,
+        .cache_ix     = -1,
+        .root_stack   = c4m_new(c4m_tspec_stack(c4m_tspec_parse_node())),
+    };
+
+    prime_tokens(&ctx);
+
+    c4m_pnode_t     *root = c4m_new(c4m_tspec_parse_node(), ctx, c4m_nt_lit_tspec);
+    c4m_tree_node_t *t    = c4m_new(c4m_tspec_tree(c4m_tspec_parse_node()),
+                                 c4m_kw("contents", c4m_ka(root)));
+
+    ctx.cur              = t;
+    file_ctx->parse_tree = ctx.cur;
+
+    type_spec(&ctx);
+
+    file_ctx->parse_tree = file_ctx->parse_tree->children[0];
+
+    return true;
 }
 
 const c4m_vtable_t c4m_parse_node_vtable = {

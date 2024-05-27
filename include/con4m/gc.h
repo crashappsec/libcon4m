@@ -193,6 +193,10 @@ try_again:
                  arena,
                  arena->heap_end);
 
+#ifdef C4M_ALLOC_STATS
+    arena->alloc_counter++;
+#endif
+
     return (void *)(raw->data);
 }
 
@@ -224,3 +228,10 @@ c4m_gc_malloc(size_t len)
 
 extern void c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom);
 extern void c4m_initialize_gc();
+extern void c4m_gc_heap_stats(uint64_t *, uint64_t *, uint64_t *);
+
+#ifdef C4M_ALLOC_STATS
+uint64_t get_alloc_counter();
+#else
+#define get_alloc_counter() (0)
+#endif

@@ -70,8 +70,7 @@ typedef struct {
 // dispatch.
 //
 // Note that I expect to steal a bit from the `base_data_type` pointer
-// to distinguish whether the object has been freed; while I currently
-// do not have
+// to distinguish whether the object has been freed.
 
 struct c4m_base_obj_t {
     c4m_dt_info_t     *base_data_type;

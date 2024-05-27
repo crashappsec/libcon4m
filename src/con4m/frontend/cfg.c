@@ -18,7 +18,8 @@ add_child(c4m_cfg_node_t *parent, c4m_cfg_node_t *child)
         branch_info->branch_targets[branch_info->next_to_process++] = child;
         return;
     case c4m_cfg_jump:
-        C4M_CRAISE("Reached supposedly unreachable code.");
+        parent->contents.jump.dead_code = child;
+        return;
     default:
         parent->contents.flow.next_node = child;
     }
@@ -53,18 +54,22 @@ c4m_cfg_enter_block(c4m_cfg_node_t  *parent,
 c4m_cfg_node_t *
 c4m_cfg_exit_block(c4m_cfg_node_t *parent, c4m_tree_node_t *treeloc)
 {
-    if (parent->kind == c4m_cfg_jump) {
+    if (!parent) {
         return NULL;
     }
 
     c4m_cfg_node_t *cur = parent;
 
     // Search parents until we find the block start.
-    while (cur->kind != c4m_cfg_block_entrance) {
+    while (cur && cur->kind != c4m_cfg_block_entrance) {
         cur = cur->parent;
     }
 
-    c4m_cfg_node_t *result = parent->contents.block_entrance.exit_node;
+    if (!cur) {
+        return NULL;
+    }
+
+    c4m_cfg_node_t *result = cur->contents.block_entrance.exit_node;
     c4m_xlist_append(result->contents.block_exit.inbound_links, parent);
 
     add_child(parent, result);
@@ -73,10 +78,9 @@ c4m_cfg_exit_block(c4m_cfg_node_t *parent, c4m_tree_node_t *treeloc)
 }
 
 c4m_cfg_node_t *
-c4m_cfg_block_new_branch_node(c4m_cfg_node_t *parent,
-                              int             num_branches,
-                              c4m_utf8_t     *label,
-
+c4m_cfg_block_new_branch_node(c4m_cfg_node_t  *parent,
+                              int              num_branches,
+                              c4m_utf8_t      *label,
                               c4m_tree_node_t *treeloc)
 {
     c4m_cfg_node_t  *result  = c4m_gc_alloc(c4m_cfg_node_t);
@@ -97,7 +101,9 @@ c4m_cfg_block_new_branch_node(c4m_cfg_node_t *parent,
 }
 
 c4m_cfg_node_t *
-c4m_cfg_add_return(c4m_cfg_node_t *parent, c4m_tree_node_t *treeloc)
+c4m_cfg_add_return(c4m_cfg_node_t  *parent,
+                   c4m_tree_node_t *treeloc,
+                   c4m_cfg_node_t  *fn_exit_node)
 {
     c4m_cfg_node_t *result = c4m_gc_alloc(c4m_cfg_node_t);
 
@@ -107,15 +113,9 @@ c4m_cfg_add_return(c4m_cfg_node_t *parent, c4m_tree_node_t *treeloc)
     result->reference_location = treeloc;
     result->parent             = parent;
 
-    while (parent->parent != NULL) {
-        parent = parent->parent;
-    }
+    c4m_xlist_append(fn_exit_node->contents.block_exit.inbound_links, result);
 
-    c4m_cfg_node_t *target = parent->contents.block_entrance.exit_node;
-
-    c4m_xlist_append(target->contents.block_exit.inbound_links, result);
-
-    result->contents.jump.target = target;
+    result->contents.jump.target = fn_exit_node;
 
     return result;
 }
@@ -178,8 +178,8 @@ c4m_cfg_add_continue(c4m_cfg_node_t  *parent,
         }
         if (cur->parent == NULL) {
             return NULL;
-            cur = cur->parent;
         }
+        cur = cur->parent;
     }
 }
 
@@ -229,9 +229,9 @@ c4m_cfg_add_break(c4m_cfg_node_t  *parent,
             break;
         }
         if (cur->parent == NULL) {
-            return NULL;
-            cur = cur->parent;
+            return result;
         }
+        cur = cur->parent;
     }
 }
 
@@ -285,4 +285,138 @@ c4m_cfg_add_use(c4m_cfg_node_t    *parent,
     add_child(parent, result);
 
     return result;
+}
+
+static c4m_tree_node_t *
+c4m_cfg_repr_internal(c4m_cfg_node_t  *node,
+                      c4m_tree_node_t *tree_parent,
+                      c4m_cfg_node_t  *cfg_parent,
+                      c4m_utf8_t      *label)
+{
+    c4m_utf8_t      *str;
+    c4m_tree_node_t *result;
+    c4m_cfg_node_t  *link;
+    uint64_t         node_addr = (uint64_t)(void *)node;
+    uint64_t         link_addr;
+
+    if (!node) {
+        return NULL;
+    }
+
+    switch (node->kind) {
+    case c4m_cfg_block_entrance:
+        link      = node->contents.block_entrance.exit_node;
+        link_addr = (uint64_t)(void *)link;
+        str       = c4m_cstr_format("@{:x}: [em]Enter[/]",
+                              c4m_box_i64(node_addr));
+        break;
+    case c4m_cfg_block_exit:
+        if (cfg_parent) {
+            return NULL;
+        }
+        str = c4m_cstr_format("@{:x}: [em]Exit",
+                              c4m_box_i64(node_addr));
+        break;
+    case c4m_cfg_node_branch:
+        if (node->contents.branches.label != NULL) {
+            str = c4m_cstr_format("@{:x}: [em]branch[/] [h1]{}[/]",
+                                  c4m_box_i64(node_addr),
+                                  node->contents.branches.label);
+        }
+        else {
+            str = c4m_cstr_format("@{:x}: [em]branch",
+                                  c4m_box_i64(node_addr));
+        }
+        break;
+    case c4m_cfg_use:
+        str = c4m_cstr_format("@{:x}: [em]USE[/] {}",
+                              c4m_box_i64(node_addr),
+                              node->contents.flow.dst_symbol->name);
+        break;
+    case c4m_cfg_def:
+        str = c4m_cstr_format("@{:x}: [em]DEF[/] {}",
+                              c4m_box_i64(node_addr),
+                              node->contents.flow.dst_symbol->name);
+        break;
+    case c4m_cfg_call:
+        str = c4m_cstr_format("@{:x}: [em]call[/] {}",
+                              c4m_box_i64(node_addr),
+                              node->contents.flow.dst_symbol->name);
+        break;
+    case c4m_cfg_jump:
+        link      = node->contents.jump.target;
+        link_addr = (uint64_t)(void *)link;
+        str       = c4m_cstr_format("@{:x}: [em]jmp[/] {:x}",
+                              c4m_box_i64(node_addr),
+                              c4m_box_i64(link_addr));
+    }
+
+    if (node->kind == c4m_cfg_block_entrance) {
+        if (label == NULL) {
+            label = c4m_new_utf8("block");
+        }
+        result                = c4m_new(c4m_tspec_tree(c4m_tspec_utf8()),
+                         c4m_kw("contents", label));
+        c4m_tree_node_t *sub1 = c4m_new(c4m_tspec_tree(c4m_tspec_utf8()),
+                                        c4m_kw("contents", c4m_ka(str)));
+
+        c4m_tree_adopt_node(tree_parent, result);
+        c4m_tree_adopt_node(result, sub1);
+        c4m_cfg_repr_internal(node->contents.flow.next_node, sub1, node, NULL);
+
+        c4m_cfg_repr_internal(node->contents.block_entrance.exit_node,
+                              result,
+                              NULL,
+                              NULL);
+
+        return result;
+    }
+
+    result = c4m_new(c4m_tspec_tree(c4m_tspec_utf8()),
+                     c4m_kw("contents", c4m_ka(str)));
+
+    c4m_tree_adopt_node(tree_parent, result);
+
+    switch (node->kind) {
+    case c4m_cfg_block_entrance:
+        unreachable();
+    case c4m_cfg_node_branch:
+        for (int i = 0; i < node->contents.branches.num_branches; i++) {
+            c4m_cfg_node_t *sub = node->contents.branches.branch_targets[i];
+
+            c4m_cfg_repr_internal(sub,
+                                  result,
+                                  node,
+                                  c4m_cstr_format("b{}", c4m_box_i64(i)));
+        }
+        break;
+    case c4m_cfg_block_exit:
+        link = node->contents.flow.next_node;
+
+        if (link) {
+            c4m_cfg_repr_internal(link, result->parent->parent, node, NULL);
+        }
+        break;
+
+    default:
+        link = node->contents.flow.next_node;
+
+        if (link) {
+            c4m_cfg_repr_internal(link, tree_parent, node, NULL);
+        }
+        break;
+    }
+
+    return result;
+}
+
+c4m_grid_t *
+c4m_cfg_repr(c4m_cfg_node_t *node)
+{
+    c4m_tree_node_t *root = c4m_new(
+        c4m_tspec_tree(c4m_tspec_utf8()),
+        c4m_kw("contents", c4m_ka(c4m_new_utf8("Root"))));
+
+    c4m_cfg_repr_internal(node, root, NULL, NULL);
+    return c4m_grid_tree(root);
 }
