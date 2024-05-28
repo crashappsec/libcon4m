@@ -65,7 +65,7 @@ c4m_register_container_type(c4m_builtin_t    bi,
         tuple_types[word] |= 1UL << bit;
         return;
     default:
-        unreachable();
+        c4m_unreachable();
     }
 }
 

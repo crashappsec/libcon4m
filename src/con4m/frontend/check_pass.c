@@ -615,8 +615,9 @@ sym_lookup(pass2_ctx *ctx, c4m_utf8_t *name)
                               c4m_err_section_not_allowed,
                               ctx->node,
                               attr_info->err_arg);
+                break;
             default:
-                unreachable();
+                c4m_unreachable();
             }
 
             return NULL;
@@ -1635,7 +1636,7 @@ builtin_bincall(pass2_ctx *ctx)
         set_node_type(ctx, ctx->node, c4m_tspec_bool());
         return;
     default:
-        unreachable();
+        c4m_unreachable();
     }
 }
 
