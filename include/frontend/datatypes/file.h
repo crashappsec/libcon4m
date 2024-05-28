@@ -41,6 +41,7 @@ typedef struct c4m_file_compile_ctx {
     c4m_cfg_node_t         *cfg; // CFG for the module top-level.
     c4m_utf8_t             *short_doc;
     c4m_utf8_t             *long_doc;
+    c4m_xlist_t            *fn_def_syms; // Cache of fns defined.
     unsigned int            fatal_errors : 1;
     unsigned int            file         : 1;
     unsigned int            secure       : 1;

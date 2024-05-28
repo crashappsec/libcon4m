@@ -953,7 +953,7 @@ static error_info_t error_info[] = {
     [c4m_err_no_ret] = {
         c4m_err_no_ret,
         "no_ret",
-        "Function was declared with a return type [em]{}[/em], but no "
+        "Function was declared with a return type [em]{}[/], but no "
         "values were returned.",
         true,
     },
@@ -1038,7 +1038,34 @@ static error_info_t error_info[] = {
         "value at the beginning of the program.",
         true,
     },
-
+    [c4m_warn_dead_code] = {
+        c4m_warn_dead_code,
+        "dead_code",
+        "This code below this line is not reachable.",
+        false,
+    },
+    [c4m_cfg_use_no_def] = {
+        c4m_cfg_use_no_def,
+        "use_no_def",
+        "The variable [em]{}[/] is not defined here, and cannot be used "
+        "without a previous assignment.",
+        true,
+    },
+    [c4m_cfg_use_possible_def] = {
+        c4m_cfg_use_possible_def,
+        "use_possible_def",
+        "It is possible for this use of [em]{}[/] to occur without a previous "
+        "assignment to the variable. While program logic might prevent it, "
+        "the analysis doesn't see it, so please set a default value in an "
+        "encompassing scope.",
+        true,
+    },
+    [c4m_cfg_return_coverage] = {
+        c4m_cfg_return_coverage,
+        "return_coverage",
+        "This function has control paths where no return value is set.",
+        false,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",

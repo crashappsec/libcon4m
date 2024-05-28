@@ -4,6 +4,7 @@
 extern c4m_cfg_node_t *c4m_cfg_enter_block(c4m_cfg_node_t *,
                                            c4m_tree_node_t *);
 extern c4m_cfg_node_t *c4m_cfg_exit_block(c4m_cfg_node_t *,
+                                          c4m_cfg_node_t *,
                                           c4m_tree_node_t *);
 extern c4m_cfg_node_t *c4m_cfg_block_new_branch_node(c4m_cfg_node_t *,
                                                      int,
@@ -30,6 +31,7 @@ extern c4m_cfg_node_t *c4m_cfg_add_use(c4m_cfg_node_t *,
                                        c4m_tree_node_t *,
                                        c4m_scope_entry_t *);
 extern c4m_grid_t     *c4m_cfg_repr(c4m_cfg_node_t *);
+extern void            c4m_cfg_analyze(c4m_file_compile_ctx *, c4m_dict_t *);
 
 static inline c4m_cfg_node_t *
 c4m_cfg_exit_node(c4m_cfg_node_t *block_entry)
