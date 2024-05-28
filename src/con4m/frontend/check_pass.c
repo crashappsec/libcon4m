@@ -2619,5 +2619,9 @@ c4m_check_pass(c4m_compile_ctx *cctx)
         if (f->cfg != NULL) {
             c4m_cfg_analyze(f, NULL);
         }
+
+        if (c4m_fatal_error_in_module(f)) {
+            cctx->fatality = 1;
+        }
     }
 }

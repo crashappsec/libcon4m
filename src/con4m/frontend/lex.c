@@ -62,12 +62,14 @@ static internal_tt_info_t tt_info[] = {
     {"var", false},
     {"global", false},
     {"const", false},
-    {":= literal", true},
+    {"once", false},
+    {"let", false},
+    {"private", false},
     {"`", false},
     {"->", false},
-    {"object", false},
+    {"object", false}, // 60
     {"while", false},
-    {"in", false}, // 60
+    {"in", false},
     {"&", false},
     {"|", false},
     {"^", false},
@@ -76,8 +78,8 @@ static internal_tt_info_t tt_info[] = {
     {"typeof", false},
     {"switch", false},
     {"case", false},
-    {"+=", false},
-    {"-=", false}, // 70
+    {"+=", false}, // 70
+    {"-=", false},
     {"*=", false},
     {"/=", false},
     {"%=", false},
@@ -85,8 +87,8 @@ static internal_tt_info_t tt_info[] = {
     {"|=", false},
     {"^=", false},
     {"<<=", false},
-    {">>=", false},
-    {"eof", false}, // 79
+    {">>=", false}, // 80
+    {"eof", false}, // 81
 };
 
 c4m_utf8_t *

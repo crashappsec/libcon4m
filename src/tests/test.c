@@ -638,31 +638,40 @@ test_compiler()
             path = fname;
         }
 
-        ctx = c4m_compile_from_entry_point(path);
+        c4m_print(c4m_cstr_format("[atomic lime]info:[/] Processing: {}",
+                                  fname));
 
+        ctx = c4m_compile_from_entry_point(path);
         // c4m_print(c4m_format_tokens(ctx->entry_point));
 
         if (ctx->entry_point->parse_tree) {
-            // c4m_print(c4m_format_parse_tree(ctx->entry_point));
+            c4m_print(c4m_format_parse_tree(ctx->entry_point));
         }
 
-        c4m_print(c4m_cstr_format("[atomic lime]info: [/] Finished parsing: {}",
+        c4m_print(c4m_cstr_format("[atomic lime]info:[/] Finished parsing: {}",
                                   fname));
+
+        if (ctx->entry_point->cfg) {
+            c4m_print(c4m_cfg_repr(ctx->entry_point->cfg));
+            c4m_print(c4m_rich_lit("[h2]Global Scope"));
+            c4m_print(c4m_format_scope(ctx->final_globals));
+            c4m_print(c4m_rich_lit("[h2]Module Scope"));
+            c4m_print(c4m_format_scope(ctx->entry_point->module_scope));
+        }
 
         c4m_grid_t *err_output = c4m_format_errors(ctx);
 
         if (err_output != NULL) {
             c4m_print(err_output);
         }
-        else {
-            c4m_print(c4m_cfg_repr(ctx->entry_point->cfg));
-            c4m_print(c4m_rich_lit("[h2]Global Scope"));
-            c4m_print(c4m_format_scope(ctx->final_globals));
-            c4m_print(c4m_rich_lit("[h2]Module Scope for entry point module"));
-            c4m_print(c4m_format_scope(ctx->entry_point->module_scope));
+
+        c4m_print(c4m_cstr_format("[atomic lime]info:[/] Done processing: {}",
+                                  fname));
+
+        if (c4m_got_fatal_compiler_error(ctx)) {
+            return;
         }
     }
-    c4m_print(c4m_str_to_type(c4m_new_utf8("(dict[`x, list[int]]) -> int")));
 
     // TODO: We need to mark unlocked types with sub-variables at some point,
     // so they don't get clobbered.
@@ -671,7 +680,6 @@ test_compiler()
 
     // c4m_clean_environment();
     // c4m_print(c4m_format_global_type_environment());
-    c4m_print_parse_node(ctx->entry_point->parse_tree);
 }
 #else
 #define test_compiler(...)

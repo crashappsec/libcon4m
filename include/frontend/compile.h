@@ -13,6 +13,12 @@ extern c4m_type_t           *c4m_str_to_type(c4m_utf8_t *);
 #define c4m_set_package_search_path(x, ...) \
     _c4m_set_package_search_path(x, KFUNC(__VA_ARGS__))
 
+static inline bool
+c4m_got_fatal_compiler_error(c4m_compile_ctx *ctx)
+{
+    return ctx->fatality;
+}
+
 #ifdef C4M_USE_INTERNAL_API
 extern void                  c4m_file_decl_pass(c4m_compile_ctx *,
                                                 c4m_file_compile_ctx *);

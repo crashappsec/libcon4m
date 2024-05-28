@@ -599,7 +599,7 @@ c4m_initial_load_one(c4m_compile_ctx *cctx, c4m_file_compile_ctx *ctx)
 {
     c4m_stream_t *stream = NULL;
 
-    if (ctx->fatal_errors) {
+    if (c4m_fatal_error_in_module(ctx)) {
         return;
     }
 
@@ -699,7 +699,7 @@ c4m_perform_module_loads(c4m_compile_ctx *ctx)
         c4m_initial_load_one(ctx, cur);
 
         cur->status = c4m_compile_status_code_loaded;
-        if (cur->fatal_errors) {
+        if (c4m_fatal_error_in_module(cur)) {
             ctx->fatality = true;
         }
 
