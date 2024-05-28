@@ -298,7 +298,7 @@ type_hash_and_dedupe(c4m_type_t **nodeptr, c4m_type_env_t *env)
         hatrack_dict_add(env->store, (void *)node->typeid, node);
         return node->typeid;
     case C4M_DT_KIND_type_var:
-        unreachable();
+        c4m_unreachable();
     default:
         ctx.env      = env;
         ctx.sha      = c4m_new(c4m_tspec_hash());
@@ -1109,7 +1109,7 @@ unify_sub_nodes:
         // Either not implemented yet or covered before the switch.
         // These are all implemented in the Nim checker but won't
         // be moved until Con4m is using them.
-        unreachable();
+        c4m_unreachable();
     }
 
     type_hash_and_dedupe(&result, env);

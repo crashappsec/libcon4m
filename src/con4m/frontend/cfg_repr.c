@@ -323,7 +323,7 @@ du_format_node(c4m_cfg_node_t *n)
         sometimes_live = n->sometimes_live;
         break;
     default:
-        unreachable();
+        c4m_unreachable();
     }
 
     if (liveness_info == NULL) {
@@ -505,7 +505,7 @@ c4m_cfg_repr_internal(c4m_cfg_node_t  *node,
     switch (node->kind) {
     case c4m_cfg_block_entrance:
     case c4m_cfg_node_branch:
-        unreachable();
+        c4m_unreachable();
     case c4m_cfg_block_exit:
         link = node->contents.flow.next_node;
 

@@ -217,7 +217,7 @@ c4m_raise_errno()
     c4m_raise_errcode(errno);
 }
 
-#define unreachable()                                       \
+#define c4m_unreachable()                                   \
     {                                                       \
         c4m_utf8_t *s = c4m_cstr_format(                    \
             "Reached code that the developer "              \

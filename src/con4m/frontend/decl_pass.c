@@ -516,7 +516,7 @@ handle_param_block(pass1_ctx *ctx)
             prop->default_value = node_literal(ctx->file_ctx, lit, NULL);
             break;
         default:
-            unreachable();
+            c4m_unreachable();
         }
     }
 

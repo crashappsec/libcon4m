@@ -961,7 +961,7 @@ simple_lit(parse_ctx *ctx)
                 break;
 
             default:
-                unreachable();
+                c4m_unreachable();
             }
 
             c4m_error_from_token(ctx->file_ctx, err, tok, mod, syntax_kind);
@@ -3726,7 +3726,7 @@ bad_start:
     case c4m_tt_lbrace:
         break;
     default:
-        unreachable();
+        c4m_unreachable();
     }
 
     body(ctx, (c4m_pnode_t *)c4m_tree_get_contents(result));

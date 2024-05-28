@@ -42,7 +42,7 @@ c4m_sym_get_best_ref_loc(c4m_scope_entry_t *sym)
         return c4m_node_get_loc_str(node);
     }
 
-    unreachable();
+    c4m_unreachable();
 }
 
 void
@@ -319,7 +319,7 @@ c4m_merge_symbols(c4m_file_compile_ctx *ctx1,
     default:
         // For instance, we never call this on scopes
         // that hold sk_module symbols or sk_formal symbols.
-        unreachable();
+        c4m_unreachable();
     }
 }
 
