@@ -1,13 +1,32 @@
+a = 1
+b = 2
+c = 3
+
+x = 12
 
 switch x {
     case a:
-       y = x 
+    y = 12
+    for m in 0 to 10 {
+       if m == 2 {
+          continue
+       }
+       else {
+       x += x
+       }
+       y += x
+    }
     case b:
        y = 1 + x
     case c:
        y = 100 + x
     else:
         y = -1
+        z = 2
   }
+      
+       y += x + z
 
-y *= 2
+
+
+

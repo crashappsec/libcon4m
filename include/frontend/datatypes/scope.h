@@ -23,6 +23,7 @@ enum {
     // variables on loops, etc.
     C4M_F_USER_IMMUTIBLE   = 0x20,
     C4M_F_FN_PASS_DONE     = 0x40,
+    C4M_F_USE_ERROR        = 0x80,
 };
 
 typedef enum c4m_scope_kind {
@@ -80,8 +81,8 @@ typedef struct {
     c4m_obj_t          callback;
     c4m_obj_t          validator;
     c4m_obj_t          default_value;
-    unsigned int       have_default : 1;
     c4m_scope_entry_t *linked_symbol;
+    unsigned int       have_default : 1;
 } c4m_module_param_info_t;
 
 typedef struct c4m_scope_t {

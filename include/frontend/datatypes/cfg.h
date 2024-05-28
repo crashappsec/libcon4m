@@ -17,11 +17,14 @@ typedef struct {
     c4m_cfg_node_t *next_node;
     c4m_cfg_node_t *exit_node;
     c4m_xlist_t    *inbound_links;
+    c4m_xlist_t    *to_merge;
 } c4m_cfg_block_enter_info_t;
 
 typedef struct {
     c4m_cfg_node_t *next_node;
+    c4m_cfg_node_t *entry_node;
     c4m_xlist_t    *inbound_links;
+    c4m_xlist_t    *to_merge;
 } c4m_cfg_block_exit_info_t;
 
 typedef struct {
@@ -32,6 +35,7 @@ typedef struct {
 typedef struct {
     int32_t          num_branches;
     int32_t          next_to_process;
+    c4m_cfg_node_t  *exit_node;
     c4m_cfg_node_t **branch_targets;
     c4m_utf8_t      *label; // For loops
 } c4m_cfg_branch_info_t;
@@ -42,9 +46,18 @@ typedef struct {
     c4m_xlist_t       *deps; // all symbols influencing the def
 } c4m_cfg_flow_info_t;
 
+typedef struct {
+    c4m_cfg_node_t *last_def;
+    c4m_cfg_node_t *last_use;
+} c4m_cfg_status_t;
+
 struct c4m_cfg_node_t {
     c4m_tree_node_t *reference_location;
     c4m_cfg_node_t  *parent;
+    c4m_dict_t      *starting_liveness_info;
+    c4m_xlist_t     *starting_sometimes;
+    c4m_dict_t      *liveness_info;
+    c4m_xlist_t     *sometimes_live;
 
     union {
         c4m_cfg_block_enter_info_t block_entrance;
@@ -55,4 +68,6 @@ struct c4m_cfg_node_t {
     } contents;
 
     c4m_cfg_node_type kind;
+    unsigned int      use_without_def : 1;
+    unsigned int      reached         : 1;
 };

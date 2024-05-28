@@ -1293,6 +1293,19 @@ handle_use_stmt(pass1_ctx *ctx)
 }
 
 static void
+look_for_dead_code(pass1_ctx *ctx)
+{
+    c4m_tree_node_t *cur    = cur_node(ctx);
+    c4m_tree_node_t *parent = cur->parent;
+
+    if (parent->num_kids > 1) {
+        if (parent->children[parent->num_kids - 1] != cur) {
+            c4m_add_warning(ctx->file_ctx, c4m_warn_dead_code, cur);
+        }
+    }
+}
+
+static void
 pass_dispatch(pass1_ctx *ctx)
 {
     c4m_scope_t *saved_scope;
@@ -1348,6 +1361,12 @@ pass_dispatch(pass1_ctx *ctx)
         handle_literal(ctx);
         break;
 
+    case c4m_nt_break:
+    case c4m_nt_continue:
+    case c4m_nt_return:
+        look_for_dead_code(ctx);
+        process_children(ctx);
+        break;
     default:
         process_children(ctx);
         break;
@@ -1402,6 +1421,7 @@ c4m_file_decl_pass(c4m_compile_ctx *cctx, c4m_file_compile_ctx *file_ctx)
     file_ctx->imports         = c4m_new_scope(NULL, C4M_SCOPE_IMPORTS);
     file_ctx->parameters      = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
                                                   c4m_tspec_ref()));
+    file_ctx->fn_def_syms     = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
 
     ctx.cur->static_scope = file_ctx->module_scope;
     ctx.static_scope      = file_ctx->module_scope;

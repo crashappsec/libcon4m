@@ -162,8 +162,12 @@ typedef enum {
     c4m_err_global_remote_unused,
     c4m_info_unused_global_decl,
     c4m_global_def_without_use,
+    c4m_warn_dead_code,
+    c4m_cfg_use_no_def,
+    c4m_cfg_use_possible_def,
+    c4m_cfg_return_coverage,
+    c4m_cfg_no_return,
     c4m_err_last,
-
 } c4m_compile_error_t;
 
 #define c4m_err_no_error c4m_err_last

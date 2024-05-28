@@ -3914,6 +3914,10 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
                 }
             }
         case '!':
+            END_CHECKPOINT();
+            if (tok_kind(ctx) == c4m_tt_eof) {
+                return;
+            }
             THROW('!');
         default:
             continue;

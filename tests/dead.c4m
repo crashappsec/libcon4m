@@ -1,0 +1,39 @@
+func f(q) -> int {
+  a = 1
+  b = 2
+  c = 3
+  x = 12
+
+
+  switch x {
+    case a:
+      return;
+      y = 12
+      for m in 0 to 10 {
+         if q == 2 or m == 2 {
+            continue
+         }
+         else {
+           x += x
+         }
+         break;
+         y += x
+      }
+    case b:
+       y = 1 + x
+       return;
+    case c:
+       y = 100 + x
+       return;
+    else:
+        y = -1
+        z = 2
+        return 10000;
+  }
+  
+  y += x + z
+}
+
+
+
+
