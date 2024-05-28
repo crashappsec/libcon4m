@@ -598,6 +598,9 @@ c4m_rich_lit_test()
     c4m_print(test);
 
     c4m_print(test, test, c4m_kw("no_color", c4m_ka(true), "sep", c4m_ka('&')));
+
+    test = c4m_rich_lit("[em]This breaks.[/em]");
+    c4m_print(test);
 }
 
 bool
@@ -613,7 +616,7 @@ test_tree_search(int64_t kind_as_64, c4m_tree_node_t *node)
     return kind == pnode->kind;
 }
 
-#if 1
+#if 0
 void
 test_compiler()
 {
@@ -789,17 +792,9 @@ main(int argc, char **argv, char **envp)
     }
     C4M_EXCEPT
     {
-        c4m_exception_t *e = C4M_X_CUR();
-        printf("Just kidding. An exception was raised before exit:\n");
-        switch (e->code) {
-        default:
-            c4m_stream_puts(serr, c4m_exception_get_file(e)->data);
-            c4m_stream_puti(serr, c4m_exception_get_line(e));
-            c4m_stream_puts(serr, ": Caught you, exception man: ");
-            c4m_ansi_render(c4m_exception_get_message(C4M_X_CUR()), serr);
-            c4m_stream_putc(serr, '\n');
-            C4M_JUMP_TO_TRY_END();
-        };
+        printf("An exception was raised before exit:\n");
+        c4m_print(c4m_repr_exception_stack_no_vm(c4m_new_utf8("Error: ")));
+        C4M_JUMP_TO_TRY_END();
     }
     C4M_TRY_END;
     c4m_stream_puts(serr, "This theoretically should run.\n");
