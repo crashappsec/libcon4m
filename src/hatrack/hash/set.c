@@ -168,9 +168,6 @@ hatrack_set_contains(hatrack_set_t *self, void *item)
     return ret;
 }
 
-static hatrack_hash_t
-hatrack_dict_get_hash_value(hatrack_dict_t *self, void *key);
-
 bool
 hatrack_set_put(hatrack_set_t *self, void *item)
 {
@@ -894,71 +891,4 @@ hatrack_set_epoch_sort_cmp(const void *b1, const void *b2)
     item2 = (hatrack_set_view_t *)b2;
 
     return item2->sort_epoch - item1->sort_epoch;
-}
-
-static hatrack_hash_t
-hatrack_dict_get_hash_value(hatrack_dict_t *self, void *key)
-{
-    hatrack_hash_t hv;
-    int32_t        offset;
-    uint8_t       *loc_to_hash;
-
-    switch (self->key_type) {
-    case HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM:
-        return (*self->hash_info.custom_hash)(key);
-
-    case HATRACK_DICT_KEY_TYPE_INT:
-        return hash_int((uint64_t)key);
-
-    case HATRACK_DICT_KEY_TYPE_REAL:
-        return hash_double(*(double *)key);
-
-    case HATRACK_DICT_KEY_TYPE_CSTR:
-        return hash_cstr((char *)key);
-
-    case HATRACK_DICT_KEY_TYPE_PTR:
-        return hash_pointer(key);
-
-    default:
-        break;
-    }
-
-    offset = self->hash_info.offsets.cache_offset;
-
-    if (offset != (int32_t)HATRACK_DICT_NO_CACHE) {
-        hv = *(hatrack_hash_t *)(((uint8_t *)key) + offset);
-
-        if (!hatrack_bucket_unreserved(hv)) {
-            return hv;
-        }
-    }
-
-    loc_to_hash = (uint8_t *)key;
-
-    if (self->hash_info.offsets.hash_offset) {
-        loc_to_hash += self->hash_info.offsets.hash_offset;
-    }
-
-    switch (self->key_type) {
-    case HATRACK_DICT_KEY_TYPE_OBJ_INT:
-        hv = hash_int((uint64_t)loc_to_hash);
-        break;
-    case HATRACK_DICT_KEY_TYPE_OBJ_REAL:
-        hv = hash_double(*(double *)loc_to_hash);
-        break;
-    case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
-        hv = hash_cstr(*(char **)loc_to_hash);
-        break;
-    case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
-        hv = hash_pointer(loc_to_hash);
-        break;
-    default:
-        abort();
-    }
-
-    if (offset != (int32_t)HATRACK_DICT_NO_CACHE) {
-        *(hatrack_hash_t *)(((uint8_t *)key) + offset) = hv;
-    }
-
-    return hv;
 }

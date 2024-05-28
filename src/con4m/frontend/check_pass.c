@@ -615,6 +615,7 @@ sym_lookup(pass2_ctx *ctx, c4m_utf8_t *name)
                               c4m_err_section_not_allowed,
                               ctx->node,
                               attr_info->err_arg);
+                break;
             default:
                 c4m_unreachable();
             }

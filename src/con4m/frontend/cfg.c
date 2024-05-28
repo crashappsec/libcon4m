@@ -618,6 +618,7 @@ cfg_process_node(cfg_ctx *ctx, c4m_cfg_node_t *node, c4m_cfg_node_t *parent)
                          &node->sometimes_live);
         return NULL;
     }
+    c4m_unreachable();
 }
 
 // The input will be the module, plus any d/u info that we inherit, which
