@@ -93,18 +93,36 @@ c4m_exception_free_frame(c4m_exception_frame_t *frame,
     stack->free_frames = frame;
 }
 
+c4m_utf8_t *
+c4m_repr_exception_stack_no_vm(c4m_utf8_t *title)
+{
+    c4m_exception_frame_t *frame     = __exception_stack.top;
+    c4m_exception_t       *exception = frame->exception;
+
+    c4m_utf8_t *result;
+
+    if (title == NULL) {
+        title = c4m_new_utf8("");
+    }
+
+    result = c4m_cstr_format("[red]{}[/] {}\n", title, exception->msg);
+
+    while (frame != NULL) {
+        exception        = frame->exception;
+        c4m_utf8_t *frep = c4m_cstr_format("[i]Raised from:[/] [em]{}:{}[/]\n",
+                                           c4m_new_utf8(exception->file),
+                                           c4m_box_u64(exception->line));
+        result           = c4m_str_concat(result, frep);
+        frame            = frame->next;
+    }
+
+    return result;
+}
+
 void
 c4m_exception_uncaught(c4m_exception_t *exception)
 {
-    // Basic for now.
-    c4m_stream_t *s = c4m_get_stderr();
-
-    c4m_stream_puts(s, (char *)exception->file);
-    c4m_stream_putc(s, ':');
-    c4m_stream_puti(s, exception->line);
-
-    c4m_ansi_render(exception->msg, s);
-    c4m_stream_putc(s, '\n');
+    c4m_print(c4m_repr_exception_stack_no_vm(c4m_new_utf8("FATAL ERROR:")));
 }
 
 void
