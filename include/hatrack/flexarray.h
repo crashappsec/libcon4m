@@ -65,20 +65,20 @@ enum {
 };
 
 // clang-format off
-flexarray_t *flexarray_new                (uint64_t);
-void         flexarray_init               (flexarray_t *, uint64_t);
-void         flexarray_set_ret_callback   (flexarray_t *, flex_callback_t);
-void         flexarray_set_eject_callback (flexarray_t *, flex_callback_t);
-void         flexarray_cleanup            (flexarray_t *);
-void         flexarray_delete             (flexarray_t *);
-void        *flexarray_get                (flexarray_t *, uint64_t, int *);
-bool         flexarray_set                (flexarray_t *, uint64_t, void *);
-void         flexarray_grow               (flexarray_t *, uint64_t);
-void         flexarray_shrink             (flexarray_t *, uint64_t);
-uint64_t     flexarray_len                (flexarray_t *);
-flex_view_t *flexarray_view               (flexarray_t *);
-void        *flexarray_view_next          (flex_view_t *, int *);
-void         flexarray_view_delete        (flex_view_t *);
-void        *flexarray_view_get           (flex_view_t *, uint64_t, int *);
-uint64_t     flexarray_view_len           (flex_view_t *);
-flexarray_t *flexarray_add                (flexarray_t *, flexarray_t *);
+HATRACK_EXTERN flexarray_t *flexarray_new                (uint64_t);
+HATRACK_EXTERN void         flexarray_init               (flexarray_t *, uint64_t);
+HATRACK_EXTERN void         flexarray_set_ret_callback   (flexarray_t *, flex_callback_t);
+HATRACK_EXTERN void         flexarray_set_eject_callback (flexarray_t *, flex_callback_t);
+HATRACK_EXTERN void         flexarray_cleanup            (flexarray_t *);
+HATRACK_EXTERN void         flexarray_delete             (flexarray_t *);
+HATRACK_EXTERN void        *flexarray_get                (flexarray_t *, uint64_t, int *);
+HATRACK_EXTERN bool         flexarray_set                (flexarray_t *, uint64_t, void *);
+HATRACK_EXTERN void         flexarray_grow               (flexarray_t *, uint64_t);
+HATRACK_EXTERN void         flexarray_shrink             (flexarray_t *, uint64_t);
+HATRACK_EXTERN uint64_t     flexarray_len                (flexarray_t *);
+HATRACK_EXTERN flex_view_t *flexarray_view               (flexarray_t *);
+HATRACK_EXTERN void        *flexarray_view_next          (flex_view_t *, int *);
+HATRACK_EXTERN void         flexarray_view_delete        (flex_view_t *);
+HATRACK_EXTERN void        *flexarray_view_get           (flex_view_t *, uint64_t, int *);
+HATRACK_EXTERN uint64_t     flexarray_view_len           (flex_view_t *);
+HATRACK_EXTERN flexarray_t *flexarray_add                (flexarray_t *, flexarray_t *);

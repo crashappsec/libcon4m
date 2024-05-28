@@ -220,7 +220,7 @@ typedef struct {
  * use mmm_alloc() for the stores (which we do in the duncecap2
  * implementation).
  */
-duncecap_store_t *
+HATRACK_EXTERN duncecap_store_t *
 duncecap_reader_enter(duncecap_t *self);
 
 /* duncecap_reader_exit()
@@ -228,7 +228,7 @@ duncecap_reader_enter(duncecap_t *self);
  * This simply needs to decrement the reader count associated with the
  * store, atomically.
  */
-void
+HATRACK_EXTERN void
 duncecap_reader_exit(duncecap_store_t *store);
 
 /* This API requires that you deal with hashing the key external to
@@ -242,18 +242,17 @@ duncecap_reader_exit(duncecap_store_t *store);
  */
 
 // clang-format off
-duncecap_t     *duncecap_new      (void);
-duncecap_t     *duncecap_new_size (char);
-void            duncecap_init     (duncecap_t *);
-void            duncecap_init_size(duncecap_t *, char);
-void            duncecap_cleanup  (duncecap_t *);
-void            duncecap_delete   (duncecap_t *);
-void           *duncecap_get      (duncecap_t *, hatrack_hash_t, bool *);
-void           *duncecap_put      (duncecap_t *, hatrack_hash_t, void *,
-				   bool *);
-void           *duncecap_replace  (duncecap_t *, hatrack_hash_t, void *,
-				   bool *);
-bool            duncecap_add      (duncecap_t *, hatrack_hash_t, void *);
-void           *duncecap_remove   (duncecap_t *, hatrack_hash_t, bool *);
-uint64_t        duncecap_len      (duncecap_t *);
-hatrack_view_t *duncecap_view     (duncecap_t *, uint64_t *, bool);
+HATRACK_EXTERN duncecap_t     *duncecap_new      (void);
+HATRACK_EXTERN duncecap_t     *duncecap_new_size (char);
+HATRACK_EXTERN void            duncecap_init     (duncecap_t *);
+HATRACK_EXTERN void            duncecap_init_size(duncecap_t *, char);
+HATRACK_EXTERN void            duncecap_cleanup  (duncecap_t *);
+HATRACK_EXTERN void            duncecap_delete   (duncecap_t *);
+HATRACK_EXTERN void           *duncecap_get      (duncecap_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *duncecap_put      (duncecap_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *duncecap_replace  (duncecap_t *, hatrack_hash_t, void *,	bool *);
+HATRACK_EXTERN bool            duncecap_add      (duncecap_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *duncecap_remove   (duncecap_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        duncecap_len      (duncecap_t *);
+HATRACK_EXTERN hatrack_view_t *duncecap_view     (duncecap_t *, uint64_t *, bool);
+ 

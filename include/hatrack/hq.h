@@ -66,15 +66,15 @@ typedef struct {
 } hq_t;
 
 // clang-format off
-hq_t      *hq_new        (void);
-hq_t      *hq_new_size   (uint64_t);
-void       hq_init       (hq_t *);
-void       hq_init_size  (hq_t *, uint64_t);
-void       hq_cleanup    (hq_t *);
-void       hq_delete     (hq_t *);
-void       hq_enqueue    (hq_t *, void *);
-void      *hq_dequeue    (hq_t *, bool *);
-int64_t    hq_len        (hq_t *);
-hq_view_t *hq_view       (hq_t *);
-void      *hq_view_next  (hq_view_t *, bool *);
-void       hq_view_delete(hq_view_t *);
+HATRACK_EXTERN hq_t      *hq_new        (void);
+HATRACK_EXTERN hq_t      *hq_new_size   (uint64_t);
+HATRACK_EXTERN void       hq_init       (hq_t *);
+HATRACK_EXTERN void       hq_init_size  (hq_t *, uint64_t);
+HATRACK_EXTERN void       hq_cleanup    (hq_t *);
+HATRACK_EXTERN void       hq_delete     (hq_t *);
+HATRACK_EXTERN void       hq_enqueue    (hq_t *, void *);
+HATRACK_EXTERN void      *hq_dequeue    (hq_t *, bool *);
+HATRACK_EXTERN int64_t    hq_len        (hq_t *);
+HATRACK_EXTERN hq_view_t *hq_view       (hq_t *);
+HATRACK_EXTERN void      *hq_view_next  (hq_view_t *, bool *);
+HATRACK_EXTERN void       hq_view_delete(hq_view_t *);

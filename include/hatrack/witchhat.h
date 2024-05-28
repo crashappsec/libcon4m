@@ -65,19 +65,17 @@ typedef struct {
 } witchhat_t;
 
 // clang-format off
-witchhat_t     *witchhat_new        (void);
-witchhat_t     *witchhat_new_size   (char);
-void            witchhat_init       (witchhat_t *);
-void            witchhat_init_size  (witchhat_t *, char);
-void            witchhat_cleanup    (witchhat_t *);
-void            witchhat_delete     (witchhat_t *);
-void           *witchhat_get        (witchhat_t *, hatrack_hash_t, bool *);
-void           *witchhat_put        (witchhat_t *, hatrack_hash_t, void *,
-				     bool *);
-void           *witchhat_replace    (witchhat_t *, hatrack_hash_t, void *,
-				     bool *);
-bool            witchhat_add        (witchhat_t *, hatrack_hash_t, void *);
-void           *witchhat_remove     (witchhat_t *, hatrack_hash_t, bool *);
-uint64_t        witchhat_len        (witchhat_t *);
-hatrack_view_t *witchhat_view       (witchhat_t *, uint64_t *, bool);
-hatrack_view_t *witchhat_view_no_mmm(witchhat_t *, uint64_t *, bool);
+HATRACK_EXTERN witchhat_t     *witchhat_new        (void);
+HATRACK_EXTERN witchhat_t     *witchhat_new_size   (char);
+HATRACK_EXTERN void            witchhat_init       (witchhat_t *);
+HATRACK_EXTERN void            witchhat_init_size  (witchhat_t *, char);
+HATRACK_EXTERN void            witchhat_cleanup    (witchhat_t *);
+HATRACK_EXTERN void            witchhat_delete     (witchhat_t *);
+HATRACK_EXTERN void           *witchhat_get        (witchhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *witchhat_put        (witchhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *witchhat_replace    (witchhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            witchhat_add        (witchhat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *witchhat_remove     (witchhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        witchhat_len        (witchhat_t *);
+HATRACK_EXTERN hatrack_view_t *witchhat_view       (witchhat_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_view_t *witchhat_view_no_mmm(witchhat_t *, uint64_t *, bool);

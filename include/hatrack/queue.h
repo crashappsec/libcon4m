@@ -117,12 +117,12 @@ typedef struct hatrack_queue_t {
 } queue_t;
 
 // clang-format off
-queue_t *queue_new      (void);
-queue_t *queue_new_size (char);
-void     queue_init     (queue_t *);
-void     queue_init_size(queue_t *, char);
-void     queue_cleanup  (queue_t *);
-void     queue_delete   (queue_t *);
-uint64_t queue_len      (queue_t *);
-void     queue_enqueue  (queue_t *, void *);
-void    *queue_dequeue  (queue_t *, bool *);
+HATRACK_EXTERN queue_t *queue_new      (void);
+HATRACK_EXTERN queue_t *queue_new_size (char);
+HATRACK_EXTERN void     queue_init     (queue_t *);
+HATRACK_EXTERN void     queue_init_size(queue_t *, char);
+HATRACK_EXTERN void     queue_cleanup  (queue_t *);
+HATRACK_EXTERN void     queue_delete   (queue_t *);
+HATRACK_EXTERN uint64_t queue_len      (queue_t *);
+HATRACK_EXTERN void     queue_enqueue  (queue_t *, void *);
+HATRACK_EXTERN void    *queue_dequeue  (queue_t *, bool *);

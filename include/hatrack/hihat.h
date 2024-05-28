@@ -179,19 +179,19 @@ typedef struct {
  */
 
 // clang-format off
-hihat_t        *hihat_new      (void);
-hihat_t        *hihat_new_size (char);
-void            hihat_init     (hihat_t *);
-void            hihat_init_size(hihat_t *, char);
-void            hihat_cleanup  (hihat_t *);
-void            hihat_delete   (hihat_t *);
-void           *hihat_get      (hihat_t *, hatrack_hash_t, bool *);
-void           *hihat_put      (hihat_t *, hatrack_hash_t, void *, bool *);
-void           *hihat_replace  (hihat_t *, hatrack_hash_t, void *, bool *);
-bool            hihat_add      (hihat_t *, hatrack_hash_t, void *);
-void           *hihat_remove   (hihat_t *, hatrack_hash_t, bool *);
-uint64_t        hihat_len      (hihat_t *);
-hatrack_view_t *hihat_view     (hihat_t *, uint64_t *, bool);
+HATRACK_EXTERN hihat_t        *hihat_new      (void);
+HATRACK_EXTERN hihat_t        *hihat_new_size (char);
+HATRACK_EXTERN void            hihat_init     (hihat_t *);
+HATRACK_EXTERN void            hihat_init_size(hihat_t *, char);
+HATRACK_EXTERN void            hihat_cleanup  (hihat_t *);
+HATRACK_EXTERN void            hihat_delete   (hihat_t *);
+HATRACK_EXTERN void           *hihat_get      (hihat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *hihat_put      (hihat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *hihat_replace  (hihat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            hihat_add      (hihat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *hihat_remove   (hihat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        hihat_len      (hihat_t *);
+HATRACK_EXTERN hatrack_view_t *hihat_view     (hihat_t *, uint64_t *, bool);
 
 /*
  * Note that hihat_a is almost identical to hihat. It has the same
@@ -202,16 +202,16 @@ hatrack_view_t *hihat_view     (hihat_t *, uint64_t *, bool);
  * Instead of adding an extra indirection for that second migration
  * function, we just copy all the methods.
  */
-hihat_t        *hihat_a_new      (void);
-hihat_t        *hihat_a_new_size (char);
-void            hihat_a_init     (hihat_t *);
-void            hihat_a_init_size(hihat_t *, char);
-void            hihat_a_cleanup  (hihat_t *);
-void            hihat_a_delete   (hihat_t *);
-void           *hihat_a_get      (hihat_t *, hatrack_hash_t, bool *);
-void           *hihat_a_put      (hihat_t *, hatrack_hash_t, void *, bool *);
-void           *hihat_a_replace  (hihat_t *, hatrack_hash_t, void *, bool *);
-bool            hihat_a_add      (hihat_t *, hatrack_hash_t, void *);
-void           *hihat_a_remove   (hihat_t *, hatrack_hash_t, bool *);
-uint64_t        hihat_a_len      (hihat_t *);
-hatrack_view_t *hihat_a_view     (hihat_t *, uint64_t *, bool);
+HATRACK_EXTERN hihat_t        *hihat_a_new      (void);
+HATRACK_EXTERN hihat_t        *hihat_a_new_size (char);
+HATRACK_EXTERN void            hihat_a_init     (hihat_t *);
+HATRACK_EXTERN void            hihat_a_init_size(hihat_t *, char);
+HATRACK_EXTERN void            hihat_a_cleanup  (hihat_t *);
+HATRACK_EXTERN void            hihat_a_delete   (hihat_t *);
+HATRACK_EXTERN void           *hihat_a_get      (hihat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *hihat_a_put      (hihat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *hihat_a_replace  (hihat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            hihat_a_add      (hihat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *hihat_a_remove   (hihat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        hihat_a_len      (hihat_t *);
+HATRACK_EXTERN hatrack_view_t *hihat_a_view     (hihat_t *, uint64_t *, bool);

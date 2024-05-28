@@ -74,12 +74,12 @@ typedef struct {
 } hatstack_t;
 
 // clang-format off
-hatstack_t   *hatstack_new        (uint64_t);
-void          hatstack_init       (hatstack_t *, uint64_t);
-void          hatstack_cleanup    (hatstack_t *);
-void          hatstack_delete     (hatstack_t *);
-void          hatstack_push       (hatstack_t *, void *);
-void         *hatstack_pop        (hatstack_t *, bool *);
-stack_view_t *hatstack_view       (hatstack_t *);
-void         *hatstack_view_next  (stack_view_t *, bool *);
-void          hatstack_view_delete(stack_view_t *);
+HATRACK_EXTERN hatstack_t   *hatstack_new        (uint64_t);
+HATRACK_EXTERN void          hatstack_init       (hatstack_t *, uint64_t);
+HATRACK_EXTERN void          hatstack_cleanup    (hatstack_t *);
+HATRACK_EXTERN void          hatstack_delete     (hatstack_t *);
+HATRACK_EXTERN void          hatstack_push       (hatstack_t *, void *);
+HATRACK_EXTERN void         *hatstack_pop        (hatstack_t *, bool *);
+HATRACK_EXTERN stack_view_t *hatstack_view       (hatstack_t *);
+HATRACK_EXTERN void         *hatstack_view_next  (stack_view_t *, bool *);
+HATRACK_EXTERN void          hatstack_view_delete(stack_view_t *);

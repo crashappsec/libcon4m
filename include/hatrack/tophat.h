@@ -215,29 +215,29 @@ typedef struct {
  */
 
 // clang-format off
-tophat_t       *tophat_new_fast_mx      (void);
-tophat_t       *tophat_new_fast_wf      (void);
-tophat_t       *tophat_new_cst_mx       (void);
-tophat_t       *tophat_new_cst_wf       (void);
-tophat_t       *tophat_new_fast_mx_size (char);
-tophat_t       *tophat_new_fast_wf_size (char);
-tophat_t       *tophat_new_cst_mx_size  (char);
-tophat_t       *tophat_new_cst_wf_size  (char);
-void            tophat_init_fast_mx     (tophat_t *);
-void            tophat_init_fast_wf     (tophat_t *);
-void            tophat_init_cst_mx      (tophat_t *);
-void            tophat_init_cst_wf      (tophat_t *);
-void            tophat_init_fast_mx_size(tophat_t *, char);
-void            tophat_init_fast_wf_size(tophat_t *, char);
-void            tophat_init_cst_mx_size (tophat_t *, char);
-void            tophat_init_cst_wf_size (tophat_t *, char);
+HATRACK_EXTERN tophat_t       *tophat_new_fast_mx      (void);
+HATRACK_EXTERN tophat_t       *tophat_new_fast_wf      (void);
+HATRACK_EXTERN tophat_t       *tophat_new_cst_mx       (void);
+HATRACK_EXTERN tophat_t       *tophat_new_cst_wf       (void);
+HATRACK_EXTERN tophat_t       *tophat_new_fast_mx_size (char);
+HATRACK_EXTERN tophat_t       *tophat_new_fast_wf_size (char);
+HATRACK_EXTERN tophat_t       *tophat_new_cst_mx_size  (char);
+HATRACK_EXTERN tophat_t       *tophat_new_cst_wf_size  (char);
+HATRACK_EXTERN void            tophat_init_fast_mx     (tophat_t *);
+HATRACK_EXTERN void            tophat_init_fast_wf     (tophat_t *);
+HATRACK_EXTERN void            tophat_init_cst_mx      (tophat_t *);
+HATRACK_EXTERN void            tophat_init_cst_wf      (tophat_t *);
+HATRACK_EXTERN void            tophat_init_fast_mx_size(tophat_t *, char);
+HATRACK_EXTERN void            tophat_init_fast_wf_size(tophat_t *, char);
+HATRACK_EXTERN void            tophat_init_cst_mx_size (tophat_t *, char);
+HATRACK_EXTERN void            tophat_init_cst_wf_size (tophat_t *, char);
 
-void            tophat_cleanup     (tophat_t *);
-void            tophat_delete      (tophat_t *);
-void           *tophat_get         (tophat_t *, hatrack_hash_t, bool *);
-void           *tophat_put         (tophat_t *, hatrack_hash_t, void *, bool *);
-void           *tophat_replace     (tophat_t *, hatrack_hash_t, void *, bool *);
-bool            tophat_add         (tophat_t *, hatrack_hash_t, void *);
-void           *tophat_remove      (tophat_t *, hatrack_hash_t, bool *);
-uint64_t        tophat_len         (tophat_t *);
-hatrack_view_t *tophat_view        (tophat_t *, uint64_t *, bool);
+HATRACK_EXTERN void            tophat_cleanup     (tophat_t *);
+HATRACK_EXTERN void            tophat_delete      (tophat_t *);
+HATRACK_EXTERN void           *tophat_get         (tophat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *tophat_put         (tophat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *tophat_replace     (tophat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            tophat_add         (tophat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *tophat_remove      (tophat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        tophat_len         (tophat_t *);
+HATRACK_EXTERN hatrack_view_t *tophat_view        (tophat_t *, uint64_t *, bool);

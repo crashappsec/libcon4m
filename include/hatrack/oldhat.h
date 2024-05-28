@@ -180,16 +180,16 @@ typedef struct {
  */
 
 // clang-format off
-oldhat_t       *oldhat_new      (void);
-oldhat_t       *oldhat_new_size (char);
-void            oldhat_init     (oldhat_t *);
-void            oldhat_init_size(oldhat_t *, char);
-void            oldhat_cleanup  (oldhat_t *);
-void            oldhat_delete   (oldhat_t *);
-void           *oldhat_get      (oldhat_t *, hatrack_hash_t, bool *);
-void           *oldhat_put      (oldhat_t *, hatrack_hash_t, void *, bool *);
-void           *oldhat_replace  (oldhat_t *, hatrack_hash_t, void *, bool *);
-bool            oldhat_add      (oldhat_t *, hatrack_hash_t, void *);
-void           *oldhat_remove   (oldhat_t *, hatrack_hash_t, bool *);
-uint64_t        oldhat_len      (oldhat_t *);
-hatrack_view_t *oldhat_view     (oldhat_t *, uint64_t *, bool);
+HATRACK_EXTERN oldhat_t       *oldhat_new      (void);
+HATRACK_EXTERN oldhat_t       *oldhat_new_size (char);
+HATRACK_EXTERN void            oldhat_init     (oldhat_t *);
+HATRACK_EXTERN void            oldhat_init_size(oldhat_t *, char);
+HATRACK_EXTERN void            oldhat_cleanup  (oldhat_t *);
+HATRACK_EXTERN void            oldhat_delete   (oldhat_t *);
+HATRACK_EXTERN void           *oldhat_get      (oldhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *oldhat_put      (oldhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *oldhat_replace  (oldhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            oldhat_add      (oldhat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *oldhat_remove   (oldhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        oldhat_len      (oldhat_t *);
+HATRACK_EXTERN hatrack_view_t *oldhat_view     (oldhat_t *, uint64_t *, bool);

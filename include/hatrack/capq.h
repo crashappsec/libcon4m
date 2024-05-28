@@ -74,14 +74,14 @@ typedef struct {
 } capq_t;
 
 // clang-format off
-capq_t    *capq_new        (void);
-capq_t    *capq_new_size   (uint64_t);
-void       capq_init       (capq_t *);
-void       capq_init_size  (capq_t *, uint64_t);
-void       capq_cleanup    (capq_t *);
-void       capq_delete     (capq_t *);
-uint64_t   capq_enqueue    (capq_t *, void *);
-capq_top_t capq_top        (capq_t *, bool *);
-bool       capq_cap        (capq_t *, uint64_t);
-void      *capq_dequeue    (capq_t *, bool *);
-uint64_t   capq_len        (capq_t *);
+HATRACK_EXTERN capq_t    *capq_new        (void);
+HATRACK_EXTERN capq_t    *capq_new_size   (uint64_t);
+HATRACK_EXTERN void       capq_init       (capq_t *);
+HATRACK_EXTERN void       capq_init_size  (capq_t *, uint64_t);
+HATRACK_EXTERN void       capq_cleanup    (capq_t *);
+HATRACK_EXTERN void       capq_delete     (capq_t *);
+HATRACK_EXTERN uint64_t   capq_enqueue    (capq_t *, void *);
+HATRACK_EXTERN capq_top_t capq_top        (capq_t *, bool *);
+HATRACK_EXTERN bool       capq_cap        (capq_t *, uint64_t);
+HATRACK_EXTERN void      *capq_dequeue    (capq_t *, bool *);
+HATRACK_EXTERN uint64_t   capq_len        (capq_t *);

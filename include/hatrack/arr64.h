@@ -54,17 +54,17 @@ typedef struct {
 } arr64_t;
 
 // clang-format off
-arr64_t      *arr64_new               (uint64_t);
-void          arr64_init              (arr64_t *, uint64_t);
-void          arr64_set_ret_callback  (arr64_t *, arr64_callback_t);
-void          arr64_set_eject_callback(arr64_t *, arr64_callback_t);
-void          arr64_cleanup           (arr64_t *);
-void          arr64_delete            (arr64_t *);
-void         *arr64_get               (arr64_t *, uint64_t, int *);
-bool          arr64_set               (arr64_t *, uint64_t, void *);
-void          arr64_grow              (arr64_t *, uint64_t);
-void          arr64_shrink            (arr64_t *, uint64_t);
-uint32_t      arr64_len               (arr64_t *);
-arr64_view_t *arr64_view              (arr64_t *);
-void         *arr64_view_next         (arr64_view_t *, bool *);
-void          arr64_view_delete       (arr64_view_t *);
+HATRACK_EXTERN arr64_t      *arr64_new               (uint64_t);
+HATRACK_EXTERN void          arr64_init              (arr64_t *, uint64_t);
+HATRACK_EXTERN void          arr64_set_ret_callback  (arr64_t *, arr64_callback_t);
+HATRACK_EXTERN void          arr64_set_eject_callback(arr64_t *, arr64_callback_t);
+HATRACK_EXTERN void          arr64_cleanup           (arr64_t *);
+HATRACK_EXTERN void          arr64_delete            (arr64_t *);
+HATRACK_EXTERN void         *arr64_get               (arr64_t *, uint64_t, int *);
+HATRACK_EXTERN bool          arr64_set               (arr64_t *, uint64_t, void *);
+HATRACK_EXTERN void          arr64_grow              (arr64_t *, uint64_t);
+HATRACK_EXTERN void          arr64_shrink            (arr64_t *, uint64_t);
+HATRACK_EXTERN uint32_t      arr64_len               (arr64_t *);
+HATRACK_EXTERN arr64_view_t *arr64_view              (arr64_t *);
+HATRACK_EXTERN void         *arr64_view_next         (arr64_view_t *, bool *);
+HATRACK_EXTERN void          arr64_view_delete       (arr64_view_t *);

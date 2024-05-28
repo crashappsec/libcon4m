@@ -202,12 +202,12 @@ typedef struct {
 } logring_t;
 
 // clang-format off
-logring_t      *logring_new        (uint64_t, uint64_t);
-void            logring_init       (logring_t *, uint64_t, uint64_t);
-void            logring_cleanup    (logring_t *);
-void            logring_delete     (logring_t *);
-void            logring_enqueue    (logring_t *, void *, uint64_t);
-bool            logring_dequeue    (logring_t *, void *, uint64_t *);
-logring_view_t *logring_view       (logring_t *, bool);
-void           *logring_view_next  (logring_view_t *, uint64_t *);
-void            logring_view_delete(logring_view_t *);
+HATRACK_EXTERN logring_t      *logring_new        (uint64_t, uint64_t);
+HATRACK_EXTERN void            logring_init       (logring_t *, uint64_t, uint64_t);
+HATRACK_EXTERN void            logring_cleanup    (logring_t *);
+HATRACK_EXTERN void            logring_delete     (logring_t *);
+HATRACK_EXTERN void            logring_enqueue    (logring_t *, void *, uint64_t);
+HATRACK_EXTERN bool            logring_dequeue    (logring_t *, void *, uint64_t *);
+HATRACK_EXTERN logring_view_t *logring_view       (logring_t *, bool);
+HATRACK_EXTERN void           *logring_view_next  (logring_view_t *, uint64_t *);
+HATRACK_EXTERN void            logring_view_delete(logring_view_t *);

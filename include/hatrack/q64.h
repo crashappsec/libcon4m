@@ -69,12 +69,12 @@ typedef struct {
 } q64_t;
 
 // clang-format off
-q64_t   *q64_new      (void);
-q64_t   *q64_new_size (char);
-void     q64_init     (q64_t *);
-void     q64_init_size(q64_t *, char);
-void     q64_cleanup  (q64_t *);
-void     q64_delete   (q64_t *);
-uint64_t q64_len      (q64_t *);
-void     q64_enqueue  (q64_t *, void *);
-void    *q64_dequeue  (q64_t *, bool *);
+HATRACK_EXTERN q64_t   *q64_new      (void);
+HATRACK_EXTERN q64_t   *q64_new_size (char);
+HATRACK_EXTERN void     q64_init     (q64_t *);
+HATRACK_EXTERN void     q64_init_size(q64_t *, char);
+HATRACK_EXTERN void     q64_cleanup  (q64_t *);
+HATRACK_EXTERN void     q64_delete   (q64_t *);
+HATRACK_EXTERN uint64_t q64_len      (q64_t *);
+HATRACK_EXTERN void     q64_enqueue  (q64_t *, void *);
+HATRACK_EXTERN void    *q64_dequeue  (q64_t *, bool *);

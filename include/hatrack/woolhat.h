@@ -74,23 +74,21 @@ typedef struct {
 } hatrack_set_view_t;
 
 // clang-format off
-woolhat_t      *woolhat_new             (void);
-woolhat_t      *woolhat_new_size        (char);
-void            woolhat_init            (woolhat_t *);
-void            woolhat_init_size       (woolhat_t *, char);
-void            woolhat_cleanup         (woolhat_t *);
-void            woolhat_delete          (woolhat_t *);
-void            woolhat_set_cleanup_func(woolhat_t *, mmm_cleanup_func, void *);
-void           *woolhat_get             (woolhat_t *, hatrack_hash_t, bool *);
-void           *woolhat_put             (woolhat_t *, hatrack_hash_t, void *,
-					 bool *);
-void           *woolhat_replace         (woolhat_t *, hatrack_hash_t, void *,
-					 bool *);
-bool            woolhat_add             (woolhat_t *, hatrack_hash_t, void *);
-void           *woolhat_remove          (woolhat_t *, hatrack_hash_t, bool *);
-uint64_t        woolhat_len             (woolhat_t *);
+HATRACK_EXTERN woolhat_t      *woolhat_new             (void);
+HATRACK_EXTERN woolhat_t      *woolhat_new_size        (char);
+HATRACK_EXTERN void            woolhat_init            (woolhat_t *);
+HATRACK_EXTERN void            woolhat_init_size       (woolhat_t *, char);
+HATRACK_EXTERN void            woolhat_cleanup         (woolhat_t *);
+HATRACK_EXTERN void            woolhat_delete          (woolhat_t *);
+HATRACK_EXTERN void            woolhat_set_cleanup_func(woolhat_t *, mmm_cleanup_func, void *);
+HATRACK_EXTERN void           *woolhat_get             (woolhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *woolhat_put             (woolhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *woolhat_replace         (woolhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            woolhat_add             (woolhat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *woolhat_remove          (woolhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        woolhat_len             (woolhat_t *);
 
-hatrack_view_t     *woolhat_view        (woolhat_t *, uint64_t *, bool);
-hatrack_set_view_t *woolhat_view_epoch  (woolhat_t *, uint64_t *, uint64_t);
+HATRACK_EXTERN hatrack_view_t     *woolhat_view        (woolhat_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_set_view_t *woolhat_view_epoch  (woolhat_t *, uint64_t *, uint64_t);
 
-void hatrack_set_view_delete(hatrack_set_view_t *view, uint64_t num);
+HATRACK_EXTERN void hatrack_set_view_delete(hatrack_set_view_t *view, uint64_t num);

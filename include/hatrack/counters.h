@@ -175,8 +175,8 @@ hatrack_yn_ctr_f(uint64_t id)
     return 0;
 }
 
-void counters_output_delta(void);
-void counters_output_alltime(void);
+HATRACK_EXTERN void counters_output_delta(void);
+HATRACK_EXTERN void counters_output_alltime(void);
 
 #define HATRACK_CTR_ON(id) atomic_fetch_add(&hatrack_counters[id], 1)
 #define HATRACK_CTR_OFF(id)

@@ -117,16 +117,16 @@ typedef struct {
  */
 
 // clang-format off
-refhat_t       *refhat_new      (void);
-refhat_t       *refhat_new_size (char);
-void            refhat_init     (refhat_t *);
-void            refhat_init_size(refhat_t *, char);
-void            refhat_cleanup  (refhat_t *);
-void            refhat_delete   (refhat_t *);
-void           *refhat_get      (refhat_t *, hatrack_hash_t, bool *);
-void           *refhat_put      (refhat_t *, hatrack_hash_t, void *, bool *);
-void           *refhat_replace  (refhat_t *, hatrack_hash_t, void *, bool *);
-bool            refhat_add      (refhat_t *, hatrack_hash_t, void *);
-void           *refhat_remove   (refhat_t *, hatrack_hash_t, bool *);
-uint64_t        refhat_len      (refhat_t *);
-hatrack_view_t *refhat_view     (refhat_t *, uint64_t *, bool);
+HATRACK_EXTERN refhat_t       *refhat_new      (void);
+HATRACK_EXTERN refhat_t       *refhat_new_size (char);
+HATRACK_EXTERN void            refhat_init     (refhat_t *);
+HATRACK_EXTERN void            refhat_init_size(refhat_t *, char);
+HATRACK_EXTERN void            refhat_cleanup  (refhat_t *);
+HATRACK_EXTERN void            refhat_delete   (refhat_t *);
+HATRACK_EXTERN void           *refhat_get      (refhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *refhat_put      (refhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *refhat_replace  (refhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            refhat_add      (refhat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *refhat_remove   (refhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        refhat_len      (refhat_t *);
+HATRACK_EXTERN hatrack_view_t *refhat_view     (refhat_t *, uint64_t *, bool);

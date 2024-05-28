@@ -63,20 +63,20 @@ typedef struct {
 } vector_t;
 
 // clang-format off
-vector_t      *vector_new               (int64_t);
-void           vector_init              (vector_t *, int64_t, bool);
-void           vector_set_ret_callback  (vector_t *, vector_callback_t);
-void           vector_set_eject_callback(vector_t *, vector_callback_t);
-void           vector_cleanup           (vector_t *);
-void           vector_delete            (vector_t *);
-void          *vector_get               (vector_t *, int64_t, int *);
-bool           vector_set               (vector_t *, int64_t, void *);
-void           vector_grow              (vector_t *, int64_t);
-void           vector_shrink            (vector_t *, int64_t);
-uint32_t       vector_len               (vector_t *);
-void           vector_push              (vector_t *, void *);
-void          *vector_pop               (vector_t *, bool *);
-void          *vector_peek              (vector_t *, bool *);
-vector_view_t *vector_view              (vector_t *);
-void          *vector_view_next         (vector_view_t *, bool *);
-void           vector_view_delete       (vector_view_t *);
+HATRACK_EXTERN vector_t      *vector_new               (int64_t);
+HATRACK_EXTERN void           vector_init              (vector_t *, int64_t, bool);
+HATRACK_EXTERN void           vector_set_ret_callback  (vector_t *, vector_callback_t);
+HATRACK_EXTERN void           vector_set_eject_callback(vector_t *, vector_callback_t);
+HATRACK_EXTERN void           vector_cleanup           (vector_t *);
+HATRACK_EXTERN void           vector_delete            (vector_t *);
+HATRACK_EXTERN void          *vector_get               (vector_t *, int64_t, int *);
+HATRACK_EXTERN bool           vector_set               (vector_t *, int64_t, void *);
+HATRACK_EXTERN void           vector_grow              (vector_t *, int64_t);
+HATRACK_EXTERN void           vector_shrink            (vector_t *, int64_t);
+HATRACK_EXTERN uint32_t       vector_len               (vector_t *);
+HATRACK_EXTERN void           vector_push              (vector_t *, void *);
+HATRACK_EXTERN void          *vector_pop               (vector_t *, bool *);
+HATRACK_EXTERN void          *vector_peek              (vector_t *, bool *);
+HATRACK_EXTERN vector_view_t *vector_view              (vector_t *);
+HATRACK_EXTERN void          *vector_view_next         (vector_view_t *, bool *);
+HATRACK_EXTERN void           vector_view_delete       (vector_view_t *);

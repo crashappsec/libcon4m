@@ -68,14 +68,14 @@ typedef struct {
 } hatring_t;
 
 // clang-format off
-hatring_t      *hatring_new             (uint64_t);
-void            hatring_init            (hatring_t *, uint64_t);
-void            hatring_cleanup         (hatring_t *);
-void            hatring_delete          (hatring_t *);
-uint32_t        hatring_enqueue         (hatring_t *, void *);
-void           *hatring_dequeue         (hatring_t *, bool *);
-void           *hatring_dequeue_w_epoch (hatring_t *, bool *, uint32_t *);
-hatring_view_t *hatring_view            (hatring_t *);
-void           *hatring_view_next       (hatring_view_t *, bool *);
-void            hatring_view_delete     (hatring_view_t *);
-void            hatring_set_drop_handler(hatring_t *, hatring_drop_handler);
+HATRACK_EXTERN hatring_t      *hatring_new             (uint64_t);
+HATRACK_EXTERN void            hatring_init            (hatring_t *, uint64_t);
+HATRACK_EXTERN void            hatring_cleanup         (hatring_t *);
+HATRACK_EXTERN void            hatring_delete          (hatring_t *);
+HATRACK_EXTERN uint32_t        hatring_enqueue         (hatring_t *, void *);
+HATRACK_EXTERN void           *hatring_dequeue         (hatring_t *, bool *);
+HATRACK_EXTERN void           *hatring_dequeue_w_epoch (hatring_t *, bool *, uint32_t *);
+HATRACK_EXTERN hatring_view_t *hatring_view            (hatring_t *);
+HATRACK_EXTERN void           *hatring_view_next       (hatring_view_t *, bool *);
+HATRACK_EXTERN void            hatring_view_delete     (hatring_view_t *);
+HATRACK_EXTERN void            hatring_set_drop_handler(hatring_t *, hatring_drop_handler);

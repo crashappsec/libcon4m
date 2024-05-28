@@ -560,16 +560,16 @@ typedef struct lohat_st {
  */
 
 // clang-format off
-lohat_t        *lohat_new      (void);
-lohat_t        *lohat_new_size (char);
-void            lohat_init     (lohat_t *);
-void            lohat_init_size(lohat_t *, char);
-void            lohat_cleanup  (lohat_t *);
-void            lohat_delete   (lohat_t *);
-void           *lohat_get      (lohat_t *, hatrack_hash_t, bool *);
-void           *lohat_put      (lohat_t *, hatrack_hash_t, void *, bool *);
-void           *lohat_replace  (lohat_t *, hatrack_hash_t, void *, bool *);
-bool            lohat_add      (lohat_t *, hatrack_hash_t, void *);
-void           *lohat_remove   (lohat_t *, hatrack_hash_t, bool *);
-uint64_t        lohat_len      (lohat_t *);
-hatrack_view_t *lohat_view     (lohat_t *, uint64_t *, bool);
+HATRACK_EXTERN lohat_t        *lohat_new      (void);
+HATRACK_EXTERN lohat_t        *lohat_new_size (char);
+HATRACK_EXTERN void            lohat_init     (lohat_t *);
+HATRACK_EXTERN void            lohat_init_size(lohat_t *, char);
+HATRACK_EXTERN void            lohat_cleanup  (lohat_t *);
+HATRACK_EXTERN void            lohat_delete   (lohat_t *);
+HATRACK_EXTERN void           *lohat_get      (lohat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *lohat_put      (lohat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *lohat_replace  (lohat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            lohat_add      (lohat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *lohat_remove   (lohat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        lohat_len      (lohat_t *);
+HATRACK_EXTERN hatrack_view_t *lohat_view     (lohat_t *, uint64_t *, bool);
