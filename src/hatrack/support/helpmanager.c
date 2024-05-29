@@ -27,6 +27,8 @@
 
 #include <string.h>
 
+static help_record_t thread_records[HATRACK_THREADS_MAX];
+
 void
 hatrack_help_init(help_manager_t *manager,
                   void           *parent,

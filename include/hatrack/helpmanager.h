@@ -47,11 +47,6 @@ typedef struct {
 } help_cell_t;
 
 typedef struct {
-    uint64_t op;
-    int64_t  jobid;
-} help_op_t;
-
-typedef struct {
     uint64_t            op;
     void               *input;
     void               *aux;
@@ -59,11 +54,7 @@ typedef struct {
     _Atomic help_cell_t retval;
 } help_record_t;
 
-typedef _Atomic help_record_t help_record_atomic_t;
-
 typedef void (*helper_func)(void *, help_record_t *, uint64_t);
-
-static help_record_t thread_records[HATRACK_THREADS_MAX];
 
 typedef struct {
     void        *parent;
@@ -71,12 +62,6 @@ typedef struct {
     capq_t       capq;
 } help_manager_t;
 
-static inline void *
-hatrack_help_get_parent(help_manager_t *manager)
-{
-    return manager->parent;
-}
-
-void  hatrack_help_init(help_manager_t *, void *, helper_func *, bool);
-void *hatrack_perform_wf_op(help_manager_t *, uint64_t, void *, void *, bool *);
-void  hatrack_complete_help(help_manager_t *, help_record_t *, int64_t, void *, bool);
+HATRACK_EXTERN void  hatrack_help_init(help_manager_t *, void *, helper_func *, bool);
+HATRACK_EXTERN void *hatrack_perform_wf_op(help_manager_t *, uint64_t, void *, void *, bool *);
+HATRACK_EXTERN void  hatrack_complete_help(help_manager_t *, help_record_t *, int64_t, void *, bool);
