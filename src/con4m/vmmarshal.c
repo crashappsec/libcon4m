@@ -331,6 +331,18 @@ marshal_object_file(c4m_zobject_file_t *in, c4m_stream_t *out, c4m_dict_t *memos
     //     support, but it is here. So, does this adjustment make sense or even
     //     work? Second, it seems like next_entrypoint is supposed to be a
     //     module_id, so why does that even correlate with the marshal id?
+
+    // Just to be clear, the code that didn't get copied in
+    // essentially is just making sure that the saved object sets the
+    // next entry point in the output module correctly.  It didn't
+    // change the marshal memo index; it set the value we marshal for
+    // the next entry point (which is where the program will start up
+    // from if resume is turned on).
+    //
+    // Basically, that value can be changed from run to run, which is
+    // why I was waiting till the end to commit it, exactly at the
+    // time of marshaling.
+
     if (!*mid && in->next_entrypoint != 0) {
         *mid = in->next_entrypoint;
     }

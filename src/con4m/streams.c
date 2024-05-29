@@ -290,6 +290,9 @@ err_check:
     if (buffer) {
         cookie->object = buffer;
         flags |= C4M_F_STREAM_BUFFER_IN;
+        if (append) {
+            cookie->position = c4m_buffer_len(buffer);
+        }
     }
 
     cookie->flags           = flags;

@@ -85,7 +85,7 @@ c4m_buffer_instream(c4m_buf_t *inbuf)
 }
 
 static inline c4m_stream_t *
-c4m_buffer_outstream(c4m_buf_t *outbuf)
+c4m_buffer_outstream(c4m_buf_t *outbuf, bool append)
 {
     return c4m_new(c4m_tspec_stream(),
                    c4m_kw("buffer",
@@ -93,7 +93,9 @@ c4m_buffer_outstream(c4m_buf_t *outbuf)
                           "read",
                           c4m_ka(false),
                           "write",
-                          c4m_ka(true)));
+                          c4m_ka(true),
+                          "append",
+                          c4m_ka(append)));
 }
 
 static inline c4m_stream_t *

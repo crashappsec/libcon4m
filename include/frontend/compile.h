@@ -27,5 +27,4 @@ extern c4m_file_compile_ctx *c4m_init_from_use(c4m_compile_ctx *,
                                                c4m_str_t *,
                                                c4m_str_t *,
                                                c4m_str_t *);
-
 #endif

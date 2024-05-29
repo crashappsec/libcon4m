@@ -657,6 +657,7 @@ c4m_cfg_analyze(c4m_file_compile_ctx *file_ctx, c4m_dict_t *du_info)
 
     file_ctx->cfg->liveness_info = du_info;
     cfg_process_node(&ctx, file_ctx->cfg, NULL);
+
     check_block_for_errors(&ctx, file_ctx->cfg);
     check_for_module_exit_errors(&ctx, file_ctx->cfg);
 

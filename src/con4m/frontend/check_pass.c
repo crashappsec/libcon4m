@@ -969,22 +969,24 @@ get_elifs(c4m_tree_node_t *t)
 }
 
 static void
+handle_else(pass2_ctx *ctx, c4m_tree_node_t *end)
+{
+    c4m_cfg_node_t *enter = c4m_cfg_enter_block(ctx->cfg, end);
+    ctx->cfg              = enter;
+
+    if (end != NULL) {
+        ctx->node = end;
+        base_check_pass_dispatch(ctx);
+    }
+    ctx->cfg = c4m_cfg_exit_block(ctx->cfg, enter, end);
+}
+
+static void
 handle_elifs(pass2_ctx *ctx, c4m_xlist_t *elifs, int ix, c4m_tree_node_t *end)
 {
-    c4m_tree_node_t *saved = ctx->node;
     c4m_cfg_node_t  *branch;
     c4m_cfg_node_t  *branch_enter;
-
-    if (ix == c4m_xlist_len(elifs)) {
-        branch_enter = c4m_cfg_enter_block(ctx->cfg, end);
-        if (end != NULL) {
-            ctx->node = end;
-            base_check_pass_dispatch(ctx);
-        }
-        c4m_cfg_exit_block(ctx->cfg, branch_enter, end);
-        return;
-    }
-
+    c4m_tree_node_t *saved = ctx->node;
     c4m_cfg_node_t  *enter = c4m_cfg_enter_block(ctx->cfg, saved);
     c4m_tree_node_t *elif  = c4m_xlist_get(elifs, ix, NULL);
     ctx->cfg               = enter;
@@ -996,11 +998,18 @@ handle_elifs(pass2_ctx *ctx, c4m_xlist_t *elifs, int ix, c4m_tree_node_t *end)
                                            elif);
     next_branch(ctx, branch);
     branch_enter = c4m_cfg_enter_block(ctx->cfg, elif->children[1]);
+    ctx->cfg     = branch_enter;
     ctx->node    = elif->children[1];
     base_check_pass_dispatch(ctx);
     c4m_cfg_exit_block(ctx->cfg, branch_enter, elif->children[1]);
     next_branch(ctx, branch);
-    handle_elifs(ctx, elifs, ix + 1, end);
+
+    if (++ix == c4m_xlist_len(elifs)) {
+        handle_else(ctx, end);
+    }
+    else {
+        handle_elifs(ctx, elifs, ix + 1, end);
+    }
     c4m_cfg_exit_block(ctx->cfg, enter, saved);
 }
 
@@ -1010,10 +1019,13 @@ handle_if(pass2_ctx *ctx)
     c4m_tree_node_t *saved = ctx->node;
     c4m_cfg_node_t  *branch;
     c4m_cfg_node_t  *branch_enter;
+    c4m_cfg_node_t  *enter      = c4m_cfg_enter_block(ctx->cfg, saved);
+    c4m_xlist_t     *elses      = get_elifs(saved);
+    c4m_tree_node_t *else_match = get_match_on_node(ctx->node,
+                                                    c4m_else_condition);
 
-    c4m_cfg_node_t *enter = c4m_cfg_enter_block(ctx->cfg, saved);
-    ctx->cfg              = enter;
-    ctx->node             = saved->children[0];
+    ctx->cfg  = enter;
+    ctx->node = saved->children[0];
     base_check_pass_dispatch(ctx);
     branch = c4m_cfg_block_new_branch_node(ctx->cfg,
                                            2,
@@ -1021,16 +1033,27 @@ handle_if(pass2_ctx *ctx)
                                            saved->children[0]);
     next_branch(ctx, branch);
     branch_enter = c4m_cfg_enter_block(ctx->cfg, saved);
+    ctx->cfg     = branch_enter;
     ctx->node    = saved->children[1];
+
     base_check_pass_dispatch(ctx);
-    c4m_cfg_exit_block(ctx->cfg, branch_enter, saved);
+    ctx->cfg = c4m_cfg_exit_block(ctx->cfg, branch_enter, saved);
+
     next_branch(ctx, branch);
     branch_enter = c4m_cfg_enter_block(ctx->cfg, NULL);
-    handle_elifs(ctx,
-                 get_elifs(ctx->node),
-                 0,
-                 get_match_on_node(saved, c4m_else_condition));
-    c4m_cfg_exit_block(ctx->cfg, branch_enter, NULL);
+    ctx->cfg     = branch_enter;
+
+    if (c4m_xlist_len(elses) != 0) {
+        handle_elifs(ctx,
+                     elses,
+                     0,
+                     else_match);
+    }
+    else {
+        handle_else(ctx, else_match);
+    }
+    ctx->cfg = c4m_cfg_exit_block(ctx->cfg, branch_enter, NULL);
+
     ctx->cfg = c4m_cfg_exit_block(ctx->cfg, enter, saved);
 }
 

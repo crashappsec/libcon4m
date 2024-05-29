@@ -147,12 +147,7 @@ setup_treematch_patterns()
                                tcontent(c4m_nt_body, 0),
                                tcount_content(c4m_nt_elif, 0, max_nodes, 1),
                                tcount_content(c4m_nt_else, 0, 1, 0));
-    c4m_else_condition    = tmatch(nt_any,
-                                0,
-                                tcontent(c4m_nt_cmp, 0),
-                                tcontent(c4m_nt_body, 0),
-                                tcount_content(c4m_nt_elif, 0, max_nodes, 0),
-                                tcount_content(c4m_nt_else, 0, 1, 1));
+    c4m_else_condition    = tfind_content(c4m_nt_else, 1);
 
     c4m_gc_register_root(&c4m_first_kid_id, 1);
     c4m_gc_register_root(&c4m_2nd_kid_id, 1);

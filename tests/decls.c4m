@@ -25,7 +25,6 @@ for zzzz in qwerty {
 # Re
 # AWS module
 
-
 var bar = 2, boz = 5
 
 testfn(bar, boz);
