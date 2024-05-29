@@ -555,51 +555,56 @@ c4m_rich_lit_test()
     test = c4m_rich_lit("[atomic lime]Hello, [jazzberry]world[/]!");
     c4m_print(test);
 
-    test = c4m_rich_lit("[atomic lime on jazzberry]Hello, world[/]!");
+    test = c4m_rich_lit("[atomic lime %jazzberry]Hello, world[/]!");
     c4m_print(test);
 
-    test = c4m_rich_lit("[jazzberry on atomic lime]Hello, world![/]");
+    test = c4m_rich_lit("[jazzberry %atomic lime]Hello, world![/]");
     c4m_print(test);
 
     test = c4m_rich_lit(
-        "[bold italic jazzberry on atomic lime]Hello,[/color] "
+        "[bold italic jazzberry %atomic lime]Hello,[/jazzberry atomic lime] "
         "world!");
     c4m_print(test);
 
     test = c4m_rich_lit(
-        "[bold italic jazzberry on atomic lime]Hello,"
-        "[/color bold] world!");
+        "[bold italic jazzberry %atomic lime]Hello,"
+        "[/jazzberry atomic lime bold] world!");
     c4m_print(test);
 
     test = c4m_rich_lit(
-        "[bold italic jazzberry on atomic lime]Hello,"
-        "[/color bold italic] world!");
+        "[bold italic jazzberry %atomic lime]Hello,"
+        "[-jazzberry atomic lime bold italic + underline] world??");
     c4m_print(test);
 
     test = c4m_rich_lit(
-        "[bold italic jazzberry on atomic lime]Hello,[/bg bold] "
+        "[bold italic jazzberry %atomic lime]Hello,[/ bold] "
         "world!");
     c4m_print(test);
 
     test = c4m_rich_lit(
-        "[bold italic u jazzberry on atomic lime]Hello,[/bold] "
+        "[bold italic u jazzberry %atomic lime]Hello,[/bold] "
         "world!\n\n");
     c4m_print(test);
 
     test = c4m_rich_lit(
-        "[bold italic atomic lime on jazzberry]Hello,[/bold fg] "
+        "[bold italic u jazzberry %atomic lime]Hello,[/bold] "
+        "world![/]\n\n");
+    c4m_print(test);
+
+    test = c4m_rich_lit(
+        "[bold italic atomic lime %jazzberry]Hello,[/bold    ] "
         "world!");
     c4m_print(test);
 
     test = c4m_rich_lit("[h2]Hello, world!");
     c4m_print(test);
 
-    test = c4m_rich_lit("[h2]Hello, [i u]world[/i u], it is me!");
+    test = c4m_rich_lit("[h2]Hello, [i u]world[/i u], it is me![/]");
     c4m_print(test);
 
     c4m_print(test, test, c4m_kw("no_color", c4m_ka(true), "sep", c4m_ka('&')));
 
-    test = c4m_rich_lit("[em]This breaks.[/em]");
+    test = c4m_rich_lit("[em]Hi c.[/em]");
     c4m_print(test);
 }
 
@@ -616,7 +621,7 @@ test_tree_search(int64_t kind_as_64, c4m_tree_node_t *node)
     return kind == pnode->kind;
 }
 
-#if 0
+#if 1
 void
 test_compiler()
 {
@@ -708,6 +713,10 @@ test_format()
                         c4m_box_u32(100),
                         c4m_rich_lit("Hello"));
     c4m_print(s);
+    s = c4m_cstr_format("[red]Test 4:[/] [blue]{}[/][atomic lime]{}[/]foo\n",
+                        c4m_rich_lit("Hello"),
+                        c4m_rich_lit("Sir "));
+    c4m_print(s);
 }
 
 void
@@ -784,9 +793,7 @@ main(int argc, char **argv, char **envp)
         test_format();
         test_path();
         test_compiler();
-
         C4M_STATIC_ASCII_STR(local_test, "Goodbye!");
-        // c4m_ansi_render(local_test, sout);
         c4m_print((c4m_obj_t *)local_test);
         C4M_CRAISE("Except maybe not!");
     }

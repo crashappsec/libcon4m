@@ -411,7 +411,7 @@ style_adjustment(c4m_utf32_t *s, int64_t start, int64_t offset)
     }
 
     for (int64_t i = 0; i < styles->num_entries; i++) {
-        if (styles->styles[i].end < start) {
+        if (styles->styles[i].end <= start) {
             continue;
         }
 
