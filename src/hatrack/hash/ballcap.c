@@ -47,6 +47,7 @@
  */
 
 #include "hatrack/ballcap.h"
+#include "../hatrack-internal.h"
 
 #include <stdlib.h>
 

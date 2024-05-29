@@ -49,6 +49,7 @@
 #include "hatrack/malloc.h"
 #include "hatrack/mmm.h"
 #include "hatrack/hatrack_common.h"
+#include "../hatrack-internal.h"
 
 enum {
     CAPQ_EMPTY              = 0x0000000000000000,

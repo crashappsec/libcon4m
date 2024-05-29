@@ -25,6 +25,7 @@
 
 #include "base.h"
 #include "hatrack_common.h"
+#include "mmm.h"
 
 typedef struct woolhat_record_st woolhat_record_t;
 

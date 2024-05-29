@@ -26,6 +26,7 @@
  */
 
 #include "hatrack/lohat.h"
+#include "../hatrack-internal.h"
 
 #include <stdlib.h>
 

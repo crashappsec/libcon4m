@@ -22,6 +22,7 @@
 #include "hatrack/dict.h"
 #include "hatrack/hash.h"
 #include "crown-internal.h"
+#include "../hatrack-internal.h"
 
 // clang-format off
 static hatrack_hash_t hatrack_dict_get_hash_value(hatrack_dict_t *, void *);

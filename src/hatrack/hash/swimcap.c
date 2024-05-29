@@ -34,6 +34,7 @@
  */
 
 #include "hatrack/swimcap.h"
+#include "../hatrack-internal.h"
 
 #include <stdlib.h>
 

@@ -37,6 +37,7 @@
  */
 
 #include "hihat-internal.h"
+#include "../hatrack-internal.h"
 
 #include <stdlib.h>
 

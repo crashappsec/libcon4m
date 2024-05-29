@@ -25,6 +25,7 @@
  */
 
 #include "hatrack/newshat.h"
+#include "../hatrack-internal.h"
 
 #include <stdlib.h>
 

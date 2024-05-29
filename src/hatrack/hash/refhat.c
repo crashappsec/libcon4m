@@ -21,6 +21,7 @@
  */
 
 #include "hatrack/refhat.h"
+#include "../hatrack-internal.h"
 
 #include <stdlib.h>
 

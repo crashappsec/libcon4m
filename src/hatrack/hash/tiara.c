@@ -37,6 +37,7 @@
  */
 
 #include "hatrack/tiara.h"
+#include "../hatrack-internal.h"
 
 #include <stdlib.h>
 

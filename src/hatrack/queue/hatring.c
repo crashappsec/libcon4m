@@ -28,6 +28,7 @@
 #include <string.h>
 
 #include "hatring-internal.h"
+#include "../hatrack-internal.h"
 
 #define HATRING_MINIMUM_SIZE 16
 
