@@ -949,8 +949,9 @@ extract_fn_sig_info(pass1_ctx       *ctx,
         for (int j = 0; j < kidct - 1; j++) {
             c4m_fn_param_info_t *pi  = &info->param_info[cur_param++];
             c4m_tree_node_t     *kid = c4m_tree_get_child(node, j);
-            pi->name                 = node_text(kid);
-            pi->type                 = c4m_tspec_typevar();
+
+            pi->name = node_text(kid);
+            pi->type = c4m_tspec_typevar();
 
             declare_sym(ctx,
                         info->formals,

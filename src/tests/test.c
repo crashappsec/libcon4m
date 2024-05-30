@@ -646,21 +646,44 @@ test_compiler()
             path = fname;
         }
 
-        c4m_print(c4m_cstr_format("[atomic lime]info:[/] Processing: {}",
+        c4m_print(c4m_cstr_format("[atomic lime]info:[/] Compiling from: {}",
                                   fname));
 
         ctx = c4m_compile_from_entry_point(path);
         // c4m_print(c4m_format_tokens(ctx->entry_point));
 
-        if (ctx->entry_point->parse_tree) {
-            c4m_print(c4m_format_parse_tree(ctx->entry_point));
-        }
+        for (int i = 0; i < c4m_xlist_len(ctx->module_ordering); i++) {
+            c4m_file_compile_ctx *f = c4m_xlist_get(ctx->module_ordering,
+                                                    i,
+                                                    NULL);
 
-        c4m_print(c4m_cstr_format("[atomic lime]info:[/] Finished parsing: {}",
-                                  fname));
+            c4m_print(c4m_cstr_format("[h1]Processing module {}", f->path));
+            if (ctx->entry_point->parse_tree) {
+                c4m_print(c4m_format_parse_tree(ctx->entry_point));
+            }
+            else {
+                continue;
+            }
 
-        if (ctx->entry_point->cfg) {
-            c4m_print(c4m_cfg_repr(ctx->entry_point->cfg));
+            if (ctx->entry_point->cfg) {
+                c4m_print(c4m_cstr_format("[h1]Toplevel CFG for {}", f->path));
+                c4m_print(c4m_cfg_repr(ctx->entry_point->cfg));
+            }
+            else {
+                continue;
+            }
+
+            for (int j = 0; j < c4m_xlist_len(f->fn_def_syms); j++) {
+                c4m_scope_entry_t *sym  = c4m_xlist_get(f->fn_def_syms,
+                                                       j,
+                                                       NULL);
+                c4m_fn_decl_t     *decl = sym->value;
+                c4m_print(c4m_cstr_format("[h1]CFG for Function {}{}",
+                                          sym->name,
+                                          sym->type));
+                c4m_print(c4m_cfg_repr(decl->cfg));
+            }
+
             c4m_print(c4m_rich_lit("[h2]Global Scope"));
             c4m_print(c4m_format_scope(ctx->final_globals));
             c4m_print(c4m_rich_lit("[h2]Module Scope"));
@@ -679,15 +702,15 @@ test_compiler()
         if (c4m_got_fatal_compiler_error(ctx)) {
             return;
         }
+
+        // TODO: We need to mark unlocked types with sub-variables at some point,
+        // so they don't get clobbered.
+        //
+        // E.g.,  (dict[`x, list[int]]) -> int
+
+        // c4m_clean_environment();
+        // c4m_print(c4m_format_global_type_environment());
     }
-
-    // TODO: We need to mark unlocked types with sub-variables at some point,
-    // so they don't get clobbered.
-    //
-    // E.g.,  (dict[`x, list[int]]) -> int
-
-    // c4m_clean_environment();
-    // c4m_print(c4m_format_global_type_environment());
 }
 #else
 #define test_compiler(...)

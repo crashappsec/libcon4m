@@ -11,7 +11,6 @@ typedef struct {
     c4m_xlist_t          *module_ordering;
     c4m_set_t            *backlog;   // Modules we need to process.
     c4m_set_t            *processed; // Modules we've finished with.
-    bool                  fatality;
     c4m_buf_t            *const_data;
     c4m_buf_t            *const_instantiations;
     c4m_dict_t           *const_memos;
@@ -29,5 +28,5 @@ typedef struct {
     // index for which the next marshaled (non-value) const will go.
     int32_t               const_instantiation_id;
     // offset index for the next statically allocated object we add.
-    int32_t               static_offset;
+    bool                  fatality;
 } c4m_compile_ctx;

@@ -1004,7 +1004,7 @@ handle_elifs(pass2_ctx *ctx, c4m_xlist_t *elifs, int ix, c4m_tree_node_t *end)
     c4m_cfg_exit_block(ctx->cfg, branch_enter, elif->children[1]);
     next_branch(ctx, branch);
 
-    if (++ix == c4m_xlist_len(elifs)) {
+    if (ix + 1 == c4m_xlist_len(elifs)) {
         handle_else(ctx, end);
     }
     else {
@@ -2289,7 +2289,12 @@ check_function(pass2_ctx *ctx, c4m_scope_entry_t *fn_sym)
                 check_return_type(&check_ctx);
             }
             else {
+                // We've matched the name in one scope to formals;
+                // let's mark it as such so that we properly
+                // capture the def in the right place.
+                // Probably should move this to decl_pass.c...
                 check_formal_param(&check_ctx);
+                sym->kind = sk_formal;
             }
         }
     }
@@ -2342,14 +2347,30 @@ process_function_definitions(pass2_ctx *ctx)
         c4m_tree_node_t   *fn_root = c4m_xlist_get(ctx->func_nodes, i, NULL);
         c4m_pnode_t       *pnode   = c4m_tree_get_contents(fn_root);
         c4m_scope_entry_t *sym     = (c4m_scope_entry_t *)pnode->value;
-        ctx->fn_decl               = sym->value;
-        ctx->local_scope           = ctx->fn_decl->signature_info->fn_scope;
-        ctx->cfg                   = c4m_cfg_enter_block(NULL, ctx->node);
-        ctx->fn_decl->cfg          = ctx->cfg;
+        c4m_scope_t       *formals;
+        void             **view;
+        uint64_t           num_items;
 
+        ctx->fn_decl      = sym->value;
+        ctx->local_scope  = ctx->fn_decl->signature_info->fn_scope;
+        ctx->cfg          = c4m_cfg_enter_block(NULL, ctx->node);
+        ctx->fn_decl->cfg = ctx->cfg;
         ctx->fn_exit_node = ctx->cfg->contents.block_entrance.exit_node;
+        formals           = ctx->fn_decl->signature_info->formals;
 
         c4m_xlist_append(ctx->file_ctx->fn_def_syms, sym);
+
+        view = hatrack_dict_values_sort(ctx->local_scope->symbols, &num_items);
+
+        for (unsigned int i = 0; i < num_items; i++) {
+            c4m_scope_entry_t *var = view[i];
+
+            if (hatrack_dict_get(formals->symbols, var->name, NULL)) {
+                add_def(ctx, var, true);
+                // This should move into decl_pass and make our lives easier.
+                var->kind = sk_formal;
+            }
+        }
 
         use_context_enter(ctx);
 
@@ -2357,7 +2378,9 @@ process_function_definitions(pass2_ctx *ctx)
         process_children(ctx);
         def_use_context_exit(ctx);
 
-        ctx->cfg = c4m_cfg_exit_block(ctx->cfg, ctx->fn_decl->cfg, ctx->node);
+        ctx->cfg = c4m_cfg_exit_block(ctx->cfg,
+                                      ctx->fn_decl->cfg,
+                                      ctx->node);
         check_function(ctx, sym);
 
         sym->flags = sym->flags | C4M_F_FN_PASS_DONE;
@@ -2646,5 +2669,6 @@ c4m_check_pass(c4m_compile_ctx *cctx)
         if (c4m_fatal_error_in_module(f)) {
             cctx->fatality = 1;
         }
+        c4m_layout_module_symbols(cctx, f);
     }
 }

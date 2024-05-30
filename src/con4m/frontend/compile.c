@@ -577,7 +577,6 @@ c4m_new_compile_context(c4m_str_t *input)
     result->final_spec    = c4m_new_spec();
     result->backlog       = c4m_new(c4m_tspec_set(c4m_tspec_ref()));
     result->processed     = c4m_new(c4m_tspec_set(c4m_tspec_ref()));
-#if 0
     result->const_data    = c4m_new(c4m_tspec_buffer(),
                                  c4m_kw("length", c4m_ka(16)));
     result->const_memos   = c4m_alloc_marshal_memos();
@@ -585,8 +584,7 @@ c4m_new_compile_context(c4m_str_t *input)
                                                   c4m_tspec_i64()));
     result->str_map       = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
                                              c4m_tspec_i64()));
-    result->const_stream = c4m_buffer_outstream(result->const_data, true);
-#endif
+    result->const_stream  = c4m_buffer_outstream(result->const_data, true);
 
     if (input != NULL) {
         result->entry_point = c4m_init_module_from_loc(result, input);

@@ -14,7 +14,6 @@ typedef enum : int8_t {
 } c4m_symbol_kind;
 
 enum {
-#if 0
     C4M_F_HAS_INITIALIZER  = 0x0001,
     C4M_F_DECLARED_CONST   = 0x0002,
     C4M_F_DECLARED_LET     = 0x0004,
@@ -30,20 +29,9 @@ enum {
     C4M_F_USE_ERROR        = 0x0080,
     C4M_F_STATIC_STORAGE   = 0x0100,
     C4M_F_STACK_STORAGE    = 0x0200,
-#endif
-    C4M_F_HAS_INITIALIZER  = 0x01,
-    C4M_F_DECLARED_CONST   = 0x02,
-    C4M_F_DECLARED_LET     = 0x04,
-    C4M_F_IS_DECLARED      = 0x08,
-    C4M_F_TYPE_IS_DECLARED = 0x10,
-    // 'const' means user immutable not static. This is for iteration
-    // variables on loops, etc.
-    C4M_F_USER_IMMUTIBLE   = 0x20,
-    C4M_F_FN_PASS_DONE     = 0x40,
-    C4M_F_USE_ERROR        = 0x80,
 };
 
-typedef enum c4m_scope_kind {
+typedef enum c4m_scope_kind : int8_t {
     C4M_SCOPE_GLOBAL,
     C4M_SCOPE_MODULE,
     C4M_SCOPE_LOCAL,
@@ -83,8 +71,6 @@ typedef struct c4m_scope_entry_t {
     c4m_tree_node_t          *declaration_node;
     c4m_obj_t                 value;
     c4m_utf8_t               *path;
-    uint32_t                  static_offset;
-    uint64_t                  flags;
     c4m_symbol_kind           kind;
     c4m_type_t               *type;
     struct c4m_scope_t       *my_scope;
@@ -103,6 +89,9 @@ typedef struct c4m_scope_entry_t {
     // variables, it's the start of the runtime mutable static space,
     // and for functions, it'll be from the frame pointer, if it's in
     // the function scope.
+
+    uint32_t static_offset;
+    uint16_t flags;
 } c4m_scope_entry_t;
 
 typedef struct {
@@ -136,6 +125,24 @@ typedef struct {
     c4m_utf8_t            *long_doc;
     c4m_sig_info_t        *signature_info;
     struct c4m_cfg_node_t *cfg;
+    int32_t                frame_size;
+    // sc = 'short circuit'
+    // If we are a 'once' function, this is the offset into static data,
+    // where we will place:
+    //
+    // - A boolean.
+    // - A pthread_mutex_t
+    // - A void *
+    //
+    // The idea is, if the boolean is true, we only ever read and
+    // return the cached (memoized) result, stored in the void *. If
+    // it's false, we grab the lock, check the boolean a second time,
+    // run the function, set the memo and the boolean, and then
+    // unlock.
+    int32_t                sc_lock_offset;
+    int32_t                sc_bool_offset;
+    int32_t                sc_memo_offset;
+
     unsigned int private : 1;
     unsigned int once    : 1;
 } c4m_fn_decl_t;
