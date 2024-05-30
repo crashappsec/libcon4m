@@ -24,8 +24,6 @@
 #include "base.h"
 #include "hatrack_common.h"
 
-// clang-format off
-
 /* refhat_bucket_t
  *
  * For consistency with our other (parallel) implementations, our
@@ -58,9 +56,9 @@
  *            the bucket.
  */
 typedef struct {
-    hatrack_hash_t    hv;
-    void             *item;
-    uint64_t          epoch;
+    hatrack_hash_t hv;
+    void          *item;
+    uint64_t       epoch;
 } refhat_bucket_t;
 
 /* refhat_t
@@ -99,16 +97,14 @@ typedef struct {
  *               operation, for the purposes of sort ordering.
  */
 typedef struct {
-    uint64_t          last_slot;
-    uint64_t          threshold;
-    uint64_t          used_count;
-    uint64_t          item_count;
-    refhat_bucket_t  *buckets;
-    uint64_t          buckets_size;
-    uint64_t          next_epoch;
+    uint64_t         last_slot;
+    uint64_t         threshold;
+    uint64_t         used_count;
+    uint64_t         item_count;
+    refhat_bucket_t *buckets;
+    uint64_t         buckets_size;
+    uint64_t         next_epoch;
 } refhat_t;
-
-
 
 /* This API requires that you deal with hashing the key external to
  * the API.  You might want to cache hash values, use different
@@ -119,18 +115,18 @@ typedef struct {
  * choose a 3-universal keyed hash function, or if hash values need to
  * be consistent across runs, something fast and practical like XXH3.
  */
-refhat_t       *refhat_new      (void);
-refhat_t       *refhat_new_size (char);
-void            refhat_init     (refhat_t *);
-void            refhat_init_size(refhat_t *, char);
-void            refhat_cleanup  (refhat_t *);
-void            refhat_delete   (refhat_t *);
-void           *refhat_get      (refhat_t *, hatrack_hash_t, bool *);
-void           *refhat_put      (refhat_t *, hatrack_hash_t, void *, bool *);
-void           *refhat_replace  (refhat_t *, hatrack_hash_t, void *, bool *);
-bool            refhat_add      (refhat_t *, hatrack_hash_t, void *);
-void           *refhat_remove   (refhat_t *, hatrack_hash_t, bool *);
-uint64_t        refhat_len      (refhat_t *);
-hatrack_view_t *refhat_view     (refhat_t *, uint64_t *, bool);
 
-//clang-format on
+// clang-format off
+HATRACK_EXTERN refhat_t       *refhat_new      (void);
+HATRACK_EXTERN refhat_t       *refhat_new_size (char);
+HATRACK_EXTERN void            refhat_init     (refhat_t *);
+HATRACK_EXTERN void            refhat_init_size(refhat_t *, char);
+HATRACK_EXTERN void            refhat_cleanup  (refhat_t *);
+HATRACK_EXTERN void            refhat_delete   (refhat_t *);
+HATRACK_EXTERN void           *refhat_get      (refhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *refhat_put      (refhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *refhat_replace  (refhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            refhat_add      (refhat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *refhat_remove   (refhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        refhat_len      (refhat_t *);
+HATRACK_EXTERN hatrack_view_t *refhat_view     (refhat_t *, uint64_t *, bool);

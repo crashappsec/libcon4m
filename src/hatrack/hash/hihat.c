@@ -24,7 +24,12 @@
  *
  */
 
-#include "hatrack.h"
+#include "hihat-internal.h"
+#include "hatrack/malloc.h"
+#include "hatrack/hatomic.h"
+#include "../hatrack-internal.h"
+
+#include <stdlib.h>
 
 // clang-format off
 static hihat_store_t *hihat_store_new    (uint64_t);

@@ -21,7 +21,14 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack.h"
+#include "hatrack/hatrack_common.h"
+#include "hatrack/malloc.h"
+
+void
+hatrack_view_delete(hatrack_view_t *view, uint64_t num)
+{
+    hatrack_free(view, sizeof(hatrack_view_t) * num);
+}
 
 /* Used when using quicksort to sort the contents of a hash table
  * 'view' by insertion time (the sort_epoch field).

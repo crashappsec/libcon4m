@@ -29,6 +29,9 @@
 #ifndef __TESTHAT_H__
 #define __TESTHAT_H__
 
+#include "hatrack/malloc.h"
+#include "hatrack/counters.h"
+
 // Pull in the various implementations.
 #include "hatrack/refhat.h"
 #include "hatrack/duncecap.h"

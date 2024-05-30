@@ -30,3 +30,7 @@
 #include <stdatomic.h>
 
 #include <pthread.h>
+
+#ifndef HATRACK_EXTERN
+#define HATRACK_EXTERN extern
+#endif

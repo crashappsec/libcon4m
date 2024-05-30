@@ -29,7 +29,12 @@
  *
  */
 
-#include "hatrack.h"
+#include "hatrack/duncecap.h"
+#include "hatrack/malloc.h"
+#include "hatrack/hatomic.h"
+#include "../hatrack-internal.h"
+
+#include <stdlib.h>
 
 // clang-format off
 static duncecap_store_t *duncecap_store_new    (uint64_t);
@@ -48,6 +53,27 @@ static void             *duncecap_store_remove (duncecap_store_t *,
 						bool *);
 static void             duncecap_migrate       (duncecap_t *);
 // clang-format on
+
+duncecap_store_t *
+duncecap_reader_enter(duncecap_t *self)
+{
+    duncecap_store_t *ret;
+
+    pthread_mutex_lock(&self->mutex);
+    ret = self->store_current;
+    atomic_fetch_add(&ret->readers, 1);
+    pthread_mutex_unlock(&self->mutex);
+
+    return ret;
+}
+
+void
+duncecap_reader_exit(duncecap_store_t *store)
+{
+    atomic_fetch_sub(&store->readers, 1);
+
+    return;
+}
 
 /* These macros clean up duncecap_view() to make it more readable.  With
  * duncecap, we allow compile-time configuration to determine whether

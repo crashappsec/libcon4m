@@ -29,7 +29,24 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack.h"
+#include "hatrack/arr64.h"
+#include "hatrack/malloc.h"
+#include "hatrack/mmm.h"
+#include "hatrack/hatomic.h"
+#include "hatrack/hatrack_common.h"
+
+#define ARR64_MIN_STORE_SZ_LOG 4
+
+enum64(arr64_enum_t,
+       ARR64_USED   = 0x00000000000000001,
+       ARR64_MOVED  = 0x00000000000000002,
+       ARR64_MOVING = 0x00000000000000004);
+
+enum {
+    ARR64_OK,
+    ARR64_OOB,
+    ARR64_UNINITIALIZED
+};
 
 static arr64_store_t *arr64_new_store(uint64_t, uint64_t);
 static void           arr64_migrate(arr64_store_t *, arr64_t *);

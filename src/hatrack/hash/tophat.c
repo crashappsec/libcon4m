@@ -26,7 +26,17 @@
  *
  */
 
-#include "hatrack.h"
+#include "hatrack/tophat.h"
+#include "hatrack/ballcap.h"
+#include "hatrack/newshat.h"
+#include "hatrack/woolhat.h"
+#include "hatrack/malloc.h"
+#include "hatrack/hatomic.h"
+
+#include "witchhat-internal.h"
+#include "../hatrack-internal.h"
+
+#include <stdlib.h>
 
 // clang-format off
 static void             tophat_init_base     (tophat_t *, char);

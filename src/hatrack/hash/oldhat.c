@@ -64,7 +64,12 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack.h"
+#include "hatrack/oldhat.h"
+#include "hatrack/malloc.h"
+#include "hatrack/hatomic.h"
+#include "../hatrack-internal.h"
+
+#include <stdlib.h>
 
 // clang-format off
 static oldhat_store_t  *oldhat_store_new    (uint64_t);

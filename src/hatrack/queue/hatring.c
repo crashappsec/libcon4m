@@ -20,7 +20,16 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack.h"
+#include "hatrack/hatring.h"
+#include "hatrack/malloc.h"
+#include "hatrack/mmm.h"
+#include "hatrack/hatomic.h"
+#include "hatrack/hatrack_common.h"
+
+#include <string.h>
+
+#include "hatring-internal.h"
+#include "../hatrack-internal.h"
 
 #define HATRING_MINIMUM_SIZE 16
 
@@ -71,7 +80,7 @@ hatring_init(hatring_t *self, uint64_t num_buckets)
         num_buckets = HATRING_MINIMUM_SIZE;
     }
 
-    bzero(self, sizeof(hatring_t) + sizeof(hatring_cell_t) * num_buckets);
+    memset(self, 0, sizeof(hatring_t) + sizeof(hatring_cell_t) * num_buckets);
 
     self->last_slot = num_buckets - 1;
 

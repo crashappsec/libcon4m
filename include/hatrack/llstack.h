@@ -37,9 +37,9 @@ typedef struct {
 } llstack_t;
 
 // clang-format off
-llstack_t *llstack_new    (void);
-void       llstack_init   (llstack_t *);
-void       llstack_cleanup(llstack_t *);
-void       llstack_delete (llstack_t *);
-void       llstack_push   (llstack_t *, void *);
-void      *llstack_pop    (llstack_t *, bool *);
+HATRACK_EXTERN llstack_t *llstack_new    (void);
+HATRACK_EXTERN void       llstack_init   (llstack_t *);
+HATRACK_EXTERN void       llstack_cleanup(llstack_t *);
+HATRACK_EXTERN void       llstack_delete (llstack_t *);
+HATRACK_EXTERN void       llstack_push   (llstack_t *, void *);
+HATRACK_EXTERN void      *llstack_pop    (llstack_t *, bool *);

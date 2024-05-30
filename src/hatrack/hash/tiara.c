@@ -36,7 +36,12 @@
  *
  */
 
-#include "hatrack.h"
+#include "hatrack/tiara.h"
+#include "hatrack/malloc.h"
+#include "hatrack/hatomic.h"
+#include "../hatrack-internal.h"
+
+#include <stdlib.h>
 
 // clang-format off
 static tiara_store_t *tiara_store_new    (uint64_t);
@@ -49,6 +54,12 @@ static bool           tiara_store_add    (tiara_store_t *, tiara_t *, uint64_t,
 					  void *);
 static void          *tiara_store_remove (tiara_store_t *, tiara_t *, uint64_t);
 static tiara_store_t *tiara_store_migrate(tiara_store_t *, tiara_t *);
+
+enum64(tiara_flag_t,
+       TIARA_F_MOVING = 0x0000000000000001,
+       TIARA_F_MOVED  = 0x0000000000000002,
+       TIARA_F_USED   = 0x0000000000000004,
+       TIARA_F_ALL    = TIARA_F_MOVING | TIARA_F_MOVED | TIARA_F_USED);
 
 tiara_t *
 tiara_new(void)

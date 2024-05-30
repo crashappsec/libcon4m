@@ -37,32 +37,27 @@ struct hatrack_set_st {
 };
 
 // clang-format off
-hatrack_set_t  *hatrack_set_new             (uint32_t);
-void            hatrack_set_init            (hatrack_set_t *, uint32_t);
-void            hatrack_set_cleanup         (hatrack_set_t *);
-void            hatrack_set_delete          (hatrack_set_t *);
-void            hatrack_set_set_hash_offset (hatrack_set_t *, int32_t);
-void            hatrack_set_set_cache_offset(hatrack_set_t *, int32_t);
-void            hatrack_set_set_custom_hash (hatrack_set_t *,
-					     hatrack_hash_func_t);
-void            hatrack_set_set_free_handler(hatrack_set_t *,
-					     hatrack_mem_hook_t);
-void            hatrack_set_set_return_hook (hatrack_set_t *,
-					     hatrack_mem_hook_t);
-bool            hatrack_set_contains        (hatrack_set_t *, void *);
-bool            hatrack_set_put             (hatrack_set_t *, void *);
-bool            hatrack_set_add             (hatrack_set_t *, void *);
-bool            hatrack_set_remove          (hatrack_set_t *, void *);
-void           *hatrack_set_items           (hatrack_set_t *, uint64_t *);
-void           *hatrack_set_items_sort      (hatrack_set_t *, uint64_t *);
-void           *hatrack_set_any_item        (hatrack_set_t *, bool *);
-bool            hatrack_set_is_eq           (hatrack_set_t *, hatrack_set_t *);
-bool            hatrack_set_is_superset     (hatrack_set_t *, hatrack_set_t *,
-					     bool);
-bool            hatrack_set_is_subset       (hatrack_set_t *, hatrack_set_t *,
-					     bool);
-bool            hatrack_set_is_disjoint     (hatrack_set_t *, hatrack_set_t *);
-hatrack_set_t  *hatrack_set_difference      (hatrack_set_t *, hatrack_set_t *);
-hatrack_set_t  *hatrack_set_union           (hatrack_set_t *, hatrack_set_t *);
-hatrack_set_t  *hatrack_set_intersection    (hatrack_set_t *, hatrack_set_t *);
-hatrack_set_t  *hatrack_set_disjunction     (hatrack_set_t *, hatrack_set_t *);
+HATRACK_EXTERN hatrack_set_t  *hatrack_set_new             (uint32_t);
+HATRACK_EXTERN void            hatrack_set_init            (hatrack_set_t *, uint32_t);
+HATRACK_EXTERN void            hatrack_set_cleanup         (hatrack_set_t *);
+HATRACK_EXTERN void            hatrack_set_delete          (hatrack_set_t *);
+HATRACK_EXTERN void            hatrack_set_set_hash_offset (hatrack_set_t *, int32_t);
+HATRACK_EXTERN void            hatrack_set_set_cache_offset(hatrack_set_t *, int32_t);
+HATRACK_EXTERN void            hatrack_set_set_custom_hash (hatrack_set_t *, hatrack_hash_func_t);
+HATRACK_EXTERN void            hatrack_set_set_free_handler(hatrack_set_t *, hatrack_mem_hook_t);
+HATRACK_EXTERN void            hatrack_set_set_return_hook (hatrack_set_t *, hatrack_mem_hook_t);
+HATRACK_EXTERN bool            hatrack_set_contains        (hatrack_set_t *, void *);
+HATRACK_EXTERN bool            hatrack_set_put             (hatrack_set_t *, void *);
+HATRACK_EXTERN bool            hatrack_set_add             (hatrack_set_t *, void *);
+HATRACK_EXTERN bool            hatrack_set_remove          (hatrack_set_t *, void *);
+HATRACK_EXTERN void           *hatrack_set_items           (hatrack_set_t *, uint64_t *);
+HATRACK_EXTERN void           *hatrack_set_items_sort      (hatrack_set_t *, uint64_t *);
+HATRACK_EXTERN void           *hatrack_set_any_item        (hatrack_set_t *, bool *);
+HATRACK_EXTERN bool            hatrack_set_is_eq           (hatrack_set_t *, hatrack_set_t *);
+HATRACK_EXTERN bool            hatrack_set_is_superset     (hatrack_set_t *, hatrack_set_t *, bool);
+HATRACK_EXTERN bool            hatrack_set_is_subset       (hatrack_set_t *, hatrack_set_t *, bool);
+HATRACK_EXTERN bool            hatrack_set_is_disjoint     (hatrack_set_t *, hatrack_set_t *);
+HATRACK_EXTERN hatrack_set_t  *hatrack_set_difference      (hatrack_set_t *, hatrack_set_t *);
+HATRACK_EXTERN hatrack_set_t  *hatrack_set_union           (hatrack_set_t *, hatrack_set_t *);
+HATRACK_EXTERN hatrack_set_t  *hatrack_set_intersection    (hatrack_set_t *, hatrack_set_t *);
+HATRACK_EXTERN hatrack_set_t  *hatrack_set_disjunction     (hatrack_set_t *, hatrack_set_t *);

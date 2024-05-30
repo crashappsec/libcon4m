@@ -24,7 +24,12 @@
  *
  */
 
-#include "hatrack.h"
+#include "hatrack/lohat-a.h"
+#include "hatrack/malloc.h"
+#include "hatrack/hatomic.h"
+#include "../hatrack-internal.h"
+
+#include <stdlib.h>
 
 #ifdef SANE_FETCH_ADD_PTR_SEMANTICS
 #define fa_ptr_incr(t) (1)

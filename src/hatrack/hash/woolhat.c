@@ -26,7 +26,18 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack.h"
+#include "hatrack/woolhat.h"
+#include "hatrack/malloc.h"
+#include "hatrack/hatomic.h"
+#include "../hatrack-internal.h"
+
+#include <stdlib.h>
+
+enum {
+    WOOLHAT_F_MOVING      = 0x0000000000000001,
+    WOOLHAT_F_MOVED       = 0x0000000000000002,
+    WOOLHAT_F_DELETE_HELP = 0x0000000000000004
+};
 
 // clang-format off
 
@@ -53,6 +64,14 @@ static inline bool      woolhat_need_to_help (woolhat_t *);
 static uint64_t         woolhat_set_ordering (woolhat_record_t *, bool);
 static inline void      woolhat_new_insertion(woolhat_record_t *);
 
+// clang-format on
+
+void
+hatrack_set_view_delete(hatrack_set_view_t *view, uint64_t num)
+{
+    hatrack_free(view, sizeof(hatrack_set_view_t) * num);
+}
+
 static uint64_t
 woolhat_set_ordering(woolhat_record_t *record, bool deleted_below)
 {
@@ -61,12 +80,12 @@ woolhat_set_ordering(woolhat_record_t *record, bool deleted_below)
     mmm_hdr = mmm_get_header(record);
 
     if (mmm_hdr->create_epoch) {
-	return mmm_hdr->create_epoch;
+        return mmm_hdr->create_epoch;
     }
 
     if ((!record->next) || deleted_below) {
-	mmm_hdr->create_epoch = mmm_hdr->write_epoch;
-	return mmm_hdr->create_epoch;
+        mmm_hdr->create_epoch = mmm_hdr->write_epoch;
+        return mmm_hdr->create_epoch;
     }
 
     mmm_hdr->create_epoch = woolhat_set_ordering(record->next, false);
@@ -85,8 +104,6 @@ woolhat_new_insertion(woolhat_record_t *record)
 
     return;
 }
-
-// clang-format on
 
 woolhat_t *
 woolhat_new(void)

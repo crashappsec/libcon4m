@@ -20,16 +20,7 @@
  */
 
 #include "hatrack/base.h"
-#include "hatrack/debug.h"
-#include "hatrack/malloc.h"
-
-#include "hatrack/xxhash.h"
-#include "hatrack/counters.h"
 #include "hatrack/hatomic.h"
-#include "hatrack/mmm.h"
-#include "hatrack/gate.h"
-#include "hatrack/hatrack_common.h"
-#include "hatrack/lohat_common.h"
 
 // Our dictionary algorithms
 #include "hatrack/crown.h"

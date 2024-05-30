@@ -34,12 +34,8 @@
 #pragma once
 
 #include "base.h"
-#include "hatomic.h"
 
-#define QUEUE_HELP_VALUE 1 << QUEUE_HELP_STEPS
-
-// clang-format off
-typedef uint64_t q64_item_t;
+typedef uint64_t           q64_item_t;
 typedef _Atomic q64_item_t q64_cell_t;
 
 typedef struct q64_segment_st q64_segment_t;
@@ -53,7 +49,7 @@ typedef struct q64_segment_st q64_segment_t;
  */
 
 struct q64_segment_st {
-    _Atomic (q64_segment_t *)next;
+    _Atomic(q64_segment_t *) next;
     uint64_t                 size;
     _Atomic uint64_t         enqueue_index;
     _Atomic uint64_t         dequeue_index;
@@ -61,8 +57,7 @@ struct q64_segment_st {
 };
 
 typedef struct {
-    alignas(16)
-    q64_segment_t *enqueue_segment;
+    alignas(16) q64_segment_t *enqueue_segment;
     q64_segment_t *dequeue_segment;
 } q64_seg_ptrs_t;
 
@@ -73,22 +68,13 @@ typedef struct {
     _Atomic uint64_t       len;
 } q64_t;
 
-enum64(q64_cell_state_t,
-       Q64_EMPTY   = 0x00,
-       Q64_TOOSLOW = 0x01,
-       Q64_USED    = 0x02);
-
-static inline uint64_t
-q64_len(q64_t *self)
-{
-    return atomic_read(&self->len);
-}
-
-q64_t   *q64_new      (void);
-q64_t   *q64_new_size (char);
-void     q64_init     (q64_t *);
-void     q64_init_size(q64_t *, char);
-void     q64_cleanup  (q64_t *);
-void     q64_delete   (q64_t *);
-void     q64_enqueue  (q64_t *, void *);
-void    *q64_dequeue  (q64_t *, bool *);
+// clang-format off
+HATRACK_EXTERN q64_t   *q64_new      (void);
+HATRACK_EXTERN q64_t   *q64_new_size (char);
+HATRACK_EXTERN void     q64_init     (q64_t *);
+HATRACK_EXTERN void     q64_init_size(q64_t *, char);
+HATRACK_EXTERN void     q64_cleanup  (q64_t *);
+HATRACK_EXTERN void     q64_delete   (q64_t *);
+HATRACK_EXTERN uint64_t q64_len      (q64_t *);
+HATRACK_EXTERN void     q64_enqueue  (q64_t *, void *);
+HATRACK_EXTERN void    *q64_dequeue  (q64_t *, bool *);

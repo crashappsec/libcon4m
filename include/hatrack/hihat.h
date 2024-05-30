@@ -57,14 +57,6 @@ typedef struct {
     uint64_t info;
 } hihat_record_t;
 
-// The aforementioned flags, along with a bitmask that allows us to
-// extract the epoch in the info field, ignoring any migration flags.
-enum64(hihat_flag_t,
-       HIHAT_F_MOVING   = 0x8000000000000000,
-       HIHAT_F_MOVED    = 0x4000000000000000,
-       HIHAT_F_INITED   = 0x2000000000000000,
-       HIHAT_EPOCH_MASK = 0x1fffffffffffffff);
-
 /* hihat_bucket_t
  *
  * The representation of a bucket. The hash value and the record can
@@ -144,13 +136,12 @@ typedef struct hihat_store_st hihat_store_t;
  *               so that we can avoid an extra indirection.
  *
  */
-// clang-format off
 struct hihat_store_st {
-    uint64_t                   last_slot;
-    uint64_t                   threshold;
-    _Atomic uint64_t           used_count;
-    _Atomic(hihat_store_t *)   store_next;
-    hihat_bucket_t             buckets[];
+    uint64_t                 last_slot;
+    uint64_t                 threshold;
+    _Atomic uint64_t         used_count;
+    _Atomic(hihat_store_t *) store_next;
+    hihat_bucket_t           buckets[];
 };
 
 /* hihat_t
@@ -177,7 +168,6 @@ typedef struct {
     uint64_t                 next_epoch;
 } hihat_t;
 
-
 /* This API requires that you deal with hashing the key external to
  * the API.  You might want to cache hash values, use different
  * functions for different data objects, etc.
@@ -187,19 +177,21 @@ typedef struct {
  * choose a 3-universal keyed hash function, or if hash values need to
  * be consistent across runs, something fast and practical like XXH3.
  */
-hihat_t        *hihat_new      (void);
-hihat_t        *hihat_new_size (char);
-void            hihat_init     (hihat_t *);
-void            hihat_init_size(hihat_t *, char);
-void            hihat_cleanup  (hihat_t *);
-void            hihat_delete   (hihat_t *);
-void           *hihat_get      (hihat_t *, hatrack_hash_t, bool *);
-void           *hihat_put      (hihat_t *, hatrack_hash_t, void *, bool *);
-void           *hihat_replace  (hihat_t *, hatrack_hash_t, void *, bool *);
-bool            hihat_add      (hihat_t *, hatrack_hash_t, void *);
-void           *hihat_remove   (hihat_t *, hatrack_hash_t, bool *);
-uint64_t        hihat_len      (hihat_t *);
-hatrack_view_t *hihat_view     (hihat_t *, uint64_t *, bool);
+
+// clang-format off
+HATRACK_EXTERN hihat_t        *hihat_new      (void);
+HATRACK_EXTERN hihat_t        *hihat_new_size (char);
+HATRACK_EXTERN void            hihat_init     (hihat_t *);
+HATRACK_EXTERN void            hihat_init_size(hihat_t *, char);
+HATRACK_EXTERN void            hihat_cleanup  (hihat_t *);
+HATRACK_EXTERN void            hihat_delete   (hihat_t *);
+HATRACK_EXTERN void           *hihat_get      (hihat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *hihat_put      (hihat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *hihat_replace  (hihat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            hihat_add      (hihat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *hihat_remove   (hihat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        hihat_len      (hihat_t *);
+HATRACK_EXTERN hatrack_view_t *hihat_view     (hihat_t *, uint64_t *, bool);
 
 /*
  * Note that hihat_a is almost identical to hihat. It has the same
@@ -210,16 +202,16 @@ hatrack_view_t *hihat_view     (hihat_t *, uint64_t *, bool);
  * Instead of adding an extra indirection for that second migration
  * function, we just copy all the methods.
  */
-hihat_t        *hihat_a_new      (void);
-hihat_t        *hihat_a_new_size (char);
-void            hihat_a_init     (hihat_t *);
-void            hihat_a_init_size(hihat_t *, char);
-void            hihat_a_cleanup  (hihat_t *);
-void            hihat_a_delete   (hihat_t *);
-void           *hihat_a_get      (hihat_t *, hatrack_hash_t, bool *);
-void           *hihat_a_put      (hihat_t *, hatrack_hash_t, void *, bool *);
-void           *hihat_a_replace  (hihat_t *, hatrack_hash_t, void *, bool *);
-bool            hihat_a_add      (hihat_t *, hatrack_hash_t, void *);
-void           *hihat_a_remove   (hihat_t *, hatrack_hash_t, bool *);
-uint64_t        hihat_a_len      (hihat_t *);
-hatrack_view_t *hihat_a_view     (hihat_t *, uint64_t *, bool);
+HATRACK_EXTERN hihat_t        *hihat_a_new      (void);
+HATRACK_EXTERN hihat_t        *hihat_a_new_size (char);
+HATRACK_EXTERN void            hihat_a_init     (hihat_t *);
+HATRACK_EXTERN void            hihat_a_init_size(hihat_t *, char);
+HATRACK_EXTERN void            hihat_a_cleanup  (hihat_t *);
+HATRACK_EXTERN void            hihat_a_delete   (hihat_t *);
+HATRACK_EXTERN void           *hihat_a_get      (hihat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *hihat_a_put      (hihat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *hihat_a_replace  (hihat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            hihat_a_add      (hihat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *hihat_a_remove   (hihat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        hihat_a_len      (hihat_t *);
+HATRACK_EXTERN hatrack_view_t *hihat_a_view     (hihat_t *, uint64_t *, bool);

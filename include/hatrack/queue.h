@@ -77,11 +77,7 @@
 #pragma once
 
 #include "base.h"
-#include "hatomic.h"
 
-#define QUEUE_HELP_VALUE 1 << QUEUE_HELP_STEPS
-
-// clang-format off
 typedef struct {
     void    *item;
     uint64_t state;
@@ -100,7 +96,7 @@ typedef struct queue_segment_st queue_segment_t;
  */
 
 struct queue_segment_st {
-    _Atomic (queue_segment_t *)next;
+    _Atomic(queue_segment_t *) next;
     uint64_t                   size;
     _Atomic uint64_t           enqueue_index;
     _Atomic uint64_t           dequeue_index;
@@ -109,7 +105,7 @@ struct queue_segment_st {
 
 typedef struct {
     alignas(16)
-    queue_segment_t *enqueue_segment;
+        queue_segment_t *enqueue_segment;
     queue_segment_t *dequeue_segment;
 } queue_seg_ptrs_t;
 
@@ -120,22 +116,13 @@ typedef struct hatrack_queue_t {
     _Atomic uint64_t         len;
 } queue_t;
 
-enum64(queue_cell_state_t,
-       QUEUE_EMPTY   = 0x00,
-       QUEUE_TOOSLOW = 0x01,
-       QUEUE_USED    = 0x02);
-
-static inline uint64_t
-queue_len(queue_t *self)
-{
-    return atomic_read(&self->len);
-}
-
-queue_t *queue_new      (void);
-queue_t *queue_new_size (char);
-void     queue_init     (queue_t *);
-void     queue_init_size(queue_t *, char);
-void     queue_cleanup  (queue_t *);
-void     queue_delete   (queue_t *);
-void     queue_enqueue  (queue_t *, void *);
-void    *queue_dequeue  (queue_t *, bool *);
+// clang-format off
+HATRACK_EXTERN queue_t *queue_new      (void);
+HATRACK_EXTERN queue_t *queue_new_size (char);
+HATRACK_EXTERN void     queue_init     (queue_t *);
+HATRACK_EXTERN void     queue_init_size(queue_t *, char);
+HATRACK_EXTERN void     queue_cleanup  (queue_t *);
+HATRACK_EXTERN void     queue_delete   (queue_t *);
+HATRACK_EXTERN uint64_t queue_len      (queue_t *);
+HATRACK_EXTERN void     queue_enqueue  (queue_t *, void *);
+HATRACK_EXTERN void    *queue_dequeue  (queue_t *, bool *);

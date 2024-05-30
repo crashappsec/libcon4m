@@ -42,12 +42,6 @@ typedef struct {
     uint64_t info;
 } witchhat_record_t;
 
-enum64(witchhat_flag_t,
-       WITCHHAT_F_MOVING   = 0x8000000000000000,
-       WITCHHAT_F_MOVED    = 040000000000000000,
-       WITCHHAT_F_INITED   = 0x2000000000000000,
-       WITCHHAT_EPOCH_MASK = 0x1fffffffffffffff);
-
 typedef struct {
     _Atomic hatrack_hash_t    hv;
     _Atomic witchhat_record_t record;
@@ -55,7 +49,6 @@ typedef struct {
 
 typedef struct witchhat_store_st witchhat_store_t;
 
-// clang-format off
 struct witchhat_store_st {
     uint64_t                    last_slot;
     uint64_t                    threshold;
@@ -68,47 +61,21 @@ typedef struct {
     _Atomic(witchhat_store_t *) store_current;
     _Atomic uint64_t            item_count;
     _Atomic uint64_t            help_needed;
-            uint64_t            next_epoch;
-
+    uint64_t                    next_epoch;
 } witchhat_t;
 
-
-witchhat_t     *witchhat_new        (void);
-witchhat_t     *witchhat_new_size   (char);
-void            witchhat_init       (witchhat_t *);
-void            witchhat_init_size  (witchhat_t *, char);
-void            witchhat_cleanup    (witchhat_t *);
-void            witchhat_delete     (witchhat_t *);
-void           *witchhat_get        (witchhat_t *, hatrack_hash_t, bool *);
-void           *witchhat_put        (witchhat_t *, hatrack_hash_t, void *,
-				     bool *);
-void           *witchhat_replace    (witchhat_t *, hatrack_hash_t, void *,
-				     bool *);
-bool            witchhat_add        (witchhat_t *, hatrack_hash_t, void *);
-void           *witchhat_remove     (witchhat_t *, hatrack_hash_t, bool *);
-uint64_t        witchhat_len        (witchhat_t *);
-hatrack_view_t *witchhat_view       (witchhat_t *, uint64_t *, bool);
-hatrack_view_t *witchhat_view_no_mmm(witchhat_t *, uint64_t *, bool);
-
-/* These need to be non-static because tophat and hatrack_dict both
- * need them, so that they can call in without a second call to
- * MMM. But, they should be considered "friend" functions, and not
- * part of the public API.
- *
- * Actually, hatrack_dict no longer uses Witchhat, it uses Crown, but
- * I'm going to explicitly leave these here, instead of going back to
- * making them static.
- */
-witchhat_store_t *witchhat_store_new    (uint64_t);
-void             *witchhat_store_get    (witchhat_store_t *, hatrack_hash_t,
-					 bool *);
-void             *witchhat_store_put    (witchhat_store_t *, witchhat_t *,
-					 hatrack_hash_t, void *, bool *,
-					 uint64_t);
-void             *witchhat_store_replace(witchhat_store_t *, witchhat_t *,
-					 hatrack_hash_t, void *, bool *,
-					 uint64_t);
-bool              witchhat_store_add    (witchhat_store_t *, witchhat_t *,
-					 hatrack_hash_t, void *, uint64_t);
-void             *witchhat_store_remove (witchhat_store_t *, witchhat_t *,
-					 hatrack_hash_t, bool *, uint64_t);
+// clang-format off
+HATRACK_EXTERN witchhat_t     *witchhat_new        (void);
+HATRACK_EXTERN witchhat_t     *witchhat_new_size   (char);
+HATRACK_EXTERN void            witchhat_init       (witchhat_t *);
+HATRACK_EXTERN void            witchhat_init_size  (witchhat_t *, char);
+HATRACK_EXTERN void            witchhat_cleanup    (witchhat_t *);
+HATRACK_EXTERN void            witchhat_delete     (witchhat_t *);
+HATRACK_EXTERN void           *witchhat_get        (witchhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *witchhat_put        (witchhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *witchhat_replace    (witchhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            witchhat_add        (witchhat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *witchhat_remove     (witchhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        witchhat_len        (witchhat_t *);
+HATRACK_EXTERN hatrack_view_t *witchhat_view       (witchhat_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_view_t *witchhat_view_no_mmm(witchhat_t *, uint64_t *, bool);

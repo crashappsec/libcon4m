@@ -29,34 +29,10 @@
 #include "base.h"
 #include "hatrack_common.h"
 
-#ifdef HATRACK_32_BIT_HOP_TABLE
-
-#define CROWN_HOME_BIT 0x80000000
-
-typedef uint32_t hop_t;
-
-#define CLZ(n) __builtin_clzl(n)
-
-#else
-
-#define CROWN_HOME_BIT 0x8000000000000000
-
-typedef uint64_t hop_t;
-
-#define CLZ(n) __builtin_clzll(n)
-
-#endif
-
 typedef struct {
     void    *item;
     uint64_t info;
 } crown_record_t;
-
-enum64(crown_flag_t,
-       CROWN_F_MOVING   = 0x8000000000000000,
-       CROWN_F_MOVED    = 0x4000000000000000,
-       CROWN_F_INITED   = 0x2000000000000000,
-       CROWN_EPOCH_MASK = 0x1fffffffffffffff);
 
 typedef struct {
     _Atomic hatrack_hash_t hv;
@@ -88,36 +64,18 @@ typedef struct {
 } crown_t;
 
 // clang-format off
-crown_t        *crown_new        (void);
-crown_t        *crown_new_size   (char);
-void            crown_init       (crown_t *);
-void            crown_init_size  (crown_t *, char);
-void            crown_cleanup    (crown_t *);
-void            crown_delete     (crown_t *);
-void           *crown_get        (crown_t *, hatrack_hash_t, bool *);
-void           *crown_put        (crown_t *, hatrack_hash_t, void *, bool *);
-void           *crown_replace    (crown_t *, hatrack_hash_t, void *, bool *);
-bool            crown_add        (crown_t *, hatrack_hash_t, void *);
-void           *crown_remove     (crown_t *, hatrack_hash_t, bool *);
-uint64_t        crown_len        (crown_t *);
-hatrack_view_t *crown_view       (crown_t *, uint64_t *, bool);
-hatrack_view_t *crown_view_fast  (crown_t *, uint64_t *, bool);
-hatrack_view_t *crown_view_slow  (crown_t *, uint64_t *, bool);
-
-/* These need to be non-static because tophat and hatrack_dict both
- * need them, so that they can call in without a second call to
- * MMM. But, they should be considered "friend" functions, and not
- * part of the public API.
- */
-#ifdef HATRACK_INTERNAL_API
-crown_store_t    *crown_store_new    (uint64_t);
-void             *crown_store_get    (crown_store_t *, hatrack_hash_t, bool *);
-void             *crown_store_put    (crown_store_t *, crown_t *,
-				      hatrack_hash_t, void *, bool *, uint64_t);
-void             *crown_store_replace(crown_store_t *, crown_t *,
-				      hatrack_hash_t, void *, bool *, uint64_t);
-bool              crown_store_add    (crown_store_t *, crown_t *,
-				      hatrack_hash_t, void *, uint64_t);
-void             *crown_store_remove (crown_store_t *, crown_t *,
-				      hatrack_hash_t, bool *, uint64_t);
-#endif
+HATRACK_EXTERN crown_t        *crown_new        (void);
+HATRACK_EXTERN crown_t        *crown_new_size   (char);
+HATRACK_EXTERN void            crown_init       (crown_t *);
+HATRACK_EXTERN void            crown_init_size  (crown_t *, char);
+HATRACK_EXTERN void            crown_cleanup    (crown_t *);
+HATRACK_EXTERN void            crown_delete     (crown_t *);
+HATRACK_EXTERN void           *crown_get        (crown_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *crown_put        (crown_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *crown_replace    (crown_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            crown_add        (crown_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *crown_remove     (crown_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        crown_len        (crown_t *);
+HATRACK_EXTERN hatrack_view_t *crown_view       (crown_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_view_t *crown_view_fast  (crown_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_view_t *crown_view_slow  (crown_t *, uint64_t *, bool);

@@ -37,8 +37,6 @@
 #include "base.h"
 #include "hatrack_common.h"
 
-// clang-format off
-
 /* swimcap_record_t
  *
  * This is unchanged from duncecap_record_t.
@@ -79,8 +77,7 @@
  *          point on which to construct a consistent sort order.
  */
 typedef struct {
-    alignas(16)
-    void    *item;
+    alignas(16) void *item;
     uint64_t epoch;
 } swimcap_record_t;
 
@@ -199,10 +196,10 @@ typedef struct {
  *                  operation, for the purposes of sort ordering.
  */
 typedef struct {
-    swimcap_store_t   *store_current;
-    uint64_t           item_count;
-    uint64_t           next_epoch;
-    pthread_mutex_t    write_mutex;
+    swimcap_store_t *store_current;
+    uint64_t         item_count;
+    uint64_t         next_epoch;
+    pthread_mutex_t  write_mutex;
 } swimcap_t;
 
 /* This API requires that you deal with hashing the key external to
@@ -214,16 +211,18 @@ typedef struct {
  * choose a 3-universal keyed hash function, or if hash values need to
  * be consistent across runs, something fast and practical like XXH3.
  */
-swimcap_t      *swimcap_new      (void);
-swimcap_t      *swimcap_new_size (char);
-void            swimcap_init     (swimcap_t *);
-void            swimcap_init_size(swimcap_t *, char);
-void            swimcap_cleanup  (swimcap_t *);
-void            swimcap_delete   (swimcap_t *);
-void           *swimcap_get      (swimcap_t *, hatrack_hash_t, bool *);
-void           *swimcap_put      (swimcap_t *, hatrack_hash_t, void *, bool *);
-void           *swimcap_replace  (swimcap_t *, hatrack_hash_t, void *, bool *);
-bool            swimcap_add      (swimcap_t *, hatrack_hash_t, void *);
-void           *swimcap_remove   (swimcap_t *, hatrack_hash_t, bool *);
-uint64_t        swimcap_len      (swimcap_t *);
-hatrack_view_t *swimcap_view     (swimcap_t *, uint64_t *, bool);
+
+// clang-format off
+HATRACK_EXTERN swimcap_t      *swimcap_new      (void);
+HATRACK_EXTERN swimcap_t      *swimcap_new_size (char);
+HATRACK_EXTERN void            swimcap_init     (swimcap_t *);
+HATRACK_EXTERN void            swimcap_init_size(swimcap_t *, char);
+HATRACK_EXTERN void            swimcap_cleanup  (swimcap_t *);
+HATRACK_EXTERN void            swimcap_delete   (swimcap_t *);
+HATRACK_EXTERN void           *swimcap_get      (swimcap_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *swimcap_put      (swimcap_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *swimcap_replace  (swimcap_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            swimcap_add      (swimcap_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *swimcap_remove   (swimcap_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        swimcap_len      (swimcap_t *);
+HATRACK_EXTERN hatrack_view_t *swimcap_view     (swimcap_t *, uint64_t *, bool);

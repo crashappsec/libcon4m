@@ -19,7 +19,12 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack.h"
+#include "hatrack/set.h"
+#include "hatrack/hash.h"
+#include "hatrack/hatomic.h"
+#include "../hatrack-internal.h"
+
+#include <stdlib.h>
 
 static hatrack_hash_t hatrack_set_get_hash_value(hatrack_set_t *, void *);
 static void           hatrack_set_record_eject(woolhat_record_t *, hatrack_set_t *);
