@@ -28,27 +28,29 @@
 
 #include <stdlib.h>
 
+#ifdef HATRACK_DEBUG
+#include "hatrack/debug.h"
+#include <string.h>
+#endif
+
 typedef struct mmm_free_tids_st mmm_free_tids_t;
 struct mmm_free_tids_st {
     mmm_free_tids_t *next;
     uint64_t         tid;
 };
 
-// clang-format off
-__thread mmm_header_t *mmm_retire_list  = NULL;
-_Atomic  uint64_t      mmm_epoch        = HATRACK_EPOCH_FIRST;
-_Atomic  uint64_t      mmm_nexttid      = 0;
-__thread int64_t       mmm_mytid        = -1;
-__thread uint64_t      mmm_retire_ctr   = 0;
+__thread mmm_thread_t *mmm_thread;
+_Atomic uint64_t       mmm_nexttid;
 
-         uint64_t      mmm_reservations[HATRACK_THREADS_MAX] = { 0, };
+_Atomic uint64_t mmm_epoch = HATRACK_EPOCH_FIRST;
 
-// clang-format on
+static uint64_t mmm_reservations[HATRACK_THREADS_MAX];
 
 static void mmm_empty(void);
 
 #ifdef HATRACK_DEBUG
-static void hatrack_debug_mmm(void *, char *);
+__attribute__((unused)) static void
+hatrack_debug_mmm(void *addr, char *msg);
 
 #define DEBUG_MMM(x, y) hatrack_debug_mmm((void *)(x), y)
 #ifdef HATRACK_MMM_DEBUG
@@ -88,7 +90,7 @@ static void hatrack_debug_mmm(void *, char *);
 static _Atomic(mmm_free_tids_t *) mmm_free_tids;
 
 /* This grabs an mmm-specific threadid and stashes it in the
- * thread-local variable mmm_mytid.
+ * thread-local variable mmm_thread->tid.
  *
  * We have a fixed number of TIDS to give out though (controlled by
  * the preprocessor variable, HATRACK_THREADS_MAX).  We give them out
@@ -102,12 +104,13 @@ mmm_register_thread(void)
 {
     mmm_free_tids_t *head;
 
-    if (mmm_mytid != -1) {
+    if (NULL == mmm_thread) {
         return;
     }
-    mmm_mytid = atomic_fetch_add(&mmm_nexttid, 1);
+    mmm_thread      = hatrack_malloc(sizeof(mmm_thread_t));
+    mmm_thread->tid = atomic_fetch_add(&mmm_nexttid, 1);
 
-    if (mmm_mytid >= HATRACK_THREADS_MAX) {
+    if (mmm_thread->tid >= HATRACK_THREADS_MAX) {
         head = atomic_load(&mmm_free_tids);
 
         do {
@@ -116,11 +119,11 @@ mmm_register_thread(void)
             }
         } while (!CAS(&mmm_free_tids, &head, head->next));
 
-        mmm_mytid = head->tid;
+        mmm_thread->tid = head->tid;
         mmm_retire(head);
     }
 
-    mmm_reservations[mmm_mytid] = HATRACK_EPOCH_UNRESERVED;
+    mmm_reservations[mmm_thread->tid] = HATRACK_EPOCH_UNRESERVED;
 
     return;
 }
@@ -133,12 +136,15 @@ mmm_tid_giveback(void)
     mmm_free_tids_t *old_head;
 
     new_head      = mmm_alloc(sizeof(mmm_free_tids_t));
-    new_head->tid = mmm_mytid;
+    new_head->tid = mmm_thread->tid;
     old_head      = atomic_load(&mmm_free_tids);
 
     do {
         new_head->next = old_head;
     } while (!CAS(&mmm_free_tids, &old_head, new_head));
+
+    hatrack_free(mmm_thread, sizeof(mmm_thread_t));
+    mmm_thread = NULL;
 
     return;
 }
@@ -161,13 +167,13 @@ mmm_reset_tids(void)
 void
 mmm_clean_up_before_exit(void)
 {
-    if (mmm_mytid == -1) {
+    if (NULL == mmm_thread) {
         return;
     }
 
     mmm_end_op();
 
-    while (mmm_retire_list) {
+    while (mmm_thread->retire_list) {
         mmm_empty();
     }
 
@@ -218,14 +224,14 @@ mmm_retire(void *ptr)
     }
 #endif
 
-    cell->retire_epoch = atomic_load(&mmm_epoch);
-    cell->next         = mmm_retire_list;
-    mmm_retire_list    = cell;
+    cell->retire_epoch      = atomic_load(&mmm_epoch);
+    cell->next              = mmm_thread->retire_list;
+    mmm_thread->retire_list = cell;
 
     DEBUG_MMM_INTERNAL(cell->data, "mmm_retire");
 
-    if (++mmm_retire_ctr & HATRACK_RETIRE_FREQ) {
-        mmm_retire_ctr = 0;
+    if (++mmm_thread->retire_ctr & HATRACK_RETIRE_FREQ) {
+        mmm_thread->retire_ctr = 0;
         mmm_empty();
     }
 
@@ -290,12 +296,12 @@ mmm_empty(void)
      * something on the retire list, so cell will never start out
      * empty.
      */
-    cell = mmm_retire_list;
+    cell = mmm_thread->retire_list;
 
     // Special-case this, in case we have to delete the head cell,
     // to make sure we reinitialize the linked list right.
-    if (mmm_retire_list->retire_epoch < lowest) {
-        mmm_retire_list = NULL;
+    if (mmm_thread->retire_list->retire_epoch < lowest) {
+        mmm_thread->retire_list = NULL;
     }
     else {
         while (true) {
@@ -339,7 +345,7 @@ void
 mmm_start_basic_op(void)
 {
     mmm_register_thread();
-    mmm_reservations[mmm_mytid] = atomic_load(&mmm_epoch);
+    mmm_reservations[mmm_thread->tid] = atomic_load(&mmm_epoch);
 
     return;
 }
@@ -350,10 +356,10 @@ mmm_start_linearized_op(void)
     uint64_t read_epoch;
 
     mmm_register_thread();
-    mmm_reservations[mmm_mytid] = atomic_load(&mmm_epoch);
-    read_epoch                  = atomic_load(&mmm_epoch);
+    mmm_reservations[mmm_thread->tid] = atomic_load(&mmm_epoch);
+    read_epoch                        = atomic_load(&mmm_epoch);
 
-    HATRACK_YN_CTR_NORET(read_epoch == mmm_reservations[mmm_mytid],
+    HATRACK_YN_CTR_NORET(read_epoch == mmm_reservations[mmm_thread->tid],
                          HATRACK_CTR_LINEAR_EPOCH_EQ);
 
     return read_epoch;
@@ -363,7 +369,7 @@ void
 mmm_end_op(void)
 {
     atomic_signal_fence(memory_order_seq_cst);
-    mmm_reservations[mmm_mytid] = HATRACK_EPOCH_UNRESERVED;
+    mmm_reservations[mmm_thread->tid] = HATRACK_EPOCH_UNRESERVED;
 
     return;
 }
@@ -470,10 +476,10 @@ mmm_retire_fast(void *ptr)
 {
     mmm_header_t *cell;
 
-    cell               = mmm_get_header(ptr);
-    cell->retire_epoch = atomic_load(&mmm_epoch);
-    cell->next         = mmm_retire_list;
-    mmm_retire_list    = cell;
+    cell                    = mmm_get_header(ptr);
+    cell->retire_epoch      = atomic_load(&mmm_epoch);
+    cell->next              = mmm_thread->retire_list;
+    mmm_thread->retire_list = cell;
 
     return;
 }

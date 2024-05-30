@@ -133,7 +133,7 @@ gate_thread_ready(gate_t *gate)
 static inline void
 gate_thread_done(gate_t *gate)
 {
-    get_timestamp(&gate->end_times[mmm_mytid]);
+    get_timestamp(&gate->end_times[mmm_thread->tid]);
 
     return;
 }

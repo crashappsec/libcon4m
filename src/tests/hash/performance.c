@@ -327,7 +327,7 @@ shuffle_thread_run(void *v)
         next_key = (next_key + thread_step) & key_mod_mask;
     }
 
-    get_timestamp(&stop_times[mmm_mytid]);
+    get_timestamp(&stop_times[mmm_thread->tid]);
     mmm_clean_up_before_exit();
 
     return NULL;
@@ -415,7 +415,7 @@ shuffle_thread_run64(void *v)
         next_key = (next_key + thread_step) & key_mod_mask;
     }
 
-    get_timestamp(&stop_times[mmm_mytid]);
+    get_timestamp(&stop_times[mmm_thread->tid]);
     mmm_clean_up_before_exit();
 
     return NULL;
@@ -468,7 +468,7 @@ rand_thread_run(void *v)
         n = test_rand() % 100;
     }
 
-    get_timestamp(&stop_times[mmm_mytid]);
+    get_timestamp(&stop_times[mmm_thread->tid]);
     mmm_clean_up_before_exit();
 
     return NULL;
@@ -518,7 +518,7 @@ rand_thread_run64(void *v)
         n = test_rand() % 100;
     }
 
-    get_timestamp(&stop_times[mmm_mytid]);
+    get_timestamp(&stop_times[mmm_thread->tid]);
     mmm_clean_up_before_exit();
 
     return NULL;

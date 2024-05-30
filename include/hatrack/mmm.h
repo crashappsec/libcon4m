@@ -33,20 +33,6 @@
  */
 typedef void (*mmm_cleanup_func)(void *, void *);
 
-/* We don't want to keep reservation space for threads that don't need
- * it, so we issue a threadid for each thread to keep locally, which
- * is an index into that array.
- *
- * If desired, threads can decide to "give back" their thread IDs, so
- * that they can be re-used, for instance, if the thread exits, or
- * decides to switch roles to something that won't require it.  If you
- * never run out of TID space, this will not get used; see
- * HATRACK_THREADS_MAX in config.h.
- */
-
-extern __thread int64_t mmm_mytid;
-extern _Atomic uint64_t mmm_epoch;
-
 /* The header data structure. Note that we keep a linked list of
  * "retired" records, which is the purpose of the field 'next'.  The
  * 'data' field is a mere convenience for returning the non-hidden
@@ -73,11 +59,42 @@ struct mmm_header_st {
     alignas(16) uint8_t data[];
 };
 
-HATRACK_EXTERN void
-mmm_register_thread(void);
+/* This is a macro that allows us to access our hidden header.  Note
+ * that, while this is straightforward, I did run into an issue where
+ * the definition of mmm_header_t would end up getting a different
+ * layout depending on the module.
+ *
+ * The solution was to force alignment of fields as needed in
+ * mmm_header_t (above).
+ */
+static inline mmm_header_t *
+mmm_get_header(void *ptr)
+{
+    return (mmm_header_t *)(((uint8_t *)ptr) - sizeof(mmm_header_t));
+}
+
+/* We don't want to keep reservation space for threads that don't need
+ * it, so we issue a threadid for each thread to keep locally, which
+ * is an index into that array.
+ *
+ * If desired, threads can decide to "give back" their thread IDs, so
+ * that they can be re-used, for instance, if the thread exits, or
+ * decides to switch roles to something that won't require it.  If you
+ * never run out of TID space, this will not get used; see
+ * HATRACK_THREADS_MAX in config.h.
+ */
+
+typedef struct {
+    int64_t       tid;
+    int64_t       retire_ctr;
+    mmm_header_t *retire_list;
+} mmm_thread_t;
+
+extern __thread mmm_thread_t *mmm_thread;
+extern _Atomic uint64_t       mmm_epoch;
 
 HATRACK_EXTERN void
-mmm_reset_tids(void);
+mmm_register_thread(void);
 
 HATRACK_EXTERN void
 mmm_retire(void *);
@@ -301,20 +318,6 @@ enum64(mmm_enum_t,
        HATRACK_EPOCH_FIRST        = 0x0000000000000001,
        HATRACK_F_RESERVATION_HELP = 0x8000000000000000,
        HATRACK_EPOCH_MAX          = 0xffffffffffffffff);
-
-/* This is a macro that allows us to access our hidden header.  Note
- * that, while this is straightforward, I did run into an issue where
- * the definition of mmm_header_t would end up getting a different
- * layout depending on the module.
- *
- * The solution was to force alignment of fields as needed in
- * mmm_header_t (above).
- */
-static inline mmm_header_t *
-mmm_get_header(void *ptr)
-{
-    return (mmm_header_t *)(((uint8_t *)ptr) - sizeof(mmm_header_t));
-}
 
 /* We stick our read reservation in mmm_reservations[mmm_mytid].  By
  * doing this, we are guaranteeing that we will only read data alive

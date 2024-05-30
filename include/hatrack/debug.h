@@ -43,6 +43,11 @@
 
 #ifdef HATRACK_DEBUG
 
+#include "mmm.h"
+
+#include <stdio.h>
+#include <string.h>
+
 /* hatrack_debug_record_t
  *
  * The type for records in our ring buffer.
@@ -78,7 +83,6 @@ typedef struct {
 extern hatrack_debug_record_t __hatrack_debug[];
 extern _Atomic uint64_t       __hatrack_debug_sequence;
 extern const char             __hatrack_hex_conversion_table[];
-extern __thread int64_t       mmm_mytid;
 
 /* The below functions are all defined in debug.c. Again, they're only
  * compiled in if HATRACK_DEBUG is on. They are meant for providing
@@ -112,7 +116,7 @@ hatrack_debug(char *msg)
     index                = mysequence & HATRACK_DEBUG_RING_LAST_SLOT;
     record_ptr           = &__hatrack_debug[index];
     record_ptr->sequence = mysequence;
-    record_ptr->thread   = mmm_mytid;
+    record_ptr->thread   = mmm_thread->tid;
 
     strncpy(record_ptr->msg, msg, HATRACK_DEBUG_MSG_SIZE);
 
@@ -160,7 +164,7 @@ hatrack_debug_ptr(void *addr, char *msg)
     record_ptr = &__hatrack_debug[mysequence & HATRACK_DEBUG_RING_LAST_SLOT];
 
     record_ptr->sequence = mysequence;
-    record_ptr->thread   = mmm_mytid;
+    record_ptr->thread   = mmm_thread->tid;
 
     *--p = ' ';
     *--p = ':';
@@ -198,7 +202,7 @@ hatrack_debug2(void *addr, void *addr2, char *msg)
     end        = record_ptr->msg + HATRACK_DEBUG_MSG_SIZE;
 
     record_ptr->sequence = mysequence;
-    record_ptr->thread   = mmm_mytid;
+    record_ptr->thread   = mmm_thread->tid;
 
     *--p = ' ';
     *--p = ':';
@@ -250,7 +254,7 @@ hatrack_debug3(void *addr, void *addr2, void *addr3, char *msg)
     end        = record_ptr->msg + HATRACK_DEBUG_MSG_SIZE;
 
     record_ptr->sequence = mysequence;
-    record_ptr->thread   = mmm_mytid;
+    record_ptr->thread   = mmm_thread->tid;
 
     *--p = ' ';
     *--p = ':';
