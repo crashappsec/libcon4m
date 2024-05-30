@@ -9,6 +9,7 @@ extern void                  c4m_perform_module_loads(c4m_compile_ctx *);
 extern c4m_file_compile_ctx *c4m_init_module_from_loc(c4m_compile_ctx *,
                                                       c4m_str_t *);
 extern c4m_type_t           *c4m_str_to_type(c4m_utf8_t *);
+extern void                  c4m_codegen(c4m_compile_ctx *);
 
 #define c4m_set_package_search_path(x, ...) \
     _c4m_set_package_search_path(x, KFUNC(__VA_ARGS__))

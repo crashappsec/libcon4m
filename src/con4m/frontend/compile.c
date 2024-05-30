@@ -602,6 +602,11 @@ c4m_new_compile_context(c4m_str_t *input)
 //
 // Currently, this is only handling files on the local file system; need
 // to add an API for easier http/https access.
+//
+//
+// This does everything through initial symbol table building;
+// type checking needs all dependencies to be fully loaded before
+// it can complete.
 static void
 c4m_initial_load_one(c4m_compile_ctx *cctx, c4m_file_compile_ctx *ctx)
 {
@@ -704,11 +709,12 @@ c4m_perform_module_loads(c4m_compile_ctx *ctx)
             return;
         }
 
-        c4m_initial_load_one(ctx, cur);
+        if (cur->status < c4m_compile_status_code_loaded) {
+            c4m_initial_load_one(ctx, cur);
 
-        cur->status = c4m_compile_status_code_loaded;
-        if (c4m_fatal_error_in_module(cur)) {
-            ctx->fatality = true;
+            if (c4m_fatal_error_in_module(cur)) {
+                ctx->fatality = true;
+            }
         }
 
         c4m_set_put(ctx->processed, cur);
@@ -1018,6 +1024,11 @@ c4m_compile_from_entry_point(c4m_str_t *location)
     }
 
     c4m_check_pass(result);
+    if (result->fatality) {
+        return result;
+    }
+
+    c4m_codegen(result);
 
     return result;
 }

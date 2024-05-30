@@ -1407,6 +1407,14 @@ c4m_file_decl_pass(c4m_compile_ctx *cctx, c4m_file_compile_ctx *file_ctx)
         return;
     }
 
+    if (file_ctx->status >= c4m_compile_status_code_loaded) {
+        return;
+    }
+
+    if (file_ctx->status != c4m_compile_status_code_parsed) {
+        C4M_CRAISE("Cannot extract declarations for code that is not parsed.");
+    }
+
     setup_treematch_patterns();
 
     pass1_ctx ctx = {
@@ -1442,6 +1450,8 @@ c4m_file_decl_pass(c4m_compile_ctx *cctx, c4m_file_compile_ctx *file_ctx)
     if (file_ctx->fatal_errors) {
         cctx->fatality = true;
     }
+
+    file_ctx->status = c4m_compile_status_code_loaded;
 
     return;
 }

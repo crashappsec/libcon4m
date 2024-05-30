@@ -104,7 +104,8 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/frontend/ast_utils.c',
             'src/con4m/frontend/decl_pass.c',
             'src/con4m/frontend/check_pass.c',
-            'src/con4m/frontend/memory_layout.c',            
+            'src/con4m/frontend/memory_layout.c',
+            'src/con4m/frontend/codegen.c',
             ]
 
 hat_primary = ['src/hatrack/support/hatrack_common.c',

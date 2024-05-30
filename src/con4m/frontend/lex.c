@@ -1077,6 +1077,10 @@ line_comment:
 bool
 c4m_lex(c4m_file_compile_ctx *ctx, c4m_stream_t *stream)
 {
+    if (ctx->status >= c4m_compile_status_tokenized) {
+        return ctx->fatal_errors;
+    }
+
     int outkind;
     outkind = stream->flags & (C4M_F_STREAM_UTF8_OUT | C4M_F_STREAM_UTF32_OUT);
 
@@ -1136,6 +1140,9 @@ c4m_lex(c4m_file_compile_ctx *ctx, c4m_stream_t *stream)
         error = true;
     }
     C4M_TRY_END;
+
+    ctx->status       = c4m_compile_status_tokenized;
+    ctx->fatal_errors = error;
 
     return !error;
 }

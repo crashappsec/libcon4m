@@ -4189,6 +4189,14 @@ c4m_parse(c4m_file_compile_ctx *file_ctx)
         return false;
     }
 
+    if (file_ctx->status >= c4m_compile_status_code_parsed) {
+        return c4m_fatal_error_in_module(file_ctx);
+    }
+
+    if (file_ctx->status != c4m_compile_status_tokenized) {
+        C4M_CRAISE("Cannot parse files that are not tokenized.");
+    }
+
     parse_ctx ctx = {
         .cur          = NULL,
         .file_ctx     = file_ctx,
@@ -4206,7 +4214,9 @@ c4m_parse(c4m_file_compile_ctx *file_ctx)
         file_ctx->fatal_errors = 1;
     }
 
-    return file_ctx->parse_tree != NULL;
+    file_ctx->status = c4m_compile_status_code_parsed;
+
+    return file_ctx->fatal_errors != 1;
 }
 
 bool

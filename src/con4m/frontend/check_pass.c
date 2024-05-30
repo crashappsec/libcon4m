@@ -2646,7 +2646,20 @@ c4m_check_pass(c4m_compile_ctx *cctx)
     for (int i = 0; i < n; i++) {
         c4m_file_compile_ctx *f = c4m_xlist_get(cctx->module_ordering, i, NULL);
 
+        if (f->status < c4m_compile_status_code_loaded) {
+            C4M_CRAISE("Cannot check files until after decl scan.");
+        }
+
+        if (f->fatal_errors) {
+            C4M_CRAISE("Cannot check files that have do not properly load.");
+        }
+
+        if (f->status >= c4m_compile_status_tree_typed) {
+            continue;
+        }
+
         one_deferred = module_check_pass(cctx, f);
+        f->status    = c4m_compile_status_tree_typed;
 
         if (one_deferred == NULL) {
             continue;
