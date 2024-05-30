@@ -57,7 +57,10 @@
 #include "base.h"
 #include "hatrack_common.h"
 
-// clang-format off
+#ifndef HATRACK_NO_PTHREAD
+
+#include <pthread.h>
+
 typedef struct ballcap_record_st ballcap_record_t;
 
 /*
@@ -79,31 +82,32 @@ typedef struct ballcap_record_st ballcap_record_t;
  */
 
 struct ballcap_record_st {
-    bool                 deleted;
-    void                *item;
-    ballcap_record_t    *next;
+    bool              deleted;
+    void             *item;
+    ballcap_record_t *next;
 };
 
 typedef struct {
-    hatrack_hash_t       hv;
-    ballcap_record_t    *record;
-    bool                 migrated;
-    pthread_mutex_t      mutex;
+    hatrack_hash_t    hv;
+    ballcap_record_t *record;
+    bool              migrated;
+    pthread_mutex_t   mutex;
 } ballcap_bucket_t;
 
 typedef struct {
-    uint64_t             last_slot;
-    uint64_t             threshold;
-    _Atomic uint64_t     used_count;
-    ballcap_bucket_t     buckets[];
+    uint64_t         last_slot;
+    uint64_t         threshold;
+    _Atomic uint64_t used_count;
+    ballcap_bucket_t buckets[];
 } ballcap_store_t;
 
 typedef struct {
-    _Atomic uint64_t     item_count;
-    ballcap_store_t     *store_current;
-    pthread_mutex_t      migrate_mutex;
+    _Atomic uint64_t item_count;
+    ballcap_store_t *store_current;
+    pthread_mutex_t  migrate_mutex;
 } ballcap_t;
 
+// clang-format off
 ballcap_t      *ballcap_new      (void);
 ballcap_t      *ballcap_new_size (char);
 void            ballcap_init     (ballcap_t *);
@@ -117,3 +121,6 @@ bool            ballcap_add      (ballcap_t *, hatrack_hash_t, void *);
 void           *ballcap_remove   (ballcap_t *, hatrack_hash_t, bool *);
 uint64_t        ballcap_len      (ballcap_t *);
 hatrack_view_t *ballcap_view     (ballcap_t *, uint64_t *, bool);
+// clang-format on
+
+#endif

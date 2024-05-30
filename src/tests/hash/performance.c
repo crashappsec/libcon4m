@@ -16,12 +16,11 @@
 
 #include <test/testhat.h>
 #include <hatrack/gate.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <sys/utsname.h>
 #include <sys/ioctl.h>
 #include <stdio.h>
-#include <string.h>
+#include <pthread.h>
 
 #ifdef __MACH__
 _Bool        clock_service_inited = false;

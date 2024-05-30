@@ -27,6 +27,15 @@
 
 #pragma once
 
+/* HATRACK_NO_PTHREAD
+ *
+ * Define this if you do not want to compile any part of Hatrack that
+ * depends on the POSIX pthread API. The core of Hatrack does not
+ * require pthread support, but there are a few hash types that do:
+ * ballcap, duncecap, newshat, swimcap, and tophat
+ */
+// #define HATRACK_NO_PTHREAD
+
 /* HATRACK_MIN_SIZE_LOG
  *
  * Specifies the minimum table size, but represented as a base two

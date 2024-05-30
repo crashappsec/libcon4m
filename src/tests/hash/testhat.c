@@ -168,6 +168,8 @@ hatrack_vtable_t refhat_vtable = {
     .view    = (hatrack_view_func)refhat_view
 };
 
+#ifndef HATRACK_NO_PTHREAD
+
 hatrack_vtable_t dcap_vtable = {
     .init    = (hatrack_init_func)duncecap_init,
     .init_sz = (hatrack_init_sz_func)duncecap_init_size,
@@ -219,6 +221,8 @@ hatrack_vtable_t ballcap_vtable = {
     .len     = (hatrack_len_func)ballcap_len,
     .view    = (hatrack_view_func)ballcap_view
 };
+
+#endif
 
 hatrack_vtable_t hihat_vtable = {
     .init    = (hatrack_init_func)hihat_init,
@@ -311,6 +315,8 @@ hatrack_vtable_t oldhat_vtable = {
     .view    = (hatrack_view_func)oldhat_view
 };
 
+#ifndef HATRACK_NO_PTHREAD
+
 hatrack_vtable_t thfmx_vtable = {
     .init    = (hatrack_init_func)tophat_init_fast_mx,
     .init_sz = (hatrack_init_sz_func)tophat_init_fast_mx_size,
@@ -363,6 +369,8 @@ hatrack_vtable_t thcwf_vtable = {
     .view    = (hatrack_view_func)tophat_view
 };
 
+#endif
+
 hatrack_vtable_t crown_vtable = {
     .init    = (hatrack_init_func)crown_init,
     .init_sz = (hatrack_init_sz_func)crown_init_size,
@@ -395,10 +403,12 @@ static void
 testhat_init_default_algorithms(void)
 {
     algorithm_register("refhat", &refhat_vtable, sizeof(refhat_t), 16, false);
+#ifndef HATRACK_NO_PTHREAD
     algorithm_register("duncecap", &dcap_vtable, sizeof(duncecap_t), 16, true);
     algorithm_register("swimcap", &swimcap_vtable, sizeof(swimcap_t), 16, true);
     algorithm_register("newshat", &newshat_vtable, sizeof(newshat_t), 16, true);
     algorithm_register("ballcap", &ballcap_vtable, sizeof(ballcap_t), 16, true);
+#endif
     algorithm_register("hihat", &hihat_vtable, sizeof(hihat_t), 16, true);
     algorithm_register("hihat-a", &hihat_a_vtable, sizeof(hihat_t), 16, true);
     algorithm_register("witchhat", &witch_vtable, sizeof(witchhat_t), 16, true);
@@ -407,10 +417,12 @@ testhat_init_default_algorithms(void)
     algorithm_register("lohat", &lohat_vtable, sizeof(lohat_t), 16, true);
     algorithm_register("lohat-a", &lohat_a_vtable, sizeof(lohat_a_t), 16, true);
     algorithm_register("woolhat", &woolhat_vtable, sizeof(woolhat_t), 16, true);
+#ifndef HATRACK_NO_PTHREAD
     algorithm_register("tophat-fmx", &thfmx_vtable, sizeof(tophat_t), 16, true);
     algorithm_register("tophat-fwf", &thfwf_vtable, sizeof(tophat_t), 16, true);
     algorithm_register("tophat-cmx", &thcmx_vtable, sizeof(tophat_t), 16, true);
     algorithm_register("tophat-cwf", &thcwf_vtable, sizeof(tophat_t), 16, true);
+#endif
     algorithm_register("tiara", &tiara_vtable, sizeof(tiara_t), 8, true);
     return;
 }

@@ -28,6 +28,10 @@
 #include "base.h"
 #include "hatrack_common.h"
 
+#ifndef HATRACK_NO_PTHREAD
+
+#include <pthread.h>
+
 /* newshat_record_t
  *
  * Each newshat bucket is individually locked, so that only one thread
@@ -207,3 +211,5 @@ HATRACK_EXTERN bool            newshat_add      (newshat_t *, hatrack_hash_t, vo
 HATRACK_EXTERN void           *newshat_remove   (newshat_t *, hatrack_hash_t, bool *);
 HATRACK_EXTERN uint64_t        newshat_len      (newshat_t *);
 HATRACK_EXTERN hatrack_view_t *newshat_view     (newshat_t *, uint64_t *, bool);
+
+#endif

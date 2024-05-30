@@ -35,14 +35,13 @@ struct mmm_free_tids_st {
 };
 
 // clang-format off
-__thread mmm_header_t  *mmm_retire_list  = NULL;
-__thread pthread_once_t mmm_inited       = PTHREAD_ONCE_INIT;
-_Atomic  uint64_t       mmm_epoch        = HATRACK_EPOCH_FIRST;
-_Atomic  uint64_t       mmm_nexttid      = 0;
-__thread int64_t        mmm_mytid        = -1;
-__thread uint64_t       mmm_retire_ctr   = 0;
+__thread mmm_header_t *mmm_retire_list  = NULL;
+_Atomic  uint64_t      mmm_epoch        = HATRACK_EPOCH_FIRST;
+_Atomic  uint64_t      mmm_nexttid      = 0;
+__thread int64_t       mmm_mytid        = -1;
+__thread uint64_t      mmm_retire_ctr   = 0;
 
-         uint64_t       mmm_reservations[HATRACK_THREADS_MAX] = { 0, };
+         uint64_t      mmm_reservations[HATRACK_THREADS_MAX] = { 0, };
 
 // clang-format on
 
@@ -339,7 +338,7 @@ mmm_empty(void)
 void
 mmm_start_basic_op(void)
 {
-    pthread_once(&mmm_inited, mmm_register_thread);
+    mmm_register_thread();
     mmm_reservations[mmm_mytid] = atomic_load(&mmm_epoch);
 
     return;
@@ -350,8 +349,7 @@ mmm_start_linearized_op(void)
 {
     uint64_t read_epoch;
 
-    pthread_once(&mmm_inited, mmm_register_thread);
-
+    mmm_register_thread();
     mmm_reservations[mmm_mytid] = atomic_load(&mmm_epoch);
     read_epoch                  = atomic_load(&mmm_epoch);
 

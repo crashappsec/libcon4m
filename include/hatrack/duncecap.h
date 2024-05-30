@@ -38,6 +38,10 @@
 #include "base.h"
 #include "hatrack_common.h"
 
+#ifndef HATRACK_NO_PTHREAD
+
+#include <pthread.h>
+
 /* duncecap_record_t
  *
  * In this implementation, readers only use a mutex long enough to
@@ -255,4 +259,6 @@ HATRACK_EXTERN bool            duncecap_add      (duncecap_t *, hatrack_hash_t, 
 HATRACK_EXTERN void           *duncecap_remove   (duncecap_t *, hatrack_hash_t, bool *);
 HATRACK_EXTERN uint64_t        duncecap_len      (duncecap_t *);
 HATRACK_EXTERN hatrack_view_t *duncecap_view     (duncecap_t *, uint64_t *, bool);
- 
+// clang-format on
+
+#endif

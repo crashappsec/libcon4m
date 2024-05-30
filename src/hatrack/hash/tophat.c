@@ -38,6 +38,8 @@
 
 #include <stdlib.h>
 
+#ifndef HATRACK_NO_PTHREAD
+
 // clang-format off
 static void             tophat_init_base     (tophat_t *, char);
 static void		tophat_st_migrate    (tophat_st_ctx_t *);
@@ -1356,3 +1358,5 @@ tophat_migrate_to_woolhat(tophat_t *self)
 
     return (void *)new_table;
 }
+
+#endif

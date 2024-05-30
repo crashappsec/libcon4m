@@ -40,6 +40,8 @@
 
 #include <stdlib.h>
 
+#ifndef HATRACK_NO_PTHREAD
+
 // clang-format off
 static swimcap_store_t *swimcap_store_new    (uint64_t);
 static void            *swimcap_store_get    (swimcap_store_t *,
@@ -886,3 +888,5 @@ swimcap_migrate(swimcap_t *self)
 
     return;
 }
+
+#endif

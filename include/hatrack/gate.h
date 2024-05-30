@@ -42,6 +42,7 @@
 #include "mmm.h"
 
 #include <string.h>
+#include <time.h>
 
 #ifdef __MACH__
 #include <mach/clock.h>

@@ -37,6 +37,10 @@
 #include "base.h"
 #include "hatrack_common.h"
 
+#ifndef HATRACK_NO_PTHREAD
+
+#include <pthread.h>
+
 /* swimcap_record_t
  *
  * This is unchanged from duncecap_record_t.
@@ -226,3 +230,6 @@ HATRACK_EXTERN bool            swimcap_add      (swimcap_t *, hatrack_hash_t, vo
 HATRACK_EXTERN void           *swimcap_remove   (swimcap_t *, hatrack_hash_t, bool *);
 HATRACK_EXTERN uint64_t        swimcap_len      (swimcap_t *);
 HATRACK_EXTERN hatrack_view_t *swimcap_view     (swimcap_t *, uint64_t *, bool);
+// clang-format on
+
+#endif

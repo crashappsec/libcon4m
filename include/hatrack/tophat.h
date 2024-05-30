@@ -98,6 +98,10 @@
 #include "base.h"
 #include "hatrack_common.h"
 
+#ifndef HATRACK_NO_PTHREAD
+
+#include <pthread.h>
+
 /* tophat_migration_t
  *
  * We use this enumeration only to figure out, once we've decided to
@@ -241,3 +245,6 @@ HATRACK_EXTERN bool            tophat_add         (tophat_t *, hatrack_hash_t, v
 HATRACK_EXTERN void           *tophat_remove      (tophat_t *, hatrack_hash_t, bool *);
 HATRACK_EXTERN uint64_t        tophat_len         (tophat_t *);
 HATRACK_EXTERN hatrack_view_t *tophat_view        (tophat_t *, uint64_t *, bool);
+// clang-format on
+
+#endif

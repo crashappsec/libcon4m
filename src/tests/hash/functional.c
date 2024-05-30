@@ -13,7 +13,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <pthread.h>
 
 typedef struct {
     uint32_t   tid;
@@ -25,13 +25,11 @@ typedef struct {
 
 typedef bool (*test_func_t)(func_test_info_t *);
 
-// clang-format off
 uint32_t            one_thread[]       = {1, 0};
 uint32_t            multiple_threads[] = {2, 4, 8, 20, 100, 0};
 uint32_t            basic_sizes[]      = {10, 100, 1000, 10000, 0};
 uint32_t            shrug_sizes[]      = {1, 0};
 _Atomic test_func_t test_func;
-//  clang-format on
 
 static void *
 start_one_functest_thread(void *info)
@@ -50,7 +48,6 @@ start_one_functest_thread(void *info)
 
     return (void *)(int64_t)ret;
 }
-
 
 static bool
 functionality_test(test_func_t func,
@@ -75,7 +72,7 @@ functionality_test(test_func_t func,
      * do range * 2, just to give us some headroom for other potential
      * functional tests.
      */
-    precompute_hashes(range*2);
+    precompute_hashes(range * 2);
 
     for (i = 0; i < num_threads; i++) {
         info[i].tid   = i;
@@ -101,7 +98,6 @@ functionality_test(test_func_t func,
 
     return true;
 }
-
 
 static void
 run_one_func_test(test_func_t func,
@@ -149,36 +145,36 @@ run_func_test(char       *name,
     fprintf(stderr, "[[ Test: %s ]]\n", name);
     tcount_ix = 0;
     while (tcounts[tcount_ix]) {
-	range_ix = 0;
-	while (ranges[range_ix]) {
-	    fprintf(stderr,
-		    "[%10s] -- Parameters: threads=%4d, "
-		    "iters=%7d, range=%6d\n",
-		    name,
-		    tcounts[tcount_ix],
-		    iters,
-		    ranges[range_ix]);
-	    dict_ix = 0;
-	    while (types[dict_ix]) {
-		info = algorithm_info(types[dict_ix]);
-		if (info->hashbytes != 16) {
-		    dict_ix++;
-		    continue;
-		}
-		if (tcounts[tcount_ix] != 1 && !info->threadsafe) {
-		    dict_ix++;
-		    continue;
-		}
-		run_one_func_test(func,
-				  iters,
-				  types[dict_ix],
-				  ranges[range_ix],
-				  tcounts[tcount_ix]);
-		dict_ix++;
-	    }
-	    range_ix++;
-	}
-	tcount_ix++;
+        range_ix = 0;
+        while (ranges[range_ix]) {
+            fprintf(stderr,
+                    "[%10s] -- Parameters: threads=%4d, "
+                    "iters=%7d, range=%6d\n",
+                    name,
+                    tcounts[tcount_ix],
+                    iters,
+                    ranges[range_ix]);
+            dict_ix = 0;
+            while (types[dict_ix]) {
+                info = algorithm_info(types[dict_ix]);
+                if (info->hashbytes != 16) {
+                    dict_ix++;
+                    continue;
+                }
+                if (tcounts[tcount_ix] != 1 && !info->threadsafe) {
+                    dict_ix++;
+                    continue;
+                }
+                run_one_func_test(func,
+                                  iters,
+                                  types[dict_ix],
+                                  ranges[range_ix],
+                                  tcounts[tcount_ix]);
+                dict_ix++;
+            }
+            range_ix++;
+        }
+        tcount_ix++;
     }
 
     return;
@@ -269,15 +265,15 @@ test_ordering(func_test_info_t *info)
         k = (uint32_t)(((uint64_t)view[i].item) >> 32);
         v = (uint32_t)(((uint64_t)view[i].item) & 0xffffffff);
         if (k != v) {
-	    printf("k(%d) != v(%d)\n", k, v);
+            printf("k(%d) != v(%d)\n", k, v);
             hatrack_view_delete(view, n);
             return false;
         }
 
         if (((i + (info->range / 2) + 1) % info->range) != (k % info->range)) {
-	    printf("%d != %d\n",
-		   (i + (info->range / 2) + 1) % info->range,
-		   k % info->range);
+            printf("%d != %d\n",
+                   (i + (info->range / 2) + 1) % info->range,
+                   k % info->range);
             hatrack_view_delete(view, n);
             return false;
         }
@@ -429,43 +425,43 @@ run_functional_tests(config_info_t *config)
     run_func_test("basic",
                   test_basic,
                   1,
-		  hat_list,
-		  basic_sizes,
+                  hat_list,
+                  basic_sizes,
                   one_thread);
     counters_output_delta();
     run_func_test("ordering",
                   test_ordering,
                   1,
-		  hat_list,
-		  basic_sizes,
+                  hat_list,
+                  basic_sizes,
                   one_thread);
     counters_output_delta();
     run_func_test("shrinking",
-		  test_shrinking,
-		  1,
-		  hat_list,
-		  shrug_sizes,
-		  one_thread);
+                  test_shrinking,
+                  1,
+                  hat_list,
+                  shrug_sizes,
+                  one_thread);
     counters_output_delta();
     run_func_test("replace",
-		  test_replace_op,
-		  1,
-		  hat_list,
-		  shrug_sizes,
-		  one_thread);
+                  test_replace_op,
+                  1,
+                  hat_list,
+                  shrug_sizes,
+                  one_thread);
     counters_output_delta();
     run_func_test("condput",
-		  test_condput,
-		  1,
-		  hat_list,
-		  shrug_sizes,
-		  one_thread);
+                  test_condput,
+                  1,
+                  hat_list,
+                  shrug_sizes,
+                  one_thread);
     counters_output_delta();
     run_func_test("parallel",
                   test_parallel,
                   10,
-		  hat_list,
-		  basic_sizes,
+                  hat_list,
+                  basic_sizes,
                   multiple_threads);
     counters_output_delta();
 
