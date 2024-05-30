@@ -30,6 +30,8 @@
  */
 
 #include "hatrack/duncecap.h"
+#include "hatrack/malloc.h"
+#include "hatrack/hatomic.h"
 #include "../hatrack-internal.h"
 
 #include <stdlib.h>

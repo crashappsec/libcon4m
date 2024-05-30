@@ -20,6 +20,7 @@
  */
 
 #include "hatrack/base.h"
+#include "hatrack/hatomic.h"
 
 // Our dictionary algorithms
 #include "hatrack/crown.h"

@@ -22,8 +22,17 @@
  */
 
 #include "hatrack/mmm.h"
+#include "hatrack/counters.h"
+#include "hatrack/malloc.h"
+#include "hatrack/hatomic.h"
 
 #include <stdlib.h>
+
+typedef struct mmm_free_tids_st mmm_free_tids_t;
+struct mmm_free_tids_st {
+    mmm_free_tids_t *next;
+    uint64_t         tid;
+};
 
 // clang-format off
 __thread mmm_header_t  *mmm_retire_list  = NULL;
@@ -35,11 +44,33 @@ __thread uint64_t       mmm_retire_ctr   = 0;
 
          uint64_t       mmm_reservations[HATRACK_THREADS_MAX] = { 0, };
 
-//clang-format on
+// clang-format on
 
+static void mmm_empty(void);
 
-static void    mmm_empty(void);
+#ifdef HATRACK_DEBUG
+static void hatrack_debug_mmm(void *, char *);
 
+#define DEBUG_MMM(x, y) hatrack_debug_mmm((void *)(x), y)
+#ifdef HATRACK_MMM_DEBUG
+#define DEBUG_MMM_INTERNAL(x, y) DEBUG_MMM(x, y)
+#else
+#define DEBUG_MMM_INTERNAL(x, y)
+#endif
+#else
+#define DEBUG_MMM(x, y)
+#define DEBUG_MMM_INTERNAL(x, y)
+#endif
+
+#ifdef HATRACK_MMMALLOC_CTRS
+#define HATRACK_MALLOC_CTR()        HATRACK_CTR(HATRACK_CTR_MALLOCS)
+#define HATRACK_FREE_CTR()          HATRACK_CTR(HATRACK_CTR_FREES)
+#define HATRACK_RETIRE_UNUSED_CTR() HATRACK_CTR(HATRACK_CTR_RETIRE_UNUSED)
+#else
+#define HATRACK_MALLOC_CTR()
+#define HATRACK_FREE_CTR()
+#define HATRACK_RETIRE_UNUSED_CTR() HATRACK_CTR(HATRACK_CTR_RETIRE_UNUSED)
+#endif
 
 /*
  * We want to avoid overrunning the reservations array that our memory
@@ -55,7 +86,7 @@ static void    mmm_empty(void);
  *
  */
 
-static _Atomic (mmm_free_tids_t *) mmm_free_tids;
+static _Atomic(mmm_free_tids_t *) mmm_free_tids;
 
 /* This grabs an mmm-specific threadid and stashes it in the
  * thread-local variable mmm_mytid.
@@ -73,21 +104,21 @@ mmm_register_thread(void)
     mmm_free_tids_t *head;
 
     if (mmm_mytid != -1) {
-	return;
+        return;
     }
     mmm_mytid = atomic_fetch_add(&mmm_nexttid, 1);
 
     if (mmm_mytid >= HATRACK_THREADS_MAX) {
-	head = atomic_load(&mmm_free_tids);
+        head = atomic_load(&mmm_free_tids);
 
-	do {
-	    if (!head) {
-		abort();
-	    }
-	} while (!CAS(&mmm_free_tids, &head, head->next));
+        do {
+            if (!head) {
+                abort();
+            }
+        } while (!CAS(&mmm_free_tids, &head, head->next));
 
-	mmm_mytid = head->tid;
-	mmm_retire(head);
+        mmm_mytid = head->tid;
+        mmm_retire(head);
     }
 
     mmm_reservations[mmm_mytid] = HATRACK_EPOCH_UNRESERVED;
@@ -102,12 +133,12 @@ mmm_tid_giveback(void)
     mmm_free_tids_t *new_head;
     mmm_free_tids_t *old_head;
 
-    new_head       = mmm_alloc(sizeof(mmm_free_tids_t));
-    new_head->tid  = mmm_mytid;
-    old_head       = atomic_load(&mmm_free_tids);
+    new_head      = mmm_alloc(sizeof(mmm_free_tids_t));
+    new_head->tid = mmm_mytid;
+    old_head      = atomic_load(&mmm_free_tids);
 
     do {
-	new_head->next = old_head;
+        new_head->next = old_head;
     } while (!CAS(&mmm_free_tids, &old_head, new_head));
 
     return;
@@ -115,7 +146,8 @@ mmm_tid_giveback(void)
 
 // This is here for convenience of testing; generally this
 // is not the way to handle tid recyling!
-void mmm_reset_tids(void)
+void
+mmm_reset_tids(void)
 {
     atomic_store(&mmm_nexttid, 0);
 
@@ -131,13 +163,13 @@ void
 mmm_clean_up_before_exit(void)
 {
     if (mmm_mytid == -1) {
-	return;
+        return;
     }
 
     mmm_end_op();
 
     while (mmm_retire_list) {
-	mmm_empty();
+        mmm_empty();
     }
 
     mmm_tid_giveback();
@@ -161,16 +193,16 @@ mmm_retire(void *ptr)
     cell = mmm_get_header(ptr);
 
 #ifdef HATRACK_MMM_DEBUG
-// Don't need this check when not debugging algorithms.
+    // Don't need this check when not debugging algorithms.
     if (!cell->write_epoch) {
-	DEBUG_MMM_INTERNAL(ptr, "No write epoch??");
-	abort();
+        DEBUG_MMM_INTERNAL(ptr, "No write epoch??");
+        abort();
     }
-// Algorithms that steal bits from pointers might steal up to
-// three bits, thus the mask of 0x07.
+    // Algorithms that steal bits from pointers might steal up to
+    // three bits, thus the mask of 0x07.
     if (hatrack_pflag_test(ptr, 0x07)) {
-	DEBUG_MMM_INTERNAL(ptr, "Bad alignment on retired pointer.");
-	abort();
+        DEBUG_MMM_INTERNAL(ptr, "Bad alignment on retired pointer.");
+        abort();
     }
 
     /* Detect multiple threads adding this to their retire list.
@@ -178,12 +210,12 @@ mmm_retire(void *ptr)
      * HATRACK_MMM_DEBUG on we explicitly check for it.
      */
     if (cell->retire_epoch) {
-	DEBUG_MMM_INTERNAL(ptr, "Double free");
-	DEBUG_PTR((void *)atomic_load(&mmm_epoch), "epoch of double free");
+        DEBUG_MMM_INTERNAL(ptr, "Double free");
+        DEBUG_PTR((void *)atomic_load(&mmm_epoch), "epoch of double free");
 
-	abort();
+        abort();
 
-	return;
+        return;
     }
 #endif
 
@@ -194,8 +226,8 @@ mmm_retire(void *ptr)
     DEBUG_MMM_INTERNAL(cell->data, "mmm_retire");
 
     if (++mmm_retire_ctr & HATRACK_RETIRE_FREQ) {
-	mmm_retire_ctr = 0;
-	mmm_empty();
+        mmm_retire_ctr = 0;
+        mmm_empty();
     }
 
     return;
@@ -229,7 +261,7 @@ mmm_empty(void)
     lasttid = atomic_load(&mmm_nexttid);
 
     if (lasttid > HATRACK_THREADS_MAX) {
-	lasttid = HATRACK_THREADS_MAX;
+        lasttid = HATRACK_THREADS_MAX;
     }
 
     /* We start out w/ the "lowest" reservation we've seen as
@@ -240,11 +272,11 @@ mmm_empty(void)
     lowest = HATRACK_EPOCH_MAX;
 
     for (i = 0; i < lasttid; i++) {
-	reservation = mmm_reservations[i];
+        reservation = mmm_reservations[i];
 
-	if (reservation < lowest) {
-	    lowest = reservation;
-	}
+        if (reservation < lowest) {
+            lowest = reservation;
+        }
     }
 
     /* The list here is ordered by retire epoch, with most recent on
@@ -264,41 +296,274 @@ mmm_empty(void)
     // Special-case this, in case we have to delete the head cell,
     // to make sure we reinitialize the linked list right.
     if (mmm_retire_list->retire_epoch < lowest) {
-	mmm_retire_list = NULL;
-    } else {
-	while (true) {
-	    // We got to the end of the list, and didn't
-	    // find one we should bother deleting.
-	    if (!cell->next) {
-		return;
-	    }
+        mmm_retire_list = NULL;
+    }
+    else {
+        while (true) {
+            // We got to the end of the list, and didn't
+            // find one we should bother deleting.
+            if (!cell->next) {
+                return;
+            }
 
-	    if (cell->next->retire_epoch < lowest) {
-		tmp       = cell;
-		cell      = cell->next;
-		tmp->next = NULL;
-		break;
-	    }
+            if (cell->next->retire_epoch < lowest) {
+                tmp       = cell;
+                cell      = cell->next;
+                tmp->next = NULL;
+                break;
+            }
 
-	    cell = cell->next;
-	}
+            cell = cell->next;
+        }
     }
 
     // Now cell and everything below it can be freed.
     while (cell) {
-	tmp  = cell;
-	cell = cell->next;
-	HATRACK_FREE_CTR();
-	DEBUG_MMM_INTERNAL(tmp->data, "mmm_empty::free");
+        tmp  = cell;
+        cell = cell->next;
+        HATRACK_FREE_CTR();
+        DEBUG_MMM_INTERNAL(tmp->data, "mmm_empty::free");
 
-	// Call the cleanup handler, if one exists.
-	if (tmp->cleanup) {
-	    (*tmp->cleanup)(&tmp->data, tmp->cleanup_aux);
-	}
+        // Call the cleanup handler, if one exists.
+        if (tmp->cleanup) {
+            (*tmp->cleanup)(&tmp->data, tmp->cleanup_aux);
+        }
 
-    size_t actual_size = sizeof(mmm_header_t) + tmp->size;
-	hatrack_free(tmp, actual_size);
+        size_t actual_size = sizeof(mmm_header_t) + tmp->size;
+        hatrack_free(tmp, actual_size);
     }
 
     return;
 }
+
+void
+mmm_start_basic_op(void)
+{
+    pthread_once(&mmm_inited, mmm_register_thread);
+    mmm_reservations[mmm_mytid] = atomic_load(&mmm_epoch);
+
+    return;
+}
+
+uint64_t
+mmm_start_linearized_op(void)
+{
+    uint64_t read_epoch;
+
+    pthread_once(&mmm_inited, mmm_register_thread);
+
+    mmm_reservations[mmm_mytid] = atomic_load(&mmm_epoch);
+    read_epoch                  = atomic_load(&mmm_epoch);
+
+    HATRACK_YN_CTR_NORET(read_epoch == mmm_reservations[mmm_mytid],
+                         HATRACK_CTR_LINEAR_EPOCH_EQ);
+
+    return read_epoch;
+}
+
+void
+mmm_end_op(void)
+{
+    atomic_signal_fence(memory_order_seq_cst);
+    mmm_reservations[mmm_mytid] = HATRACK_EPOCH_UNRESERVED;
+
+    return;
+}
+
+void *
+mmm_alloc(uint64_t size)
+{
+    uint64_t      actual_size = sizeof(mmm_header_t) + size;
+    mmm_header_t *item        = hatrack_zalloc(actual_size);
+
+    HATRACK_MALLOC_CTR();
+    DEBUG_MMM_INTERNAL(item->data, "mmm_alloc");
+
+    return (void *)item->data;
+}
+
+void *
+mmm_alloc_committed(uint64_t size)
+{
+    uint64_t      actual_size = sizeof(mmm_header_t) + size;
+    mmm_header_t *item        = hatrack_zalloc(actual_size);
+
+    atomic_store(&item->write_epoch, atomic_fetch_add(&mmm_epoch, 1) + 1);
+
+    HATRACK_MALLOC_CTR();
+    DEBUG_MMM_INTERNAL(item->data, "mmm_alloc_committed");
+
+    return (void *)item->data;
+}
+
+void
+mmm_add_cleanup_handler(void *ptr, mmm_cleanup_func handler, void *aux)
+{
+    mmm_header_t *header = mmm_get_header(ptr);
+
+    header->cleanup     = handler;
+    header->cleanup_aux = aux;
+
+    return;
+}
+
+void
+mmm_commit_write(void *ptr)
+{
+    uint64_t      cur_epoch;
+    uint64_t      expected_value = 0;
+    mmm_header_t *item           = mmm_get_header(ptr);
+
+    cur_epoch = atomic_fetch_add(&mmm_epoch, 1) + 1;
+
+    /* If this CAS operation fails, it can only be because:
+     *
+     *   1) We stalled in our write commit, some other thread noticed,
+     *       and helped us out.
+     *
+     *   2) We were trying to help, but either the original thread, or
+     *      some other helper got there first.
+     *
+     * Either way, we're safe to ignore the return value.
+     */
+    LCAS(&item->write_epoch, &expected_value, cur_epoch, HATRACK_CTR_COMMIT);
+    DEBUG_MMM_INTERNAL(ptr, "committed");
+
+    return;
+}
+
+void
+mmm_help_commit(void *ptr)
+{
+    mmm_header_t *item;
+    uint64_t      found_epoch;
+    uint64_t      cur_epoch;
+
+    item        = mmm_get_header(ptr);
+    found_epoch = item->write_epoch;
+
+    if (!found_epoch) {
+        cur_epoch = atomic_fetch_add(&mmm_epoch, 1) + 1;
+        LCAS(&item->write_epoch,
+             &found_epoch,
+             cur_epoch,
+             HATRACK_CTR_COMMIT_HELPS);
+    }
+
+    return;
+}
+
+void
+mmm_retire_unused(void *ptr)
+{
+    DEBUG_MMM_INTERNAL(ptr, "mmm_retire_unused");
+    HATRACK_RETIRE_UNUSED_CTR();
+
+    mmm_header_t *item = mmm_get_header(ptr);
+    hatrack_free(item, sizeof(mmm_header_t) + item->size);
+
+    return;
+}
+
+// Use this in migration functions to avoid unnecessary scanning of the
+// retire list, when we know the epoch won't have changed.
+void
+mmm_retire_fast(void *ptr)
+{
+    mmm_header_t *cell;
+
+    cell               = mmm_get_header(ptr);
+    cell->retire_epoch = atomic_load(&mmm_epoch);
+    cell->next         = mmm_retire_list;
+    mmm_retire_list    = cell;
+
+    return;
+}
+
+#ifdef HATRACK_DEBUG
+/* Conceptually, this might belong in the debug subsystem. However,
+ * this is a specific debug interface for outputting the epoch info
+ * associated with an MMM allocation, and as such should live
+ * independently from the more generic debug mechanism.
+ *
+ * As with the debug routines in the debug subsystem, we've sacrificed
+ * readability for performance, since allocations can be VERY frequent
+ * in test code.
+ *
+ * Specifically, I was originally just using sprintf() and it was
+ * leading to a dramatic slowdown when debugging was on.
+ */
+static void
+hatrack_debug_mmm(void *addr, char *msg)
+{
+    char buf[HATRACK_DEBUG_MSG_SIZE] = {
+        '0',
+        'x',
+    };
+    static const char rest[] = " :)  :r , :w , :c( :x0";
+    const char       *r      = &rest[0];
+    mmm_header_t     *hdr    = mmm_get_header(addr);
+    char             *p;
+    uint64_t          i;
+    uintptr_t         n;
+
+    p = buf + (HATRACK_PTR_CHRS + 3 * HATRACK_EPOCH_DEBUG_LEN + sizeof(rest));
+
+    strncpy(p, msg, HATRACK_DEBUG_MSG_SIZE - (p - buf));
+
+    *--p = *r++;
+    *--p = *r++;
+    *--p = *r++;
+    n    = hdr->retire_epoch;
+
+    for (i = 0; i < HATRACK_EPOCH_DEBUG_LEN; i++) {
+        *--p = __hatrack_hex_conversion_table[n & 0xf];
+        n >>= 4;
+    }
+
+    *--p = *r++;
+    *--p = *r++;
+    *--p = *r++;
+    *--p = *r++;
+    *--p = *r++;
+    *--p = *r++;
+    n    = hdr->write_epoch;
+
+    for (i = 0; i < HATRACK_EPOCH_DEBUG_LEN; i++) {
+        *--p = __hatrack_hex_conversion_table[n & 0xf];
+        n >>= 4;
+    }
+
+    *--p = *r++;
+    *--p = *r++;
+    *--p = *r++;
+    *--p = *r++;
+    *--p = *r++;
+    n    = hdr->create_epoch;
+
+    for (i = 0; i < HATRACK_EPOCH_DEBUG_LEN; i++) {
+        *--p = __hatrack_hex_conversion_table[n & 0xf];
+        n >>= 4;
+    }
+
+    *--p = *r++;
+    *--p = *r++;
+    *--p = *r++;
+    *--p = *r++;
+    *--p = *r++;
+    *--p = *r++;
+    n    = (intptr_t)addr;
+
+    for (i = 0; i < HATRACK_PTR_CHRS; i++) {
+        *--p = __hatrack_hex_conversion_table[n & 0xf];
+        n >>= 4;
+    }
+
+    *--p = *r++;
+    *--p = *r++;
+
+    hatrack_debug(p);
+
+    return;
+}
+#endif

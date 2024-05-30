@@ -32,6 +32,7 @@
 #include "hatrack/arr64.h"
 #include "hatrack/malloc.h"
 #include "hatrack/mmm.h"
+#include "hatrack/hatomic.h"
 #include "hatrack/hatrack_common.h"
 
 #define ARR64_MIN_STORE_SZ_LOG 4

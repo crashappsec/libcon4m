@@ -22,9 +22,6 @@
 
 #pragma once
 #include "base.h"
-#include "malloc.h"
-#include "counters.h"
-#include "hatomic.h"
 
 /* This type represents a callback to de-allocate sub-objects before
  * the final free for an object allocated via MMM.
@@ -35,9 +32,6 @@
  * handler run through to destroy the locks.
  */
 typedef void (*mmm_cleanup_func)(void *, void *);
-
-typedef struct mmm_header_st    mmm_header_t;
-typedef struct mmm_free_tids_st mmm_free_tids_t;
 
 /* We don't want to keep reservation space for threads that don't need
  * it, so we issue a threadid for each thread to keep locally, which
@@ -50,11 +44,8 @@ typedef struct mmm_free_tids_st mmm_free_tids_t;
  * HATRACK_THREADS_MAX in config.h.
  */
 
-// clang-format off
-extern __thread int64_t        mmm_mytid;
-extern __thread pthread_once_t mmm_inited;
-extern _Atomic  uint64_t       mmm_epoch;
-extern          uint64_t       mmm_reservations[HATRACK_THREADS_MAX];
+extern __thread int64_t mmm_mytid;
+extern _Atomic uint64_t mmm_epoch;
 
 /* The header data structure. Note that we keep a linked list of
  * "retired" records, which is the purpose of the field 'next'.  The
@@ -67,7 +58,7 @@ extern          uint64_t       mmm_reservations[HATRACK_THREADS_MAX];
  * we need to cache that time in the create_epoch field.
  *
  */
-// clang-format off
+typedef struct mmm_header_st mmm_header_t;
 struct mmm_header_st {
     mmm_header_t    *next;
     _Atomic uint64_t create_epoch;
@@ -82,41 +73,17 @@ struct mmm_header_st {
     alignas(16) uint8_t data[];
 };
 
-struct mmm_free_tids_st {
-    mmm_free_tids_t *next;
-    uint64_t         tid;
-};
+HATRACK_EXTERN void
+mmm_register_thread(void);
 
-void mmm_register_thread     (void);
-void mmm_reset_tids          (void);
-void mmm_retire              (void *);
-void mmm_clean_up_before_exit(void);
+HATRACK_EXTERN void
+mmm_reset_tids(void);
 
-#ifdef HATRACK_DEBUG
-static inline void hatrack_debug_mmm(void *, char *);
+HATRACK_EXTERN void
+mmm_retire(void *);
 
-#define DEBUG_MMM(x, y) hatrack_debug_mmm((void *)(x), y)
-#ifdef HATRACK_MMM_DEBUG
-#define DEBUG_MMM_INTERNAL(x, y) DEBUG_MMM(x, y)
-#else
-#define DEBUG_MMM_INTERNAL(x, y)
-#endif
-#else
-#define DEBUG_MMM(x, y)
-#define DEBUG_MMM_INTERNAL(x, y)
-#endif
-
-#ifdef HATRACK_MMMALLOC_CTRS
-#define HATRACK_MALLOC_CTR()        HATRACK_CTR(HATRACK_CTR_MALLOCS)
-#define HATRACK_FREE_CTR()          HATRACK_CTR(HATRACK_CTR_FREES)
-#define HATRACK_RETIRE_UNUSED_CTR() HATRACK_CTR(HATRACK_CTR_RETIRE_UNUSED)
-#else
-#define HATRACK_MALLOC_CTR()
-#define HATRACK_FREE_CTR()
-#define HATRACK_RETIRE_UNUSED_CTR() HATRACK_CTR(HATRACK_CTR_RETIRE_UNUSED)
-#endif
-
-// clang-format on
+HATRACK_EXTERN void
+mmm_clean_up_before_exit(void);
 
 /* This epoch system was inspired by my research into what was out
  * there that would be faster and easier to use than hazard
@@ -349,94 +316,6 @@ mmm_get_header(void *ptr)
     return (mmm_header_t *)(((uint8_t *)ptr) - sizeof(mmm_header_t));
 }
 
-#ifdef HATRACK_DEBUG
-/* Conceptually, this might belong in the debug subsystem. However,
- * this is a specific debug interface for outputting the epoch info
- * associated with an MMM allocation, and as such should live
- * independently from the more generic debug mechanism.
- *
- * As with the debug routines in the debug subsystem, we've sacrificed
- * readability for performance, since allocations can be VERY frequent
- * in test code.
- *
- * Specifically, I was originally just using sprintf() and it was
- * leading to a dramatic slowdown when debugging was on.
- */
-static inline void
-hatrack_debug_mmm(void *addr, char *msg)
-{
-    char buf[HATRACK_DEBUG_MSG_SIZE] = {
-        '0',
-        'x',
-    };
-    static const char rest[] = " :)  :r , :w , :c( :x0";
-    const char       *r      = &rest[0];
-    mmm_header_t     *hdr    = mmm_get_header(addr);
-    char             *p;
-    uint64_t          i;
-    uintptr_t         n;
-
-    p = buf + (HATRACK_PTR_CHRS + 3 * HATRACK_EPOCH_DEBUG_LEN + sizeof(rest));
-
-    strncpy(p, msg, HATRACK_DEBUG_MSG_SIZE - (p - buf));
-
-    *--p = *r++;
-    *--p = *r++;
-    *--p = *r++;
-    n    = hdr->retire_epoch;
-
-    for (i = 0; i < HATRACK_EPOCH_DEBUG_LEN; i++) {
-        *--p = __hatrack_hex_conversion_table[n & 0xf];
-        n >>= 4;
-    }
-
-    *--p = *r++;
-    *--p = *r++;
-    *--p = *r++;
-    *--p = *r++;
-    *--p = *r++;
-    *--p = *r++;
-    n    = hdr->write_epoch;
-
-    for (i = 0; i < HATRACK_EPOCH_DEBUG_LEN; i++) {
-        *--p = __hatrack_hex_conversion_table[n & 0xf];
-        n >>= 4;
-    }
-
-    *--p = *r++;
-    *--p = *r++;
-    *--p = *r++;
-    *--p = *r++;
-    *--p = *r++;
-    n    = hdr->create_epoch;
-
-    for (i = 0; i < HATRACK_EPOCH_DEBUG_LEN; i++) {
-        *--p = __hatrack_hex_conversion_table[n & 0xf];
-        n >>= 4;
-    }
-
-    *--p = *r++;
-    *--p = *r++;
-    *--p = *r++;
-    *--p = *r++;
-    *--p = *r++;
-    *--p = *r++;
-    n    = (intptr_t)addr;
-
-    for (i = 0; i < HATRACK_PTR_CHRS; i++) {
-        *--p = __hatrack_hex_conversion_table[n & 0xf];
-        n >>= 4;
-    }
-
-    *--p = *r++;
-    *--p = *r++;
-
-    hatrack_debug(p);
-
-    return;
-}
-#endif
-
 /* We stick our read reservation in mmm_reservations[mmm_mytid].  By
  * doing this, we are guaranteeing that we will only read data alive
  * during or after this epoch, until we remove our reservation.
@@ -451,14 +330,8 @@ hatrack_debug_mmm(void *addr, char *msg)
  * (admittedly very small) cost of the implied test with each
  * operation.
  */
-static inline void
-mmm_start_basic_op(void)
-{
-    pthread_once(&mmm_inited, mmm_register_thread);
-    mmm_reservations[mmm_mytid] = atomic_load(&mmm_epoch);
-
-    return;
-}
+HATRACK_EXTERN void
+mmm_start_basic_op(void);
 
 /* mmm_start_linearized_op() is used to help ensure we can safely recover
  * a consistent, full ordering of data objects in the lohat family.
@@ -511,21 +384,8 @@ mmm_start_basic_op(void)
  *    bump the write epoch, as all writes must occur on an epoch
  *    boundary, with only one write per epoch.
  */
-static inline uint64_t
-mmm_start_linearized_op(void)
-{
-    uint64_t read_epoch;
-
-    pthread_once(&mmm_inited, mmm_register_thread);
-
-    mmm_reservations[mmm_mytid] = atomic_load(&mmm_epoch);
-    read_epoch                  = atomic_load(&mmm_epoch);
-
-    HATRACK_YN_CTR_NORET(read_epoch == mmm_reservations[mmm_mytid],
-                         HATRACK_CTR_LINEAR_EPOCH_EQ);
-
-    return read_epoch;
-}
+HATRACK_EXTERN uint64_t
+mmm_start_linearized_op(void);
 
 /* This does two things:
  *
@@ -538,14 +398,8 @@ mmm_start_linearized_op(void)
  * Note that the mmm_start* ops do not require a compiler fence,
  * because they both use a memory fence.
  */
-static inline void
-mmm_end_op(void)
-{
-    atomic_signal_fence(memory_order_seq_cst);
-    mmm_reservations[mmm_mytid] = HATRACK_EPOCH_UNRESERVED;
-
-    return;
-}
+HATRACK_EXTERN void
+mmm_end_op(void);
 
 /* Note that the API for allocating via MMM is a little non-intuitive.
  * for malloc users, partially because it supports a couple of
@@ -578,50 +432,23 @@ mmm_end_op(void)
  * condition if need be (though we need to be cognizent of possible
  * 'helpers').
  */
-static inline void *
-mmm_alloc(uint64_t size)
-{
-    uint64_t      actual_size = sizeof(mmm_header_t) + size;
-    mmm_header_t *item        = hatrack_zalloc(actual_size);
-
-    HATRACK_MALLOC_CTR();
-    DEBUG_MMM_INTERNAL(item->data, "mmm_alloc");
-
-    return (void *)item->data;
-}
+HATRACK_EXTERN void *
+mmm_alloc(uint64_t size);
 
 /*
  * Note here that atomic_fetch_add() returns the value before the add,
  * so we add one to it when storing our write epoch.
  */
-static inline void *
-mmm_alloc_committed(uint64_t size)
-{
-    uint64_t      actual_size = sizeof(mmm_header_t) + size;
-    mmm_header_t *item        = hatrack_zalloc(actual_size);
-
-    atomic_store(&item->write_epoch, atomic_fetch_add(&mmm_epoch, 1) + 1);
-
-    HATRACK_MALLOC_CTR();
-    DEBUG_MMM_INTERNAL(item->data, "mmm_alloc_committed");
-
-    return (void *)item->data;
-}
+HATRACK_EXTERN void *
+mmm_alloc_committed(uint64_t size);
 
 /* Cleanup handlers get called right before an allocation is freed.
  * They're used for sub-objects that aren't allocated via mmm, such as
  * mutex objects.
  */
-static inline void
-mmm_add_cleanup_handler(void *ptr, mmm_cleanup_func handler, void *aux)
-{
-    mmm_header_t *header = mmm_get_header(ptr);
+HATRACK_EXTERN void
+mmm_add_cleanup_handler(void *ptr, mmm_cleanup_func handler, void *aux);
 
-    header->cleanup     = handler;
-    header->cleanup_aux = aux;
-
-    return;
-}
 /* When we called mmm_alloc(), we call this to set a write epoch.
  * Note that we do it via CAS, instead of a direct write, for the sake
  * of other threads that need to read the epoch information, in case
@@ -633,30 +460,8 @@ mmm_add_cleanup_handler(void *ptr, mmm_cleanup_func handler, void *aux)
  * us, it will first call mmm_help_commit(), which is similar, but
  * first tests to make sure an epoch hasn't been written.
  */
-static inline void
-mmm_commit_write(void *ptr)
-{
-    uint64_t      cur_epoch;
-    uint64_t      expected_value = 0;
-    mmm_header_t *item           = mmm_get_header(ptr);
-
-    cur_epoch = atomic_fetch_add(&mmm_epoch, 1) + 1;
-
-    /* If this CAS operation fails, it can only be because:
-     *
-     *   1) We stalled in our write commit, some other thread noticed,
-     *       and helped us out.
-     *
-     *   2) We were trying to help, but either the original thread, or
-     *      some other helper got there first.
-     *
-     * Either way, we're safe to ignore the return value.
-     */
-    LCAS(&item->write_epoch, &expected_value, cur_epoch, HATRACK_CTR_COMMIT);
-    DEBUG_MMM_INTERNAL(ptr, "committed");
-
-    return;
-}
+HATRACK_EXTERN void
+mmm_commit_write(void *ptr);
 
 /* Similar to mmm_commit_write(), but called by a different thread on
  * a pointer where it wants to ensure there's an epoch value. If it
@@ -664,40 +469,13 @@ mmm_commit_write(void *ptr)
  * not, one is guaranteed to be there after the compare-and-swap is
  * done.
  */
-static inline void
-mmm_help_commit(void *ptr)
-{
-    mmm_header_t *item;
-    uint64_t      found_epoch;
-    uint64_t      cur_epoch;
-
-    item        = mmm_get_header(ptr);
-    found_epoch = item->write_epoch;
-
-    if (!found_epoch) {
-        cur_epoch = atomic_fetch_add(&mmm_epoch, 1) + 1;
-        LCAS(&item->write_epoch,
-             &found_epoch,
-             cur_epoch,
-             HATRACK_CTR_COMMIT_HELPS);
-    }
-
-    return;
-}
+HATRACK_EXTERN void
+mmm_help_commit(void *ptr);
 
 // Call this when we know no other thread ever could have seen the
 // data in question, as it can be freed immediately.
-static inline void
-mmm_retire_unused(void *ptr)
-{
-    DEBUG_MMM_INTERNAL(ptr, "mmm_retire_unused");
-    HATRACK_RETIRE_UNUSED_CTR();
-
-    mmm_header_t *item = mmm_get_header(ptr);
-    hatrack_free(item, sizeof(mmm_header_t) + item->size);
-
-    return;
-}
+HATRACK_EXTERN void
+mmm_retire_unused(void *ptr);
 
 static inline uint64_t
 mmm_get_write_epoch(void *ptr)
@@ -725,19 +503,7 @@ mmm_copy_create_epoch(void *dst, void *src)
     mmm_set_create_epoch(dst, mmm_get_create_epoch(src));
 }
 
-extern __thread mmm_header_t *mmm_retire_list;
-
 // Use this in migration functions to avoid unnecessary scanning of the
 // retire list, when we know the epoch won't have changed.
-static inline void
-mmm_retire_fast(void *ptr)
-{
-    mmm_header_t *cell;
-
-    cell               = mmm_get_header(ptr);
-    cell->retire_epoch = atomic_load(&mmm_epoch);
-    cell->next         = mmm_retire_list;
-    mmm_retire_list    = cell;
-
-    return;
-}
+HATRACK_EXTERN void
+mmm_retire_fast(void *ptr);

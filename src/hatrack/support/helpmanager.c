@@ -24,6 +24,7 @@
 
 #include "hatrack/helpmanager.h"
 #include "hatrack/mmm.h"
+#include "hatrack/hatomic.h"
 
 #include <string.h>
 

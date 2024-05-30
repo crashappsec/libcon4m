@@ -21,6 +21,7 @@
 
 #include "hatrack/set.h"
 #include "hatrack/hash.h"
+#include "hatrack/hatomic.h"
 #include "../hatrack-internal.h"
 
 #include <stdlib.h>

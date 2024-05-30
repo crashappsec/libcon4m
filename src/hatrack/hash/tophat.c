@@ -30,6 +30,8 @@
 #include "hatrack/ballcap.h"
 #include "hatrack/newshat.h"
 #include "hatrack/woolhat.h"
+#include "hatrack/malloc.h"
+#include "hatrack/hatomic.h"
 
 #include "witchhat-internal.h"
 #include "../hatrack-internal.h"

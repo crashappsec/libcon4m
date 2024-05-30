@@ -21,6 +21,7 @@
 
 #include "hatrack/dict.h"
 #include "hatrack/hash.h"
+#include "hatrack/hatomic.h"
 #include "crown-internal.h"
 #include "../hatrack-internal.h"
 

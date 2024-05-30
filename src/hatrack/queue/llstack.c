@@ -27,6 +27,7 @@
 #include "hatrack/llstack.h"
 #include "hatrack/malloc.h"
 #include "hatrack/mmm.h"
+#include "hatrack/hatomic.h"
 
 llstack_t *
 llstack_new(void)
