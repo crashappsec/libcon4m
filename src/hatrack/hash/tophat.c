@@ -1346,8 +1346,9 @@ tophat_migrate_to_woolhat(tophat_t *self)
 
     new_table->store_current->used_count = ctx->item_count;
 
-    if (mmm_epoch < ctx->next_epoch) {
-	atomic_store(&mmm_epoch, ctx->next_epoch);
+    uint64_t epoch = atomic_load(&mmm_epoch);
+    while (epoch < ctx->next_epoch) {
+        CAS(&mmm_epoch, &epoch, ctx->next_epoch);
     }
 
     atomic_store(&self->mt_table, new_table);
