@@ -85,14 +85,14 @@
 #include "con4m/vm.h"
 
 // The front end.
-#include "frontend/treematch.h"
-#include "frontend/compile.h"
-#include "frontend/errors.h"
-#include "frontend/lex.h"
-#include "frontend/parse.h"
-#include "frontend/scope.h"
-#include "frontend/spec.h"
-#include "frontend/partial.h"
-#include "frontend/cfgs.h"
+#include "compiler/treematch.h"
+#include "compiler/compile.h"
+#include "compiler/errors.h"
+#include "compiler/lex.h"
+#include "compiler/parse.h"
+#include "compiler/scope.h"
+#include "compiler/spec.h"
+#include "compiler/partial.h"
+#include "compiler/cfgs.h"
 
 #include "con4m/set.h"
