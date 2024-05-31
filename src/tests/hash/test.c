@@ -71,7 +71,7 @@ main(int argc, char *argv[])
 
     config = parse_args(argc, argv);
 
-    mmm_register_thread();
+    (void)mmm_thread_acquire();
 
     if (config->run_custom_test) {
         run_performance_test(&config->custom);

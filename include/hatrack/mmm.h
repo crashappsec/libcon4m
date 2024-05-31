@@ -84,23 +84,50 @@ mmm_get_header(void *ptr)
  * HATRACK_THREADS_MAX in config.h.
  */
 
-typedef struct {
+typedef struct mmm_thread_st mmm_thread_t;
+struct mmm_thread_st {
     int64_t       tid;
     int64_t       retire_ctr;
     mmm_header_t *retire_list;
-} mmm_thread_t;
+    bool          initialized;
+};
 
-extern __thread mmm_thread_t *mmm_thread;
-extern _Atomic uint64_t       mmm_epoch;
+// mmm_thread_acquire retrieves an initialized per-thread struct used by all of
+// the mmm code. The thread-specific details are implemented by the acquire
+// function set via mmm_setthreadfns. If hatrack is built with pthread support,
+// the default is to use pthread thread-local storage APIs combined with the
+// hatrack malloc functions. When the pointer returned is no longer needed it
+// should just be abandoned. The per-thread data should only ever be cleaned up
+// via mmm_thread_release when the thread is exiting, which is handled
+// automatically if the default pthread implementation is used.
+HATRACK_EXTERN mmm_thread_t *
+mmm_thread_acquire(void);
 
+// mmm_thread_release releases the specified per-thread struct. This is intended
+// to be called when a thread is exiting to clean up its per-thread data. If the
+// default pthread implementation for mmm_thread_acquire is used, this is called
+// automatically and should not be called directly.
 HATRACK_EXTERN void
-mmm_register_thread(void);
+mmm_thread_release(mmm_thread_t *thread);
+
+// mmm_thread_acquire_func is the signature of a function called to acquire
+// per-thread data for mmm. Implementations should return the existing data for
+// the calling thread or allocate new data. If new data is allocated, the size
+// of the allocation is specified via the size parameter. A new allocation must
+// be initialized with all zero bytes.
+typedef mmm_thread_t *(*mmm_thread_acquire_func)(void *aux, size_t size);
+
+// mmm_setthreadfns sets the thread acquire function to be used by
+// mmm_thread_acquire. The aux parameter is an arbitrary pointer that is passed
+// to the acquire function when it's called.
+HATRACK_EXTERN void
+mmm_setthreadfns(mmm_thread_acquire_func acquirefn,
+                 void                   *aux);
+
+extern _Atomic uint64_t mmm_epoch;
 
 HATRACK_EXTERN void
 mmm_retire(void *);
-
-HATRACK_EXTERN void
-mmm_clean_up_before_exit(void);
 
 /* This epoch system was inspired by my research into what was out
  * there that would be faster and easier to use than hazard

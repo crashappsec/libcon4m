@@ -37,14 +37,12 @@ start_one_functest_thread(void *info)
     test_func_t func;
     bool        ret;
 
-    mmm_register_thread();
+    (void)mmm_thread_acquire();
 
     while (!(func = atomic_load(&test_func)))
         ;
 
     ret = (*test_func)(info);
-
-    mmm_clean_up_before_exit();
 
     return (void *)(int64_t)ret;
 }
@@ -63,7 +61,9 @@ functionality_test(test_func_t func,
     testhat_t       *dict;
 
     atomic_store(&test_func, NULL);
-    atomic_store(&mmm_nexttid, 0); // Reset thread ids.
+
+    extern void mmm_reset_tids(void);
+    mmm_reset_tids();
 
     dict = testhat_new(type);
 

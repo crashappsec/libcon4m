@@ -116,7 +116,7 @@ hatrack_debug(char *msg)
     index                = mysequence & HATRACK_DEBUG_RING_LAST_SLOT;
     record_ptr           = &__hatrack_debug[index];
     record_ptr->sequence = mysequence;
-    record_ptr->thread   = mmm_thread->tid;
+    record_ptr->thread   = mmm_thread_acquire()->tid;
 
     strncpy(record_ptr->msg, msg, HATRACK_DEBUG_MSG_SIZE);
 
@@ -164,7 +164,7 @@ hatrack_debug_ptr(void *addr, char *msg)
     record_ptr = &__hatrack_debug[mysequence & HATRACK_DEBUG_RING_LAST_SLOT];
 
     record_ptr->sequence = mysequence;
-    record_ptr->thread   = mmm_thread->tid;
+    record_ptr->thread   = mmm_thread_acquire()->tid;
 
     *--p = ' ';
     *--p = ':';
@@ -202,7 +202,7 @@ hatrack_debug2(void *addr, void *addr2, char *msg)
     end        = record_ptr->msg + HATRACK_DEBUG_MSG_SIZE;
 
     record_ptr->sequence = mysequence;
-    record_ptr->thread   = mmm_thread->tid;
+    record_ptr->thread   = mmm_thread_acquire()->tid;
 
     *--p = ' ';
     *--p = ':';
@@ -254,7 +254,7 @@ hatrack_debug3(void *addr, void *addr2, void *addr3, char *msg)
     end        = record_ptr->msg + HATRACK_DEBUG_MSG_SIZE;
 
     record_ptr->sequence = mysequence;
-    record_ptr->thread   = mmm_thread->tid;
+    record_ptr->thread   = mmm_thread_acquire()->tid;
 
     *--p = ' ';
     *--p = ':';

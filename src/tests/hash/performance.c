@@ -262,7 +262,7 @@ shuffle_thread_run(void *v)
 
     memcpy(thread_mix, op_distribution, 100);
     test_shuffle_array(thread_mix, 100, sizeof(char));
-    mmm_register_thread();
+    mmm_thread_t *thread = mmm_thread_acquire();
     basic_gate_thread_ready(&starting_gate);
 
     for (i = 0; i < thread_full_cycles; i++) {
@@ -327,8 +327,7 @@ shuffle_thread_run(void *v)
         next_key = (next_key + thread_step) & key_mod_mask;
     }
 
-    get_timestamp(&stop_times[mmm_thread->tid]);
-    mmm_clean_up_before_exit();
+    get_timestamp(&stop_times[thread->tid]);
 
     return NULL;
 }
@@ -350,7 +349,7 @@ shuffle_thread_run64(void *v)
 
     memcpy(thread_mix, op_distribution, 100);
     test_shuffle_array(thread_mix, 100, sizeof(char));
-    mmm_register_thread();
+    mmm_thread_t *thread = mmm_thread_acquire();
     basic_gate_thread_ready(&starting_gate);
 
     for (i = 0; i < thread_full_cycles; i++) {
@@ -415,8 +414,7 @@ shuffle_thread_run64(void *v)
         next_key = (next_key + thread_step) & key_mod_mask;
     }
 
-    get_timestamp(&stop_times[mmm_thread->tid]);
-    mmm_clean_up_before_exit();
+    get_timestamp(&stop_times[thread->tid]);
 
     return NULL;
 }
@@ -436,7 +434,7 @@ rand_thread_run(void *v)
      */
     n                = test_rand() % 100;
 
-    mmm_register_thread();
+    mmm_thread_t *thread = mmm_thread_acquire();
     basic_gate_thread_ready(&starting_gate);
 
     for (i = 0; i < thread_total_ops; i++) {
@@ -468,8 +466,7 @@ rand_thread_run(void *v)
         n = test_rand() % 100;
     }
 
-    get_timestamp(&stop_times[mmm_thread->tid]);
-    mmm_clean_up_before_exit();
+    get_timestamp(&stop_times[thread->tid]);
 
     return NULL;
 }
@@ -486,7 +483,7 @@ rand_thread_run64(void *v)
     thread_total_ops = (uintptr_t)v;
     n                = test_rand() % 100;
 
-    mmm_register_thread();
+    mmm_thread_t *thread = mmm_thread_acquire();
     basic_gate_thread_ready(&starting_gate);
 
     for (i = 0; i < thread_total_ops; i++) {
@@ -518,8 +515,7 @@ rand_thread_run64(void *v)
         n = test_rand() % 100;
     }
 
-    get_timestamp(&stop_times[mmm_thread->tid]);
-    mmm_clean_up_before_exit();
+    get_timestamp(&stop_times[thread->tid]);
 
     return NULL;
 }
@@ -635,7 +631,9 @@ run_performance_test(benchmark_t *config)
     test_init_rand(config->seed);
     prepare_operational_mix(config);
     precompute_hashes(calculate_num_test_keys(config->key_range));
-    atomic_store(&mmm_nexttid, 0); // Reset thread ids.
+
+    extern void mmm_reset_tids(void);
+    mmm_reset_tids();
 
     ops_per_thread = config->total_ops / config->num_threads;
 
