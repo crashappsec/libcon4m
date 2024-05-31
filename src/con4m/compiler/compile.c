@@ -999,6 +999,11 @@ merge_global_info(c4m_compile_ctx *cctx)
 
     for (uint64_t i = 0; i < mod_len; i++) {
         fctx = c4m_xlist_get(cctx->module_ordering, i, NULL);
+
+        assert(fctx->local_module_id == 0 || fctx->local_module_id == i);
+
+        fctx->local_module_id = i;
+
         merge_var_scope(cctx, fctx);
         merge_one_confspec(cctx, fctx);
     }

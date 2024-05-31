@@ -16,7 +16,7 @@ typedef struct {
     c4m_dict_t           *const_memos;
     c4m_dict_t           *const_instance_map;
     c4m_stream_t         *const_stream;
-    // Tbject location, instead of the place to unmarshal it from.
+    // Object location, instead of the place to unmarshal it from.
     // Since we have to unmarshal into writable space, we keep this
     // data seprately from const data.
     //

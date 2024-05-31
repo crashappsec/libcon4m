@@ -26,6 +26,18 @@ node_text(c4m_tree_node_t *n)
     return c4m_token_raw_content(p->token);
 }
 
+static inline int32_t
+c4m_node_get_line_number(c4m_tree_node_t *n)
+{
+    if (n == NULL) {
+        return 0;
+    }
+
+    c4m_pnode_t *p = c4m_tree_get_contents(n);
+
+    return p->token->line_no;
+}
+
 static inline c4m_utf8_t *
 c4m_node_get_loc_str(c4m_tree_node_t *n)
 {

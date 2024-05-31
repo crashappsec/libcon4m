@@ -168,6 +168,10 @@ c4m_add_inferred_symbol(c4m_file_compile_ctx *ctx,
     entry->kind              = sk_variable;
     entry->my_scope          = scope;
 
+    if (scope->kind & (C4M_SCOPE_FUNC | C4M_SCOPE_FORMALS)) {
+        entry->flags |= C4M_F_FUNCTION_SCOPE;
+    }
+
     if (!hatrack_dict_add(scope->symbols, name, entry)) {
         C4M_CRAISE(
             "c4m_add_inferred_symbol must only be called if the symbol "

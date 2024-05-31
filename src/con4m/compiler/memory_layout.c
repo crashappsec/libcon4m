@@ -32,13 +32,35 @@ c4m_layout_static_obj(c4m_file_compile_ctx *ctx, int bytes, int alignment)
     return result;
 }
 
+int64_t
+c4m_layout_string_const(c4m_compile_ctx *cctx,
+                        c4m_str_t       *s)
+{
+    int64_t instance_id;
+    bool    found;
+
+    instance_id = (int64_t)hatrack_dict_get(cctx->str_map, s, &found);
+
+    if (found == false) {
+        c4m_sub_marshal(s,
+                        cctx->const_stream,
+                        cctx->const_memos,
+                        &cctx->const_memoid);
+        instance_id = cctx->const_instantiation_id++;
+
+        c4m_marshal_i32((int32_t)instance_id, cctx->const_stream);
+        hatrack_dict_put(cctx->instance_map, s, (void *)instance_id);
+        hatrack_dict_put(cctx->str_map, s, (void *)instance_id);
+    }
+
+    return instance_id * 8;
+}
+
 static void
 c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_scope_entry_t *sym)
 {
-    bool        str = false;
     bool        found;
-    int64_t     instance_id_64;
-    int32_t     instance_id_32;
+    int64_t     instance_id;
     c4m_utf8_t *s;
 
     if (c4m_type_is_value_type(sym->type)) {
@@ -61,52 +83,34 @@ c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_scope_entry_t *sym)
         s = sym->value;
 
         if (!s->styling || s->styling->num_entries == 0) {
-            instance_id_64 = (int64_t)hatrack_dict_get(cctx->str_map,
-                                                       s,
-                                                       &found);
-
-            if (found) {
-                sym->static_offset = (8 * (int32_t)instance_id_64);
-                return;
-            }
-
-            // Add the instance ID to the const_str_memos dict at the end.
-            // We do this because the main memo list hashes by pointer, but we
-            // want to hash strings by value.
-            str = true;
-        }
-        break;
-    default:
-
-        hatrack_dict_get(cctx->const_memos, sym->value, &found);
-
-        if (found) {
-            instance_id_64     = (int64_t)hatrack_dict_get(cctx->instance_map,
-                                                       sym->value,
-                                                       NULL);
-            sym->static_offset = (8 * (int32_t)instance_id_64);
+            sym->static_offset = c4m_layout_string_const(cctx, s);
             return;
         }
+    default:
         break;
     }
 
+    hatrack_dict_get(cctx->const_memos, sym->value, &found);
+
+    if (found) {
+        instance_id        = (int64_t)hatrack_dict_get(cctx->instance_map,
+                                                sym->value,
+                                                NULL);
+        sym->static_offset = (8 * (int32_t)instance_id);
+        return;
+    }
     // It's not cached.
     c4m_sub_marshal(sym->value,
                     cctx->const_stream,
                     cctx->const_memos,
                     &cctx->const_memoid);
 
-    instance_id_64     = cctx->const_instantiation_id++;
-    instance_id_32     = (int32_t)instance_id_64;
-    sym->static_offset = 8 * instance_id_32;
+    instance_id        = cctx->const_instantiation_id++;
+    sym->static_offset = (int32_t)(8 * instance_id);
 
-    c4m_marshal_i32(instance_id_32, cctx->const_stream);
+    c4m_marshal_i32((int32_t)instance_id, cctx->const_stream);
 
-    hatrack_dict_put(cctx->instance_map, sym->value, (void *)instance_id_64);
-
-    if (str) {
-        hatrack_dict_put(cctx->str_map, s, (void *)instance_id_64);
-    }
+    hatrack_dict_put(cctx->instance_map, sym->value, (void *)instance_id);
 }
 
 static void
@@ -124,6 +128,9 @@ layout_static(c4m_compile_ctx      *cctx,
             // we're most dependent.
             continue;
         }
+        // We go ahead and add this to all symbols, but it's only
+        // used for static allocations of non-const variables.
+        sym->local_module_id = fctx->local_module_id;
 
         switch (sym->kind) {
         case sk_enum_val:
@@ -149,23 +156,30 @@ layout_static(c4m_compile_ctx      *cctx,
     }
 }
 
+// This one measures in stack value slots, not in bytes.
 static int
 layout_stack(void **view, uint64_t n)
 {
-    int next_formal = -16;
-    int next_local  = 0;
+    // Address 0 is always $result, if it exists.
+    int next_formal = -1;
+    int next_local  = 1;
 
     for (unsigned int i = 0; i < n; i++) {
         c4m_scope_entry_t *sym = view[i];
 
+        // Will already be zero-allocated.
+        if (!strcmp(sym->name->data, "$result")) {
+            continue;
+        }
+
         switch (sym->kind) {
         case sk_variable:
             sym->static_offset = next_local;
-            next_local += 8;
+            next_local += 1;
             continue;
         case sk_formal:
             sym->static_offset = next_formal;
-            next_local -= 8;
+            next_local -= 1;
             continue;
         default:
             continue;
@@ -177,7 +191,8 @@ layout_stack(void **view, uint64_t n)
 
 static void
 layout_func(c4m_file_compile_ctx *ctx,
-            c4m_scope_entry_t    *sym)
+            c4m_scope_entry_t    *sym,
+            int                   i)
 
 {
     uint64_t       n;
@@ -218,6 +233,6 @@ c4m_layout_module_symbols(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
     n = c4m_xlist_len(fctx->fn_def_syms);
 
     for (unsigned int i = 0; i < n; i++) {
-        layout_func(fctx, c4m_xlist_get(fctx->fn_def_syms, i, NULL));
+        layout_func(fctx, c4m_xlist_get(fctx->fn_def_syms, i, NULL), i);
     }
 }

@@ -11,26 +11,6 @@ typedef struct {
 } call_resolution_info_t;
 
 typedef struct {
-    c4m_utf8_t        *label;
-    c4m_utf8_t        *label_ix;
-    c4m_utf8_t        *label_last;
-    c4m_tree_node_t   *prelude;
-    c4m_tree_node_t   *test;
-    c4m_tree_node_t   *body;
-    c4m_scope_entry_t *shadowed_ix;
-    c4m_scope_entry_t *loop_ix;
-    c4m_scope_entry_t *named_loop_ix;
-    c4m_scope_entry_t *shadowed_last;
-    c4m_scope_entry_t *loop_last;
-    c4m_scope_entry_t *named_loop_last;
-    c4m_scope_entry_t *lvar_1;
-    c4m_scope_entry_t *lvar_2;
-    c4m_scope_entry_t *shadowed_lvar_1;
-    c4m_scope_entry_t *shadowed_lvar_2;
-    bool               ranged;
-} c4m_loop_info_t;
-
-typedef struct {
     c4m_scope_t          *attr_scope;
     c4m_scope_t          *global_scope;
     c4m_spec_t           *spec;
@@ -49,6 +29,10 @@ typedef struct {
     c4m_fn_decl_t        *fn_decl;
     c4m_xlist_t          *current_rhs_uses;
     c4m_utf8_t           *current_section_prefix;
+    // The name here is a bit of a misnomer; this is really a jump-target
+    // stack for break and continue statements. That does include loop
+    // nodes, but it also includes switch() and typeof() nodes, since
+    // you can 'break' out of them.
     c4m_xlist_t          *loop_stack;
     c4m_xlist_t          *deferred_calls;
 } pass2_ctx;
@@ -500,9 +484,8 @@ process_children(pass2_ctx *ctx)
         c4m_pnode_t *my_pnode  = get_pnode(saved);
         c4m_pnode_t *kid_pnode = get_pnode(saved->children[0]);
 
-        my_pnode->value      = kid_pnode->value;
-        my_pnode->type       = kid_pnode->type;
-        my_pnode->extra_info = kid_pnode->extra_info;
+        my_pnode->value = kid_pnode->value;
+        my_pnode->type  = kid_pnode->type;
     }
 
     ctx->node = saved;
@@ -811,10 +794,12 @@ handle_break(pass2_ctx *ctx)
     int i    = c4m_xlist_len(ctx->loop_stack);
 
     while (i--) {
-        c4m_loop_info_t *li = c4m_xlist_get(ctx->loop_stack, i, NULL);
-        if (!label || (li->label && !strcmp(label->data, li->label->data))) {
-            c4m_pnode_t *npnode = get_pnode(n);
-            npnode->extra_info  = li;
+        c4m_branch_info_t *bi = c4m_xlist_get(ctx->loop_stack, i, NULL);
+
+        if (!label || (bi->label && !strcmp(label->data, bi->label->data))) {
+            c4m_pnode_t     *npnode = get_pnode(n);
+            c4m_jump_info_t *ji     = npnode->extra_info;
+            ji->target_info         = bi;
             return;
         }
     }
@@ -862,10 +847,18 @@ handle_continue(pass2_ctx *ctx)
     int i    = c4m_xlist_len(ctx->loop_stack);
 
     while (i--) {
-        c4m_loop_info_t *li = c4m_xlist_get(ctx->loop_stack, i, NULL);
-        if (!label || (li->label && !strcmp(label->data, li->label->data))) {
-            c4m_pnode_t *npnode = get_pnode(n);
-            npnode->extra_info  = li;
+        c4m_branch_info_t *bi = c4m_xlist_get(ctx->loop_stack, i, NULL);
+
+        // While 'break' can be used to exit switch() and typeof()
+        // cases, 'continue' cannot.
+        if (bi->non_loop) {
+            continue;
+        }
+        if (!label || (bi->label && !strcmp(label->data, bi->label->data))) {
+            c4m_pnode_t     *npnode = get_pnode(n);
+            c4m_jump_info_t *ji     = npnode->extra_info;
+            ji->target_info         = bi;
+            ji->top                 = true;
             return;
         }
     }
@@ -903,8 +896,8 @@ loop_push_ix_var(pass2_ctx *ctx, c4m_loop_info_t *li)
 
     add_def(ctx, li->loop_ix, false);
 
-    if (li->label != NULL) {
-        li->label_ix = c4m_str_concat(li->label, ix_var_name);
+    if (li->branch_info.label != NULL) {
+        li->label_ix = c4m_str_concat(li->branch_info.label, ix_var_name);
 
         if (c4m_symbol_lookup(ctx->local_scope,
                               NULL,
@@ -914,7 +907,7 @@ loop_push_ix_var(pass2_ctx *ctx, c4m_loop_info_t *li)
             c4m_add_error(ctx->file_ctx,
                           c4m_err_dupe_label,
                           ctx->node,
-                          li->label);
+                          li->branch_info.label);
             return;
         }
 
@@ -1060,8 +1053,8 @@ handle_if(pass2_ctx *ctx)
 static void
 handle_for(pass2_ctx *ctx)
 {
-    c4m_loop_info_t *li    = c4m_gc_alloc(c4m_loop_info_t);
     c4m_pnode_t     *pnode = get_pnode(ctx->node);
+    c4m_loop_info_t *li    = pnode->extra_info;
     c4m_tree_node_t *n     = ctx->node;
     c4m_xlist_t     *vars  = use_pattern(ctx, c4m_loop_vars);
     c4m_cfg_node_t  *entrance;
@@ -1070,13 +1063,9 @@ handle_for(pass2_ctx *ctx)
 
     start_data_flow(ctx);
 
-    li->ranged = pnode->extra_info == NULL;
-
-    pnode->extra_info = li;
-
     if (node_has_type(n->children[0], c4m_nt_label)) {
         expr_ix++;
-        li->label = node_text(n->children[0]);
+        li->branch_info.label = node_text(n->children[0]);
     }
 
     c4m_xlist_append(ctx->loop_stack, li);
@@ -1147,9 +1136,10 @@ handle_for(pass2_ctx *ctx)
 
     add_def(ctx, li->loop_last, true);
 
-    if (li->label != NULL) {
-        li->label_last            = c4m_to_utf8(c4m_str_concat(li->label,
-                                                    last_var_name));
+    if (li->branch_info.label != NULL) {
+        c4m_utf8_t *new_name      = c4m_str_concat(li->branch_info.label,
+                                              last_var_name);
+        li->label_last            = c4m_to_utf8(new_name);
         li->named_loop_last       = c4m_add_inferred_symbol(ctx->file_ctx,
                                                       ctx->local_scope,
                                                       li->label_last);
@@ -1232,7 +1222,10 @@ handle_for(pass2_ctx *ctx)
 
     // Okay, now we need to add the branch node to the CFG.
 
-    branch   = c4m_cfg_block_new_branch_node(ctx->cfg, 2, li->label, ctx->node);
+    branch   = c4m_cfg_block_new_branch_node(ctx->cfg,
+                                           2,
+                                           li->branch_info.label,
+                                           ctx->node);
     bstart   = c4m_cfg_enter_block(branch, n->children[expr_ix]);
     ctx->cfg = bstart;
 
@@ -1336,17 +1329,16 @@ handle_while(pass2_ctx *ctx)
     int              expr_ix = 0;
     c4m_tree_node_t *n       = ctx->node;
     c4m_pnode_t     *p       = get_pnode(n);
-    c4m_loop_info_t *li      = c4m_gc_alloc(c4m_loop_info_t);
+    c4m_loop_info_t *li      = p->extra_info;
     c4m_cfg_node_t  *entrance;
     c4m_cfg_node_t  *branch;
     c4m_cfg_node_t  *bstart;
 
-    p->extra_info = li;
     c4m_xlist_append(ctx->loop_stack, li);
 
     if (node_has_type(n->children[0], c4m_nt_label)) {
         expr_ix++;
-        li->label = node_text(n->children[0]);
+        li->branch_info.label = node_text(n->children[0]);
     }
 
     loop_push_ix_var(ctx, li);
@@ -1357,7 +1349,7 @@ handle_while(pass2_ctx *ctx)
     base_check_pass_dispatch(ctx);
     branch    = c4m_cfg_block_new_branch_node(ctx->cfg,
                                            2,
-                                           li->label,
+                                           li->branch_info.label,
                                            ctx->node);
     bstart    = c4m_cfg_enter_block(branch, n->children[expr_ix]);
     ctx->cfg  = bstart;
@@ -1398,16 +1390,25 @@ handle_range(pass2_ctx *ctx)
 static void
 handle_typeof_statement(pass2_ctx *ctx)
 {
-    c4m_tree_node_t *saved    = ctx->node;
-    c4m_xlist_t     *branches = use_pattern(ctx, c4m_case_branches);
-    c4m_tree_node_t *elsenode = get_match_on_node(saved, c4m_case_else);
-    c4m_tree_node_t *variant  = saved->children[0];
-    int              ncases   = c4m_xlist_len(branches);
-    c4m_xlist_t     *prev_types;
+    c4m_tree_node_t   *saved    = ctx->node;
+    c4m_pnode_t       *pnode    = get_pnode(saved);
+    c4m_branch_info_t *si       = pnode->extra_info;
+    c4m_xlist_t       *branches = use_pattern(ctx, c4m_case_branches);
+    c4m_tree_node_t   *elsenode = get_match_on_node(saved, c4m_case_else);
+    c4m_tree_node_t   *variant  = get_match_on_node(saved, c4m_case_cond);
+    c4m_tree_node_t   *label    = get_match_on_node(saved, c4m_opt_label);
+    int                ncases   = c4m_xlist_len(branches);
+    c4m_xlist_t       *prev_types;
+
+    if (label != NULL) {
+        si->label = node_text(label);
+    }
+
+    si->non_loop = true;
+    c4m_xlist_append(ctx->loop_stack, si);
 
     prev_types = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
-
-    ctx->node = variant;
+    ctx->node  = variant;
     base_check_pass_dispatch(ctx);
 
     c4m_pnode_t       *variant_p    = get_pnode(variant);
@@ -1520,19 +1521,32 @@ handle_typeof_statement(pass2_ctx *ctx)
 
 next_branch: /* nothing */;
     }
+
+    c4m_xlist_pop(ctx->loop_stack);
 }
 
 static void
 handle_switch_statement(pass2_ctx *ctx)
 {
-    c4m_tree_node_t *saved        = ctx->node;
-    c4m_xlist_t     *branches     = use_pattern(ctx, c4m_case_branches);
-    c4m_tree_node_t *elsenode     = get_match_on_node(saved, c4m_case_else);
-    c4m_tree_node_t *variant_node = saved->children[0];
-    int              ncases       = c4m_xlist_len(branches);
-    c4m_cfg_node_t  *entrance;
-    c4m_cfg_node_t  *cfgbranch;
-    c4m_cfg_node_t  *bstart;
+    c4m_tree_node_t   *saved        = ctx->node;
+    c4m_pnode_t       *pnode        = get_pnode(saved);
+    c4m_branch_info_t *bi           = pnode->extra_info;
+    c4m_xlist_t       *branches     = use_pattern(ctx, c4m_case_branches);
+    c4m_tree_node_t   *elsenode     = get_match_on_node(saved, c4m_case_else);
+    c4m_tree_node_t   *variant_node = get_match_on_node(saved, c4m_case_cond);
+    c4m_tree_node_t   *label        = get_match_on_node(saved, c4m_opt_label);
+    int                ncases       = c4m_xlist_len(branches);
+    c4m_cfg_node_t    *entrance;
+    c4m_cfg_node_t    *cfgbranch;
+    c4m_cfg_node_t    *bstart;
+
+    if (label != NULL) {
+        bi->label = node_text(label);
+    }
+
+    bi->non_loop = true;
+
+    c4m_xlist_append(ctx->loop_stack, bi);
 
     entrance  = c4m_cfg_enter_block(ctx->cfg, saved);
     ctx->cfg  = entrance;
@@ -1604,6 +1618,8 @@ handle_switch_statement(pass2_ctx *ctx)
 
     ctx->cfg  = c4m_cfg_exit_node(entrance);
     ctx->node = saved;
+
+    c4m_xlist_pop(ctx->loop_stack);
 }
 
 static void

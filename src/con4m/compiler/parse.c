@@ -16,6 +16,7 @@ typedef struct {
     int32_t               token_ix;
     int32_t               cache_ix;
     int32_t               loop_depth;
+    int32_t               switch_depth;
     // This is used to figure out whether we should allow a newline
     // after a ), ] or }. If we're inside a literal definition, we
     // allow it. If we're in a literal definition context, the newline
@@ -105,8 +106,8 @@ static void             identifier(parse_ctx *);
 static void             body(parse_ctx *, c4m_pnode_t *);
 static inline bool      line_skip_recover(parse_ctx *);
 static void             one_tspec_node(parse_ctx *);
-static void             typeof_stmt(parse_ctx *);
-static void             switch_stmt(parse_ctx *);
+static void             typeof_stmt(parse_ctx *, bool);
+static void             switch_stmt(parse_ctx *, bool);
 static void             continue_stmt(parse_ctx *);
 static void             break_stmt(parse_ctx *);
 static void             return_stmt(parse_ctx *);
@@ -218,15 +219,15 @@ static const node_type_info_t node_type_info[] = {
     { "nt_attr_set_lock", 0, 0, 0, 0, 0, },
     { "nt_cast", 0, 0, 0, 0, 0, },
     { "nt_section", 0, 0, 0, 1, 0, },
-    { "nt_if", 0, 0, 0, 0, 0, },
-    { "nt_elif", 0, 0, 0, 0, 0, },
-    { "nt_else", 0, 0, 0, 0, 0, },
-    { "nt_typeof", 0, 0, 0, 0, 0, },
-    { "nt_switch", 0, 0, 0, 0, 0, },
-    { "nt_for", 0, 0, 0, 0, 0, },
-    { "nt_while", 0, 0, 0, 0, 0, },
-    { "nt_break", 0, 0, 0, 0, 0, },
-    { "nt_continue", 0, 0, 0, 0, 0, },
+    { "nt_if", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
+    { "nt_elif", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
+    { "nt_else", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
+    { "nt_typeof", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
+    { "nt_switch", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
+    { "nt_for", 0, 0, 0, 0, sizeof(c4m_loop_info_t), },
+    { "nt_while", 0, 0, 0, 0, sizeof(c4m_loop_info_t), },
+    { "nt_break", 0, 0, 0, 0, sizeof(c4m_jump_info_t), },
+    { "nt_continue", 0, 0, 0, 0, sizeof(c4m_jump_info_t), },
     { "nt_return", 0, 0, 0, 0, 0, },
     { "nt_simple_lit", 1, 1, 1, 0, 0, },
     { "nt_lit_list", 0, 0, 1, 0, 0, },
@@ -243,8 +244,8 @@ static const node_type_info_t node_type_info[] = {
     { "nt_lit_tspec_func", 0, 0, 0, 0, 0, },
     { "nt_lit_tspec_varargs", 0, 0, 0, 0, 0, },
     { "nt_lit_tspec_return_type", 0, 0, 0, 0, 0, },
-    { "nt_or", 0, 0, 0, 0, 0, },
-    { "nt_and", 0, 0, 0, 0, 0, },
+    { "nt_or", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
+    { "nt_and", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
     { "nt_cmp", 1, 0, 0, 0, 0, },
     { "nt_binary_op", 1, 0, 0, 0, 0, },
     { "nt_binary_assign_op", 1, 0, 0, 0, 0, },
@@ -278,7 +279,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_extern_allocs", 0, 0, 0, 0, 0, },
     { "nt_extern_return", 0, 0, 0, 0, 0, },
     { "nt_label", 1, 1, 0, 0, 0, },
-    { "nt_case", 0, 0, 0, 0, 0, },
+    { "nt_case", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
     { "nt_range", 0, 0, 0, 0, 0, },
     { "nt_assert", 0, 0, 0, 0, 0, },
     { "nt_config_spec", 0, 0, 0, 1, 0, },
@@ -1618,22 +1619,29 @@ property_range(parse_ctx *ctx)
     end_node(ctx);
 }
 
-static void
-for_stmt(parse_ctx *ctx, bool label)
+static inline void
+start_and_optional_label(parse_ctx *ctx, c4m_node_kind_t kind, bool label)
 {
     c4m_tree_node_t *label_node = NULL;
-    c4m_tree_node_t *expr;
 
     if (label) {
         label_node = label_stmt(ctx);
     }
 
-    start_node(ctx, c4m_nt_for, true);
+    // Consume the 'for' / 'while' / 'typeof' / 'switch'
+    start_node(ctx, kind, true);
 
-    if (label) {
+    if (label_node != NULL) {
         adopt_kid(ctx, label_node);
     }
+}
 
+static void
+for_stmt(parse_ctx *ctx, bool label)
+{
+    c4m_tree_node_t *expr;
+
+    start_and_optional_label(ctx, c4m_nt_for, label);
     for_var_list(ctx);
 
     switch (match(ctx, c4m_tt_in, c4m_tt_from)) {
@@ -1645,8 +1653,9 @@ for_stmt(parse_ctx *ctx, bool label)
             adopt_kid(ctx, expr);
             // Denote we have an object-loop to make for easy testing
             // in pass 2
-            c4m_pnode_t *pn = c4m_tree_get_contents(ctx->cur);
-            pn->extra_info  = (void *)~0;
+            c4m_pnode_t     *pn = c4m_tree_get_contents(ctx->cur);
+            c4m_loop_info_t *li = pn->extra_info;
+            li->ranged          = true;
         }
         break;
     case c4m_tt_from:
@@ -1669,18 +1678,7 @@ for_stmt(parse_ctx *ctx, bool label)
 static void
 while_stmt(parse_ctx *ctx, bool label)
 {
-    c4m_tree_node_t *label_node = NULL;
-
-    if (label) {
-        label_node = label_stmt(ctx);
-    }
-
-    start_node(ctx, c4m_nt_while, true);
-
-    if (label) {
-        adopt_kid(ctx, label_node);
-    }
-
+    start_and_optional_label(ctx, c4m_nt_while, label);
     adopt_kid(ctx, expression(ctx));
 
     ctx->loop_depth += 1;
@@ -1736,10 +1734,10 @@ case_body(parse_ctx *ctx)
                 while_stmt(ctx, false);
                 continue;
             case c4m_tt_typeof:
-                typeof_stmt(ctx);
+                typeof_stmt(ctx, false);
                 continue;
             case c4m_tt_switch:
-                switch_stmt(ctx);
+                switch_stmt(ctx, false);
                 continue;
             case c4m_tt_continue:
                 continue_stmt(ctx);
@@ -1765,6 +1763,12 @@ case_body(parse_ctx *ctx)
                         continue;
                     case c4m_tt_while:
                         while_stmt(ctx, true);
+                        continue;
+                    case c4m_tt_switch:
+                        switch_stmt(ctx, true);
+                        continue;
+                    case c4m_tt_typeof:
+                        typeof_stmt(ctx, true);
                         continue;
                     default:
                         break; // fall through to text_matches tho.
@@ -1899,9 +1903,9 @@ typeof_case_block(parse_ctx *ctx)
 }
 
 static void
-typeof_stmt(parse_ctx *ctx)
+typeof_stmt(parse_ctx *ctx, bool label)
 {
-    start_node(ctx, c4m_nt_typeof, true);
+    start_and_optional_label(ctx, c4m_nt_typeof, label);
     basic_member_expr(ctx);
     opt_one_newline(ctx);
     if (!expect(ctx, c4m_tt_lbrace)) {
@@ -1911,6 +1915,8 @@ typeof_stmt(parse_ctx *ctx)
     if (!expect(ctx, c4m_tt_case)) {
         THROW('!');
     }
+
+    ctx->switch_depth++;
 
     while (true) {
         typeof_case_block(ctx);
@@ -1931,9 +1937,12 @@ typeof_stmt(parse_ctx *ctx)
             return;
         default:
             add_parse_error(ctx, c4m_err_parse_case_else_or_end);
+            ctx->switch_depth--;
             THROW('!');
         }
     }
+
+    ctx->switch_depth--;
 }
 
 static void
@@ -1975,9 +1984,10 @@ switch_case_block(parse_ctx *ctx)
 }
 
 static void
-switch_stmt(parse_ctx *ctx)
+switch_stmt(parse_ctx *ctx, bool label)
 {
-    start_node(ctx, c4m_nt_switch, true);
+    start_and_optional_label(ctx, c4m_nt_switch, label);
+
     adopt_kid(ctx, expression(ctx));
     opt_one_newline(ctx);
     if (!expect(ctx, c4m_tt_lbrace)) {
@@ -1987,6 +1997,8 @@ switch_stmt(parse_ctx *ctx)
     if (!expect(ctx, c4m_tt_case)) {
         THROW('!');
     }
+
+    ctx->switch_depth++;
 
     while (true) {
         switch_case_block(ctx);
@@ -2007,9 +2019,11 @@ switch_stmt(parse_ctx *ctx)
             return;
         default:
             add_parse_error(ctx, c4m_err_parse_case_else_or_end);
+            ctx->switch_depth--;
             THROW('!');
         }
     }
+    ctx->switch_depth--;
 }
 
 static void
@@ -2297,7 +2311,7 @@ static void
 break_stmt(parse_ctx *ctx)
 {
     start_node(ctx, c4m_nt_break, true);
-    if (!ctx->loop_depth) {
+    if (!ctx->loop_depth && !ctx->switch_depth) {
         add_parse_error(ctx, c4m_err_parse_break_outside_loop);
     }
     if (!cur_tok_is_end_of_stmt(ctx)) {
@@ -3807,10 +3821,10 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
                 while_stmt(ctx, false);
                 continue;
             case c4m_tt_typeof:
-                typeof_stmt(ctx);
+                typeof_stmt(ctx, false);
                 continue;
             case c4m_tt_switch:
-                switch_stmt(ctx);
+                switch_stmt(ctx, false);
                 continue;
             case c4m_tt_continue:
                 continue_stmt(ctx);
@@ -3836,6 +3850,12 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
                         continue;
                     case c4m_tt_while:
                         while_stmt(ctx, true);
+                        continue;
+                    case c4m_tt_typeof:
+                        typeof_stmt(ctx, true);
+                        continue;
+                    case c4m_tt_switch:
+                        switch_stmt(ctx, true);
                         continue;
                     default:
                         break; // fall through.
@@ -3968,10 +3988,10 @@ module(parse_ctx *ctx)
                 while_stmt(ctx, false);
                 continue;
             case c4m_tt_typeof:
-                typeof_stmt(ctx);
+                typeof_stmt(ctx, false);
                 continue;
             case c4m_tt_switch:
-                switch_stmt(ctx);
+                switch_stmt(ctx, false);
                 continue;
             case c4m_tt_continue:
                 err_skip_stmt(ctx, c4m_err_parse_continue_outside_loop);
@@ -4007,6 +4027,12 @@ module(parse_ctx *ctx)
                         continue;
                     case c4m_tt_while:
                         while_stmt(ctx, true);
+                        continue;
+                    case c4m_tt_typeof:
+                        typeof_stmt(ctx, true);
+                        continue;
+                    case c4m_tt_switch:
+                        switch_stmt(ctx, true);
                         continue;
                     default:
                         break; // fall through.

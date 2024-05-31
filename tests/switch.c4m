@@ -4,6 +4,7 @@ c = 3
 
 x = 12
 
+foo:
 switch x {
     case a:
     y = 12
@@ -16,6 +17,10 @@ switch x {
        }
        y += x
     }
+    if (y > 16) {
+       break
+    }
+    
     case b:
        y = 1 + x
     case c:

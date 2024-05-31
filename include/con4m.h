@@ -84,7 +84,7 @@
 // Virtual machine for running con4m code
 #include "con4m/vm.h"
 
-// The front end.
+// The compiler.
 #include "compiler/treematch.h"
 #include "compiler/compile.h"
 #include "compiler/errors.h"
@@ -94,5 +94,6 @@
 #include "compiler/spec.h"
 #include "compiler/partial.h"
 #include "compiler/cfgs.h"
+#include "compiler/codegen.h"
 
 #include "con4m/set.h"

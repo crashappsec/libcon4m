@@ -29,12 +29,14 @@ enum {
     C4M_F_USE_ERROR        = 0x0080,
     C4M_F_STATIC_STORAGE   = 0x0100,
     C4M_F_STACK_STORAGE    = 0x0200,
+    C4M_F_FUNCTION_SCOPE   = 0x0400,
 };
 
 typedef enum c4m_scope_kind : int8_t {
     C4M_SCOPE_GLOBAL,
     C4M_SCOPE_MODULE,
     C4M_SCOPE_LOCAL,
+    C4M_SCOPE_FUNC,
     C4M_SCOPE_FORMALS,
     C4M_SCOPE_ATTRIBUTES,
     C4M_SCOPE_IMPORTS,
@@ -89,8 +91,14 @@ typedef struct c4m_scope_entry_t {
     // variables, it's the start of the runtime mutable static space,
     // and for functions, it'll be from the frame pointer, if it's in
     // the function scope.
-
     uint32_t static_offset;
+
+    // For things that are statically allocated, this indicates which
+    // module's arena we're using, using an index that is equal to
+    // the module's index into the `module_ordering` field in the
+    // compilation context.
+    uint16_t local_module_id;
+
     uint16_t flags;
 } c4m_scope_entry_t;
 
@@ -109,53 +117,3 @@ typedef struct c4m_scope_t {
     c4m_dict_t         *symbols;
     enum c4m_scope_kind kind;
 } c4m_scope_t;
-
-typedef struct {
-    c4m_type_t          *full_type;
-    c4m_scope_t         *fn_scope;
-    c4m_scope_t         *formals;
-    c4m_fn_param_info_t *param_info;
-    c4m_fn_param_info_t  return_info;
-    int                  num_params;
-    unsigned int         pure : 1;
-} c4m_sig_info_t;
-
-typedef struct {
-    c4m_utf8_t            *short_doc;
-    c4m_utf8_t            *long_doc;
-    c4m_sig_info_t        *signature_info;
-    struct c4m_cfg_node_t *cfg;
-    int32_t                frame_size;
-    // sc = 'short circuit'
-    // If we are a 'once' function, this is the offset into static data,
-    // where we will place:
-    //
-    // - A boolean.
-    // - A pthread_mutex_t
-    // - A void *
-    //
-    // The idea is, if the boolean is true, we only ever read and
-    // return the cached (memoized) result, stored in the void *. If
-    // it's false, we grab the lock, check the boolean a second time,
-    // run the function, set the memo and the boolean, and then
-    // unlock.
-    int32_t                sc_lock_offset;
-    int32_t                sc_bool_offset;
-    int32_t                sc_memo_offset;
-
-    unsigned int private : 1;
-    unsigned int once    : 1;
-} c4m_fn_decl_t;
-
-typedef struct {
-    c4m_utf8_t     *short_doc;
-    c4m_utf8_t     *long_doc;
-    c4m_utf8_t     *local_name;
-    c4m_sig_info_t *local_params;
-    int             num_params;
-    c4m_utf8_t     *external_name;
-    uint8_t        *external_params;
-    uint8_t         external_return_type;
-    int             holds;
-    int             allocs;
-} c4m_ffi_decl_t;

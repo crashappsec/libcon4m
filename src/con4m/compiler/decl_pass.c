@@ -919,7 +919,7 @@ extract_fn_sig_info(pass1_ctx       *ctx,
 
     info           = new_sig_info(nparams);
     info->fn_scope = c4m_new_scope(ctx->file_ctx->module_scope,
-                                   C4M_SCOPE_LOCAL);
+                                   C4M_SCOPE_FUNC);
     info->formals  = c4m_new_scope(ctx->file_ctx->module_scope,
                                   C4M_SCOPE_FORMALS);
 

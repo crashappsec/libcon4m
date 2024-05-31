@@ -119,5 +119,6 @@ extern c4m_tpat_node_t *c4m_case_branches;
 extern c4m_tpat_node_t *c4m_case_else;
 extern c4m_tpat_node_t *c4m_elif_branches;
 extern c4m_tpat_node_t *c4m_else_condition;
-
+extern c4m_tpat_node_t *c4m_case_cond;
+extern c4m_tpat_node_t *c4m_opt_label;
 #endif

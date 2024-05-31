@@ -93,10 +93,19 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
 // even include a stack underflow check anywhere at all, and maybe it is.
 // However, if nothing else, it serves as documentation wherever the stack is
 // touched to indicate how many values are expected.
+//
+// Note from John: in the original implementation this was just to
+// help me both document for myself and help root out any codegen bugs
+// with a helpful starting point instead of a crash.
+
+#ifdef C4M_OMIT_UNDERFLOW_CHECKS
+#define STACK_REQUIRE_VALUES(_n)
+#else
 #define STACK_REQUIRE_VALUES(_n)                               \
     if (tstate->sp >= &tstate->stack[STACK_SIZE - (_n) + 1]) { \
         C4M_CRAISE("stack underflow");                         \
     }
+#endif
 
 // Overflow checks are reasonable, however. The code generator has no way of
 // knowing whether the code is generating is going to overflow the stack. It
@@ -112,25 +121,7 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
 static c4m_value_t *
 c4m_vm_variable(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 {
-    if (i->module_id >= 0) {
-        return &tstate->vm->module_allocations[i->module_id][i->arg];
-    }
-    if (-1 == i->module_id) {
-        return &tstate->fp[i->arg].rvalue;
-    }
-#if 0
-    if (-2 == i->module_id) {
-        // This is in the Nim code, but it doesn't seem to be used?
-        // Looks like maybe this path was started, but abandoned?
-        // Also there's not a very good way to implement it in C
-        // XXX return tstate->current_module->static_data[i->arg]
-    }
-#endif
-    C4M_STATIC_ASCII_STR(errstr, "invalid module_id: ");
-    c4m_utf8_t *msg
-        = c4m_to_utf8(c4m_str_concat(errstr,
-                                     c4m_str_from_int(i->module_id)));
-    C4M_RAISE(msg);
+    return &tstate->vm->module_allocations[i->module_id][i->arg];
 }
 
 static inline bool
@@ -219,13 +210,7 @@ c4m_vm_module_enter(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 static c4m_utf8_t *
 c4m_vm_attr_key(c4m_vmthread_t *tstate, uint64_t static_ptr)
 {
-    char  *s    = tstate->vm->obj->static_data->data + tstate->sp->static_ptr;
-    size_t slen = strnlen(s,
-                          c4m_buffer_len(tstate->vm->obj->static_data)
-                              - tstate->sp->static_ptr);
-
-    return c4m_new(c4m_tspec_utf8(),
-                   c4m_kw("cstring", c4m_ka(s), "length", c4m_ka(slen)));
+    return (c4m_utf8_t *)(tstate->vm->obj->static_data->data + tstate->sp->static_ptr);
 }
 
 static void
@@ -693,6 +678,23 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 }
                 tstate->sp -= i->arg;
                 break;
+                // TODO: need to initialize const_storage_base_addr.
+            case C4M_ZPushConstObj:
+                STACK_REQUIRE_SLOTS(1);
+                --tstate->sp;
+                *tstate->sp = (c4m_stack_value_t){
+                    .static_ptr = i->arg,
+                };
+                break;
+            case C4M_ZPushConstRef:
+                STACK_REQUIRE_SLOTS(1);
+                --tstate->sp;
+                *tstate->sp = (c4m_stack_value_t){
+                    .rvalue = (c4m_value_t){
+                        .obj       = (c4m_obj_t)(tstate->const_base + i->arg),
+                        .type_info = i->type_info,
+                    },
+                };
             case C4M_ZPushImm:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
@@ -711,22 +713,28 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZSetRes:
                 tstate->rr = tstate->fp[-1].rvalue;
                 break;
-            case C4M_ZPushStaticPtr:
+            case C4M_ZPushLocalObj:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
                 *tstate->sp = (c4m_stack_value_t){
-                    .static_ptr = i->arg,
+                    .rvalue = tstate->fp[i->arg].rvalue,
                 };
                 break;
-            case C4M_ZPushVal:
-            case C4M_ZPushPtr:
+            case C4M_ZPushLocalRef:
+                STACK_REQUIRE_SLOTS(1);
+                --tstate->sp;
+                *tstate->sp = (c4m_stack_value_t){
+                    .rvalue = &tstate->fp[i->arg].rvalue,
+                };
+                break;
+            case C4M_ZPushStaticObj:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
                 *tstate->sp = (c4m_stack_value_t){
                     .rvalue = *c4m_vm_variable(tstate, i),
                 };
                 break;
-            case C4M_ZPushAddr:
+            case C4M_ZPushStaticRef:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
                 *tstate->sp = (c4m_stack_value_t){
@@ -811,7 +819,8 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZLockOnWrite:
                 STACK_REQUIRE_VALUES(1);
                 do {
-                    c4m_utf8_t *key = c4m_vm_attr_key(tstate, tstate->sp->static_ptr);
+                    c4m_utf8_t *key = c4m_vm_attr_key(tstate,
+                                                      tstate->sp->static_ptr);
                     c4m_vm_attr_lock(tstate, key, true);
                 } while (0);
                 break;

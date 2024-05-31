@@ -107,17 +107,31 @@ typedef struct {
 
 typedef struct {
     // Parse children are stored beside us because we're using the c4m_tree.
-    c4m_node_kind_t     kind;
+    c4m_node_kind_t kind;
     // Every node gets a token to mark its location, even if the same
     // token appears in separate nodes (it will never have semantic
     // meaning in more than one).
-    c4m_token_t        *token;
-    c4m_token_t        *short_doc;
-    c4m_token_t        *long_doc;
-    c4m_xlist_t        *comments;
-    int                 total_kids;
-    int                 sibling_id;
-    c4m_obj_t          *value;
+    c4m_token_t    *token;
+    c4m_token_t    *short_doc;
+    c4m_token_t    *long_doc;
+    c4m_xlist_t    *comments;
+    int             total_kids;
+    int             sibling_id;
+    c4m_obj_t      *value;
+    // The extra_info field is node specific, and in some cases where it
+    // will always be used, is pre-alloc'd for us (generanlly the things
+    // that branch prealloc).
+    //
+    // - For literals, holds the litmod. Unused after check pass.
+    // - Holds symbol objects for enums, identifiers, members.
+    // - For extern signatures, holds the ctype_id for parameters, until the
+    //   decl pass where they get put into an ffi_decl object.
+    // - For binops, indexing and anything overloadable, stores a
+    //   call_resolution_t; this one is NOT pre-alloc'd for us.
+    // - For breaks, continues, returns, it will hold the c4m_loop_info_t
+    //   (the pnode_t not the tree node) that constitutes the jump target.
+    // -
+
     void               *extra_info;
     struct c4m_scope_t *static_scope;
     c4m_type_t         *type;

@@ -69,23 +69,38 @@
 // caller must push the return register onto the stack if it's interested in
 // its value.
 
-#define STACK_SIZE     (1 << 20)
+#ifndef C4M_STACK_SIZE
+#define STACK_SIZE (1 << 20)
+#else
+#define STACK_SIZE C4M_STACK_SIZE
+#endif
+
+#ifndef C4M_MAX_CALL_DEPTH
 #define MAX_CALL_DEPTH 200
+#else
+#define MAX_CALL_DEPTH C4M_MAX_CALL_DEPTH
+#endif
 
 typedef enum : uint8_t {
-    // Push an rvalue by value. At this time, this is just used by constant
-    // values that are immutable. The value to push is determined as described
-    // in the above comment about address encodings.
-    C4M_ZPushVal       = 0x10,
-    // Push an rvalue by reference. At this time, this is used by any value that
-    // is not immutable. The value to push is determined as described in the
-    // above comment about address encodings.
-    C4M_ZPushPtr       = 0x11,
-    // Push an offset from the start of the current module's static string table
-    // onto the stack. It is the offset itself that is pushed onto the stack.
-    // Instructions that rely on this know what to do with it. The offset to
-    // push is stored in the instruction's arg field.
-    C4M_ZPushStaticPtr = 0x12,
+    // Push from const storage onto the stack.
+    // Const values that are not reference objects can be pushed as immediates
+    // and not put into const storage, so this only ever is expected to
+    // contain read-only pointers to objects in the read-only heap.
+    //
+    // The type field should be redundant, and is not pushed.
+    C4M_ZPushConstObj  = 0x01,
+    // Push the *address* of the constant object. I wouldn't expect
+    // this to get used until we add references.
+    C4M_ZPushConstRef  = 0x02,
+    // Push a copy of a local variable from its frame pointer offset to
+    // the top of the stack.
+    C4M_ZPushLocalObj  = 0x03,
+    // Do we need this??
+    C4M_ZPushLocalRef  = 0x04,
+    // Push an rvalue from static space.
+    C4M_ZPushStaticObj = 0x05,
+    // Push an lvalue from static space.
+    C4M_ZPushStaticRef = 0x06,
     // Push an immediate value onto the stack. The value to push is encoded in
     // the instruction's immediate field and may be an integer or floating point
     // value. The type of the immediate value is encoded in the instruction's
@@ -101,7 +116,7 @@ typedef enum : uint8_t {
     // Duplicate the value at the top of the stack by pushing it again.
     C4M_ZDupTop        = 0x16,
     // Retrieves an attribute value and pushes it onto the stack. The attribute
-    // is the top stack value pushed by C4M_ZPushStaticPtr and is replaced by
+    // is the top stack value pushed by C4M_ZPushConstObj and is replaced by
     // the attribute value. If the instruction's arg is non-zero, an lvalue is
     // pushed instead of an rvalue. Note that in the case where an lvalue is
     // pushed and subsequently stored to via C4M_ZAssignToLoc, no lock checking
@@ -484,6 +499,13 @@ typedef struct {
     // tr is the tuple stash register, used to by C4M_ZUnpack to know which
     // tuple to unpack.
     c4m_value_t tr;
+
+    // const_base is the base address for constant storage.
+    // It's indexed by byte index, thus declared char *.
+    //
+    // The contents will be instantiated from read-only marshaled storage at
+    // startup, and then will be mprotect()'d.
+    char *const_base;
 
     // current_module is the module to which currently executing instructions
     // belong.
