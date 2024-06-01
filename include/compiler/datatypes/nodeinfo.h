@@ -95,5 +95,5 @@ typedef struct {
 typedef struct {
     c4m_branch_info_t *target_info;
     bool               top;
-    int                offset;
+    int                code_offset;
 } c4m_jump_info_t;

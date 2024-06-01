@@ -61,7 +61,7 @@ gen_jump_raw(gen_ctx         *ctx,
         emit(ctx, C4M_ZDupTop);
     }
 
-    jmp_info->offset = ctx->instruction_counter;
+    jmp_info->code_offset = ctx->instruction_counter;
 
     // Look to see if we can fill in the jump target now.  If 'top' is
     // set, we are definitely jumping backwards, and can patch.
@@ -99,6 +99,47 @@ gen_j(gen_ctx *ctx, c4m_jump_info_t *jmp_info)
     return gen_jump_raw(ctx, jmp_info, C4M_ZJ, false);
 }
 
+static inline void
+gen_finish_jump(gen_ctx *ctx, c4m_jump_info_t *jmp_info)
+{
+    int32_t             arg   = calculate_offset(ctx, jmp_info->code_offset);
+    c4m_zinstruction_t *instr = c4m_xlist_get(ctx->instructions,
+                                              jmp_info->code_offset,
+                                              NULL);
+    instr->arg                = arg;
+}
+
+// Helpers for the common case where we have one exit only.
+#define GEN_JNZ(user_code)                                            \
+    do {                                                              \
+        c4m_jump_info_t *ji          = c4m_gc_alloc(c4m_jump_info_t); \
+        bool             needs_patch = gen_jnz(ctx, ji, true);        \
+        user_code;                                                    \
+        if (needs_patch) {                                            \
+            gen_finish_jump(ctx, ji);                                 \
+        }                                                             \
+    } while (0)
+
+#define GEN_JZ(user_code)                                             \
+    do {                                                              \
+        c4m_jump_info_t *ji          = c4m_gc_alloc(c4m_jump_info_t); \
+        bool             needs_patch = gen_jz(ctx, ji, true);         \
+        user_code;                                                    \
+        if (needs_patch) {                                            \
+            gen_finish_jump(ctx, ji);                                 \
+        }                                                             \
+    } while (0)
+
+#define GEN_J(user_code)                                              \
+    do {                                                              \
+        c4m_jump_info_t *ji          = c4m_gc_alloc(c4m_jump_info_t); \
+        bool             needs_patch = gen_j(ctx, ji);                \
+        user_code;                                                    \
+        if (needs_patch) {                                            \
+            gen_finish_jump(ctx, ji);                                 \
+        }                                                             \
+    } while (0)
+
 // TODO: when we add refs, these should change the types written to
 // indicate the item on the stack is a ref to a particular type.
 //
@@ -118,6 +159,18 @@ gen_sym_load_attr(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
     int64_t offset = c4m_layout_string_const(ctx->cctx, sym->name);
     emit(ctx, C4M_ZPushConstObj, c4m_kw("arg", c4m_kw(offset)));
     emit(ctx, C4M_ZLoadFromAttr, c4m_kw("arg", c4m_kw(addressof)));
+}
+
+// Right now we only ever generate the version that returns the rhs
+// not the attr storage address.
+static inline void
+gen_sym_load_attr_and_found(gen_ctx *ctx, c4m_scope_entry_t *sym, bool skipload)
+{
+    int64_t flag   = skipload ? C4M_F_ATTR_SKIP_LOAD : C4M_F_ATTR_PUSH_FOUND;
+    int64_t offset = c4m_layout_string_const(ctx->cctx, sym->name);
+
+    emit(ctx, C4M_ZPushConstObj, c4m_kw("arg", c4m_kw(offset)));
+    emit(ctx, C4M_ZLoadFromAttr, c4m_kw("immediate", c4m_ka(flag)));
 }
 
 static inline void
@@ -183,7 +236,7 @@ gen_sym_load(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
     }
 }
 
-// Couldn't resist the variable name. For attributes, if true, the flag
+// Couldn't resist the variable name. For variables, if true, the flag
 // pops the value stored off the stack (that always happens for attributes),
 // and for attributes, the boolean locks the attribute.
 
@@ -221,6 +274,13 @@ gen_load_string(gen_ctx *ctx, c4m_utf8_t *s)
 }
 
 static void
+gen_bail(gen_ctx *ctx, c4m_utf8_t *s)
+{
+    gen_load_string(ctx, s);
+    emit(ctx, C4M_ZBail);
+}
+
+static void
 gen_load_immediate(gen_ctx *ctx, int64_t value)
 {
     emit(ctx, C4M_ZPushImm, c4m_kw("immediate", c4m_ka(value)));
@@ -234,10 +294,9 @@ gen_label(gen_ctx *ctx, c4m_utf8_t *s)
 }
 
 static void
-gen_bail(gen_ctx *ctx, c4m_utf8_t *s)
+gen_tcall(gen_ctx *ctx, c4m_builtin_type_fn arg)
 {
-    gen_load_string(ctx, s);
-    emit(ctx, C4M_ZBail);
+    emit(ctx, C4M_ZTCall, c4m_kw("arg", c4m_ka(arg)));
 }
 
 static void
@@ -251,17 +310,143 @@ gen_function(gen_ctx *ctx, c4m_fn_decl_t *fn_decl)
 }
 
 static inline void
-gen_module_entry(gen_ctx *ctx)
+gen_test_param_flag(gen_ctx                 *ctx,
+                    c4m_module_param_info_t *param,
+                    c4m_scope_entry_t       *sym)
+{
+    uint64_t index = param->param_index / 64;
+    uint64_t flag  = 1 << (param->param_index % 64);
+
+    emit(ctx, C4M_ZPushStaticObj, c4m_kw("arg", c4m_ka(index)));
+    gen_load_immediate(ctx, flag);
+    emit(ctx, C4M_ZBAnd); // Will be non-zero if the param is set.
+}
+
+static inline void
+gen_param_via_default_value_type(gen_ctx                 *ctx,
+                                 c4m_module_param_info_t *param,
+                                 c4m_scope_entry_t       *sym)
+{
+    uint32_t offset = c4m_layout_const_obj(ctx->cctx, param->default_value);
+    GEN_JNZ(emit(ctx, C4M_ZPushConstObj, c4m_kw("arg", c4m_ka(offset)));
+            gen_sym_store(ctx, sym, true));
+}
+
+static inline void
+gen_param_via_default_ref_type(gen_ctx                 *ctx,
+                               c4m_module_param_info_t *param,
+                               c4m_scope_entry_t       *sym)
+{
+    uint32_t offset = c4m_layout_const_obj(ctx->cctx, param->default_value);
+    GEN_JNZ(emit(ctx, C4M_ZPushConstObj, c4m_kw("arg", c4m_ka(offset)));
+            gen_tcall(ctx, C4M_BI_COPY);
+            gen_sym_store(ctx, sym, true));
+}
+
+static inline void
+gen_run_callback(gen_ctx *ctx, c4m_callback_t *cb)
+{
+    uint32_t    offset   = c4m_layout_const_obj(ctx->cctx, cb);
+    c4m_type_t *t        = cb->info->type;
+    int         nargs    = c4m_tspec_get_num_params(t) - 1;
+    c4m_type_t *ret_type = c4m_tspec_get_param(t, nargs);
+    bool        useret   = !(c4m_tspecs_are_compat(ret_type,
+                                          c4m_tspec_void()));
+    int         imm      = useret ? 1 : 0;
+
+    emit(ctx, C4M_ZPushConstObj, c4m_kw("arg", c4m_ka(offset)));
+    emit(ctx,
+         C4M_ZRunCallback,
+         c4m_kw("arg", c4m_ka(nargs), "immediate", c4m_ka(imm)));
+
+    if (nargs) {
+        emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-1 * nargs)));
+    }
+
+    if (useret) {
+        emit(ctx, C4M_ZPushRes);
+    }
+}
+
+static inline void
+gen_param_via_callback(gen_ctx                 *ctx,
+                       c4m_module_param_info_t *param,
+                       c4m_scope_entry_t       *sym)
+{
+    gen_run_callback(ctx, param->callback);
+    // The third parameter gives 'false' for attrs (where the
+    // parameter would cause the attribute to lock) and 'true' for
+    // variables, which leads to the value being popped after stored
+    // (which happens automatically w/ the attr).
+    gen_sym_store(ctx, sym, sym->kind != sk_attr);
+    // TODO: call the validator too.
+}
+
+static inline void
+gen_param_bail_if_missing(gen_ctx *ctx, c4m_scope_entry_t *sym)
+{
+    C4M_STATIC_ASCII_STR(fmt, "Parameter {} wasn't set on entering module {}");
+    // TODO; do the format at runtime.
+    c4m_utf8_t *error_msg = c4m_str_format(fmt, sym->name, ctx->fctx->path);
+    GEN_JNZ(gen_bail(ctx, error_msg));
+}
+
+static inline uint64_t
+gen_parameter_checks(gen_ctx *ctx)
 {
     uint64_t n;
-    void    *view = hatrack_dict_values_sort(ctx->fctx->parameters, &n);
-
-    gen_label(ctx, c4m_cstr_format("Module '{}': ", ctx->fctx->path));
+    void   **view = hatrack_dict_values_sort(ctx->fctx->parameters, &n);
 
     for (unsigned int i = 0; i < n; i++) {
-        // TODO...
+        c4m_module_param_info_t *param = view[i];
+        c4m_scope_entry_t       *sym   = param->linked_symbol;
+
+        if (sym->kind == sk_attr) {
+            gen_sym_load_attr_and_found(ctx, sym, true);
+        }
+        else {
+            gen_test_param_flag(ctx, param, sym);
+        }
+
+        // Now, there's always an item on the top of the stack that tells
+        // us if this parameter is loaded. We have to test, and generate
+        // the right code if it's not loaded.
+        //
+        // If there's a default value, value types directly load from a
+        // marshal'd location in const-land; ref types load by copying the
+        // const.
+        if (param->have_default) {
+            if (c4m_type_is_value_type(sym->type)) {
+                gen_param_via_default_value_type(ctx, param, sym);
+            }
+            else {
+                gen_param_via_default_ref_type(ctx, param, sym);
+            }
+        }
+        else {
+            // If there's no default, the callback allows us to generate
+            // dynamically if needed.
+            if (param->callback) {
+                gen_param_via_callback(ctx, param, sym);
+            }
+
+            // If neither default nor callback is provided, if a param
+            // isn't set, we simply bail.
+            gen_param_bail_if_missing(ctx, sym);
+        }
     }
-    emit(ctx, C4M_ZModuleEnter, c4m_kw("arg", c4m_ka(n)));
+
+    return n;
+}
+
+static inline void
+gen_module_entry(gen_ctx *ctx)
+{
+    gen_label(ctx, c4m_cstr_format("Module '{}': ", ctx->fctx->path));
+
+    int num_params = gen_parameter_checks(ctx);
+
+    emit(ctx, C4M_ZModuleEnter, c4m_kw("arg", c4m_ka(num_params)));
 }
 
 static void
@@ -310,7 +495,6 @@ gen_module_code(gen_ctx *ctx)
 
         gen_function(ctx, decl);
     }
-    // Todo: call backpatches.
 }
 
 void

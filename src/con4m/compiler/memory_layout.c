@@ -56,22 +56,24 @@ c4m_layout_string_const(c4m_compile_ctx *cctx,
     return instance_id * 8;
 }
 
-static void
-c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_scope_entry_t *sym)
+uint32_t
+c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj)
 {
     bool        found;
-    int64_t     instance_id;
-    c4m_utf8_t *s;
+    uint32_t    result;
+    int64_t     id;
+    c4m_str_t  *s;
+    c4m_type_t *objtype = c4m_get_my_type(obj);
 
-    if (c4m_type_is_value_type(sym->type)) {
-        sym->static_offset = c4m_stream_get_location(cctx->const_stream);
-        c4m_marshal_i64((int64_t)sym->value, cctx->const_stream);
-        return;
+    if (c4m_type_is_value_type(objtype)) {
+        result = c4m_stream_get_location(cctx->const_stream);
+        c4m_marshal_i64((int64_t)obj, cctx->const_stream);
+        return result;
     }
 
-    switch (sym->type->typeid) {
+    switch (objtype->typeid) {
         // Since the memo hash is by pointer, and we want to cache
-        // strings by value, we add a second string cache. Currently,
+        // strings by value, we add a separate string cache. Currently,
         // we limit this to strings with no styling information; we'll
         // have to change the string object hash to include the syling
         // info to be able to fully memoize this. But it should get
@@ -79,38 +81,40 @@ c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_scope_entry_t *sym)
 
     case C4M_T_UTF8:
     case C4M_T_UTF32:
-
-        s = sym->value;
+        s = obj;
 
         if (!s->styling || s->styling->num_entries == 0) {
-            sym->static_offset = c4m_layout_string_const(cctx, s);
-            return;
+            return c4m_layout_string_const(cctx, s);
         }
+        break;
     default:
         break;
     }
 
-    hatrack_dict_get(cctx->const_memos, sym->value, &found);
-
+    hatrack_dict_get(cctx->const_memos, obj, &found);
     if (found) {
-        instance_id        = (int64_t)hatrack_dict_get(cctx->instance_map,
-                                                sym->value,
-                                                NULL);
-        sym->static_offset = (8 * (int32_t)instance_id);
-        return;
+        id = (int64_t)hatrack_dict_get(cctx->instance_map, obj, NULL);
+        return (8 * (int32_t)id);
     }
-    // It's not cached.
-    c4m_sub_marshal(sym->value,
+
+    c4m_sub_marshal(obj,
                     cctx->const_stream,
                     cctx->const_memos,
                     &cctx->const_memoid);
 
-    instance_id        = cctx->const_instantiation_id++;
-    sym->static_offset = (int32_t)(8 * instance_id);
+    id     = cctx->const_instantiation_id++;
+    result = (int32_t)(8 * id);
 
-    c4m_marshal_i32((int32_t)instance_id, cctx->const_stream);
+    c4m_marshal_i32((int32_t)id, cctx->const_stream);
+    hatrack_dict_put(cctx->instance_map, obj, (void *)id);
 
-    hatrack_dict_put(cctx->instance_map, sym->value, (void *)instance_id);
+    return result;
+}
+
+static inline void
+c4m_layout_const_value(c4m_compile_ctx *cctx, c4m_scope_entry_t *sym)
+{
+    sym->static_offset = c4m_layout_const_obj(cctx, sym->value);
 }
 
 static void
@@ -224,31 +228,26 @@ c4m_layout_module_symbols(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
     // Very first item in every module will be information about whether
     // there are parameters, and if they are set.
     void **view = hatrack_dict_values_sort(fctx->parameters, &n);
+    int    pix  = 0;
 
     for (unsigned int i = 0; i < n; i++) {
         c4m_module_param_info_t *param = view[i];
-        param->param_index             = i;
+        c4m_scope_entry_t       *sym   = param->linked_symbol;
+
+        // These don't need an index; we test for the default by
+        // asking the attr store.
+        if (sym->kind == sk_attr) {
+            continue;
+        }
+
+        param->param_index = pix++;
     }
 
-    if (n > 0) {
-        // We keep 4 bytes for the number of parameters, then 1 bit per
-        // parameters.  We keep 8 bytes minimum, and if you've got more
-        // than 32 parameters, we add 8 bytes per 64 params, due to our
-        // keeping everything 8 byte aligned.
-        //
-        // The easiest way to think about it is how many 32-bit quantities
-        // we have, and then round up one if we get an odd answer.
-        //
-        // We add an extra half word for the number of parameters, and
-        // another extra half word to round up when we divide by 2
-        // to get total words needed.
-
-        int words_needed = (2 + ((n + 31) / 32)) / 2;
-
-        // We don't need the result; it's always at offset 0, but it
-        // controls where the next variable is stored.
-        c4m_layout_static_obj(fctx, words_needed * 8, 8);
-    }
+    // We keep one bit per parameter, and the length is measured
+    // in bytes, so we divide by 8, after adding 7 to make sure we
+    // round up. We don't need the result; it's always at offset
+    // 0, but it controls where the next variable is stored.
+    c4m_layout_static_obj(fctx, (pix + 7) / 8, 8);
 
     layout_static(cctx,
                   fctx,

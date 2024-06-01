@@ -349,6 +349,7 @@ handle_dict_or_litmodded_but_empty:
 
     case c4m_nt_lit_callback:
         return node_to_callback(ctx, node);
+
     case c4m_nt_lit_tspec:
 
         if (type_ctx == NULL) {

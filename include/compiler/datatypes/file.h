@@ -47,6 +47,7 @@ typedef struct c4m_file_compile_ctx {
     c4m_zmodule_info_t     *module_object;
     c4m_xlist_t            *call_patch_locs;
     int32_t                 static_size;
+    c4m_buf_t              *static_data;
     uint32_t                num_params;
     uint16_t                local_module_id;
     unsigned int            fatal_errors : 1;

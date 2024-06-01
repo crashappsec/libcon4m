@@ -24,12 +24,12 @@ c4m_vmthread_run(c4m_vmthread_t *tstate);
 extern void
 c4m_vmthread_reset(c4m_vmthread_t *tstate);
 
-// retrieve the attribute specified by key. if expected_type is not NULL, raise
-// an error if the attribute's type does not match.
+// retrieve the attribute specified by key. if the `found param`is not
+// provided, throw an exception when the attribute is not found.
 extern c4m_value_t *
 c4m_vm_attr_get(c4m_vmthread_t *tstate,
                 c4m_str_t      *key,
-                c4m_type_t     *expected_type);
+                bool           *found);
 
 extern void
 c4m_vm_attr_set(c4m_vmthread_t *tstate,

@@ -7,29 +7,28 @@ populate_defaults(c4m_vm_t *vm, c4m_str_t *key)
 }
 
 c4m_value_t *
-c4m_vm_attr_get(c4m_vmthread_t *tstate, c4m_str_t *key, c4m_type_t *expected_type)
+c4m_vm_attr_get(c4m_vmthread_t *tstate,
+                c4m_str_t      *key,
+                bool           *found)
 {
     populate_defaults(tstate->vm, key);
 
-    bool                 found;
-    c4m_attr_contents_t *info = hatrack_dict_get(tstate->vm->attrs, key, &found);
-    if (!found || !info->is_set) {
+    c4m_attr_contents_t *info = hatrack_dict_get(tstate->vm->attrs, key, NULL);
+    if (found != NULL) {
+        if (info != NULL && info->is_set) {
+            *found = true;
+            return &info->contents;
+        }
+        *found = false;
+        return NULL;
+    }
+
+    if (info == NULL || !info->is_set) {
         // Nim version uses Con4mError stuff that doesn't exist in
         // libcon4m (yet?)
         C4M_STATIC_ASCII_STR(errstr, "attribute does not exist: ");
         c4m_utf8_t *msg = c4m_to_utf8(c4m_str_concat(errstr, key));
         C4M_RAISE(msg);
-    }
-
-    if (expected_type != NULL) {
-        c4m_type_t *type = c4m_unify(expected_type,
-                                     info->contents.type_info,
-                                     c4m_global_type_env);
-        if (c4m_tspec_error() == type) {
-            C4M_STATIC_ASCII_STR(errstr, "attribute type does not match: ");
-            c4m_utf8_t *msg = c4m_to_utf8(c4m_str_concat(errstr, key));
-            C4M_RAISE(msg);
-        }
     }
 
     return &info->contents;

@@ -273,6 +273,9 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
             .type_info = t,
         };
         return;
+    case C4M_BI_FORMAT:
+        C4M_CRAISE("Currently format cannot be called via tcall.");
+
     case C4M_BI_COPY:
         STACK_REQUIRE_VALUES(1);
 
@@ -874,19 +877,40 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 } while (0);
                 break;
             case C4M_ZLoadFromAttr:
-                STACK_REQUIRE_VALUES(1);
+                STACK_REQUIRE_VALUES(2);
                 do {
-                    c4m_utf8_t  *key = c4m_vm_attr_key(tstate, tstate->sp->static_ptr);
-                    c4m_value_t *val = c4m_vm_attr_get(tstate, key, NULL);
+                    bool         found = true;
+                    c4m_utf8_t  *key   = c4m_vm_attr_key(tstate,
+                                                      tstate->sp->static_ptr);
+                    c4m_value_t *val;
+                    uint64_t     flag = i->immediate;
 
-                    if (i->arg) {
-                        *tstate->sp = (c4m_stack_value_t){
-                            .lvalue = val,
-                        };
+                    if (flag) {
+                        val = c4m_vm_attr_get(tstate, key, &found);
                     }
                     else {
-                        *tstate->sp = (c4m_stack_value_t){
-                            .rvalue = *val,
+                        val = c4m_vm_attr_get(tstate, key, NULL);
+                    }
+
+                    // If we didn't pass the reference to `found`, then
+                    // an exception gets thrown if the attr doesn't exist,
+                    // which is why `found` is true by default.
+                    if (found && (flag != C4M_F_ATTR_SKIP_LOAD)) {
+                        if (i->arg) {
+                            *tstate->sp = (c4m_stack_value_t){
+                                .lvalue = val,
+                            };
+                        }
+                        else {
+                            *tstate->sp = (c4m_stack_value_t){
+                                .rvalue = *val,
+                            };
+                        }
+                    }
+                    // Only push the status if it was explicitly requested.
+                    if (flag) {
+                        *--tstate->sp = (c4m_stack_value_t){
+                            .uint = found ? 1 : 0,
                         };
                     }
                 } while (0);
@@ -894,7 +918,8 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZAssignAttr:
                 STACK_REQUIRE_VALUES(2);
                 do {
-                    c4m_utf8_t *key = c4m_vm_attr_key(tstate, tstate->sp->static_ptr);
+                    c4m_utf8_t *key = c4m_vm_attr_key(tstate,
+                                                      tstate->sp->static_ptr);
 
                     c4m_vm_attr_set(tstate,
                                     key,

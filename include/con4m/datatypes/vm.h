@@ -1,5 +1,4 @@
 #pragma once
-
 #include "con4m.h"
 
 // This is mostly a straight port of the original Nim code. The overriding goal
@@ -111,12 +110,18 @@ typedef enum : uint8_t {
     C4M_ZPushSType     = 0x14,
     // Duplicate the value at the top of the stack by pushing it again.
     C4M_ZDupTop        = 0x16,
-    // Retrieves an attribute value and pushes it onto the stack. The attribute
-    // is the top stack value pushed by C4M_ZPushConstObj and is replaced by
-    // the attribute value. If the instruction's arg is non-zero, an lvalue is
-    // pushed instead of an rvalue. Note that in the case where an lvalue is
-    // pushed and subsequently stored to via C4M_ZAssignToLoc, no lock checking
-    // for the attribute is done, including lock on write.
+    // Retrieves an attribute value and pushes it onto the stack. The
+    // attribute is the top stack value pushed by C4M_ZPushConstObj
+    // and is replaced by the attribute value. If the instruction's
+    // arg is non-zero, an lvalue is pushed instead of an rvalue. Note
+    // that in the case where an lvalue is pushed and subsequently
+    // stored to via C4M_ZAssignToLoc, no lock checking for the
+    // attribute is done, including lock on write.  If the immediate
+    // field has the `1` bit set, then there is also a test for
+    // whether the attribute is found... if it is, a non-zero value is
+    // pushed after the result. If not, then only a zero is pushed.
+    // If that non-zero field also has the `2` bit set, then the
+    // actual value will not be pushed.
     C4M_ZLoadFromAttr  = 0x17,
     // Create a callback and push it onto the stack. The instruction's arg,
     // immediate, and type_info fields are encoded into the callback as the
@@ -124,7 +129,7 @@ typedef enum : uint8_t {
     // respectively. The ZRunCallback instruction is used to run the callback,
     // which is run as an FFI function.
     C4M_ZPushFfiPtr    = 0x18,
-    // Create a callback and push it onto the stack. The instrcution's arg,
+    // Create a callback and push it onto the stack. The instruction's arg,
     // immediate, and type_info fields are encoded into the callback as the
     // implementation (function index), name offset, and type info,
     // respectively. The ZRunCallback instruction is used to run the callback,
@@ -205,18 +210,15 @@ typedef enum : uint8_t {
     // from the callback. Otherwise, the callback is the same as a native call
     // via C4M_Z0Call, except it uses the index from the callback.
     C4M_ZRunCallback = 0x37,
-
     // Perform a logical not operation on the top stack value. If the value is
     // zero, it will be replaced with a one value of the same type. If the value
     // is non-zero, it will be replaced with a zero value of the same type.
-    C4M_ZNot = 0x50,
-
+    C4M_ZNot         = 0x50,
     // Unmarshals the data stored in the static data area beginning at the
     // offset encoded into the instruction's immediate field. The length of the
     // marhsalled data is encoded in the instruction's arg field. The resulting
     // object is pushed onto the stack.
-    C4M_ZSObjNew = 0x60,
-
+    C4M_ZSObjNew     = 0x60,
     // Perform an assignment into the lvalue at the top of the stack of the
     // value just below it and pops both items from the stack. This should be
     // paired with C4M_ZPushAddr or C4M_ZLoadFromAttr with a non-zero arg.
@@ -547,3 +549,6 @@ typedef struct {
     // the stack grows down, so the stack bottom is &stack[STACK_SIZE]
     c4m_stack_value_t stack[STACK_SIZE];
 } c4m_vmthread_t;
+
+#define C4M_F_ATTR_PUSH_FOUND 1
+#define C4M_F_ATTR_SKIP_LOAD  2
