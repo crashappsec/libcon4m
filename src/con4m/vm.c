@@ -659,6 +659,13 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
     // after the try block ends.
     c4m_vmthread_t *volatile const tstate = tstate_arg;
 
+    // This temporary is used to hold popped operands during binary
+    // operations.
+    union {
+        uint64_t uint;
+        int64_t  sint;
+    } rhs;
+
     C4M_TRY
     {
         for (;;) {
@@ -724,7 +731,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
                 *tstate->sp = (c4m_stack_value_t){
-                    .rvalue = &tstate->fp[i->arg].rvalue,
+                    .lvalue = &tstate->fp[i->arg].rvalue,
                 };
                 break;
             case C4M_ZPushStaticObj:
@@ -769,6 +776,88 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 break;
             case C4M_ZJ:
                 tstate->pc += i->arg / sizeof(c4m_zinstruction_t);
+                continue;
+            case C4M_ZAdd:
+                STACK_REQUIRE_VALUES(2);
+                rhs.sint = tstate->sp[0].sint;
+                ++tstate->sp;
+                tstate->sp[0].uint += rhs.sint;
+                continue;
+            case C4M_ZSub:
+                STACK_REQUIRE_VALUES(2);
+                rhs.sint = tstate->sp[0].sint;
+                ++tstate->sp;
+                tstate->sp[0].uint -= rhs.sint;
+                continue;
+            case C4M_ZMul:
+                STACK_REQUIRE_VALUES(2);
+                rhs.sint = tstate->sp[0].sint;
+                ++tstate->sp;
+                tstate->sp[0].uint *= rhs.sint;
+                continue;
+            case C4M_ZDiv:
+                STACK_REQUIRE_VALUES(2);
+                rhs.sint = tstate->sp[0].sint;
+                ++tstate->sp;
+                tstate->sp[0].uint /= rhs.sint;
+                continue;
+            case C4M_ZMod:
+                STACK_REQUIRE_VALUES(2);
+                rhs.sint = tstate->sp[0].sint;
+                ++tstate->sp;
+                tstate->sp[0].uint %= rhs.sint;
+                continue;
+            case C4M_ZUAdd:
+                STACK_REQUIRE_VALUES(2);
+                rhs.uint = tstate->sp[0].uint;
+                ++tstate->sp;
+                tstate->sp[0].uint += rhs.uint;
+                continue;
+            case C4M_ZUSub:
+                STACK_REQUIRE_VALUES(2);
+                rhs.uint = tstate->sp[0].uint;
+                ++tstate->sp;
+                tstate->sp[0].uint -= rhs.uint;
+                continue;
+            case C4M_ZUMul:
+                STACK_REQUIRE_VALUES(2);
+                rhs.uint = tstate->sp[0].uint;
+                ++tstate->sp;
+                tstate->sp[0].uint *= rhs.uint;
+                continue;
+            case C4M_ZUDiv:
+                STACK_REQUIRE_VALUES(2);
+                rhs.uint = tstate->sp[0].uint;
+                ++tstate->sp;
+                tstate->sp[0].uint /= rhs.uint;
+                continue;
+            case C4M_ZUMod:
+                STACK_REQUIRE_VALUES(2);
+                rhs.uint = tstate->sp[0].uint;
+                ++tstate->sp;
+                tstate->sp[0].uint %= rhs.uint;
+                continue;
+            case C4M_ZBOr:
+                STACK_REQUIRE_VALUES(2);
+                rhs.uint = tstate->sp[0].uint;
+                ++tstate->sp;
+                tstate->sp[0].uint |= rhs.uint;
+                continue;
+            case C4M_ZBAnd:
+                STACK_REQUIRE_VALUES(2);
+                rhs.uint = tstate->sp[0].uint;
+                ++tstate->sp;
+                tstate->sp[0].uint &= rhs.uint;
+                continue;
+            case C4M_ZBXor:
+                STACK_REQUIRE_VALUES(2);
+                rhs.uint = tstate->sp[0].uint;
+                ++tstate->sp;
+                tstate->sp[0].uint ^= rhs.uint;
+                continue;
+            case C4M_ZBNot:
+                STACK_REQUIRE_VALUES(1);
+                tstate->sp[0].uint = ~tstate->sp[0].uint;
                 continue;
             case C4M_ZNot:
                 STACK_REQUIRE_VALUES(1);

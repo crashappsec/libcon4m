@@ -62,11 +62,10 @@ typedef struct {
 // statements always look for an enclosing loop.
 
 typedef struct {
-    int          entry_ip;
-    int          exit_ip;
-    c4m_xlist_t *waiting_backpatches;
-    c4m_utf8_t  *label;
-    bool         non_loop;
+    int         entry_ip;
+    int         exit_ip;
+    c4m_utf8_t *label;
+    bool        non_loop;
 } c4m_branch_info_t;
 
 typedef struct {
@@ -96,4 +95,5 @@ typedef struct {
 typedef struct {
     c4m_branch_info_t *target_info;
     bool               top;
+    int                offset;
 } c4m_jump_info_t;

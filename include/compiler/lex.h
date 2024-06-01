@@ -9,6 +9,10 @@ extern c4m_utf8_t *token_type_to_string(c4m_token_kind_t);
 static inline c4m_utf8_t *
 c4m_token_raw_content(c4m_token_t *tok)
 {
+    if (!tok) {
+        return NULL;
+    }
+
     int64_t      diff = tok->end_ptr - tok->start_ptr - 2 * tok->adjustment;
     c4m_utf32_t *u32  = c4m_new(c4m_tspec_utf32(),
                                c4m_kw("length",

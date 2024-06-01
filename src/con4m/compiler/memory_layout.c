@@ -221,6 +221,35 @@ c4m_layout_module_symbols(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
 {
     uint64_t n;
 
+    // Very first item in every module will be information about whether
+    // there are parameters, and if they are set.
+    void **view = hatrack_dict_values_sort(fctx->parameters, &n);
+
+    for (unsigned int i = 0; i < n; i++) {
+        c4m_module_param_info_t *param = view[i];
+        param->param_index             = i;
+    }
+
+    if (n > 0) {
+        // We keep 4 bytes for the number of parameters, then 1 bit per
+        // parameters.  We keep 8 bytes minimum, and if you've got more
+        // than 32 parameters, we add 8 bytes per 64 params, due to our
+        // keeping everything 8 byte aligned.
+        //
+        // The easiest way to think about it is how many 32-bit quantities
+        // we have, and then round up one if we get an odd answer.
+        //
+        // We add an extra half word for the number of parameters, and
+        // another extra half word to round up when we divide by 2
+        // to get total words needed.
+
+        int words_needed = (2 + ((n + 31) / 32)) / 2;
+
+        // We don't need the result; it's always at offset 0, but it
+        // controls where the next variable is stored.
+        c4m_layout_static_obj(fctx, words_needed * 8, 8);
+    }
+
     layout_static(cctx,
                   fctx,
                   hatrack_dict_values_sort(fctx->global_scope->symbols, &n),

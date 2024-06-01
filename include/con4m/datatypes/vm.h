@@ -109,10 +109,6 @@ typedef enum : uint8_t {
     // Push the type of a value onto the stack. The value to operate on is
     // determined as described in the above comment about address encodings.
     C4M_ZPushSType     = 0x14,
-    // Push an lvalue. The lvalue to push is determined as described in the
-    // above comment about address encodings. This should be paired with
-    // C4M_ZAssignToLoc.
-    C4M_ZPushAddr      = 0x15,
     // Duplicate the value at the top of the stack by pushing it again.
     C4M_ZDupTop        = 0x16,
     // Retrieves an attribute value and pushes it onto the stack. The attribute
@@ -272,6 +268,28 @@ typedef enum : uint8_t {
     // The attribute to lock is named according to the top stack value.
     C4M_ZLockOnWrite = 0xB0,
 
+    // Arithmetic and bitwise operators on 64-bit values; the two-arg
+    // ones conceptually pop the right operand, then the left operand,
+    // perform the operation, then push. But generally after the RHS
+    // pop, the left operand will get replaced without additional
+    // movement.
+    //
+    // Math operations have signed and unsigned variants.
+    C4M_ZAdd  = 0xC0,
+    C4M_ZSub  = 0xC1,
+    C4M_ZMul  = 0xC2,
+    C4M_ZDiv  = 0xC3,
+    C4M_ZMod  = 0xC4,
+    C4M_ZUAdd = 0xC5,
+    C4M_ZUSub = 0xC6,
+    C4M_ZUMul = 0xC7,
+    C4M_ZUDiv = 0xC8,
+    C4M_ZUMod = 0xC9,
+    C4M_ZBOr  = 0xCA,
+    C4M_ZBAnd = 0xCB,
+    C4M_ZBXor = 0xCC,
+    C4M_ZBNot = 0xCD,
+
     // Print the error message that is the top value on the stack and stop
     // running the program.
     C4M_ZBail = 0xEE,
@@ -326,8 +344,11 @@ typedef union c4m_stack_value_t {
     c4m_value_t              rvalue;
     uint64_t                 static_ptr; // offset into static_data
     c4m_zcallback_t         *callback;
-    uint64_t                 uint;       // saved pc / module_id
-    union c4m_stack_value_t *fp;         // saved fp
+    // saved pc / module_id, along with unsigned int values where
+    // we don't care about the type field for the operation.
+    uint64_t                 uint;
+    int64_t                  sint; // signed int values.
+    union c4m_stack_value_t *fp;   // saved fp
 } c4m_stack_value_t;
 
 typedef struct {

@@ -109,6 +109,7 @@ typedef struct {
     c4m_obj_t          validator;
     c4m_obj_t          default_value;
     c4m_scope_entry_t *linked_symbol;
+    unsigned int       param_index;
     unsigned int       have_default : 1;
 } c4m_module_param_info_t;
 

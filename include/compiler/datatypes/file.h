@@ -34,7 +34,6 @@ typedef struct c4m_file_compile_ctx {
     c4m_xlist_t            *tokens;          // an xlist of x4m_token_t objects;
     c4m_tree_node_t        *parse_tree;
     c4m_xlist_t            *errors;          // an xlist of c4m_compile_errors
-    c4m_buf_t              *bytecode;
     c4m_scope_t            *global_scope;    // Symbols used w/ global scope
     c4m_scope_t            *module_scope;    // Symbols used w/ module scope
     c4m_scope_t            *attribute_scope; // Declared or used attrs
@@ -45,7 +44,10 @@ typedef struct c4m_file_compile_ctx {
     c4m_utf8_t             *short_doc;
     c4m_utf8_t             *long_doc;
     c4m_xlist_t            *fn_def_syms; // Cache of fns defined.
+    c4m_zmodule_info_t     *module_object;
+    c4m_xlist_t            *call_patch_locs;
     int32_t                 static_size;
+    uint32_t                num_params;
     uint16_t                local_module_id;
     unsigned int            fatal_errors : 1;
     unsigned int            file         : 1;

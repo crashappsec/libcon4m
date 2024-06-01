@@ -1,86 +1,102 @@
 #define C4M_USE_INTERNAL_API
 #include "con4m.h"
 
-typedef struct jump_patch_info_t {
-    int                       to_patch; // instruction index.
-    c4m_tree_node_t          *target_node;
-    struct jump_patch_info_t *next;
-} jump_patch_info_t;
-
 typedef struct {
     c4m_compile_ctx      *cctx;
     c4m_file_compile_ctx *fctx;
-    c4m_stream_t         *outstream;
+    c4m_xlist_t          *instructions;
     c4m_tree_node_t      *cur_node;
-    jump_patch_info_t    *backpatch_stack;
+    c4m_zmodule_info_t   *cur_module;
     int                   instruction_counter;
 } gen_ctx;
 
+static void
+_emit(gen_ctx *ctx, int32_t op32, ...)
+{
+    c4m_karg_only_init(op32);
+
+    c4m_zop_t   op        = (c4m_zop_t)(op32);
+    int64_t     arg       = 0;
+    int64_t     immediate = 0;
+    int64_t     module_id = ctx->fctx->local_module_id;
+    c4m_type_t *type      = NULL;
+
+    c4m_kw_int64("immediate", immediate);
+    c4m_kw_int64("arg", arg);
+    c4m_kw_int64("module_id", module_id);
+    c4m_kw_ptr("type", type);
+
+    c4m_zinstruction_t *instr = c4m_gc_alloc(c4m_zinstruction_t);
+    instr->op                 = op;
+    instr->module_id          = (int16_t)module_id;
+    instr->line_no            = c4m_node_get_line_number(ctx->cur_node);
+    instr->arg                = (int64_t)arg;
+    instr->immediate          = immediate;
+    instr->type_info          = type;
+
+    c4m_xlist_append(ctx->instructions, instr);
+    ctx->instruction_counter++;
+}
+
+#define emit(ctx, op, ...) _emit(ctx, (int32_t)op, KFUNC(__VA_ARGS__))
+
 static inline int
-emit_instruction(gen_ctx *ctx, c4m_zinstruction_t *instr)
+calculate_offset(gen_ctx *ctx, int target)
 {
-    c4m_stream_put_binary(ctx->outstream, instr, sizeof(c4m_zinstruction_t));
-    return ctx->instruction_counter++;
+    return ctx->instruction_counter - target;
 }
 
-#define INIT_STATIC_INSTRUCTION(ctx, varname, opcode, mod_id, tspec) \
-    varname.op        = (opcode);                                    \
-    varname.pad       = 0;                                           \
-    varname.module_id = (mod_id);                                    \
-    varname.line_no   = c4m_node_get_line_number(ctx->cur_node);     \
-    varname.arg       = 0;                                           \
-    varname.immediate = 0;                                           \
-    varname.type_info = (tspec)
-
-static inline jump_patch_info_t *
-gen_jz_raw(gen_ctx *ctx, c4m_tree_node_t *target, bool pop)
+// Returns true if the jump is fully emitted, false if a patch is required,
+// in which case the caller is responsible for tracking the patch.
+static inline bool
+gen_jump_raw(gen_ctx         *ctx,
+             c4m_jump_info_t *jmp_info,
+             c4m_zop_t        opcode,
+             bool             pop)
 {
-    c4m_zinstruction_t instr;
-    jump_patch_info_t *patch = c4m_gc_alloc(jump_patch_info_t);
+    bool    result = true;
+    int32_t arg    = 0;
 
-    patch->next        = ctx->backpatch_stack;
-    patch->target_node = target;
-
-    if (!pop) {
-        INIT_STATIC_INSTRUCTION(ctx, instr, C4M_ZDupTop, 0, NULL);
-        emit_instruction(ctx, &instr);
+    if (!pop && opcode != C4M_ZJ) { // No builtin pop for C4M_ZJ.
+        emit(ctx, C4M_ZDupTop);
     }
 
-    INIT_STATIC_INSTRUCTION(ctx, instr, C4M_ZJz, 0, NULL);
-    patch->to_patch = emit_instruction(ctx, &instr);
+    jmp_info->offset = ctx->instruction_counter;
 
-    ctx->backpatch_stack = patch;
-
-    return patch;
-}
-
-static inline jump_patch_info_t *
-gen_jnz_raw(gen_ctx *ctx, c4m_tree_node_t *target, bool pop)
-{
-    c4m_zinstruction_t instr;
-    jump_patch_info_t *patch = c4m_gc_alloc(jump_patch_info_t);
-
-    patch->next        = ctx->backpatch_stack;
-    patch->target_node = target;
-
-    if (!pop) {
-        INIT_STATIC_INSTRUCTION(ctx, instr, C4M_ZDupTop, 0, NULL);
-        emit_instruction(ctx, &instr);
+    // Look to see if we can fill in the jump target now.  If 'top' is
+    // set, we are definitely jumping backwards, and can patch.
+    if (jmp_info->top) {
+        arg    = calculate_offset(ctx, jmp_info->target_info->entry_ip);
+        result = false;
+    }
+    else {
+        if (jmp_info->target_info->exit_ip != 0) {
+            arg    = calculate_offset(ctx, jmp_info->target_info->exit_ip);
+            result = false;
+        }
     }
 
-    INIT_STATIC_INSTRUCTION(ctx, instr, C4M_ZJnz, 0, NULL);
-    patch->to_patch = emit_instruction(ctx, &instr);
+    emit(ctx, opcode, c4m_kw("arg", c4m_ka(arg)));
 
-    ctx->backpatch_stack = patch;
-
-    return patch;
+    return result;
 }
 
-static inline jump_patch_info_t *
-gen_j_raw(gen_ctx *ctx, c4m_tree_node_t *target)
+static inline bool
+gen_jz(gen_ctx *ctx, c4m_jump_info_t *jmp_info, bool pop)
 {
-    c4m_zinstruction_t instr;
-    jump_patch_info_t *patch = c4m_gc_alloc(jump_patch_info_t);
+    return gen_jump_raw(ctx, jmp_info, C4M_ZJz, pop);
+}
+
+static inline bool
+gen_jnz(gen_ctx *ctx, c4m_jump_info_t *jmp_info, bool pop)
+{
+    return gen_jump_raw(ctx, jmp_info, C4M_ZJnz, pop);
+}
+
+static inline bool
+gen_j(gen_ctx *ctx, c4m_jump_info_t *jmp_info)
+{
+    return gen_jump_raw(ctx, jmp_info, C4M_ZJ, false);
 }
 
 // TODO: when we add refs, these should change the types written to
@@ -91,62 +107,34 @@ gen_j_raw(gen_ctx *ctx, c4m_tree_node_t *target)
 static inline void
 gen_sym_load_const(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
 {
-    c4m_zinstruction_t instr;
-
-    INIT_STATIC_INSTRUCTION(ctx,
-                            instr,
-                            addressof ? C4M_ZPushConstRef : C4M_ZPushConstObj,
-                            0,
-                            NULL);
-
-    instr.arg = sym->static_offset;
-    emit_instruction(ctx, &instr);
+    emit(ctx,
+         addressof ? C4M_ZPushConstRef : C4M_ZPushConstObj,
+         c4m_kw("arg", c4m_ka(sym->static_offset)));
 }
 
 static inline void
 gen_sym_load_attr(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
 {
-    c4m_zinstruction_t instr;
-
-    INIT_STATIC_INSTRUCTION(ctx, instr, C4M_ZPushConstObj, 0, NULL);
-
-    // Byte offset into the const object arena where the attribute
-    // name can be found.
-    instr.arg = c4m_layout_string_const(ctx->cctx, sym->name);
-    emit_instruction(ctx, &instr);
-
-    INIT_STATIC_INSTRUCTION(ctx, instr, C4M_ZLoadFromAttr, 0, NULL);
-
-    instr.arg = (int32_t)addressof;
-    emit_instruction(ctx, &instr);
+    int64_t offset = c4m_layout_string_const(ctx->cctx, sym->name);
+    emit(ctx, C4M_ZPushConstObj, c4m_kw("arg", c4m_kw(offset)));
+    emit(ctx, C4M_ZLoadFromAttr, c4m_kw("arg", c4m_kw(addressof)));
 }
 
 static inline void
 gen_sym_load_stack(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
 {
-    c4m_zinstruction_t instr;
-
     if (addressof) {
         C4M_CRAISE("Invalid to ever store a ref that points onto the stack.");
     }
-
-    INIT_STATIC_INSTRUCTION(ctx, instr, C4M_ZPushLocalObj, 0, sym->type);
-
     // This is measured in stack value slots.
-    instr.arg = sym->static_offset;
-    emit_instruction(ctx, &instr);
+    emit(ctx, C4M_ZPushLocalObj, c4m_kw("arg", c4m_kw(sym->static_offset)));
 }
 
 static inline void
 gen_sym_load_static(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
 {
-    c4m_zinstruction_t instr;
-
-    INIT_STATIC_INSTRUCTION(ctx, instr, C4M_ZPushStaticObj, 0, sym->type);
-
     // This is measured in stack value slots.
-    instr.arg = sym->static_offset;
-    emit_instruction(ctx, &instr);
+    emit(ctx, C4M_ZPushStaticObj, c4m_kw("arg", c4m_kw(sym->static_offset)));
 }
 
 // Load from the storage location referred to by the symbol,
@@ -202,41 +190,127 @@ gen_sym_load(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
 static void
 gen_sym_store(gen_ctx *ctx, c4m_scope_entry_t *sym, bool pop_and_lock)
 {
-    c4m_zinstruction_t instr;
-
+    int64_t arg;
     switch (sym->kind) {
     case sk_attr:
-
-        INIT_STATIC_INSTRUCTION(ctx, instr, C4M_ZPushConstObj, 0, NULL);
-
         // Byte offset into the const object arena where the attribute
         // name can be found.
-        instr.arg = c4m_layout_string_const(ctx->cctx, sym->name);
-        emit_instruction(ctx, &instr);
-
-        INIT_STATIC_INSTRUCTION(ctx, instr, C4M_ZAssignAttr, 0, NULL);
-        instr.arg = pop_and_lock;
-        emit_instruction(ctx, &instr);
+        arg = c4m_layout_string_const(ctx->cctx, sym->name);
+        emit(ctx, C4M_ZPushConstObj, c4m_kw("arg", c4m_ka(arg)));
+        emit(ctx, C4M_ZAssignAttr, c4m_kw("arg", c4m_ka(pop_and_lock)));
         return;
     case sk_variable:
     case sk_formal:
         if (!pop_and_lock) {
-            INIT_STATIC_INSTRUCTION(ctx, instr, C4M_ZDupTop, 0, NULL);
-            emit_instruction(ctx, &instr);
+            emit(ctx, C4M_ZDupTop);
         }
 
         gen_sym_load(ctx, sym, true);
-        INIT_STATIC_INSTRUCTION(ctx, instr, C4M_ZAssignToLoc, 0, NULL);
-        emit_instruction(ctx, &instr);
+        emit(ctx, C4M_ZAssignToLoc);
         return;
     default:
         c4m_unreachable();
     }
 }
 
+static inline void
+gen_load_string(gen_ctx *ctx, c4m_utf8_t *s)
+{
+    int64_t offset = c4m_layout_string_const(ctx->cctx, s);
+    emit(ctx, C4M_ZPushStaticObj, c4m_kw("arg", c4m_ka(offset)));
+}
+
+static void
+gen_load_immediate(gen_ctx *ctx, int64_t value)
+{
+    emit(ctx, C4M_ZPushImm, c4m_kw("immediate", c4m_ka(value)));
+}
+
+static void
+gen_label(gen_ctx *ctx, c4m_utf8_t *s)
+{
+    int64_t offset = c4m_layout_string_const(ctx->cctx, s);
+    emit(ctx, C4M_ZNop, c4m_kw("arg", c4m_ka(1), "immediate", c4m_ka(offset)));
+}
+
+static void
+gen_bail(gen_ctx *ctx, c4m_utf8_t *s)
+{
+    gen_load_string(ctx, s);
+    emit(ctx, C4M_ZBail);
+}
+
+static void
+gen_node_down(gen_ctx *ctx)
+{
+}
+
+static void
+gen_function(gen_ctx *ctx, c4m_fn_decl_t *fn_decl)
+{
+}
+
+static inline void
+gen_module_entry(gen_ctx *ctx)
+{
+    uint64_t n;
+    void    *view = hatrack_dict_values_sort(ctx->fctx->parameters, &n);
+
+    gen_label(ctx, c4m_cstr_format("Module '{}': ", ctx->fctx->path));
+
+    for (unsigned int i = 0; i < n; i++) {
+        // TODO...
+    }
+    emit(ctx, C4M_ZModuleEnter, c4m_kw("arg", c4m_ka(n)));
+}
+
 static void
 gen_module_code(gen_ctx *ctx)
 {
+    c4m_zmodule_info_t *module = c4m_gc_alloc(c4m_zmodule_info_t);
+    c4m_pnode_t        *root;
+
+    ctx->cur_module            = module;
+    ctx->fctx->module_object   = module;
+    ctx->cur_node              = ctx->fctx->parse_tree;
+    module->instructions       = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    ctx->instructions          = module->instructions;
+    module->module_id          = ctx->fctx->local_module_id;
+    module->source             = ctx->fctx->raw;
+    module->modname            = ctx->fctx->module;
+    root                       = get_pnode(ctx->cur_node);
+    module->shortdoc           = c4m_token_raw_content(root->short_doc);
+    module->longdoc            = c4m_token_raw_content(root->long_doc);
+    ctx->fctx->call_patch_locs = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    // Still to fill in to the zmodule object (need to reshuffle to align):
+    // authority/path/provided_path/package/module_id
+    // Remove key / location / ext / url.
+    //
+    // Also need to do a bit of work aorund sym_types, codesyms, datasyms
+    // and parameters.
+
+    gen_module_entry(ctx);
+    gen_node_down(ctx);
+    emit(ctx, C4M_ZModuleRet);
+
+    module->init_size = ctx->instruction_counter * sizeof(c4m_zinstruction_t);
+
+    module->module_var_size = ctx->fctx->static_size;
+
+    c4m_xlist_t *symlist = ctx->fctx->fn_def_syms;
+    int          n       = c4m_xlist_len(symlist);
+
+    if (n) {
+        gen_label(ctx, c4m_new_utf8("Functions: "));
+    }
+
+    for (int i = 0; i < n; i++) {
+        c4m_scope_entry_t *sym  = c4m_xlist_get(symlist, i, NULL);
+        c4m_fn_decl_t     *decl = sym->value;
+
+        gen_function(ctx, decl);
+    }
+    // Todo: call backpatches.
 }
 
 void
@@ -259,15 +333,10 @@ c4m_codegen(c4m_compile_ctx *cctx)
             C4M_CRAISE("Cannot generate code for files with fatal errors.");
         }
 
-        c4m_buf_t *buf     = c4m_buffer_empty();
-        ctx.fctx->bytecode = buf;
-        ctx.outstream      = c4m_buffer_outstream(buf, false);
-
         if (ctx.fctx->status >= c4m_compile_status_generated_code) {
             continue;
         }
         gen_module_code(&ctx);
-        c4m_stream_close(ctx.outstream);
 
         ctx.fctx->status = c4m_compile_status_generated_code;
     }
