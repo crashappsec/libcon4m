@@ -1,17 +1,17 @@
 #include "con4m.h"
 
 const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
-    {
+    [C4M_T_ERROR] = {
         .name    = "error",
         .typeid  = C4M_T_ERROR,
         .dt_kind = C4M_DT_KIND_nil,
     },
-    {
+    [C4M_T_VOID] = {
         .name    = "void",
         .typeid  = C4M_T_VOID,
         .dt_kind = C4M_DT_KIND_nil,
     },
-    {
+    [C4M_T_BOOL] = {
         .name      = "bool",
         .typeid    = C4M_T_BOOL,
         .alloc_len = 4,
@@ -20,7 +20,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
         .by_value  = true,
     },
-    {
+    [C4M_T_I8] = {
         .name      = "i8",
         .typeid    = C4M_T_I8,
         .alloc_len = 1,
@@ -29,7 +29,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
         .by_value  = true,
     },
-    {
+    [C4M_T_BYTE] = {
         .name      = "byte",
         .typeid    = C4M_T_BYTE,
         .alloc_len = 1,
@@ -38,7 +38,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
         .by_value  = true,
     },
-    {
+    [C4M_T_I32] = {
         .name      = "i32",
         .typeid    = C4M_T_I32,
         .alloc_len = 4,
@@ -47,7 +47,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
         .by_value  = true,
     },
-    {
+    [C4M_T_CHAR] = {
         .name      = "char",
         .typeid    = C4M_T_CHAR,
         .alloc_len = 4,
@@ -56,7 +56,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
         .by_value  = true,
     },
-    {
+    [C4M_T_U32] = {
         .name      = "u32",
         .typeid    = C4M_T_U32,
         .alloc_len = 4,
@@ -65,7 +65,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
         .by_value  = true,
     },
-    {
+    [C4M_T_INT] = {
         .name      = "int",
         .typeid    = C4M_T_INT,
         .alloc_len = 8,
@@ -74,7 +74,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
         .by_value  = true,
     },
-    {
+    [C4M_T_UINT] = {
         .name      = "uint",
         .typeid    = C4M_T_UINT,
         .alloc_len = 8,
@@ -83,7 +83,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
         .by_value  = true,
     },
-    {
+    [C4M_T_F32] = {
         .name      = "f32",
         .typeid    = C4M_T_F32,
         .alloc_len = 4,
@@ -92,7 +92,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_REAL,
         .by_value  = true,
     },
-    {
+    [C4M_T_F64] = {
         .name      = "float",
         .typeid    = C4M_T_F64,
         .alloc_len = 8,
@@ -101,7 +101,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_REAL,
         .by_value  = true,
     },
-    {
+    [C4M_T_UTF8] = {
         .name      = "string",
         .typeid    = C4M_T_UTF8,
         .alloc_len = sizeof(c4m_str_t),
@@ -110,7 +110,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_CSTR,
     },
-    {
+    [C4M_T_BUFFER] = {
         .name      = "buffer",
         .typeid    = C4M_T_BUFFER,
         .alloc_len = sizeof(c4m_buf_t),
@@ -119,7 +119,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_CSTR,
     },
-    {
+    [C4M_T_UTF32] = {
         .name      = "utf32",
         .typeid    = C4M_T_UTF32,
         .alloc_len = sizeof(c4m_str_t),
@@ -128,7 +128,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_CSTR,
     },
-    {
+    [C4M_T_GRID] = {
         .name      = "grid",
         .typeid    = C4M_T_GRID,
         .alloc_len = sizeof(c4m_grid_t),
@@ -137,7 +137,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_LIST] = {
         .name      = "list",
         .typeid    = C4M_T_LIST,
         .alloc_len = sizeof(flexarray_t),
@@ -146,7 +146,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_TUPLE] = {
         .name      = "tuple",
         .typeid    = C4M_T_TUPLE,
         .alloc_len = sizeof(c4m_tuple_t),
@@ -155,7 +155,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_tuple,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_DICT] = {
         .name      = "dict",
         .typeid    = C4M_T_DICT,
         .alloc_len = sizeof(c4m_dict_t),
@@ -164,7 +164,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_dict,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_SET] = {
         .name      = "set",
         .typeid    = C4M_T_SET,
         .alloc_len = sizeof(c4m_set_t),
@@ -173,7 +173,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_dict,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_TYPESPEC] = {
         .name      = "typespec",
         .typeid    = C4M_T_TYPESPEC,
         .alloc_len = sizeof(c4m_type_t),
@@ -182,7 +182,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_IPV4] = {
         .name      = "ipaddr",
         .typeid    = C4M_T_IPV4,
         .ptr_info  = NULL,
@@ -191,7 +191,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_IPV6] = {
         .name      = "ipv6_unused", // Going to merge w/ ipv4
         .typeid    = C4M_T_IPV6,
         .ptr_info  = NULL,
@@ -200,43 +200,52 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_DURATION] = {
         .name    = "duration",
         .typeid  = C4M_T_DURATION,
         .dt_kind = C4M_DT_KIND_primitive,
         .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_SIZE] = {
         .name    = "size",
         .typeid  = C4M_T_SIZE,
         .dt_kind = C4M_DT_KIND_primitive,
         .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_DATETIME] = {
         .name    = "datetime",
         .typeid  = C4M_T_DATETIME,
         .dt_kind = C4M_DT_KIND_primitive,
         .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_DATE] = {
         .name    = "date",
         .typeid  = C4M_T_DATE,
         .dt_kind = C4M_DT_KIND_primitive,
         .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_TIME] = {
         .name    = "time",
         .typeid  = C4M_T_TIME,
         .dt_kind = C4M_DT_KIND_primitive,
         .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_URL] = {
         .name    = "url",
         .typeid  = C4M_T_URL,
         .dt_kind = C4M_DT_KIND_primitive,
         .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_FLAGS] = {
+        .name      = "flags",
+        .typeid    = C4M_T_FLAGS,
+        .alloc_len = sizeof(c4m_flags_t),
+        .ptr_info  = GC_SCAN_ALL,
+        .vtable    = &c4m_flags_vtable,
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+    },
+    [C4M_T_CALLBACK] = {
         .name      = "callback",
         .typeid    = C4M_T_CALLBACK,
         .alloc_len = sizeof(c4m_callback_t),
@@ -245,7 +254,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_QUEUE] = {
         .name      = "queue",
         .typeid    = C4M_T_QUEUE,
         .alloc_len = sizeof(queue_t),
@@ -254,7 +263,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_RING] = {
         .name      = "ring",
         .typeid    = C4M_T_RING,
         .alloc_len = sizeof(hatring_t),
@@ -263,7 +272,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_LOGRING] = {
         .name      = "logring",
         .typeid    = C4M_T_LOGRING,
         .alloc_len = sizeof(logring_t),
@@ -272,7 +281,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_STACK] = {
         .name      = "stack",
         .typeid    = C4M_T_STACK,
         .alloc_len = sizeof(stack_t),
@@ -281,7 +290,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_RENDERABLE] = {
         .name      = "renderable",
         .typeid    = C4M_T_RENDERABLE,
         .alloc_len = sizeof(c4m_renderable_t),
@@ -290,7 +299,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_internal,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_XLIST] = {
         .name      = "xlist",
         .typeid    = C4M_T_XLIST,
         .alloc_len = sizeof(c4m_xlist_t),
@@ -299,7 +308,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_RENDER_STYLE] = {
         .name      = "render_style",
         .typeid    = C4M_T_RENDER_STYLE,
         .alloc_len = sizeof(c4m_render_style_t),
@@ -308,7 +317,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_SHA] = {
         .name      = "hash",
         .typeid    = C4M_T_SHA,
         .alloc_len = sizeof(c4m_sha_t),
@@ -317,7 +326,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_EXCEPTION] = {
         .name      = "exception",
         .typeid    = C4M_T_EXCEPTION,
         .alloc_len = sizeof(c4m_exception_t),
@@ -326,7 +335,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_TYPE_ENV] = {
         .name      = "type_env",
         .typeid    = C4M_T_TYPE_ENV,
         .alloc_len = sizeof(c4m_type_env_t),
@@ -335,7 +344,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_internal,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_TREE] = {
         .name      = "tree",
         .typeid    = C4M_T_TREE,
         .alloc_len = sizeof(c4m_tree_node_t),
@@ -344,13 +353,13 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_FUNCDEF] = {
         // Non-instantiable.
         .name    = "function_definition",
         .typeid  = C4M_T_FUNCDEF,
         .dt_kind = C4M_DT_KIND_func,
     },
-    {
+    [C4M_T_REF] = {
         // The idea from the library level behind refs is that they
         // will always be pointers, but perhaps not even to one of our
         // heaps.
@@ -368,7 +377,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_PTR,
     },
-    {
+    [C4M_T_GENERIC] = {
         // This is meant for runtime sum types. It's lightly used
         // internally, and we may want to do something more
         // sophisticated when deciding how to support this in the
@@ -381,7 +390,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_type_var,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_STREAM] = {
         .name      = "stream",
         .typeid    = C4M_T_STREAM,
         .alloc_len = sizeof(c4m_stream_t),
@@ -390,7 +399,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    {
+    [C4M_T_KEYWORD] = {
         .name      = "keyword",
         .typeid    = C4M_T_KEYWORD,
         .alloc_len = sizeof(c4m_karg_info_t),

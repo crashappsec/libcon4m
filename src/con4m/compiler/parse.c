@@ -1579,6 +1579,21 @@ optional_range(parse_ctx *ctx, c4m_tree_node_t *lhs)
     return true;
 }
 
+static bool
+optional_case_range(parse_ctx *ctx, c4m_tree_node_t *lhs)
+{
+    if (match(ctx, c4m_tt_to, c4m_tt_colon) == c4m_tt_error) {
+        return false;
+    }
+
+    start_node(ctx, c4m_nt_range, true);
+    adopt_kid(ctx, lhs);
+
+    adopt_kid(ctx, expression(ctx));
+    end_node(ctx);
+    return true;
+}
+
 static void
 range(parse_ctx *ctx)
 {
@@ -1953,19 +1968,30 @@ switch_case_block(parse_ctx *ctx)
     while (true) {
         c4m_tree_node_t *expr = expression(ctx);
 
-        // clang-format off
-        if (tok_kind(ctx) != c4m_tt_colon ||
-	    lookahead(ctx, 1, false) != c4m_tt_newline) {
-            optional_range(ctx, expr);
+        // If, after the first expression, there's a colon followed by
+        // anything other then a newline, we'll try to parse a range.
+        //
+        // We can't just try to always parse the range, since doing so
+        // will eat the newline. So in the case the next token's a colon,
+        // we look ahead one token, and if we a newline, then we
+        // know not to try the range op.
+
+        if (tok_kind(ctx) == c4m_tt_colon) {
+            if (lookahead(ctx, 1, false) == c4m_tt_newline) {
+                adopt_kid(ctx, expr);
+                break;
+            }
         }
-        // clang-format on
-        else {
+        // optional_case_range is done on the main tree, and adopts
+        // expr, so only adopt the expr if the case range fails.
+        if (!optional_case_range(ctx, expr)) {
             adopt_kid(ctx, expr);
         }
 
         if (tok_kind(ctx) != c4m_tt_comma) {
             break;
         }
+
         consume(ctx);
     }
 

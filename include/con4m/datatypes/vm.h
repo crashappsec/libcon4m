@@ -108,6 +108,10 @@ typedef enum : uint8_t {
     // Push the type of a value onto the stack. The value to operate on is
     // determined as described in the above comment about address encodings.
     C4M_ZPushSType     = 0x14,
+    // For an object on top of the stack, will retrieve and push the object's
+    // type. Note that the top of the stack must not be a raw value type;
+    // if it's not a by-reference type, box it first.
+    C4M_ZPushObjType   = 0x15,
     // Duplicate the value at the top of the stack by pushing it again.
     C4M_ZDupTop        = 0x16,
     // Retrieves an attribute value and pushes it onto the stack. The
@@ -210,6 +214,13 @@ typedef enum : uint8_t {
     // from the callback. Otherwise, the callback is the same as a native call
     // via C4M_Z0Call, except it uses the index from the callback.
     C4M_ZRunCallback = 0x37,
+    // Box an object type. The type field indicates the type,
+    // which currently always gets stored in 64 bits, and must be a value type.
+    C4M_ZBox         = 0x41,
+    // Unbox an object type, replacing it with its value.
+    C4M_ZUnbox       = 0x42,
+    // Compare (and pop) two types to see if they're comptable.
+    C4M_ZTypeCmp     = 0x43,
     // Perform a logical not operation on the top stack value. If the value is
     // zero, it will be replaced with a one value of the same type. If the value
     // is non-zero, it will be replaced with a zero value of the same type.
@@ -350,6 +361,7 @@ typedef union c4m_stack_value_t {
     // we don't care about the type field for the operation.
     uint64_t                 uint;
     int64_t                  sint; // signed int values.
+    double                   dbl;
     union c4m_stack_value_t *fp;   // saved fp
 } c4m_stack_value_t;
 

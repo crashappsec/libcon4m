@@ -343,6 +343,12 @@ c4m_tspec_url()
 }
 
 static inline c4m_type_t *
+c4m_tspec_flags()
+{
+    return c4m_bi_types[C4M_T_FLAGS];
+}
+
+static inline c4m_type_t *
 c4m_tspec_callback()
 {
     return c4m_bi_types[C4M_T_CALLBACK];
@@ -562,6 +568,13 @@ static inline bool
 c4m_type_is_value_type(c4m_type_t *t)
 {
     return c4m_tspec_get_data_type_info(t)->by_value;
+}
+
+// Once we add objects, this will be a dynamic number.
+static inline int
+c4m_number_concrete_types()
+{
+    return C4M_NUM_BUILTIN_DTS;
 }
 
 #ifdef C4M_USE_INTERNAL_API

@@ -80,6 +80,7 @@ typedef enum {
     c4m_err_parse_lit_odd_hex,
     c4m_err_parse_lit_invalid_neg,
     c4m_err_parse_for_assign_vars,
+    c4m_err_parse_lit_bad_flags,
     c4m_err_invalid_redeclaration,
     c4m_err_omit_string_enum_value,
     c4m_err_invalid_enum_lit_type,

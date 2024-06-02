@@ -1395,7 +1395,8 @@ handle_typeof_statement(pass2_ctx *ctx)
     c4m_branch_info_t *si       = pnode->extra_info;
     c4m_xlist_t       *branches = use_pattern(ctx, c4m_case_branches);
     c4m_tree_node_t   *elsenode = get_match_on_node(saved, c4m_case_else);
-    c4m_tree_node_t   *variant  = get_match_on_node(saved, c4m_case_cond);
+    c4m_tree_node_t   *variant  = get_match_on_node(saved,
+                                                 c4m_case_cond_typeof);
     c4m_tree_node_t   *label    = get_match_on_node(saved, c4m_opt_label);
     int                ncases   = c4m_xlist_len(branches);
     c4m_xlist_t       *prev_types;

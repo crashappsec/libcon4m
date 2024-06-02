@@ -10,6 +10,7 @@ typedef struct hatrack_set_st c4m_set_t;
 #include "con4m/datatypes/codepoints.h"
 #include "con4m/datatypes/styles.h"
 #include "con4m/datatypes/strings.h"
+#include "con4m/datatypes/flags.h"
 #include "con4m/datatypes/lists.h"
 #include "con4m/datatypes/trees.h"
 #include "con4m/datatypes/tree_pattern.h"

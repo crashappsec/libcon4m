@@ -478,6 +478,13 @@ static error_info_t error_info[] = {
         "most cases, and two when iterating over a dictionary type.",
         false,
     },
+    [c4m_err_parse_lit_bad_flags] = {
+        c4m_err_parse_lit_bad_flags,
+        "lit_bad_flags",
+        "Flag literals must currently start with [em]0x[/] and contain only "
+        "hex characters after that.",
+        false,
+    },
     [c4m_err_invalid_redeclaration] = {
         c4m_err_invalid_redeclaration,
         "invalid_redeclaration",

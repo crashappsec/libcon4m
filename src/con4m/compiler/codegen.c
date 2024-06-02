@@ -2,13 +2,22 @@
 #include "con4m.h"
 
 typedef struct {
+    c4m_jump_info_t *targets;
+    int              next;
+} target_info_t;
+
+typedef struct {
     c4m_compile_ctx      *cctx;
     c4m_file_compile_ctx *fctx;
     c4m_xlist_t          *instructions;
     c4m_tree_node_t      *cur_node;
+    c4m_pnode_t          *cur_pnode;
     c4m_zmodule_info_t   *cur_module;
+    target_info_t        *target_info;
     int                   instruction_counter;
 } gen_ctx;
+
+static void gen_one_node(gen_ctx *);
 
 static void
 _emit(gen_ctx *ctx, int32_t op32, ...)
@@ -299,16 +308,31 @@ gen_tcall(gen_ctx *ctx, c4m_builtin_type_fn arg)
     emit(ctx, C4M_ZTCall, c4m_kw("arg", c4m_ka(arg)));
 }
 
-static void
-gen_node_down(gen_ctx *ctx)
+static inline void
+gen_kids(gen_ctx *ctx)
 {
+    c4m_tree_node_t *saved = ctx->cur_node;
+
+    for (int i = 0; i < saved->num_kids; i++) {
+        ctx->cur_node = saved->children[i];
+        gen_one_node(ctx);
+    }
+
+    ctx->cur_node = saved;
 }
 
-static void
-gen_function(gen_ctx *ctx, c4m_fn_decl_t *fn_decl)
+static inline void
+gen_one_kid(gen_ctx *ctx, int n)
 {
+    c4m_tree_node_t *saved = ctx->cur_node;
+    ctx->cur_node          = saved->children[n];
+
+    gen_one_node(ctx);
+
+    ctx->cur_node = saved;
 }
 
+// Helpers above, implementations below.
 static inline void
 gen_test_param_flag(gen_ctx                 *ctx,
                     c4m_module_param_info_t *param,
@@ -440,13 +464,237 @@ gen_parameter_checks(gen_ctx *ctx)
 }
 
 static inline void
-gen_module_entry(gen_ctx *ctx)
+gen_module(gen_ctx *ctx)
 {
     gen_label(ctx, c4m_cstr_format("Module '{}': ", ctx->fctx->path));
 
     int num_params = gen_parameter_checks(ctx);
 
     emit(ctx, C4M_ZModuleEnter, c4m_kw("arg", c4m_ka(num_params)));
+    gen_kids(ctx);
+}
+
+static inline void
+gen_elif(gen_ctx *ctx)
+{
+    gen_one_kid(ctx, 0);
+    GEN_JZ(gen_one_kid(ctx, 1);
+           gen_j(ctx, &ctx->target_info->targets[ctx->target_info->next++]));
+}
+
+static inline void
+gen_if(gen_ctx *ctx)
+{
+    target_info_t end_info = {
+        .targets = c4m_gc_array_alloc(c4m_jump_info_t, ctx->cur_node->num_kids),
+        .next    = 0,
+    };
+
+    target_info_t *saved_info = ctx->target_info;
+    ctx->target_info          = &end_info;
+
+    gen_one_kid(ctx, 0);
+    GEN_JZ(gen_one_kid(ctx, 1);
+           gen_j(ctx, &ctx->target_info->targets[ctx->target_info->next++]));
+    for (int i = 2; i < ctx->cur_node->num_kids; i++) {
+        gen_one_kid(ctx, i);
+    }
+
+    for (int i = 0; i < ctx->cur_node->num_kids; i++) {
+        c4m_jump_info_t *one_patch = &end_info.targets[i];
+
+        if (one_patch != NULL) {
+            gen_finish_jump(ctx, one_patch);
+        }
+    }
+
+    ctx->target_info = saved_info;
+}
+
+static inline void
+gen_typeof(gen_ctx *ctx)
+{
+    c4m_tree_node_t   *id_node;
+    c4m_pnode_t       *id_pn;
+    c4m_scope_entry_t *sym;
+    c4m_tree_node_t   *n              = ctx->cur_node;
+    int                expr_ix        = 0;
+    c4m_pnode_t       *possible_label = get_pnode(ctx->cur_node->children[0]);
+    target_info_t      end_info       = {
+                   .targets = c4m_gc_array_alloc(c4m_jump_info_t, n->num_kids),
+                   .next    = 0,
+    };
+
+    if (possible_label->kind == c4m_nt_label) {
+        expr_ix++;
+    }
+
+    id_node = get_match_on_node(n->children[expr_ix], c4m_id_node);
+    id_pn   = get_pnode(id_node);
+    sym     = id_pn->extra_info;
+
+    gen_sym_load(ctx, sym, false);
+
+    // pops the variable due to the arg, leaving just the type,
+    // which we will dupe for each test.
+    emit(ctx, C4M_ZPushObjType, c4m_kw("arg", c4m_kw(1)));
+
+    for (int i = 1; i < n->num_kids; i++) {
+        c4m_tree_node_t *kid = n->children[i];
+        if (i + i == n->num_kids) {
+            c4m_pnode_t *pnode = get_pnode(kid);
+            if (pnode->kind == c4m_nt_else) {
+                gen_one_kid(ctx, i);
+                break;
+            }
+        }
+
+        // TODO:
+        // 1. Test against each grandkid except the body.
+        // 2. If there's more than one, make sure to JNZ to the body.
+        // 3. push the bound type for the variable; run the body; pop.
+        // 4. Jump to end.
+        // 5. When a case doesn't match, remove it from the list of
+        //    possible types.
+        // 6. If there are no possible types left, give a dead code warning
+        //    on the else statement.
+    }
+}
+
+static inline void
+gen_switch(gen_ctx *ctx)
+{
+}
+
+static inline void
+gen_for(gen_ctx *ctx)
+{
+}
+
+static inline void
+gen_while(gen_ctx *ctx)
+{
+}
+
+static inline void
+gen_break(gen_ctx *ctx)
+{
+}
+
+static inline void
+gen_continue(gen_ctx *ctx)
+{
+}
+
+static void
+gen_one_node(gen_ctx *ctx)
+{
+    ctx->cur_pnode = get_pnode(ctx->cur_node);
+
+    switch (ctx->cur_pnode->kind) {
+    case c4m_nt_module:
+        gen_module(ctx);
+        break;
+    case c4m_nt_error:
+    case c4m_nt_cast: // No syntax for this yet.
+        c4m_unreachable();
+    case c4m_nt_body:
+    case c4m_nt_else:
+        gen_kids(ctx);
+        break;
+    case c4m_nt_if:
+        gen_if(ctx);
+        break;
+    case c4m_nt_elif:
+        gen_elif(ctx);
+        break;
+    case c4m_nt_typeof:
+        gen_typeof(ctx);
+        break;
+    case c4m_nt_switch:
+        gen_switch(ctx);
+        break;
+    case c4m_nt_for:
+        gen_for(ctx);
+        break;
+    case c4m_nt_while:
+        gen_while(ctx);
+        break;
+    case c4m_nt_break:
+        gen_break(ctx);
+        break;
+    case c4m_nt_continue:
+        gen_continue(ctx);
+        break;
+    case c4m_nt_assign:
+    case c4m_nt_attr_set_lock:
+    case c4m_nt_section:
+    case c4m_nt_return:
+    case c4m_nt_simple_lit:
+    case c4m_nt_lit_list:
+    case c4m_nt_lit_dict:
+    case c4m_nt_lit_set:
+    case c4m_nt_lit_empty_dict_or_set:
+    case c4m_nt_lit_tuple:
+    case c4m_nt_lit_unquoted:
+    case c4m_nt_lit_callback:
+    case c4m_nt_lit_tspec:
+    case c4m_nt_lit_tspec_tvar:
+    case c4m_nt_lit_tspec_named_type:
+    case c4m_nt_lit_tspec_parameterized_type:
+    case c4m_nt_lit_tspec_func:
+    case c4m_nt_lit_tspec_varargs:
+    case c4m_nt_lit_tspec_return_type:
+    case c4m_nt_or:
+    case c4m_nt_and:
+    case c4m_nt_cmp:
+    case c4m_nt_binary_op:
+    case c4m_nt_binary_assign_op:
+    case c4m_nt_unary_op:
+    case c4m_nt_enum:
+    case c4m_nt_global_enum:
+    case c4m_nt_enum_item:
+    case c4m_nt_identifier:
+    case c4m_nt_func_def:
+    case c4m_nt_func_mods:
+    case c4m_nt_func_mod:
+    case c4m_nt_formals:
+    case c4m_nt_varargs_param:
+    case c4m_nt_member:
+    case c4m_nt_index:
+    case c4m_nt_call:
+    case c4m_nt_paren_expr:
+    case c4m_nt_variable_decls:
+    case c4m_nt_sym_decl:
+    case c4m_nt_decl_qualifiers:
+    case c4m_nt_use:
+    case c4m_nt_param_block:
+    case c4m_nt_param_prop:
+    case c4m_nt_extern_block:
+    case c4m_nt_extern_sig:
+    case c4m_nt_extern_param:
+    case c4m_nt_extern_local:
+    case c4m_nt_extern_dll:
+    case c4m_nt_extern_pure:
+    case c4m_nt_extern_holds:
+    case c4m_nt_extern_allocs:
+    case c4m_nt_extern_return:
+    case c4m_nt_label:
+    case c4m_nt_case:
+    case c4m_nt_range:
+    case c4m_nt_assert:
+    case c4m_nt_config_spec:
+    case c4m_nt_section_spec:
+    case c4m_nt_section_prop:
+    case c4m_nt_field_spec:
+    case c4m_nt_field_prop:
+    case c4m_nt_expression:
+    }
+}
+
+static void
+gen_function(gen_ctx *ctx, c4m_fn_decl_t *fn_decl)
+{
 }
 
 static void
@@ -474,8 +722,8 @@ gen_module_code(gen_ctx *ctx)
     // Also need to do a bit of work aorund sym_types, codesyms, datasyms
     // and parameters.
 
-    gen_module_entry(ctx);
-    gen_node_down(ctx);
+    gen_one_node(ctx);
+
     emit(ctx, C4M_ZModuleRet);
 
     module->init_size = ctx->instruction_counter * sizeof(c4m_zinstruction_t);

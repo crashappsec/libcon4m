@@ -84,8 +84,11 @@
 // Virtual machine for running con4m code
 #include "con4m/vm.h"
 
+// Bitfields.
+#include "con4m/flags.h"
+
 // The compiler.
-#include "compiler/treematch.h"
+#include "compiler/ast_utils.h"
 #include "compiler/compile.h"
 #include "compiler/errors.h"
 #include "compiler/lex.h"

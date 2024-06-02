@@ -958,6 +958,75 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 };
                 tstate->sp->rvalue.obj = tstate->sp->rvalue.type_info;
                 break;
+            case C4M_ZPushObjType:
+                STACK_REQUIRE_SLOTS(1);
+                do {
+                    c4m_type_t *type = c4m_get_my_type(tstate->sp->rvalue.obj);
+
+                    if (!i->arg) {
+                        --tstate->sp;
+                    }
+                    *tstate->sp = (c4m_stack_value_t){
+                        .rvalue = (c4m_value_t){
+                            .obj = type,
+                        },
+                    };
+                } while (0);
+                break;
+            case C4M_ZBox:
+                switch (i->type_info->typeid) {
+                case C4M_T_I8:
+                case C4M_T_I32:
+                case C4M_T_CHAR:
+                case C4M_T_INT:
+                    tstate->sp->rvalue.obj = c4m_box_i64(tstate->sp->sint);
+                    break;
+                case C4M_T_BYTE:
+                case C4M_T_U32:
+                case C4M_T_UINT:
+                    tstate->sp->rvalue.obj = c4m_box_u64(tstate->sp->uint);
+                    break;
+                case C4M_T_F64:
+                    tstate->sp->rvalue.obj = c4m_box_double(tstate->sp->dbl);
+                    break;
+                default:
+                    C4M_CRAISE("Attempt to box a non-numeric type.");
+                }
+                break;
+            case C4M_ZUnbox:
+                do {
+                    c4m_type_t *type = c4m_get_my_type(tstate->sp->rvalue.obj);
+                    switch (type->typeid) {
+                    case C4M_T_I8:
+                    case C4M_T_I32:
+                    case C4M_T_CHAR:
+                    case C4M_T_INT:
+                        tstate->sp->sint = c4m_unbox_i64(
+                            tstate->sp->rvalue.obj);
+                        break;
+                    case C4M_T_BYTE:
+                    case C4M_T_U32:
+                    case C4M_T_UINT:
+                        tstate->sp->uint = c4m_unbox_i64(
+                            tstate->sp->rvalue.obj);
+                        break;
+                    case C4M_T_F64:
+                        tstate->sp->dbl = c4m_unbox_double(
+                            tstate->sp->rvalue.obj);
+                        break;
+                    default:
+                        C4M_CRAISE("Attempt to box a non-numeric type.");
+                    }
+                } while (0);
+            case C4M_ZTypeCmp:
+                STACK_REQUIRE_VALUES(2);
+                do {
+                    c4m_type_t *t1 = tstate->sp->rvalue.obj;
+                    ++tstate->sp;
+                    c4m_type_t *t2   = tstate->sp->rvalue.obj;
+                    tstate->sp->uint = (uint64_t)c4m_tspecs_are_compat(t1, t2);
+                    break;
+                } while (0);
             case C4M_ZTCall:
                 c4m_vm_tcall(tstate, i);
                 break;

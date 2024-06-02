@@ -168,6 +168,7 @@ typedef enum : int64_t {
     C4M_T_DATE,
     C4M_T_TIME,
     C4M_T_URL,
+    C4M_T_FLAGS,
     C4M_T_CALLBACK,
     C4M_T_QUEUE,
     C4M_T_RING,

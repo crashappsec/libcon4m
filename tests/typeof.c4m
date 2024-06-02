@@ -1,6 +1,6 @@
 
 typeof x {
-    case int:
+    case int, uint:
        y = x 
     case bool:
        z = x
