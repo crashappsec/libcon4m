@@ -1894,14 +1894,7 @@ typeof_case_block(parse_ctx *ctx)
 {
     start_node(ctx, c4m_nt_case, false);
 
-    while (true) {
-        type_spec(ctx);
-
-        if (tok_kind(ctx) != c4m_tt_comma) {
-            break;
-        }
-        consume(ctx);
-    }
+    type_spec(ctx);
 
     if (tok_kind(ctx) == c4m_tt_colon) {
         case_body(ctx);

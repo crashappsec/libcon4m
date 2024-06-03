@@ -1421,6 +1421,8 @@ handle_typeof_statement(pass2_ctx *ctx)
     c4m_cfg_node_t    *bstart;
     c4m_scope_entry_t *tmp;
 
+    // We don't care what scope `sym` came from; it'll get looked up
+    // in the local scope first, so we will shadow it in the local scope.
     saved_sym = hatrack_dict_get(ctx->local_scope->symbols, sym->name, NULL);
     ctx->cfg  = entrance;
 
@@ -1447,6 +1449,9 @@ handle_typeof_statement(pass2_ctx *ctx)
         c4m_type_t *casetype = c4m_node_to_type(ctx->file_ctx,
                                                 branch->children[0],
                                                 type_ctx);
+
+        c4m_pnode_t *branch_pnode = get_pnode(branch);
+        branch_pnode->value       = (c4m_obj_t)casetype;
 
         for (int j = 0; j < c4m_xlist_len(prev_types); j++) {
             c4m_type_t *oldcase = c4m_xlist_get(prev_types, j, NULL);
@@ -1490,6 +1495,25 @@ handle_typeof_statement(pass2_ctx *ctx)
 
             base_check_pass_dispatch(ctx);
             ctx->cfg = c4m_cfg_exit_block(ctx->cfg, bstart, ctx->node);
+
+            if (c4m_xlist_len(tmp->sym_defs) > c4m_xlist_len(sym->sym_defs)) {
+                for (int k = c4m_xlist_len(sym->sym_defs);
+                     k < c4m_xlist_len(tmp->sym_defs);
+                     k++) {
+                    c4m_xlist_append(sym->sym_defs,
+                                     c4m_xlist_get(tmp->sym_defs, k, NULL));
+                }
+            }
+
+            if (c4m_xlist_len(tmp->sym_uses) > c4m_xlist_len(sym->sym_uses)) {
+                for (int k = c4m_xlist_len(sym->sym_uses);
+                     k < c4m_xlist_len(tmp->sym_uses);
+                     k++) {
+                    c4m_xlist_append(sym->sym_uses,
+                                     c4m_xlist_get(tmp->sym_uses, k, NULL));
+                }
+            }
+            tmp->linked_symbol = sym;
         }
 
         next_branch(ctx, cfgbranch);

@@ -332,6 +332,16 @@ gen_one_kid(gen_ctx *ctx, int n)
     ctx->cur_node = saved;
 }
 
+static inline uint32_t
+gen_load_const_obj(gen_ctx *ctx, c4m_obj_t obj)
+{
+    uint32_t offset = c4m_layout_const_obj(ctx->cctx, obj);
+
+    emit(ctx, C4M_ZPushConstObj, c4m_kw("arg", c4m_ka(offset)));
+
+    return offset;
+}
+
 // Helpers above, implementations below.
 static inline void
 gen_test_param_flag(gen_ctx                 *ctx,
@@ -351,8 +361,7 @@ gen_param_via_default_value_type(gen_ctx                 *ctx,
                                  c4m_module_param_info_t *param,
                                  c4m_scope_entry_t       *sym)
 {
-    uint32_t offset = c4m_layout_const_obj(ctx->cctx, param->default_value);
-    GEN_JNZ(emit(ctx, C4M_ZPushConstObj, c4m_kw("arg", c4m_ka(offset)));
+    GEN_JNZ(gen_load_const_obj(ctx, param->default_value);
             gen_sym_store(ctx, sym, true));
 }
 
@@ -519,6 +528,7 @@ gen_typeof(gen_ctx *ctx)
     c4m_scope_entry_t *sym;
     c4m_tree_node_t   *n              = ctx->cur_node;
     int                expr_ix        = 0;
+    int                target_ix      = 0;
     c4m_pnode_t       *possible_label = get_pnode(ctx->cur_node->children[0]);
     target_info_t      end_info       = {
                    .targets = c4m_gc_array_alloc(c4m_jump_info_t, n->num_kids),
@@ -539,25 +549,34 @@ gen_typeof(gen_ctx *ctx)
     // which we will dupe for each test.
     emit(ctx, C4M_ZPushObjType, c4m_kw("arg", c4m_kw(1)));
 
+    // We could elide some dup/pop and jmp instructions here, but for
+    // now, let's keep it simple.
     for (int i = 1; i < n->num_kids; i++) {
-        c4m_tree_node_t *kid = n->children[i];
-        if (i + i == n->num_kids) {
-            c4m_pnode_t *pnode = get_pnode(kid);
+        c4m_tree_node_t *kid   = n->children[i];
+        c4m_pnode_t     *pnode = get_pnode(kid);
+
+        // If it's the 'else' branch
+        if (i + 1 == n->num_kids) {
             if (pnode->kind == c4m_nt_else) {
+                emit(ctx, C4M_ZPop); // Remove the type we keep copying.
                 gen_one_kid(ctx, i);
                 break;
             }
         }
 
-        // TODO:
-        // 1. Test against each grandkid except the body.
-        // 2. If there's more than one, make sure to JNZ to the body.
-        // 3. push the bound type for the variable; run the body; pop.
-        // 4. Jump to end.
-        // 5. When a case doesn't match, remove it from the list of
-        //    possible types.
-        // 6. If there are no possible types left, give a dead code warning
-        //    on the else statement.
+        ctx->cur_node = kid->children[1];
+
+        // We stashed the type in the `nt_case` node's value field during
+        // the check pass for easy access.
+        gen_load_const_obj(ctx, pnode->value);
+        emit(ctx, C4M_ZTypeCmp);
+        GEN_JZ(emit(ctx, C4M_ZPop);
+               gen_one_node(ctx);
+               gen_j(ctx, &end_info.targets[target_ix++]));
+    }
+
+    for (int i = 0; i < target_ix; i++) {
+        gen_finish_jump(ctx, &end_info.targets[i]);
     }
 }
 

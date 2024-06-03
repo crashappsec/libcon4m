@@ -380,6 +380,10 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
                  c4m_tree_node_t      *n,
                  c4m_dict_t           *type_ctx)
 {
+    if (type_ctx == NULL) {
+        type_ctx = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_ref()));
+    }
+
     c4m_pnode_t *pnode = get_pnode(n);
     c4m_utf8_t  *varname;
     c4m_type_t  *t;
