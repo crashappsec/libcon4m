@@ -53,16 +53,16 @@ enum {
 };
 
 static vector_store_t *vector_new_store(int64_t, int64_t);
-static void            vector_migrate(vector_store_t *, vector_t *);
+static void            vector_migrate(vector_store_t *, mmm_thread_t *thread, vector_t *);
 
 // Ops in the help vtable.
-static void help_push(help_manager_t *, help_record_t *, int64_t);
-static void help_pop(help_manager_t *, help_record_t *, int64_t);
-static void help_peek(help_manager_t *, help_record_t *, int64_t);
-static void help_grow(help_manager_t *, help_record_t *, int64_t);
-static void help_shrink(help_manager_t *, help_record_t *, int64_t);
-static void help_set(help_manager_t *, help_record_t *, int64_t);
-static void help_view(help_manager_t *, help_record_t *, int64_t);
+static void help_push(help_manager_t *, mmm_thread_t *, help_record_t *, int64_t);
+static void help_pop(help_manager_t *, mmm_thread_t *, help_record_t *, int64_t);
+static void help_peek(help_manager_t *, mmm_thread_t *, help_record_t *, int64_t);
+static void help_grow(help_manager_t *, mmm_thread_t *thread, help_record_t *, int64_t);
+static void help_shrink(help_manager_t *, mmm_thread_t *, help_record_t *, int64_t);
+static void help_set(help_manager_t *, mmm_thread_t *, help_record_t *, int64_t);
+static void help_view(help_manager_t *, mmm_thread_t *, help_record_t *, int64_t);
 
 static helper_func vtable[] = {
     (helper_func)help_push,
@@ -156,13 +156,13 @@ vector_delete(vector_t *self)
 
 // Always linearized based on the read time.
 void *
-vector_get(vector_t *self, int64_t index, int *status)
+vector_get_mmm(vector_t *self, mmm_thread_t *thread, int64_t index, int *status)
 {
     vector_item_t   current;
     vector_store_t *store;
     vec_size_info_t si;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_load(&self->store);
     si    = atomic_load(&store->array_size_info);
@@ -171,6 +171,7 @@ vector_get(vector_t *self, int64_t index, int *status)
         if (status) {
             *status = VECTOR_OOB;
         }
+        mmm_end_op(thread);
         return NULL;
     }
 
@@ -178,6 +179,7 @@ vector_get(vector_t *self, int64_t index, int *status)
         if (status) {
             *status = VECTOR_UNINITIALIZED;
         }
+        mmm_end_op(thread);
         return NULL;
     }
 
@@ -187,6 +189,7 @@ vector_get(vector_t *self, int64_t index, int *status)
         if (status) {
             *status = VECTOR_UNINITIALIZED;
         }
+        mmm_end_op(thread);
         return NULL;
     }
 
@@ -194,7 +197,7 @@ vector_get(vector_t *self, int64_t index, int *status)
         (*self->ret_callback)(current.item);
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     if (status) {
         *status = VECTOR_OK;
@@ -203,9 +206,15 @@ vector_get(vector_t *self, int64_t index, int *status)
     return current.item;
 }
 
+void *
+vector_get(vector_t *self, int64_t index, int *status)
+{
+    return vector_get_mmm(self, mmm_thread_acquire(), index, status);
+}
+
 // Returns true if successful, false if write would be out-of-bounds.
 bool
-vector_set(vector_t *self, int64_t index, void *item)
+vector_set_mmm(vector_t *self, mmm_thread_t *thread, int64_t index, void *item)
 {
     vector_store_t *store;
     vector_item_t   current;
@@ -214,45 +223,46 @@ vector_set(vector_t *self, int64_t index, void *item)
     vec_size_info_t si;
     bool            found;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_load(&self->store);
     si    = atomic_load(&store->array_size_info);
 
     if (index >= si.array_size) {
-        mmm_end_op();
+        mmm_end_op(thread);
         return false;
     }
 
     // This is messed up.  Need to pass in item and ix.
     if ((index + 1) == si.array_size) {
         hatrack_perform_wf_op(&self->help_manager,
+                              thread,
                               VECTOR_OP_SLOW_SET,
                               item,
                               (void *)index,
                               &found);
-        mmm_end_op();
+        mmm_end_op(thread);
 
         return found;
     }
 
     if (index >= store->store_size) {
-        vector_migrate(store, self);
-        mmm_end_op();
-        return vector_set(self, index, item);
+        vector_migrate(store, thread, self);
+        mmm_end_op(thread);
+        return vector_set_mmm(self, thread, index, item);
     }
 
     cellptr = &store->cells[index];
     current = atomic_load(cellptr);
 
     if (current.state & VECTOR_MOVING) {
-        vector_migrate(store, self);
-        mmm_end_op();
-        return vector_set(self, index, item);
+        vector_migrate(store, thread, self);
+        mmm_end_op(thread);
+        return vector_set_mmm(self, thread, index, item);
     }
 
     if (current.state & VECTOR_POPPED) {
-        mmm_end_op();
+        mmm_end_op(thread);
         return false;
     }
 
@@ -263,14 +273,14 @@ vector_set(vector_t *self, int64_t index, void *item)
         if (self->eject_callback && current.state == VECTOR_USED) {
             (*self->eject_callback)(current.item);
         }
-        mmm_end_op();
+        mmm_end_op(thread);
         return true;
     }
 
     if (current.state & VECTOR_MOVING) {
-        vector_migrate(store, self);
-        mmm_end_op();
-        return vector_set(self, index, item);
+        vector_migrate(store, thread, self);
+        mmm_end_op(thread);
+        return vector_set_mmm(self, thread, index, item);
     }
 
     /* Otherwise, someone beat us to the CAS. It could be another set,
@@ -283,25 +293,54 @@ vector_set(vector_t *self, int64_t index, void *item)
      * try again. We go ahead and use the slow path to do so.
      */
     hatrack_perform_wf_op(&self->help_manager,
+                          thread,
                           VECTOR_OP_SLOW_SET,
                           item,
                           NULL,
                           &found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
     return found;
+}
+
+bool
+vector_set(vector_t *self, int64_t index, void *item)
+{
+    return vector_set_mmm(self, mmm_thread_acquire(), index, item);
+}
+
+void
+vector_grow_mmm(vector_t *self, mmm_thread_t *thread, int64_t size)
+{
+    mmm_start_basic_op(thread);
+    hatrack_perform_wf_op(&self->help_manager,
+                          thread,
+                          VECTOR_OP_GROW,
+                          (void *)size,
+                          NULL,
+                          NULL);
+    mmm_end_op(thread);
+
+    return;
 }
 
 void
 vector_grow(vector_t *self, int64_t size)
 {
-    mmm_start_basic_op();
+    vector_grow_mmm(self, mmm_thread_acquire(), size);
+}
+
+void
+vector_shrink_mmm(vector_t *self, mmm_thread_t *thread, int64_t size)
+{
+    mmm_start_basic_op(thread);
     hatrack_perform_wf_op(&self->help_manager,
-                          VECTOR_OP_GROW,
+                          thread,
+                          VECTOR_OP_SHRINK,
                           (void *)size,
                           NULL,
                           NULL);
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return;
 }
@@ -309,13 +348,20 @@ vector_grow(vector_t *self, int64_t size)
 void
 vector_shrink(vector_t *self, int64_t size)
 {
-    mmm_start_basic_op();
+    vector_shrink_mmm(self, mmm_thread_acquire(), size);
+}
+
+void
+vector_push_mmm(vector_t *self, mmm_thread_t *thread, void *item)
+{
+    mmm_start_basic_op(thread);
     hatrack_perform_wf_op(&self->help_manager,
-                          VECTOR_OP_SHRINK,
-                          (void *)size,
+                          thread,
+                          VECTOR_OP_PUSH,
+                          item,
                           NULL,
                           NULL);
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return;
 }
@@ -323,25 +369,17 @@ vector_shrink(vector_t *self, int64_t size)
 void
 vector_push(vector_t *self, void *item)
 {
-    mmm_start_basic_op();
-    hatrack_perform_wf_op(&self->help_manager,
-                          VECTOR_OP_PUSH,
-                          item,
-                          NULL,
-                          NULL);
-    mmm_end_op();
-
-    return;
+    vector_push_mmm(self, mmm_thread_acquire(), item);
 }
 
 void *
-vector_pop(vector_t *self, bool *found)
+vector_pop_mmm(vector_t *self, mmm_thread_t *thread, bool *found)
 {
     void           *ret;
     vector_store_t *store;
     vec_size_info_t si;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
     /* Before we enqueue ourselves, if we can see the array is
      * definitely empty, just linearize ourselves to the read of
      * array_size_info.
@@ -352,16 +390,40 @@ vector_pop(vector_t *self, bool *found)
         if (found) {
             *found = false;
         }
-        mmm_end_op();
+        mmm_end_op(thread);
         return NULL;
     }
     ret = hatrack_perform_wf_op(&self->help_manager,
+                                thread,
                                 VECTOR_OP_POP,
                                 NULL,
                                 NULL,
                                 found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
+
+    return ret;
+}
+
+void *
+vector_pop(vector_t *self, bool *found)
+{
+    return vector_pop_mmm(self, mmm_thread_acquire(), found);
+}
+
+void *
+vector_peek_mmm(vector_t *self, mmm_thread_t *thread, bool *found)
+{
+    void *ret;
+
+    mmm_start_basic_op(thread);
+    ret = hatrack_perform_wf_op(&self->help_manager,
+                                thread,
+                                VECTOR_OP_PEEK,
+                                NULL,
+                                NULL,
+                                found);
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -369,21 +431,11 @@ vector_pop(vector_t *self, bool *found)
 void *
 vector_peek(vector_t *self, bool *found)
 {
-    void *ret;
-
-    mmm_start_basic_op();
-    ret = hatrack_perform_wf_op(&self->help_manager,
-                                VECTOR_OP_PEEK,
-                                NULL,
-                                NULL,
-                                found);
-    mmm_end_op();
-
-    return ret;
+    return vector_peek_mmm(self, mmm_thread_acquire(), found);
 }
 
 vector_view_t *
-vector_view(vector_t *self)
+vector_view_mmm(vector_t *self, mmm_thread_t *thread)
 {
     vector_view_t  *ret;
     vector_store_t *store;
@@ -394,9 +446,10 @@ vector_view(vector_t *self)
     ret          = hatrack_malloc(sizeof(vector_view_t));
     ret->next_ix = 0;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store     = hatrack_perform_wf_op(&self->help_manager,
+                                  thread,
                                   VECTOR_OP_VIEW,
                                   NULL,
                                   NULL,
@@ -416,9 +469,15 @@ vector_view(vector_t *self)
     ret->contents       = store;
     ret->eject_callback = self->eject_callback;
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
+}
+
+vector_view_t *
+vector_view(vector_t *self)
+{
+    return vector_view_mmm(self, mmm_thread_acquire());
 }
 
 void *
@@ -446,7 +505,7 @@ vector_view_next(vector_view_t *view, bool *found)
 }
 
 void
-vector_view_delete(vector_view_t *view)
+vector_view_delete_mmm(vector_view_t *view, mmm_thread_t *thread)
 {
     void *item;
     bool  found;
@@ -462,11 +521,17 @@ vector_view_delete(vector_view_t *view)
         }
     }
 
-    mmm_retire(view->contents);
+    mmm_retire(thread, view->contents);
 
     hatrack_free(view, sizeof(vector_view_t));
 
     return;
+}
+
+void
+vector_view_delete(vector_view_t *view)
+{
+    vector_view_delete_mmm(view, mmm_thread_acquire());
 }
 
 static vector_store_t *
@@ -492,7 +557,7 @@ vector_new_store(int64_t array_size, int64_t store_size)
  * sure that the current help jobid is appropriate.
  */
 static void
-vector_migrate(vector_store_t *store, vector_t *top)
+vector_migrate(vector_store_t *store, mmm_thread_t *thread, vector_t *top)
 {
     vector_store_t *next_store;
     vector_store_t *expected_next;
@@ -586,7 +651,7 @@ help_move:
     // Okay, now swing the store pointer, and free if needed.
     if (CAS(&top->store, &store, next_store)) {
         if (!store->claimed) {
-            mmm_retire(store);
+            mmm_retire(thread, store);
         }
     }
 
@@ -618,7 +683,7 @@ help_move:
  * will need to expand the underlying store, if necessary.
  */
 static void
-help_push(help_manager_t *manager, help_record_t *record, int64_t jobid)
+help_push(help_manager_t *manager, mmm_thread_t *thread, help_record_t *record, int64_t jobid)
 {
     vector_t       *vec;
     vector_store_t *store;
@@ -643,7 +708,7 @@ help_push(help_manager_t *manager, help_record_t *record, int64_t jobid)
         csi.array_size = slot + 1;
 
         if (slot == store->store_size) {
-            vector_migrate(store, vec);
+            vector_migrate(store, thread, vec);
 
             store = atomic_load(&vec->store);
             si    = atomic_load(&store->array_size_info);
@@ -652,7 +717,7 @@ help_push(help_manager_t *manager, help_record_t *record, int64_t jobid)
             }
             if (si.job_id == jobid) {
                 if (si.array_size == csi.array_size) {
-                    hatrack_complete_help(manager, record, jobid, NULL, true);
+                    hatrack_complete_help(manager, thread, record, jobid, NULL, true);
                     return;
                 }
             }
@@ -682,13 +747,13 @@ help_push(help_manager_t *manager, help_record_t *record, int64_t jobid)
             }
         }
     }
-    hatrack_complete_help(manager, record, jobid, NULL, true);
+    hatrack_complete_help(manager, thread, record, jobid, NULL, true);
 
     return;
 }
 
 static void
-help_pop(help_manager_t *manager, help_record_t *record, int64_t jobid)
+help_pop(help_manager_t *manager, mmm_thread_t *thread, help_record_t *record, int64_t jobid)
 {
     vector_t       *vec;
     vector_store_t *store;
@@ -713,7 +778,7 @@ help_pop(help_manager_t *manager, help_record_t *record, int64_t jobid)
     else {
         if (!(si.array_size)) {
             DEBUG_PTR(jobid, "Pop of empty stack, JID = $1");
-            hatrack_complete_help(manager, record, jobid, NULL, false);
+            hatrack_complete_help(manager, thread, record, jobid, NULL, false);
             return;
         }
         index = si.array_size - 1;
@@ -764,7 +829,7 @@ complete_op:
         DEBUG3(jobid, ret, index, "Job $1 POP $2 (index $3)");
     }
 
-    hatrack_complete_help(manager, record, jobid, ret, true);
+    hatrack_complete_help(manager, thread, record, jobid, ret, true);
     return;
 }
 
@@ -788,7 +853,7 @@ complete_op:
  * like.
  */
 static void
-help_peek(help_manager_t *manager, help_record_t *record, int64_t jobid)
+help_peek(help_manager_t *manager, mmm_thread_t *thread, help_record_t *record, int64_t jobid)
 {
     vector_t       *vec;
     vector_store_t *store;
@@ -805,7 +870,7 @@ help_peek(help_manager_t *manager, help_record_t *record, int64_t jobid)
 
     if (!(si.array_size)) {
 bottom:
-        hatrack_complete_help(manager, record, jobid, NULL, false);
+        hatrack_complete_help(manager, thread, record, jobid, NULL, false);
         return;
     }
 
@@ -819,12 +884,12 @@ bottom:
         goto bottom;
     }
 
-    hatrack_complete_help(manager, record, jobid, item.item, true);
+    hatrack_complete_help(manager, thread, record, jobid, item.item, true);
     return;
 }
 
 static void
-help_grow(help_manager_t *manager, help_record_t *record, int64_t jobid)
+help_grow(help_manager_t *manager, mmm_thread_t *thread, help_record_t *record, int64_t jobid)
 {
     vector_t       *vec;
     vec_size_info_t expected;
@@ -841,7 +906,7 @@ help_grow(help_manager_t *manager, help_record_t *record, int64_t jobid)
     old_size = expected.array_size;
 
     if (store != atomic_load(&vec->store)) {
-        hatrack_complete_help(manager, record, jobid, NULL, true);
+        hatrack_complete_help(manager, thread, record, jobid, NULL, true);
         return;
     }
 
@@ -879,7 +944,7 @@ help_grow(help_manager_t *manager, help_record_t *record, int64_t jobid)
     }
 
     if (already_grown) {
-        hatrack_complete_help(manager, record, jobid, NULL, true);
+        hatrack_complete_help(manager, thread, record, jobid, NULL, true);
         return;
     }
 
@@ -890,15 +955,15 @@ help_grow(help_manager_t *manager, help_record_t *record, int64_t jobid)
      * Otherwise, we need to kick off a migration.
      */
     if (size > store->store_size) {
-        vector_migrate(store, vec);
+        vector_migrate(store, thread, vec);
     }
 
-    hatrack_complete_help(manager, record, jobid, NULL, true);
+    hatrack_complete_help(manager, thread, record, jobid, NULL, true);
     return;
 }
 
 static void
-help_shrink(help_manager_t *manager, help_record_t *record, int64_t jobid)
+help_shrink(help_manager_t *manager, mmm_thread_t *thread, help_record_t *record, int64_t jobid)
 {
     vector_t       *vec;
     vec_size_info_t expected;
@@ -952,7 +1017,7 @@ help_shrink(help_manager_t *manager, help_record_t *record, int64_t jobid)
     }
 
     if (already_shrunk) {
-        hatrack_complete_help(manager, record, jobid, NULL, true);
+        hatrack_complete_help(manager, thread, record, jobid, NULL, true);
         return;
     }
 
@@ -975,7 +1040,7 @@ help_shrink(help_manager_t *manager, help_record_t *record, int64_t jobid)
         CAS(&store->cells[i], &expected_item, candidate_item);
     }
 
-    hatrack_complete_help(manager, record, jobid, NULL, true);
+    hatrack_complete_help(manager, thread, record, jobid, NULL, true);
 
     return;
 }
@@ -986,7 +1051,7 @@ help_shrink(help_manager_t *manager, help_record_t *record, int64_t jobid)
  * wait-free (see above).
  */
 static void
-help_set(help_manager_t *manager, help_record_t *record, int64_t jobid)
+help_set(help_manager_t *manager, mmm_thread_t *thread, help_record_t *record, int64_t jobid)
 {
     vector_t       *vec;
     vector_store_t *store;
@@ -1008,7 +1073,7 @@ help_set(help_manager_t *manager, help_record_t *record, int64_t jobid)
     }
 
     if (si.array_size >= ix) {
-        hatrack_complete_help(manager, record, jobid, NULL, false);
+        hatrack_complete_help(manager, thread, record, jobid, NULL, false);
         return;
     }
 
@@ -1020,7 +1085,7 @@ help_set(help_manager_t *manager, help_record_t *record, int64_t jobid)
     }
 
     if (found_job == jobid) {
-        hatrack_complete_help(manager, record, jobid, NULL, true);
+        hatrack_complete_help(manager, thread, record, jobid, NULL, true);
     }
 
     candidate.item  = item;
@@ -1032,7 +1097,7 @@ help_set(help_manager_t *manager, help_record_t *record, int64_t jobid)
         }
     }
 
-    hatrack_complete_help(manager, record, jobid, NULL, true);
+    hatrack_complete_help(manager, thread, record, jobid, NULL, true);
     return;
 }
 
@@ -1060,7 +1125,7 @@ help_set(help_manager_t *manager, help_record_t *record, int64_t jobid)
  *    can try to help return the store handle to the thread needing help.
  */
 static void
-help_view(help_manager_t *manager, help_record_t *record, int64_t jobid)
+help_view(help_manager_t *manager, mmm_thread_t *thread, help_record_t *record, int64_t jobid)
 {
 #if 0
     vector_t       *vec;
@@ -1073,20 +1138,20 @@ help_view(help_manager_t *manager, help_record_t *record, int64_t jobid)
     item  = atomic_load(&record->retval);
 
     if (item.jobid > jobid) {
-	return;
+        return;
     }
 
     if (item.jobid == jobid) {
-	possible_store = (vector_store_t *)item.data;
-	if (possible_store != store) {
-	    hatrack_complete_help(manager, record, jobid, store, true);
-	}
-	return;
+        possible_store = (vector_store_t *)item.data;
+        if (possible_store != store) {
+            hatrack_complete_help(manager, thread, record, jobid, store, true);
+        }
+        return;
     }
 
     atomic_store(&store->claimed, true);
-    vector_migrate(store, vec);
-    hatrack_complete_help(manager, record, jobid, store, true);
+    vector_migrate(store, thread, vec);
+    hatrack_complete_help(manager, thread, record, jobid, store, true);
 #endif
     return;
 }

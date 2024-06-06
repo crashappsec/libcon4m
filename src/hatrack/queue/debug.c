@@ -19,7 +19,6 @@
  *
  *  Author:         John Viega, john@zork.org
  */
-
 #include "hatrack/debug.h"
 
 #ifdef HATRACK_DEBUG
@@ -92,7 +91,7 @@ debug_dump(uint64_t max_msgs)
 void
 debug_thread(void)
 {
-    debug_other_thread(mmm_mytid);
+    debug_other_thread(mmm_thread_acquire()->tid);
 
     return;
 }

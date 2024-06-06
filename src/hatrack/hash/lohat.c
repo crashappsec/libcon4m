@@ -37,15 +37,15 @@
 static lohat_store_t  *lohat_store_new    (uint64_t);
 static void           *lohat_store_get    (lohat_store_t *, hatrack_hash_t,
 					   bool *);
-static void           *lohat_store_put    (lohat_store_t *, lohat_t *,
+static void           *lohat_store_put    (lohat_store_t *, mmm_thread_t *, lohat_t *,
 					   hatrack_hash_t, void *, bool *);
-static void           *lohat_store_replace(lohat_store_t *, lohat_t *,
+static void           *lohat_store_replace(lohat_store_t *, mmm_thread_t *, lohat_t *,
 					   hatrack_hash_t, void *, bool *);
-static bool            lohat_store_add    (lohat_store_t *, lohat_t *,
+static bool            lohat_store_add    (lohat_store_t *, mmm_thread_t *, lohat_t *,
 					   hatrack_hash_t, void *);
-static void           *lohat_store_remove (lohat_store_t *, lohat_t *,
+static void           *lohat_store_remove (lohat_store_t *, mmm_thread_t *, lohat_t *,
 					   hatrack_hash_t, bool *);
-static lohat_store_t  *lohat_store_migrate(lohat_store_t *, lohat_t *);
+static lohat_store_t  *lohat_store_migrate(lohat_store_t *, mmm_thread_t *, lohat_t *);
 
 // clang-format on
 
@@ -151,7 +151,7 @@ lohat_cleanup(lohat_t *self)
         p++;
     }
 
-    mmm_retire(store);
+    mmm_retire_unused(store);
 
     return;
 }
@@ -199,17 +199,39 @@ lohat_delete(lohat_t *self)
  * lower-level (per-store) operations.
  */
 void *
-lohat_get(lohat_t *self, hatrack_hash_t hv, bool *found)
+lohat_get_mmm(lohat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
     void          *ret;
     lohat_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
     ret   = lohat_store_get(store, hv, found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
+
+    return ret;
+}
+
+void *
+lohat_get(lohat_t *self, hatrack_hash_t hv, bool *found)
+{
+    return lohat_get_mmm(self, mmm_thread_acquire(), hv, found);
+}
+
+void *
+lohat_put_mmm(lohat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
+{
+    void          *ret;
+    lohat_store_t *store;
+
+    mmm_start_basic_op(thread);
+
+    store = atomic_read(&self->store_current);
+    ret   = lohat_store_put(store, thread, self, hv, item, found);
+
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -217,15 +239,21 @@ lohat_get(lohat_t *self, hatrack_hash_t hv, bool *found)
 void *
 lohat_put(lohat_t *self, hatrack_hash_t hv, void *item, bool *found)
 {
+    return lohat_put_mmm(self, mmm_thread_acquire(), hv, item, found);
+}
+
+void *
+lohat_replace_mmm(lohat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
+{
     void          *ret;
     lohat_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
-    ret   = lohat_store_put(store, self, hv, item, found);
+    ret   = lohat_store_replace(store, thread, self, hv, item, found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -233,15 +261,21 @@ lohat_put(lohat_t *self, hatrack_hash_t hv, void *item, bool *found)
 void *
 lohat_replace(lohat_t *self, hatrack_hash_t hv, void *item, bool *found)
 {
-    void          *ret;
+    return lohat_replace_mmm(self, mmm_thread_acquire(), hv, item, found);
+}
+
+bool
+lohat_add_mmm(lohat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item)
+{
+    bool           ret;
     lohat_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
-    ret   = lohat_store_replace(store, self, hv, item, found);
+    ret   = lohat_store_add(store, thread, self, hv, item);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -249,15 +283,21 @@ lohat_replace(lohat_t *self, hatrack_hash_t hv, void *item, bool *found)
 bool
 lohat_add(lohat_t *self, hatrack_hash_t hv, void *item)
 {
-    bool           ret;
+    return lohat_add_mmm(self, mmm_thread_acquire(), hv, item);
+}
+
+void *
+lohat_remove_mmm(lohat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
+{
+    void          *ret;
     lohat_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
-    ret   = lohat_store_add(store, self, hv, item);
+    ret   = lohat_store_remove(store, thread, self, hv, found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -265,17 +305,7 @@ lohat_add(lohat_t *self, hatrack_hash_t hv, void *item)
 void *
 lohat_remove(lohat_t *self, hatrack_hash_t hv, bool *found)
 {
-    void          *ret;
-    lohat_store_t *store;
-
-    mmm_start_basic_op();
-
-    store = atomic_read(&self->store_current);
-    ret   = lohat_store_remove(store, self, hv, found);
-
-    mmm_end_op();
-
-    return ret;
+    return lohat_remove_mmm(self, mmm_thread_acquire(), hv, found);
 }
 
 /* lohat_len()
@@ -290,6 +320,12 @@ uint64_t
 lohat_len(lohat_t *self)
 {
     return atomic_read(&self->item_count);
+}
+
+uint64_t
+lohat_len_mmm(lohat_t *self, mmm_thread_t *thread)
+{
+    return lohat_len(self);
 }
 
 /* lohat_view()
@@ -326,7 +362,7 @@ lohat_len(lohat_t *self)
  * ugly casting for us).
  */
 hatrack_view_t *
-lohat_view(lohat_t *self, uint64_t *out_num, bool sort)
+lohat_view_mmm(lohat_t *self, mmm_thread_t *thread, uint64_t *out_num, bool sort)
 {
     lohat_history_t *cur;
     lohat_history_t *end;
@@ -339,7 +375,7 @@ lohat_view(lohat_t *self, uint64_t *out_num, bool sort)
     uint64_t         sort_epoch;
     uint64_t         num_items;
 
-    epoch     = mmm_start_linearized_op();
+    epoch     = mmm_start_linearized_op(thread);
     store     = self->store_current;
     cur       = store->hist_buckets;
     end       = cur + (store->last_slot + 1);
@@ -410,7 +446,7 @@ lohat_view(lohat_t *self, uint64_t *out_num, bool sort)
     // memory and return NULL.
     if (!num_items) {
         hatrack_free(view, alloc_len);
-        mmm_end_op();
+        mmm_end_op(thread);
 
         return NULL;
     }
@@ -424,9 +460,15 @@ lohat_view(lohat_t *self, uint64_t *out_num, bool sort)
         qsort(view, num_items, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return view;
+}
+
+hatrack_view_t *
+lohat_view(lohat_t *self, uint64_t *out_num, bool sort)
+{
+    return lohat_view_mmm(self, mmm_thread_acquire(), out_num, sort);
 }
 
 /* mmm_alloc() will zero out any stores we allocate, so we do not
@@ -541,6 +583,7 @@ found_history_bucket:
 
 static void *
 lohat_store_put(lohat_store_t *self,
+                mmm_thread_t  *thread,
                 lohat_t       *top,
                 hatrack_hash_t hv1,
                 void          *item,
@@ -580,9 +623,9 @@ lohat_store_put(lohat_store_t *self,
     }
 
 migrate_and_retry:
-    self = lohat_store_migrate(self, top);
+    self = lohat_store_migrate(self, thread, top);
 
-    return lohat_store_put(self, top, hv1, item, found);
+    return lohat_store_put(self, thread, top, hv1, item, found);
 
 found_history_bucket:
     head = atomic_read(&bucket->head);
@@ -674,7 +717,7 @@ not_overwriting:
      * to continue to use the pointer until the end of our operation.
      */
 
-    mmm_retire(head);
+    mmm_retire(thread, head);
 
     if (head->deleted) {
         goto not_overwriting;
@@ -689,6 +732,7 @@ not_overwriting:
 
 static void *
 lohat_store_replace(lohat_store_t *self,
+                    mmm_thread_t  *thread,
                     lohat_t       *top,
                     hatrack_hash_t hv1,
                     void          *item,
@@ -735,9 +779,9 @@ found_history_bucket:
 
     if (hatrack_pflag_test(head, LOHAT_F_MOVING)) {
 migrate_and_retry:
-        self = lohat_store_migrate(self, top);
+        self = lohat_store_migrate(self, thread, top);
 
-        return lohat_store_replace(self, top, hv1, item, found);
+        return lohat_store_replace(self, thread, top, hv1, item, found);
     }
 
     candidate       = mmm_alloc(sizeof(lohat_record_t));
@@ -775,7 +819,7 @@ migrate_and_retry:
     } while (!LCAS(&bucket->head, &head, candidate, LOHAT_CTR_REC_INSTALL));
 
     mmm_commit_write(candidate);
-    mmm_retire(head);
+    mmm_retire(thread, head);
 
     if (found) {
         *found = true;
@@ -786,6 +830,7 @@ migrate_and_retry:
 
 static bool
 lohat_store_add(lohat_store_t *self,
+                mmm_thread_t  *thread,
                 lohat_t       *top,
                 hatrack_hash_t hv1,
                 void          *item)
@@ -825,9 +870,9 @@ lohat_store_add(lohat_store_t *self,
     }
 
 migrate_and_retry:
-    self = lohat_store_migrate(self, top);
+    self = lohat_store_migrate(self, thread, top);
 
-    return lohat_store_add(self, top, hv1, item);
+    return lohat_store_add(self, thread, top, hv1, item);
 
 found_history_bucket:
     head = atomic_read(&bucket->head);
@@ -873,7 +918,7 @@ found_history_bucket:
          */
         mmm_help_commit(head);
         mmm_commit_write(candidate);
-        mmm_retire(head);
+        mmm_retire(thread, head);
     }
     else {
         mmm_commit_write(candidate);
@@ -884,6 +929,7 @@ found_history_bucket:
 
 static void *
 lohat_store_remove(lohat_store_t *self,
+                   mmm_thread_t  *thread,
                    lohat_t       *top,
                    hatrack_hash_t hv1,
                    bool          *found)
@@ -930,9 +976,9 @@ found_history_bucket:
 
     if (hatrack_pflag_test(head, LOHAT_F_MOVING)) {
 migrate_and_retry:
-        self = lohat_store_migrate(self, top);
+        self = lohat_store_migrate(self, thread, top);
 
-        return lohat_store_remove(self, top, hv1, found);
+        return lohat_store_remove(self, thread, top, hv1, found);
     }
 
     // If !head, then some write hasn't finished, and we consider
@@ -974,7 +1020,7 @@ migrate_and_retry:
     }
 
     mmm_commit_write(candidate);
-    mmm_retire(head);
+    mmm_retire(thread, head);
 
     if (found) {
         *found = true;
@@ -986,7 +1032,7 @@ migrate_and_retry:
 }
 
 static lohat_store_t *
-lohat_store_migrate(lohat_store_t *self, lohat_t *top)
+lohat_store_migrate(lohat_store_t *self, mmm_thread_t *thread, lohat_t *top)
 {
     lohat_store_t   *new_store;
     lohat_store_t   *candidate_store;
@@ -1054,7 +1100,7 @@ lohat_store_migrate(lohat_store_t *self, lohat_t *top)
 
         if (head && hatrack_pflag_test(candidate, LOHAT_F_MOVED)) {
             mmm_help_commit(head);
-            mmm_retire_fast(head);
+            mmm_retire_fast(thread, head);
             continue;
         }
 
@@ -1193,7 +1239,7 @@ didnt_win:
      * the store are done with it.
      */
     if (LCAS(&top->store_current, &self, new_store, LOHAT_CTR_STORE_INSTALL)) {
-        mmm_retire_fast(self);
+        mmm_retire_fast(thread, self);
     }
 
     /* Instead of returning new_store here, we accept that we might

@@ -40,6 +40,7 @@
 
 #include "base.h"
 #include "capq.h"
+#include "mmm.h"
 
 typedef struct {
     void   *data;
@@ -54,7 +55,7 @@ typedef struct {
     _Atomic help_cell_t retval;
 } help_record_t;
 
-typedef void (*helper_func)(void *, help_record_t *, uint64_t);
+typedef void (*helper_func)(void *, mmm_thread_t *thread, help_record_t *, uint64_t);
 
 typedef struct {
     void        *parent;
@@ -63,5 +64,5 @@ typedef struct {
 } help_manager_t;
 
 HATRACK_EXTERN void  hatrack_help_init(help_manager_t *, void *, helper_func *, bool);
-HATRACK_EXTERN void *hatrack_perform_wf_op(help_manager_t *, uint64_t, void *, void *, bool *);
-HATRACK_EXTERN void  hatrack_complete_help(help_manager_t *, help_record_t *, int64_t, void *, bool);
+HATRACK_EXTERN void *hatrack_perform_wf_op(help_manager_t *, mmm_thread_t *, uint64_t, void *, void *, bool *);
+HATRACK_EXTERN void  hatrack_complete_help(help_manager_t *, mmm_thread_t *, help_record_t *, int64_t, void *, bool);

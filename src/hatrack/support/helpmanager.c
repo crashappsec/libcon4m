@@ -54,6 +54,7 @@ static const help_cell_t empty_cell = {
 
 void *
 hatrack_perform_wf_op(help_manager_t *manager,
+                      mmm_thread_t   *thread,
                       uint64_t        op,
                       void           *data,
                       void           *aux,
@@ -69,17 +70,17 @@ hatrack_perform_wf_op(help_manager_t *manager,
     help_cell_t    retcell;
     help_cell_t    foundcell;
 
-    my_record          = &thread_records[mmm_mytid];
+    my_record          = &thread_records[mmm_thread_acquire()->tid];
     my_record->op      = op;
     my_record->input   = data;
     my_record->aux     = aux;
     my_record->success = empty_cell;
     my_record->retval  = empty_cell;
 
-    my_jobid = capq_enqueue(&manager->capq, my_record);
+    my_jobid = capq_enqueue_mmm(&manager->capq, thread, my_record);
 
     do {
-        qtop = capq_top(&manager->capq, &found);
+        qtop = capq_top_mmm(&manager->capq, thread, &found);
         if (!found) {
             break;
         }
@@ -87,7 +88,7 @@ hatrack_perform_wf_op(help_manager_t *manager,
         other_record = qtop.item;
         f            = manager->vtable[other_record->op];
 
-        (*f)(manager, other_record, other_jobid);
+        (*f)(manager, thread, other_record, other_jobid);
     } while (other_jobid < my_jobid);
 
     retcell = atomic_load(&my_record->retval);
@@ -102,6 +103,7 @@ hatrack_perform_wf_op(help_manager_t *manager,
 
 void
 hatrack_complete_help(help_manager_t *manager,
+                      mmm_thread_t   *thread,
                       help_record_t  *record,
                       int64_t         jobid,
                       void           *result,
@@ -128,7 +130,7 @@ hatrack_complete_help(help_manager_t *manager,
         CAS(&record->success, &expected, candidate);
     }
 
-    capq_cap(&manager->capq, jobid);
+    capq_cap_mmm(&manager->capq, thread, jobid);
 
     return;
 }

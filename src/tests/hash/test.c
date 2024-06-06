@@ -64,14 +64,49 @@ precompute_hashes(uint64_t max_range)
     return;
 }
 
+#ifdef HATRACK_NO_PTHREAD
+static pthread_key_t thread_pkey;
+
+struct thread_data {
+    size_t size;
+    char   data[];
+};
+
+static void
+thread_release_pthread(void *arg)
+{
+    pthread_setspecific(thread_pkey, NULL);
+
+    struct thread_data *pt = arg;
+    mmm_thread_release((mmm_thread_t *)pt->data);
+    hatrack_free(arg, pt->size);
+}
+
+static mmm_thread_t *
+thread_acquire_data(void *aux, size_t size)
+{
+    struct thread_data *pt = pthread_getspecific(thread_pkey);
+    if (NULL == pt) {
+        pt       = hatrack_zalloc(sizeof(struct thread_data) + size);
+        pt->size = size;
+        pthread_setspecific(thread_pkey, pt);
+    }
+    return (mmm_thread_t *)pt->data;
+}
+
+#endif
+
 int
 main(int argc, char *argv[])
 {
+#ifdef HATRACK_NO_PTHREAD
+    pthread_key_create(&thread_pkey, thread_release_pthread);
+    mmm_setthreadfns(thread_acquire_data, NULL);
+#endif
+
     config_info_t *config;
 
     config = parse_args(argc, argv);
-
-    mmm_register_thread();
 
     if (config->run_custom_test) {
         run_performance_test(&config->custom);

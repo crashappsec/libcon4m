@@ -30,14 +30,20 @@ enum64(crown_flag_t,
  * part of the public API.
  */
 
-// clang-format off
-crown_store_t    *crown_store_new    (uint64_t);
-void             *crown_store_get    (crown_store_t *, hatrack_hash_t, bool *);
-void             *crown_store_put    (crown_store_t *, crown_t *,
-				      hatrack_hash_t, void *, bool *, uint64_t);
-void             *crown_store_replace(crown_store_t *, crown_t *,
-				      hatrack_hash_t, void *, bool *, uint64_t);
-bool              crown_store_add    (crown_store_t *, crown_t *,
-				      hatrack_hash_t, void *, uint64_t);
-void             *crown_store_remove (crown_store_t *, crown_t *,
-				      hatrack_hash_t, bool *, uint64_t);
+extern crown_store_t *
+crown_store_new(uint64_t size);
+
+extern void *
+crown_store_get(crown_store_t *, hatrack_hash_t, bool *);
+
+extern void *
+crown_store_put(crown_store_t *, mmm_thread_t *, crown_t *, hatrack_hash_t, void *, bool *, uint64_t);
+
+extern void *
+crown_store_replace(crown_store_t *, mmm_thread_t *, crown_t *, hatrack_hash_t, void *, bool *, uint64_t);
+
+extern bool
+crown_store_add(crown_store_t *, mmm_thread_t *, crown_t *, hatrack_hash_t, void *, uint64_t);
+
+extern void *
+crown_store_remove(crown_store_t *, mmm_thread_t *, crown_t *, hatrack_hash_t, bool *, uint64_t);

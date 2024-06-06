@@ -107,7 +107,7 @@ logring_set_dequeue_done(uint64_t state)
     return state & ~(LOGRING_DEQUEUE_RESERVE | LOGRING_ENQUEUE_DONE);
 }
 
-static void logring_view_help_if_needed(logring_t *);
+static void logring_view_help_if_needed(logring_t *, mmm_thread_t *);
 
 static const logring_entry_info_t empty_entry = {
     .write_epoch = 0,
@@ -177,7 +177,7 @@ logring_delete(logring_t *self)
 }
 
 void
-logring_enqueue(logring_t *self, void *item, uint64_t len)
+logring_enqueue_mmm(logring_t *self, mmm_thread_t *thread, void *item, uint64_t len)
 {
     uint64_t             ix;
     uint64_t             byte_ix;
@@ -190,7 +190,7 @@ logring_enqueue(logring_t *self, void *item, uint64_t len)
         len = self->entry_len;
     }
 
-    logring_view_help_if_needed(self);
+    logring_view_help_if_needed(self, thread);
 
     while (true) {
         start_epoch = hatring_enqueue_epoch(atomic_read(&self->ring->epochs));
@@ -226,8 +226,14 @@ logring_enqueue(logring_t *self, void *item, uint64_t len)
     return;
 }
 
+void
+logring_enqueue(logring_t *self, void *item, uint64_t len)
+{
+    logring_enqueue_mmm(self, mmm_thread_acquire(), item, len);
+}
+
 bool
-logring_dequeue(logring_t *self, void *output, uint64_t *len)
+logring_dequeue_mmm(logring_t *self, mmm_thread_t *thread, void *output, uint64_t *len)
 {
     uint64_t             ix;
     uint64_t             byte_ix;
@@ -237,7 +243,7 @@ logring_dequeue(logring_t *self, void *output, uint64_t *len)
     logring_entry_info_t candidate;
     logring_entry_t     *cur;
 
-    logring_view_help_if_needed(self);
+    logring_view_help_if_needed(self, thread);
 
     while (true) {
         ix = (uint64_t)hatring_dequeue_w_epoch(self->ring, &found, &epoch);
@@ -276,8 +282,14 @@ safely_dequeue:
     }
 }
 
+bool
+logring_dequeue(logring_t *self, void *output, uint64_t *len)
+{
+    return logring_dequeue_mmm(self, mmm_thread_acquire(), output, len);
+}
+
 logring_view_t *
-logring_view(logring_t *self, bool lax_view)
+logring_view_mmm(logring_t *self, mmm_thread_t *thread, bool lax_view)
 {
     logring_view_t       *ret;
     uint64_t              n;
@@ -296,7 +308,7 @@ logring_view(logring_t *self, bool lax_view)
     while (true) {
         expected = atomic_read(&self->view_state);
 
-        logring_view_help_if_needed(self);
+        logring_view_help_if_needed(self, thread);
 
         candidate.last_viewid = expected.last_viewid + 1;
         ret->start_epoch      = atomic_read(&self->ring->epochs);
@@ -306,7 +318,7 @@ logring_view(logring_t *self, bool lax_view)
         }
     }
 
-    logring_view_help_if_needed(self);
+    logring_view_help_if_needed(self, thread);
 
     if (lax_view) {
         return ret;
@@ -400,6 +412,12 @@ logring_view(logring_t *self, bool lax_view)
     return ret;
 }
 
+logring_view_t *
+logring_view(logring_t *self, bool lax_view)
+{
+    return logring_view_mmm(self, mmm_thread_acquire(), lax_view);
+}
+
 void *
 logring_view_next(logring_view_t *view, uint64_t *len)
 {
@@ -424,7 +442,7 @@ logring_view_next(logring_view_t *view, uint64_t *len)
 }
 
 void
-logring_view_delete(logring_view_t *view)
+logring_view_delete_mmm(logring_view_t *view, mmm_thread_t *thread)
 {
     logring_view_entry_t *cur;
 
@@ -439,15 +457,21 @@ logring_view_delete(logring_view_t *view)
         }
     }
 
-    mmm_start_basic_op();
-    mmm_retire(view);
-    mmm_end_op();
+    mmm_start_basic_op(thread);
+    mmm_retire(thread, view);
+    mmm_end_op(thread);
 
     return;
 }
 
+void
+logring_view_delete(logring_view_t *view)
+{
+    logring_view_delete_mmm(view, mmm_thread_acquire());
+}
+
 static void
-logring_view_help_if_needed(logring_t *self)
+logring_view_help_if_needed(logring_t *self, mmm_thread_t *thread)
 {
     view_info_t           view_info;
     view_info_t           candidate_vi;
@@ -469,7 +493,7 @@ logring_view_help_if_needed(logring_t *self)
     char                 *contents;
     char                 *exp_contents;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
     view_info = atomic_read(&self->view_state);
 
     if (!view_info.view) {
@@ -595,7 +619,7 @@ got_entry_index:
         while (true) {
             if (logring_current_entry_epoch(exp_de_info, rix)) {
                 if (exp_de_info.view_id > vid) {
-                    mmm_end_op();
+                    mmm_end_op(thread);
                     return;
                 }
 
@@ -669,7 +693,7 @@ next_cell:
 
     CAS(&self->view_state, &view_info, candidate_vi);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return;
 }

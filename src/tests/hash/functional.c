@@ -13,7 +13,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <pthread.h>
 
 typedef struct {
     uint32_t   tid;
@@ -23,15 +23,13 @@ typedef struct {
     uint32_t   iters; // Number of times to run the test;
 } func_test_info_t;
 
-typedef bool (*test_func_t)(func_test_info_t *);
+typedef bool (*test_func_t)(func_test_info_t *, mmm_thread_t *thread);
 
-// clang-format off
 uint32_t            one_thread[]       = {1, 0};
 uint32_t            multiple_threads[] = {2, 4, 8, 20, 100, 0};
 uint32_t            basic_sizes[]      = {10, 100, 1000, 10000, 0};
 uint32_t            shrug_sizes[]      = {1, 0};
 _Atomic test_func_t test_func;
-//  clang-format on
 
 static void *
 start_one_functest_thread(void *info)
@@ -39,18 +37,15 @@ start_one_functest_thread(void *info)
     test_func_t func;
     bool        ret;
 
-    mmm_register_thread();
+    mmm_thread_t *thread = mmm_thread_acquire();
 
     while (!(func = atomic_load(&test_func)))
         ;
 
-    ret = (*test_func)(info);
-
-    mmm_clean_up_before_exit();
+    ret = (*test_func)(info, thread);
 
     return (void *)(int64_t)ret;
 }
-
 
 static bool
 functionality_test(test_func_t func,
@@ -66,7 +61,9 @@ functionality_test(test_func_t func,
     testhat_t       *dict;
 
     atomic_store(&test_func, NULL);
-    atomic_store(&mmm_nexttid, 0); // Reset thread ids.
+
+    extern void mmm_reset_tids(void);
+    mmm_reset_tids();
 
     dict = testhat_new(type);
 
@@ -75,7 +72,7 @@ functionality_test(test_func_t func,
      * do range * 2, just to give us some headroom for other potential
      * functional tests.
      */
-    precompute_hashes(range*2);
+    precompute_hashes(range * 2);
 
     for (i = 0; i < num_threads; i++) {
         info[i].tid   = i;
@@ -101,7 +98,6 @@ functionality_test(test_func_t func,
 
     return true;
 }
-
 
 static void
 run_one_func_test(test_func_t func,
@@ -149,36 +145,36 @@ run_func_test(char       *name,
     fprintf(stderr, "[[ Test: %s ]]\n", name);
     tcount_ix = 0;
     while (tcounts[tcount_ix]) {
-	range_ix = 0;
-	while (ranges[range_ix]) {
-	    fprintf(stderr,
-		    "[%10s] -- Parameters: threads=%4d, "
-		    "iters=%7d, range=%6d\n",
-		    name,
-		    tcounts[tcount_ix],
-		    iters,
-		    ranges[range_ix]);
-	    dict_ix = 0;
-	    while (types[dict_ix]) {
-		info = algorithm_info(types[dict_ix]);
-		if (info->hashbytes != 16) {
-		    dict_ix++;
-		    continue;
-		}
-		if (tcounts[tcount_ix] != 1 && !info->threadsafe) {
-		    dict_ix++;
-		    continue;
-		}
-		run_one_func_test(func,
-				  iters,
-				  types[dict_ix],
-				  ranges[range_ix],
-				  tcounts[tcount_ix]);
-		dict_ix++;
-	    }
-	    range_ix++;
-	}
-	tcount_ix++;
+        range_ix = 0;
+        while (ranges[range_ix]) {
+            fprintf(stderr,
+                    "[%10s] -- Parameters: threads=%4d, "
+                    "iters=%7d, range=%6d\n",
+                    name,
+                    tcounts[tcount_ix],
+                    iters,
+                    ranges[range_ix]);
+            dict_ix = 0;
+            while (types[dict_ix]) {
+                info = algorithm_info(types[dict_ix]);
+                if (info->hashbytes != 16) {
+                    dict_ix++;
+                    continue;
+                }
+                if (tcounts[tcount_ix] != 1 && !info->threadsafe) {
+                    dict_ix++;
+                    continue;
+                }
+                run_one_func_test(func,
+                                  iters,
+                                  types[dict_ix],
+                                  ranges[range_ix],
+                                  tcounts[tcount_ix]);
+                dict_ix++;
+            }
+            range_ix++;
+        }
+        tcount_ix++;
     }
 
     return;
@@ -192,37 +188,37 @@ run_func_test(char       *name,
  * Ignores the # of iterations, only the range.
  */
 static bool
-test_basic(func_test_info_t *info)
+test_basic(func_test_info_t *info, mmm_thread_t *thread)
 {
     uint32_t i;
 
     for (i = 0; i < info->range; i++) {
-        test_put(info->dict, i + 1, i + 1);
-        if (test_get(info->dict, i + 1) != i + 1) {
+        test_put(info->dict, thread, i + 1, i + 1);
+        if (test_get(info->dict, thread, i + 1) != i + 1) {
             fprintf(stderr,
                     "%u != %llu\n",
-                    test_get(info->dict, i + 1),
+                    test_get(info->dict, thread, i + 1),
                     (unsigned long long)(i + 1));
             return false;
         }
     }
 
     for (i = 0; i < (info->range / 2); i++) {
-        test_remove(info->dict, i + 1);
+        test_remove(info->dict, thread, i + 1);
     }
 
     for (i = 0; i < (info->range / 2); i++) {
-        if (test_get(info->dict, i + 1)) {
+        if (test_get(info->dict, thread, i + 1)) {
             fprintf(stderr, "didn't delete.\n");
             return false;
         }
     }
 
     for (; i < info->range; i++) {
-        if (test_get(info->dict, i + 1) != i + 1) {
+        if (test_get(info->dict, thread, i + 1) != i + 1) {
             fprintf(stderr,
                     "%u != %llu\n",
-                    test_get(info->dict, i + 1),
+                    test_get(info->dict, thread, i + 1),
                     (unsigned long long)(i + 1));
             return false;
         }
@@ -238,7 +234,7 @@ test_basic(func_test_info_t *info)
  * iterator.
  */
 static bool
-test_ordering(func_test_info_t *info)
+test_ordering(func_test_info_t *info, mmm_thread_t *thread)
 {
     uint32_t        i;
     uint64_t        n;
@@ -247,18 +243,18 @@ test_ordering(func_test_info_t *info)
     hatrack_view_t *view;
 
     for (i = 0; i < info->range; i++) {
-        test_put(info->dict, i + 1, i + 1);
+        test_put(info->dict, thread, i + 1, i + 1);
     }
 
     for (i = 0; i < (info->range / 2); i++) {
-        test_remove(info->dict, i + 1);
+        test_remove(info->dict, thread, i + 1);
     }
 
     for (i = 0; i < info->range; i++) {
-        test_put(info->dict, i + 1, i + 1);
+        test_put(info->dict, thread, i + 1, i + 1);
     }
 
-    view = test_view(info->dict, &n, true);
+    view = test_view(info->dict, thread, &n, true);
 
     if (n != info->range) {
         hatrack_view_delete(view, n);
@@ -269,15 +265,15 @@ test_ordering(func_test_info_t *info)
         k = (uint32_t)(((uint64_t)view[i].item) >> 32);
         v = (uint32_t)(((uint64_t)view[i].item) & 0xffffffff);
         if (k != v) {
-	    printf("k(%d) != v(%d)\n", k, v);
+            printf("k(%d) != v(%d)\n", k, v);
             hatrack_view_delete(view, n);
             return false;
         }
 
         if (((i + (info->range / 2) + 1) % info->range) != (k % info->range)) {
-	    printf("%d != %d\n",
-		   (i + (info->range / 2) + 1) % info->range,
-		   k % info->range);
+            printf("%d != %d\n",
+                   (i + (info->range / 2) + 1) % info->range,
+                   k % info->range);
             hatrack_view_delete(view, n);
             return false;
         }
@@ -295,46 +291,46 @@ test_ordering(func_test_info_t *info)
  */
 
 static bool
-test_condput(func_test_info_t *info)
+test_condput(func_test_info_t *info, mmm_thread_t *thread)
 {
     uint32_t i;
 
     for (i = 0; i < info->range; i++) {
-        test_add(info->dict, i + 1, i + 1);
+        test_add(info->dict, thread, i + 1, i + 1);
     }
 
     for (i = 0; i < info->range; i++) {
-        if (test_get(info->dict, i + 1) != i + 1) {
+        if (test_get(info->dict, thread, i + 1) != i + 1) {
             fprintf(stderr,
                     "Get != put (%d != %llu)\n",
-                    test_get(info->dict, i + 1),
+                    test_get(info->dict, thread, i + 1),
                     (unsigned long long)(i + 1));
             return false;
         }
     }
 
     for (i = 0; i < info->range; i++) {
-        if (test_add(info->dict, i + 1, i + 2)) {
+        if (test_add(info->dict, thread, i + 1, i + 2)) {
             fprintf(stderr, "Didn't return false when it should have.\n");
             return false;
         }
-        test_remove(info->dict, i + 1);
+        test_remove(info->dict, thread, i + 1);
     }
 
     for (i = 0; i < info->range; i++) {
-        if (!test_add(info->dict, i + 1, i + 2)) {
+        if (!test_add(info->dict, thread, i + 1, i + 2)) {
             fprintf(stderr, "Can't reput over a deleted item\n");
             return false;
         }
     }
 
     for (i = 0; i < info->range; i++) {
-        if (test_get(info->dict, i + 1) != i + 2) {
+        if (test_get(info->dict, thread, i + 1) != i + 2) {
             fprintf(stderr,
                     "No consistency in final check (expected: "
                     "%llu, got: %u)\n",
                     (unsigned long long)(i + 2),
-                    test_get(info->dict, i + 1));
+                    test_get(info->dict, thread, i + 1));
             return false;
         }
     }
@@ -343,24 +339,24 @@ test_condput(func_test_info_t *info)
 }
 
 static bool
-test_replace_op(func_test_info_t *info)
+test_replace_op(func_test_info_t *info, mmm_thread_t *thread)
 {
     uint32_t i;
 
     for (i = 0; i < 50; i++) {
-        test_put(info->dict, i + 1, i + 1);
+        test_put(info->dict, thread, i + 1, i + 1);
     }
     for (i = 0; i < 100; i++) {
-        test_replace(info->dict, i + 1, i + 2);
+        test_replace(info->dict, thread, i + 1, i + 2);
     }
     for (i = 0; i < 50; i++) {
-        if (test_get(info->dict, i + 1) != i + 2) {
+        if (test_get(info->dict, thread, i + 1) != i + 2) {
             return false;
         }
     }
 
     for (; i < 100; i++) {
-        if (test_get(info->dict, i + 1)) {
+        if (test_get(info->dict, thread, i + 1)) {
             return false;
         }
     }
@@ -370,20 +366,20 @@ test_replace_op(func_test_info_t *info)
 
 // Validate this by looking at counters.
 static bool
-test_shrinking(func_test_info_t *info)
+test_shrinking(func_test_info_t *info, mmm_thread_t *thread)
 {
     uint32_t i;
 
     for (i = 0; i < 380; i++) {
-        test_put(info->dict, i + 1, i + 1);
+        test_put(info->dict, thread, i + 1, i + 1);
     }
 
     for (i = 0; i < 380; i++) {
-        test_remove(info->dict, i + 1);
+        test_remove(info->dict, thread, i + 1);
     }
 
     for (i = 381; i < 500; i++) {
-        test_put(info->dict, i + 1, i + 1);
+        test_put(info->dict, thread, i + 1, i + 1);
     }
 
     return true;
@@ -395,16 +391,16 @@ test_shrinking(func_test_info_t *info)
  * then check to make sure the items are all correct.
  */
 static bool
-test_parallel(func_test_info_t *info)
+test_parallel(func_test_info_t *info, mmm_thread_t *thread)
 {
     uint32_t i, n;
 
     for (i = 0; i < info->range; i++) {
-        test_put(info->dict, i, i);
+        test_put(info->dict, thread, i, i);
     }
 
     for (i = 0; i < info->range; i++) {
-        n = test_get(info->dict, i);
+        n = test_get(info->dict, thread, i);
 
         if (n != i) {
             printf("%llu != %llu\n",
@@ -429,43 +425,43 @@ run_functional_tests(config_info_t *config)
     run_func_test("basic",
                   test_basic,
                   1,
-		  hat_list,
-		  basic_sizes,
+                  hat_list,
+                  basic_sizes,
                   one_thread);
     counters_output_delta();
     run_func_test("ordering",
                   test_ordering,
                   1,
-		  hat_list,
-		  basic_sizes,
+                  hat_list,
+                  basic_sizes,
                   one_thread);
     counters_output_delta();
     run_func_test("shrinking",
-		  test_shrinking,
-		  1,
-		  hat_list,
-		  shrug_sizes,
-		  one_thread);
+                  test_shrinking,
+                  1,
+                  hat_list,
+                  shrug_sizes,
+                  one_thread);
     counters_output_delta();
     run_func_test("replace",
-		  test_replace_op,
-		  1,
-		  hat_list,
-		  shrug_sizes,
-		  one_thread);
+                  test_replace_op,
+                  1,
+                  hat_list,
+                  shrug_sizes,
+                  one_thread);
     counters_output_delta();
     run_func_test("condput",
-		  test_condput,
-		  1,
-		  hat_list,
-		  shrug_sizes,
-		  one_thread);
+                  test_condput,
+                  1,
+                  hat_list,
+                  shrug_sizes,
+                  one_thread);
     counters_output_delta();
     run_func_test("parallel",
                   test_parallel,
                   10,
-		  hat_list,
-		  basic_sizes,
+                  hat_list,
+                  basic_sizes,
                   multiple_threads);
     counters_output_delta();
 

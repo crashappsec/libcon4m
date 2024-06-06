@@ -144,6 +144,12 @@ queue_len(queue_t *self)
     return atomic_read(&self->len);
 }
 
+uint64_t
+queue_len_mmm(queue_t *self, mmm_thread_t *thread)
+{
+    return queue_len(self);
+}
+
 /* queue_enqueue is pretty simple in the average case. It only gets
  * complicated when the segment we're working in runs out of cells
  * in which we're allowed to enqueue.  Otherwise, we're just
@@ -153,7 +159,7 @@ queue_len(queue_t *self)
  * ever increase in steps of 1).
  */
 void
-queue_enqueue(queue_t *self, void *item)
+queue_enqueue_mmm(queue_t *self, mmm_thread_t *thread, void *item)
 {
     queue_seg_ptrs_t segments;
     queue_seg_ptrs_t candidate_segments;
@@ -171,7 +177,7 @@ queue_enqueue(queue_t *self, void *item)
 
     step = 1;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     need_help       = false;
     segments        = atomic_read(&self->segments);
@@ -188,7 +194,7 @@ try_again:
             if (need_help) {
                 atomic_fetch_sub(&self->help_needed, 1);
             }
-            mmm_end_op();
+            mmm_end_op(thread);
 
             atomic_fetch_add(&self->len, 1);
             return;
@@ -258,7 +264,7 @@ try_again:
             atomic_fetch_sub(&self->help_needed, 1);
         }
 
-        mmm_end_op();
+        mmm_end_op(thread);
         atomic_fetch_add(&self->len, 1);
 
         return;
@@ -269,8 +275,14 @@ try_again:
     goto try_again;
 }
 
+void
+queue_enqueue(queue_t *self, void *item)
+{
+    queue_enqueue_mmm(self, mmm_thread_acquire(), item);
+}
+
 void *
-queue_dequeue(queue_t *self, bool *found)
+queue_dequeue_mmm(queue_t *self, mmm_thread_t *thread, bool *found)
 {
     queue_seg_ptrs_t segments;
     queue_seg_ptrs_t candidate_segments;
@@ -281,7 +293,7 @@ queue_dequeue(queue_t *self, bool *found)
     uint64_t         head_ix;
     void            *ret;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     segments = atomic_read(&self->segments);
     segment  = segments.dequeue_segment;
@@ -297,7 +309,7 @@ retry_dequeue:
         }
 
         if (cur_ix >= head_ix) {
-            return hatrack_not_found_w_mmm(found);
+            return hatrack_not_found_w_mmm(thread, found);
         }
 
         cur_ix = atomic_fetch_add(&segment->dequeue_index, 1);
@@ -315,7 +327,7 @@ retry_dequeue:
 
         atomic_fetch_sub(&self->len, 1);
 
-        return hatrack_found_w_mmm(found, ret);
+        return hatrack_found_w_mmm(thread, found, ret);
     }
 
     new_segment = atomic_read(&segment->next);
@@ -326,7 +338,7 @@ retry_dequeue:
          * Some future dequeuer will be back here to change the
          * dequeue segment pointer.
          */
-        return hatrack_not_found_w_mmm(found);
+        return hatrack_not_found_w_mmm(thread, found);
     }
 
     candidate_segments.enqueue_segment = segments.enqueue_segment;
@@ -349,9 +361,15 @@ retry_dequeue:
         candidate_segments.enqueue_segment = segments.enqueue_segment;
     }
 
-    mmm_retire(segment);
+    mmm_retire(thread, segment);
     segments = candidate_segments;
     segment  = new_segment;
 
     goto retry_dequeue;
+}
+
+void *
+queue_dequeue(queue_t *self, bool *found)
+{
+    return queue_dequeue_mmm(self, mmm_thread_acquire(), found);
 }

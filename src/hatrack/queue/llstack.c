@@ -54,11 +54,11 @@ llstack_init(llstack_t *self)
 void
 llstack_cleanup(llstack_t *self)
 {
-    bool found;
-
-    do {
-        llstack_pop(self, &found);
-    } while (found);
+    while (self->head != NULL) {
+        llstack_node_t *old_head = self->head;
+        self->head               = old_head->next;
+        mmm_retire_unused(old_head);
+    }
 
     return;
 }
@@ -73,12 +73,12 @@ llstack_delete(llstack_t *self)
 }
 
 void
-llstack_push(llstack_t *self, void *item)
+llstack_push_mmm(llstack_t *self, mmm_thread_t *thread, void *item)
 {
     llstack_node_t *node;
     llstack_node_t *head;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     node       = mmm_alloc_committed(sizeof(llstack_node_t));
     head       = atomic_read(&self->head);
@@ -88,18 +88,24 @@ llstack_push(llstack_t *self, void *item)
         node->next = head;
     } while (!CAS(&self->head, &head, node));
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return;
 }
 
+void
+llstack_push(llstack_t *self, void *item)
+{
+    llstack_push_mmm(self, mmm_thread_acquire(), item);
+}
+
 void *
-llstack_pop(llstack_t *self, bool *found)
+llstack_pop_mmm(llstack_t *self, mmm_thread_t *thread, bool *found)
 {
     llstack_node_t *old_head;
     void           *ret;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     old_head = atomic_read(&self->head);
 
@@ -111,7 +117,7 @@ llstack_pop(llstack_t *self, bool *found)
             *found = false;
         }
 
-        mmm_end_op();
+        mmm_end_op(thread);
         return NULL;
     }
 
@@ -121,8 +127,14 @@ llstack_pop(llstack_t *self, bool *found)
 
     ret = old_head->item;
 
-    mmm_retire(old_head);
-    mmm_end_op();
+    mmm_retire(thread, old_head);
+    mmm_end_op(thread);
 
     return ret;
+}
+
+void *
+llstack_pop(llstack_t *self, bool *found)
+{
+    return llstack_pop_mmm(self, mmm_thread_acquire(), found);
 }

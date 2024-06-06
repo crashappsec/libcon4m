@@ -30,6 +30,7 @@
 #pragma once
 
 #include "base.h"
+#include "mmm.h"
 
 /* "Valid after" means that, in any epoch after the epoch stored in
  * this field, pushers that are assigned that slot are free to try
@@ -74,12 +75,18 @@ typedef struct {
 } hatstack_t;
 
 // clang-format off
-HATRACK_EXTERN hatstack_t   *hatstack_new        (uint64_t);
-HATRACK_EXTERN void          hatstack_init       (hatstack_t *, uint64_t);
-HATRACK_EXTERN void          hatstack_cleanup    (hatstack_t *);
-HATRACK_EXTERN void          hatstack_delete     (hatstack_t *);
-HATRACK_EXTERN void          hatstack_push       (hatstack_t *, void *);
-HATRACK_EXTERN void         *hatstack_pop        (hatstack_t *, bool *);
-HATRACK_EXTERN stack_view_t *hatstack_view       (hatstack_t *);
-HATRACK_EXTERN void         *hatstack_view_next  (stack_view_t *, bool *);
-HATRACK_EXTERN void          hatstack_view_delete(stack_view_t *);
+HATRACK_EXTERN hatstack_t   *hatstack_new            (uint64_t);
+HATRACK_EXTERN void          hatstack_init           (hatstack_t *, uint64_t);
+HATRACK_EXTERN void          hatstack_cleanup        (hatstack_t *);
+HATRACK_EXTERN void          hatstack_delete         (hatstack_t *);
+HATRACK_EXTERN void          hatstack_push_mmm       (hatstack_t *, mmm_thread_t *, void *);
+HATRACK_EXTERN void          hatstack_push           (hatstack_t *, void *);
+HATRACK_EXTERN void         *hatstack_pop_mmm        (hatstack_t *, mmm_thread_t *, bool *);
+HATRACK_EXTERN void         *hatstack_pop            (hatstack_t *, bool *);
+HATRACK_EXTERN void         *hatstack_peek_mmm       (hatstack_t *, mmm_thread_t *, bool *);
+HATRACK_EXTERN void         *hatstack_peek           (hatstack_t *, bool *);
+HATRACK_EXTERN stack_view_t *hatstack_view_mmm       (hatstack_t *, mmm_thread_t *);
+HATRACK_EXTERN stack_view_t *hatstack_view           (hatstack_t *);
+HATRACK_EXTERN void         *hatstack_view_next      (stack_view_t *, bool *);
+HATRACK_EXTERN void          hatstack_view_delete_mmm(stack_view_t *, mmm_thread_t *);
+HATRACK_EXTERN void          hatstack_view_delete    (stack_view_t *);

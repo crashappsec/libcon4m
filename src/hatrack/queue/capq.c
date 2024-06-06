@@ -134,7 +134,7 @@ static const unholy_u moving_cell = {.cell = {NULL, CAPQ_MOVING}};
 static const unholy_u moved_cell  = {.cell = {NULL, CAPQ_MOVING | CAPQ_MOVED}};
 
 static capq_store_t *capq_new_store(uint64_t);
-static void          capq_migrate(capq_store_t *, capq_t *);
+static void          capq_migrate(capq_store_t *, mmm_thread_t *, capq_t *);
 
 void
 capq_init(capq_t *self)
@@ -185,7 +185,7 @@ capq_new_size(uint64_t size)
 void
 capq_cleanup(capq_t *self)
 {
-    mmm_retire(self->store);
+    mmm_retire_unused(self->store);
 
     return;
 }
@@ -205,6 +205,12 @@ capq_len(capq_t *self)
     return atomic_read(&self->len);
 }
 
+uint64_t
+capq_len_mmm(capq_t *self, mmm_thread_t *thread)
+{
+    return capq_len(self);
+}
+
 /* capq_enqueue is pretty simple in the average case. It only gets
  * complicated when the head pointer catches up to the tail pointer.
  *
@@ -214,7 +220,7 @@ capq_len(capq_t *self)
  * value exponentially (dequeue ops only ever scan one cell at a time).
  */
 uint64_t
-capq_enqueue(capq_t *self, void *item)
+capq_enqueue_mmm(capq_t *self, mmm_thread_t *thread, void *item)
 {
     capq_store_t *store;
     capq_item_t   expected;
@@ -227,7 +233,7 @@ capq_enqueue(capq_t *self, void *item)
     uint64_t      epoch;
     capq_cell_t  *cell;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     candidate.item = item;
 
@@ -312,7 +318,7 @@ capq_enqueue(capq_t *self, void *item)
 
             if (CAS(cell, &expected, candidate)) {
                 atomic_fetch_add(&self->len, 1);
-                mmm_end_op();
+                mmm_end_op(thread);
 
                 return cur_ix;
             }
@@ -326,8 +332,14 @@ capq_enqueue(capq_t *self, void *item)
             continue;
         }
 
-        capq_migrate(store, self);
+        capq_migrate(store, thread, self);
     }
+}
+
+uint64_t
+capq_enqueue(capq_t *self, void *item)
+{
+    return capq_enqueue_mmm(self, mmm_thread_acquire(), item);
 }
 
 /*
@@ -395,7 +407,7 @@ capq_enqueue(capq_t *self, void *item)
  * the moment before the migration completes.
  */
 capq_top_t
-capq_top(capq_t *self, bool *found)
+capq_top_mmm(capq_t *self, mmm_thread_t *thread, bool *found)
 {
     capq_store_t *store;
     uint64_t      cur_ix;
@@ -408,7 +420,7 @@ capq_top(capq_t *self, bool *found)
     capq_item_t   item;
     capq_item_t   marker;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     suspension_retries = 0;
     store              = atomic_read(&self->store);
@@ -449,7 +461,7 @@ found_item:
                     CAS(&store->dequeue_index, &cur_ix, cur_ix + 1);
                 }
 
-                mmm_end_op();
+                mmm_end_op(thread);
 
                 return item;
             }
@@ -530,7 +542,7 @@ next_slot:
          */
 
         if (!(++suspension_retries % CAPQ_TOP_SUSPEND_THRESHOLD)) {
-            capq_migrate(store, self);
+            capq_migrate(store, thread, self);
             store = atomic_read(&self->store);
         }
 
@@ -545,9 +557,15 @@ next_slot:
         *found = false;
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return empty_cell;
+}
+
+capq_top_t
+capq_top(capq_t *self, bool *found)
+{
+    return capq_top_mmm(self, mmm_thread_acquire(), found);
 }
 
 /*
@@ -568,7 +586,7 @@ next_slot:
  * already dequeued, in which case it's a fail.
  */
 bool
-capq_cap(capq_t *self, uint64_t epoch)
+capq_cap_mmm(capq_t *self, mmm_thread_t *thread, uint64_t epoch)
 {
     capq_store_t *store;
     uint64_t      cur_ix;
@@ -578,7 +596,7 @@ capq_cap(capq_t *self, uint64_t epoch)
     capq_item_t   expected;
     capq_item_t   candidate;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store);
 
@@ -596,13 +614,13 @@ capq_cap(capq_t *self, uint64_t epoch)
          * remapped.
          */
         if (capq_extract_epoch(expected.state) != epoch) {
-            mmm_end_op();
+            mmm_end_op(thread);
             return false;
         }
 
         // If we were really slow to load, the epoch changed.
         if (capq_extract_epoch(expected.state) != epoch) {
-            mmm_end_op();
+            mmm_end_op(thread);
             return false;
         }
 
@@ -610,12 +628,12 @@ capq_cap(capq_t *self, uint64_t epoch)
          * if top() returned an epoch, then that epoch was enqueued.
          */
         if (!capq_is_enqueued(expected.state)) {
-            mmm_end_op();
+            mmm_end_op(thread);
             return false;
         }
 
         if (capq_is_moving(expected.state)) {
-            capq_migrate(store, self);
+            capq_migrate(store, thread, self);
             store = atomic_read(&self->store);
             continue;
         }
@@ -631,19 +649,25 @@ capq_cap(capq_t *self, uint64_t epoch)
             candidate_ix = cur_ix + 1;
             CAS(&store->dequeue_index, &cur_ix, candidate_ix);
 
-            mmm_end_op();
+            mmm_end_op(thread);
             return true;
         }
 
         if (capq_is_moving(expected.state)) {
-            capq_migrate(store, self);
+            capq_migrate(store, thread, self);
             store = atomic_read(&self->store);
             continue;
         }
 
-        mmm_end_op();
+        mmm_end_op(thread);
         return false;
     }
+}
+
+bool
+capq_cap(capq_t *self, uint64_t epoch)
+{
+    return capq_cap_mmm(self, mmm_thread_acquire(), epoch);
 }
 
 /*
@@ -659,20 +683,26 @@ capq_cap(capq_t *self, uint64_t epoch)
  * This is here primarily to hook into our test harness.
  */
 void *
-capq_dequeue(capq_t *self, bool *found)
+capq_dequeue_mmm(capq_t *self, mmm_thread_t *thread, bool *found)
 {
     capq_top_t top;
     bool       f;
 
     while (true) {
-        top = capq_top(self, &f);
+        top = capq_top_mmm(self, thread, &f);
         if (!f) {
             return hatrack_not_found(found);
         }
-        if (capq_cap(self, capq_extract_epoch(top.state))) {
+        if (capq_cap_mmm(self, thread, capq_extract_epoch(top.state))) {
             return hatrack_found(found, top.item);
         }
     }
+}
+
+void *
+capq_dequeue(capq_t *self, bool *found)
+{
+    return capq_dequeue_mmm(self, mmm_thread_acquire(), found);
 }
 
 static capq_store_t *
@@ -723,7 +753,7 @@ capq_new_store(uint64_t size)
  * the cosmos.
  */
 static void
-capq_migrate(capq_store_t *store, capq_t *top)
+capq_migrate(capq_store_t *store, mmm_thread_t *thread, capq_t *top)
 {
     capq_store_t *next_store;
     capq_store_t *expected_store;
@@ -823,7 +853,7 @@ capq_migrate(capq_store_t *store, capq_t *top)
     CAS(&next_store->enqueue_index, &i, new_dqi | n);
 
     if (CAS(&top->store, &store, next_store)) {
-        mmm_retire(store);
+        mmm_retire(thread, store);
     }
 
     return;

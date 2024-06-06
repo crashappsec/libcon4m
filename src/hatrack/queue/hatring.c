@@ -27,6 +27,7 @@
 #include "hatrack/hatrack_common.h"
 
 #include <string.h>
+#include <time.h>
 
 #include "hatring-internal.h"
 #include "../hatrack-internal.h"

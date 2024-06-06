@@ -33,20 +33,6 @@
  */
 typedef void (*mmm_cleanup_func)(void *, void *);
 
-/* We don't want to keep reservation space for threads that don't need
- * it, so we issue a threadid for each thread to keep locally, which
- * is an index into that array.
- *
- * If desired, threads can decide to "give back" their thread IDs, so
- * that they can be re-used, for instance, if the thread exits, or
- * decides to switch roles to something that won't require it.  If you
- * never run out of TID space, this will not get used; see
- * HATRACK_THREADS_MAX in config.h.
- */
-
-extern __thread int64_t mmm_mytid;
-extern _Atomic uint64_t mmm_epoch;
-
 /* The header data structure. Note that we keep a linked list of
  * "retired" records, which is the purpose of the field 'next'.  The
  * 'data' field is a mere convenience for returning the non-hidden
@@ -73,17 +59,75 @@ struct mmm_header_st {
     alignas(16) uint8_t data[];
 };
 
+/* This is a macro that allows us to access our hidden header.  Note
+ * that, while this is straightforward, I did run into an issue where
+ * the definition of mmm_header_t would end up getting a different
+ * layout depending on the module.
+ *
+ * The solution was to force alignment of fields as needed in
+ * mmm_header_t (above).
+ */
+static inline mmm_header_t *
+mmm_get_header(void *ptr)
+{
+    return (mmm_header_t *)(((uint8_t *)ptr) - sizeof(mmm_header_t));
+}
+
+/* We don't want to keep reservation space for threads that don't need
+ * it, so we issue a threadid for each thread to keep locally, which
+ * is an index into that array.
+ *
+ * If desired, threads can decide to "give back" their thread IDs, so
+ * that they can be re-used, for instance, if the thread exits, or
+ * decides to switch roles to something that won't require it.  If you
+ * never run out of TID space, this will not get used; see
+ * HATRACK_THREADS_MAX in config.h.
+ */
+
+typedef struct mmm_thread_st mmm_thread_t;
+struct mmm_thread_st {
+    int64_t       tid;
+    int64_t       retire_ctr;
+    mmm_header_t *retire_list;
+    bool          initialized;
+};
+
+// mmm_thread_acquire retrieves an initialized per-thread struct used by all of
+// the mmm code. The thread-specific details are implemented by the acquire
+// function set via mmm_setthreadfns. If hatrack is built with pthread support,
+// the default is to use pthread thread-local storage APIs combined with the
+// hatrack malloc functions. When the pointer returned is no longer needed it
+// should just be abandoned. The per-thread data should only ever be cleaned up
+// via mmm_thread_release when the thread is exiting, which is handled
+// automatically if the default pthread implementation is used.
+HATRACK_EXTERN mmm_thread_t *
+mmm_thread_acquire(void);
+
+// mmm_thread_release releases the specified per-thread struct. This is intended
+// to be called when a thread is exiting to clean up its per-thread data. If the
+// default pthread implementation for mmm_thread_acquire is used, this is called
+// automatically and should not be called directly.
 HATRACK_EXTERN void
-mmm_register_thread(void);
+mmm_thread_release(mmm_thread_t *thread);
+
+// mmm_thread_acquire_func is the signature of a function called to acquire
+// per-thread data for mmm. Implementations should return the existing data for
+// the calling thread or allocate new data. If new data is allocated, the size
+// of the allocation is specified via the size parameter. A new allocation must
+// be initialized with all zero bytes.
+typedef mmm_thread_t *(*mmm_thread_acquire_func)(void *aux, size_t size);
+
+// mmm_setthreadfns sets the thread acquire function to be used by
+// mmm_thread_acquire. The aux parameter is an arbitrary pointer that is passed
+// to the acquire function when it's called.
+HATRACK_EXTERN void
+mmm_setthreadfns(mmm_thread_acquire_func acquirefn,
+                 void                   *aux);
+
+extern _Atomic uint64_t mmm_epoch;
 
 HATRACK_EXTERN void
-mmm_reset_tids(void);
-
-HATRACK_EXTERN void
-mmm_retire(void *);
-
-HATRACK_EXTERN void
-mmm_clean_up_before_exit(void);
+mmm_retire(mmm_thread_t *, void *);
 
 /* This epoch system was inspired by my research into what was out
  * there that would be faster and easier to use than hazard
@@ -302,20 +346,6 @@ enum64(mmm_enum_t,
        HATRACK_F_RESERVATION_HELP = 0x8000000000000000,
        HATRACK_EPOCH_MAX          = 0xffffffffffffffff);
 
-/* This is a macro that allows us to access our hidden header.  Note
- * that, while this is straightforward, I did run into an issue where
- * the definition of mmm_header_t would end up getting a different
- * layout depending on the module.
- *
- * The solution was to force alignment of fields as needed in
- * mmm_header_t (above).
- */
-static inline mmm_header_t *
-mmm_get_header(void *ptr)
-{
-    return (mmm_header_t *)(((uint8_t *)ptr) - sizeof(mmm_header_t));
-}
-
 /* We stick our read reservation in mmm_reservations[mmm_mytid].  By
  * doing this, we are guaranteeing that we will only read data alive
  * during or after this epoch, until we remove our reservation.
@@ -331,7 +361,7 @@ mmm_get_header(void *ptr)
  * operation.
  */
 HATRACK_EXTERN void
-mmm_start_basic_op(void);
+mmm_start_basic_op(mmm_thread_t *thread);
 
 /* mmm_start_linearized_op() is used to help ensure we can safely recover
  * a consistent, full ordering of data objects in the lohat family.
@@ -385,7 +415,7 @@ mmm_start_basic_op(void);
  *    boundary, with only one write per epoch.
  */
 HATRACK_EXTERN uint64_t
-mmm_start_linearized_op(void);
+mmm_start_linearized_op(mmm_thread_t *thread);
 
 /* This does two things:
  *
@@ -399,7 +429,7 @@ mmm_start_linearized_op(void);
  * because they both use a memory fence.
  */
 HATRACK_EXTERN void
-mmm_end_op(void);
+mmm_end_op(mmm_thread_t *thread);
 
 /* Note that the API for allocating via MMM is a little non-intuitive.
  * for malloc users, partially because it supports a couple of
@@ -506,4 +536,4 @@ mmm_copy_create_epoch(void *dst, void *src)
 // Use this in migration functions to avoid unnecessary scanning of the
 // retire list, when we know the epoch won't have changed.
 HATRACK_EXTERN void
-mmm_retire_fast(void *ptr);
+mmm_retire_fast(mmm_thread_t *thread, void *ptr);

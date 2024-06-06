@@ -28,6 +28,7 @@
 
 #include "base.h"
 #include "hatrack_common.h"
+#include "mmm.h"
 
 typedef struct {
     void    *item;
@@ -64,18 +65,27 @@ typedef struct {
 } crown_t;
 
 // clang-format off
-HATRACK_EXTERN crown_t        *crown_new        (void);
-HATRACK_EXTERN crown_t        *crown_new_size   (char);
-HATRACK_EXTERN void            crown_init       (crown_t *);
-HATRACK_EXTERN void            crown_init_size  (crown_t *, char);
-HATRACK_EXTERN void            crown_cleanup    (crown_t *);
-HATRACK_EXTERN void            crown_delete     (crown_t *);
-HATRACK_EXTERN void           *crown_get        (crown_t *, hatrack_hash_t, bool *);
-HATRACK_EXTERN void           *crown_put        (crown_t *, hatrack_hash_t, void *, bool *);
-HATRACK_EXTERN void           *crown_replace    (crown_t *, hatrack_hash_t, void *, bool *);
-HATRACK_EXTERN bool            crown_add        (crown_t *, hatrack_hash_t, void *);
-HATRACK_EXTERN void           *crown_remove     (crown_t *, hatrack_hash_t, bool *);
-HATRACK_EXTERN uint64_t        crown_len        (crown_t *);
-HATRACK_EXTERN hatrack_view_t *crown_view       (crown_t *, uint64_t *, bool);
-HATRACK_EXTERN hatrack_view_t *crown_view_fast  (crown_t *, uint64_t *, bool);
-HATRACK_EXTERN hatrack_view_t *crown_view_slow  (crown_t *, uint64_t *, bool);
+HATRACK_EXTERN crown_t        *crown_new          (void);
+HATRACK_EXTERN crown_t        *crown_new_size     (char);
+HATRACK_EXTERN void            crown_init         (crown_t *);
+HATRACK_EXTERN void            crown_init_size    (crown_t *, char);
+HATRACK_EXTERN void            crown_cleanup      (crown_t *);
+HATRACK_EXTERN void            crown_delete       (crown_t *);
+HATRACK_EXTERN void           *crown_get_mmm      (crown_t *, mmm_thread_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *crown_get          (crown_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *crown_put_mmm      (crown_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *crown_put          (crown_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *crown_replace_mmm  (crown_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *crown_replace      (crown_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            crown_add_mmm      (crown_t *, mmm_thread_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN bool            crown_add          (crown_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *crown_remove_mmm   (crown_t *, mmm_thread_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *crown_remove       (crown_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        crown_len_mmm      (crown_t *, mmm_thread_t *);
+HATRACK_EXTERN uint64_t        crown_len          (crown_t *);
+HATRACK_EXTERN hatrack_view_t *crown_view_mmm     (crown_t *, mmm_thread_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_view_t *crown_view         (crown_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_view_t *crown_view_fast_mmm(crown_t *, mmm_thread_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_view_t *crown_view_fast    (crown_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_view_t *crown_view_slow_mmm(crown_t *, mmm_thread_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_view_t *crown_view_slow    (crown_t *, uint64_t *, bool);

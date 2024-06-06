@@ -24,6 +24,7 @@
 #pragma once
 
 #include "base.h"
+#include "mmm.h"
 
 typedef void (*arr64_callback_t)(void *);
 
@@ -62,9 +63,12 @@ HATRACK_EXTERN void          arr64_cleanup           (arr64_t *);
 HATRACK_EXTERN void          arr64_delete            (arr64_t *);
 HATRACK_EXTERN void         *arr64_get               (arr64_t *, uint64_t, int *);
 HATRACK_EXTERN bool          arr64_set               (arr64_t *, uint64_t, void *);
+HATRACK_EXTERN void          arr64_grow_mmm          (arr64_t *, mmm_thread_t *, uint64_t);
 HATRACK_EXTERN void          arr64_grow              (arr64_t *, uint64_t);
 HATRACK_EXTERN void          arr64_shrink            (arr64_t *, uint64_t);
 HATRACK_EXTERN uint32_t      arr64_len               (arr64_t *);
+HATRACK_EXTERN arr64_view_t *arr64_view_mmm          (arr64_t *, mmm_thread_t *);
 HATRACK_EXTERN arr64_view_t *arr64_view              (arr64_t *);
 HATRACK_EXTERN void         *arr64_view_next         (arr64_view_t *, bool *);
+HATRACK_EXTERN void          arr64_view_delete_mmm   (arr64_view_t *, mmm_thread_t *);
 HATRACK_EXTERN void          arr64_view_delete       (arr64_view_t *);

@@ -197,7 +197,7 @@ static const stack_item_t proto_item_pushed = {
 
 // clang-format off
 static stack_store_t *hatstack_new_store (uint64_t);
-static stack_store_t *hatstack_grow_store(stack_store_t *, hatstack_t *);
+static stack_store_t *hatstack_grow_store(stack_store_t *, mmm_thread_t *, hatstack_t *);
 // clang-format on
 
 hatstack_t *
@@ -245,7 +245,7 @@ hatstack_delete(hatstack_t *self)
 }
 
 void
-hatstack_push(hatstack_t *self, void *item)
+hatstack_push_mmm(hatstack_t *self, mmm_thread_t *thread, void *item)
 {
     stack_store_t *store;
     uint64_t       head_state;
@@ -262,7 +262,7 @@ hatstack_push(hatstack_t *self, void *item)
     candidate      = proto_item_pushed;
     candidate.item = item;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store);
 
@@ -270,7 +270,7 @@ hatstack_push(hatstack_t *self, void *item)
         head_state = atomic_fetch_add(&store->head_state, 1);
 
         if (head_is_moving(head_state, store->num_cells)) {
-            store = hatstack_grow_store(store, self);
+            store = hatstack_grow_store(store, thread, self);
             continue;
         }
 
@@ -282,7 +282,7 @@ hatstack_push(hatstack_t *self, void *item)
         expected = proto_item_empty;
 
         if (CAS(&store->cells[ix], &expected, candidate)) {
-            mmm_end_op();
+            mmm_end_op(thread);
 
 #ifdef HATSTACK_WAIT_FREE
             if (tosub) {
@@ -296,7 +296,7 @@ hatstack_push(hatstack_t *self, void *item)
 #endif
 
         if (state_is_moving(expected.state)) {
-            store = hatstack_grow_store(store, self);
+            store = hatstack_grow_store(store, thread, self);
             continue;
         }
 
@@ -314,7 +314,7 @@ hatstack_push(hatstack_t *self, void *item)
 
         // Usually this will be uncontested, and if so, we are done.
         if (CAS(&store->cells[ix], &expected, candidate)) {
-            mmm_end_op();
+            mmm_end_op(thread);
 
 #ifdef HATSTACK_WAIT_FREE
             if (tosub) {
@@ -342,11 +342,16 @@ hatstack_push(hatstack_t *self, void *item)
 #endif
         continue;
     }
-    abort();
+}
+
+void
+hatstack_push(hatstack_t *self, void *item)
+{
+    hatstack_push_mmm(self, mmm_thread_acquire(), item);
 }
 
 void *
-hatstack_pop(hatstack_t *self, bool *found)
+hatstack_pop_mmm(hatstack_t *self, mmm_thread_t *thread, bool *found)
 {
     stack_store_t *store;
     stack_item_t   expected;
@@ -370,7 +375,7 @@ hatstack_pop(hatstack_t *self, bool *found)
     incr = 1 << incr;
 #endif
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     /* Iteration instead of recursion.  We'll only come back up to the top
      * loop in the case where we are forced into doing a grow operation,
@@ -387,7 +392,7 @@ top_loop:
         candidate  = proto_item_pop;
 
         if (head_is_moving(head_state, store->num_cells)) {
-            store = hatstack_grow_store(store, self);
+            store = hatstack_grow_store(store, thread, self);
             continue;
         }
 
@@ -400,7 +405,7 @@ top_loop:
          * stack is empty.  If we're not at 0, we substract 1.
          */
         if (!ix) {
-            return hatrack_not_found_w_mmm(found);
+            return hatrack_not_found_w_mmm(thread, found);
         }
 
         ix       = ix - 1;
@@ -437,7 +442,7 @@ top_loop:
                         expected = atomic_read(&store->cells[ix]);
                         continue;
                     }
-                    return hatrack_not_found_w_mmm(found);
+                    return hatrack_not_found_w_mmm(thread, found);
                 }
 
 #ifdef HATSTACK_WAIT_FREE
@@ -465,7 +470,7 @@ top_loop:
                 expected = atomic_read(&store->cells[ix]);
                 continue;
             }
-            return hatrack_not_found_w_mmm(found);
+            return hatrack_not_found_w_mmm(thread, found);
         }
 
         // Now try to swing the head.
@@ -473,8 +478,14 @@ top_loop:
 
         CAS(&store->head_state, &head_state, head_candidate);
 
-        return hatrack_found_w_mmm(found, expected.item);
+        return hatrack_found_w_mmm(thread, found, expected.item);
     }
+}
+
+void *
+hatstack_pop(hatstack_t *self, bool *found)
+{
+    return hatstack_pop_mmm(self, mmm_thread_acquire(), found);
 }
 
 /* Here we don't worry about invalidating pushers; we may end up
@@ -484,14 +495,14 @@ top_loop:
  * stack.
  */
 void *
-hatstack_peek(hatstack_t *self, bool *found)
+hatstack_peek_mmm(hatstack_t *self, mmm_thread_t *thread, bool *found)
 {
     stack_store_t *store;
     stack_item_t   expected;
     uint64_t       head_state;
     uint64_t       ix;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store      = atomic_read(&self->store);
     head_state = atomic_read(&store->head_state);
@@ -504,21 +515,27 @@ hatstack_peek(hatstack_t *self, bool *found)
         expected = atomic_read(&store->cells[ix]);
 
         if (state_is_pushed(expected.state)) {
-            return hatrack_found_w_mmm(found, expected.item);
+            return hatrack_found_w_mmm(thread, found, expected.item);
         }
     }
 
-    return hatrack_not_found_w_mmm(found);
+    return hatrack_not_found_w_mmm(thread, found);
+}
+
+void *
+hatstack_peek(hatstack_t *self, bool *found)
+{
+    return hatstack_peek_mmm(self, mmm_thread_acquire(), found);
 }
 
 stack_view_t *
-hatstack_view(hatstack_t *self)
+hatstack_view_mmm(hatstack_t *self, mmm_thread_t *thread)
 {
     stack_view_t  *ret;
     stack_store_t *store;
     bool           expected;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     while (true) {
         store    = atomic_read(&self->store);
@@ -527,17 +544,23 @@ hatstack_view(hatstack_t *self)
         if (CAS(&store->claimed, &expected, true)) {
             break;
         }
-        hatstack_grow_store(store, self);
+        hatstack_grow_store(store, thread, self);
     }
 
-    hatstack_grow_store(store, self);
-    mmm_end_op();
+    hatstack_grow_store(store, thread, self);
+    mmm_end_op(thread);
 
     ret          = (stack_view_t *)hatrack_malloc(sizeof(stack_view_t));
     ret->store   = store;
     ret->next_ix = 0;
 
     return ret;
+}
+
+stack_view_t *
+hatstack_view(hatstack_t *self)
+{
+    return hatstack_view_mmm(self, mmm_thread_acquire());
 }
 
 void *
@@ -559,13 +582,19 @@ hatstack_view_next(stack_view_t *view, bool *found)
 }
 
 void
-hatstack_view_delete(stack_view_t *view)
+hatstack_view_delete_mmm(stack_view_t *view, mmm_thread_t *thread)
 {
-    mmm_retire(view->store);
+    mmm_retire(thread, view->store);
 
     hatrack_free(view, sizeof(stack_view_t));
 
     return;
+}
+
+void
+hatstack_view_delete(stack_view_t *view)
+{
+    hatstack_view_delete_mmm(view, mmm_thread_acquire());
 }
 
 static stack_store_t *
@@ -596,7 +625,7 @@ hatstack_new_store(uint64_t num_cells)
  * 4) Install the new store and clean up.
  */
 static stack_store_t *
-hatstack_grow_store(stack_store_t *store, hatstack_t *top)
+hatstack_grow_store(stack_store_t *store, mmm_thread_t *thread, hatstack_t *top)
 {
     stack_store_t *next_store;
     stack_store_t *expected_store;
@@ -714,7 +743,7 @@ help_move:
      */
     if (CAS(&top->store, &store, next_store)) {
         if (!store->claimed) {
-            mmm_retire(store);
+            mmm_retire(thread, store);
         }
     }
 

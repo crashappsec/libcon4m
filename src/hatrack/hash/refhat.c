@@ -214,6 +214,12 @@ refhat_get(refhat_t *self, hatrack_hash_t hv, bool *found)
     __builtin_unreachable();
 }
 
+void *
+refhat_get_mmm(refhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
+{
+    return refhat_get(self, hv, found);
+}
+
 /* refhat_put()
  *
  * This function will insert the item into the table, whether or not
@@ -288,6 +294,12 @@ refhat_put(refhat_t *self, hatrack_hash_t hv, void *item, bool *found)
     __builtin_unreachable();
 }
 
+void *
+refhat_put_mmm(refhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
+{
+    return refhat_put(self, hv, item, found);
+}
+
 /* refhat_replace()
  *
  * This function replaces an item in the hash table, returning the old
@@ -344,6 +356,12 @@ refhat_replace(refhat_t *self, hatrack_hash_t hv, void *item, bool *found)
         bix = (bix + 1) & self->last_slot;
     }
     __builtin_unreachable();
+}
+
+void *
+refhat_replace_mmm(refhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
+{
+    return refhat_replace(self, hv, item, found);
 }
 
 /* refhat_add()
@@ -405,6 +423,12 @@ refhat_add(refhat_t *self, hatrack_hash_t hv, void *item)
     __builtin_unreachable();
 }
 
+bool
+refhat_add_mmm(refhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item)
+{
+    return refhat_add(self, hv, item);
+}
+
 /* refhat_remove()
  *
  * This function removes the item associated with the hash value from
@@ -458,6 +482,12 @@ refhat_remove(refhat_t *self, hatrack_hash_t hv, bool *found)
     __builtin_unreachable();
 }
 
+void *
+refhat_remove_mmm(refhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
+{
+    return refhat_remove(self, hv, found);
+}
+
 /* refhat_len()
  *
  * Returns the number of items currently in the table. Note that we
@@ -469,6 +499,12 @@ uint64_t
 refhat_len(refhat_t *self)
 {
     return self->item_count;
+}
+
+uint64_t
+refhat_len_mmm(refhat_t *self, mmm_thread_t *thread)
+{
+    return refhat_len(self);
 }
 
 /* refhat_view()
@@ -525,6 +561,12 @@ refhat_view(refhat_t *self, uint64_t *num, bool sort)
     }
 
     return view;
+}
+
+hatrack_view_t *
+refhat_view_mmm(refhat_t *self, mmm_thread_t *thread, uint64_t *num, bool sort)
+{
+    return refhat_view(self, num, sort);
 }
 
 /* refhat_migrate()

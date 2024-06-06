@@ -23,6 +23,7 @@
 
 #include "base.h"
 #include "helpmanager.h"
+#include "mmm.h"
 
 typedef void (*vector_callback_t)(void *);
 
@@ -69,14 +70,24 @@ HATRACK_EXTERN void           vector_set_ret_callback  (vector_t *, vector_callb
 HATRACK_EXTERN void           vector_set_eject_callback(vector_t *, vector_callback_t);
 HATRACK_EXTERN void           vector_cleanup           (vector_t *);
 HATRACK_EXTERN void           vector_delete            (vector_t *);
+HATRACK_EXTERN void          *vector_get_mmm           (vector_t *, mmm_thread_t *, int64_t, int *);
 HATRACK_EXTERN void          *vector_get               (vector_t *, int64_t, int *);
+HATRACK_EXTERN bool           vector_set_mmm           (vector_t *, mmm_thread_t *, int64_t, void *);
 HATRACK_EXTERN bool           vector_set               (vector_t *, int64_t, void *);
+HATRACK_EXTERN void           vector_grow_mmm          (vector_t *, mmm_thread_t *, int64_t);
 HATRACK_EXTERN void           vector_grow              (vector_t *, int64_t);
+HATRACK_EXTERN void           vector_shrink_mmm        (vector_t *, mmm_thread_t *, int64_t);
 HATRACK_EXTERN void           vector_shrink            (vector_t *, int64_t);
+HATRACK_EXTERN uint32_t       vector_len_mmm           (vector_t *, mmm_thread_t *);
 HATRACK_EXTERN uint32_t       vector_len               (vector_t *);
+HATRACK_EXTERN void           vector_push_mmm          (vector_t *, mmm_thread_t *, void *);
 HATRACK_EXTERN void           vector_push              (vector_t *, void *);
+HATRACK_EXTERN void          *vector_pop_mmm           (vector_t *, mmm_thread_t *, bool *);
 HATRACK_EXTERN void          *vector_pop               (vector_t *, bool *);
+HATRACK_EXTERN void          *vector_peek_mmm          (vector_t *, mmm_thread_t *, bool *);
 HATRACK_EXTERN void          *vector_peek              (vector_t *, bool *);
+HATRACK_EXTERN vector_view_t *vector_view_mmm          (vector_t *, mmm_thread_t *);
 HATRACK_EXTERN vector_view_t *vector_view              (vector_t *);
 HATRACK_EXTERN void          *vector_view_next         (vector_view_t *, bool *);
+HATRACK_EXTERN void           vector_view_delete_mmm   (vector_view_t *, mmm_thread_t *);
 HATRACK_EXTERN void           vector_view_delete       (vector_view_t *);

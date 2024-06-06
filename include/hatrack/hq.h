@@ -34,6 +34,7 @@
 #pragma once
 
 #include "base.h"
+#include "mmm.h"
 
 typedef struct {
     void    *item;
@@ -66,15 +67,20 @@ typedef struct {
 } hq_t;
 
 // clang-format off
-HATRACK_EXTERN hq_t      *hq_new        (void);
-HATRACK_EXTERN hq_t      *hq_new_size   (uint64_t);
-HATRACK_EXTERN void       hq_init       (hq_t *);
-HATRACK_EXTERN void       hq_init_size  (hq_t *, uint64_t);
-HATRACK_EXTERN void       hq_cleanup    (hq_t *);
-HATRACK_EXTERN void       hq_delete     (hq_t *);
-HATRACK_EXTERN void       hq_enqueue    (hq_t *, void *);
-HATRACK_EXTERN void      *hq_dequeue    (hq_t *, bool *);
-HATRACK_EXTERN int64_t    hq_len        (hq_t *);
-HATRACK_EXTERN hq_view_t *hq_view       (hq_t *);
-HATRACK_EXTERN void      *hq_view_next  (hq_view_t *, bool *);
-HATRACK_EXTERN void       hq_view_delete(hq_view_t *);
+HATRACK_EXTERN hq_t      *hq_new            (void);
+HATRACK_EXTERN hq_t      *hq_new_size       (uint64_t);
+HATRACK_EXTERN void       hq_init           (hq_t *);
+HATRACK_EXTERN void       hq_init_size      (hq_t *, uint64_t);
+HATRACK_EXTERN void       hq_cleanup        (hq_t *);
+HATRACK_EXTERN void       hq_delete         (hq_t *);
+HATRACK_EXTERN void       hq_enqueue_mmm    (hq_t *, mmm_thread_t *, void *);
+HATRACK_EXTERN void       hq_enqueue        (hq_t *, void *);
+HATRACK_EXTERN void      *hq_dequeue_mmm    (hq_t *, mmm_thread_t *, bool *);
+HATRACK_EXTERN void      *hq_dequeue        (hq_t *, bool *);
+HATRACK_EXTERN int64_t    hq_len_mmm        (hq_t *, mmm_thread_t *);
+HATRACK_EXTERN int64_t    hq_len            (hq_t **);
+HATRACK_EXTERN hq_view_t *hq_view_mmm       (hq_t *, mmm_thread_t *);
+HATRACK_EXTERN hq_view_t *hq_view           (hq_t *);
+HATRACK_EXTERN void      *hq_view_next      (hq_view_t *, bool *);
+HATRACK_EXTERN void       hq_view_delete_mmm(hq_view_t *, mmm_thread_t *);
+HATRACK_EXTERN void       hq_view_delete    (hq_view_t *);

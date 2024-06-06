@@ -97,6 +97,11 @@
 
 #include "base.h"
 #include "hatrack_common.h"
+#include "mmm.h"
+
+#ifndef HATRACK_NO_PTHREAD
+
+#include <pthread.h>
 
 /* tophat_migration_t
  *
@@ -232,12 +237,22 @@ HATRACK_EXTERN void            tophat_init_fast_wf_size(tophat_t *, char);
 HATRACK_EXTERN void            tophat_init_cst_mx_size (tophat_t *, char);
 HATRACK_EXTERN void            tophat_init_cst_wf_size (tophat_t *, char);
 
-HATRACK_EXTERN void            tophat_cleanup     (tophat_t *);
-HATRACK_EXTERN void            tophat_delete      (tophat_t *);
-HATRACK_EXTERN void           *tophat_get         (tophat_t *, hatrack_hash_t, bool *);
-HATRACK_EXTERN void           *tophat_put         (tophat_t *, hatrack_hash_t, void *, bool *);
-HATRACK_EXTERN void           *tophat_replace     (tophat_t *, hatrack_hash_t, void *, bool *);
-HATRACK_EXTERN bool            tophat_add         (tophat_t *, hatrack_hash_t, void *);
-HATRACK_EXTERN void           *tophat_remove      (tophat_t *, hatrack_hash_t, bool *);
-HATRACK_EXTERN uint64_t        tophat_len         (tophat_t *);
-HATRACK_EXTERN hatrack_view_t *tophat_view        (tophat_t *, uint64_t *, bool);
+HATRACK_EXTERN void            tophat_cleanup    (tophat_t *);
+HATRACK_EXTERN void            tophat_delete     (tophat_t *);
+HATRACK_EXTERN void           *tophat_get_mmm    (tophat_t *, mmm_thread_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *tophat_get        (tophat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *tophat_put_mmm    (tophat_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *tophat_put        (tophat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *tophat_replace_mmm(tophat_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *tophat_replace    (tophat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            tophat_add_mmm    (tophat_t *, mmm_thread_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN bool            tophat_add        (tophat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *tophat_remove_mmm (tophat_t *, mmm_thread_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *tophat_remove     (tophat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        tophat_len_mmm    (tophat_t *, mmm_thread_t *);
+HATRACK_EXTERN uint64_t        tophat_len        (tophat_t *);
+HATRACK_EXTERN hatrack_view_t *tophat_view_mmm   (tophat_t *, mmm_thread_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_view_t *tophat_view       (tophat_t *, uint64_t *, bool);
+// clang-format on
+
+#endif

@@ -48,6 +48,7 @@
 #pragma once
 
 #include "base.h"
+#include "mmm.h"
 
 typedef struct {
     void    *item;
@@ -80,8 +81,13 @@ HATRACK_EXTERN void       capq_init       (capq_t *);
 HATRACK_EXTERN void       capq_init_size  (capq_t *, uint64_t);
 HATRACK_EXTERN void       capq_cleanup    (capq_t *);
 HATRACK_EXTERN void       capq_delete     (capq_t *);
+HATRACK_EXTERN uint64_t   capq_enqueue_mmm(capq_t *, mmm_thread_t *, void *);
 HATRACK_EXTERN uint64_t   capq_enqueue    (capq_t *, void *);
+HATRACK_EXTERN capq_top_t capq_top_mmm    (capq_t *, mmm_thread_t *, bool *);
 HATRACK_EXTERN capq_top_t capq_top        (capq_t *, bool *);
+HATRACK_EXTERN bool       capq_cap_mmm    (capq_t *, mmm_thread_t *, uint64_t);
 HATRACK_EXTERN bool       capq_cap        (capq_t *, uint64_t);
+HATRACK_EXTERN void      *capq_dequeue_mmm(capq_t *, mmm_thread_t *, bool *);
 HATRACK_EXTERN void      *capq_dequeue    (capq_t *, bool *);
+HATRACK_EXTERN uint64_t   capq_len_mmm    (capq_t *, mmm_thread_t *);
 HATRACK_EXTERN uint64_t   capq_len        (capq_t *);

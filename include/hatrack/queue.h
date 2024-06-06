@@ -77,6 +77,7 @@
 #pragma once
 
 #include "base.h"
+#include "mmm.h"
 
 typedef struct {
     void    *item;
@@ -117,12 +118,15 @@ typedef struct hatrack_queue_t {
 } queue_t;
 
 // clang-format off
-HATRACK_EXTERN queue_t *queue_new      (void);
-HATRACK_EXTERN queue_t *queue_new_size (char);
-HATRACK_EXTERN void     queue_init     (queue_t *);
-HATRACK_EXTERN void     queue_init_size(queue_t *, char);
-HATRACK_EXTERN void     queue_cleanup  (queue_t *);
-HATRACK_EXTERN void     queue_delete   (queue_t *);
-HATRACK_EXTERN uint64_t queue_len      (queue_t *);
-HATRACK_EXTERN void     queue_enqueue  (queue_t *, void *);
-HATRACK_EXTERN void    *queue_dequeue  (queue_t *, bool *);
+HATRACK_EXTERN queue_t *queue_new        (void);
+HATRACK_EXTERN queue_t *queue_new_size   (char);
+HATRACK_EXTERN void     queue_init       (queue_t *);
+HATRACK_EXTERN void     queue_init_size  (queue_t *, char);
+HATRACK_EXTERN void     queue_cleanup    (queue_t *);
+HATRACK_EXTERN void     queue_delete     (queue_t *);
+HATRACK_EXTERN uint64_t queue_len_mmm    (queue_t *, mmm_thread_t *);
+HATRACK_EXTERN uint64_t queue_len        (queue_t *);
+HATRACK_EXTERN void     queue_enqueue_mmm(queue_t *, mmm_thread_t *, void *);
+HATRACK_EXTERN void     queue_enqueue    (queue_t *, void *);
+HATRACK_EXTERN void    *queue_dequeue_mmm(queue_t *, mmm_thread_t *, bool *);
+HATRACK_EXTERN void    *queue_dequeue    (queue_t *, bool *);

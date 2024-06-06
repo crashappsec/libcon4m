@@ -40,22 +40,24 @@
 
 #include <stdlib.h>
 
+#ifndef HATRACK_NO_PTHREAD
+
 // clang-format off
 static swimcap_store_t *swimcap_store_new    (uint64_t);
 static void            *swimcap_store_get    (swimcap_store_t *,
 					      hatrack_hash_t, bool *);
-static void            *swimcap_store_put    (swimcap_store_t *,
+static void            *swimcap_store_put    (swimcap_store_t *, mmm_thread_t *,
 					      swimcap_t *, hatrack_hash_t,
 					      void *, bool *);
-static void            *swimcap_store_replace(swimcap_store_t *,
+static void            *swimcap_store_replace(swimcap_store_t *, mmm_thread_t *,
 					      hatrack_hash_t, void *, bool *);
-static bool             swimcap_store_add    (swimcap_store_t *,
+static bool             swimcap_store_add    (swimcap_store_t *, mmm_thread_t *,
 					      swimcap_t *, hatrack_hash_t,
 					      void *);
-static void            *swimcap_store_remove (swimcap_store_t *,
+static void            *swimcap_store_remove (swimcap_store_t *, mmm_thread_t *,
 					      swimcap_t *, hatrack_hash_t,
 					      bool *);
-static void             swimcap_migrate      (swimcap_t *);
+static void             swimcap_migrate      (swimcap_t *, mmm_thread_t *);
 // clang-format on
 
 /* swimcap_new()
@@ -143,7 +145,7 @@ void
 swimcap_cleanup(swimcap_t *self)
 {
     pthread_mutex_destroy(&self->write_mutex);
-    mmm_retire(self->store_current);
+    mmm_retire_unused(self->store_current);
 
     return;
 }
@@ -219,17 +221,23 @@ swimcap_delete(swimcap_t *self)
  * swimcap.c for more details if needed.
  */
 void *
-swimcap_get(swimcap_t *self, hatrack_hash_t hv, bool *found)
+swimcap_get_mmm(swimcap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
     void *ret;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     ret = swimcap_store_get(self->store_current, hv, found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
+}
+
+void *
+swimcap_get(swimcap_t *self, hatrack_hash_t hv, bool *found)
+{
+    return swimcap_get_mmm(self, mmm_thread_acquire(), hv, found);
 }
 
 /* swimcap_put()
@@ -258,7 +266,7 @@ swimcap_get(swimcap_t *self, hatrack_hash_t hv, bool *found)
  * in a single object in the item parameter.
  */
 void *
-swimcap_put(swimcap_t *self, hatrack_hash_t hv, void *item, bool *found)
+swimcap_put_mmm(swimcap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
 {
     void *ret;
 
@@ -266,13 +274,19 @@ swimcap_put(swimcap_t *self, hatrack_hash_t hv, void *item, bool *found)
         abort();
     }
 
-    ret = swimcap_store_put(self->store_current, self, hv, item, found);
+    ret = swimcap_store_put(self->store_current, thread, self, hv, item, found);
 
     if (pthread_mutex_unlock(&self->write_mutex)) {
         abort();
     }
 
     return ret;
+}
+
+void *
+swimcap_put(swimcap_t *self, hatrack_hash_t hv, void *item, bool *found)
+{
+    return swimcap_put_mmm(self, mmm_thread_acquire(), hv, item, found);
 }
 
 /* swimcap_replace()
@@ -294,7 +308,7 @@ swimcap_put(swimcap_t *self, hatrack_hash_t hv, void *item, bool *found)
  * in a single object in the item parameter.
  */
 void *
-swimcap_replace(swimcap_t *self, hatrack_hash_t hv, void *item, bool *found)
+swimcap_replace_mmm(swimcap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
 {
     void *ret;
 
@@ -302,13 +316,19 @@ swimcap_replace(swimcap_t *self, hatrack_hash_t hv, void *item, bool *found)
         abort();
     }
 
-    ret = swimcap_store_replace(self->store_current, hv, item, found);
+    ret = swimcap_store_replace(self->store_current, thread, hv, item, found);
 
     if (pthread_mutex_unlock(&self->write_mutex)) {
         abort();
     }
 
     return ret;
+}
+
+void *
+swimcap_replace(swimcap_t *self, hatrack_hash_t hv, void *item, bool *found)
+{
+    return swimcap_replace_mmm(self, mmm_thread_acquire(), hv, item, found);
 }
 
 /* swimcap_add()
@@ -327,7 +347,7 @@ swimcap_replace(swimcap_t *self, hatrack_hash_t hv, void *item, bool *found)
  * Returns true if the insertion is succesful, and false otherwise.
  */
 bool
-swimcap_add(swimcap_t *self, hatrack_hash_t hv, void *item)
+swimcap_add_mmm(swimcap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item)
 {
     bool ret;
 
@@ -335,13 +355,19 @@ swimcap_add(swimcap_t *self, hatrack_hash_t hv, void *item)
         abort();
     }
 
-    ret = swimcap_store_add(self->store_current, self, hv, item);
+    ret = swimcap_store_add(self->store_current, thread, self, hv, item);
 
     if (pthread_mutex_unlock(&self->write_mutex)) {
         abort();
     }
 
     return ret;
+}
+
+bool
+swimcap_add(swimcap_t *self, hatrack_hash_t hv, void *item)
+{
+    return swimcap_add_mmm(self, mmm_thread_acquire(), hv, item);
 }
 
 /*
@@ -366,7 +392,7 @@ swimcap_add(swimcap_t *self, hatrack_hash_t hv, void *item)
  * behavior is the same as if the item was never in the table.
  */
 void *
-swimcap_remove(swimcap_t *self, hatrack_hash_t hv, bool *found)
+swimcap_remove_mmm(swimcap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
     void *ret;
 
@@ -374,13 +400,19 @@ swimcap_remove(swimcap_t *self, hatrack_hash_t hv, bool *found)
         abort();
     }
 
-    ret = swimcap_store_remove(self->store_current, self, hv, found);
+    ret = swimcap_store_remove(self->store_current, thread, self, hv, found);
 
     if (pthread_mutex_unlock(&self->write_mutex)) {
         abort();
     }
 
     return ret;
+}
+
+void *
+swimcap_remove(swimcap_t *self, hatrack_hash_t hv, bool *found)
+{
+    return swimcap_remove_mmm(self, mmm_thread_acquire(), hv, found);
 }
 
 /* swimcap_len()
@@ -393,10 +425,17 @@ swimcap_remove(swimcap_t *self, hatrack_hash_t hv, bool *found)
  * the time of check could be dramatically different by the time of
  * use.
  */
+
 uint64_t
 swimcap_len(swimcap_t *self)
 {
     return self->item_count;
+}
+
+uint64_t
+swimcap_len_mmm(swimcap_t *self, mmm_thread_t *thread)
+{
+    return swimcap_len(self);
 }
 
 /* swimcap_view()
@@ -415,7 +454,7 @@ swimcap_len(swimcap_t *self)
  * write lock, just as we did with swimcap.
  */
 hatrack_view_t *
-swimcap_view(swimcap_t *self, uint64_t *num, bool sort)
+swimcap_view_mmm(swimcap_t *self, mmm_thread_t *thread, uint64_t *num, bool sort)
 {
     hatrack_view_t   *view;
     swimcap_store_t  *store;
@@ -432,7 +471,7 @@ swimcap_view(swimcap_t *self, uint64_t *num, bool sort)
         abort();
     }
 #else
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 #endif
 
     store     = self->store_current;
@@ -470,7 +509,7 @@ swimcap_view(swimcap_t *self, uint64_t *num, bool sort)
             abort();
         }
 #else
-        mmm_end_op();
+        mmm_end_op(thread);
 #endif
 
         return NULL;
@@ -487,10 +526,16 @@ swimcap_view(swimcap_t *self, uint64_t *num, bool sort)
         abort();
     }
 #else
-    mmm_end_op();
+    mmm_end_op(thread);
 #endif
 
     return view;
+}
+
+hatrack_view_t *
+swimcap_view(swimcap_t *self, uint64_t *num, bool sort)
+{
+    return swimcap_view_mmm(self, mmm_thread_acquire(), num, sort);
 }
 
 /*
@@ -570,6 +615,7 @@ swimcap_store_get(swimcap_store_t *self, hatrack_hash_t hv, bool *found)
 
 static void *
 swimcap_store_put(swimcap_store_t *self,
+                  mmm_thread_t    *thread,
                   swimcap_t       *top,
                   hatrack_hash_t   hv,
                   void            *item,
@@ -621,9 +667,10 @@ swimcap_store_put(swimcap_store_t *self,
 
         if (hatrack_bucket_unreserved(cur->hv)) {
             if (self->used_count + 1 == self->threshold) {
-                swimcap_migrate(top);
+                swimcap_migrate(top, thread);
 
                 return swimcap_store_put(top->store_current,
+                                         thread,
                                          top,
                                          hv,
                                          item,
@@ -653,6 +700,7 @@ swimcap_store_put(swimcap_store_t *self,
 
 static void *
 swimcap_store_replace(swimcap_store_t *self,
+                      mmm_thread_t    *thread,
                       hatrack_hash_t   hv,
                       void            *item,
                       bool            *found)
@@ -708,6 +756,7 @@ swimcap_store_replace(swimcap_store_t *self,
 
 static bool
 swimcap_store_add(swimcap_store_t *self,
+                  mmm_thread_t    *thread,
                   swimcap_t       *top,
                   hatrack_hash_t   hv,
                   void            *item)
@@ -745,9 +794,9 @@ swimcap_store_add(swimcap_store_t *self,
         // time of the operation, and we should add.
         if (hatrack_bucket_unreserved(cur->hv)) {
             if (self->used_count + 1 == self->threshold) {
-                swimcap_migrate(top);
+                swimcap_migrate(top, thread);
 
-                return swimcap_store_add(top->store_current, top, hv, item);
+                return swimcap_store_add(top->store_current, thread, top, hv, item);
             }
 
             self->used_count++;
@@ -768,6 +817,7 @@ swimcap_store_add(swimcap_store_t *self,
 
 void *
 swimcap_store_remove(swimcap_store_t *self,
+                     mmm_thread_t    *thread,
                      swimcap_t       *top,
                      hatrack_hash_t   hv,
                      bool            *found)
@@ -823,7 +873,7 @@ swimcap_store_remove(swimcap_store_t *self,
 }
 
 static void
-swimcap_migrate(swimcap_t *self)
+swimcap_migrate(swimcap_t *self, mmm_thread_t *thread)
 {
     swimcap_store_t  *cur_store;
     swimcap_store_t  *new_store;
@@ -837,7 +887,7 @@ swimcap_migrate(swimcap_t *self)
 
     cur_store     = self->store_current;
     cur_last_slot = cur_store->last_slot;
-    new_size      = hatrack_new_size(cur_last_slot, swimcap_len(self) + 1);
+    new_size      = hatrack_new_size(cur_last_slot, swimcap_len_mmm(self, thread) + 1);
     new_last_slot = new_size - 1;
     new_store     = swimcap_store_new(new_size);
 
@@ -882,7 +932,9 @@ swimcap_migrate(swimcap_t *self)
      * after the retirement epoch, which would constitute a
      * use-after-free bug.
      */
-    mmm_retire(cur_store);
+    mmm_retire(thread, cur_store);
 
     return;
 }
+
+#endif

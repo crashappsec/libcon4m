@@ -36,6 +36,8 @@
 
 #include <stdlib.h>
 
+#ifndef HATRACK_NO_PTHREAD
+
 // clang-format off
 static duncecap_store_t *duncecap_store_new    (uint64_t);
 static void             *duncecap_store_get    (duncecap_store_t *,
@@ -270,6 +272,12 @@ duncecap_get(duncecap_t *self, hatrack_hash_t hv, bool *found)
     return ret;
 }
 
+void *
+duncecap_get_mmm(duncecap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
+{
+    return duncecap_get(self, hv, found);
+}
+
 /* duncecap_put()
  *
  * Lock the hash table for writing, and when we get ownership of the
@@ -303,6 +311,12 @@ duncecap_put(duncecap_t *self, hatrack_hash_t hv, void *item, bool *found)
     }
 
     return ret;
+}
+
+void *
+duncecap_put_mmm(duncecap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
+{
+    return duncecap_put(self, hv, item, found);
 }
 
 /* duncecap_replace()
@@ -342,6 +356,12 @@ duncecap_replace(duncecap_t *self, hatrack_hash_t hv, void *item, bool *found)
     return ret;
 }
 
+void *
+duncecap_replace_mmm(duncecap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
+{
+    return duncecap_replace(self, hv, item, found);
+}
+
 /* duncecap_add()
  *
  * Lock the hash table for writing, and when we get ownership of the
@@ -374,6 +394,12 @@ duncecap_add(duncecap_t *self, hatrack_hash_t hv, void *item)
     }
 
     return ret;
+}
+
+bool
+duncecap_add_mmm(duncecap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item)
+{
+    return duncecap_add(self, hv, item);
 }
 
 /* duncecap_remove()
@@ -416,6 +442,12 @@ duncecap_remove(duncecap_t *self, hatrack_hash_t hv, bool *found)
     return ret;
 }
 
+void *
+duncecap_remove_mmm(duncecap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
+{
+    return duncecap_remove(self, hv, found);
+}
+
 /* duncecap_len()
  *
  * Returns the approximate number of items currently in the
@@ -428,6 +460,12 @@ uint64_t
 duncecap_len(duncecap_t *self)
 {
     return self->item_count;
+}
+
+uint64_t
+duncecap_len_mmm(duncecap_t *self, mmm_thread_t *thread)
+{
+    return duncecap_len(self);
 }
 
 /* duncecap_view()
@@ -495,6 +533,12 @@ duncecap_view(duncecap_t *self, uint64_t *num, bool sort)
 
     duncecap_viewer_exit(self, store);
     return view;
+}
+
+hatrack_view_t *
+duncecap_view_mmm(duncecap_t *self, mmm_thread_t *thread, uint64_t *num, bool sort)
+{
+    return duncecap_view(self, num, sort);
 }
 
 // clang-format off
@@ -876,3 +920,5 @@ duncecap_migrate(duncecap_t *self)
 
     return;
 }
+
+#endif

@@ -27,6 +27,16 @@
 #include "hatrack/hatomic.h"
 
 #include <stdlib.h>
+#ifdef HATRACK_NO_PTHREAD
+#include <stdio.h>
+#else
+#include <pthread.h>
+#endif
+
+#ifdef HATRACK_MMM_DEBUG
+#include "hatrack/debug.h"
+#include <string.h>
+#endif
 
 typedef struct mmm_free_tids_st mmm_free_tids_t;
 struct mmm_free_tids_st {
@@ -34,22 +44,17 @@ struct mmm_free_tids_st {
     uint64_t         tid;
 };
 
-// clang-format off
-__thread mmm_header_t  *mmm_retire_list  = NULL;
-__thread pthread_once_t mmm_inited       = PTHREAD_ONCE_INIT;
-_Atomic  uint64_t       mmm_epoch        = HATRACK_EPOCH_FIRST;
-_Atomic  uint64_t       mmm_nexttid      = 0;
-__thread int64_t        mmm_mytid        = -1;
-__thread uint64_t       mmm_retire_ctr   = 0;
+static _Atomic uint64_t mmm_nexttid;
 
-         uint64_t       mmm_reservations[HATRACK_THREADS_MAX] = { 0, };
+_Atomic uint64_t mmm_epoch = HATRACK_EPOCH_FIRST;
 
-// clang-format on
+static uint64_t mmm_reservations[HATRACK_THREADS_MAX];
 
-static void mmm_empty(void);
+static void mmm_empty(mmm_thread_t *thread);
 
-#ifdef HATRACK_DEBUG
-static void hatrack_debug_mmm(void *, char *);
+#ifdef HATRACK_MMM_DEBUG
+__attribute__((unused)) static void
+hatrack_debug_mmm(void *addr, char *msg);
 
 #define DEBUG_MMM(x, y) hatrack_debug_mmm((void *)(x), y)
 #ifdef HATRACK_MMM_DEBUG
@@ -72,6 +77,11 @@ static void hatrack_debug_mmm(void *, char *);
 #define HATRACK_RETIRE_UNUSED_CTR() HATRACK_CTR(HATRACK_CTR_RETIRE_UNUSED)
 #endif
 
+static mmm_thread_t *mmm_thread_acquire_default(void *aux, size_t size);
+
+static void                   *mmm_thread_aux;
+static mmm_thread_acquire_func mmm_thread_acquire_fn = mmm_thread_acquire_default;
+
 /*
  * We want to avoid overrunning the reservations array that our memory
  * management system uses.
@@ -88,60 +98,21 @@ static void hatrack_debug_mmm(void *, char *);
 
 static _Atomic(mmm_free_tids_t *) mmm_free_tids;
 
-/* This grabs an mmm-specific threadid and stashes it in the
- * thread-local variable mmm_mytid.
- *
- * We have a fixed number of TIDS to give out though (controlled by
- * the preprocessor variable, HATRACK_THREADS_MAX).  We give them out
- * sequentially till they're done, and then we give out ones that have
- * been "given back", which are stored on a stack (mmm_free_tids).
- *
- * If we finally run out, we abort.
- */
-void
-mmm_register_thread(void)
-{
-    mmm_free_tids_t *head;
-
-    if (mmm_mytid != -1) {
-        return;
-    }
-    mmm_mytid = atomic_fetch_add(&mmm_nexttid, 1);
-
-    if (mmm_mytid >= HATRACK_THREADS_MAX) {
-        head = atomic_load(&mmm_free_tids);
-
-        do {
-            if (!head) {
-                abort();
-            }
-        } while (!CAS(&mmm_free_tids, &head, head->next));
-
-        mmm_mytid = head->tid;
-        mmm_retire(head);
-    }
-
-    mmm_reservations[mmm_mytid] = HATRACK_EPOCH_UNRESERVED;
-
-    return;
-}
-
 // Call when a thread exits to add to the free TID stack.
 static void
-mmm_tid_giveback(void)
+mmm_tid_giveback(mmm_thread_t *thread)
 {
     mmm_free_tids_t *new_head;
     mmm_free_tids_t *old_head;
 
     new_head      = mmm_alloc(sizeof(mmm_free_tids_t));
-    new_head->tid = mmm_mytid;
+    new_head->tid = thread->tid;
     old_head      = atomic_load(&mmm_free_tids);
 
     do {
         new_head->next = old_head;
     } while (!CAS(&mmm_free_tids, &old_head, new_head));
-
-    return;
+    thread->initialized = false;
 }
 
 // This is here for convenience of testing; generally this
@@ -150,8 +121,86 @@ void
 mmm_reset_tids(void)
 {
     atomic_store(&mmm_nexttid, 0);
+}
 
-    return;
+#ifndef HATRACK_NO_PTHREAD
+static pthread_key_t mmm_thread_pkey;
+
+struct mmm_pthread {
+    size_t size;
+    char   data[];
+};
+
+static void
+mmm_thread_release_pthread(void *arg)
+{
+    pthread_setspecific(mmm_thread_pkey, NULL);
+
+    struct mmm_pthread *pt = arg;
+    mmm_thread_release((mmm_thread_t *)pt->data);
+    hatrack_free(arg, pt->size);
+}
+
+static void
+mmm_thread_acquire_init_pthread(void)
+{
+    pthread_key_create(&mmm_thread_pkey, mmm_thread_release_pthread);
+}
+#endif
+
+static mmm_thread_t *
+mmm_thread_acquire_default(void *aux, size_t size)
+{
+#ifdef HATRACK_NO_PTHREAD
+    fprintf(stderr, "No implementation for mmm_thread_acquire defined\n");
+    abort();
+#else
+    static pthread_once_t init = PTHREAD_ONCE_INIT;
+    pthread_once(&init, mmm_thread_acquire_init_pthread);
+
+    struct mmm_pthread *pt = pthread_getspecific(mmm_thread_pkey);
+    if (NULL == pt) {
+        pt       = hatrack_zalloc(sizeof(struct mmm_pthread) + size);
+        pt->size = size;
+        pthread_setspecific(mmm_thread_pkey, pt);
+    }
+    return (mmm_thread_t *)pt->data;
+#endif
+}
+
+mmm_thread_t *
+mmm_thread_acquire(void)
+{
+    mmm_thread_t *thread = mmm_thread_acquire_fn(mmm_thread_aux,
+                                                 sizeof(mmm_thread_t));
+
+    if (!thread->initialized) {
+        thread->initialized = true;
+
+        /* We have a fixed number of TIDS to give out though (controlled by
+         * the preprocessor variable, HATRACK_THREADS_MAX).  We give them out
+         * sequentially till they're done, and then we give out ones that have
+         * been "given back", which are stored on a stack (mmm_free_tids).
+         *
+         * If we finally run out, we abort.
+         */
+        thread->tid = atomic_fetch_add(&mmm_nexttid, 1);
+        if (thread->tid >= HATRACK_THREADS_MAX) {
+            mmm_free_tids_t *head = atomic_load(&mmm_free_tids);
+            do {
+                if (!head) {
+                    abort();
+                }
+            } while (!CAS(&mmm_free_tids, &head, head->next));
+
+            thread->tid = head->tid;
+            mmm_retire(thread, head);
+        }
+
+        mmm_reservations[thread->tid] = HATRACK_EPOCH_UNRESERVED;
+    }
+
+    return thread;
 }
 
 /* For now, our cleanup function spins until it is able to retire
@@ -160,21 +209,24 @@ mmm_reset_tids(void)
  * contents to an "ophan" list.
  */
 void
-mmm_clean_up_before_exit(void)
+mmm_thread_release(mmm_thread_t *thread)
 {
-    if (mmm_mytid == -1) {
-        return;
+    if (thread->initialized) {
+        mmm_end_op(thread);
+
+        while (thread->retire_list) {
+            mmm_empty(thread);
+        }
+
+        mmm_tid_giveback(thread);
     }
+}
 
-    mmm_end_op();
-
-    while (mmm_retire_list) {
-        mmm_empty();
-    }
-
-    mmm_tid_giveback();
-
-    return;
+void
+mmm_setthreadfns(mmm_thread_acquire_func acquirefn, void *aux)
+{
+    mmm_thread_acquire_fn = acquirefn != NULL ? acquirefn : mmm_thread_acquire_default;
+    mmm_thread_aux        = aux;
 }
 
 /* Sets the retirement epoch on the pointer, and adds it to the
@@ -186,7 +238,7 @@ mmm_clean_up_before_exit(void)
  * for items to free.
  */
 void
-mmm_retire(void *ptr)
+mmm_retire(mmm_thread_t *thread, void *ptr)
 {
     mmm_header_t *cell;
 
@@ -219,15 +271,15 @@ mmm_retire(void *ptr)
     }
 #endif
 
-    cell->retire_epoch = atomic_load(&mmm_epoch);
-    cell->next         = mmm_retire_list;
-    mmm_retire_list    = cell;
+    cell->retire_epoch  = atomic_load(&mmm_epoch);
+    cell->next          = thread->retire_list;
+    thread->retire_list = cell;
 
     DEBUG_MMM_INTERNAL(cell->data, "mmm_retire");
 
-    if (++mmm_retire_ctr & HATRACK_RETIRE_FREQ) {
-        mmm_retire_ctr = 0;
-        mmm_empty();
+    if (++thread->retire_ctr & HATRACK_RETIRE_FREQ) {
+        thread->retire_ctr = 0;
+        mmm_empty(thread);
     }
 
     return;
@@ -244,7 +296,7 @@ mmm_retire(void *ptr)
  * and free everything else.
  */
 static void
-mmm_empty(void)
+mmm_empty(mmm_thread_t *thread)
 {
     mmm_header_t *tmp;
     mmm_header_t *cell;
@@ -291,12 +343,12 @@ mmm_empty(void)
      * something on the retire list, so cell will never start out
      * empty.
      */
-    cell = mmm_retire_list;
+    cell = thread->retire_list;
 
     // Special-case this, in case we have to delete the head cell,
     // to make sure we reinitialize the linked list right.
-    if (mmm_retire_list->retire_epoch < lowest) {
-        mmm_retire_list = NULL;
+    if (thread->retire_list->retire_epoch < lowest) {
+        thread->retire_list = NULL;
     }
     else {
         while (true) {
@@ -337,35 +389,32 @@ mmm_empty(void)
 }
 
 void
-mmm_start_basic_op(void)
+mmm_start_basic_op(mmm_thread_t *thread)
 {
-    pthread_once(&mmm_inited, mmm_register_thread);
-    mmm_reservations[mmm_mytid] = atomic_load(&mmm_epoch);
+    mmm_reservations[thread->tid] = atomic_load(&mmm_epoch);
 
     return;
 }
 
 uint64_t
-mmm_start_linearized_op(void)
+mmm_start_linearized_op(mmm_thread_t *thread)
 {
     uint64_t read_epoch;
 
-    pthread_once(&mmm_inited, mmm_register_thread);
+    mmm_reservations[thread->tid] = atomic_load(&mmm_epoch);
+    read_epoch                    = atomic_load(&mmm_epoch);
 
-    mmm_reservations[mmm_mytid] = atomic_load(&mmm_epoch);
-    read_epoch                  = atomic_load(&mmm_epoch);
-
-    HATRACK_YN_CTR_NORET(read_epoch == mmm_reservations[mmm_mytid],
+    HATRACK_YN_CTR_NORET(read_epoch == mmm_reservations[mmm_thread->tid],
                          HATRACK_CTR_LINEAR_EPOCH_EQ);
 
     return read_epoch;
 }
 
 void
-mmm_end_op(void)
+mmm_end_op(mmm_thread_t *thread)
 {
     atomic_signal_fence(memory_order_seq_cst);
-    mmm_reservations[mmm_mytid] = HATRACK_EPOCH_UNRESERVED;
+    mmm_reservations[thread->tid] = HATRACK_EPOCH_UNRESERVED;
 
     return;
 }
@@ -468,19 +517,19 @@ mmm_retire_unused(void *ptr)
 // Use this in migration functions to avoid unnecessary scanning of the
 // retire list, when we know the epoch won't have changed.
 void
-mmm_retire_fast(void *ptr)
+mmm_retire_fast(mmm_thread_t *thread, void *ptr)
 {
     mmm_header_t *cell;
 
-    cell               = mmm_get_header(ptr);
-    cell->retire_epoch = atomic_load(&mmm_epoch);
-    cell->next         = mmm_retire_list;
-    mmm_retire_list    = cell;
+    cell                = mmm_get_header(ptr);
+    cell->retire_epoch  = atomic_load(&mmm_epoch);
+    cell->next          = thread->retire_list;
+    thread->retire_list = cell;
 
     return;
 }
 
-#ifdef HATRACK_DEBUG
+#ifdef HATRACK_MMM_DEBUG
 /* Conceptually, this might belong in the debug subsystem. However,
  * this is a specific debug interface for outputting the epoch info
  * associated with an MMM allocation, and as such should live

@@ -46,19 +46,19 @@ enum {
        woolhat_store_t *woolhat_store_new    (uint64_t);
 static void            *woolhat_store_get    (woolhat_store_t *, hatrack_hash_t,
 					      bool *);
-static void            *woolhat_store_put    (woolhat_store_t *, woolhat_t *,
+static void            *woolhat_store_put    (woolhat_store_t *, mmm_thread_t *, woolhat_t *,
 					      hatrack_hash_t, void *, bool *,
 					      uint64_t);
-static void            *woolhat_store_replace(woolhat_store_t *, woolhat_t *,
+static void            *woolhat_store_replace(woolhat_store_t *, mmm_thread_t *, woolhat_t *,
 					      hatrack_hash_t, void *, bool *,
 					      uint64_t);
-static bool             woolhat_store_add    (woolhat_store_t *, woolhat_t *,
+static bool             woolhat_store_add    (woolhat_store_t *, mmm_thread_t *, woolhat_t *,
 					      hatrack_hash_t, void *,
 					      uint64_t);
-static void            *woolhat_store_remove (woolhat_store_t *, woolhat_t *,
+static void            *woolhat_store_remove (woolhat_store_t *, mmm_thread_t *, woolhat_t *,
 					      hatrack_hash_t, bool *,
 					      uint64_t);
-static woolhat_store_t *woolhat_store_migrate(woolhat_store_t *, woolhat_t *);
+static woolhat_store_t *woolhat_store_migrate(woolhat_store_t *, mmm_thread_t *, woolhat_t *);
 static inline bool      woolhat_help_required(uint64_t);
 static inline bool      woolhat_need_to_help (woolhat_t *);
 static uint64_t         woolhat_set_ordering (woolhat_record_t *, bool);
@@ -186,7 +186,7 @@ woolhat_cleanup(woolhat_t *self)
         p++;
     }
 
-    mmm_retire(store);
+    mmm_retire_unused(store);
 
     return;
 }
@@ -240,17 +240,39 @@ woolhat_set_cleanup_func(woolhat_t *self, mmm_cleanup_func func, void *aux)
 }
 
 void *
-woolhat_get(woolhat_t *self, hatrack_hash_t hv, bool *found)
+woolhat_get_mmm(woolhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
     void            *ret;
     woolhat_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
     ret   = woolhat_store_get(store, hv, found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
+
+    return ret;
+}
+
+void *
+woolhat_get(woolhat_t *self, hatrack_hash_t hv, bool *found)
+{
+    return woolhat_get_mmm(self, mmm_thread_acquire(), hv, found);
+}
+
+void *
+woolhat_put_mmm(woolhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
+{
+    void            *ret;
+    woolhat_store_t *store;
+
+    mmm_start_basic_op(thread);
+
+    store = atomic_read(&self->store_current);
+    ret   = woolhat_store_put(store, thread, self, hv, item, found, 0);
+
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -258,15 +280,21 @@ woolhat_get(woolhat_t *self, hatrack_hash_t hv, bool *found)
 void *
 woolhat_put(woolhat_t *self, hatrack_hash_t hv, void *item, bool *found)
 {
+    return woolhat_put_mmm(self, mmm_thread_acquire(), hv, item, found);
+}
+
+void *
+woolhat_replace_mmm(woolhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
+{
     void            *ret;
     woolhat_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
-    ret   = woolhat_store_put(store, self, hv, item, found, 0);
+    ret   = woolhat_store_replace(store, thread, self, hv, item, found, 0);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -274,15 +302,21 @@ woolhat_put(woolhat_t *self, hatrack_hash_t hv, void *item, bool *found)
 void *
 woolhat_replace(woolhat_t *self, hatrack_hash_t hv, void *item, bool *found)
 {
-    void            *ret;
+    return woolhat_replace_mmm(self, mmm_thread_acquire(), hv, item, found);
+}
+
+bool
+woolhat_add_mmm(woolhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item)
+{
+    bool             ret;
     woolhat_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
-    ret   = woolhat_store_replace(store, self, hv, item, found, 0);
+    ret   = woolhat_store_add(store, thread, self, hv, item, 0);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -290,15 +324,21 @@ woolhat_replace(woolhat_t *self, hatrack_hash_t hv, void *item, bool *found)
 bool
 woolhat_add(woolhat_t *self, hatrack_hash_t hv, void *item)
 {
-    bool             ret;
+    return woolhat_add_mmm(self, mmm_thread_acquire(), hv, item);
+}
+
+void *
+woolhat_remove_mmm(woolhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
+{
+    void            *ret;
     woolhat_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
-    ret   = woolhat_store_add(store, self, hv, item, 0);
+    ret   = woolhat_store_remove(store, thread, self, hv, found, 0);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -306,17 +346,7 @@ woolhat_add(woolhat_t *self, hatrack_hash_t hv, void *item)
 void *
 woolhat_remove(woolhat_t *self, hatrack_hash_t hv, bool *found)
 {
-    void            *ret;
-    woolhat_store_t *store;
-
-    mmm_start_basic_op();
-
-    store = atomic_read(&self->store_current);
-    ret   = woolhat_store_remove(store, self, hv, found, 0);
-
-    mmm_end_op();
-
-    return ret;
+    return woolhat_remove_mmm(self, mmm_thread_acquire(), hv, found);
 }
 
 uint64_t
@@ -325,8 +355,14 @@ woolhat_len(woolhat_t *self)
     return atomic_read(&self->item_count);
 }
 
+uint64_t
+woolhat_len_mmm(woolhat_t *self, mmm_thread_t *thread)
+{
+    return woolhat_len(self);
+}
+
 hatrack_view_t *
-woolhat_view(woolhat_t *self, uint64_t *out_num, bool sort)
+woolhat_view_mmm(woolhat_t *self, mmm_thread_t *thread, uint64_t *out_num, bool sort)
 {
     woolhat_history_t *cur;
     woolhat_history_t *end;
@@ -340,7 +376,7 @@ woolhat_view(woolhat_t *self, uint64_t *out_num, bool sort)
     uint64_t           sort_epoch;
     uint64_t           num_items;
 
-    epoch     = mmm_start_linearized_op();
+    epoch     = mmm_start_linearized_op(thread);
     store     = self->store_current;
     cur       = store->hist_buckets;
     end       = cur + (store->last_slot + 1);
@@ -389,7 +425,7 @@ woolhat_view(woolhat_t *self, uint64_t *out_num, bool sort)
 
     if (!num_items) {
         hatrack_free(view, alloc_len);
-        mmm_end_op();
+        mmm_end_op(thread);
 
         return NULL;
     }
@@ -400,9 +436,15 @@ woolhat_view(woolhat_t *self, uint64_t *out_num, bool sort)
         qsort(view, num_items, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return view;
+}
+
+hatrack_view_t *
+woolhat_view(woolhat_t *self, uint64_t *out_num, bool sort)
+{
+    return woolhat_view_mmm(self, mmm_thread_acquire(), out_num, sort);
 }
 
 /* woolhat_view_epoch()
@@ -553,6 +595,7 @@ not_found:
 
 static void *
 woolhat_store_put(woolhat_store_t *self,
+                  mmm_thread_t    *thread,
                   woolhat_t       *top,
                   hatrack_hash_t   hv1,
                   void            *item,
@@ -635,16 +678,16 @@ migrate_and_retry:
 
         atomic_fetch_add(&top->help_needed, 1);
 
-        self = woolhat_store_migrate(self, top);
-        ret  = woolhat_store_put(self, top, hv1, item, found, count);
+        self = woolhat_store_migrate(self, thread, top);
+        ret  = woolhat_store_put(self, thread, top, hv1, item, found, count);
 
         atomic_fetch_sub(&top->help_needed, 1);
 
         return ret;
     }
 
-    self = woolhat_store_migrate(self, top);
-    return woolhat_store_put(self, top, hv1, item, found, count);
+    self = woolhat_store_migrate(self, thread, top);
+    return woolhat_store_put(self, thread, top, hv1, item, found, count);
 
 found_history_bucket:
     state = atomic_read(&bucket->state);
@@ -700,7 +743,7 @@ found_history_bucket:
         return hatrack_not_found(found);
     }
 
-    mmm_retire(head);
+    mmm_retire(thread, head);
 
     if (deletion_below) {
         /* We 'helped' delete, but we don't need to bump
@@ -717,6 +760,7 @@ found_history_bucket:
 
 static void *
 woolhat_store_replace(woolhat_store_t *self,
+                      mmm_thread_t    *thread,
                       woolhat_t       *top,
                       hatrack_hash_t   hv1,
                       void            *item,
@@ -784,16 +828,16 @@ migrate_and_retry:
             HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
             atomic_fetch_add(&top->help_needed, 1);
 
-            self = woolhat_store_migrate(self, top);
-            ret  = woolhat_store_replace(self, top, hv1, item, found, count);
+            self = woolhat_store_migrate(self, thread, top);
+            ret  = woolhat_store_replace(self, thread, top, hv1, item, found, count);
 
             atomic_fetch_sub(&top->help_needed, 1);
 
             return ret;
         }
 
-        self = woolhat_store_migrate(self, top);
-        return woolhat_store_replace(self, top, hv1, item, found, count);
+        self = woolhat_store_migrate(self, thread, top);
+        return woolhat_store_replace(self, thread, top, hv1, item, found, count);
     }
 
     if (state.flags & WOOLHAT_F_DELETE_HELP) {
@@ -873,7 +917,7 @@ migrate_and_retry:
 
     mmm_commit_write(newhead);
     woolhat_set_ordering(newhead, false);
-    mmm_retire(head);
+    mmm_retire(thread, head);
 
     if (top->cleanup_func) {
         mmm_add_cleanup_handler(newhead, top->cleanup_func, top->cleanup_aux);
@@ -884,6 +928,7 @@ migrate_and_retry:
 
 static bool
 woolhat_store_add(woolhat_store_t *self,
+                  mmm_thread_t    *thread,
                   woolhat_t       *top,
                   hatrack_hash_t   hv1,
                   void            *item,
@@ -935,15 +980,15 @@ migrate_and_retry:
         HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
         atomic_fetch_add(&top->help_needed, 1);
 
-        self = woolhat_store_migrate(self, top);
-        ret  = woolhat_store_add(self, top, hv1, item, count);
+        self = woolhat_store_migrate(self, thread, top);
+        ret  = woolhat_store_add(self, thread, top, hv1, item, count);
 
         atomic_fetch_sub(&top->help_needed, 1);
 
         return ret;
     }
-    self = woolhat_store_migrate(self, top);
-    return woolhat_store_add(self, top, hv1, item, count);
+    self = woolhat_store_migrate(self, thread, top);
+    return woolhat_store_add(self, thread, top, hv1, item, count);
 
 found_history_bucket:
     state = atomic_read(&bucket->state);
@@ -1003,7 +1048,7 @@ found_history_bucket:
     woolhat_new_insertion(newhead);
 
     if (head) {
-        mmm_retire(head);
+        mmm_retire(thread, head);
     }
 
     if (top->cleanup_func) {
@@ -1015,6 +1060,7 @@ found_history_bucket:
 
 static void *
 woolhat_store_remove(woolhat_store_t *self,
+                     mmm_thread_t    *thread,
                      woolhat_t       *top,
                      hatrack_hash_t   hv1,
                      bool            *found,
@@ -1081,16 +1127,16 @@ migrate_and_retry:
             HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
             atomic_fetch_add(&top->help_needed, 1);
 
-            self = woolhat_store_migrate(self, top);
-            ret  = woolhat_store_remove(self, top, hv1, found, count);
+            self = woolhat_store_migrate(self, thread, top);
+            ret  = woolhat_store_remove(self, thread, top, hv1, found, count);
 
             atomic_fetch_sub(&top->help_needed, 1);
 
             return ret;
         }
 
-        self = woolhat_store_migrate(self, top);
-        return woolhat_store_remove(self, top, hv1, found, count);
+        self = woolhat_store_migrate(self, thread, top);
+        return woolhat_store_remove(self, thread, top, hv1, found, count);
     }
 
     if (state.state.flags & WOOLHAT_F_DELETE_HELP) {
@@ -1181,7 +1227,7 @@ migrate_and_retry:
              * But either way, we tick down the item count.
              */
             mmm_commit_write(newhead);
-            mmm_retire(state.state.head);
+            mmm_retire(thread, state.state.head);
             atomic_fetch_sub(&top->item_count, 1);
 
             if (deleting_for_ourselves) {
@@ -1207,14 +1253,14 @@ migrate_and_retry:
 
     // Here, the initial delete was successful.
     mmm_commit_write(newhead);
-    mmm_retire(head);
+    mmm_retire(thread, head);
     atomic_fetch_sub(&top->item_count, 1);
 
     return hatrack_found(found, NULL);
 }
 
 static woolhat_store_t *
-woolhat_store_migrate(woolhat_store_t *self, woolhat_t *top)
+woolhat_store_migrate(woolhat_store_t *self, mmm_thread_t *thread, woolhat_t *top)
 {
     woolhat_store_t   *new_store;
     woolhat_store_t   *candidate_store;
@@ -1260,7 +1306,7 @@ woolhat_store_migrate(woolhat_store_t *self, woolhat_t *top)
              */
             if (state.state.head && !(state.state.flags & WOOLHAT_F_MOVED)) {
                 mmm_help_commit(state.state.head);
-                mmm_retire_fast(state.state.head);
+                mmm_retire_fast(thread, state.state.head);
             }
 
             continue;
@@ -1354,7 +1400,7 @@ skip_some:
     CAS(&new_store->used_count, &expected_used, new_used);
 
     if (CAS(&top->store_current, &self, new_store)) {
-        mmm_retire(self);
+        mmm_retire(thread, self);
     }
 
     return top->store_current;
