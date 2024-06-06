@@ -34,6 +34,7 @@
 #pragma once
 
 #include "base.h"
+#include "mmm.h"
 
 typedef uint64_t           q64_item_t;
 typedef _Atomic q64_item_t q64_cell_t;
@@ -69,12 +70,15 @@ typedef struct {
 } q64_t;
 
 // clang-format off
-HATRACK_EXTERN q64_t   *q64_new      (void);
-HATRACK_EXTERN q64_t   *q64_new_size (char);
-HATRACK_EXTERN void     q64_init     (q64_t *);
-HATRACK_EXTERN void     q64_init_size(q64_t *, char);
-HATRACK_EXTERN void     q64_cleanup  (q64_t *);
-HATRACK_EXTERN void     q64_delete   (q64_t *);
-HATRACK_EXTERN uint64_t q64_len      (q64_t *);
-HATRACK_EXTERN void     q64_enqueue  (q64_t *, void *);
-HATRACK_EXTERN void    *q64_dequeue  (q64_t *, bool *);
+HATRACK_EXTERN q64_t   *q64_new        (void);
+HATRACK_EXTERN q64_t   *q64_new_size   (char);
+HATRACK_EXTERN void     q64_init       (q64_t *);
+HATRACK_EXTERN void     q64_init_size  (q64_t *, char);
+HATRACK_EXTERN void     q64_cleanup    (q64_t *);
+HATRACK_EXTERN void     q64_delete     (q64_t *);
+HATRACK_EXTERN uint64_t q64_len_mmm    (q64_t *, mmm_thread_t *);
+HATRACK_EXTERN uint64_t q64_len        (q64_t *);
+HATRACK_EXTERN void     q64_enqueue_mmm(q64_t *, mmm_thread_t *, void *);
+HATRACK_EXTERN void     q64_enqueue    (q64_t *, void *);
+HATRACK_EXTERN void    *q64_dequeue_mmm(q64_t *, mmm_thread_t *, bool *);
+HATRACK_EXTERN void    *q64_dequeue    (q64_t *, bool *);

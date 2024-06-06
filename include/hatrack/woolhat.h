@@ -82,13 +82,20 @@ HATRACK_EXTERN void            woolhat_init_size       (woolhat_t *, char);
 HATRACK_EXTERN void            woolhat_cleanup         (woolhat_t *);
 HATRACK_EXTERN void            woolhat_delete          (woolhat_t *);
 HATRACK_EXTERN void            woolhat_set_cleanup_func(woolhat_t *, mmm_cleanup_func, void *);
+HATRACK_EXTERN void           *woolhat_get_mmm         (woolhat_t *, mmm_thread_t *, hatrack_hash_t, bool *);
 HATRACK_EXTERN void           *woolhat_get             (woolhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *woolhat_put_mmm         (woolhat_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
 HATRACK_EXTERN void           *woolhat_put             (woolhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *woolhat_replace_mmm     (woolhat_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
 HATRACK_EXTERN void           *woolhat_replace         (woolhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            woolhat_add_mmm         (woolhat_t *, mmm_thread_t *, hatrack_hash_t, void *);
 HATRACK_EXTERN bool            woolhat_add             (woolhat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *woolhat_remove_mmm      (woolhat_t *, mmm_thread_t *, hatrack_hash_t, bool *);
 HATRACK_EXTERN void           *woolhat_remove          (woolhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        woolhat_len_mmm         (woolhat_t *, mmm_thread_t *);
 HATRACK_EXTERN uint64_t        woolhat_len             (woolhat_t *);
 
+HATRACK_EXTERN hatrack_view_t     *woolhat_view_mmm    (woolhat_t *, mmm_thread_t *, uint64_t *, bool);
 HATRACK_EXTERN hatrack_view_t     *woolhat_view        (woolhat_t *, uint64_t *, bool);
 HATRACK_EXTERN hatrack_set_view_t *woolhat_view_epoch  (woolhat_t *, uint64_t *, uint64_t);
 

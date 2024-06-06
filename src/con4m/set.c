@@ -191,8 +191,10 @@ c4m_set_union(c4m_set_t *set1, c4m_set_t *set2)
     hatrack_set_view_t *view2;
     uint64_t            i, j;
 
+    mmm_thread_t *thread = mmm_thread_acquire();
+
     ret   = c4m_new(c4m_get_my_type(set1));
-    epoch = mmm_start_linearized_op();
+    epoch = mmm_start_linearized_op(thread);
 
     view1 = woolhat_view_epoch(&set1->woolhat_instance, &num1, epoch);
     view2 = woolhat_view_epoch(&set2->woolhat_instance, &num2, epoch);
@@ -208,14 +210,14 @@ c4m_set_union(c4m_set_t *set1, c4m_set_t *set2)
 
     while ((i < num1) && (j < num2)) {
         if (view1[i].sort_epoch < view2[j].sort_epoch) {
-            if (woolhat_add(&ret->woolhat_instance, view1[i].hv, view1[i].item)
+            if (woolhat_add_mmm(&ret->woolhat_instance, thread, view1[i].hv, view1[i].item)
                 && set1->pre_return_hook) {
                 (*set1->pre_return_hook)(set1, view1[i].item);
             }
             i++;
         }
         else {
-            if (woolhat_add(&ret->woolhat_instance, view2[j].hv, view2[j].item)
+            if (woolhat_add_mmm(&ret->woolhat_instance, thread, view2[j].hv, view2[j].item)
                 && set2->pre_return_hook) {
                 (*set2->pre_return_hook)(set2, view2[j].item);
             }
@@ -225,7 +227,7 @@ c4m_set_union(c4m_set_t *set1, c4m_set_t *set2)
     }
 
     while (i < num1) {
-        if (woolhat_add(&ret->woolhat_instance, view1[i].hv, view1[i].item)
+        if (woolhat_add_mmm(&ret->woolhat_instance, thread, view1[i].hv, view1[i].item)
             && set1->pre_return_hook) {
             (*set1->pre_return_hook)(set1, view1[i].item);
         }
@@ -233,14 +235,14 @@ c4m_set_union(c4m_set_t *set1, c4m_set_t *set2)
     }
 
     while (j < num2) {
-        if (woolhat_add(&ret->woolhat_instance, view2[j].hv, view2[j].item)
+        if (woolhat_add_mmm(&ret->woolhat_instance, thread, view2[j].hv, view2[j].item)
             && set2->pre_return_hook) {
             (*set2->pre_return_hook)(set2, view2[j].item);
         }
         j++;
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -279,8 +281,10 @@ c4m_set_intersection(c4m_set_t *set1, c4m_set_t *set2)
     hatrack_set_view_t *view2;
     uint64_t            i, j;
 
+    mmm_thread_t *thread = mmm_thread_acquire();
+
     ret   = c4m_new(c4m_get_my_type(set1));
-    epoch = mmm_start_linearized_op();
+    epoch = mmm_start_linearized_op(thread);
 
     view1 = woolhat_view_epoch(&set1->woolhat_instance, &num1, epoch);
     view2 = woolhat_view_epoch(&set2->woolhat_instance, &num2, epoch);
@@ -297,7 +301,7 @@ c4m_set_intersection(c4m_set_t *set1, c4m_set_t *set2)
                 (*set1->pre_return_hook)(set1, view1[i].item);
             }
 
-            woolhat_add(&ret->woolhat_instance, view1[i].hv, view1[i].item);
+            woolhat_add_mmm(&ret->woolhat_instance, thread, view1[i].hv, view1[i].item);
             i++;
             j++;
             continue;
@@ -312,7 +316,7 @@ c4m_set_intersection(c4m_set_t *set1, c4m_set_t *set2)
         }
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -341,8 +345,10 @@ c4m_set_disjunction(c4m_set_t *set1, c4m_set_t *set2)
     hatrack_set_view_t *view2;
     uint64_t            i, j;
 
+    mmm_thread_t *thread = mmm_thread_acquire();
+
     ret   = c4m_new(c4m_get_my_type(set1));
-    epoch = mmm_start_linearized_op();
+    epoch = mmm_start_linearized_op(thread);
 
     view1 = woolhat_view_epoch(&set1->woolhat_instance, &num1, epoch);
     view2 = woolhat_view_epoch(&set2->woolhat_instance, &num2, epoch);
@@ -365,7 +371,7 @@ c4m_set_disjunction(c4m_set_t *set1, c4m_set_t *set2)
                 (*set2->pre_return_hook)(set2, view2[j].item);
             }
 
-            woolhat_add(&ret->woolhat_instance, view2[j].hv, view2[j].item);
+            woolhat_add_mmm(&ret->woolhat_instance, thread, view2[j].hv, view2[j].item);
             j++;
         }
 
@@ -374,12 +380,12 @@ c4m_set_disjunction(c4m_set_t *set1, c4m_set_t *set2)
                 (*set1->pre_return_hook)(set1, view1[i].item);
             }
 
-            woolhat_add(&ret->woolhat_instance, view1[i].hv, view1[i].item);
+            woolhat_add_mmm(&ret->woolhat_instance, thread, view1[i].hv, view1[i].item);
             i++;
         }
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }

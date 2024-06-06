@@ -15,9 +15,24 @@ enum64(witchhat_flag_t,
  * I'm going to explicitly leave these here, instead of going back to
  * making them static.
  */
-witchhat_store_t *witchhat_store_new(uint64_t);
-void             *witchhat_store_get(witchhat_store_t *, hatrack_hash_t, bool *);
-void             *witchhat_store_put(witchhat_store_t *, witchhat_t *, hatrack_hash_t, void *, bool *, uint64_t);
-void             *witchhat_store_replace(witchhat_store_t *, witchhat_t *, hatrack_hash_t, void *, bool *, uint64_t);
-bool              witchhat_store_add(witchhat_store_t *, witchhat_t *, hatrack_hash_t, void *, uint64_t);
-void             *witchhat_store_remove(witchhat_store_t *, witchhat_t *, hatrack_hash_t, bool *, uint64_t);
+
+extern hatrack_view_t *
+witchhat_view_no_mmm(witchhat_t *, uint64_t *, bool);
+
+extern witchhat_store_t *
+witchhat_store_new(uint64_t size);
+
+extern void *
+witchhat_store_get(witchhat_store_t *, hatrack_hash_t, bool *);
+
+extern void *
+witchhat_store_put(witchhat_store_t *, mmm_thread_t *, witchhat_t *, hatrack_hash_t, void *, bool *, uint64_t);
+
+extern void *
+witchhat_store_replace(witchhat_store_t *, mmm_thread_t *, witchhat_t *, hatrack_hash_t, void *, bool *, uint64_t);
+
+extern bool
+witchhat_store_add(witchhat_store_t *, mmm_thread_t *, witchhat_t *, hatrack_hash_t, void *, uint64_t);
+
+extern void *
+witchhat_store_remove(witchhat_store_t *, mmm_thread_t *, witchhat_t *, hatrack_hash_t, bool *, uint64_t);

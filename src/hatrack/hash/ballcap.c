@@ -60,15 +60,15 @@
        ballcap_store_t *ballcap_store_new    (uint64_t);
 static void            *ballcap_store_get    (ballcap_store_t *, hatrack_hash_t,
 					      bool *);
-static void            *ballcap_store_put    (ballcap_store_t *, ballcap_t *,
-					      hatrack_hash_t, void *, bool *);
-static void            *ballcap_store_replace(ballcap_store_t *, ballcap_t *,
-					      hatrack_hash_t, void *, bool *);
-static bool             ballcap_store_add    (ballcap_store_t *, ballcap_t *,
-					      hatrack_hash_t, void *);
-static void            *ballcap_store_remove (ballcap_store_t *, ballcap_t *,
-					      hatrack_hash_t, bool *);
-static ballcap_store_t *ballcap_store_migrate(ballcap_store_t *, ballcap_t *);
+static void            *ballcap_store_put    (ballcap_store_t *, mmm_thread_t *,
+					      ballcap_t *, hatrack_hash_t, void *, bool *);
+static void            *ballcap_store_replace(ballcap_store_t *, mmm_thread_t *,
+					      ballcap_t *, hatrack_hash_t, void *, bool *);
+static bool             ballcap_store_add    (ballcap_store_t *, mmm_thread_t *,
+					      ballcap_t *, hatrack_hash_t, void *);
+static void            *ballcap_store_remove (ballcap_store_t *, mmm_thread_t *,
+					      ballcap_t *, hatrack_hash_t, bool *);
+static ballcap_store_t *ballcap_store_migrate(ballcap_store_t *, mmm_thread_t *, ballcap_t *);
 
 // clang-format on
 
@@ -161,15 +161,35 @@ ballcap_delete(ballcap_t *self)
 }
 
 void *
-ballcap_get(ballcap_t *self, hatrack_hash_t hv, bool *found)
+ballcap_get_mmm(ballcap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
     void *ret;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     ret = ballcap_store_get(self->store_current, hv, found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
+
+    return ret;
+}
+
+void *
+ballcap_get(ballcap_t *self, hatrack_hash_t hv, bool *found)
+{
+    return ballcap_get_mmm(self, mmm_thread_acquire(), hv, found);
+}
+
+void *
+ballcap_put_mmm(ballcap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
+{
+    void *ret;
+
+    mmm_start_basic_op(thread);
+
+    ret = ballcap_store_put(self->store_current, thread, self, hv, item, found);
+
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -177,13 +197,19 @@ ballcap_get(ballcap_t *self, hatrack_hash_t hv, bool *found)
 void *
 ballcap_put(ballcap_t *self, hatrack_hash_t hv, void *item, bool *found)
 {
+    return ballcap_put_mmm(self, mmm_thread_acquire(), hv, item, found);
+}
+
+void *
+ballcap_replace_mmm(ballcap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
+{
     void *ret;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
-    ret = ballcap_store_put(self->store_current, self, hv, item, found);
+    ret = ballcap_store_replace(self->store_current, thread, self, hv, item, found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -191,13 +217,19 @@ ballcap_put(ballcap_t *self, hatrack_hash_t hv, void *item, bool *found)
 void *
 ballcap_replace(ballcap_t *self, hatrack_hash_t hv, void *item, bool *found)
 {
-    void *ret;
+    return ballcap_replace_mmm(self, mmm_thread_acquire(), hv, item, found);
+}
 
-    mmm_start_basic_op();
+bool
+ballcap_add_mmm(ballcap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item)
+{
+    bool ret;
 
-    ret = ballcap_store_replace(self->store_current, self, hv, item, found);
+    mmm_start_basic_op(thread);
 
-    mmm_end_op();
+    ret = ballcap_store_add(self->store_current, thread, self, hv, item);
+
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -205,13 +237,19 @@ ballcap_replace(ballcap_t *self, hatrack_hash_t hv, void *item, bool *found)
 bool
 ballcap_add(ballcap_t *self, hatrack_hash_t hv, void *item)
 {
-    bool ret;
+    return ballcap_add_mmm(self, mmm_thread_acquire(), hv, item);
+}
 
-    mmm_start_basic_op();
+void *
+ballcap_remove_mmm(ballcap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
+{
+    void *ret;
 
-    ret = ballcap_store_add(self->store_current, self, hv, item);
+    mmm_start_basic_op(thread);
 
-    mmm_end_op();
+    ret = ballcap_store_remove(self->store_current, thread, self, hv, found);
+
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -219,15 +257,7 @@ ballcap_add(ballcap_t *self, hatrack_hash_t hv, void *item)
 void *
 ballcap_remove(ballcap_t *self, hatrack_hash_t hv, bool *found)
 {
-    void *ret;
-
-    mmm_start_basic_op();
-
-    ret = ballcap_store_remove(self->store_current, self, hv, found);
-
-    mmm_end_op();
-
-    return ret;
+    return ballcap_remove_mmm(self, mmm_thread_acquire(), hv, found);
 }
 
 /*
@@ -253,8 +283,14 @@ ballcap_len(ballcap_t *self)
     return atomic_read(&self->item_count);
 }
 
+uint64_t
+ballcap_len_mmm(ballcap_t *self, mmm_thread_t *thread)
+{
+    return ballcap_len(self);
+}
+
 hatrack_view_t *
-ballcap_view(ballcap_t *self, uint64_t *num, bool sort)
+ballcap_view_mmm(ballcap_t *self, mmm_thread_t *thread, uint64_t *num, bool sort)
 {
     hatrack_view_t   *view;
     ballcap_store_t  *store;
@@ -268,7 +304,7 @@ ballcap_view(ballcap_t *self, uint64_t *num, bool sort)
     uint64_t          target_epoch;
     uint64_t          sort_epoch;
 
-    target_epoch = mmm_start_linearized_op();
+    target_epoch = mmm_start_linearized_op(thread);
 
     store     = self->store_current;
     last_slot = store->last_slot;
@@ -326,7 +362,7 @@ ballcap_view(ballcap_t *self, uint64_t *num, bool sort)
 
     if (!count) {
         hatrack_free(view, alloc_len);
-        mmm_end_op();
+        mmm_end_op(thread);
 
         return NULL;
     }
@@ -339,9 +375,15 @@ ballcap_view(ballcap_t *self, uint64_t *num, bool sort)
         qsort(view, count, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return view;
+}
+
+hatrack_view_t *
+ballcap_view(ballcap_t *self, uint64_t *num, bool sort)
+{
+    return ballcap_view_mmm(self, mmm_thread_acquire(), num, sort);
 }
 
 ballcap_store_t *
@@ -419,6 +461,7 @@ ballcap_store_get(ballcap_store_t *self, hatrack_hash_t hv, bool *found)
 
 static void *
 ballcap_store_put(ballcap_store_t *self,
+                  mmm_thread_t    *thread,
                   ballcap_t       *top,
                   hatrack_hash_t   hv,
                   void            *item,
@@ -453,6 +496,7 @@ check_bucket_again:
 
                 mmm_retire_unused(record);
                 return ballcap_store_put(top->store_current,
+                                         thread,
                                          top,
                                          hv,
                                          item,
@@ -490,7 +534,7 @@ check_bucket_again:
             cur->record = record;
 
             mmm_commit_write(record);
-            mmm_retire(old_record);
+            mmm_retire(thread, old_record);
 
             if (pthread_mutex_unlock(&cur->mutex)) {
                 abort();
@@ -511,6 +555,7 @@ check_bucket_again:
 
                 mmm_retire_unused(record);
                 return ballcap_store_put(top->store_current,
+                                         thread,
                                          top,
                                          hv,
                                          item,
@@ -532,8 +577,8 @@ check_bucket_again:
 
                 mmm_retire_unused(record);
 
-                self = ballcap_store_migrate(self, top);
-                return ballcap_store_put(self, top, hv, item, found);
+                self = ballcap_store_migrate(self, thread, top);
+                return ballcap_store_put(self, thread, top, hv, item, found);
             }
 
             atomic_fetch_add(&self->used_count, 1);
@@ -559,12 +604,13 @@ check_bucket_again:
         bix = (bix + 1) & last_slot;
     }
 
-    self = ballcap_store_migrate(self, top);
-    return ballcap_store_put(self, top, hv, item, found);
+    self = ballcap_store_migrate(self, thread, top);
+    return ballcap_store_put(self, thread, top, hv, item, found);
 }
 
 static void *
 ballcap_store_replace(ballcap_store_t *self,
+                      mmm_thread_t    *thread,
                       ballcap_t       *top,
                       hatrack_hash_t   hv,
                       void            *item,
@@ -603,6 +649,7 @@ ballcap_store_replace(ballcap_store_t *self,
                 }
 
                 return ballcap_store_replace(top->store_current,
+                                             thread,
                                              top,
                                              hv,
                                              item,
@@ -642,7 +689,7 @@ ballcap_store_replace(ballcap_store_t *self,
             cur->record  = record;
 
             mmm_commit_write(record);
-            mmm_retire(record->next);
+            mmm_retire(thread, record->next);
 
             if (pthread_mutex_unlock(&cur->mutex)) {
                 abort();
@@ -661,8 +708,9 @@ ballcap_store_replace(ballcap_store_t *self,
     return NULL;
 }
 
-bool
+static bool
 ballcap_store_add(ballcap_store_t *self,
+                  mmm_thread_t    *thread,
                   ballcap_t       *top,
                   hatrack_hash_t   hv,
                   void            *item)
@@ -690,7 +738,7 @@ check_bucket_again:
                     abort();
                 }
 
-                return ballcap_store_add(top->store_current, top, hv, item);
+                return ballcap_store_add(top->store_current, thread, top, hv, item);
             }
 
             if (!cur->record->deleted) {
@@ -714,7 +762,7 @@ check_bucket_again:
                     abort();
                 }
 
-                return ballcap_store_add(top->store_current, top, hv, item);
+                return ballcap_store_add(top->store_current, thread, top, hv, item);
             }
 
             if (!hatrack_bucket_unreserved(cur->hv)) {
@@ -730,8 +778,8 @@ check_bucket_again:
                     abort();
                 }
 
-                ballcap_store_migrate(self, top);
-                return ballcap_store_add(top->store_current, top, hv, item);
+                ballcap_store_migrate(self, thread, top);
+                return ballcap_store_add(top->store_current, thread, top, hv, item);
             }
 
             atomic_fetch_add(&self->used_count, 1);
@@ -749,7 +797,7 @@ fill_record:
             mmm_commit_write(record);
 
             if (record->next) {
-                mmm_retire(record->next);
+                mmm_retire(thread, record->next);
             }
 
             if (pthread_mutex_unlock(&cur->mutex)) {
@@ -762,12 +810,13 @@ fill_record:
         bix = (bix + 1) & last_slot;
     }
 
-    ballcap_store_migrate(self, top);
-    return ballcap_store_add(top->store_current, top, hv, item);
+    ballcap_store_migrate(self, thread, top);
+    return ballcap_store_add(top->store_current, thread, top, hv, item);
 }
 
-void *
+static void *
 ballcap_store_remove(ballcap_store_t *self,
+                     mmm_thread_t    *thread,
                      ballcap_t       *top,
                      hatrack_hash_t   hv,
                      bool            *found)
@@ -803,7 +852,7 @@ ballcap_store_remove(ballcap_store_t *self,
                     abort();
                 }
 
-                return ballcap_store_remove(top->store_current, top, hv, found);
+                return ballcap_store_remove(top->store_current, thread, top, hv, found);
             }
 
             if (cur->record->deleted) {
@@ -826,7 +875,7 @@ ballcap_store_remove(ballcap_store_t *self,
             cur->record     = record;
 
             mmm_commit_write(record);
-            mmm_retire(record->next);
+            mmm_retire(thread, record->next);
 
             atomic_fetch_sub(&top->item_count, 1);
 
@@ -851,7 +900,7 @@ ballcap_store_remove(ballcap_store_t *self,
 }
 
 static ballcap_store_t *
-ballcap_store_migrate(ballcap_store_t *store, ballcap_t *top)
+ballcap_store_migrate(ballcap_store_t *store, mmm_thread_t *thread, ballcap_t *top)
 {
     ballcap_store_t  *new_store;
     ballcap_bucket_t *cur;
@@ -906,7 +955,7 @@ ballcap_store_migrate(ballcap_store_t *store, ballcap_t *top)
         }
 
         if (cur->record->deleted) {
-            mmm_retire_fast(cur->record);
+            mmm_retire_fast(thread, cur->record);
             continue;
         }
 
@@ -937,7 +986,7 @@ ballcap_store_migrate(ballcap_store_t *store, ballcap_t *top)
         }
     }
 
-    mmm_retire_fast(store);
+    mmm_retire_fast(thread, store);
 
     if (pthread_mutex_unlock(&top->migrate_mutex)) {
         abort();

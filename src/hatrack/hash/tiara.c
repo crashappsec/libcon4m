@@ -46,14 +46,14 @@
 // clang-format off
 static tiara_store_t *tiara_store_new    (uint64_t);
 static void          *tiara_store_get    (tiara_store_t *, uint64_t);
-static void          *tiara_store_put    (tiara_store_t *, tiara_t *, uint64_t,
+static void          *tiara_store_put    (tiara_store_t *, mmm_thread_t *, tiara_t *, uint64_t,
 					  void *);
-static void          *tiara_store_replace(tiara_store_t *, tiara_t *, uint64_t,
+static void          *tiara_store_replace(tiara_store_t *, mmm_thread_t *, tiara_t *, uint64_t,
 					  void *);
-static bool           tiara_store_add    (tiara_store_t *, tiara_t *, uint64_t,
+static bool           tiara_store_add    (tiara_store_t *, mmm_thread_t *, tiara_t *, uint64_t,
 					  void *);
-static void          *tiara_store_remove (tiara_store_t *, tiara_t *, uint64_t);
-static tiara_store_t *tiara_store_migrate(tiara_store_t *, tiara_t *);
+static void          *tiara_store_remove (tiara_store_t *, mmm_thread_t *, tiara_t *, uint64_t);
+static tiara_store_t *tiara_store_migrate(tiara_store_t *, mmm_thread_t *, tiara_t *);
 
 enum64(tiara_flag_t,
        TIARA_F_MOVING = 0x0000000000000001,
@@ -119,7 +119,7 @@ tiara_init_size(tiara_t *self, char size)
 void
 tiara_cleanup(tiara_t *self)
 {
-    mmm_retire(atomic_load(&self->store_current));
+    mmm_retire_unused(atomic_load(&self->store_current));
 
     return;
 }
@@ -135,17 +135,39 @@ tiara_delete(tiara_t *self)
 }
 
 void *
-tiara_get(tiara_t *self, uint64_t hv)
+tiara_get_mmm(tiara_t *self,mmm_thread_t *thread, uint64_t hv)
 {
     void          *ret;
     tiara_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
     ret   = tiara_store_get(store, hv);
 
-    mmm_end_op();
+    mmm_end_op(thread);
+
+    return ret;
+}
+
+void *
+tiara_get(tiara_t *self, uint64_t hv)
+{
+    return tiara_get_mmm(self, mmm_thread_acquire(), hv);
+}
+
+void *
+tiara_put_mmm(tiara_t *self,mmm_thread_t*thread, uint64_t hv, void *item)
+{
+    void          *ret;
+    tiara_store_t *store;
+
+    mmm_start_basic_op(thread);
+
+    store = atomic_read(&self->store_current);
+    ret   = tiara_store_put(store,thread, self, hv, item);
+
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -153,15 +175,21 @@ tiara_get(tiara_t *self, uint64_t hv)
 void *
 tiara_put(tiara_t *self, uint64_t hv, void *item)
 {
+    return tiara_put_mmm(self, mmm_thread_acquire(), hv, item);
+}
+
+void *
+tiara_replace_mmm(tiara_t *self, mmm_thread_t *thread, uint64_t hv, void *item)
+{
     void          *ret;
     tiara_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
-    ret   = tiara_store_put(store, self, hv, item);
+    ret   = tiara_store_replace(store, thread, self, hv, item);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -169,15 +197,21 @@ tiara_put(tiara_t *self, uint64_t hv, void *item)
 void *
 tiara_replace(tiara_t *self, uint64_t hv, void *item)
 {
-    void          *ret;
+    return tiara_replace_mmm(self, mmm_thread_acquire(), hv, item);
+}
+
+bool
+tiara_add_mmm(tiara_t *self, mmm_thread_t *thread, uint64_t hv, void *item)
+{
+    bool           ret;
     tiara_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
-    ret   = tiara_store_replace(store, self, hv, item);
+    ret   = tiara_store_add(store, thread, self, hv, item);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -185,15 +219,21 @@ tiara_replace(tiara_t *self, uint64_t hv, void *item)
 bool
 tiara_add(tiara_t *self, uint64_t hv, void *item)
 {
-    bool           ret;
+    return tiara_add_mmm(self, mmm_thread_acquire(), hv, item);
+}
+
+void *
+tiara_remove_mmm(tiara_t *self,mmm_thread_t*thread, uint64_t hv)
+{
+    void           *ret;
     tiara_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
-    ret   = tiara_store_add(store, self, hv, item);
+    ret   = tiara_store_remove(store,thread, self, hv);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -201,17 +241,7 @@ tiara_add(tiara_t *self, uint64_t hv, void *item)
 void *
 tiara_remove(tiara_t *self, uint64_t hv)
 {
-    void           *ret;
-    tiara_store_t *store;
-
-    mmm_start_basic_op();
-
-    store = atomic_read(&self->store_current);
-    ret   = tiara_store_remove(store, self, hv);
-
-    mmm_end_op();
-
-    return ret;
+    return tiara_remove_mmm(self, mmm_thread_acquire(), hv);
 }
 
 uint64_t
@@ -220,8 +250,14 @@ tiara_len(tiara_t *self)
     return atomic_read(&self->item_count);
 }
 
+uint64_t
+tiara_len_mmm(tiara_t *self, mmm_thread_t *thread)
+{
+    return tiara_len(self);
+}
+
 hatrack_view_t *
-tiara_view(tiara_t *self, uint64_t *num, bool ignored)
+tiara_view_mmm(tiara_t *self, mmm_thread_t *thread, uint64_t *num, bool ignored)
 {
     hatrack_view_t *view;
     hatrack_view_t *p;
@@ -232,7 +268,7 @@ tiara_view(tiara_t *self, uint64_t *num, bool ignored)
     uint64_t        alloc_len;
     tiara_store_t  *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store     = atomic_read(&self->store_current);
     alloc_len = sizeof(hatrack_view_t) * (store->last_slot + 1);
@@ -261,16 +297,22 @@ tiara_view(tiara_t *self, uint64_t *num, bool ignored)
 
     if (!num_items) {
         hatrack_free(view, alloc_len);
-        mmm_end_op();
+        mmm_end_op(thread);
 
         return NULL;
     }
 
     view = hatrack_realloc(view, alloc_len, num_items * sizeof(hatrack_view_t));
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return view;
+}
+
+hatrack_view_t *
+tiara_view(tiara_t *self, uint64_t *num, bool ignored)
+{
+    return tiara_view_mmm(self, mmm_thread_acquire(), num, ignored);
 }
 
 static tiara_store_t *
@@ -317,7 +359,7 @@ tiara_store_get(tiara_store_t *self, uint64_t hv)
 }
 
 static void *
-tiara_store_put(tiara_store_t *self, tiara_t *top, uint64_t hv, void *item)
+tiara_store_put(tiara_store_t *self, mmm_thread_t *thread, tiara_t *top, uint64_t hv, void *item)
 {
     uint64_t        bix;
     uint64_t        i;
@@ -334,7 +376,7 @@ tiara_store_put(tiara_store_t *self, tiara_t *top, uint64_t hv, void *item)
 	if (!record.hv) {
 	    if (CAS(&self->buckets[bix], &record, candidate)) {
 		if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
-		    tiara_store_migrate(self, top);
+		    tiara_store_migrate(self, thread, top);
 		    return NULL;
 		}
 		return NULL;
@@ -363,12 +405,12 @@ tiara_store_put(tiara_store_t *self, tiara_t *top, uint64_t hv, void *item)
 	return NULL;
     }
 
-    self = tiara_store_migrate(self, top);
-    return tiara_store_put(self, top, hv, item);
+    self = tiara_store_migrate(self, thread, top);
+    return tiara_store_put(self, thread, top, hv, item);
 }
 
 static void *
-tiara_store_replace(tiara_store_t *self, tiara_t *top, uint64_t hv, void *item)
+tiara_store_replace(tiara_store_t *self, mmm_thread_t *thread, tiara_t *top, uint64_t hv, void *item)
 {
     uint64_t        bix;
     uint64_t        i;
@@ -391,8 +433,8 @@ tiara_store_replace(tiara_store_t *self, tiara_t *top, uint64_t hv, void *item)
 
 	if (hatrack_pflag_test(record.item, TIARA_F_MOVING)) {
 	migrate_and_retry:
-	    self = tiara_store_migrate(self, top);
-	    return tiara_store_replace(self, top, hv, item);
+	    self = tiara_store_migrate(self, thread, top);
+	    return tiara_store_replace(self, thread, top, hv, item);
 	}
 
 	candidate.hv   = hv;
@@ -413,7 +455,7 @@ tiara_store_replace(tiara_store_t *self, tiara_t *top, uint64_t hv, void *item)
 }
 
 static bool
-tiara_store_add(tiara_store_t *self, tiara_t *top, uint64_t hv, void *item)
+tiara_store_add(tiara_store_t *self, mmm_thread_t *thread, tiara_t *top, uint64_t hv, void *item)
 {
     uint64_t        bix;
     uint64_t        i;
@@ -432,7 +474,7 @@ tiara_store_add(tiara_store_t *self, tiara_t *top, uint64_t hv, void *item)
 
 	    if (CAS(&self->buckets[bix], &record, candidate)) {
 		if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
-		    tiara_store_migrate(self, top);
+		    tiara_store_migrate(self, thread, top);
 		}
 
 		return true;
@@ -449,12 +491,12 @@ tiara_store_add(tiara_store_t *self, tiara_t *top, uint64_t hv, void *item)
 	return false;
     }
 
-    self = tiara_store_migrate(self, top);
-    return tiara_store_add(self, top, hv, item);
+    self = tiara_store_migrate(self, thread, top);
+    return tiara_store_add(self, thread, top, hv, item);
 }
 
 static void *
-tiara_store_remove(tiara_store_t *self, tiara_t *top, uint64_t hv)
+tiara_store_remove(tiara_store_t *self, mmm_thread_t *thread, tiara_t *top, uint64_t hv)
 {
     uint64_t        bix;
     uint64_t        i;
@@ -477,8 +519,8 @@ tiara_store_remove(tiara_store_t *self, tiara_t *top, uint64_t hv)
 
 	if (hatrack_pflag_test(record.item, TIARA_F_MOVING)) {
 	migrate_and_retry:
-	    self = tiara_store_migrate(self, top);
-	    return tiara_store_remove(self, top, hv);
+	    self = tiara_store_migrate(self, thread, top);
+	    return tiara_store_remove(self, thread, top, hv);
 	}
 
 	candidate.hv   = hv;
@@ -499,7 +541,7 @@ tiara_store_remove(tiara_store_t *self, tiara_t *top, uint64_t hv)
 }
 
 static tiara_store_t *
-tiara_store_migrate(tiara_store_t *self, tiara_t *top)
+tiara_store_migrate(tiara_store_t *self, mmm_thread_t *thread, tiara_t *top)
 {
     tiara_store_t  *new_store;
     tiara_store_t  *candidate_store;
@@ -602,7 +644,7 @@ tiara_store_migrate(tiara_store_t *self, tiara_t *top)
     CAS(&new_store->used_count, &expected_used, new_used);
 
     if (CAS(&top->store_current, &self, new_store)) {
-        mmm_retire(self);
+        mmm_retire(thread, self);
     }
 
     return top->store_current;

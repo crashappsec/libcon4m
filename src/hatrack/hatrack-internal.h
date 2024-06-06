@@ -192,16 +192,16 @@ hatrack_not_found(bool *found)
 }
 
 static inline void *
-hatrack_found_w_mmm(bool *found, void *ret)
+hatrack_found_w_mmm(mmm_thread_t *thread, bool *found, void *ret)
 {
-    mmm_end_op();
+    mmm_end_op(thread);
     return hatrack_found(found, ret);
 }
 
 static inline void *
-hatrack_not_found_w_mmm(bool *found)
+hatrack_not_found_w_mmm(mmm_thread_t *thread, bool *found)
 {
-    mmm_end_op();
+    mmm_end_op(thread);
     return hatrack_not_found(found);
 }
 

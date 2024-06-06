@@ -112,6 +112,7 @@ mmm_tid_giveback(mmm_thread_t *thread)
     do {
         new_head->next = old_head;
     } while (!CAS(&mmm_free_tids, &old_head, new_head));
+    thread->initialized = false;
 }
 
 // This is here for convenience of testing; generally this
@@ -193,7 +194,7 @@ mmm_thread_acquire(void)
             } while (!CAS(&mmm_free_tids, &head, head->next));
 
             thread->tid = head->tid;
-            mmm_retire(head);
+            mmm_retire(thread, head);
         }
 
         mmm_reservations[thread->tid] = HATRACK_EPOCH_UNRESERVED;
@@ -210,15 +211,15 @@ mmm_thread_acquire(void)
 void
 mmm_thread_release(mmm_thread_t *thread)
 {
-    mmm_end_op();
+    if (thread->initialized) {
+        mmm_end_op(thread);
 
-    while (thread->retire_list) {
-        mmm_empty(thread);
+        while (thread->retire_list) {
+            mmm_empty(thread);
+        }
+
+        mmm_tid_giveback(thread);
     }
-
-    mmm_tid_giveback(thread);
-
-    return;
 }
 
 void
@@ -237,9 +238,8 @@ mmm_setthreadfns(mmm_thread_acquire_func acquirefn, void *aux)
  * for items to free.
  */
 void
-mmm_retire(void *ptr)
+mmm_retire(mmm_thread_t *thread, void *ptr)
 {
-    mmm_thread_t *thread = mmm_thread_acquire();
     mmm_header_t *cell;
 
     cell = mmm_get_header(ptr);
@@ -389,20 +389,16 @@ mmm_empty(mmm_thread_t *thread)
 }
 
 void
-mmm_start_basic_op(void)
+mmm_start_basic_op(mmm_thread_t *thread)
 {
-    mmm_thread_t *thread = mmm_thread_acquire();
-
     mmm_reservations[thread->tid] = atomic_load(&mmm_epoch);
 
     return;
 }
 
 uint64_t
-mmm_start_linearized_op(void)
+mmm_start_linearized_op(mmm_thread_t *thread)
 {
-    mmm_thread_t *thread = mmm_thread_acquire();
-
     uint64_t read_epoch;
 
     mmm_reservations[thread->tid] = atomic_load(&mmm_epoch);
@@ -415,10 +411,8 @@ mmm_start_linearized_op(void)
 }
 
 void
-mmm_end_op(void)
+mmm_end_op(mmm_thread_t *thread)
 {
-    mmm_thread_t *thread = mmm_thread_acquire();
-
     atomic_signal_fence(memory_order_seq_cst);
     mmm_reservations[thread->tid] = HATRACK_EPOCH_UNRESERVED;
 
@@ -523,9 +517,8 @@ mmm_retire_unused(void *ptr)
 // Use this in migration functions to avoid unnecessary scanning of the
 // retire list, when we know the epoch won't have changed.
 void
-mmm_retire_fast(void *ptr)
+mmm_retire_fast(mmm_thread_t *thread, void *ptr)
 {
-    mmm_thread_t *thread = mmm_thread_acquire();
     mmm_header_t *cell;
 
     cell                = mmm_get_header(ptr);

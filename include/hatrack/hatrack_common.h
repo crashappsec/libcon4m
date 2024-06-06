@@ -22,6 +22,7 @@
 
 #pragma once
 #include "base.h"
+#include "mmm.h"
 
 /* hatrack_hash_t
  *
@@ -186,14 +187,14 @@ hatrack_round_up_to_power_of_2(uint64_t n)
 // clang-format off
 typedef void            (*hatrack_init_func)   (void *);
 typedef void            (*hatrack_init_sz_func)(void *, char);
-typedef void *          (*hatrack_get_func)    (void *, hatrack_hash_t, bool *);
-typedef void *          (*hatrack_put_func)    (void *, hatrack_hash_t, void *, bool *);
-typedef void *          (*hatrack_replace_func)(void *, hatrack_hash_t, void *, bool *);
-typedef bool            (*hatrack_add_func)    (void *, hatrack_hash_t,	void *);
-typedef void *          (*hatrack_remove_func) (void *, hatrack_hash_t,	bool *);
+typedef void *          (*hatrack_get_func)    (void *, mmm_thread_t *, hatrack_hash_t, bool *);
+typedef void *          (*hatrack_put_func)    (void *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+typedef void *          (*hatrack_replace_func)(void *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+typedef bool            (*hatrack_add_func)    (void *, mmm_thread_t *, hatrack_hash_t,	void *);
+typedef void *          (*hatrack_remove_func) (void *, mmm_thread_t *, hatrack_hash_t,	bool *);
 typedef void            (*hatrack_delete_func) (void *);
-typedef uint64_t        (*hatrack_len_func)    (void *);
-typedef hatrack_view_t *(*hatrack_view_func)   (void *, uint64_t *, bool);
+typedef uint64_t        (*hatrack_len_func)    (void *, mmm_thread_t *);
+typedef hatrack_view_t *(*hatrack_view_func)   (void *, mmm_thread_t *, uint64_t *, bool);
 
 typedef struct hatrack_vtable_st {
     hatrack_init_func    init;

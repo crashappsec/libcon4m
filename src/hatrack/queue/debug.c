@@ -19,7 +19,6 @@
  *
  *  Author:         John Viega, john@zork.org
  */
-
 #include "hatrack/debug.h"
 
 #ifdef HATRACK_DEBUG

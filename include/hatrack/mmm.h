@@ -127,7 +127,7 @@ mmm_setthreadfns(mmm_thread_acquire_func acquirefn,
 extern _Atomic uint64_t mmm_epoch;
 
 HATRACK_EXTERN void
-mmm_retire(void *);
+mmm_retire(mmm_thread_t *, void *);
 
 /* This epoch system was inspired by my research into what was out
  * there that would be faster and easier to use than hazard
@@ -361,7 +361,7 @@ enum64(mmm_enum_t,
  * operation.
  */
 HATRACK_EXTERN void
-mmm_start_basic_op(void);
+mmm_start_basic_op(mmm_thread_t *thread);
 
 /* mmm_start_linearized_op() is used to help ensure we can safely recover
  * a consistent, full ordering of data objects in the lohat family.
@@ -415,7 +415,7 @@ mmm_start_basic_op(void);
  *    boundary, with only one write per epoch.
  */
 HATRACK_EXTERN uint64_t
-mmm_start_linearized_op(void);
+mmm_start_linearized_op(mmm_thread_t *thread);
 
 /* This does two things:
  *
@@ -429,7 +429,7 @@ mmm_start_linearized_op(void);
  * because they both use a memory fence.
  */
 HATRACK_EXTERN void
-mmm_end_op(void);
+mmm_end_op(mmm_thread_t *thread);
 
 /* Note that the API for allocating via MMM is a little non-intuitive.
  * for malloc users, partially because it supports a couple of
@@ -536,4 +536,4 @@ mmm_copy_create_epoch(void *dst, void *src)
 // Use this in migration functions to avoid unnecessary scanning of the
 // retire list, when we know the epoch won't have changed.
 HATRACK_EXTERN void
-mmm_retire_fast(void *ptr);
+mmm_retire_fast(mmm_thread_t *thread, void *ptr);

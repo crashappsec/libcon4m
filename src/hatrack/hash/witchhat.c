@@ -42,8 +42,7 @@
 // clang-format off
 // Most of the store functions are needed by other modules, for better
 // or worse, so we lifted their prototypes into the header.
-static witchhat_store_t  *witchhat_store_migrate(witchhat_store_t *,
-						 witchhat_t *);
+static witchhat_store_t  *witchhat_store_migrate(witchhat_store_t *, mmm_thread_t *, witchhat_t *);
 static inline bool        witchhat_help_required(uint64_t);
 static inline bool        witchhat_need_to_help (witchhat_t *);
 
@@ -106,7 +105,7 @@ witchhat_init_size(witchhat_t *self, char size)
 void
 witchhat_cleanup(witchhat_t *self)
 {
-    mmm_retire(atomic_load(&self->store_current));
+    mmm_retire_unused(atomic_load(&self->store_current));
 
     return;
 }
@@ -121,17 +120,39 @@ witchhat_delete(witchhat_t *self)
 }
 
 void *
-witchhat_get(witchhat_t *self, hatrack_hash_t hv, bool *found)
+witchhat_get_mmm(witchhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
     void           *ret;
     witchhat_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
     ret   = witchhat_store_get(store, hv, found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
+
+    return ret;
+}
+
+void *
+witchhat_get(witchhat_t *self, hatrack_hash_t hv, bool *found)
+{
+    return witchhat_get_mmm(self, mmm_thread_acquire(), hv, found);
+}
+
+void *
+witchhat_put_mmm(witchhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
+{
+    void           *ret;
+    witchhat_store_t *store;
+
+    mmm_start_basic_op(thread);
+
+    store = atomic_read(&self->store_current);
+    ret   = witchhat_store_put(store, thread, self, hv, item, found, 0);
+
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -139,15 +160,21 @@ witchhat_get(witchhat_t *self, hatrack_hash_t hv, bool *found)
 void *
 witchhat_put(witchhat_t *self, hatrack_hash_t hv, void *item, bool *found)
 {
+    return witchhat_put_mmm(self, mmm_thread_acquire(), hv, item, found);
+}
+
+void *
+witchhat_replace_mmm(witchhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
+{
     void           *ret;
     witchhat_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
-    ret   = witchhat_store_put(store, self, hv, item, found, 0);
+    ret   = witchhat_store_replace(store, thread, self, hv, item, found, 0);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -155,15 +182,21 @@ witchhat_put(witchhat_t *self, hatrack_hash_t hv, void *item, bool *found)
 void *
 witchhat_replace(witchhat_t *self, hatrack_hash_t hv, void *item, bool *found)
 {
-    void           *ret;
+    return witchhat_replace_mmm(self, mmm_thread_acquire(), hv, item, found);
+}
+
+bool
+witchhat_add_mmm(witchhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item)
+{
+    bool            ret;
     witchhat_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
-    ret   = witchhat_store_replace(store, self, hv, item, found, 0);
+    ret   = witchhat_store_add(store, thread, self, hv, item, 0);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -171,15 +204,21 @@ witchhat_replace(witchhat_t *self, hatrack_hash_t hv, void *item, bool *found)
 bool
 witchhat_add(witchhat_t *self, hatrack_hash_t hv, void *item)
 {
-    bool            ret;
+    return witchhat_add_mmm(self, mmm_thread_acquire(), hv, item);
+}
+
+void *
+witchhat_remove_mmm(witchhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
+{
+    void           *ret;
     witchhat_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
-    ret   = witchhat_store_add(store, self, hv, item, 0);
+    ret   = witchhat_store_remove(store, thread, self, hv, found, 0);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -187,17 +226,7 @@ witchhat_add(witchhat_t *self, hatrack_hash_t hv, void *item)
 void *
 witchhat_remove(witchhat_t *self, hatrack_hash_t hv, bool *found)
 {
-    void           *ret;
-    witchhat_store_t *store;
-
-    mmm_start_basic_op();
-
-    store = atomic_read(&self->store_current);
-    ret   = witchhat_store_remove(store, self, hv, found, 0);
-
-    mmm_end_op();
-
-    return ret;
+    return witchhat_remove_mmm(self, mmm_thread_acquire(), hv, found);
 }
 
 uint64_t
@@ -206,18 +235,30 @@ witchhat_len(witchhat_t *self)
     return atomic_read(&self->item_count);
 }
 
+uint64_t
+witchhat_len_mmm(witchhat_t *self, mmm_thread_t *thread)
+{
+    return witchhat_len(self);
+}
+
 hatrack_view_t *
-witchhat_view(witchhat_t *self, uint64_t *num, bool start)
+witchhat_view_mmm(witchhat_t *self, mmm_thread_t * thread, uint64_t *num, bool start)
 {
     hatrack_view_t *ret;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     ret = witchhat_view_no_mmm(self, num, start);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
+}
+
+hatrack_view_t *
+witchhat_view(witchhat_t *self, uint64_t *num, bool start)
+{
+    return witchhat_view_mmm(self, mmm_thread_acquire(), num, start);
 }
 
 /* Used by dict.c, which does mmm itself, so that it can give callers
@@ -337,6 +378,7 @@ not_found:
 
 void *
 witchhat_store_put(witchhat_store_t *self,
+mmm_thread_t *thread,
 		   witchhat_t       *top,
 		   hatrack_hash_t    hv1,
 		   void             *item,
@@ -414,16 +456,16 @@ witchhat_store_put(witchhat_store_t *self,
 
 	atomic_fetch_add(&top->help_needed, 1);
 
-	self     = witchhat_store_migrate(self, top);
-	old_item = witchhat_store_put(self, top, hv1, item, found, count);
+	self     = witchhat_store_migrate(self, thread, top);
+	old_item = witchhat_store_put(self, thread, top, hv1, item, found, count);
 
 	atomic_fetch_sub(&top->help_needed, 1);
 
 	return old_item;
     }
 
-    self = witchhat_store_migrate(self, top);
-    return witchhat_store_put(self, top, hv1, item, found, count);
+    self = witchhat_store_migrate(self, thread, top);
+    return witchhat_store_put(self, thread, top, hv1, item, found, count);
 
  found_bucket:
     record = atomic_read(&bucket->record);
@@ -473,7 +515,7 @@ witchhat_store_put(witchhat_store_t *self,
      */
     if (!new_item) {
 	if (atomic_read(&self->used_count) >= self->threshold) {
-	    witchhat_store_migrate(self, top);
+	    witchhat_store_migrate(self, thread, top);
 	}
     }
 
@@ -482,6 +524,7 @@ witchhat_store_put(witchhat_store_t *self,
 
 void *
 witchhat_store_replace(witchhat_store_t *self,
+mmm_thread_t *thread,
 		       witchhat_t       *top,
 		       hatrack_hash_t    hv1,
 		       void             *item,
@@ -533,16 +576,16 @@ witchhat_store_replace(witchhat_store_t *self,
 	    HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
 
 	    atomic_fetch_add(&top->help_needed, 1);
-	    self = witchhat_store_migrate(self, top);
-	    ret  = witchhat_store_replace(self, top, hv1, item, found, count);
+	    self = witchhat_store_migrate(self, thread, top);
+	    ret  = witchhat_store_replace(self, thread, top, hv1, item, found, count);
 
 	    atomic_fetch_sub(&top->help_needed, 1);
 
 	    return ret;
 	}
 
-	self = witchhat_store_migrate(self, top);
-	return witchhat_store_replace(self, top, hv1, item, found, count);
+	self = witchhat_store_migrate(self, thread, top);
+	return witchhat_store_replace(self, thread, top, hv1, item, found, count);
     }
 
     if (!(record.info & WITCHHAT_EPOCH_MASK)) {
@@ -594,7 +637,7 @@ witchhat_store_replace(witchhat_store_t *self,
      * wait free.
      */
     if (atomic_read(&self->used_count) >= self->threshold) {
-	witchhat_store_migrate(self, top);
+	witchhat_store_migrate(self, thread, top);
     }
 
     return record.item;
@@ -602,6 +645,7 @@ witchhat_store_replace(witchhat_store_t *self,
 
 bool
 witchhat_store_add(witchhat_store_t *self,
+mmm_thread_t *thread,
 		   witchhat_t       *top,
 		   hatrack_hash_t    hv1,
 		   void             *item,
@@ -648,16 +692,16 @@ witchhat_store_add(witchhat_store_t *self,
 
 	atomic_fetch_add(&top->help_needed, 1);
 
-	self = witchhat_store_migrate(self, top);
-	ret  = witchhat_store_add(self, top, hv1, item, count);
+	self = witchhat_store_migrate(self, thread, top);
+	ret  = witchhat_store_add(self, thread, top, hv1, item, count);
 
 	atomic_fetch_sub(&top->help_needed, 1);
 
 	return ret;
     }
 
-    self = witchhat_store_migrate(self, top);
-    return witchhat_store_add(self, top, hv1, item, count);
+    self = witchhat_store_migrate(self, thread, top);
+    return witchhat_store_add(self, thread, top, hv1, item, count);
 
 found_bucket:
     record = atomic_read(&bucket->record);
@@ -686,6 +730,7 @@ found_bucket:
 
 void *
 witchhat_store_remove(witchhat_store_t *self,
+mmm_thread_t *thread,
 		      witchhat_t       *top,
 		      hatrack_hash_t    hv1,
 		      bool             *found,
@@ -734,14 +779,14 @@ found_bucket:
 	if (witchhat_help_required(count)) {
 	    HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
 	    atomic_fetch_add(&top->help_needed, 1);
-	    self     = witchhat_store_migrate(self, top);
-	    old_item = witchhat_store_remove(self, top, hv1, found, count);
+	    self     = witchhat_store_migrate(self, thread, top);
+	    old_item = witchhat_store_remove(self, thread, top, hv1, found, count);
 	    atomic_fetch_sub(&top->help_needed, 1);
 	    return old_item;
 	}
 
-	self = witchhat_store_migrate(self, top);
-	return witchhat_store_remove(self, top, hv1, found, count);
+	self = witchhat_store_migrate(self, thread, top);
+	return witchhat_store_remove(self, thread, top, hv1, found, count);
     }
 
     if (!(record.info & WITCHHAT_EPOCH_MASK)) {
@@ -771,7 +816,7 @@ found_bucket:
 	 * wait free.
 	 */
 	if (atomic_read(&self->used_count) >= self->threshold) {
-	    witchhat_store_migrate(self, top);
+	    witchhat_store_migrate(self, thread, top);
 	}
 
         return old_item;
@@ -789,7 +834,7 @@ found_bucket:
 }
 
 static witchhat_store_t *
-witchhat_store_migrate(witchhat_store_t *self, witchhat_t *top)
+witchhat_store_migrate(witchhat_store_t *self, mmm_thread_t *thread, witchhat_t *top)
 {
     witchhat_store_t  *new_store;
     witchhat_store_t  *candidate_store;
@@ -937,7 +982,7 @@ witchhat_store_migrate(witchhat_store_t *self, witchhat_t *top)
 	     &self,
 	     new_store,
 	     WITCHHAT_CTR_STORE_INSTALL)) {
-        mmm_retire(self);
+        mmm_retire(thread, self);
     }
 
     return top->store_current;

@@ -27,6 +27,7 @@
 
 #include "base.h"
 #include "hatrack_common.h"
+#include "mmm.h"
 
 #ifndef HATRACK_NO_PTHREAD
 
@@ -198,18 +199,25 @@ typedef struct {
  */
 
 // clang-format off
-HATRACK_EXTERN newshat_t      *newshat_new      (void);
-HATRACK_EXTERN newshat_t      *newshat_new_size (char);
-HATRACK_EXTERN void            newshat_init     (newshat_t *);
-HATRACK_EXTERN void            newshat_init_size(newshat_t *, char);
-HATRACK_EXTERN void            newshat_cleanup  (newshat_t *);
-HATRACK_EXTERN void            newshat_delete   (newshat_t *);
-HATRACK_EXTERN void           *newshat_get      (newshat_t *, hatrack_hash_t, bool *);
-HATRACK_EXTERN void           *newshat_put      (newshat_t *, hatrack_hash_t, void *, bool *);
-HATRACK_EXTERN void           *newshat_replace  (newshat_t *, hatrack_hash_t, void *, bool *);
-HATRACK_EXTERN bool            newshat_add      (newshat_t *, hatrack_hash_t, void *);
-HATRACK_EXTERN void           *newshat_remove   (newshat_t *, hatrack_hash_t, bool *);
-HATRACK_EXTERN uint64_t        newshat_len      (newshat_t *);
-HATRACK_EXTERN hatrack_view_t *newshat_view     (newshat_t *, uint64_t *, bool);
+HATRACK_EXTERN newshat_t      *newshat_new        (void);
+HATRACK_EXTERN newshat_t      *newshat_new_size   (char);
+HATRACK_EXTERN void            newshat_init       (newshat_t *);
+HATRACK_EXTERN void            newshat_init_size  (newshat_t *, char);
+HATRACK_EXTERN void            newshat_cleanup    (newshat_t *);
+HATRACK_EXTERN void            newshat_delete     (newshat_t *);
+HATRACK_EXTERN void           *newshat_get_mmm    (newshat_t *, mmm_thread_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *newshat_get        (newshat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *newshat_put_mmm    (newshat_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *newshat_put        (newshat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *newshat_replace_mmm(newshat_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *newshat_replace    (newshat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            newshat_add_mmm    (newshat_t *, mmm_thread_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN bool            newshat_add        (newshat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *newshat_remove_mmm (newshat_t *, mmm_thread_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *newshat_remove     (newshat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        newshat_len_mmm    (newshat_t *, mmm_thread_t *);
+HATRACK_EXTERN uint64_t        newshat_len        (newshat_t *);
+HATRACK_EXTERN hatrack_view_t *newshat_view_mmm   (newshat_t *, mmm_thread_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_view_t *newshat_view       (newshat_t *, uint64_t *, bool);
 
 #endif

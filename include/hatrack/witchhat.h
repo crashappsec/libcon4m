@@ -36,6 +36,7 @@
 
 #include "base.h"
 #include "hatrack_common.h"
+#include "mmm.h"
 
 typedef struct {
     void    *item;
@@ -71,11 +72,18 @@ HATRACK_EXTERN void            witchhat_init       (witchhat_t *);
 HATRACK_EXTERN void            witchhat_init_size  (witchhat_t *, char);
 HATRACK_EXTERN void            witchhat_cleanup    (witchhat_t *);
 HATRACK_EXTERN void            witchhat_delete     (witchhat_t *);
+HATRACK_EXTERN void           *witchhat_get_mmm    (witchhat_t *, mmm_thread_t *, hatrack_hash_t, bool *);
 HATRACK_EXTERN void           *witchhat_get        (witchhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *witchhat_put_mmm    (witchhat_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
 HATRACK_EXTERN void           *witchhat_put        (witchhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *witchhat_replace_mmm(witchhat_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
 HATRACK_EXTERN void           *witchhat_replace    (witchhat_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            witchhat_add_mmm    (witchhat_t *, mmm_thread_t *, hatrack_hash_t, void *);
 HATRACK_EXTERN bool            witchhat_add        (witchhat_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *witchhat_remove_mmm (witchhat_t *, mmm_thread_t *, hatrack_hash_t, bool *);
 HATRACK_EXTERN void           *witchhat_remove     (witchhat_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        witchhat_len_mmm    (witchhat_t *, mmm_thread_t *);
 HATRACK_EXTERN uint64_t        witchhat_len        (witchhat_t *);
+HATRACK_EXTERN hatrack_view_t *witchhat_view_mmm   (witchhat_t *, mmm_thread_t *, uint64_t *, bool);
 HATRACK_EXTERN hatrack_view_t *witchhat_view       (witchhat_t *, uint64_t *, bool);
-HATRACK_EXTERN hatrack_view_t *witchhat_view_no_mmm(witchhat_t *, uint64_t *, bool);
+// clang-format on 

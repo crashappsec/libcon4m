@@ -123,6 +123,7 @@
 #include "base.h"
 #include "hatrack_common.h"
 #include "lohat_common.h"
+#include "mmm.h"
 
 /* lohat_a_history_t
  *
@@ -222,16 +223,23 @@ typedef struct {
 } lohat_a_t;
 
 // clang-format off
-HATRACK_EXTERN lohat_a_t      *lohat_a_new      (void);
-HATRACK_EXTERN lohat_a_t      *lohat_a_new_size (char);
-HATRACK_EXTERN void            lohat_a_init     (lohat_a_t *);
-HATRACK_EXTERN void            lohat_a_init_size(lohat_a_t *, char);
-HATRACK_EXTERN void            lohat_a_cleanup  (lohat_a_t *);
-HATRACK_EXTERN void            lohat_a_delete   (lohat_a_t *);
-HATRACK_EXTERN void           *lohat_a_get      (lohat_a_t *, hatrack_hash_t, bool *);
-HATRACK_EXTERN void           *lohat_a_put      (lohat_a_t *, hatrack_hash_t, void *, bool *);
-HATRACK_EXTERN void           *lohat_a_replace  (lohat_a_t *, hatrack_hash_t, void *, bool *);
-HATRACK_EXTERN bool            lohat_a_add      (lohat_a_t *, hatrack_hash_t, void *);
-HATRACK_EXTERN void           *lohat_a_remove   (lohat_a_t *, hatrack_hash_t, bool *);
-HATRACK_EXTERN uint64_t        lohat_a_len      (lohat_a_t *);
-HATRACK_EXTERN hatrack_view_t *lohat_a_view     (lohat_a_t *, uint64_t *, bool);
+HATRACK_EXTERN lohat_a_t      *lohat_a_new        (void);
+HATRACK_EXTERN lohat_a_t      *lohat_a_new_size   (char);
+HATRACK_EXTERN void            lohat_a_init       (lohat_a_t *);
+HATRACK_EXTERN void            lohat_a_init_size  (lohat_a_t *, char);
+HATRACK_EXTERN void            lohat_a_cleanup    (lohat_a_t *);
+HATRACK_EXTERN void            lohat_a_delete     (lohat_a_t *);
+HATRACK_EXTERN void           *lohat_a_get_mmm    (lohat_a_t *, mmm_thread_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *lohat_a_get        (lohat_a_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *lohat_a_put_mmm    (lohat_a_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *lohat_a_put        (lohat_a_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *lohat_a_replace_mmm(lohat_a_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *lohat_a_replace    (lohat_a_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            lohat_a_add_mmm    (lohat_a_t *, mmm_thread_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN bool            lohat_a_add        (lohat_a_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *lohat_a_remove_mmm (lohat_a_t *, mmm_thread_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *lohat_a_remove     (lohat_a_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        lohat_a_len_mmm    (lohat_a_t *, mmm_thread_t *);
+HATRACK_EXTERN uint64_t        lohat_a_len        (lohat_a_t *);
+HATRACK_EXTERN hatrack_view_t *lohat_a_view_mmm   (lohat_a_t *, mmm_thread_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_view_t *lohat_a_view       (lohat_a_t *, uint64_t *, bool);

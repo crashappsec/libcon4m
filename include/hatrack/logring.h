@@ -151,6 +151,7 @@
 
 #include "base.h"
 #include "hatring.h"
+#include "mmm.h"
 
 /* Information about the current entry.
  *
@@ -202,12 +203,16 @@ typedef struct {
 } logring_t;
 
 // clang-format off
-HATRACK_EXTERN logring_t      *logring_new        (uint64_t, uint64_t);
-HATRACK_EXTERN void            logring_init       (logring_t *, uint64_t, uint64_t);
-HATRACK_EXTERN void            logring_cleanup    (logring_t *);
-HATRACK_EXTERN void            logring_delete     (logring_t *);
-HATRACK_EXTERN void            logring_enqueue    (logring_t *, void *, uint64_t);
-HATRACK_EXTERN bool            logring_dequeue    (logring_t *, void *, uint64_t *);
-HATRACK_EXTERN logring_view_t *logring_view       (logring_t *, bool);
-HATRACK_EXTERN void           *logring_view_next  (logring_view_t *, uint64_t *);
-HATRACK_EXTERN void            logring_view_delete(logring_view_t *);
+HATRACK_EXTERN logring_t      *logring_new            (uint64_t, uint64_t);
+HATRACK_EXTERN void            logring_init           (logring_t *, uint64_t, uint64_t);
+HATRACK_EXTERN void            logring_cleanup        (logring_t *);
+HATRACK_EXTERN void            logring_delete         (logring_t *);
+HATRACK_EXTERN void            logring_enqueue_mmm    (logring_t *, mmm_thread_t *, void *, uint64_t);
+HATRACK_EXTERN void            logring_enqueue        (logring_t *, void *, uint64_t);
+HATRACK_EXTERN bool            logring_dequeue_mmm    (logring_t *, mmm_thread_t *, void *, uint64_t *);
+HATRACK_EXTERN bool            logring_dequeue        (logring_t *, void *, uint64_t *);
+HATRACK_EXTERN logring_view_t *logring_view_mmm       (logring_t *, mmm_thread_t *, bool);
+HATRACK_EXTERN logring_view_t *logring_view           (logring_t *, bool);
+HATRACK_EXTERN void           *logring_view_next      (logring_view_t *, uint64_t *);
+HATRACK_EXTERN void            logring_view_delete_mmm(logring_view_t *, mmm_thread_t *);
+HATRACK_EXTERN void            logring_view_delete    (logring_view_t *);

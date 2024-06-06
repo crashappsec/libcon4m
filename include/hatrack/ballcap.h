@@ -56,6 +56,7 @@
 
 #include "base.h"
 #include "hatrack_common.h"
+#include "mmm.h"
 
 #ifndef HATRACK_NO_PTHREAD
 
@@ -108,19 +109,26 @@ typedef struct {
 } ballcap_t;
 
 // clang-format off
-ballcap_t      *ballcap_new      (void);
-ballcap_t      *ballcap_new_size (char);
-void            ballcap_init     (ballcap_t *);
-void            ballcap_init_size(ballcap_t *, char);
-void            ballcap_cleanup  (ballcap_t *);
-void            ballcap_delete   (ballcap_t *);
-void           *ballcap_get      (ballcap_t *, hatrack_hash_t, bool *);
-void           *ballcap_put      (ballcap_t *, hatrack_hash_t, void *, bool *);
-void           *ballcap_replace  (ballcap_t *, hatrack_hash_t, void *, bool *);
-bool            ballcap_add      (ballcap_t *, hatrack_hash_t, void *);
-void           *ballcap_remove   (ballcap_t *, hatrack_hash_t, bool *);
-uint64_t        ballcap_len      (ballcap_t *);
-hatrack_view_t *ballcap_view     (ballcap_t *, uint64_t *, bool);
+ballcap_t      *ballcap_new        (void);
+ballcap_t      *ballcap_new_size   (char);
+void            ballcap_init       (ballcap_t *);
+void            ballcap_init_size  (ballcap_t *, char);
+void            ballcap_cleanup    (ballcap_t *);
+void            ballcap_delete     (ballcap_t *);
+void           *ballcap_get_mmm    (ballcap_t *, mmm_thread_t *, hatrack_hash_t, bool *);
+void           *ballcap_get        (ballcap_t *, hatrack_hash_t, bool *);
+void           *ballcap_put_mmm    (ballcap_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+void           *ballcap_put        (ballcap_t *, hatrack_hash_t, void *, bool *);
+void           *ballcap_replace_mmm(ballcap_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+void           *ballcap_replace    (ballcap_t *, hatrack_hash_t, void *, bool *);
+bool            ballcap_add_mmm    (ballcap_t *, mmm_thread_t *, hatrack_hash_t, void *);
+bool            ballcap_add        (ballcap_t *, hatrack_hash_t, void *);
+void           *ballcap_remove_mmm (ballcap_t *, mmm_thread_t *, hatrack_hash_t, bool *);
+void           *ballcap_remove     (ballcap_t *, hatrack_hash_t, bool *);
+uint64_t        ballcap_len_mmm    (ballcap_t *, mmm_thread_t *);
+uint64_t        ballcap_len        (ballcap_t *);
+hatrack_view_t *ballcap_view_mmm   (ballcap_t *, mmm_thread_t *, uint64_t *, bool);
+hatrack_view_t *ballcap_view       (ballcap_t *, uint64_t *, bool);
 // clang-format on
 
 #endif

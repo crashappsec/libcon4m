@@ -201,7 +201,7 @@ static const union {
   moved_cell  = {.cell = {NULL, HQ_MOVING | HQ_MOVED}};
 
 static hq_store_t *hq_new_store(uint64_t);
-static uint64_t    hq_migrate(hq_store_t *, hq_t *);
+static uint64_t    hq_migrate(hq_store_t *, mmm_thread_t *, hq_t *);
 
 #define HQ_DEFAULT_SIZE 1024
 #define HQ_MINIMUM_SIZE 128
@@ -255,7 +255,7 @@ hq_new_size(uint64_t size)
 void
 hq_cleanup(hq_t *self)
 {
-    mmm_retire(self->store);
+    mmm_retire_unused(self->store);
 
     return;
 }
@@ -275,6 +275,12 @@ hq_len(hq_t *self)
     return atomic_read(&self->len);
 }
 
+int64_t
+hq_len_mmm(hq_t *self, mmm_thread_t *)
+{
+    return hq_len(self);
+}
+
 /* hq_enqueue is pretty simple in the average case. It only gets
  * complicated when the head pointer catches up to the tail pointer.
  *
@@ -284,7 +290,7 @@ hq_len(hq_t *self)
  * (dequeue ops only ever increase in steps of 1).
  */
 void
-hq_enqueue(hq_t *self, void *item)
+hq_enqueue_mmm(hq_t *self, mmm_thread_t *thread, void *item)
 {
     hq_store_t *store;
     hq_item_t   expected;
@@ -297,7 +303,7 @@ hq_enqueue(hq_t *self, void *item)
     uint64_t    epoch;
     hq_cell_t  *cell;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     candidate.item = item;
 
@@ -346,7 +352,7 @@ hq_enqueue(hq_t *self, void *item)
 
             if (CAS(cell, &expected, candidate)) {
                 atomic_fetch_add(&self->len, 1);
-                mmm_end_op();
+                mmm_end_op(thread);
 
                 return;
             }
@@ -362,12 +368,18 @@ hq_enqueue(hq_t *self, void *item)
             step <<= 1;
         }
 
-        hq_migrate(store, self);
+        hq_migrate(store, thread, self);
     }
 }
 
+void
+hq_enqueue(hq_t *self, void *item)
+{
+    hq_enqueue_mmm(self, mmm_thread_acquire(), item);
+}
+
 void *
-hq_dequeue(hq_t *self, bool *found)
+hq_dequeue_mmm(hq_t *self, mmm_thread_t *thread, bool *found)
 {
     hq_store_t *store;
     uint64_t    sz;
@@ -379,7 +391,7 @@ hq_dequeue(hq_t *self, bool *found)
     void       *ret;
     hq_cell_t  *cell;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store          = atomic_read(&self->store);
     candidate.item = NULL;
@@ -396,7 +408,7 @@ retry_dequeue:
         cur_ix = atomic_read(&store->dequeue_index);
 
         if (cur_ix & HQ_MOVING) {
-            hq_migrate(store, self);
+            hq_migrate(store, thread, self);
             store = atomic_read(&self->store);
             continue;
         }
@@ -404,7 +416,7 @@ retry_dequeue:
         end_ix = atomic_read(&store->enqueue_index);
 
         if (cur_ix >= end_ix) {
-            return hatrack_not_found_w_mmm(found);
+            return hatrack_not_found_w_mmm(thread, found);
         }
 
         /* Unfortunately, that means when we think there's a pretty
@@ -418,7 +430,7 @@ retry_dequeue:
 
 migrate_then_possibly_dequeue:
 
-            epoch = hq_migrate(store, self);
+            epoch = hq_migrate(store, thread, self);
 
             if (epoch <= cur_ix) {
                 store = atomic_read(&self->store);
@@ -440,7 +452,7 @@ migrate_then_possibly_dequeue:
             }
 
             atomic_fetch_sub(&self->len, 1);
-            return hatrack_found_w_mmm(found, expected.item);
+            return hatrack_found_w_mmm(thread, found, expected.item);
         }
 
         cell     = &store->cells[hq_ix(cur_ix, sz)];
@@ -453,7 +465,7 @@ migrate_then_possibly_dequeue:
              * dequeued, so declare not found.
              */
             if (hq_is_queued(expected.state)) {
-                return hatrack_not_found_w_mmm(found);
+                return hatrack_not_found_w_mmm(thread, found);
             }
 
             candidate.state = HQ_TOOSLOW | cur_ix;
@@ -463,7 +475,7 @@ migrate_then_possibly_dequeue:
              */
             if (CAS(cell, &expected, candidate)) {
                 if ((cur_ix + 1) == end_ix) {
-                    return hatrack_not_found_w_mmm(found);
+                    return hatrack_not_found_w_mmm(thread, found);
                 }
                 goto retry_dequeue;
             }
@@ -478,7 +490,7 @@ migrate_then_possibly_dequeue:
              * progress, but let's make sure, and then restart the op.
              */
 
-            hq_migrate(store, self);
+            hq_migrate(store, thread, self);
             store = atomic_read(&self->store);
             continue;
         }
@@ -496,18 +508,24 @@ migrate_then_possibly_dequeue:
         }
 
         atomic_fetch_sub(&self->len, 1);
-        return hatrack_found_w_mmm(found, ret);
+        return hatrack_found_w_mmm(thread, found, ret);
     }
 }
 
+void *
+hq_dequeue(hq_t *self, bool *found)
+{
+    return hq_dequeue_mmm(self, mmm_thread_acquire(), found);
+}
+
 hq_view_t *
-hq_view(hq_t *self)
+hq_view_mmm(hq_t *self, mmm_thread_t *thread)
 {
     hq_view_t  *ret;
     hq_store_t *store;
     bool        expected;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     ret = (hq_view_t *)hatrack_malloc(sizeof(hq_view_t));
 
@@ -518,18 +536,24 @@ hq_view(hq_t *self)
         if (CAS(&store->claimed, &expected, true)) {
             break;
         }
-        hq_migrate(store, self);
+        hq_migrate(store, thread, self);
     }
 
-    ret->start_epoch = hq_migrate(store, self);
+    ret->start_epoch = hq_migrate(store, thread, self);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     ret->store      = store;
     ret->next_ix    = ret->start_epoch;
     ret->last_epoch = ret->start_epoch + store->size;
 
     return ret;
+}
+
+hq_view_t *
+hq_view(hq_t *self)
+{
+    return hq_view_mmm(self, mmm_thread_acquire());
 }
 
 void *
@@ -557,13 +581,19 @@ hq_view_next(hq_view_t *view, bool *found)
 }
 
 void
-hq_view_delete(hq_view_t *view)
+hq_view_delete_mmm(hq_view_t *view, mmm_thread_t *thread)
 {
-    mmm_retire(view->store);
+    mmm_retire(thread, view->store);
 
     hatrack_free(view, sizeof(hq_view_t));
 
     return;
+}
+
+void
+hq_view_delete(hq_view_t *view)
+{
+    hq_view_delete_mmm(view, mmm_thread_acquire());
 }
 
 static hq_store_t *
@@ -581,7 +611,7 @@ hq_new_store(uint64_t size)
 }
 
 static uint64_t
-hq_migrate(hq_store_t *store, hq_t *top)
+hq_migrate(hq_store_t *store, mmm_thread_t *thread, hq_t *top)
 {
     hq_store_t *next_store;
     hq_store_t *expected_store;
@@ -697,7 +727,7 @@ hq_migrate(hq_store_t *store, hq_t *top)
 
     if (CAS(&top->store, &store, next_store)) {
         if (!store->claimed) {
-            mmm_retire(store);
+            mmm_retire(thread, store);
         }
     }
 

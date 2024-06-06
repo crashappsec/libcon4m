@@ -54,6 +54,7 @@
 
 #include "base.h"
 #include "hatrack_common.h"
+#include "mmm.h"
 
 typedef struct {
     uint64_t hv;
@@ -78,16 +79,23 @@ typedef struct {
 } tiara_t;
 
 // clang-format off
-HATRACK_EXTERN tiara_t        *tiara_new      (void);
-HATRACK_EXTERN tiara_t        *tiara_new_size (char);
-HATRACK_EXTERN void            tiara_init     (tiara_t *);
-HATRACK_EXTERN void            tiara_init_size(tiara_t *, char);
-HATRACK_EXTERN void            tiara_cleanup  (tiara_t *);
-HATRACK_EXTERN void            tiara_delete   (tiara_t *);
-HATRACK_EXTERN void           *tiara_get      (tiara_t *, uint64_t);
-HATRACK_EXTERN void           *tiara_put      (tiara_t *, uint64_t, void *);
-HATRACK_EXTERN void           *tiara_replace  (tiara_t *, uint64_t, void *);
-HATRACK_EXTERN bool            tiara_add      (tiara_t *, uint64_t, void *);
-HATRACK_EXTERN void           *tiara_remove   (tiara_t *, uint64_t);
-HATRACK_EXTERN uint64_t        tiara_len      (tiara_t *);
-HATRACK_EXTERN hatrack_view_t *tiara_view     (tiara_t *, uint64_t *, bool);
+HATRACK_EXTERN tiara_t        *tiara_new        (void);
+HATRACK_EXTERN tiara_t        *tiara_new_size   (char);
+HATRACK_EXTERN void            tiara_init       (tiara_t *);
+HATRACK_EXTERN void            tiara_init_size  (tiara_t *, char);
+HATRACK_EXTERN void            tiara_cleanup    (tiara_t *);
+HATRACK_EXTERN void            tiara_delete     (tiara_t *);
+HATRACK_EXTERN void           *tiara_get_mmm    (tiara_t *, mmm_thread_t *, uint64_t);
+HATRACK_EXTERN void           *tiara_get        (tiara_t *, uint64_t);
+HATRACK_EXTERN void           *tiara_put_mmm    (tiara_t *, mmm_thread_t *, uint64_t, void *);
+HATRACK_EXTERN void           *tiara_put        (tiara_t *, uint64_t, void *);
+HATRACK_EXTERN void           *tiara_replace_mmm(tiara_t *, mmm_thread_t *, uint64_t, void *);
+HATRACK_EXTERN void           *tiara_replace    (tiara_t *, uint64_t, void *);
+HATRACK_EXTERN bool            tiara_add_mmm    (tiara_t *, mmm_thread_t *, uint64_t, void *);
+HATRACK_EXTERN bool            tiara_add        (tiara_t *, uint64_t, void *);
+HATRACK_EXTERN void           *tiara_remove_mmm (tiara_t *, mmm_thread_t *, uint64_t);
+HATRACK_EXTERN void           *tiara_remove     (tiara_t *, uint64_t);
+HATRACK_EXTERN uint64_t        tiara_len_mmm    (tiara_t *, mmm_thread_t *);
+HATRACK_EXTERN uint64_t        tiara_len        (tiara_t *);
+HATRACK_EXTERN hatrack_view_t *tiara_view_mmm   (tiara_t *, mmm_thread_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_view_t *tiara_view       (tiara_t *, uint64_t *, bool);

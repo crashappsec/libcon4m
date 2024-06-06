@@ -37,6 +37,7 @@
 
 #include "base.h"
 #include "hatrack_common.h"
+#include "mmm.h"
 
 #ifndef HATRACK_NO_PTHREAD
 
@@ -246,19 +247,26 @@ duncecap_reader_exit(duncecap_store_t *store);
  */
 
 // clang-format off
-HATRACK_EXTERN duncecap_t     *duncecap_new      (void);
-HATRACK_EXTERN duncecap_t     *duncecap_new_size (char);
-HATRACK_EXTERN void            duncecap_init     (duncecap_t *);
-HATRACK_EXTERN void            duncecap_init_size(duncecap_t *, char);
-HATRACK_EXTERN void            duncecap_cleanup  (duncecap_t *);
-HATRACK_EXTERN void            duncecap_delete   (duncecap_t *);
-HATRACK_EXTERN void           *duncecap_get      (duncecap_t *, hatrack_hash_t, bool *);
-HATRACK_EXTERN void           *duncecap_put      (duncecap_t *, hatrack_hash_t, void *, bool *);
-HATRACK_EXTERN void           *duncecap_replace  (duncecap_t *, hatrack_hash_t, void *,	bool *);
-HATRACK_EXTERN bool            duncecap_add      (duncecap_t *, hatrack_hash_t, void *);
-HATRACK_EXTERN void           *duncecap_remove   (duncecap_t *, hatrack_hash_t, bool *);
-HATRACK_EXTERN uint64_t        duncecap_len      (duncecap_t *);
-HATRACK_EXTERN hatrack_view_t *duncecap_view     (duncecap_t *, uint64_t *, bool);
+HATRACK_EXTERN duncecap_t     *duncecap_new        (void);
+HATRACK_EXTERN duncecap_t     *duncecap_new_size   (char);
+HATRACK_EXTERN void            duncecap_init       (duncecap_t *);
+HATRACK_EXTERN void            duncecap_init_size  (duncecap_t *, char);
+HATRACK_EXTERN void            duncecap_cleanup    (duncecap_t *);
+HATRACK_EXTERN void            duncecap_delete     (duncecap_t *);
+HATRACK_EXTERN void           *duncecap_get_mmm    (duncecap_t *, mmm_thread_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *duncecap_get        (duncecap_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *duncecap_put_mmm    (duncecap_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *duncecap_put        (duncecap_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *duncecap_replace_mmm(duncecap_t *, mmm_thread_t *, hatrack_hash_t, void *,	bool *);
+HATRACK_EXTERN void           *duncecap_replace    (duncecap_t *, hatrack_hash_t, void *,	bool *);
+HATRACK_EXTERN bool            duncecap_add_mmm    (duncecap_t *, mmm_thread_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN bool            duncecap_add        (duncecap_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *duncecap_remove_mmm (duncecap_t *, mmm_thread_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *duncecap_remove     (duncecap_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        duncecap_len_mmm    (duncecap_t *, mmm_thread_t *);
+HATRACK_EXTERN uint64_t        duncecap_len        (duncecap_t *);
+HATRACK_EXTERN hatrack_view_t *duncecap_view_mmm   (duncecap_t *, mmm_thread_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_view_t *duncecap_view       (duncecap_t *, uint64_t *, bool);
 // clang-format on
 
 #endif

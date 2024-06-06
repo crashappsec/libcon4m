@@ -171,7 +171,7 @@
 
 // Most of the store functions are needed by other modules, for better
 // or worse, so we lifted their prototypes into the header.
-static crown_store_t  *crown_store_migrate(crown_store_t *, crown_t *);
+static crown_store_t  *crown_store_migrate(crown_store_t *, mmm_thread_t *, crown_t *);
 static inline bool     crown_help_required(uint64_t);
 static inline bool     crown_need_to_help (crown_t *);
 
@@ -234,7 +234,7 @@ crown_init_size(crown_t *self, char size)
 void
 crown_cleanup(crown_t *self)
 {
-    mmm_retire(atomic_load(&self->store_current));
+    mmm_retire_unused(atomic_load(&self->store_current));
 
     return;
 }
@@ -249,17 +249,40 @@ crown_delete(crown_t *self)
 }
 
 void *
-crown_get(crown_t *self, hatrack_hash_t hv, bool *found)
+crown_get_mmm(crown_t *self,mmm_thread_t*thread, hatrack_hash_t hv, bool *found)
 {
     void           *ret;
     crown_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
     ret   = crown_store_get(store, hv, found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
+
+    return ret;
+}
+
+void *
+crown_get(crown_t *self, hatrack_hash_t hv, bool *found)
+{
+    return crown_get_mmm(self, mmm_thread_acquire(), hv, found);
+}
+
+void *
+crown_put_mmm(crown_t *self,mmm_thread_t*thread, hatrack_hash_t hv, void *item, bool *found)
+{
+    void           *ret;
+    crown_store_t *store;
+
+
+    mmm_start_basic_op(thread);
+
+    store = atomic_read(&self->store_current);
+    ret   = crown_store_put(store, thread, self, hv, item, found, 0);
+
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -267,16 +290,21 @@ crown_get(crown_t *self, hatrack_hash_t hv, bool *found)
 void *
 crown_put(crown_t *self, hatrack_hash_t hv, void *item, bool *found)
 {
+    return crown_put_mmm(self, mmm_thread_acquire(), hv, item, found);
+}
+
+void *
+crown_replace_mmm(crown_t *self,mmm_thread_t*thread, hatrack_hash_t hv, void *item, bool *found)
+{
     void           *ret;
     crown_store_t *store;
 
-
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
-    ret   = crown_store_put(store, self, hv, item, found, 0);
+    ret   = crown_store_replace(store, thread, self, hv, item, found, 0);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -284,15 +312,21 @@ crown_put(crown_t *self, hatrack_hash_t hv, void *item, bool *found)
 void *
 crown_replace(crown_t *self, hatrack_hash_t hv, void *item, bool *found)
 {
-    void           *ret;
+    return crown_replace_mmm(self, mmm_thread_acquire(), hv, item, found);
+}
+
+bool
+crown_add_mmm(crown_t *self,mmm_thread_t*thread, hatrack_hash_t hv, void *item)
+{
+    bool            ret;
     crown_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
-    ret   = crown_store_replace(store, self, hv, item, found, 0);
+    ret   = crown_store_add(store, thread, self, hv, item, 0);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -300,15 +334,21 @@ crown_replace(crown_t *self, hatrack_hash_t hv, void *item, bool *found)
 bool
 crown_add(crown_t *self, hatrack_hash_t hv, void *item)
 {
-    bool            ret;
+    return crown_add_mmm(self, mmm_thread_acquire(), hv, item);
+}
+
+void *
+crown_remove_mmm(crown_t *self,mmm_thread_t*thread, hatrack_hash_t hv, bool *found)
+{
+    void           *ret;
     crown_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store_current);
-    ret   = crown_store_add(store, self, hv, item, 0);
+    ret   = crown_store_remove(store, thread, self, hv, found, 0);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -316,17 +356,7 @@ crown_add(crown_t *self, hatrack_hash_t hv, void *item)
 void *
 crown_remove(crown_t *self, hatrack_hash_t hv, bool *found)
 {
-    void           *ret;
-    crown_store_t *store;
-
-    mmm_start_basic_op();
-
-    store = atomic_read(&self->store_current);
-    ret   = crown_store_remove(store, self, hv, found, 0);
-
-    mmm_end_op();
-
-    return ret;
+    return crown_remove_mmm(self, mmm_thread_acquire(), hv, found);
 }
 
 uint64_t
@@ -335,25 +365,37 @@ crown_len(crown_t *self)
     return atomic_read(&self->item_count);
 }
 
+uint64_t
+crown_len_mmm(crown_t *self, mmm_thread_t *thread)
+{
+    return crown_len(self);
+}
+
 hatrack_view_t *
-crown_view(crown_t *self, uint64_t *num, bool sort)
+crown_view_mmm(crown_t *self, mmm_thread_t *thread, uint64_t *num, bool sort)
 {
     hatrack_view_t *ret;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
-    ret = crown_view_fast(self, num, sort);
+    ret = crown_view_fast_mmm(self, thread, num, sort);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
+}
+
+hatrack_view_t *
+crown_view(crown_t *self, uint64_t *num, bool sort)
+{
+    return crown_view_mmm(self, mmm_thread_acquire(), num, sort);
 }
 
 /* This is the witchhat version.  We do not invoke mmm here; the dict
  *  class wraps this operation in mmm.
  */
 hatrack_view_t *
-crown_view_fast(crown_t *self, uint64_t *num, bool sort)
+crown_view_fast_mmm(crown_t *self,mmm_thread_t*thread, uint64_t *num, bool sort)
 {
     hatrack_view_t *view;
     hatrack_view_t *p;
@@ -404,6 +446,11 @@ crown_view_fast(crown_t *self, uint64_t *num, bool sort)
     return view;
 }
 
+hatrack_view_t *
+crown_view_fast(crown_t *self, uint64_t *num, bool sort)
+{
+    return crown_view_fast_mmm(self, mmm_thread_acquire(), num, sort);
+}
 
 /* This is modified to copy the store first, ensuring a consistent view.
  * But it's much slower, since we're doing a LOT of extra work.
@@ -414,7 +461,7 @@ crown_view_fast(crown_t *self, uint64_t *num, bool sort)
  * matter.
  */
 hatrack_view_t *
-crown_view_slow(crown_t *self, uint64_t *num, bool sort)
+crown_view_slow_mmm(crown_t *self,mmm_thread_t*thread, uint64_t *num, bool sort)
 {
     hatrack_view_t *view;
     hatrack_view_t *p;
@@ -433,10 +480,10 @@ crown_view_slow(crown_t *self, uint64_t *num, bool sort)
 	if (CAS(&store->claimed, &expected, true)) {
 	    break;
 	}
-	crown_store_migrate(store, self);
+	crown_store_migrate(store, thread, self);
     }
 
-    crown_store_migrate(store, self);
+    crown_store_migrate(store, thread, self);
 
     alloc_len = sizeof(hatrack_view_t) * (store->last_slot + 1);
     view      = (hatrack_view_t *)hatrack_malloc(alloc_len);
@@ -474,9 +521,15 @@ crown_view_slow(crown_t *self, uint64_t *num, bool sort)
 	qsort(view, num_items, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
     }
 
-    mmm_retire(store);
+    mmm_retire(thread, store);
 
     return view;
+}
+
+hatrack_view_t *
+crown_view_slow(crown_t *self, uint64_t *num, bool sort)
+{
+    return crown_view_slow_mmm(self, mmm_thread_acquire(), num, sort);
 }
 
 crown_store_t *
@@ -659,6 +712,7 @@ not_found:
  */
 void *
 crown_store_put(crown_store_t  *self,
+mmm_thread_t *thread,
 		crown_t        *top,
 		hatrack_hash_t  hv1,
 		void           *item,
@@ -777,16 +831,16 @@ crown_store_put(crown_store_t  *self,
 
 	atomic_fetch_add(&top->help_needed, 1);
 
-	self     = crown_store_migrate(self, top);
-	old_item = crown_store_put(self, top, hv1, item, found, count);
+	self     = crown_store_migrate(self, thread, top);
+	old_item = crown_store_put(self,thread, top, hv1, item, found, count);
 
 	atomic_fetch_sub(&top->help_needed, 1);
 
 	return old_item;
     }
 
-    self = crown_store_migrate(self, top);
-    return crown_store_put(self, top, hv1, item, found, count);
+    self = crown_store_migrate(self, thread, top);
+    return crown_store_put(self, thread, top, hv1, item, found, count);
 
  found_bucket:
     record = atomic_read(&bucket->record);
@@ -830,7 +884,7 @@ crown_store_put(crown_store_t  *self,
 
     if (!new_item) {
 	if (atomic_read(&self->used_count) >= self->threshold) {
-	    crown_store_migrate(self, top);
+	    crown_store_migrate(self, thread, top);
 	}
     }
 
@@ -839,6 +893,7 @@ crown_store_put(crown_store_t  *self,
 
 void *
 crown_store_replace(crown_store_t    *self,
+mmm_thread_t*thread,
 		       crown_t       *top,
 		       hatrack_hash_t hv1,
 		       void          *item,
@@ -913,16 +968,16 @@ crown_store_replace(crown_store_t    *self,
 	    HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
 
 	    atomic_fetch_add(&top->help_needed, 1);
-	    self = crown_store_migrate(self, top);
-	    ret  = crown_store_replace(self, top, hv1, item, found, count);
+	    self = crown_store_migrate(self, thread, top);
+	    ret  = crown_store_replace(self, thread, top, hv1, item, found, count);
 
 	    atomic_fetch_sub(&top->help_needed, 1);
 
 	    return ret;
 	}
 
-	self = crown_store_migrate(self, top);
-	return crown_store_replace(self, top, hv1, item, found, count);
+	self = crown_store_migrate(self, thread, top);
+	return crown_store_replace(self, thread, top, hv1, item, found, count);
     }
 
     if (!(record.info & CROWN_EPOCH_MASK)) {
@@ -945,7 +1000,7 @@ crown_store_replace(crown_store_t    *self,
     }
 
     if (atomic_read(&self->used_count) >= self->threshold) {
-	crown_store_migrate(self, top);
+	crown_store_migrate(self, thread, top);
     }
 
     return record.item;
@@ -960,6 +1015,7 @@ crown_store_replace(crown_store_t    *self,
  */
 bool
 crown_store_add(crown_store_t    *self,
+mmm_thread_t *thread,
 		   crown_t       *top,
 		   hatrack_hash_t hv1,
 		   void          *item,
@@ -1057,16 +1113,16 @@ crown_store_add(crown_store_t    *self,
 
 	atomic_fetch_add(&top->help_needed, 1);
 
-	self = crown_store_migrate(self, top);
-	ret  = crown_store_add(self, top, hv1, item, count);
+	self = crown_store_migrate(self, thread, top);
+	ret  = crown_store_add(self, thread, top, hv1, item, count);
 
 	atomic_fetch_sub(&top->help_needed, 1);
 
 	return ret;
     }
 
-    self = crown_store_migrate(self, top);
-    return crown_store_add(self, top, hv1, item, count);
+    self = crown_store_migrate(self, thread, top);
+    return crown_store_add(self,thread, top, hv1, item, count);
 
 found_bucket:
     record = atomic_read(&bucket->record);
@@ -1100,6 +1156,7 @@ found_bucket:
  */
 void *
 crown_store_remove(crown_store_t *self,
+mmm_thread_t*thread,
 		   crown_t       *top,
 		   hatrack_hash_t hv1,
 		   bool          *found,
@@ -1165,14 +1222,14 @@ found_bucket:
 	if (crown_help_required(count)) {
 	    HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
 	    atomic_fetch_add(&top->help_needed, 1);
-	    self     = crown_store_migrate(self, top);
-	    old_item = crown_store_remove(self, top, hv1, found, count);
+	    self     = crown_store_migrate(self, thread, top);
+	    old_item = crown_store_remove(self, thread, top, hv1, found, count);
 	    atomic_fetch_sub(&top->help_needed, 1);
 	    return old_item;
 	}
 
-	self = crown_store_migrate(self, top);
-	return crown_store_remove(self, top, hv1, found, count);
+	self = crown_store_migrate(self, thread, top);
+	return crown_store_remove(self, thread, top, hv1, found, count);
     }
 
     if (!(record.info & CROWN_EPOCH_MASK)) {
@@ -1191,7 +1248,7 @@ found_bucket:
         }
 
 	if (atomic_read(&self->used_count) >= self->threshold) {
-	    crown_store_migrate(self, top);
+	    crown_store_migrate(self, thread, top);
 	}
 
         return old_item;
@@ -1229,7 +1286,7 @@ found_bucket:
  * trying to write the exact same things in the exact same order.
  */
 static crown_store_t *
-crown_store_migrate(crown_store_t *self, crown_t *top)
+crown_store_migrate(crown_store_t *self, mmm_thread_t *thread, crown_t *top)
 {
     crown_store_t  *new_store;
     crown_store_t  *candidate_store;
@@ -1391,7 +1448,7 @@ crown_store_migrate(crown_store_t *self, crown_t *top)
 	     new_store
 	   )) {
 	if (!self->claimed) {
-	    mmm_retire(self);
+	    mmm_retire(thread, self);
 	}
     }
 

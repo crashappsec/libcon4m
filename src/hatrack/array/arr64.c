@@ -135,13 +135,13 @@ const uint64_t state_mask = ARR64_USED | ARR64_MOVED | ARR64_MOVING;
 const uint64_t val_mask   = ~state_mask;
 
 void *
-arr64_get_ptr(arr64_t *self, uint64_t index, int *status)
+arr64_get_ptr_mmm(arr64_t *self, mmm_thread_t *thread, uint64_t index, int *status)
 {
     arr64_item_t   current;
     arr64_store_t *store;
     uint64_t       state;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store);
 
@@ -149,7 +149,7 @@ arr64_get_ptr(arr64_t *self, uint64_t index, int *status)
         if (status) {
             *status = ARR64_OOB;
         }
-        mmm_end_op();
+        mmm_end_op(thread);
         return NULL;
     }
 
@@ -158,7 +158,7 @@ arr64_get_ptr(arr64_t *self, uint64_t index, int *status)
         if (status) {
             *status = ARR64_UNINITIALIZED;
         }
-        mmm_end_op();
+        mmm_end_op(thread);
         return NULL;
     }
 
@@ -169,7 +169,7 @@ arr64_get_ptr(arr64_t *self, uint64_t index, int *status)
         if (status) {
             *status = ARR64_UNINITIALIZED;
         }
-        mmm_end_op();
+        mmm_end_op(thread);
         return NULL;
     }
 
@@ -177,7 +177,7 @@ arr64_get_ptr(arr64_t *self, uint64_t index, int *status)
         (*self->ret_callback)(current.item);
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     if (status) {
         *status = ARR64_OK;
@@ -186,9 +186,15 @@ arr64_get_ptr(arr64_t *self, uint64_t index, int *status)
     return current.item;
 }
 
+void *
+arr64_get_ptr(arr64_t *self, uint64_t index, int *status)
+{
+    return arr64_get_ptr_mmm(self, mmm_thread_acquire(), index, status);
+}
+
 // Returns true if successful, false if write would be out-of-bounds.
 bool
-arr64_set_ptr(arr64_t *self, uint64_t index, void *item)
+arr64_set_ptr_mmm(arr64_t *self, mmm_thread_t *thread, uint64_t index, void *item)
 {
     arr64_store_t *store;
     arr64_item_t   current;
@@ -198,19 +204,19 @@ arr64_set_ptr(arr64_t *self, uint64_t index, void *item)
     uint64_t       state;
     void          *value;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store      = atomic_read(&self->store);
     read_index = atomic_read(&store->array_size);
 
     if (index >= read_index) {
-        mmm_end_op();
+        mmm_end_op(thread);
         return false;
     }
 
     if (index >= store->store_size) {
         arr64_migrate(store, self);
-        mmm_end_op();
+        mmm_end_op(thread);
         return arr64_set(self, index, item);
     }
 
@@ -220,7 +226,7 @@ arr64_set_ptr(arr64_t *self, uint64_t index, void *item)
 
     if (state & ARR64_ARRAY_MOVING) {
         arr64_migrate(store, self);
-        mmm_end_op();
+        mmm_end_op(thread);
         return arr64_set(self, index, item);
     }
 
@@ -233,7 +239,7 @@ arr64_set_ptr(arr64_t *self, uint64_t index, void *item)
         if (self->eject_callback && (state == ARR64_ARRAY_USED)) {
             (*self->eject_callback)(value);
         }
-        mmm_end_op();
+        mmm_end_op(thread);
         return true;
     }
     else {
@@ -242,7 +248,7 @@ arr64_set_ptr(arr64_t *self, uint64_t index, void *item)
 
     if (state & ARR64_ARRAY_MOVING) {
         arr64_migrate(store, self);
-        mmm_end_op();
+        mmm_end_op(thread);
         return arr64_set(self, index, item);
     }
 
@@ -254,17 +260,23 @@ arr64_set_ptr(arr64_t *self, uint64_t index, void *item)
         (*self->eject_callback)(item);
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
     return true;
 }
 
+bool
+arr64_set_ptr(arr64_t *self, uint64_t index, void *item)
+{
+    return arr64_set_ptr_mmm(self, mmm_thread_acquire(), index, item);
+}
+
 void
-arr64_grow(arr64_t *self, uint64_t index)
+arr64_grow_mmm(arr64_t *self, mmm_thread_t *thread, uint64_t index)
 {
     arr64_store_t *store;
     uint64_t       array_size;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     /* Just change store->array_size, kick off a migration if
      * necessary, and be done.
@@ -274,7 +286,7 @@ arr64_grow(arr64_t *self, uint64_t index)
         array_size = atomic_read(&store->array_size);
 
         if (index < array_size) {
-            mmm_end_op();
+            mmm_end_op(thread);
             return;
         }
     } while (!CAS(&store->array_size, &array_size, index));
@@ -283,12 +295,18 @@ arr64_grow(arr64_t *self, uint64_t index)
         arr64_migrate(store, self);
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
     return;
 }
 
+void
+arr64_grow(arr64_t *self, uint64_t index)
+{
+    arr64_grow_mmm(self, mmm_thread_acquire(), index);
+}
+
 arr64_view_t *
-arr64_view(arr64_t *self)
+arr64_view_mmm(arr64_t *self, mmm_thread_t *thread)
 {
     arr64_view_t  *ret;
     arr64_store_t *store;
@@ -296,7 +314,7 @@ arr64_view(arr64_t *self)
     uint64_t       i;
     arr64_item_t   item;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     while (true) {
         store    = atomic_read(&self->store);
@@ -319,13 +337,19 @@ arr64_view(arr64_t *self)
         }
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     ret           = (arr64_view_t *)hatrack_malloc(sizeof(arr64_view_t));
     ret->contents = store;
     ret->next_ix  = 0;
 
     return ret;
+}
+
+arr64_view_t *
+arr64_view(arr64_t *self)
+{
+    return arr64_view_mmm(self, mmm_thread_acquire());
 }
 
 void *
@@ -353,7 +377,7 @@ arr64_view_next(arr64_view_t *view, bool *found)
 }
 
 void
-arr64_view_delete(arr64_view_t *view)
+arr64_view_delete_mmm(arr64_view_t *view, mmm_thread_t *thread)
 {
     void *item;
     bool  found;
@@ -369,11 +393,17 @@ arr64_view_delete(arr64_view_t *view)
         }
     }
 
-    mmm_retire(view->contents);
+    mmm_retire(thread, view->contents);
 
     hatrack_free(view, sizeof(arr64_view_t));
 
     return;
+}
+
+void
+arr64_view_delete(arr64_view_t *view)
+{
+    arr64_view_delete_mmm(view, mmm_thread_acquire());
 }
 
 static arr64_store_t *

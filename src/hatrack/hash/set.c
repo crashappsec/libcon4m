@@ -162,13 +162,34 @@ hatrack_set_set_return_hook(hatrack_set_t *self, hatrack_mem_hook_t func)
 }
 
 bool
-hatrack_set_contains(hatrack_set_t *self, void *item)
+hatrack_set_contains_mmm(hatrack_set_t *self, mmm_thread_t *thread, void *item)
 {
     bool ret;
 
-    woolhat_get(&self->woolhat_instance,
-                hatrack_set_get_hash_value(self, item),
-                &ret);
+    woolhat_get_mmm(&self->woolhat_instance,
+                    thread,
+                    hatrack_set_get_hash_value(self, item),
+                    &ret);
+
+    return ret;
+}
+
+bool
+hatrack_set_contains(hatrack_set_t *self, void *item)
+{
+    return hatrack_set_contains_mmm(self, mmm_thread_acquire(), item);
+}
+
+bool
+hatrack_set_put_mmm(hatrack_set_t *self, mmm_thread_t *thread, void *item)
+{
+    bool ret;
+
+    woolhat_put_mmm(&self->woolhat_instance,
+                    thread,
+                    hatrack_set_get_hash_value(self, item),
+                    item,
+                    &ret);
 
     return ret;
 }
@@ -176,45 +197,52 @@ hatrack_set_contains(hatrack_set_t *self, void *item)
 bool
 hatrack_set_put(hatrack_set_t *self, void *item)
 {
-    bool ret;
+    return hatrack_set_put_mmm(self, mmm_thread_acquire(), item);
+}
 
-    woolhat_put(&self->woolhat_instance,
-                hatrack_set_get_hash_value(self, item),
-                item,
-                &ret);
-
-    return ret;
+bool
+hatrack_set_add_mmm(hatrack_set_t *self, mmm_thread_t *thread, void *item)
+{
+    return woolhat_add_mmm(&self->woolhat_instance,
+                           thread,
+                           hatrack_set_get_hash_value(self, item),
+                           item);
 }
 
 bool
 hatrack_set_add(hatrack_set_t *self, void *item)
 {
-    return woolhat_add(&self->woolhat_instance,
+    return hatrack_set_add_mmm(self, mmm_thread_acquire(), item);
+}
+
+bool
+hatrack_set_remove_mmm(hatrack_set_t *self, mmm_thread_t *thread, void *item)
+{
+    bool ret;
+
+    woolhat_remove_mmm(&self->woolhat_instance,
+                       thread,
                        hatrack_set_get_hash_value(self, item),
-                       item);
+                       &ret);
+
+    return ret;
 }
 
 bool
 hatrack_set_remove(hatrack_set_t *self, void *item)
 {
-    bool ret;
-
-    woolhat_remove(&self->woolhat_instance,
-                   hatrack_set_get_hash_value(self, item),
-                   &ret);
-
-    return ret;
+    return hatrack_set_remove_mmm(self, mmm_thread_acquire(), item);
 }
 
 static inline void *
-hatrack_set_items_base(hatrack_set_t *self, uint64_t *num, bool sort)
+hatrack_set_items_base(hatrack_set_t *self, mmm_thread_t *thread, uint64_t *num, bool sort)
 {
     hatrack_set_view_t *view;
     void              **ret;
     uint64_t            i;
     uint64_t            epoch;
 
-    epoch = mmm_start_linearized_op();
+    epoch = mmm_start_linearized_op(thread);
 
     view = woolhat_view_epoch(&self->woolhat_instance, num, epoch);
     ret  = hatrack_malloc(sizeof(void *) * *num);
@@ -239,7 +267,7 @@ hatrack_set_items_base(hatrack_set_t *self, uint64_t *num, bool sort)
         }
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     hatrack_set_view_delete(view, *num);
 
@@ -247,21 +275,33 @@ hatrack_set_items_base(hatrack_set_t *self, uint64_t *num, bool sort)
 }
 
 void *
+hatrack_set_items_mmm(hatrack_set_t *self, mmm_thread_t *thread, uint64_t *num)
+{
+    return hatrack_set_items_base(self, thread, num, false);
+}
+
+void *
 hatrack_set_items(hatrack_set_t *self, uint64_t *num)
 {
-    return hatrack_set_items_base(self, num, false);
+    return hatrack_set_items_base(self, mmm_thread_acquire(), num, false);
+}
+
+void *
+hatrack_set_items_sort_mmm(hatrack_set_t *self, mmm_thread_t *thread, uint64_t *num)
+{
+    return hatrack_set_items_base(self, thread, num, true);
 }
 
 void *
 hatrack_set_items_sort(hatrack_set_t *self, uint64_t *num)
 {
-    return hatrack_set_items_base(self, num, true);
+    return hatrack_set_items_base(self, mmm_thread_acquire(), num, true);
 }
 
 void *
-hatrack_set_any_item(hatrack_set_t *self, bool *found)
+hatrack_set_any_item_mmm(hatrack_set_t *self, mmm_thread_t *thread, bool *found)
 {
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
     uint64_t           i;
     hatrack_hash_t     hv;
     woolhat_history_t *bucket;
@@ -286,12 +326,18 @@ hatrack_set_any_item(hatrack_set_t *self, bool *found)
 #ifndef WOOLHAT_DONT_LINEARIZE_GET
             mmm_help_commit(head);
 #endif
-            mmm_end_op();
+            mmm_end_op(thread);
             return hatrack_found(found, head->item);
         }
     }
-    mmm_end_op();
+    mmm_end_op(thread);
     return hatrack_not_found(found);
+}
+
+void *
+hatrack_set_any_item(hatrack_set_t *self, bool *found)
+{
+    return hatrack_set_any_item_mmm(self, mmm_thread_acquire(), found);
 }
 
 /* hatrack_set_is_eq(A, B)
@@ -303,7 +349,7 @@ hatrack_set_any_item(hatrack_set_t *self, bool *found)
  * We compare hash values to test for equality.
  */
 bool
-hatrack_set_is_eq(hatrack_set_t *set1, hatrack_set_t *set2)
+hatrack_set_is_eq_mmm(hatrack_set_t *set1, mmm_thread_t *thread, hatrack_set_t *set2)
 {
     bool                ret;
     uint64_t            epoch;
@@ -313,7 +359,7 @@ hatrack_set_is_eq(hatrack_set_t *set1, hatrack_set_t *set2)
     hatrack_set_view_t *view2;
     uint64_t            i;
 
-    epoch = mmm_start_linearized_op();
+    epoch = mmm_start_linearized_op(thread);
 
     view1 = woolhat_view_epoch(&set1->woolhat_instance, &num1, epoch);
     view2 = woolhat_view_epoch(&set2->woolhat_instance, &num2, epoch);
@@ -340,12 +386,18 @@ hatrack_set_is_eq(hatrack_set_t *set1, hatrack_set_t *set2)
     ret = true;
 
 finished:
-    mmm_end_op();
+    mmm_end_op(thread);
 
     hatrack_set_view_delete(view1, num1);
     hatrack_set_view_delete(view2, num2);
 
     return ret;
+}
+
+bool
+hatrack_set_is_eq(hatrack_set_t *set1, hatrack_set_t *set2)
+{
+    return hatrack_set_is_eq_mmm(set1, mmm_thread_acquire(), set2);
 }
 
 /* hatrack_set_is_superset(A, B, proper)
@@ -356,7 +408,7 @@ finished:
  * otherwise, it will return true.
  */
 bool
-hatrack_set_is_superset(hatrack_set_t *set1, hatrack_set_t *set2, bool proper)
+hatrack_set_is_superset_mmm(hatrack_set_t *set1, mmm_thread_t *thread, hatrack_set_t *set2, bool proper)
 {
     bool                ret;
     uint64_t            epoch;
@@ -366,7 +418,7 @@ hatrack_set_is_superset(hatrack_set_t *set1, hatrack_set_t *set2, bool proper)
     hatrack_set_view_t *view2;
     uint64_t            i, j;
 
-    epoch = mmm_start_linearized_op();
+    epoch = mmm_start_linearized_op(thread);
 
     view1 = woolhat_view_epoch(&set1->woolhat_instance, &num1, epoch);
     view2 = woolhat_view_epoch(&set2->woolhat_instance, &num2, epoch);
@@ -416,12 +468,18 @@ hatrack_set_is_superset(hatrack_set_t *set1, hatrack_set_t *set2, bool proper)
     }
 
 finished:
-    mmm_end_op();
+    mmm_end_op(thread);
 
     hatrack_set_view_delete(view1, num1);
     hatrack_set_view_delete(view2, num2);
 
     return ret;
+}
+
+bool
+hatrack_set_is_superset(hatrack_set_t *set1, hatrack_set_t *set2, bool proper)
+{
+    return hatrack_set_is_superset_mmm(set1, mmm_thread_acquire(), set2, proper);
 }
 
 /* hatrack_set_is_subset(A, B, proper)
@@ -432,9 +490,15 @@ finished:
  * otherwise, it will return true.
  */
 bool
+hatrack_set_is_subset_mmm(hatrack_set_t *set1, mmm_thread_t *thread, hatrack_set_t *set2, bool proper)
+{
+    return hatrack_set_is_superset_mmm(set2, thread, set1, proper);
+}
+
+bool
 hatrack_set_is_subset(hatrack_set_t *set1, hatrack_set_t *set2, bool proper)
 {
-    return hatrack_set_is_superset(set2, set1, proper);
+    return hatrack_set_is_subset_mmm(set1, mmm_thread_acquire(), set2, proper);
 }
 
 /* hatrack_set_is_disjoint(A, B)
@@ -445,7 +509,7 @@ hatrack_set_is_subset(hatrack_set_t *set1, hatrack_set_t *set2, bool proper)
  * If one of the sets is empty, this will always return true.
  */
 bool
-hatrack_set_is_disjoint(hatrack_set_t *set1, hatrack_set_t *set2)
+hatrack_set_is_disjoint_mmm(hatrack_set_t *set1, mmm_thread_t *thread, hatrack_set_t *set2)
 {
     bool                ret;
     uint64_t            epoch;
@@ -455,7 +519,7 @@ hatrack_set_is_disjoint(hatrack_set_t *set1, hatrack_set_t *set2)
     hatrack_set_view_t *view2;
     uint64_t            i, j;
 
-    epoch = mmm_start_linearized_op();
+    epoch = mmm_start_linearized_op(thread);
 
     view1 = woolhat_view_epoch(&set1->woolhat_instance, &num1, epoch);
     view2 = woolhat_view_epoch(&set2->woolhat_instance, &num2, epoch);
@@ -485,12 +549,18 @@ hatrack_set_is_disjoint(hatrack_set_t *set1, hatrack_set_t *set2)
     ret = true;
 
 finished:
-    mmm_end_op();
+    mmm_end_op(thread);
 
     hatrack_set_view_delete(view1, num1);
     hatrack_set_view_delete(view2, num2);
 
     return ret;
+}
+
+bool
+hatrack_set_is_disjoint(hatrack_set_t *set1, hatrack_set_t *set2)
+{
+    return hatrack_set_is_disjoint_mmm(set1, mmm_thread_acquire(), set2);
 }
 
 /* hatrack_set_difference(A, B)
@@ -499,7 +569,7 @@ finished:
  * of the call (as defined by the epoch).
  */
 hatrack_set_t *
-hatrack_set_difference(hatrack_set_t *set1, hatrack_set_t *set2)
+hatrack_set_difference_mmm(hatrack_set_t *set1, mmm_thread_t *thread, hatrack_set_t *set2)
 {
     hatrack_set_t      *ret;
     uint64_t            epoch;
@@ -514,7 +584,7 @@ hatrack_set_difference(hatrack_set_t *set1, hatrack_set_t *set2)
     }
 
     ret   = hatrack_set_new(set1->item_type);
-    epoch = mmm_start_linearized_op();
+    epoch = mmm_start_linearized_op(thread);
 
     view1 = woolhat_view_epoch(&set1->woolhat_instance, &num1, epoch);
     view2 = woolhat_view_epoch(&set2->woolhat_instance, &num2, epoch);
@@ -546,16 +616,22 @@ hatrack_set_difference(hatrack_set_t *set1, hatrack_set_t *set2)
             (*set1->pre_return_hook)(set1, view1[i].item);
         }
 
-        woolhat_put(&ret->woolhat_instance, view1[i].hv, view1[i].item, NULL);
+        woolhat_put_mmm(&ret->woolhat_instance, thread, view1[i].hv, view1[i].item, NULL);
         i++;
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     hatrack_set_view_delete(view1, num1);
     hatrack_set_view_delete(view2, num2);
 
     return ret;
+}
+
+hatrack_set_t *
+hatrack_set_difference(hatrack_set_t *set1, hatrack_set_t *set2)
+{
+    return hatrack_set_difference_mmm(set1, mmm_thread_acquire(), set2);
 }
 
 /* hatrack_set_union(A, B)
@@ -565,7 +641,7 @@ hatrack_set_difference(hatrack_set_t *set1, hatrack_set_t *set2)
  */
 
 hatrack_set_t *
-hatrack_set_union(hatrack_set_t *set1, hatrack_set_t *set2)
+hatrack_set_union_mmm(hatrack_set_t *set1, mmm_thread_t *thread, hatrack_set_t *set2)
 {
     hatrack_set_t      *ret;
     uint64_t            epoch;
@@ -580,7 +656,7 @@ hatrack_set_union(hatrack_set_t *set1, hatrack_set_t *set2)
     }
 
     ret   = hatrack_set_new(set1->item_type);
-    epoch = mmm_start_linearized_op();
+    epoch = mmm_start_linearized_op(thread);
 
     view1 = woolhat_view_epoch(&set1->woolhat_instance, &num1, epoch);
     view2 = woolhat_view_epoch(&set2->woolhat_instance, &num2, epoch);
@@ -596,14 +672,14 @@ hatrack_set_union(hatrack_set_t *set1, hatrack_set_t *set2)
 
     while ((i < num1) && (j < num2)) {
         if (view1[i].sort_epoch < view2[j].sort_epoch) {
-            if (woolhat_add(&ret->woolhat_instance, view1[i].hv, view1[i].item)
+            if (woolhat_add_mmm(&ret->woolhat_instance, thread, view1[i].hv, view1[i].item)
                 && set1->pre_return_hook) {
                 (*set1->pre_return_hook)(set1, view1[i].item);
             }
             i++;
         }
         else {
-            if (woolhat_add(&ret->woolhat_instance, view2[j].hv, view2[j].item)
+            if (woolhat_add_mmm(&ret->woolhat_instance, thread, view2[j].hv, view2[j].item)
                 && set2->pre_return_hook) {
                 (*set2->pre_return_hook)(set2, view2[j].item);
             }
@@ -613,7 +689,7 @@ hatrack_set_union(hatrack_set_t *set1, hatrack_set_t *set2)
     }
 
     while (i < num1) {
-        if (woolhat_add(&ret->woolhat_instance, view1[i].hv, view1[i].item)
+        if (woolhat_add_mmm(&ret->woolhat_instance, thread, view1[i].hv, view1[i].item)
             && set1->pre_return_hook) {
             (*set1->pre_return_hook)(set1, view1[i].item);
         }
@@ -621,19 +697,25 @@ hatrack_set_union(hatrack_set_t *set1, hatrack_set_t *set2)
     }
 
     while (j < num2) {
-        if (woolhat_add(&ret->woolhat_instance, view2[j].hv, view2[j].item)
+        if (woolhat_add_mmm(&ret->woolhat_instance, thread, view2[j].hv, view2[j].item)
             && set2->pre_return_hook) {
             (*set2->pre_return_hook)(set2, view2[j].item);
         }
         j++;
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     hatrack_set_view_delete(view1, num1);
     hatrack_set_view_delete(view2, num2);
 
     return ret;
+}
+
+hatrack_set_t *
+hatrack_set_union(hatrack_set_t *set1, hatrack_set_t *set2)
+{
+    return hatrack_set_union_mmm(set1, mmm_thread_acquire(), set2);
 }
 
 /* hatrack_set_intersection(A, B)
@@ -660,7 +742,7 @@ hatrack_set_union(hatrack_set_t *set1, hatrack_set_t *set2)
  * Once one view ends, there are no more items in the intersection.
  */
 hatrack_set_t *
-hatrack_set_intersection(hatrack_set_t *set1, hatrack_set_t *set2)
+hatrack_set_intersection_mmm(hatrack_set_t *set1, mmm_thread_t *thread, hatrack_set_t *set2)
 {
     hatrack_set_t      *ret;
     uint64_t            epoch;
@@ -675,7 +757,7 @@ hatrack_set_intersection(hatrack_set_t *set1, hatrack_set_t *set2)
     }
 
     ret   = hatrack_set_new(set1->item_type);
-    epoch = mmm_start_linearized_op();
+    epoch = mmm_start_linearized_op(thread);
 
     view1 = woolhat_view_epoch(&set1->woolhat_instance, &num1, epoch);
     view2 = woolhat_view_epoch(&set2->woolhat_instance, &num2, epoch);
@@ -692,7 +774,7 @@ hatrack_set_intersection(hatrack_set_t *set1, hatrack_set_t *set2)
                 (*set1->pre_return_hook)(set1, view1[i].item);
             }
 
-            woolhat_add(&ret->woolhat_instance, view1[i].hv, view1[i].item);
+            woolhat_add_mmm(&ret->woolhat_instance, thread, view1[i].hv, view1[i].item);
             i++;
             j++;
             continue;
@@ -707,11 +789,17 @@ hatrack_set_intersection(hatrack_set_t *set1, hatrack_set_t *set2)
         }
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
     hatrack_set_view_delete(view1, num1);
     hatrack_set_view_delete(view2, num2);
 
     return ret;
+}
+
+hatrack_set_t *
+hatrack_set_intersection(hatrack_set_t *set1, hatrack_set_t *set2)
+{
+    return hatrack_set_intersection_mmm(set1, mmm_thread_acquire(), set2);
 }
 
 /* hatrack_set_disjunction(A, B)
@@ -728,7 +816,7 @@ hatrack_set_intersection(hatrack_set_t *set1, hatrack_set_t *set2)
  * then that item is part of the disjunction.
  */
 hatrack_set_t *
-hatrack_set_disjunction(hatrack_set_t *set1, hatrack_set_t *set2)
+hatrack_set_disjunction_mmm(hatrack_set_t *set1, mmm_thread_t *thread, hatrack_set_t *set2)
 {
     hatrack_set_t      *ret;
     uint64_t            epoch;
@@ -743,7 +831,7 @@ hatrack_set_disjunction(hatrack_set_t *set1, hatrack_set_t *set2)
     }
 
     ret   = hatrack_set_new(set1->item_type);
-    epoch = mmm_start_linearized_op();
+    epoch = mmm_start_linearized_op(thread);
 
     view1 = woolhat_view_epoch(&set1->woolhat_instance, &num1, epoch);
     view2 = woolhat_view_epoch(&set2->woolhat_instance, &num2, epoch);
@@ -766,7 +854,7 @@ hatrack_set_disjunction(hatrack_set_t *set1, hatrack_set_t *set2)
                 (*set2->pre_return_hook)(set2, view2[j].item);
             }
 
-            woolhat_add(&ret->woolhat_instance, view2[j].hv, view2[j].item);
+            woolhat_add_mmm(&ret->woolhat_instance, thread, view2[j].hv, view2[j].item);
             j++;
         }
 
@@ -775,16 +863,22 @@ hatrack_set_disjunction(hatrack_set_t *set1, hatrack_set_t *set2)
                 (*set1->pre_return_hook)(set1, view1[i].item);
             }
 
-            woolhat_add(&ret->woolhat_instance, view1[i].hv, view1[i].item);
+            woolhat_add_mmm(&ret->woolhat_instance, thread, view1[i].hv, view1[i].item);
             i++;
         }
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
     hatrack_set_view_delete(view1, num1);
     hatrack_set_view_delete(view2, num2);
 
     return ret;
+}
+
+hatrack_set_t *
+hatrack_set_disjunction(hatrack_set_t *set1, hatrack_set_t *set2)
+{
+    return hatrack_set_disjunction_mmm(set1, mmm_thread_acquire(), set2);
 }
 
 static hatrack_hash_t

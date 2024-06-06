@@ -36,6 +36,7 @@
 
 #include "base.h"
 #include "hatrack_common.h"
+#include "mmm.h"
 
 #ifndef HATRACK_NO_PTHREAD
 
@@ -217,19 +218,26 @@ typedef struct {
  */
 
 // clang-format off
-HATRACK_EXTERN swimcap_t      *swimcap_new      (void);
-HATRACK_EXTERN swimcap_t      *swimcap_new_size (char);
-HATRACK_EXTERN void            swimcap_init     (swimcap_t *);
-HATRACK_EXTERN void            swimcap_init_size(swimcap_t *, char);
-HATRACK_EXTERN void            swimcap_cleanup  (swimcap_t *);
-HATRACK_EXTERN void            swimcap_delete   (swimcap_t *);
-HATRACK_EXTERN void           *swimcap_get      (swimcap_t *, hatrack_hash_t, bool *);
-HATRACK_EXTERN void           *swimcap_put      (swimcap_t *, hatrack_hash_t, void *, bool *);
-HATRACK_EXTERN void           *swimcap_replace  (swimcap_t *, hatrack_hash_t, void *, bool *);
-HATRACK_EXTERN bool            swimcap_add      (swimcap_t *, hatrack_hash_t, void *);
-HATRACK_EXTERN void           *swimcap_remove   (swimcap_t *, hatrack_hash_t, bool *);
-HATRACK_EXTERN uint64_t        swimcap_len      (swimcap_t *);
-HATRACK_EXTERN hatrack_view_t *swimcap_view     (swimcap_t *, uint64_t *, bool);
+HATRACK_EXTERN swimcap_t      *swimcap_new        (void);
+HATRACK_EXTERN swimcap_t      *swimcap_new_size   (char);
+HATRACK_EXTERN void            swimcap_init       (swimcap_t *);
+HATRACK_EXTERN void            swimcap_init_size  (swimcap_t *, char);
+HATRACK_EXTERN void            swimcap_cleanup    (swimcap_t *);
+HATRACK_EXTERN void            swimcap_delete     (swimcap_t *);
+HATRACK_EXTERN void           *swimcap_get_mmm    (swimcap_t *, mmm_thread_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *swimcap_get        (swimcap_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *swimcap_put_mmm    (swimcap_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *swimcap_put        (swimcap_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *swimcap_replace_mmm(swimcap_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN void           *swimcap_replace    (swimcap_t *, hatrack_hash_t, void *, bool *);
+HATRACK_EXTERN bool            swimcap_add_mmm    (swimcap_t *, mmm_thread_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN bool            swimcap_add        (swimcap_t *, hatrack_hash_t, void *);
+HATRACK_EXTERN void           *swimcap_remove_mmm (swimcap_t *, mmm_thread_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN void           *swimcap_remove     (swimcap_t *, hatrack_hash_t, bool *);
+HATRACK_EXTERN uint64_t        swimcap_len_mmm    (swimcap_t *, mmm_thread_t *);
+HATRACK_EXTERN uint64_t        swimcap_len        (swimcap_t *);
+HATRACK_EXTERN hatrack_view_t *swimcap_view_mmm   (swimcap_t *, mmm_thread_t *, uint64_t *, bool);
+HATRACK_EXTERN hatrack_view_t *swimcap_view       (swimcap_t *, uint64_t *, bool);
 // clang-format on
 
 #endif

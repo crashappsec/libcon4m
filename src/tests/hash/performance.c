@@ -271,26 +271,26 @@ shuffle_thread_run(void *v)
         for (j = 0; j < 100; j++) {
             switch (thread_mix[j]) {
             case OP_READ:
-                test_get(table, next_key);
+                test_get(table, thread, next_key);
                 break;
             case OP_PUT:
-                test_put(table, next_key, 0);
+                test_put(table, thread, next_key, 0);
                 break;
             case OP_ADD:
-                test_add(table, next_key, 0);
+                test_add(table, thread, next_key, 0);
                 break;
             case OP_REPLACE:
-                test_replace(table, next_key, 0);
+                test_replace(table, thread, next_key, 0);
                 break;
             case OP_REMOVE:
-                test_remove(table, next_key);
+                test_remove(table, thread, next_key);
                 break;
             case OP_VIEW:
-                view = test_view(table, &num_items, false);
+                view = test_view(table, thread, &num_items, false);
                 hatrack_view_delete(view, num_items);
                 break;
             case OP_ORDERED_VIEW:
-                view = test_view(table, &num_items, true);
+                view = test_view(table, thread, &num_items, true);
                 hatrack_view_delete(view, num_items);
                 break;
             }
@@ -301,26 +301,26 @@ shuffle_thread_run(void *v)
     for (j = 0; j < remaining_ops; j++) {
         switch (thread_mix[j]) {
         case OP_READ:
-            test_get(table, next_key);
+            test_get(table, thread, next_key);
             break;
         case OP_PUT:
-            test_put(table, next_key, 0);
+            test_put(table, thread, next_key, 0);
             break;
         case OP_ADD:
-            test_add(table, next_key, 0);
+            test_add(table, thread, next_key, 0);
             break;
         case OP_REPLACE:
-            test_replace(table, next_key, 0);
+            test_replace(table, thread, next_key, 0);
             break;
         case OP_REMOVE:
-            test_remove(table, next_key);
+            test_remove(table, thread, next_key);
             break;
         case OP_VIEW:
-            view = test_view(table, &num_items, false);
+            view = test_view(table, thread, &num_items, false);
             hatrack_view_delete(view, num_items);
             break;
         case OP_ORDERED_VIEW:
-            view = test_view(table, &num_items, true);
+            view = test_view(table, thread, &num_items, true);
             hatrack_view_delete(view, num_items);
             break;
         }
@@ -358,26 +358,26 @@ shuffle_thread_run64(void *v)
         for (j = 0; j < 100; j++) {
             switch (thread_mix[j]) {
             case OP_READ:
-                test_get64(table, next_key);
+                test_get64(table, thread, next_key);
                 break;
             case OP_PUT:
-                test_put64(table, next_key, 0xff);
+                test_put64(table, thread, next_key, 0xff);
                 break;
             case OP_ADD:
-                test_add64(table, next_key, 0xff);
+                test_add64(table, thread, next_key, 0xff);
                 break;
             case OP_REPLACE:
-                test_replace64(table, next_key, 0xff);
+                test_replace64(table, thread, next_key, 0xff);
                 break;
             case OP_REMOVE:
-                test_remove64(table, next_key);
+                test_remove64(table, thread, next_key);
                 break;
             case OP_VIEW:
-                view = test_view64(table, &num_items, false);
+                view = test_view64(table, thread, &num_items, false);
                 hatrack_view_delete(view, num_items);
                 break;
             case OP_ORDERED_VIEW:
-                view = test_view64(table, &num_items, true);
+                view = test_view64(table, thread, &num_items, true);
                 hatrack_view_delete(view, num_items);
                 break;
             }
@@ -388,26 +388,26 @@ shuffle_thread_run64(void *v)
     for (j = 0; j < remaining_ops; j++) {
         switch (thread_mix[j]) {
         case OP_READ:
-            test_get64(table, next_key);
+            test_get64(table, thread, next_key);
             break;
         case OP_PUT:
-            test_put64(table, next_key, 0xff);
+            test_put64(table, thread, next_key, 0xff);
             break;
         case OP_ADD:
-            test_add64(table, next_key, 0xff);
+            test_add64(table, thread, next_key, 0xff);
             break;
         case OP_REPLACE:
-            test_replace64(table, next_key, 0xff);
+            test_replace64(table, thread, next_key, 0xff);
             break;
         case OP_REMOVE:
-            test_remove64(table, next_key);
+            test_remove64(table, thread, next_key);
             break;
         case OP_VIEW:
-            view = test_view64(table, &num_items, false);
+            view = test_view64(table, thread, &num_items, false);
             hatrack_view_delete(view, num_items);
             break;
         case OP_ORDERED_VIEW:
-            test_view64(table, &num_items, true);
+            test_view64(table, thread, &num_items, true);
             hatrack_view_delete(view, num_items);
             break;
         }
@@ -440,26 +440,26 @@ rand_thread_run(void *v)
     for (i = 0; i < thread_total_ops; i++) {
         switch (op_distribution[n]) {
         case OP_READ:
-            test_get(table, test_rand() & key_mod_mask);
+            test_get(table, thread, test_rand() & key_mod_mask);
             break;
         case OP_PUT:
-            test_put(table, test_rand() & key_mod_mask, test_rand());
+            test_put(table, thread, test_rand() & key_mod_mask, test_rand());
             break;
         case OP_ADD:
-            test_add(table, test_rand() & key_mod_mask, test_rand());
+            test_add(table, thread, test_rand() & key_mod_mask, test_rand());
             break;
         case OP_REPLACE:
-            test_replace(table, test_rand() & key_mod_mask, test_rand());
+            test_replace(table, thread, test_rand() & key_mod_mask, test_rand());
             break;
         case OP_REMOVE:
-            test_remove(table, test_rand() & key_mod_mask);
+            test_remove(table, thread, test_rand() & key_mod_mask);
             break;
         case OP_VIEW:
-            view = test_view(table, &num_items, false);
+            view = test_view(table, thread, &num_items, false);
             hatrack_view_delete(view, num_items);
             break;
         case OP_ORDERED_VIEW:
-            view = test_view(table, &num_items, true);
+            view = test_view(table, thread, &num_items, true);
             hatrack_view_delete(view, num_items);
             break;
         }
@@ -489,26 +489,26 @@ rand_thread_run64(void *v)
     for (i = 0; i < thread_total_ops; i++) {
         switch (op_distribution[n]) {
         case OP_READ:
-            test_get64(table, (test_rand() & key_mod_mask));
+            test_get64(table, thread, (test_rand() & key_mod_mask));
             break;
         case OP_PUT:
-            test_put64(table, test_rand() & key_mod_mask, test_rand());
+            test_put64(table, thread, test_rand() & key_mod_mask, test_rand());
             break;
         case OP_ADD:
-            test_add64(table, test_rand() & key_mod_mask, test_rand());
+            test_add64(table, thread, test_rand() & key_mod_mask, test_rand());
             break;
         case OP_REPLACE:
-            test_replace64(table, test_rand() & key_mod_mask, test_rand());
+            test_replace64(table, thread, test_rand() & key_mod_mask, test_rand());
             break;
         case OP_REMOVE:
-            test_remove64(table, test_rand() & key_mod_mask);
+            test_remove64(table, thread, test_rand() & key_mod_mask);
             break;
         case OP_VIEW:
-            view = test_view64(table, &num_items, false);
+            view = test_view64(table, thread, &num_items, false);
             hatrack_view_delete(view, num_items);
             break;
         case OP_ORDERED_VIEW:
-            view = test_view64(table, &num_items, true);
+            view = test_view64(table, thread, &num_items, true);
             hatrack_view_delete(view, num_items);
             break;
         }
@@ -521,7 +521,7 @@ rand_thread_run64(void *v)
 }
 
 static void
-initialize_dictionary(benchmark_t *config, char *hat)
+initialize_dictionary(benchmark_t *config, mmm_thread_t *thread, char *hat)
 {
     int      i;
     uint32_t step;
@@ -534,7 +534,7 @@ initialize_dictionary(benchmark_t *config, char *hat)
     p     = get_prefill_amount(config);
 
     for (i = 0; i < p; i++) {
-        test_add(table, n, i);
+        test_add(table, thread, n, i);
         n = (n + step) & key_mod_mask;
     }
 
@@ -542,7 +542,7 @@ initialize_dictionary(benchmark_t *config, char *hat)
 }
 
 static void
-initialize_dictionary64(benchmark_t *config, char *hat)
+initialize_dictionary64(benchmark_t *config, mmm_thread_t *thread, char *hat)
 {
     int      i;
     uint32_t step;
@@ -555,7 +555,7 @@ initialize_dictionary64(benchmark_t *config, char *hat)
     p     = get_prefill_amount(config);
 
     for (i = 0; i < p; i++) {
-        test_add64(table, n, i + 8);
+        test_add64(table, thread, n, i + 8);
         n = (n + step) & key_mod_mask;
     }
 
@@ -642,6 +642,8 @@ run_performance_test(benchmark_t *config)
         remaining_ops      = ops_per_thread % 100;
     }
 
+    mmm_thread_t *thread = mmm_thread_acquire();
+
     while (config->hat_list[i]) {
         alg_info = algorithm_info(config->hat_list[i]);
 
@@ -651,10 +653,10 @@ run_performance_test(benchmark_t *config)
         }
 
         if (alg_info->hashbytes == HB_DEFAULT) {
-            initialize_dictionary(config, config->hat_list[i]);
+            initialize_dictionary(config, thread, config->hat_list[i]);
         }
         else {
-            initialize_dictionary64(config, config->hat_list[i]);
+            initialize_dictionary64(config, thread, config->hat_list[i]);
         }
         clear_timestamps();
         basic_gate_init(&starting_gate);

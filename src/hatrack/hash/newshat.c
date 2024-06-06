@@ -41,17 +41,17 @@
 static void             newshat_store_delete (newshat_store_t *, void *);
 static void            *newshat_store_get    (newshat_store_t *, hatrack_hash_t,
 					      bool *);
-static void            *newshat_store_put    (newshat_store_t *, newshat_t *,
+static void            *newshat_store_put    (newshat_store_t *, mmm_thread_t *, newshat_t *,
 					      hatrack_hash_t, void *,
 					      bool *);
-static void            *newshat_store_replace(newshat_store_t *, newshat_t *,
+static void            *newshat_store_replace(newshat_store_t *, mmm_thread_t *, newshat_t *,
 					      hatrack_hash_t, void *,
 					      bool *);
-static bool             newshat_store_add    (newshat_store_t *, newshat_t *,
+static bool             newshat_store_add    (newshat_store_t *, mmm_thread_t *, newshat_t *,
 					      hatrack_hash_t, void *);
-static void            *newshat_store_remove (newshat_store_t *, newshat_t *,
+static void            *newshat_store_remove (newshat_store_t *, mmm_thread_t *, newshat_t *,
 					      hatrack_hash_t, bool *);
-static newshat_store_t *newshat_store_migrate(newshat_store_t *, newshat_t *);
+static newshat_store_t *newshat_store_migrate(newshat_store_t *, mmm_thread_t *, newshat_t *);
 
 // clang-format on
 
@@ -137,7 +137,7 @@ newshat_init_size(newshat_t *self, char size)
 void
 newshat_cleanup(newshat_t *self)
 {
-    mmm_retire(self->store_current);
+    mmm_retire_unused(self->store_current);
 
     if (pthread_mutex_destroy(&self->migrate_mutex)) {
         abort();
@@ -215,15 +215,35 @@ newshat_delete(newshat_t *self)
  * parameters, if needed.
  */
 void *
-newshat_get(newshat_t *self, hatrack_hash_t hv, bool *found)
+newshat_get_mmm(newshat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
     void *ret;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     ret = newshat_store_get(self->store_current, hv, found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
+
+    return ret;
+}
+
+void *
+newshat_get(newshat_t *self, hatrack_hash_t hv, bool *found)
+{
+    return newshat_get_mmm(self, mmm_thread_acquire(), hv, found);
+}
+
+void *
+newshat_put_mmm(newshat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
+{
+    void *ret;
+
+    mmm_start_basic_op(thread);
+
+    ret = newshat_store_put(self->store_current, thread, self, hv, item, found);
+
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -231,13 +251,19 @@ newshat_get(newshat_t *self, hatrack_hash_t hv, bool *found)
 void *
 newshat_put(newshat_t *self, hatrack_hash_t hv, void *item, bool *found)
 {
+    return newshat_put_mmm(self, mmm_thread_acquire(), hv, item, found);
+}
+
+void *
+newshat_replace_mmm(newshat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
+{
     void *ret;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
-    ret = newshat_store_put(self->store_current, self, hv, item, found);
+    ret = newshat_store_replace(self->store_current, thread, self, hv, item, found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -245,13 +271,19 @@ newshat_put(newshat_t *self, hatrack_hash_t hv, void *item, bool *found)
 void *
 newshat_replace(newshat_t *self, hatrack_hash_t hv, void *item, bool *found)
 {
-    void *ret;
+    return newshat_replace_mmm(self, mmm_thread_acquire(), hv, item, found);
+}
 
-    mmm_start_basic_op();
+bool
+newshat_add_mmm(newshat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item)
+{
+    bool ret;
 
-    ret = newshat_store_replace(self->store_current, self, hv, item, found);
+    mmm_start_basic_op(thread);
 
-    mmm_end_op();
+    ret = newshat_store_add(self->store_current, thread, self, hv, item);
+
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -259,13 +291,19 @@ newshat_replace(newshat_t *self, hatrack_hash_t hv, void *item, bool *found)
 bool
 newshat_add(newshat_t *self, hatrack_hash_t hv, void *item)
 {
-    bool ret;
+    return newshat_add_mmm(self, mmm_thread_acquire(), hv, item);
+}
 
-    mmm_start_basic_op();
+void *
+newshat_remove_mmm(newshat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
+{
+    void *ret;
 
-    ret = newshat_store_add(self->store_current, self, hv, item);
+    mmm_start_basic_op(thread);
 
-    mmm_end_op();
+    ret = newshat_store_remove(self->store_current, thread, self, hv, found);
+
+    mmm_end_op(thread);
 
     return ret;
 }
@@ -273,15 +311,7 @@ newshat_add(newshat_t *self, hatrack_hash_t hv, void *item)
 void *
 newshat_remove(newshat_t *self, hatrack_hash_t hv, bool *found)
 {
-    void *ret;
-
-    mmm_start_basic_op();
-
-    ret = newshat_store_remove(self->store_current, self, hv, found);
-
-    mmm_end_op();
-
-    return ret;
+    return newshat_remove_mmm(self, mmm_thread_acquire(), hv, found);
 }
 
 /* newshat_len()
@@ -298,6 +328,12 @@ newshat_len(newshat_t *self)
     return atomic_read(&self->item_count);
 }
 
+uint64_t
+newshat_len_mmm(newshat_t *self, mmm_thread_t *thread)
+{
+    return newshat_len(self);
+}
+
 /* newshat_view()
  *
  * This returns an array of hatrack_view_t items, representing all of
@@ -309,7 +345,7 @@ newshat_len(newshat_t *self)
  * order.
  */
 hatrack_view_t *
-newshat_view(newshat_t *self, uint64_t *num, bool sort)
+newshat_view_mmm(newshat_t *self, mmm_thread_t *thread, uint64_t *num, bool sort)
 {
     hatrack_view_t   *view;
     newshat_store_t  *store;
@@ -321,7 +357,7 @@ newshat_view(newshat_t *self, uint64_t *num, bool sort)
     uint64_t          last_slot;
     uint64_t          alloc_len;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store     = self->store_current;
     last_slot = store->last_slot;
@@ -368,7 +404,7 @@ newshat_view(newshat_t *self, uint64_t *num, bool sort)
 
     if (!count) {
         hatrack_free(view, alloc_len);
-        mmm_end_op();
+        mmm_end_op(thread);
 
         return NULL;
     }
@@ -379,9 +415,15 @@ newshat_view(newshat_t *self, uint64_t *num, bool sort)
         qsort(view, count, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return view;
+}
+
+hatrack_view_t *
+newshat_view(newshat_t *self, uint64_t *num, bool sort)
+{
+    return newshat_view_mmm(self, mmm_thread_acquire(), num, sort);
 }
 
 /* newshat_store_new()
@@ -492,6 +534,7 @@ newshat_store_get(newshat_store_t *self, hatrack_hash_t hv, bool *found)
 
 static void *
 newshat_store_put(newshat_store_t *self,
+                  mmm_thread_t    *thread,
                   newshat_t       *top,
                   hatrack_hash_t   hv,
                   void            *item,
@@ -532,7 +575,7 @@ newshat_store_put(newshat_store_t *self,
             if (pthread_mutex_unlock(&cur->mutex)) {
                 abort();
             }
-            return newshat_store_put(top->store_current, top, hv, item, found);
+            return newshat_store_put(top->store_current, thread, top, hv, item, found);
         }
 
         if (hatrack_hashes_eq(hv, cur->hv)) {
@@ -579,9 +622,9 @@ newshat_store_put(newshat_store_t *self,
                     abort();
                 }
 
-                self = newshat_store_migrate(self, top);
+                self = newshat_store_migrate(self, thread, top);
 
-                return newshat_store_put(self, top, hv, item, found);
+                return newshat_store_put(self, thread, top, hv, item, found);
             }
 
             atomic_fetch_add(&self->used_count, 1);
@@ -610,13 +653,14 @@ newshat_store_put(newshat_store_t *self,
         bix = (bix + 1) & last_slot;
     }
 
-    self = newshat_store_migrate(self, top);
+    self = newshat_store_migrate(self, thread, top);
 
-    return newshat_store_put(self, top, hv, item, found);
+    return newshat_store_put(self, thread, top, hv, item, found);
 }
 
 static void *
 newshat_store_replace(newshat_store_t *self,
+                      mmm_thread_t    *thread,
                       newshat_t       *top,
                       hatrack_hash_t   hv,
                       void            *item,
@@ -649,6 +693,7 @@ newshat_store_replace(newshat_store_t *self,
                 }
 
                 return newshat_store_put(top->store_current,
+                                         thread,
                                          top,
                                          hv,
                                          item,
@@ -707,6 +752,7 @@ newshat_store_replace(newshat_store_t *self,
 
 bool
 newshat_store_add(newshat_store_t *self,
+                  mmm_thread_t    *thread,
                   newshat_t       *top,
                   hatrack_hash_t   hv,
                   void            *item)
@@ -734,7 +780,7 @@ newshat_store_add(newshat_store_t *self,
                 abort();
             }
 
-            return newshat_store_add(top->store_current, top, hv, item);
+            return newshat_store_add(top->store_current, thread, top, hv, item);
         }
 
         if (hatrack_hashes_eq(hv, cur->hv)) {
@@ -767,9 +813,9 @@ newshat_store_add(newshat_store_t *self,
                     abort();
                 }
 
-                self = newshat_store_migrate(self, top);
+                self = newshat_store_migrate(self, thread, top);
 
-                return newshat_store_add(self, top, hv, item);
+                return newshat_store_add(self, thread, top, hv, item);
             }
 
             atomic_fetch_add(&self->used_count, 1);
@@ -794,13 +840,14 @@ newshat_store_add(newshat_store_t *self,
         bix = (bix + 1) & last_slot;
     }
 
-    self = newshat_store_migrate(self, top);
+    self = newshat_store_migrate(self, thread, top);
 
-    return newshat_store_add(self, top, hv, item);
+    return newshat_store_add(self, thread, top, hv, item);
 }
 
 void *
 newshat_store_remove(newshat_store_t *self,
+                     mmm_thread_t    *thread,
                      newshat_t       *top,
                      hatrack_hash_t   hv,
                      bool            *found)
@@ -836,7 +883,7 @@ newshat_store_remove(newshat_store_t *self,
                     abort();
                 }
 
-                return newshat_store_remove(top->store_current, top, hv, found);
+                return newshat_store_remove(top->store_current, thread, top, hv, found);
             }
 
             record = atomic_read(&cur->record);
@@ -879,7 +926,7 @@ newshat_store_remove(newshat_store_t *self,
 }
 
 static newshat_store_t *
-newshat_store_migrate(newshat_store_t *store, newshat_t *top)
+newshat_store_migrate(newshat_store_t *store, mmm_thread_t *thread, newshat_t *top)
 {
     newshat_store_t  *new_store;
     newshat_bucket_t *cur;
@@ -980,7 +1027,7 @@ newshat_store_migrate(newshat_store_t *store, newshat_t *top)
      * readers. We use mmm to ensure it's not freed until it's safe.
      * see mmm.c for more details.
      */
-    mmm_retire(store);
+    mmm_retire(thread, store);
 
     /* The new store is officially open at this point, but we
      * still need to go through and unblock readers, who will

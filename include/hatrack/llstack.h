@@ -24,6 +24,7 @@
 #pragma once
 
 #include "base.h"
+#include "mmm.h"
 
 typedef struct llstack_node_t llstack_node_t;
 
@@ -37,9 +38,11 @@ typedef struct {
 } llstack_t;
 
 // clang-format off
-HATRACK_EXTERN llstack_t *llstack_new    (void);
-HATRACK_EXTERN void       llstack_init   (llstack_t *);
-HATRACK_EXTERN void       llstack_cleanup(llstack_t *);
-HATRACK_EXTERN void       llstack_delete (llstack_t *);
-HATRACK_EXTERN void       llstack_push   (llstack_t *, void *);
-HATRACK_EXTERN void      *llstack_pop    (llstack_t *, bool *);
+HATRACK_EXTERN llstack_t *llstack_new     (void);
+HATRACK_EXTERN void       llstack_init    (llstack_t *);
+HATRACK_EXTERN void       llstack_cleanup (llstack_t *);
+HATRACK_EXTERN void       llstack_delete  (llstack_t *);
+HATRACK_EXTERN void       llstack_push_mmm(llstack_t *, mmm_thread_t *, void *);
+HATRACK_EXTERN void       llstack_push    (llstack_t *, void *);
+HATRACK_EXTERN void      *llstack_pop_mmm (llstack_t *, mmm_thread_t *, bool *);
+HATRACK_EXTERN void      *llstack_pop     (llstack_t *, bool *);

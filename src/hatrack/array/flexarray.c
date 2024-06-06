@@ -39,7 +39,7 @@ enum64(flex_enum_t,
        FLEX_ARRAY_USED   = 0x1000000000000000);
 
 static flex_store_t *flexarray_new_store(uint64_t, uint64_t);
-static void          flexarray_migrate(flex_store_t *, flexarray_t *);
+static void          flexarray_migrate(flex_store_t *, mmm_thread_t *, flexarray_t *);
 
 /* The size parameter is the one larger than the largest allowable index.
  * The underlying store may be bigger-- it will be sized up to the next
@@ -129,13 +129,19 @@ flexarray_len(flexarray_t *self)
     return atomic_read(&store->array_size);
 }
 
+uint64_t
+flexarray_len_mmm(flexarray_t *self, mmm_thread_t *thread)
+{
+    return flexarray_len(self);
+}
+
 void *
-flexarray_get(flexarray_t *self, uint64_t index, int *status)
+flexarray_get_mmm(flexarray_t *self, mmm_thread_t *thread, uint64_t index, int *status)
 {
     flex_item_t   current;
     flex_store_t *store;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store = atomic_read(&self->store);
 
@@ -143,7 +149,7 @@ flexarray_get(flexarray_t *self, uint64_t index, int *status)
         if (status) {
             *status = FLEX_OOB;
         }
-        mmm_end_op();
+        mmm_end_op(thread);
         return NULL;
     }
 
@@ -152,7 +158,7 @@ flexarray_get(flexarray_t *self, uint64_t index, int *status)
         if (status) {
             *status = FLEX_UNINITIALIZED;
         }
-        mmm_end_op();
+        mmm_end_op(thread);
         return NULL;
     }
 
@@ -162,7 +168,7 @@ flexarray_get(flexarray_t *self, uint64_t index, int *status)
         if (status) {
             *status = FLEX_UNINITIALIZED;
         }
-        mmm_end_op();
+        mmm_end_op(thread);
         return NULL;
     }
 
@@ -170,7 +176,7 @@ flexarray_get(flexarray_t *self, uint64_t index, int *status)
         (*self->ret_callback)(current.item);
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     if (status) {
         *status = FLEX_OK;
@@ -179,9 +185,15 @@ flexarray_get(flexarray_t *self, uint64_t index, int *status)
     return current.item;
 }
 
+void *
+flexarray_get(flexarray_t *self, uint64_t index, int *status)
+{
+    return flexarray_get_mmm(self, mmm_thread_acquire(), index, status);
+}
+
 // Returns true if successful, false if write would be out-of-bounds.
 bool
-flexarray_set(flexarray_t *self, uint64_t index, void *item)
+flexarray_set_mmm(flexarray_t *self, mmm_thread_t *thread, uint64_t index, void *item)
 {
     flex_store_t *store;
     flex_item_t   current;
@@ -189,24 +201,24 @@ flexarray_set(flexarray_t *self, uint64_t index, void *item)
     flex_cell_t  *cellptr;
     uint64_t      read_index;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store      = atomic_read(&self->store);
     read_index = atomic_read(&store->array_size) & ~FLEX_ARRAY_SHRINK;
 
     if (index >= read_index) {
-        mmm_end_op();
+        mmm_end_op(thread);
         return false;
     }
 
     if (index >= store->store_size) {
-        flexarray_migrate(store, self);
-        mmm_end_op();
-        return flexarray_set(self, index, item);
+        flexarray_migrate(store, thread, self);
+        mmm_end_op(thread);
+        return flexarray_set_mmm(self, thread, index, item);
     }
     else {
         if (index >= store->array_size) {
-            flexarray_grow(self, index);
+            flexarray_grow_mmm(self, thread, index);
         }
     }
 
@@ -214,9 +226,9 @@ flexarray_set(flexarray_t *self, uint64_t index, void *item)
     current = atomic_read(cellptr);
 
     if (current.state & FLEX_ARRAY_MOVING) {
-        flexarray_migrate(store, self);
-        mmm_end_op();
-        return flexarray_set(self, index, item);
+        flexarray_migrate(store, thread, self);
+        mmm_end_op(thread);
+        return flexarray_set_mmm(self, thread, index, item);
     }
 
     candidate.item  = item;
@@ -226,14 +238,14 @@ flexarray_set(flexarray_t *self, uint64_t index, void *item)
         if (self->eject_callback && (current.state == FLEX_ARRAY_USED)) {
             (*self->eject_callback)(current.item);
         }
-        mmm_end_op();
+        mmm_end_op(thread);
         return true;
     }
 
     if (current.state & FLEX_ARRAY_MOVING) {
-        flexarray_migrate(store, self);
-        mmm_end_op();
-        return flexarray_set(self, index, item);
+        flexarray_migrate(store, thread, self);
+        mmm_end_op(thread);
+        return flexarray_set_mmm(self, thread, index, item);
     }
 
     /* Otherwise, someone beat us to the CAS, but we sequence ourselves
@@ -244,17 +256,23 @@ flexarray_set(flexarray_t *self, uint64_t index, void *item)
         (*self->eject_callback)(item);
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
     return true;
 }
 
+bool
+flexarray_set(flexarray_t *self, uint64_t index, void *item)
+{
+    return flexarray_set_mmm(self, mmm_thread_acquire(), index, item);
+}
+
 void
-flexarray_grow(flexarray_t *self, uint64_t index)
+flexarray_grow_mmm(flexarray_t *self, mmm_thread_t *thread, uint64_t index)
 {
     flex_store_t *store;
     uint64_t      array_size;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     /* Just change store->array_size, kick off a migration if
      * necessary, and be done.
@@ -267,52 +285,64 @@ flexarray_grow(flexarray_t *self, uint64_t index)
          * know that truncated cells are zeroed out.
          */
         if (array_size & FLEX_ARRAY_SHRINK) {
-            flexarray_migrate(store, self);
+            flexarray_migrate(store, thread, self);
             continue;
         }
 
         if (index < array_size) {
-            mmm_end_op();
+            mmm_end_op(thread);
             return;
         }
     } while (!CAS(&store->array_size, &array_size, index));
 
     if (index > store->store_size) {
-        flexarray_migrate(store, self);
+        flexarray_migrate(store, thread, self);
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
     return;
 }
 
 void
-flexarray_shrink(flexarray_t *self, uint64_t index)
+flexarray_grow(flexarray_t *self, uint64_t index)
+{
+    flexarray_grow_mmm(self, mmm_thread_acquire(), index);
+}
+
+void
+flexarray_shrink_mmm(flexarray_t *self, mmm_thread_t *thread, uint64_t index)
 {
     flex_store_t *store;
     uint64_t      array_size;
 
     index |= FLEX_ARRAY_SHRINK;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     do {
         store      = atomic_read(&self->store);
         array_size = atomic_read(&store->array_size);
 
         if (index > array_size) {
-            mmm_end_op();
+            mmm_end_op(thread);
             return;
         }
     } while (!CAS(&store->array_size, &array_size, index));
 
-    flexarray_migrate(store, self);
+    flexarray_migrate(store, thread, self);
 
-    mmm_end_op();
+    mmm_end_op(thread);
     return;
 }
 
+void
+flexarray_shrink(flexarray_t *self, uint64_t index)
+{
+    flexarray_shrink_mmm(self, mmm_thread_acquire(), index);
+}
+
 flex_view_t *
-flexarray_view(flexarray_t *self)
+flexarray_view_mmm(flexarray_t *self, mmm_thread_t *thread)
 {
     flex_view_t  *ret;
     flex_store_t *store;
@@ -320,7 +350,7 @@ flexarray_view(flexarray_t *self)
     uint64_t      i;
     flex_item_t   item;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     while (true) {
         store    = atomic_read(&self->store);
@@ -329,10 +359,10 @@ flexarray_view(flexarray_t *self)
         if (CAS(&store->claimed, &expected, true)) {
             break;
         }
-        flexarray_migrate(store, self);
+        flexarray_migrate(store, thread, self);
     }
 
-    flexarray_migrate(store, self);
+    flexarray_migrate(store, thread, self);
 
     if (self->ret_callback) {
         for (i = 0; i < store->array_size; i++) {
@@ -343,13 +373,19 @@ flexarray_view(flexarray_t *self)
         }
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     ret           = (flex_view_t *)hatrack_malloc(sizeof(flex_view_t));
     ret->contents = store;
     ret->next_ix  = 0;
 
     return ret;
+}
+
+flex_view_t *
+flexarray_view(flexarray_t *self)
+{
+    return flexarray_view_mmm(self, mmm_thread_acquire());
 }
 
 void *
@@ -377,7 +413,7 @@ flexarray_view_next(flex_view_t *view, int *found)
 }
 
 void
-flexarray_view_delete(flex_view_t *view)
+flexarray_view_delete_mmm(flex_view_t *view, mmm_thread_t *thread)
 {
     void *item;
     int   found;
@@ -393,11 +429,17 @@ flexarray_view_delete(flex_view_t *view)
         }
     }
 
-    mmm_retire(view->contents);
+    mmm_retire(thread, view->contents);
 
     hatrack_free(view, sizeof(flex_view_t));
 
     return;
+}
+
+void
+flexarray_view_delete(flex_view_t *view)
+{
+    flexarray_view_delete_mmm(view, mmm_thread_acquire());
 }
 
 void *
@@ -436,11 +478,11 @@ flexarray_view_len(flex_view_t *view)
 }
 
 flexarray_t *
-flexarray_add(flexarray_t *arr1, flexarray_t *arr2)
+flexarray_add_mmm(flexarray_t *arr1, mmm_thread_t *thread, flexarray_t *arr2)
 {
     flexarray_t  *res   = (flexarray_t *)hatrack_malloc(sizeof(flexarray_t));
-    flex_view_t  *v1    = flexarray_view(arr1);
-    flex_view_t  *v2    = flexarray_view(arr2);
+    flex_view_t  *v1    = flexarray_view_mmm(arr1, thread);
+    flex_view_t  *v2    = flexarray_view_mmm(arr2, thread);
     flex_store_t *s1    = v1->contents;
     flex_store_t *s2    = v2->contents;
     uint64_t      v1_sz = atomic_read(&s1->array_size);
@@ -453,7 +495,7 @@ flexarray_add(flexarray_t *arr1, flexarray_t *arr2)
     hatrack_free(v1, sizeof(flex_view_t));
 
     if (v1_sz + v2_sz > s1->array_size) {
-        flexarray_grow(res, v1_sz + v2_sz);
+        flexarray_grow_mmm(res, thread, v1_sz + v2_sz);
         s1 = atomic_load(&res->store);
     }
 
@@ -466,6 +508,12 @@ flexarray_add(flexarray_t *arr1, flexarray_t *arr2)
     hatrack_free(v2, sizeof(flex_view_t));
 
     return res;
+}
+
+flexarray_t *
+flexarray_add(flexarray_t *arr1, flexarray_t *arr2)
+{
+    return flexarray_add_mmm(arr1, mmm_thread_acquire(), arr2);
 }
 
 static flex_store_t *
@@ -485,7 +533,7 @@ flexarray_new_store(uint64_t array_size, uint64_t store_size)
 }
 
 static void
-flexarray_migrate(flex_store_t *store, flexarray_t *top)
+flexarray_migrate(flex_store_t *store, mmm_thread_t *thread, flexarray_t *top)
 {
     flex_store_t *next_store;
     flex_store_t *expected_next;
@@ -566,7 +614,7 @@ help_move:
     // Okay, now swing the store pointer; winner retires the old store!
     if (CAS(&top->store, &store, next_store)) {
         if (!store->claimed) {
-            mmm_retire(store);
+            mmm_retire(thread, store);
         }
     }
 

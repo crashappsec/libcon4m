@@ -29,6 +29,7 @@
 #ifndef __TESTHAT_H__
 #define __TESTHAT_H__
 
+#include "hatrack/hatrack_common.h"
 #include "hatrack/malloc.h"
 #include "hatrack/counters.h"
 
@@ -54,33 +55,33 @@ typedef struct {
 } testhat_t;
 
 static inline void *
-testhat_get(testhat_t *self, hatrack_hash_t hv, bool *found)
+testhat_get(testhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
-    return (*self->vtable.get)(self->htable, hv, found);
+    return (*self->vtable.get)(self->htable, thread, hv, found);
 }
 
 static inline void *
-testhat_put(testhat_t *self, hatrack_hash_t hv, void *item, bool *found)
+testhat_put(testhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
 {
-    return (*self->vtable.put)(self->htable, hv, item, found);
+    return (*self->vtable.put)(self->htable, thread, hv, item, found);
 }
 
 static inline void *
-testhat_replace(testhat_t *self, hatrack_hash_t hv, void *item, bool *found)
+testhat_replace(testhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
 {
-    return (*self->vtable.replace)(self->htable, hv, item, found);
+    return (*self->vtable.replace)(self->htable, thread, hv, item, found);
 }
 
 static inline bool
-testhat_add(testhat_t *self, hatrack_hash_t hv, void *item)
+testhat_add(testhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item)
 {
-    return (*self->vtable.add)(self->htable, hv, item);
+    return (*self->vtable.add)(self->htable, thread, hv, item);
 }
 
 static inline void *
-testhat_remove(testhat_t *self, hatrack_hash_t hv, bool *found)
+testhat_remove(testhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
-    return (*self->vtable.remove)(self->htable, hv, found);
+    return (*self->vtable.remove)(self->htable, thread, hv, found);
 }
 
 static inline void
@@ -93,52 +94,52 @@ testhat_delete(testhat_t *self)
 }
 
 static inline uint64_t
-testhat_len(testhat_t *self)
+testhat_len(testhat_t *self, mmm_thread_t *thread)
 {
-    return (*self->vtable.len)(self->htable);
+    return (*self->vtable.len)(self->htable, thread);
 }
 
 static inline hatrack_view_t *
-testhat_view(testhat_t *self, uint64_t *num_items, bool sort)
+testhat_view(testhat_t *self, mmm_thread_t *thread, uint64_t *num_items, bool sort)
 {
-    return (*self->vtable.view)(self->htable, num_items, sort);
+    return (*self->vtable.view)(self->htable, thread, num_items, sort);
 }
 
 // Convince the type system we're not crazy.
-typedef void *(*get64f)(void *, uint64_t);
-typedef void *(*put64f)(void *, uint64_t, void *);
-typedef void *(*rep64f)(void *, uint64_t, void *);
-typedef bool (*add64f)(void *, uint64_t, void *);
-typedef void *(*rm64f)(void *, uint64_t);
+typedef void *(*get64f)(void *, mmm_thread_t *, uint64_t);
+typedef void *(*put64f)(void *, mmm_thread_t *, uint64_t, void *);
+typedef void *(*rep64f)(void *, mmm_thread_t *, uint64_t, void *);
+typedef bool (*add64f)(void *, mmm_thread_t *, uint64_t, void *);
+typedef void *(*rm64f)(void *, mmm_thread_t *, uint64_t);
 
 static inline void *
-testhat_get64(testhat_t *self, hatrack_hash_t *hv)
+testhat_get64(testhat_t *self, mmm_thread_t *thread, hatrack_hash_t *hv)
 {
-    return (*(get64f)self->vtable.get)(self->htable, *(uint64_t *)hv);
+    return (*(get64f)self->vtable.get)(self->htable, thread, *(uint64_t *)hv);
 }
 
 static inline void *
-testhat_put64(testhat_t *self, hatrack_hash_t *hv, void *item)
+testhat_put64(testhat_t *self, mmm_thread_t *thread, hatrack_hash_t *hv, void *item)
 {
-    return (*(put64f)self->vtable.put)(self->htable, *(uint64_t *)hv, item);
+    return (*(put64f)self->vtable.put)(self->htable, thread, *(uint64_t *)hv, item);
 }
 
 static inline void *
-testhat_replace64(testhat_t *self, hatrack_hash_t *hv, void *item)
+testhat_replace64(testhat_t *self, mmm_thread_t *thread, hatrack_hash_t *hv, void *item)
 {
-    return (*(rep64f)self->vtable.replace)(self->htable, *(uint64_t *)hv, item);
+    return (*(rep64f)self->vtable.replace)(self->htable, thread, *(uint64_t *)hv, item);
 }
 
 static inline bool
-testhat_add64(testhat_t *self, hatrack_hash_t *hv, void *item)
+testhat_add64(testhat_t *self, mmm_thread_t *thread, hatrack_hash_t *hv, void *item)
 {
-    return (*(add64f)self->vtable.add)(self->htable, *(uint64_t *)hv, item);
+    return (*(add64f)self->vtable.add)(self->htable, thread, *(uint64_t *)hv, item);
 }
 
 static inline void *
-testhat_remove64(testhat_t *self, hatrack_hash_t *hv)
+testhat_remove64(testhat_t *self, mmm_thread_t *thread, hatrack_hash_t *hv)
 {
-    return (*(rm64f)self->vtable.remove)(self->htable, *(uint64_t *)hv);
+    return (*(rm64f)self->vtable.remove)(self->htable, thread, *(uint64_t *)hv);
 }
 
 static inline void
@@ -151,15 +152,15 @@ testhat_delete64(testhat_t *self)
 }
 
 static inline uint64_t
-testhat_len64(testhat_t *self)
+testhat_len64(testhat_t *self, mmm_thread_t *thread)
 {
-    return (*self->vtable.len)(self->htable);
+    return (*self->vtable.len)(self->htable, thread);
 }
 
 static inline hatrack_view_t *
-testhat_view64(testhat_t *self, uint64_t *num_items, bool sort)
+testhat_view64(testhat_t *self, mmm_thread_t *thread, uint64_t *num_items, bool sort)
 {
-    return (*self->vtable.view)(self->htable, num_items, sort);
+    return (*self->vtable.view)(self->htable, thread, num_items, sort);
 }
 
 typedef struct {
@@ -241,121 +242,121 @@ typedef union {
 } test_item;
 
 static inline uint32_t
-test_get(testhat_t *self, uint32_t key)
+test_get(testhat_t *self, mmm_thread_t *thread, uint32_t key)
 {
     test_item item;
 
-    item.i = (uint64_t)testhat_get(self, precomputed_hashes[key], NULL);
+    item.i = (uint64_t)testhat_get(self, thread, precomputed_hashes[key], NULL);
 
     return item.s.value;
 }
 
 static inline void
-test_put(testhat_t *self, uint32_t key, uint32_t value)
+test_put(testhat_t *self, mmm_thread_t *thread, uint32_t key, uint32_t value)
 {
     test_item item;
 
     item.s.key   = key;
     item.s.value = value;
 
-    testhat_put(self, precomputed_hashes[key], (void *)item.i, NULL);
+    testhat_put(self, thread, precomputed_hashes[key], (void *)item.i, NULL);
 
     return;
 }
 
 static inline void
-test_replace(testhat_t *self, uint32_t key, uint32_t value)
+test_replace(testhat_t *self, mmm_thread_t *thread, uint32_t key, uint32_t value)
 {
     test_item item;
 
     item.s.key   = key;
     item.s.value = value;
 
-    testhat_replace(self, precomputed_hashes[key], (void *)item.i, NULL);
+    testhat_replace(self, thread, precomputed_hashes[key], (void *)item.i, NULL);
 
     return;
 }
 
 static inline bool
-test_add(testhat_t *self, uint32_t key, uint32_t value)
+test_add(testhat_t *self, mmm_thread_t *thread, uint32_t key, uint32_t value)
 {
     test_item item;
 
     item.s.key   = key;
     item.s.value = value;
 
-    return testhat_add(self, precomputed_hashes[key], (void *)item.i);
+    return testhat_add(self, thread, precomputed_hashes[key], (void *)item.i);
 }
 
 static inline void
-test_remove(testhat_t *self, uint32_t key)
+test_remove(testhat_t *self, mmm_thread_t *thread, uint32_t key)
 {
-    testhat_remove(self, precomputed_hashes[key], NULL);
+    testhat_remove(self, thread, precomputed_hashes[key], NULL);
 
     return;
 }
 
 static inline hatrack_view_t *
-test_view(testhat_t *self, uint64_t *n, bool sort)
+test_view(testhat_t *self, mmm_thread_t *thread, uint64_t *n, bool sort)
 {
-    return testhat_view(self, n, sort);
+    return testhat_view(self, thread, n, sort);
 }
 
 static inline uint32_t
-test_get64(testhat_t *self, uint32_t key)
+test_get64(testhat_t *self, mmm_thread_t *thread, uint32_t key)
 {
     uint64_t n;
 
-    n = (uint64_t)testhat_get64(self, &precomputed_hashes[key]);
+    n = (uint64_t)testhat_get64(self, thread, &precomputed_hashes[key]);
 
     return n >> 3;
 }
 
 static inline void
-test_put64(testhat_t *self, uint32_t key, uint32_t value)
+test_put64(testhat_t *self, mmm_thread_t *thread, uint32_t key, uint32_t value)
 {
     uint64_t n;
 
     n = value << 3;
-    testhat_put64(self, &precomputed_hashes[key], (void *)n);
+    testhat_put64(self, thread, &precomputed_hashes[key], (void *)n);
 
     return;
 }
 
 static inline void
-test_replace64(testhat_t *self, uint32_t key, uint32_t value)
+test_replace64(testhat_t *self, mmm_thread_t *thread, uint32_t key, uint32_t value)
 {
     uint64_t n;
 
     n = value << 3;
 
-    testhat_replace64(self, &precomputed_hashes[key], (void *)n);
+    testhat_replace64(self, thread, &precomputed_hashes[key], (void *)n);
 
     return;
 }
 
 static inline bool
-test_add64(testhat_t *self, uint32_t key, uint32_t value)
+test_add64(testhat_t *self, mmm_thread_t *thread, uint32_t key, uint32_t value)
 {
     uint64_t n;
 
     n = value << 3;
 
-    return testhat_add64(self, &precomputed_hashes[key], (void *)n);
+    return testhat_add64(self, thread, &precomputed_hashes[key], (void *)n);
 }
 
 static inline void
-test_remove64(testhat_t *self, uint32_t key)
+test_remove64(testhat_t *self, mmm_thread_t *thread, uint32_t key)
 {
-    testhat_remove64(self, &precomputed_hashes[key]);
+    testhat_remove64(self, thread, &precomputed_hashes[key]);
 
     return;
 }
 
 static inline hatrack_view_t *
-test_view64(testhat_t *self, uint64_t *n, bool sort)
+test_view64(testhat_t *self, mmm_thread_t *thread, uint64_t *n, bool sort)
 {
-    return testhat_view64(self, n, sort);
+    return testhat_view64(self, thread, n, sort);
 }
 
 #endif

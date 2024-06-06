@@ -76,15 +76,15 @@ static oldhat_store_t  *oldhat_store_new    (uint64_t);
 static void             oldhat_store_delete (oldhat_store_t *, void *);
 static void            *oldhat_store_get    (oldhat_store_t *, hatrack_hash_t,
 					     bool *);
-static void            *oldhat_store_put    (oldhat_store_t *, oldhat_t *,
+static void            *oldhat_store_put    (oldhat_store_t *, mmm_thread_t *, oldhat_t *,
 					      hatrack_hash_t, void *, bool *);
-static void            *oldhat_store_replace(oldhat_store_t *, oldhat_t *,
+static void            *oldhat_store_replace(oldhat_store_t *, mmm_thread_t *, oldhat_t *,
 					      hatrack_hash_t, void *, bool *);
-static bool             oldhat_store_add    (oldhat_store_t *, oldhat_t *,
+static bool             oldhat_store_add    (oldhat_store_t *, mmm_thread_t *, oldhat_t *,
 					      hatrack_hash_t, void *);
-static void            *oldhat_store_remove (oldhat_store_t *, oldhat_t *,
+static void            *oldhat_store_remove (oldhat_store_t *, mmm_thread_t *, oldhat_t *,
 					      hatrack_hash_t, bool *);
-static oldhat_store_t  *oldhat_store_migrate(oldhat_store_t *, oldhat_t *);
+static oldhat_store_t  *oldhat_store_migrate(oldhat_store_t *, mmm_thread_t *, oldhat_t *);
 // clang-format on
 
 /*
@@ -231,7 +231,7 @@ oldhat_cleanup(oldhat_t *self)
 
     store = atomic_load(&self->store_current);
 
-    mmm_retire(store);
+    mmm_retire_unused(store);
     return;
 }
 
@@ -262,17 +262,23 @@ oldhat_delete(oldhat_t *self)
  * key, being 128 bits, is sufficient to handle identity.
  */
 void *
-oldhat_get(oldhat_t *self, hatrack_hash_t hv, bool *found)
+oldhat_get_mmm(oldhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
     void *ret;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     ret = oldhat_store_get(self->store_current, hv, found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
+}
+
+void *
+oldhat_get(oldhat_t *self, hatrack_hash_t hv, bool *found)
+{
+    return oldhat_get_mmm(self, mmm_thread_acquire(), hv, found);
 }
 
 /* oldhat_put()
@@ -286,17 +292,23 @@ oldhat_get(oldhat_t *self, hatrack_hash_t hv, bool *found)
  * that is also a valid value for the table, thus the extra parameter.
  */
 void *
-oldhat_put(oldhat_t *self, hatrack_hash_t hv, void *item, bool *found)
+oldhat_put_mmm(oldhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
 {
     void *ret;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
-    ret = oldhat_store_put(self->store_current, self, hv, item, found);
+    ret = oldhat_store_put(self->store_current, thread, self, hv, item, found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
+}
+
+void *
+oldhat_put(oldhat_t *self, hatrack_hash_t hv, void *item, bool *found)
+{
+    return oldhat_put_mmm(self, mmm_thread_acquire(), hv, item, found);
 }
 
 /* oldhat_replace()
@@ -309,17 +321,23 @@ oldhat_put(oldhat_t *self, hatrack_hash_t hv, void *item, bool *found)
  * valid value for the table, thus the extra parameter.
  */
 void *
-oldhat_replace(oldhat_t *self, hatrack_hash_t hv, void *item, bool *found)
+oldhat_replace_mmm(oldhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
 {
     void *ret;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
-    ret = oldhat_store_replace(self->store_current, self, hv, item, found);
+    ret = oldhat_store_replace(self->store_current, thread, self, hv, item, found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
+}
+
+void *
+oldhat_replace(oldhat_t *self, hatrack_hash_t hv, void *item, bool *found)
+{
+    return oldhat_replace_mmm(self, mmm_thread_acquire(), hv, item, found);
 }
 
 /* oldhat_add()
@@ -329,17 +347,23 @@ oldhat_replace(oldhat_t *self, hatrack_hash_t hv, void *item, bool *found)
  * item added or not.
  */
 bool
-oldhat_add(oldhat_t *self, hatrack_hash_t hv, void *item)
+oldhat_add_mmm(oldhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item)
 {
     bool ret;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
-    ret = oldhat_store_add(self->store_current, self, hv, item);
+    ret = oldhat_store_add(self->store_current, thread, self, hv, item);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
+}
+
+bool
+oldhat_add(oldhat_t *self, hatrack_hash_t hv, void *item)
+{
+    return oldhat_add_mmm(self, mmm_thread_acquire(), hv, item);
 }
 
 /* oldhat_remove()
@@ -351,17 +375,23 @@ oldhat_add(oldhat_t *self, hatrack_hash_t hv, void *item)
  * with the _put and _replace operations.
  */
 void *
-oldhat_remove(oldhat_t *self, hatrack_hash_t hv, bool *found)
+oldhat_remove_mmm(oldhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
     void *ret;
 
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
-    ret = oldhat_store_remove(self->store_current, self, hv, found);
+    ret = oldhat_store_remove(self->store_current, thread, self, hv, found);
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return ret;
+}
+
+void *
+oldhat_remove(oldhat_t *self, hatrack_hash_t hv, bool *found)
+{
+    return oldhat_remove_mmm(self, mmm_thread_acquire(), hv, found);
 }
 
 /* oldhat_len()
@@ -376,6 +406,12 @@ uint64_t
 oldhat_len(oldhat_t *self)
 {
     return atomic_read(&self->item_count);
+}
+
+uint64_t
+oldhat_len_mmm(oldhat_t *self, mmm_thread_t *thread)
+{
+    return oldhat_len(self);
 }
 
 /* hihat_view()
@@ -427,7 +463,7 @@ oldhat_len(oldhat_t *self)
  * solve that problem, and provide full consistency.
  */
 hatrack_view_t *
-oldhat_view(oldhat_t *self, uint64_t *num, bool sort)
+oldhat_view_mmm(oldhat_t *self, mmm_thread_t *thread, uint64_t *num, bool sort)
 {
     hatrack_view_t  *view;
     hatrack_view_t  *p;
@@ -446,7 +482,7 @@ oldhat_view(oldhat_t *self, uint64_t *num, bool sort)
      * the migration in all cases, and just work from the store we're
      * currently referencing.
      */
-    mmm_start_basic_op();
+    mmm_start_basic_op(thread);
 
     store     = atomic_read(&self->store_current);
     alloc_len = sizeof(hatrack_view_t) * (store->last_slot + 1);
@@ -470,7 +506,7 @@ oldhat_view(oldhat_t *self, uint64_t *num, bool sort)
 
     if (!num_items) {
         hatrack_free(view, alloc_len);
-        mmm_end_op();
+        mmm_end_op(thread);
 
         return NULL;
     }
@@ -481,9 +517,15 @@ oldhat_view(oldhat_t *self, uint64_t *num, bool sort)
         qsort(view, num_items, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
     }
 
-    mmm_end_op();
+    mmm_end_op(thread);
 
     return view;
+}
+
+hatrack_view_t *
+oldhat_view(oldhat_t *self, uint64_t *num, bool sort)
+{
+    return oldhat_view_mmm(self, mmm_thread_acquire(), num, sort);
 }
 
 /* New stores get allocated with mmm_alloc_committed. As a result, the
@@ -632,6 +674,7 @@ oldhat_store_get(oldhat_store_t *self,
  */
 static void *
 oldhat_store_put(oldhat_store_t *self,
+mmm_thread_t*thread,
                  oldhat_t       *top,
                  hatrack_hash_t  hv,
                  void           *item,
@@ -695,7 +738,7 @@ oldhat_store_put(oldhat_store_t *self,
                 atomic_fetch_add(&top->item_count, 1);
 
                 if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
-                    oldhat_store_migrate(self, top);
+                    oldhat_store_migrate(self, thread, top);
                 }
 
                 return NULL;
@@ -731,9 +774,9 @@ migrate_and_retry:
      * it's hardly worth it, but the compiler can knock itself out if
      * it wants to do it for us.
      */
-    self = oldhat_store_migrate(self, top);
+    self = oldhat_store_migrate(self, thread, top);
 
-    return oldhat_store_put(self, top, hv, item, found);
+    return oldhat_store_put(self, thread, top, hv, item, found);
 
 found_bucket:
     /* If there's no record here, it would be equally valid to be a
@@ -786,7 +829,7 @@ found_bucket:
      * deletion records, item_count does not).
      */
     if (CAS(&self->buckets[bix], &record, candidate)) {
-        mmm_retire_fast(record);
+        mmm_retire_fast(thread, record);
         if (!record->used) {
             if (found) {
                 *found = false;
@@ -829,6 +872,7 @@ found_bucket:
  */
 static void *
 oldhat_store_replace(oldhat_store_t *self,
+mmm_thread_t *thread,
                      oldhat_t       *top,
                      hatrack_hash_t  hv,
                      void           *item,
@@ -873,9 +917,9 @@ not_found:
 migrate_and_retry:
     mmm_retire_unused(candidate);
 
-    self = oldhat_store_migrate(self, top);
+    self = oldhat_store_migrate(self, thread, top);
 
-    return oldhat_store_replace(self, top, hv, item, found);
+    return oldhat_store_replace(self, thread, top, hv, item, found);
 
 found_bucket:
     if (record->moving) {
@@ -888,7 +932,7 @@ found_bucket:
     mmm_copy_create_epoch(candidate, record);
 
     if (CAS(&self->buckets[bix], &record, candidate)) {
-        mmm_retire(record);
+        mmm_retire(thread, record);
 
         if (found) {
             *found = true;
@@ -920,6 +964,7 @@ found_bucket:
  */
 static bool
 oldhat_store_add(oldhat_store_t *self,
+mmm_thread_t *thread,
                  oldhat_t       *top,
                  hatrack_hash_t  hv,
                  void           *item)
@@ -942,7 +987,7 @@ oldhat_store_add(oldhat_store_t *self,
         if (!record) {
             if (CAS(&self->buckets[bix], &record, candidate)) {
                 if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
-                    oldhat_store_migrate(self, top);
+                    oldhat_store_migrate(self,thread,  top);
                 }
 
                 return true;
@@ -959,9 +1004,9 @@ oldhat_store_add(oldhat_store_t *self,
 
 migrate_and_retry:
     mmm_retire_unused(candidate);
-    self = oldhat_store_migrate(self, top);
+    self = oldhat_store_migrate(self,thread,  top);
 
-    return oldhat_store_add(self, top, hv, item);
+    return oldhat_store_add(self,thread, top, hv, item);
 
 found_bucket:
     if (record->moving) {
@@ -975,7 +1020,7 @@ found_bucket:
     }
 
     if (CAS(&self->buckets[bix], &record, candidate)) {
-        mmm_retire(record);
+        mmm_retire(thread, record);
         atomic_fetch_add(&top->item_count, 1);
 
         return true;
@@ -1002,6 +1047,7 @@ found_bucket:
  */
 static void *
 oldhat_store_remove(oldhat_store_t *self,
+mmm_thread_t *thread,
                     oldhat_t       *top,
                     hatrack_hash_t  hv,
                     bool           *found)
@@ -1043,9 +1089,9 @@ not_found:
 
 migrate_and_retry:
     mmm_retire_unused(candidate);
-    self = oldhat_store_migrate(self, top);
+    self = oldhat_store_migrate(self, thread, top);
 
-    return oldhat_store_remove(self, top, hv, found);
+    return oldhat_store_remove(self, thread, top, hv, found);
 
 found_bucket:
     if (record->moving) {
@@ -1057,7 +1103,7 @@ found_bucket:
     }
 
     if (CAS(&self->buckets[bix], &record, candidate)) {
-        mmm_retire(record);
+        mmm_retire(thread, record);
 
         if (found) {
             *found = true;
@@ -1183,7 +1229,7 @@ found_bucket:
  * suspended by the scheduler.
  */
 static oldhat_store_t *
-oldhat_store_migrate(oldhat_store_t *self, oldhat_t *top)
+oldhat_store_migrate(oldhat_store_t *self, mmm_thread_t *thread, oldhat_t *top)
 {
     oldhat_record_t *candidate_record;
     oldhat_store_t  *new_store;
@@ -1273,7 +1319,7 @@ oldhat_store_migrate(oldhat_store_t *self, oldhat_t *top)
          * retire the old record, if any.
          */
         if (record) {
-            mmm_retire_fast(record);
+            mmm_retire_fast(thread, record);
         }
 
         candidate_record = (oldhat_record_t *)mmm_alloc_committed(record_sz);
@@ -1415,7 +1461,7 @@ next_migration:
          * retire the old record, which there will definitely be, this
          * time.
          */
-        mmm_retire_fast(record);
+        mmm_retire_fast(thread, record);
 
         candidate_record = (oldhat_record_t *)mmm_alloc_committed(record_sz);
 
@@ -1461,7 +1507,7 @@ next_mark_finished:
      * the store are done with it.
      */
     if (CAS(&top->store_current, &self, new_store)) {
-        mmm_retire_fast(self);
+        mmm_retire_fast(thread, self);
     }
 
     /* Instead of returning new_store here, we accept that we might
