@@ -353,7 +353,7 @@ f64_parse(c4m_utf8_t          *s,
             *code = c4m_err_parse_lit_overflow;
             return NULL;
         }
-        *code == c4m_err_parse_lit_underflow;
+        *code = c4m_err_parse_lit_underflow;
         return NULL;
     }
     *lit = d;
