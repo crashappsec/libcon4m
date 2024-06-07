@@ -78,6 +78,9 @@ typedef enum {
     c4m_nt_field_spec,
     c4m_nt_field_prop,
     c4m_nt_expression,
+#ifdef C4M_DEV
+    c4m_nt_print,
+#endif
 } c4m_node_kind_t;
 
 typedef enum : int64_t {

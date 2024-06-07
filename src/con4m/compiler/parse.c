@@ -219,11 +219,11 @@ static const node_type_info_t node_type_info[] = {
     { "nt_attr_set_lock", 0, 0, 0, 0, 0, },
     { "nt_cast", 0, 0, 0, 0, 0, },
     { "nt_section", 0, 0, 0, 1, 0, },
-    { "nt_if", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
-    { "nt_elif", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
-    { "nt_else", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
-    { "nt_typeof", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
-    { "nt_switch", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
+    { "nt_if", 0, 0, 0, 0, sizeof(c4m_control_info_t), },
+    { "nt_elif", 0, 0, 0, 0, sizeof(c4m_control_info_t), },
+    { "nt_else", 0, 0, 0, 0, sizeof(c4m_control_info_t), },
+    { "nt_typeof", 0, 0, 0, 0, sizeof(c4m_control_info_t), },
+    { "nt_switch", 0, 0, 0, 0, sizeof(c4m_control_info_t), },
     { "nt_for", 0, 0, 0, 0, sizeof(c4m_loop_info_t), },
     { "nt_while", 0, 0, 0, 0, sizeof(c4m_loop_info_t), },
     { "nt_break", 0, 0, 0, 0, sizeof(c4m_jump_info_t), },
@@ -244,8 +244,8 @@ static const node_type_info_t node_type_info[] = {
     { "nt_lit_tspec_func", 0, 0, 0, 0, 0, },
     { "nt_lit_tspec_varargs", 0, 0, 0, 0, 0, },
     { "nt_lit_tspec_return_type", 0, 0, 0, 0, 0, },
-    { "nt_or", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
-    { "nt_and", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
+    { "nt_or", 0, 0, 0, 0, sizeof(c4m_control_info_t), },
+    { "nt_and", 0, 0, 0, 0, sizeof(c4m_control_info_t), },
     { "nt_cmp", 1, 0, 0, 0, 0, },
     { "nt_binary_op", 1, 0, 0, 0, 0, },
     { "nt_binary_assign_op", 1, 0, 0, 0, 0, },
@@ -279,7 +279,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_extern_allocs", 0, 0, 0, 0, 0, },
     { "nt_extern_return", 0, 0, 0, 0, 0, },
     { "nt_label", 1, 1, 0, 0, 0, },
-    { "nt_case", 0, 0, 0, 0, sizeof(c4m_branch_info_t), },
+    { "nt_case", 0, 0, 0, 0, sizeof(c4m_control_info_t), },
     { "nt_range", 0, 0, 0, 0, 0, },
     { "nt_assert", 0, 0, 0, 0, 0, },
     { "nt_config_spec", 0, 0, 0, 1, 0, },
@@ -288,6 +288,9 @@ static const node_type_info_t node_type_info[] = {
     { "nt_field_spec", 0, 0, 0, 1, 0, },
     { "nt_field_prop", 1, 0, 0, 0, 0, },
     { "nt_expression", 0, 0, 0, 0, 0, },
+#ifdef C4M_DEV
+    { "nt_print", 0, 0, 0, 0, 0, },
+#endif
     // clang-format on
 };
 
@@ -434,6 +437,7 @@ cur_eos_is_skippable(parse_ctx *ctx)
     switch (tok_kind(ctx)) {
     case c4m_tt_semi:
     case c4m_tt_newline:
+    case c4m_tt_line_comment:
         return true;
     default:
         return false;
@@ -461,10 +465,34 @@ err_skip_stmt(parse_ctx *ctx, c4m_compile_error_t code)
     line_skip_recover(ctx);
 }
 
+static inline c4m_token_t *
+previous_token(parse_ctx *ctx)
+{
+    int          i   = ctx->token_ix;
+    c4m_token_t *tok = NULL;
+
+    while (i--) {
+        tok = c4m_xlist_get(ctx->file_ctx->tokens, i, NULL);
+        if (tok->kind != c4m_tt_space) {
+            break;
+        }
+    }
+
+    return tok;
+}
+
 static inline void
 end_of_statement(parse_ctx *ctx)
 {
-    if (!cur_tok_is_end_of_stmt(ctx)) {
+    // Check the previous token; we silently sail past comments, and
+    // line comments are considered the end of a line.
+    c4m_token_t *prev = previous_token(ctx);
+
+    if (prev && prev->kind == c4m_tt_line_comment) {
+        return;
+    }
+
+    if (!cur_tok_is_end_of_stmt(ctx) && tok_kind(ctx)) {
         err_skip_stmt(ctx, c4m_err_parse_expected_stmt_end);
         return;
     }
@@ -1702,6 +1730,17 @@ while_stmt(parse_ctx *ctx, bool label)
     end_node(ctx);
 }
 
+#ifdef C4M_DEV
+static void
+dev_print(parse_ctx *ctx)
+{
+    start_node(ctx, c4m_nt_print, true);
+    adopt_kid(ctx, expression(ctx));
+    end_of_statement(ctx);
+    end_node(ctx);
+}
+#endif
+
 static void
 case_body(parse_ctx *ctx)
 {
@@ -1770,6 +1809,11 @@ case_body(parse_ctx *ctx)
                 variable_decl(ctx);
                 end_of_statement(ctx);
                 continue;
+#ifdef C4M_DEV
+            case c4m_tt_print:
+                dev_print(ctx);
+                continue;
+#endif
             case c4m_tt_identifier:
                 if (lookahead(ctx, 1, false) == c4m_tt_colon) {
                     switch (lookahead(ctx, 2, true)) {
@@ -3861,6 +3905,11 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
                 variable_decl(ctx);
                 end_of_statement(ctx);
                 continue;
+#ifdef C4M_DEV
+            case c4m_tt_print:
+                dev_print(ctx);
+                continue;
+#endif
             case c4m_tt_identifier:
                 if (lookahead(ctx, 1, false) == c4m_tt_colon) {
                     switch (lookahead(ctx, 2, true)) {
@@ -4038,6 +4087,11 @@ module(parse_ctx *ctx)
                 variable_decl(ctx);
                 end_of_statement(ctx);
                 continue;
+#ifdef C4M_DEV
+            case c4m_tt_print:
+                dev_print(ctx);
+                continue;
+#endif
             case c4m_tt_identifier:
                 if (lookahead(ctx, 1, false) == c4m_tt_colon) {
                     switch (lookahead(ctx, 2, true)) {

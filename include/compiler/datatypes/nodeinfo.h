@@ -62,14 +62,15 @@ typedef struct {
 // statements always look for an enclosing loop.
 
 typedef struct {
-    int         entry_ip;
-    int         exit_ip;
-    c4m_utf8_t *label;
-    bool        non_loop;
-} c4m_branch_info_t;
+    int          entry_ip;
+    int          exit_ip;
+    c4m_utf8_t  *label;
+    bool         non_loop;
+    c4m_xlist_t *awaiting_patches;
+} c4m_control_info_t;
 
 typedef struct {
-    c4m_branch_info_t  branch_info;
+    c4m_control_info_t branch_info;
     // switch() and typeof() can be labeled, but do not have automatic
     // variables, so they don't ever get renamed. That's why `label`
     // lives inside of branch_info, but the rest of this is in the
@@ -90,10 +91,12 @@ typedef struct {
     c4m_scope_entry_t *shadowed_lvar_1;
     c4m_scope_entry_t *shadowed_lvar_2;
     bool               ranged;
+    unsigned int       gen_ix       : 1;
+    unsigned int       gen_named_ix : 1;
 } c4m_loop_info_t;
 
-typedef struct {
-    c4m_branch_info_t *target_info;
-    bool               top;
-    int                code_offset;
+typedef struct c4m_jump_info_t {
+    c4m_control_info_t *linked_control_structure;
+    c4m_zinstruction_t *to_patch;
+    bool                top;
 } c4m_jump_info_t;

@@ -14,6 +14,5 @@ extern c4m_utf8_t *c4m_buf_to_utf8_string(c4m_buf_t *);
 static inline c4m_buf_t *
 c4m_buffer_empty()
 {
-    return c4m_new(c4m_tspec_buffer(),
-                   c4m_kw("length", c4m_ka(C4M_EMPTY_BUFFER_ALLOC)));
+    return c4m_new(c4m_tspec_buffer(), c4m_kw("length", c4m_ka(0)));
 }

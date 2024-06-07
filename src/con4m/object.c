@@ -11,6 +11,10 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .typeid  = C4M_T_VOID,
         .dt_kind = C4M_DT_KIND_nil,
     },
+    // Should only be used for views on bitfields and similar, where
+    // the representation is packed bits. These should be 100%
+    // castable back and forth in practice, as long as we know about
+    // them.
     [C4M_T_BOOL] = {
         .name      = "bool",
         .typeid    = C4M_T_BOOL,
@@ -433,6 +437,11 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_internal,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
+    [C4M_T_BIT] = {
+        .name    = "bit",
+        .typeid  = C4M_T_BIT,
+        .dt_kind = C4M_DT_KIND_internal,
+    },
 };
 
 c4m_obj_t
@@ -783,4 +792,54 @@ c4m_gt(c4m_type_t *t, c4m_obj_t o1, c4m_obj_t o2)
     }
 
     return (*ptr)(o1, o2);
+}
+
+c4m_type_t *
+c4m_get_item_type(c4m_obj_t obj)
+{
+    c4m_type_t       *t    = c4m_get_my_type(obj);
+    c4m_dt_info_t    *info = c4m_tspec_get_data_type_info(t);
+    c4m_vtable_t     *vtbl = (c4m_vtable_t *)info->vtable;
+    c4m_ix_item_ty_fn ptr  = (c4m_ix_item_ty_fn)vtbl->methods[C4M_BI_ITEM_TYPE];
+
+    if (!ptr) {
+        C4M_CRAISE("Type is not a container and cannot be indexed.");
+    }
+
+    return (*ptr)(c4m_get_my_type(t));
+}
+
+void *
+c4m_get_view(c4m_obj_t obj, uint64_t *n_items)
+{
+    c4m_type_t    *t    = c4m_get_my_type(obj);
+    c4m_dt_info_t *info = c4m_tspec_get_data_type_info(t);
+    c4m_vtable_t  *vtbl = (c4m_vtable_t *)info->vtable;
+    c4m_view_fn    ptr  = (c4m_view_fn)vtbl->methods[C4M_BI_VIEW];
+    uint64_t       size_bits;
+
+    // If no callback is provided, we just assume 8 bytes are produced.
+    // In fact, I currently am not providing callbacks for list types
+    // or dicts, since their views are always 64 bits; probably should
+    // change the builtin to use an interface that gives back bits, not
+    // types (and delete the internal one-bit type).
+
+    if (!ptr) {
+        size_bits = 0x3;
+    }
+    else {
+        c4m_type_t    *item_type = c4m_get_item_type(obj);
+        c4m_dt_info_t *base      = c4m_tspec_get_data_type_info(item_type);
+
+        if (base->typeid == C4M_T_BIT) {
+            size_bits = 0x7;
+        }
+        else {
+            size_bits = c4m_int_log2((uint64_t)base->alloc_len);
+        }
+    }
+
+    uint64_t obj_as_int = (uint64_t)obj;
+
+    return (*ptr)((void *)(size_bits | obj_as_int), n_items);
 }

@@ -168,6 +168,7 @@ typedef enum {
     c4m_cfg_use_possible_def,
     c4m_cfg_return_coverage,
     c4m_cfg_no_return,
+    c4m_err_const_not_provided,
     c4m_err_last,
 } c4m_compile_error_t;
 

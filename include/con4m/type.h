@@ -93,6 +93,12 @@ c4m_tspec_get_num_params(c4m_type_t *n)
 }
 
 static inline bool
+c4m_tspec_is_bool(c4m_type_t *n)
+{
+    return n->typeid == C4M_T_BOOL;
+}
+
+static inline bool
 c4m_tspec_is_error(c4m_type_t *n)
 {
     return n->typeid == C4M_T_ERROR;
@@ -143,6 +149,8 @@ c4m_tspec_get_param(c4m_type_t *t, int i)
 static inline c4m_dt_info_t *
 c4m_tspec_get_data_type_info(c4m_type_t *t)
 {
+    t = c4m_global_resolve_type(t);
+
     return t->details->base_type;
 }
 
@@ -427,6 +435,12 @@ c4m_tspec_partial_lit()
 }
 
 static inline c4m_type_t *
+c4m_tspec_bit()
+{
+    return c4m_bi_types[C4M_T_BIT];
+}
+
+static inline c4m_type_t *
 c4m_new_typevar(c4m_type_env_t *env)
 {
     c4m_type_t   *result = c4m_new(c4m_tspec_typespec(), env, C4M_T_GENERIC);
@@ -551,6 +565,24 @@ c4m_tspec_is_int_type(c4m_type_t *t)
 }
 
 static inline bool
+c4m_tspec_is_signed(c4m_type_t *t)
+{
+    if (t == NULL) {
+        return false;
+    }
+
+    switch (t->typeid) {
+    case C4M_T_I8:
+    case C4M_T_I32:
+    case C4M_T_CHAR:
+    case C4M_T_INT:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static inline bool
 c4m_tspec_is_tvar(c4m_type_t *t)
 {
     return (c4m_tspec_get_base(t) == C4M_DT_KIND_type_var);
@@ -575,6 +607,12 @@ static inline int
 c4m_number_concrete_types()
 {
     return C4M_NUM_BUILTIN_DTS;
+}
+
+static inline int
+c4m_get_alloc_len(c4m_type_t *t)
+{
+    return c4m_tspec_get_data_type_info(t)->alloc_len;
 }
 
 #ifdef C4M_USE_INTERNAL_API

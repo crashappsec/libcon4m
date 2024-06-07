@@ -577,9 +577,9 @@ c4m_new_compile_context(c4m_str_t *input)
     result->final_spec    = c4m_new_spec();
     result->backlog       = c4m_new(c4m_tspec_set(c4m_tspec_ref()));
     result->processed     = c4m_new(c4m_tspec_set(c4m_tspec_ref()));
-    result->const_data    = c4m_new(c4m_tspec_buffer(),
-                                 c4m_kw("length", c4m_ka(16)));
+    result->const_data    = c4m_buffer_empty();
     result->const_memos   = c4m_alloc_marshal_memos();
+    result->const_memoid  = 1;
     result->instance_map  = c4m_new(c4m_tspec_dict(c4m_tspec_ref(),
                                                   c4m_tspec_i64()));
     result->str_map       = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
@@ -837,6 +837,7 @@ merge_one_plain_scope(c4m_compile_ctx      *cctx,
         if (hatrack_dict_add(global->symbols,
                              new_sym->name,
                              new_sym)) {
+            new_sym->local_module_id = fctx->local_module_id;
             continue;
         }
 
@@ -845,8 +846,10 @@ merge_one_plain_scope(c4m_compile_ctx      *cctx,
                                    NULL);
         if (c4m_merge_symbols(fctx, new_sym, old_sym)) {
             hatrack_dict_put(global->symbols, new_sym->name, old_sym);
-            new_sym->linked_symbol = old_sym;
+            new_sym->linked_symbol   = old_sym;
+            new_sym->local_module_id = old_sym->local_module_id;
         }
+        // Else, there's some error and it doesn't matter, things won't run.
     }
 }
 
@@ -1033,7 +1036,22 @@ c4m_compile_from_entry_point(c4m_str_t *location)
         return result;
     }
 
-    c4m_codegen(result);
+    return result;
+}
 
+c4m_vm_t *
+c4m_generate_code(c4m_compile_ctx *ctx)
+{
+    c4m_vm_t *result = c4m_new_vm(ctx);
+
+    c4m_vm_reset(result);
+    c4m_internal_codegen(ctx, result);
+    c4m_vm_setup_runtime(result);
+
+    if (ctx->fatality) {
+        return NULL;
+    }
+
+    c4m_vm_reset(result);
     return result;
 }

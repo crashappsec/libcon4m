@@ -393,11 +393,9 @@ c4m_set_disjunction(c4m_set_t *set1, c4m_set_t *set2)
 const c4m_vtable_t c4m_set_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)c4m_set_init,
-        NULL,
-        NULL,
-        NULL,
-        (c4m_vtable_entry)c4m_set_marshal,
-        (c4m_vtable_entry)c4m_set_unmarshal,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_set_init,
+        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_set_marshal,
+        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_set_unmarshal,
+        [C4M_BI_VIEW]        = (c4m_vtable_entry)c4m_set_items_sort,
     },
 };

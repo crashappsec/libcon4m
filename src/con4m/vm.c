@@ -118,6 +118,14 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
         C4M_CRAISE("stack overflow");        \
     }
 
+#define SIMPLE_COMPARE(op)                       \
+    do {                                         \
+        uint64_t v1 = tstate->sp->uint;          \
+        ++tstate->sp;                            \
+        uint64_t v2      = tstate->sp->uint;     \
+        tstate->sp->uint = (uint64_t)(v2 op v1); \
+    } while (0)
+
 static c4m_value_t *
 c4m_vm_variable(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 {
@@ -204,7 +212,7 @@ c4m_vm_module_enter(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
     }
 
     c4m_xlist_append(tstate->module_lock_stack,
-                     (c4m_obj_t)tstate->current_module->module_id);
+                     (c4m_obj_t)(uint64_t)tstate->current_module->module_id);
 }
 
 static c4m_utf8_t *
@@ -274,16 +282,29 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         };
         return;
     case C4M_BI_FORMAT:
+    case C4M_BI_ITEM_TYPE:
         C4M_CRAISE("Currently format cannot be called via tcall.");
+    case C4M_BI_VIEW:
+        // This is used to implement loops over objects; we pop the
+        // container by pushing the view on, then also push
+        // the length of the view.
+        STACK_REQUIRE_VALUES(1);
+        STACK_REQUIRE_SLOTS(1);
+        do {
+            uint64_t n;
+            tstate->sp->rvalue.obj = c4m_get_view(tstate->sp->rvalue.obj, &n);
+            --tstate->sp;
+            tstate->sp[0].uint = n;
+        } while (0);
 
+        return;
     case C4M_BI_COPY:
         STACK_REQUIRE_VALUES(1);
 
         obj = c4m_copy_object(tstate->sp->rvalue.obj);
 
         tstate->sp->rvalue = (c4m_value_t){
-            .obj       = obj,
-            .type_info = c4m_get_my_type(obj),
+            .obj = obj,
         };
         return;
 
@@ -387,7 +408,7 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
     case C4M_BI_EQ:
         STACK_REQUIRE_VALUES(2);
 
-        b = c4m_eq(tstate->sp[1].rvalue.type_info,
+        b = c4m_eq(i->type_info,
                    tstate->sp[1].rvalue.obj,
                    tstate->sp[0].rvalue.obj);
 
@@ -693,7 +714,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
                 *tstate->sp = (c4m_stack_value_t){
-                    .static_ptr = i->arg,
+                    .uint = tstate->vm->const_pool[i->arg].u,
                 };
                 break;
             case C4M_ZPushConstRef:
@@ -701,7 +722,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 --tstate->sp;
                 *tstate->sp = (c4m_stack_value_t){
                     .rvalue = (c4m_value_t){
-                        .obj       = (c4m_obj_t)(tstate->const_base + i->arg),
+                        .obj       = (c4m_obj_t)(tstate->vm->const_pool + i->arg),
                         .type_info = i->type_info,
                     },
                 };
@@ -764,7 +785,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZJz:
                 STACK_REQUIRE_VALUES(1);
                 if (c4m_value_iszero(&tstate->sp->rvalue)) {
-                    tstate->pc += i->arg / sizeof(c4m_zinstruction_t);
+                    tstate->pc = i->arg;
                     continue;
                 }
                 ++tstate->sp;
@@ -772,96 +793,115 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZJnz:
                 STACK_REQUIRE_VALUES(1);
                 if (!c4m_value_iszero(&tstate->sp->rvalue)) {
-                    tstate->pc += i->arg / sizeof(c4m_zinstruction_t);
+                    tstate->pc = i->arg;
                     continue;
                 }
                 ++tstate->sp;
                 break;
             case C4M_ZJ:
-                tstate->pc += i->arg / sizeof(c4m_zinstruction_t);
+                tstate->pc = i->arg;
                 continue;
             case C4M_ZAdd:
                 STACK_REQUIRE_VALUES(2);
                 rhs.sint = tstate->sp[0].sint;
                 ++tstate->sp;
                 tstate->sp[0].uint += rhs.sint;
-                continue;
+                break;
             case C4M_ZSub:
                 STACK_REQUIRE_VALUES(2);
                 rhs.sint = tstate->sp[0].sint;
                 ++tstate->sp;
-                tstate->sp[0].uint -= rhs.sint;
-                continue;
+
+                tstate->sp[0].sint -= rhs.sint;
+                break;
             case C4M_ZMul:
                 STACK_REQUIRE_VALUES(2);
                 rhs.sint = tstate->sp[0].sint;
                 ++tstate->sp;
                 tstate->sp[0].uint *= rhs.sint;
-                continue;
+                break;
             case C4M_ZDiv:
                 STACK_REQUIRE_VALUES(2);
                 rhs.sint = tstate->sp[0].sint;
                 ++tstate->sp;
                 tstate->sp[0].uint /= rhs.sint;
-                continue;
+                break;
             case C4M_ZMod:
                 STACK_REQUIRE_VALUES(2);
                 rhs.sint = tstate->sp[0].sint;
                 ++tstate->sp;
                 tstate->sp[0].uint %= rhs.sint;
-                continue;
+                break;
             case C4M_ZUAdd:
                 STACK_REQUIRE_VALUES(2);
                 rhs.uint = tstate->sp[0].uint;
                 ++tstate->sp;
                 tstate->sp[0].uint += rhs.uint;
-                continue;
+                break;
             case C4M_ZUSub:
                 STACK_REQUIRE_VALUES(2);
                 rhs.uint = tstate->sp[0].uint;
                 ++tstate->sp;
                 tstate->sp[0].uint -= rhs.uint;
-                continue;
+                break;
             case C4M_ZUMul:
                 STACK_REQUIRE_VALUES(2);
                 rhs.uint = tstate->sp[0].uint;
                 ++tstate->sp;
                 tstate->sp[0].uint *= rhs.uint;
-                continue;
+                break;
             case C4M_ZUDiv:
                 STACK_REQUIRE_VALUES(2);
                 rhs.uint = tstate->sp[0].uint;
                 ++tstate->sp;
                 tstate->sp[0].uint /= rhs.uint;
-                continue;
+                break;
             case C4M_ZUMod:
                 STACK_REQUIRE_VALUES(2);
                 rhs.uint = tstate->sp[0].uint;
                 ++tstate->sp;
                 tstate->sp[0].uint %= rhs.uint;
-                continue;
+                break;
             case C4M_ZBOr:
                 STACK_REQUIRE_VALUES(2);
                 rhs.uint = tstate->sp[0].uint;
                 ++tstate->sp;
                 tstate->sp[0].uint |= rhs.uint;
-                continue;
+                break;
             case C4M_ZBAnd:
                 STACK_REQUIRE_VALUES(2);
                 rhs.uint = tstate->sp[0].uint;
                 ++tstate->sp;
                 tstate->sp[0].uint &= rhs.uint;
-                continue;
-            case C4M_ZBXor:
+                break;
+            case C4M_ZShl:
+                STACK_REQUIRE_VALUES(2);
+                rhs.uint = tstate->sp[0].uint;
+                ++tstate->sp;
+                tstate->sp[0].uint <<= rhs.uint;
+                break;
+            case C4M_ZShlI:
+                STACK_REQUIRE_VALUES(1);
+                rhs.uint = tstate->sp[0].uint;
+                ++tstate->sp;
+                tstate->sp[0].uint <<= i->immediate;
+                break;
+            case C4M_ZShr:
+                STACK_REQUIRE_VALUES(2);
+                rhs.uint = tstate->sp[0].uint;
+                ++tstate->sp;
+                tstate->sp[0].uint >>= rhs.uint;
+                break;
+            case C4M_ZBXOr:
                 STACK_REQUIRE_VALUES(2);
                 rhs.uint = tstate->sp[0].uint;
                 ++tstate->sp;
                 tstate->sp[0].uint ^= rhs.uint;
-                continue;
+                break;
             case C4M_ZBNot:
                 STACK_REQUIRE_VALUES(1);
                 tstate->sp[0].uint = ~tstate->sp[0].uint;
-                continue;
+                break;
             case C4M_ZNot:
                 STACK_REQUIRE_VALUES(1);
                 tstate->sp->uint = !c4m_value_iszero(&tstate->sp->rvalue);
@@ -938,6 +978,65 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     c4m_vm_attr_lock(tstate, key, true);
                 } while (0);
                 break;
+            case C4M_ZLoadFromView:
+                STACK_REQUIRE_VALUES(2);
+                STACK_REQUIRE_SLOTS(2); // Usually 1, except w/ dict.
+                do {
+                    uint64_t obj_len = tstate->sp->uint;
+
+                    union {
+                        uint8_t  u8;
+                        uint16_t u16;
+                        uint32_t u32;
+                        uint64_t u64;
+                    } view_item;
+
+                    union {
+                        uint8_t  *p8;
+                        uint16_t *p16;
+                        uint32_t *p32;
+                        uint64_t *p64;
+                        c4m_obj_t obj;
+                    } view_ptr;
+
+                    view_item.u64 = 0;
+                    view_ptr.obj  = (tstate->sp + 1)->rvalue.obj;
+
+                    --tstate->sp;
+
+                    switch (obj_len) {
+                    case 1:
+                        view_item.u8 = *view_ptr.p8++;
+                        break;
+                    case 2:
+                        view_item.u16 = *view_ptr.p16++;
+                        break;
+                    case 4:
+                        view_item.u32 = *view_ptr.p32++;
+                        break;
+                    case 8:
+                        view_item.u64 = *view_ptr.p64++;
+                        // This is the only size that can be a dict.
+                        // Push the value on first.
+                        if (i->arg) {
+                            tstate->sp->uint = *view_ptr.p64++;
+                            --tstate->sp;
+                        }
+                        break;
+                    default:
+                        do {
+                            uint64_t count  = (uint64_t)(tstate->r1.obj);
+                            uint64_t bit_ix = (count - 1) % 64;
+                            view_item.u64   = *view_ptr.p64 & (1 << bit_ix);
+
+                            if (bit_ix == 63) {
+                                view_ptr.p64++;
+                            }
+                        } while (0);
+                    }
+                    tstate->sp->uint = view_item.u64;
+                } while (0);
+                break;
             case C4M_ZStoreTop:
                 STACK_REQUIRE_VALUES(1);
                 *c4m_vm_variable(tstate, i) = tstate->sp->rvalue;
@@ -973,51 +1072,6 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     };
                 } while (0);
                 break;
-            case C4M_ZBox:
-                switch (i->type_info->typeid) {
-                case C4M_T_I8:
-                case C4M_T_I32:
-                case C4M_T_CHAR:
-                case C4M_T_INT:
-                    tstate->sp->rvalue.obj = c4m_box_i64(tstate->sp->sint);
-                    break;
-                case C4M_T_BYTE:
-                case C4M_T_U32:
-                case C4M_T_UINT:
-                    tstate->sp->rvalue.obj = c4m_box_u64(tstate->sp->uint);
-                    break;
-                case C4M_T_F64:
-                    tstate->sp->rvalue.obj = c4m_box_double(tstate->sp->dbl);
-                    break;
-                default:
-                    C4M_CRAISE("Attempt to box a non-numeric type.");
-                }
-                break;
-            case C4M_ZUnbox:
-                do {
-                    c4m_type_t *type = c4m_get_my_type(tstate->sp->rvalue.obj);
-                    switch (type->typeid) {
-                    case C4M_T_I8:
-                    case C4M_T_I32:
-                    case C4M_T_CHAR:
-                    case C4M_T_INT:
-                        tstate->sp->sint = c4m_unbox_i64(
-                            tstate->sp->rvalue.obj);
-                        break;
-                    case C4M_T_BYTE:
-                    case C4M_T_U32:
-                    case C4M_T_UINT:
-                        tstate->sp->uint = c4m_unbox_i64(
-                            tstate->sp->rvalue.obj);
-                        break;
-                    case C4M_T_F64:
-                        tstate->sp->dbl = c4m_unbox_double(
-                            tstate->sp->rvalue.obj);
-                        break;
-                    default:
-                        C4M_CRAISE("Attempt to box a non-numeric type.");
-                    }
-                } while (0);
             case C4M_ZTypeCmp:
                 STACK_REQUIRE_VALUES(2);
                 do {
@@ -1025,8 +1079,50 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     ++tstate->sp;
                     c4m_type_t *t2   = tstate->sp->rvalue.obj;
                     tstate->sp->uint = (uint64_t)c4m_tspecs_are_compat(t1, t2);
-                    break;
                 } while (0);
+                break;
+            case C4M_ZCmp:
+                STACK_REQUIRE_VALUES(2);
+                SIMPLE_COMPARE(==);
+                break;
+            case C4M_ZLt:
+                STACK_REQUIRE_VALUES(2);
+                SIMPLE_COMPARE(<);
+                break;
+            case C4M_ZLte:
+                STACK_REQUIRE_VALUES(2);
+                SIMPLE_COMPARE(<=);
+                break;
+            case C4M_ZGt:
+                STACK_REQUIRE_VALUES(2);
+                SIMPLE_COMPARE(>);
+                break;
+            case C4M_ZGte:
+                STACK_REQUIRE_VALUES(2);
+                SIMPLE_COMPARE(>=);
+                break;
+            case C4M_ZNeq:
+                STACK_REQUIRE_VALUES(2);
+                SIMPLE_COMPARE(!=);
+                break;
+            case C4M_ZGteNoPop:
+                STACK_REQUIRE_VALUES(2);
+                STACK_REQUIRE_SLOTS(1);
+                do {
+                    uint64_t v1 = tstate->sp->uint;
+                    uint64_t v2 = (tstate->sp + 1)->uint;
+                    --tstate->sp;
+                    tstate->sp->uint = (uint64_t)(v2 >= v1);
+                } while (0);
+                break;
+            case C4M_ZUnsteal:
+                STACK_REQUIRE_VALUES(1);
+                STACK_REQUIRE_SLOTS(1);
+                *(tstate->sp - 1) = (c4m_stack_value_t){
+                    .static_ptr = tstate->sp->static_ptr & 0x07,
+                };
+                tstate->sp->static_ptr &= ~(0x07ULL);
+                break;
             case C4M_ZTCall:
                 c4m_vm_tcall(tstate, i);
                 break;
@@ -1141,17 +1237,62 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 break;
             case C4M_ZAssert:
                 STACK_REQUIRE_VALUES(1);
-                if (c4m_value_iszero(&tstate->sp->rvalue)) {
+                if (!c4m_value_iszero(&tstate->sp->rvalue)) {
                     ++tstate->sp;
                 }
                 else {
                     C4M_CRAISE("assertion failed");
                 }
                 break;
-            case C4M_ZTupleStash:
+#ifdef C4M_DEV
+            case C4M_ZPrint:
                 STACK_REQUIRE_VALUES(1);
-                tstate->tr = tstate->sp->rvalue;
+                c4m_print(tstate->sp->rvalue.obj);
                 ++tstate->sp;
+                break;
+#endif
+            case C4M_ZPopToR1:
+                STACK_REQUIRE_VALUES(1);
+                tstate->r1 = tstate->sp->rvalue;
+                ++tstate->sp;
+                break;
+            case C4M_ZPushFromR1:
+                STACK_REQUIRE_SLOTS(1);
+                --tstate->sp;
+                tstate->sp->rvalue = tstate->r1;
+                break;
+            case C4M_ZPopToR2:
+                STACK_REQUIRE_VALUES(1);
+                tstate->r2 = tstate->sp->rvalue;
+                ++tstate->sp;
+                break;
+            case C4M_ZPushFromR2:
+                STACK_REQUIRE_SLOTS(1);
+                --tstate->sp;
+                tstate->sp->rvalue = tstate->r2;
+                break;
+            case C4M_ZPopToR3:
+                STACK_REQUIRE_VALUES(1);
+                tstate->r3 = tstate->sp->rvalue;
+                ++tstate->sp;
+                break;
+            case C4M_ZPushFromR3:
+                --tstate->sp;
+                STACK_REQUIRE_SLOTS(1);
+                tstate->sp->rvalue = tstate->r3;
+                break;
+            case C4M_ZBox:
+                STACK_REQUIRE_VALUES(1);
+                do {
+                    c4m_box_t item = {
+                        .u64 = tstate->sp->uint,
+                    };
+                    tstate->sp->rvalue.obj = c4m_box_obj(item, i->type_info);
+                } while (0);
+                break;
+            case C4M_ZUnbox:
+                STACK_REQUIRE_VALUES(1);
+                tstate->sp->uint = c4m_unbox_obj(tstate->sp->rvalue.obj).u64;
                 break;
             case C4M_ZUnpack:
                 STACK_REQUIRE_VALUES(i->arg);
@@ -1159,13 +1300,13 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     // type_info should come from the tuple's item type
                     // we can't use the retrieved object's type, because it may
                     // be a primitive without type information available.
-                    c4m_obj_t   user_object = tstate->tr.obj;
+                    c4m_obj_t   user_object = tstate->r1.obj;
                     c4m_type_t *t           = c4m_get_my_type(user_object);
                     c4m_type_t *item_type   = c4m_tspec_get_param(t, -1);
 
                     for (int32_t x = 0; x < i->arg; ++x) {
                         *tstate->sp[0].lvalue = (c4m_value_t){
-                            .obj       = c4m_tuple_get(tstate->tr.obj, x),
+                            .obj       = c4m_tuple_get(tstate->r1.obj, x),
                             .type_info = item_type,
                         };
                         ++tstate->sp;
@@ -1200,13 +1341,60 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
     return tstate->error ? -1 : 0;
 }
 
+static void
+c4m_vm_load_const_data(c4m_vm_t *vm)
+{
+    int         nc    = vm->obj->num_const_objs;
+    c4m_dict_t *memos = c4m_alloc_unmarshal_memos();
+    c4m_buf_t  *inbuf = vm->obj->static_data;
+
+    if (!nc) {
+        return;
+    }
+
+    c4m_stream_t *s = c4m_buffer_instream(inbuf);
+
+    c4m_internal_stash_heap();
+    c4m_buf_t *outbuf = c4m_buffer_empty();
+
+    typedef union {
+        uint64_t i;
+        void    *p;
+    } cout_t;
+
+    cout_t *ptr = (cout_t *)outbuf->data;
+
+    for (int i = 0; i < nc; i++) {
+        uint8_t value_item = c4m_unmarshal_u8(s);
+
+        if (value_item) {
+            ptr[i].i = c4m_unmarshal_u64(s);
+        }
+        else {
+            ptr[i].p = c4m_sub_unmarshal(s, memos);
+        }
+    }
+
+    vm->const_pool = (void *)ptr;
+    // Get rid of the memos.
+    c4m_gc_thread_collect();
+    // Now freeze and restore the old heap.
+    c4m_internal_lock_then_unstash_heap();
+}
+
+void
+c4m_vm_setup_runtime(c4m_vm_t *vm)
+{
+    c4m_vm_load_const_data(vm);
+}
+
 void
 c4m_vm_reset(c4m_vm_t *vm)
 {
-    int64_t nmodules          = c4m_xlist_len(vm->obj->module_contents);
-    vm->module_allocations    = c4m_gc_array_alloc(c4m_value_t *, nmodules + 1);
-    vm->module_allocations[0] = c4m_gc_array_alloc(c4m_value_t, vm->obj->global_scope_sz);
-    for (int64_t n = 1; n <= nmodules; ++n) {
+    int64_t nmodules       = c4m_xlist_len(vm->obj->module_contents);
+    vm->module_allocations = c4m_gc_array_alloc(c4m_value_t *, nmodules);
+
+    for (int64_t n = 0; n < nmodules; ++n) {
         c4m_zmodule_info_t *m     = c4m_xlist_get(vm->obj->module_contents, n, NULL);
         vm->module_allocations[n] = c4m_gc_array_alloc(c4m_value_t, m->module_var_size);
     }
@@ -1235,7 +1423,9 @@ c4m_vmthread_reset(c4m_vmthread_t *tstate)
     tstate->pc                = 0;
     tstate->num_frames        = 1;
     tstate->rr                = (c4m_value_t){};
-    tstate->tr                = (c4m_value_t){};
+    tstate->r1                = (c4m_value_t){};
+    tstate->r2                = (c4m_value_t){};
+    tstate->r3                = (c4m_value_t){};
     tstate->running           = false;
     tstate->error             = false;
     tstate->module_lock_stack = c4m_xlist(c4m_tspec_i32());

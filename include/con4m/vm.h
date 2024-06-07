@@ -8,6 +8,11 @@
 extern void
 c4m_vm_reset(c4m_vm_t *vm);
 
+// Loads any constants and other state expected to be present
+// before running.
+extern void
+c4m_vm_setup_runtime(c4m_vm_t *vm);
+
 // create a new thread state attached to the specified vm. Multiple threads may
 // run code from the same VM simultaneously, but each one needs its own thread
 // state.

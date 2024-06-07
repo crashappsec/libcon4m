@@ -49,11 +49,11 @@ typedef struct {
     // everything.
     const char         *name;
     const uint64_t      typeid;
-    const uint64_t      alloc_len; // How much space to allocate.
     const uint64_t     *ptr_info;  // Shows GC u64 offsets to examine for ptrs.
     const c4m_vtable_t *vtable;
-    const c4m_dt_kind_t dt_kind;
     const uint32_t      hash_fn;
+    const uint32_t      alloc_len; // How much space to allocate.
+    const c4m_dt_kind_t dt_kind;
     const bool          by_value : 1;
     // clang-format on
 } c4m_dt_info_t;
@@ -130,8 +130,19 @@ typedef enum {
     C4M_BI_INDEX_SET, // `t[`n] = `v -- requires index type
     C4M_BI_SLICE_GET, // `t[int:int] -> `v
     C4M_BI_SLICE_SET,
-    C4M_BI_NUM_FUNCS
+    // Returns the item type, given how the type is parameterized.
+    C4M_BI_ITEM_TYPE,
+    C4M_BI_VIEW, // Return a view on a container.
+    C4M_BI_NUM_FUNCS,
 } c4m_builtin_type_fn;
+
+typedef enum : uint8_t {
+    c4m_ix_item_sz_byte    = 0,
+    c4m_ix_item_sz_16_bits = 1,
+    c4m_ix_item_sz_32_bits = 2,
+    c4m_ix_item_sz_64_bits = 3,
+    c4m_ix_item_sz_1_bit   = 0xff,
+} c4m_ix_item_sz_t;
 
 typedef enum {
     C4M_REPR_VALUE,
@@ -189,5 +200,6 @@ typedef enum : int64_t {
     C4M_T_VM,
     C4M_T_PARSE_NODE,
     C4M_T_PARTIAL_LIT,
+    C4M_T_BIT,
     C4M_NUM_BUILTIN_DTS
 } c4m_builtin_t;

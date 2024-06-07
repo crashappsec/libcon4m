@@ -62,3 +62,5 @@ typedef c4m_obj_t (*c4m_container_lit_fn)(c4m_type_t *,
                                           c4m_lit_syntax_t,
                                           char *);
 typedef c4m_str_t *(*c4m_format_fn)(c4m_obj_t, c4m_fmt_spec_t *);
+typedef c4m_type_t *(*c4m_ix_item_ty_fn)(c4m_type_t *);
+typedef void *(*c4m_view_fn)(c4m_obj_t, uint64_t *);

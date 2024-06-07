@@ -27,10 +27,16 @@ c4m_pass_kargs(int nargs, ...)
 
     va_start(args, nargs);
 
+#ifdef C4M_DEBUG_KARGS
+    char *fn   = va_arg(args, char *);
+    int   line = va_arg(args, int);
+
+    printf("kargs: %d args called from c4m_kw() on %s:%d\n", nargs, fn, line);
+#endif
+
     if (nargs & 1) {
         C4M_CRAISE(
-            "Got an odd number of parameters to kw() keyword decl"
-            "macro.");
+            "Got an odd number of parameters to kw() keyword decl macro.");
     }
 
     nargs >>= 1;

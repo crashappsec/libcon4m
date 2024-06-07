@@ -1,5 +1,6 @@
 #pragma once
 #undef C4M_TYPE_LOG
+#define C4M_DEV
 
 // Everything includes this; the ordering here is somewhat important
 // due to interdependencies, though they can always be solved via
@@ -86,6 +87,9 @@
 
 // Bitfields.
 #include "con4m/flags.h"
+
+// Really int log2 only right now.
+#include "con4m/math.h"
 
 // The compiler.
 #include "compiler/ast_utils.h"

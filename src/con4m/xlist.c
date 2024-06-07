@@ -416,33 +416,32 @@ c4m_xlist_contains(c4m_xlist_t *list, c4m_obj_t item)
     return false;
 }
 
+static void *
+xlist_view(c4m_xlist_t *list, uint64_t *n)
+{
+    c4m_xlist_t *copy = c4m_xlist_shallow_copy(list);
+    *n                = c4m_xlist_len(copy);
+    return copy->data;
+}
+
 extern bool list_can_coerce_to(c4m_type_t *, c4m_type_t *);
 
 const c4m_vtable_t c4m_xlist_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)xlist_init,
-        (c4m_vtable_entry)xlist_repr,
-        NULL,
-        NULL,
-        (c4m_vtable_entry)c4m_xlist_marshal,
-        (c4m_vtable_entry)c4m_xlist_unmarshal,
-        (c4m_vtable_entry)list_can_coerce_to,
-        (c4m_vtable_entry)xlist_coerce_to,
-        NULL,
-        (c4m_vtable_entry)xlist_copy,
-        (c4m_vtable_entry)c4m_xlist_plus,
-        NULL, // Subtract
-        NULL, // Mul
-        NULL, // Div
-        NULL, // MOD
-        NULL, // EQ
-        NULL, // LT
-        NULL, // GT
-        (c4m_vtable_entry)c4m_xlist_len,
-        (c4m_vtable_entry)c4m_xlist_safe_get,
-        (c4m_vtable_entry)c4m_xlist_set,
-        (c4m_vtable_entry)c4m_xlist_get_slice,
-        (c4m_vtable_entry)c4m_xlist_set_slice,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)xlist_init,
+        [C4M_BI_TO_STR]      = (c4m_vtable_entry)xlist_repr,
+        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_xlist_marshal,
+        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_xlist_unmarshal,
+        [C4M_BI_COERCIBLE]   = (c4m_vtable_entry)list_can_coerce_to,
+        [C4M_BI_COERCE]      = (c4m_vtable_entry)xlist_coerce_to,
+        [C4M_BI_COPY]        = (c4m_vtable_entry)xlist_copy,
+        [C4M_BI_ADD]         = (c4m_vtable_entry)c4m_xlist_plus,
+        [C4M_BI_LEN]         = (c4m_vtable_entry)c4m_xlist_len,
+        [C4M_BI_INDEX_GET]   = (c4m_vtable_entry)c4m_xlist_safe_get,
+        [C4M_BI_INDEX_SET]   = (c4m_vtable_entry)c4m_xlist_set,
+        [C4M_BI_SLICE_GET]   = (c4m_vtable_entry)c4m_xlist_get_slice,
+        [C4M_BI_SLICE_SET]   = (c4m_vtable_entry)c4m_xlist_set_slice,
+        [C4M_BI_VIEW]        = (c4m_vtable_entry)xlist_view,
     },
 };

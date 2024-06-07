@@ -1542,10 +1542,11 @@ c4m_initialize_global_types()
             case C4M_DT_KIND_nil:
             case C4M_DT_KIND_primitive:
             case C4M_DT_KIND_internal:
-                one         = c4m_gc_raw_alloc(tslen,
+                one        = c4m_gc_raw_alloc(tslen,
                                        (uint64_t *)tspec->ptr_info);
-                ts          = (c4m_type_t *)one->data;
-                ts->typeid  = i;
+                ts         = (c4m_type_t *)one->data;
+                ts->typeid = i;
+                printf("%d = %s\n", i, one_spec->name);
                 info        = c4m_gc_alloc(c4m_type_info_t);
                 ts->details = info;
 

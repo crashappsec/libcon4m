@@ -104,16 +104,16 @@ typedef enum : uint8_t {
     // the instruction's immediate field and may be an integer or floating point
     // value. The type of the immediate value is encoded in the instruction's
     // type_info.
-    C4M_ZPushImm       = 0x13,
+    C4M_ZPushImm       = 0x07,
     // Push the type of a value onto the stack. The value to operate on is
     // determined as described in the above comment about address encodings.
-    C4M_ZPushSType     = 0x14,
+    C4M_ZPushSType     = 0x08,
     // For an object on top of the stack, will retrieve and push the object's
     // type. Note that the top of the stack must not be a raw value type;
     // if it's not a by-reference type, box it first.
-    C4M_ZPushObjType   = 0x15,
+    C4M_ZPushObjType   = 0x09,
     // Duplicate the value at the top of the stack by pushing it again.
-    C4M_ZDupTop        = 0x16,
+    C4M_ZDupTop        = 0x0A,
     // Retrieves an attribute value and pushes it onto the stack. The
     // attribute is the top stack value pushed by C4M_ZPushConstObj
     // and is replaced by the attribute value. If the instruction's
@@ -126,61 +126,65 @@ typedef enum : uint8_t {
     // pushed after the result. If not, then only a zero is pushed.
     // If that non-zero field also has the `2` bit set, then the
     // actual value will not be pushed.
-    C4M_ZLoadFromAttr  = 0x17,
+    C4M_ZLoadFromAttr  = 0x0B,
+    C4M_ZLoadFromView  = 0x0C,
     // Create a callback and push it onto the stack. The instruction's arg,
     // immediate, and type_info fields are encoded into the callback as the
     // implementation (ffi function index), name offset, and type info,
     // respectively. The ZRunCallback instruction is used to run the callback,
     // which is run as an FFI function.
-    C4M_ZPushFfiPtr    = 0x18,
+    C4M_ZPushFfiPtr    = 0x0D,
     // Create a callback and push it onto the stack. The instruction's arg,
     // immediate, and type_info fields are encoded into the callback as the
     // implementation (function index), name offset, and type info,
     // respectively. The ZRunCallback instruction is used to run the callback,
     // which is run as a native function via C4M_Z0Call, but using a separate
     // VM state.
-    C4M_ZPushVmPtr     = 0x19,
+    C4M_ZPushVmPtr     = 0x0E,
     // Swap the two top values on the stack.
-    C4M_ZSwap          = 0x1A,
-
+    C4M_ZAssignAttr    = 0x1D,
     // Pops the top value from the stack. This is the same as C4M_ZMoveSp with
     // an adjustment of -1.
-    C4M_ZPop        = 0x20,
+    C4M_ZPop           = 0x20,
     // Stores the value at the top of the stack to the value address encoded in
     // the instruction. The storage address is determined as described in the
     // above comment about address encodings. The value assigned from the stack
     // is not popped.
-    C4M_ZStoreTop   = 0x21,
+    C4M_ZStoreTop      = 0x21,
     // Stores the encoded immediate value into the value address encoded in the
     // instruction. The storage address is determined as described in the above
     // comment about address encodings.
-    C4M_ZStoreImm   = 0x22,
-    // Stashes the tuple at the top of the stack into the unpack register that's
-    // used by C4M_ZUnpack. The value at the top of the stack is popped.
-    C4M_ZTupleStash = 0x23,
+    C4M_ZStoreImm      = 0x22,
     // Unpack the elements of a tuple, storing each one into the lvalue on the
     // stack, popping each lvalue as its assigned. The number of assignments to
-    // perform is encoded in the instruction's arg field. The tuple to unpack is
-    // stored in the special unpack register. The unpack register is not cleared
-    // upon completion of the unpacking operation.
-    C4M_ZUnpack     = 0x24,
-
+    // perform is encoded in the instruction's arg field.
+    C4M_ZUnpack        = 0x23,
     // Jump if the top value on the stack is zero. The pc is adjusted by the
     // number of bytes encoded in the instruction's arg field, which is always
     // a multiple of the size of an instruction. A negative value jumps
     // backward. If the comparison triggers a jump, the stack is left as-is,
     // but the top value is popped if no jump occurs.
-    C4M_ZJz          = 0x30,
+    C4M_ZSwap          = 0x24,
+    // Perform an assignment into the lvalue at the top of the stack of the
+    // value just below it and pops both items from the stack. This should be
+    // paired with C4M_ZPushAddr or C4M_ZLoadFromAttr with a non-zero arg.
+    C4M_ZAssignToLoc   = 0x25,
+    // Stores a value to the attribute named by the top value on the stack. The
+    // value to store is the stack value just below it. Both values are popped
+    // from the stack. If the instruction's arg is non-zero, the attribute
+    // will be locked when it's set. This instruction expects that the attribute
+    // is stored on the stack via C4M_ZPushStaticPtr.
+    C4M_ZJz            = 0x30,
     // Jump if the top value on the stack is not zero. The pc is adjusted by the
     // number of bytes encoded in the instruction's arg field, which is always
     // a multiple of the size of an instruction. A negative value jumps
     // backward. If the comparison triggers a jump, the stack is left as-is,
     // but the top value is popped if no jump occurs.
-    C4M_ZJnz         = 0x31,
+    C4M_ZJnz           = 0x31,
     // Unconditional jump. Adjust the pc by the number of bytes encoded in the
     // instruction's arg field, which is always a multiple of the size of an
     // instruction. A negative value jumps backward.
-    C4M_ZJ           = 0x32,
+    C4M_ZJ             = 0x32,
     // Call one of con4m's builtin functions via vtable for the object on the
     // top of the stack. The index of the builtin function to call is encoded
     // in the instruction's arg field and should be treated as one of the values
@@ -188,127 +192,156 @@ typedef enum : uint8_t {
     // be on the stack varies for each function. In all cases, contrary to how
     // other calls are handled, the arguments are popped from the stack and the
     // result is pushed onto the stack.
-    C4M_ZTCall       = 0x33,
+    C4M_ZTCall         = 0x33,
     // Call a "native" function, one which is defined in bytecode from the same
     // object file. The index of the function to call is encoded in the
     // instruction's arg parameter, adjusted up by 1 (0 is not a valid index).
     // The index is used to lookup the function from the object file's
     // func_info table.
-    C4M_Z0Call       = 0x34,
+    C4M_Z0Call         = 0x34,
     // Call an external "non-native" function via FFI. The index of the function
     // to call is encoded in the instruction's arg parameter. This index is not
     // adjusted as it is for other, similar instructions. The index is used to
     // lookup the function from the object file's ffi_info table. The arguments
     // are popped from the stack. The return value is stored in the return value
     // register.
-    C4M_ZFFICall     = 0x35,
+    C4M_ZFFICall       = 0x35,
     // Call a module's initialization code. This corresponds with a "use"
     // statement. The module index of the module to call is encoded in the
     // instruction's arg parameter, adjusted up by 1 (0 is not a valid index).
     // The index is used to lookup the module from the object file's
     // module_contents table.
-    C4M_ZCallModule  = 0x36,
+    C4M_ZCallModule    = 0x36,
     // Pops a callback from the stack (pushed via either C4M_ZPushFfiPtr or
     // C4M_ZPushVmPtr) and runs it. If the callback is an FFI callback, the
     // action is basically the same as C4M_ZFFICalll, except it uses the index
     // from the callback. Otherwise, the callback is the same as a native call
     // via C4M_Z0Call, except it uses the index from the callback.
-    C4M_ZRunCallback = 0x37,
-    // Box an object type. The type field indicates the type,
+    C4M_ZRunCallback   = 0x37,
     // which currently always gets stored in 64 bits, and must be a value type.
-    C4M_ZBox         = 0x41,
-    // Unbox an object type, replacing it with its value.
-    C4M_ZUnbox       = 0x42,
-    // Compare (and pop) two types to see if they're comptable.
-    C4M_ZTypeCmp     = 0x43,
-    // Perform a logical not operation on the top stack value. If the value is
-    // zero, it will be replaced with a one value of the same type. If the value
-    // is non-zero, it will be replaced with a zero value of the same type.
-    C4M_ZNot         = 0x50,
     // Unmarshals the data stored in the static data area beginning at the
     // offset encoded into the instruction's immediate field. The length of the
     // marhsalled data is encoded in the instruction's arg field. The resulting
     // object is pushed onto the stack.
-    C4M_ZSObjNew     = 0x60,
-    // Perform an assignment into the lvalue at the top of the stack of the
-    // value just below it and pops both items from the stack. This should be
-    // paired with C4M_ZPushAddr or C4M_ZLoadFromAttr with a non-zero arg.
-    C4M_ZAssignToLoc = 0x70,
-    // Stores a value to the attribute named by the top value on the stack. The
-    // value to store is the stack value just below it. Both values are popped
-    // from the stack. If the instruction's arg is non-zero, the attribute
-    // will be locked when it's set. This instruction expects that the attribute
-    // is stored on the stack via C4M_ZPushStaticPtr.
-    C4M_ZAssignAttr  = 0x71,
+    C4M_ZSObjNew       = 0x38,
+    // Box a literal, which requires supplying the type for the object.
+    C4M_ZBox           = 0x40,
+    // Unbox a value literal into its actual value.
+    C4M_ZUnbox         = 0x41,
+    // Compare (and pop) two types to see if they're comptable.
+    C4M_ZTypeCmp       = 0x42,
+    // Compare (and pop) two values to see if they're equal. Note that
+    // this is not the same as checking for object equality; this assumes
+    // primitive type or reference.
+    C4M_ZCmp           = 0x43,
+    C4M_ZLt            = 0x44,
+    C4M_ZLte           = 0x45,
+    C4M_ZGt            = 0x46,
+    C4M_ZGte           = 0x47,
+    C4M_ZNeq           = 0x48,
+    // Do a GTE comparison without popping.
+    C4M_ZGteNoPop      = 0x4E,
+    // Mask out 3 bits from the top stack value; push them onto the stack.
+    // Remove the bits from the pointer.
+    //
+    // This is meant to remove the low bits of pointers (pointer
+    // stealing), so we can communicate info through them at
+    // runtime. The pointer gets those bits cleared, but they are
+    // pushed onto the stack. Currently, we use this to indicate how
+    // much space is required per-item if we are iterating over a
+    // type.
+    //
+    // Often we could know at compile time and generate code specific
+    // to the size, but as a first pass this is easier.
+    C4M_ZUnsteal       = 0x4F,
+    // Begin register ops.
+    C4M_ZPopToR1       = 0x50,
+    // Pushes the value in R1 onto the stack.
+    C4M_ZPushFromR1    = 0x51,
+    C4M_ZPopToR2       = 0x52,
+    C4M_ZPushFromR2    = 0x53,
+    C4M_ZPopToR3       = 0x54,
+    C4M_ZPushFromR3    = 0x55,
     // Exits the current call frame, returning the current state back to the
     // originating location, which is the instruction immediately following the
     // C4M_Z0Call instruction that created this frame.
-    C4M_ZRet         = 0x80,
+    C4M_ZRet           = 0x80,
     // Exits the current stack frame, returning the current state back to the
     // originating location, which is the instruction immediately following the
     // C4M_ZCallModule instruction that created this frame.
-    C4M_ZModuleRet   = 0x81,
+    C4M_ZModuleRet     = 0x81,
     // Halt the current program immediately.
-    C4M_ZHalt        = 0x82,
+    C4M_ZHalt          = 0x82,
     // Initialze module parameters. The number of parameters is encoded in the
     // instruction's arg field. This is only used during module initialization.
-    C4M_ZModuleEnter = 0x83,
+    C4M_ZModuleEnter   = 0x83,
     // Pops the top stack value and tests it. The value is expected to be either
     // a string or NULL. If it is a string and is not an empty string, it will
     // be used as an error message and evalutation will stop. This is basically
     // a specialized assert used during module initialization to validate
     // module parameters.
-    C4M_ZParamCheck  = 0x84,
-
+    C4M_ZParamCheck    = 0x84,
     // Load the return value register from the stack value at fp - 1.
-    C4M_ZSetRes  = 0x90,
+    C4M_ZSetRes        = 0x85,
     // Pushes the value stored in the return register onto the stack. The return
     // register is not cleared.
-    C4M_ZPushRes = 0x91,
+    C4M_ZPushRes       = 0x86,
     // Adjust the stack pointer down by the amount encoded in the instruction's
     // arg field. This means specifically that the arg field is subtracted from
     // sp, so a single pop would encode -1 as the adjustment.
-    C4M_ZMoveSp  = 0x92,
-
+    C4M_ZMoveSp        = 0x87,
     // Test the top stack value. If it is non-zero, pop it and continue running
     // the program. Otherwise, print an assertion failure and stop running the
     // program.
-    C4M_ZAssert = 0xA0,
-
+    C4M_ZAssert        = 0xA0,
     // Set the specified attribute to be "lock on write". Triggers an error if
     // the attribute is already set to lock on write. This instruction expects
     // the top stack value to be loaded via ZPushStaticPtr and does not pop it.
     // The attribute to lock is named according to the top stack value.
-    C4M_ZLockOnWrite = 0xB0,
-
+    C4M_ZLockOnWrite   = 0xB0,
     // Arithmetic and bitwise operators on 64-bit values; the two-arg
     // ones conceptually pop the right operand, then the left operand,
     // perform the operation, then push. But generally after the RHS
     // pop, the left operand will get replaced without additional
     // movement.
     //
-    // Math operations have signed and unsigned variants.
+    // Math operations have signed and unsigned variants. We can go from
+    // signed to unsigned where it makes sense by adding 0x10.
+    // Currently, we do not do this for bit ops, they are just all unsigned.
+
     C4M_ZAdd  = 0xC0,
     C4M_ZSub  = 0xC1,
     C4M_ZMul  = 0xC2,
     C4M_ZDiv  = 0xC3,
     C4M_ZMod  = 0xC4,
-    C4M_ZUAdd = 0xC5,
-    C4M_ZUSub = 0xC6,
-    C4M_ZUMul = 0xC7,
-    C4M_ZUDiv = 0xC8,
-    C4M_ZUMod = 0xC9,
-    C4M_ZBOr  = 0xCA,
-    C4M_ZBAnd = 0xCB,
-    C4M_ZBXor = 0xCC,
-    C4M_ZBNot = 0xCD,
+    C4M_ZBXOr = 0xC5,
+    C4M_ZShl  = 0xC6,
+    C4M_ZShr  = 0xC7,
+    C4M_ZBOr  = 0xC8,
+    C4M_ZBAnd = 0xC9,
+    C4M_ZBNot = 0xCA,
 
+    C4M_ZUAdd = 0xD0,
+    C4M_ZUSub = 0xD1,
+    C4M_ZUMul = 0xD2,
+    C4M_ZUDiv = 0xD3,
+    C4M_ZUMod = 0xD4,
+
+    // Versions that explicitly take an immediate on the RHS so we
+    // don't have to test for it.
+    C4M_ZShlI = 0xE0,
+    // Perform a logical not operation on the top stack value. If the value is
+    // zero, it will be replaced with a one value of the same type. If the value
+    // is non-zero, it will be replaced with a zero value of the same type.
+    C4M_ZNot  = 0xE1,
+#ifdef C4M_DEV
+    C4M_ZPrint = 0xFD,
+#endif
     // Print the error message that is the top value on the stack and stop
     // running the program.
-    C4M_ZBail = 0xEE,
-
+    C4M_ZBail = 0xFE,
     // Nop does nothing.
-    C4M_ZNop = 0xFF,
+    C4M_ZNop  = 0xFF,
 } c4m_zop_t;
 
 // We'll make the main VM container, c4m_vm_t an object type (C4M_T_VM) so that
@@ -362,7 +395,8 @@ typedef union c4m_stack_value_t {
     uint64_t                 uint;
     int64_t                  sint; // signed int values.
     double                   dbl;
-    union c4m_stack_value_t *fp;   // saved fp
+    bool                     boolean;
+    union c4m_stack_value_t *fp; // saved fp
 } c4m_stack_value_t;
 
 typedef struct {
@@ -435,21 +469,20 @@ typedef struct {
 } c4m_zparam_info_t;
 
 typedef struct {
+    int32_t      module_id; // Internal array index.
+    uint64_t     module_hash;
     c4m_str_t   *modname;
-    c4m_str_t   *location;
-    c4m_str_t   *key;
-    c4m_str_t   *ext;
-    c4m_str_t   *url;
-    c4m_str_t   *version;
-    c4m_xlist_t *sym_types; // tspec_ref: c4m_zsymbol_t
-    c4m_dict_t  *codesyms;  // int64_t, string
-    c4m_dict_t  *datasyms;  // int64_t, string
+    c4m_str_t   *authority;
+    c4m_str_t   *path;
+    c4m_str_t   *package;
     c4m_str_t   *source;
+    c4m_str_t   *version;
     c4m_str_t   *shortdoc;
     c4m_str_t   *longdoc;
-    int64_t      module_id;
-    int64_t      module_var_size;
-    int64_t      init_size;    // size of init code before functions begin
+    // TODO: symbol information.
+    int32_t      module_var_size;
+    int32_t      init_size;    // size of init code before functions begin
+    c4m_dict_t  *datasyms;
     c4m_xlist_t *parameters;   // tspec_ref: c4m_zparam_info_t
     c4m_xlist_t *instructions; // tspec_ref: c4m_zinstruction_t
 } c4m_zmodule_info_t;
@@ -458,10 +491,8 @@ typedef struct {
     uint64_t     zero_magic;
     uint16_t     zc_object_vers;
     c4m_buf_t   *static_data;
-    c4m_dict_t  *t_info;          // c4m_type_t *, int64_t (index into static data for repr)
-    c4m_dict_t  *globals;         // int64_t, string
-    c4m_xlist_t *sym_types;       // tspec_ref: c4m_zsymbol_t
-    int64_t      global_scope_sz;
+    c4m_buf_t   *marshaled_consts;
+    int32_t      num_const_objs;
     c4m_xlist_t *module_contents; // tspec_ref: c4m_zmodule_info_t
     int32_t      entrypoint;
     int32_t      next_entrypoint;
@@ -499,6 +530,10 @@ typedef struct {
 
     // The following fields represent saved execution state on top of
     // the base object file.
+    union {
+        uint64_t u;
+        void    *p;
+    }            *const_pool;
     c4m_value_t **module_allocations;
     c4m_dict_t   *attrs;        // string, c4m_attr_contents_t (tspec_ref)
     c4m_set_t    *all_sections; // string
@@ -531,9 +566,10 @@ typedef struct {
     // ordering to pass the return value back on the stack
     c4m_value_t rr;
 
-    // tr is the tuple stash register, used to by C4M_ZUnpack to know which
-    // tuple to unpack.
-    c4m_value_t tr;
+    // General purpose registers.
+    c4m_value_t r1;
+    c4m_value_t r2;
+    c4m_value_t r3;
 
     // const_base is the base address for constant storage.
     // It's indexed by byte index, thus declared char *.

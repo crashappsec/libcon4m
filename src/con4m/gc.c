@@ -129,6 +129,37 @@ c4m_initialize_gc()
     }
 }
 
+// The idea here is once the object unmarshals the object file and
+// const objects, it can make the heap up till that point read-only.
+// We definitely won't want to allocate anything that will need
+// to be writable at runtime...
+static void
+lock_existing_heap()
+{
+    uint64_t to_lock       = (uint64_t)current_heap;
+    uint64_t words_to_lock = ((uint64_t)(current_heap->next_alloc)) - to_lock;
+    c4m_gc_register_root((void *)to_lock, words_to_lock);
+    int b_to_lock = words_to_lock * 8;
+    b_to_lock     = c4m_round_up_to_given_power_of_2(getpagesize(), b_to_lock);
+    mprotect((void *)to_lock, b_to_lock, PROT_READ);
+}
+
+static thread_local c4m_arena_t *stashed_heap;
+
+void
+c4m_internal_stash_heap()
+{
+    stashed_heap = current_heap;
+    current_heap = c4m_new_arena(C4M_DEFAULT_ARENA_SIZE);
+}
+
+void
+c4m_internal_lock_then_unstash_heap()
+{
+    lock_existing_heap();
+    current_heap = stashed_heap;
+}
+
 static void *
 raw_arena_alloc(uint64_t len, void **end)
 {

@@ -240,28 +240,17 @@ dict_get(c4m_dict_t *d, void *k)
 const c4m_vtable_t c4m_dict_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)c4m_dict_init,
-        (c4m_vtable_entry)dict_repr,
-        NULL,
-        NULL,
-        (c4m_vtable_entry)c4m_dict_marshal,
-        (c4m_vtable_entry)c4m_dict_unmarshal,
-        (c4m_vtable_entry)dict_can_coerce_to,
-        (c4m_vtable_entry)dict_coerce_to,
-        NULL,
-        (c4m_vtable_entry)dict_copy,
-        (c4m_vtable_entry)dict_plus,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL, // EQ
-        NULL, // LT
-        NULL, // GT
-        (c4m_vtable_entry)dict_len,
-        (c4m_vtable_entry)dict_get,
-        (c4m_vtable_entry)hatrack_dict_put,
-        NULL, // No slices on dicts.
-        NULL,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_dict_init,
+        [C4M_BI_TO_STR]      = (c4m_vtable_entry)dict_repr,
+        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_dict_marshal,
+        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_dict_unmarshal,
+        [C4M_BI_COERCIBLE]   = (c4m_vtable_entry)dict_can_coerce_to,
+        [C4M_BI_COERCE]      = (c4m_vtable_entry)dict_coerce_to,
+        [C4M_BI_COPY]        = (c4m_vtable_entry)dict_copy,
+        [C4M_BI_ADD]         = (c4m_vtable_entry)dict_plus,
+        [C4M_BI_LEN]         = (c4m_vtable_entry)dict_len,
+        [C4M_BI_INDEX_GET]   = (c4m_vtable_entry)dict_get,
+        [C4M_BI_INDEX_SET]   = (c4m_vtable_entry)hatrack_dict_put,
+        [C4M_BI_VIEW]        = (c4m_vtable_entry)hatrack_dict_items_sort,
     },
 };

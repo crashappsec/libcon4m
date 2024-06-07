@@ -83,6 +83,9 @@ typedef enum {
     c4m_tt_bit_xor_eq,
     c4m_tt_shl_eq,
     c4m_tt_shr_eq,
+#ifdef C4M_DEV
+    c4m_tt_print,
+#endif
     c4m_tt_eof
 } c4m_token_kind_t;
 

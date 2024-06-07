@@ -1,5 +1,5 @@
 #define C4M_USE_INTERNAL_API
-#include <con4m.h>
+#include "con4m.h"
 
 typedef struct {
     char *tt_name;
@@ -88,7 +88,10 @@ static internal_tt_info_t tt_info[] = {
     {"^=", false},
     {"<<=", false},
     {">>=", false}, // 80
-    {"eof", false}, // 81
+#ifdef C4M_DEV
+    {"print", false},
+#endif
+    {"eof", false}, // 81 / 82
 };
 
 c4m_utf8_t *
@@ -681,6 +684,9 @@ init_keywords()
     add_keyword("switch", c4m_tt_switch);
     add_keyword("infinity", c4m_tt_float_lit);
     add_keyword("NaN", c4m_tt_float_lit);
+#ifdef C4M_DEV
+    add_keyword("print", c4m_tt_print);
+#endif
 
     c4m_gc_register_root(&keywords, 1);
 }

@@ -353,56 +353,47 @@ list_repr(flexarray_t *list, to_str_use_t how)
 const c4m_vtable_t c4m_list_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)c4m_list_init,
-        (c4m_vtable_entry)list_repr,
-        NULL,
-        NULL, // no finalizer
-        (c4m_vtable_entry)c4m_list_marshal,
-        (c4m_vtable_entry)c4m_list_unmarshal,
-        (c4m_vtable_entry)list_can_coerce_to,
-        (c4m_vtable_entry)list_coerce_to,
-        NULL, // From lit,
-        (c4m_vtable_entry)list_copy,
-        (c4m_vtable_entry)flexarray_add,
-        NULL, // Subtract
-        NULL, // Mul
-        NULL, // Div
-        NULL, // MOD
-        NULL, // EQ
-        NULL, // LT
-        NULL, // GT
-        (c4m_vtable_entry)flexarray_len,
-        (c4m_vtable_entry)list_get,
-        (c4m_vtable_entry)list_set,
-        (c4m_vtable_entry)list_get_slice,
-        (c4m_vtable_entry)list_set_slice,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_list_init,
+        [C4M_BI_TO_STR]      = (c4m_vtable_entry)list_repr,
+        [C4M_BI_FORMAT]      = (c4m_vtable_entry)c4m_list_marshal,
+        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_list_unmarshal,
+        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)list_can_coerce_to,
+        [C4M_BI_COERCIBLE]   = (c4m_vtable_entry)list_coerce_to,
+        [C4M_BI_COPY]        = (c4m_vtable_entry)list_copy,
+        [C4M_BI_ADD]         = (c4m_vtable_entry)flexarray_add,
+        [C4M_BI_LEN]         = (c4m_vtable_entry)flexarray_len,
+        [C4M_BI_INDEX_GET]   = (c4m_vtable_entry)list_get,
+        [C4M_BI_INDEX_SET]   = (c4m_vtable_entry)list_set,
+        [C4M_BI_SLICE_GET]   = (c4m_vtable_entry)list_get_slice,
+        [C4M_BI_SLICE_SET]   = (c4m_vtable_entry)list_set_slice,
+        [C4M_BI_VIEW]        = (c4m_vtable_entry)flexarray_view,
     },
 };
 
 const c4m_vtable_t c4m_queue_vtable = {
     .num_entries = 1,
     .methods     = {
-        (c4m_vtable_entry)c4m_queue_init,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_queue_init,
     },
 };
 
 const c4m_vtable_t c4m_ring_vtable = {
     .num_entries = 1,
     .methods     = {
-        (c4m_vtable_entry)c4m_ring_init,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_ring_init,
     },
 };
 
 const c4m_vtable_t c4m_logring_vtable = {
     .num_entries = 1,
     .methods     = {
-        (c4m_vtable_entry)c4m_logring_init,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_logring_init,
     },
 };
 
 const c4m_vtable_t c4m_stack_vtable = {
     .num_entries = 1,
     .methods     = {
-        (c4m_vtable_entry)c4m_stack_init,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_stack_init,
     },
 };

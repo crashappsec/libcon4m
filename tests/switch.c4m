@@ -20,11 +20,11 @@ switch x {
     if (y > 16) {
        break
     }
-    
+
     case b:
        y = 1 + x
     case c:
-       y = 100 + x
+       y = x + 100 + x
     else:
         y = -1
         z = 2

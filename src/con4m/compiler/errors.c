@@ -1073,6 +1073,12 @@ static error_info_t error_info[] = {
         "This function has control paths where no return value is set.",
         false,
     },
+    [c4m_err_const_not_provided] = {
+        c4m_err_const_not_provided,
+        "const_not_provided",
+        "[em]{}[/] is declared [i]const[/], but no value was provided.",
+        true,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",

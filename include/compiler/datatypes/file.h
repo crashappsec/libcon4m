@@ -24,12 +24,12 @@ typedef struct c4m_file_compile_ctx {
     // is provided. The URI fields are optional (via API you can just
     // pass raw source as long as you give at least a module name).
 
-    uint64_t                module_id;
+    uint64_t                module_id;       // Module hash.
+    c4m_str_t              *module;          // Module name.
     c4m_str_t              *authority;       // http/s only.
     c4m_str_t              *path;            // Fully qualified path
     c4m_str_t              *provided_path;   // Provided in use statement.
     c4m_str_t              *package;         // Package name.
-    c4m_str_t              *module;          // Module name.
     c4m_utf32_t            *raw;             // raw contents before lex pass.
     c4m_xlist_t            *tokens;          // an xlist of x4m_token_t objects;
     c4m_tree_node_t        *parse_tree;
@@ -47,7 +47,6 @@ typedef struct c4m_file_compile_ctx {
     c4m_zmodule_info_t     *module_object;
     c4m_xlist_t            *call_patch_locs;
     int32_t                 static_size;
-    c4m_buf_t              *static_data;
     uint32_t                num_params;
     uint16_t                local_module_id;
     unsigned int            fatal_errors : 1;

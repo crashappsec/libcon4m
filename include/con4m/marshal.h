@@ -47,6 +47,18 @@ c4m_unmarshal_i8(c4m_stream_t *s)
 }
 
 static inline void
+c4m_marshal_u8(uint8_t n, c4m_stream_t *s)
+{
+    c4m_marshal_i8((int8_t)n, s);
+}
+
+static inline uint8_t
+c4m_unmarshal_u8(c4m_stream_t *s)
+{
+    return (uint8_t)c4m_unmarshal_i8(s);
+}
+
+static inline void
 c4m_marshal_bool(bool value, c4m_stream_t *s)
 {
     c4m_marshal_i8(value ? 1 : 0, s);
@@ -92,18 +104,6 @@ static inline uint16_t
 c4m_unmarshal_u16(c4m_stream_t *s)
 {
     return (uint16_t)c4m_unmarshal_i16(s);
-}
-
-static inline void
-c4m_marshal_u8(uint8_t n, c4m_stream_t *s)
-{
-    c4m_marshal_i8((int8_t)n, s);
-}
-
-static inline uint8_t
-c4m_unmarshal_u8(c4m_stream_t *s)
-{
-    return (uint8_t)c4m_unmarshal_i64(s);
 }
 
 static inline c4m_buf_t *

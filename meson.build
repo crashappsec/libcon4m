@@ -107,6 +107,8 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/compiler/check_pass.c',
             'src/con4m/compiler/memory_layout.c',
             'src/con4m/compiler/codegen.c',
+            'src/con4m/compiler/disasm.c',
+            'src/con4m/compiler/objgen.c',
             ]
 
 hat_primary = ['src/hatrack/support/hatrack_common.c',

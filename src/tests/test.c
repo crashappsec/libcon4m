@@ -703,6 +703,20 @@ test_compiler()
             return;
         }
 
+        c4m_vm_t *vm = c4m_generate_code(ctx);
+
+        for (int i = 0; i < c4m_xlist_len(ctx->module_ordering); i++) {
+            c4m_zmodule_info_t *m;
+            m = c4m_xlist_get(vm->obj->module_contents, i, NULL);
+            c4m_print(c4m_disasm(vm, m));
+            c4m_print(c4m_cstr_format("Module [em]{}[/] disassembly done.",
+                                      m->path));
+        }
+
+        c4m_print(c4m_rich_lit("[h6]****STARTING PROGRAM EXECUTION*****[/]"));
+        c4m_vmthread_t *thread = c4m_vmthread_new(vm);
+        c4m_vmthread_run(thread);
+        c4m_print(c4m_rich_lit("[h6]****PROGRAM EXECUTION FINISHED*****[/]\n"));
         // TODO: We need to mark unlocked types with sub-variables at some point,
         // so they don't get clobbered.
         //

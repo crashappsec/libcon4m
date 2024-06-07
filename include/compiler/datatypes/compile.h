@@ -24,7 +24,7 @@ typedef struct {
     // and will me mprotect()'d.
     c4m_dict_t           *instance_map;
     c4m_dict_t           *str_map;
-    int64_t               const_memoid;
+    int64_t               const_memoid; // Must start at 1.
     // index for which the next marshaled (non-value) const will go.
     int32_t               const_instantiation_id;
     // offset index for the next statically allocated object we add.

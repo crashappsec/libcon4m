@@ -391,6 +391,30 @@ c4m_flags_slice(c4m_flags_t *self, int64_t start, int64_t end)
 }
 #endif
 
+static inline c4m_type_t *
+flags_item_type(c4m_obj_t ignore)
+{
+    return c4m_tspec_bit();
+}
+
+// For iterating over other container types, we just take a pointer to
+// memory and a length, which is what we get from hatrack's views.
+//
+// Because indexing into a bit field is a bit more complicated
+// (advancing a pointer one bit doesn't make sense), we avoid
+// duplicating the code in the code generator, and just accept that
+// views based on data types with single-bit items are going to use
+// the index interface.
+
+static inline void *
+flags_view(c4m_flags_t *self, uint64_t *n)
+{
+    c4m_flags_t *copy = c4m_flags_copy(self);
+    *n                = copy->num_flags;
+
+    return copy;
+}
+
 const c4m_vtable_t c4m_flags_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
@@ -406,6 +430,8 @@ const c4m_vtable_t c4m_flags_vtable = {
         [C4M_BI_LEN]          = (c4m_vtable_entry)c4m_flags_len,
         [C4M_BI_INDEX_GET]    = (c4m_vtable_entry)c4m_flags_index,
         [C4M_BI_INDEX_SET]    = (c4m_vtable_entry)c4m_flags_set_index,
+        [C4M_BI_ITEM_TYPE]    = (c4m_vtable_entry)flags_item_type,
+        [C4M_BI_VIEW]         = (c4m_vtable_entry)flags_view,
 #if 0
         [C4M_BI_SLICE_GET]    = (c4m_vtable_entry)c4m_flags_slice,
         [C4M_BI_SLICE_SET]    = (c4m_vtable_entry)c4m_flags_set_slice,

@@ -42,23 +42,47 @@ c4m_layout_string_const(c4m_compile_ctx *cctx,
     instance_id = (int64_t)hatrack_dict_get(cctx->str_map, s, &found);
 
     if (found == false) {
+        c4m_marshal_u8(0, cctx->const_stream);
         c4m_sub_marshal(s,
                         cctx->const_stream,
                         cctx->const_memos,
                         &cctx->const_memoid);
+
         instance_id = cctx->const_instantiation_id++;
 
-        c4m_marshal_i32((int32_t)instance_id, cctx->const_stream);
         hatrack_dict_put(cctx->instance_map, s, (void *)instance_id);
         hatrack_dict_put(cctx->str_map, s, (void *)instance_id);
     }
 
-    return instance_id * 8;
+    return instance_id;
 }
 
 uint32_t
-c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj)
+_c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
 {
+    va_list args;
+
+    va_start(args, obj);
+
+    c4m_file_compile_ctx *fctx = va_arg(args, c4m_file_compile_ctx *);
+    c4m_tree_node_t      *loc  = NULL;
+    c4m_utf8_t           *name = NULL;
+
+    if (fctx != NULL) {
+        loc  = va_arg(args, c4m_tree_node_t *);
+        name = va_arg(args, c4m_utf8_t *);
+    }
+
+    va_end(args);
+
+    // Sym is only needed if there's an error, which there shouldn't
+    // be when used internally during codegen. In those cases sym wil
+    // be NULL, which should be totally fine.
+    if (!obj) {
+        c4m_add_error(fctx, c4m_err_const_not_provided, loc, name);
+        return 0;
+    }
+
     bool        found;
     uint32_t    result;
     int64_t     id;
@@ -66,9 +90,9 @@ c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj)
     c4m_type_t *objtype = c4m_get_my_type(obj);
 
     if (c4m_type_is_value_type(objtype)) {
-        result = c4m_stream_get_location(cctx->const_stream);
-        c4m_marshal_i64((int64_t)obj, cctx->const_stream);
-        return result;
+        c4m_marshal_u8(1, cctx->const_stream);
+        c4m_marshal_u64(*(uint64_t *)obj, cctx->const_stream);
+        return cctx->const_instantiation_id++;
     }
 
     switch (objtype->typeid) {
@@ -88,10 +112,12 @@ c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj)
         }
         break;
     default:
+        c4m_marshal_u8(0, cctx->const_stream);
         break;
     }
 
     hatrack_dict_get(cctx->const_memos, obj, &found);
+
     if (found) {
         id = (int64_t)hatrack_dict_get(cctx->instance_map, obj, NULL);
         return (8 * (int32_t)id);
@@ -102,19 +128,22 @@ c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj)
                     cctx->const_memos,
                     &cctx->const_memoid);
 
-    id     = cctx->const_instantiation_id++;
-    result = (int32_t)(8 * id);
-
-    c4m_marshal_i32((int32_t)id, cctx->const_stream);
-    hatrack_dict_put(cctx->instance_map, obj, (void *)id);
+    result = cctx->const_instantiation_id++;
+    hatrack_dict_put(cctx->instance_map, obj, (void *)(uint64_t)result);
 
     return result;
 }
 
 static inline void
-c4m_layout_const_value(c4m_compile_ctx *cctx, c4m_scope_entry_t *sym)
+c4m_layout_const_value(c4m_compile_ctx      *cctx,
+                       c4m_file_compile_ctx *fctx,
+                       c4m_scope_entry_t    *sym)
 {
-    sym->static_offset = c4m_layout_const_obj(cctx, sym->value);
+    sym->static_offset = c4m_layout_const_obj(cctx,
+                                              sym->value,
+                                              fctx,
+                                              sym->declaration_node,
+                                              sym->name);
 }
 
 static void
@@ -139,14 +168,22 @@ layout_static(c4m_compile_ctx      *cctx,
         switch (sym->kind) {
         case sk_enum_val:
             if (c4m_tspecs_are_compat(sym->type, c4m_tspec_utf8())) {
-                c4m_layout_const_obj(cctx, sym);
+                c4m_layout_const_obj(cctx,
+                                     sym->value,
+                                     fctx,
+                                     sym->declaration_node,
+                                     sym->name);
             }
             break;
         case sk_variable:
-            // We might someday allow references to consts vars, so go
+            // We might someday allow references to const vars, so go
             // ahead and stick them in static data always.
-            if (sym->flags & C4M_F_DECLARED_CONST) {
-                c4m_layout_const_obj(cctx, sym);
+            if (c4m_sym_is_declared_const(sym)) {
+                c4m_layout_const_obj(cctx,
+                                     sym->value,
+                                     fctx,
+                                     sym->declaration_node,
+                                     sym->name);
                 break;
             }
             // For now, just lay everything in the world out as
