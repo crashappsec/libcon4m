@@ -9,11 +9,13 @@ project('libcon4m', 'c',
 cc              = meson.get_compiler('c')
 incdir          = include_directories('include')
 using_osx       = false
-glibc_check       = '''
-#ifndef __GLIBC__
-#error NO GLIBC   
-'''
 
+glibc_check = '''
+#include <stdio.h>
+#ifndef __GLIBC__
+#error NO GLIBC
+#endif
+'''
 if cc.compiles(glibc_check)
   using_glibc = true
 else
@@ -23,8 +25,7 @@ endif
 c_args        = ['-Wextra',
                  '-g',
                  '-Wno-unused-parameter',
-                 '-Wno-cast-function-type',
-                 '-Wno-unused-value']
+                 '-Wno-cast-function-type']
 
 if (host_machine.system() == 'darwin')
   using_osx  = true
@@ -33,23 +34,22 @@ if (host_machine.system() == 'darwin')
 else
   using_osx = false
   link_args = []
-  c_args    = c_args + ['-D_POSIX_SOURCE',
-                        '-D_GNU_SOURCE',
-                        '-Wno-builtin-declaration-mismatch'
-                       ]
+  c_args    = c_args + ['-D_GNU_SOURCE']
   
 endif
 
 exe_link_args = link_args + ['-flto', '-w']
 exe_c_args    = c_args + ['-DHATRACK_REFERENCE_ALGORITHMS']
 
-fpty_code = '''#include <pty.h>
+fpty_code = '''
+#include <stddef.h>
+#include <pty.h>
 
-void func() { forkpty(NULL, NULL, NULL, NULL;) }
+int main(void) { forkpty(NULL, NULL, NULL, NULL); return 0; }
 '''
 
 if cc.links(fpty_code, name: 'forkpty_check')
-  add_project_arguments('-DHAVE_PTY_H')
+  add_project_arguments('-DHAVE_PTY_H', language: 'c')
 endif
 
 c4m_src  = ['src/con4m/style.c',
@@ -169,11 +169,10 @@ utf8proc = dependency('libutf8proc')
 
 deps     = [unibreak, utf8proc, threads, ffi, ssl, crypto]
 opts     = [math]
-all_deps = deps + opts
-
 if using_glibc
   opts   = opts + [cc.find_library('atomic')]
 endif
+all_deps = deps + opts
 
 libc4m   = static_library('con4m',
                           lib_src,

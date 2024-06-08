@@ -70,8 +70,7 @@ add_offset(char   **optr,
     }                                      \
     else {                                 \
         *outptr++ = *lineptr;              \
-    }                                      \
-    *lineptr++
+    }
 
 char *
 c4m_hexl(void    *ptr,
