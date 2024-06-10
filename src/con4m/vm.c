@@ -41,7 +41,7 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
     }
 
     C4M_STATIC_ASCII_STR(module_prefix, "module ");
-    C4M_STATIC_ASCII_STR(line_prefix, "line ");
+    C4M_STATIC_ASCII_STR(line_prefix, ":");
 
     c4m_stream_write_object(f, (c4m_obj_t)module_prefix, false);
     c4m_stream_write_object(f, tstate->current_module->modname, false);
@@ -257,9 +257,19 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
     case C4M_BI_TO_STR:
         STACK_REQUIRE_VALUES(1);
 
+        obj = c4m_to_str(tstate->sp->rvalue.obj,
+                         tstate->sp->rvalue.type_info);
+
+        tstate->sp->rvalue = (c4m_value_t){
+            .obj       = obj,
+            .type_info = c4m_get_my_type(obj),
+        };
+        return;
+    case C4M_BI_REPR:
+        STACK_REQUIRE_VALUES(1);
+
         obj = c4m_repr(tstate->sp->rvalue.obj,
-                       tstate->sp->rvalue.type_info,
-                       C4M_REPR_VALUE);
+                       tstate->sp->rvalue.type_info);
 
         tstate->sp->rvalue = (c4m_value_t){
             .obj       = obj,
@@ -510,6 +520,29 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         tstate->sp += 4;
         return;
 
+        // Note: we pass the full container type through the type field;
+        // we assume the item type is a tuple of the items types, decaying
+        // to the actual item type if only one item.
+    case C4M_BI_CONTAINER_LIT:
+        do {
+            uint64_t     n  = tstate->sp[0].uint;
+            c4m_type_t  *ct = i->type_info;
+            c4m_xlist_t *xl;
+
+            ++tstate->sp;
+
+            xl = c4m_new(ct, c4m_kw("length", c4m_ka(n)));
+
+            while (n--) {
+                c4m_xlist_set(xl, n, tstate->sp[0].rvalue.obj);
+                ++tstate->sp;
+            }
+
+            --tstate->sp;
+            tstate->sp[0].rvalue.obj = c4m_container_literal(ct, xl, NULL);
+        } while (0);
+        return;
+
         // Nim version has others, but they're missing from c4m_builtin_type_fn
         // FIDiv, FFDiv, FShl, FShr, FBand, FBor, FBxor, FDictIndex, FAssignDIx,
         // FContainerLit
@@ -522,7 +555,6 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         // At least some of of these should be added to libcon4m as well,
         // but doing that is going to touch a lot of things, so it should be
         // done later, probably best done in a PR all on its own
-
     case C4M_BI_CONSTRUCTOR:
     case C4M_BI_MARSHAL:
     case C4M_BI_UNMARSHAL:
@@ -814,6 +846,12 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
 
                 tstate->sp[0].sint -= rhs.sint;
                 break;
+            case C4M_ZSubNoPop:
+                STACK_REQUIRE_VALUES(2);
+                STACK_REQUIRE_SLOTS(1);
+                --tstate->sp;
+                tstate->sp[0].sint = tstate->sp[2].sint - tstate->sp[1].sint;
+                break;
             case C4M_ZMul:
                 STACK_REQUIRE_VALUES(2);
                 rhs.sint = tstate->sp[0].sint;
@@ -905,6 +943,33 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZNot:
                 STACK_REQUIRE_VALUES(1);
                 tstate->sp->uint = !c4m_value_iszero(&tstate->sp->rvalue);
+                break;
+            case C4M_ZAbs:
+                STACK_REQUIRE_VALUES(1);
+                do {
+                    // Done w/o a branch; since value is signed,
+                    // when we shift right, if it's negative, we sign
+                    // extend to all ones. Meaning, we end up with
+                    // either 64 ones or 64 zeros.
+                    //
+                    // Then, if we DO flip the sign, we need to add back 1;
+                    // if we don't, we add back in 0.
+                    int64_t  value = (int64_t)tstate->sp->uint;
+                    uint64_t tmp   = value >> 63;
+                    value ^= tmp;
+                    value += tmp & 1;
+                    tstate->sp->uint = (uint64_t)value;
+                } while (0);
+                break;
+            case C4M_ZGetSign:
+                STACK_REQUIRE_VALUES(1);
+                do {
+                    // Here, we get tmp to the point where it's either -1
+                    // or 0, then OR in a 1, which will do nothing to -1,
+                    // and will turn the 0 to 1.
+                    tstate->sp->sint >>= 63;
+                    tstate->sp->sint |= 1;
+                } while (0);
                 break;
             case C4M_ZHalt:
                 C4M_JUMP_TO_TRY_END();
@@ -1113,6 +1178,16 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     uint64_t v2 = (tstate->sp + 1)->uint;
                     --tstate->sp;
                     tstate->sp->uint = (uint64_t)(v2 >= v1);
+                } while (0);
+                break;
+            case C4M_ZCmpNoPop:
+                STACK_REQUIRE_VALUES(2);
+                STACK_REQUIRE_SLOTS(1);
+                do {
+                    uint64_t v1 = tstate->sp->uint;
+                    uint64_t v2 = (tstate->sp + 1)->uint;
+                    --tstate->sp;
+                    tstate->sp->uint = (uint64_t)(v2 == v1);
                 } while (0);
                 break;
             case C4M_ZUnsteal:

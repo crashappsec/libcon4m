@@ -88,10 +88,11 @@ static internal_tt_info_t tt_info[] = {
     {"^=", false},
     {"<<=", false},
     {">>=", false}, // 80
+    {"lock", false},
 #ifdef C4M_DEV
     {"print", false},
 #endif
-    {"eof", false}, // 81 / 82
+    {"eof", false},
 };
 
 c4m_utf8_t *
@@ -238,11 +239,16 @@ handle_lit_mod(lex_state_t *state)
         advance(state);
     }
 
-    size_t       n        = (size_t)(state->pos - lm_start);
+    size_t n = (size_t)(state->pos - lm_start);
+
     c4m_token_t *tok      = state->last_token;
-    tok->literal_modifier = c4m_new(c4m_tspec_utf32(),
-                                    c4m_kw("length", c4m_ka(n)));
-    state->start          = state->pos;
+    tok->literal_modifier = c4m_to_utf8(
+        c4m_new(c4m_tspec_utf32(),
+                c4m_kw("length",
+                       c4m_ka(n),
+                       "codepoints",
+                       c4m_ka(lm_start))));
+    state->start = state->pos;
 }
 
 static inline void
@@ -263,6 +269,7 @@ fill_lex_error(lex_state_t *state, c4m_compile_error_t code)
     c4m_xlist_append(state->ctx->errors, err);
 }
 
+#if 0
 static inline void
 scan_unquoted_literal(lex_state_t *state)
 {
@@ -281,6 +288,7 @@ scan_unquoted_literal(lex_state_t *state)
         }
     }
 }
+#endif
 
 static void
 scan_int_or_float_literal(lex_state_t *state)
@@ -657,11 +665,11 @@ init_keywords()
     add_keyword("nil", c4m_tt_nil);
     add_keyword("in", c4m_tt_in);
     add_keyword("var", c4m_tt_var);
-    add_keyword("global", c4m_tt_global);
-    add_keyword("once", c4m_tt_once);
     add_keyword("let", c4m_tt_let);
-    add_keyword("private", c4m_tt_private);
     add_keyword("const", c4m_tt_const);
+    add_keyword("global", c4m_tt_global);
+    add_keyword("private", c4m_tt_private);
+    add_keyword("once", c4m_tt_once);
     add_keyword("is", c4m_tt_cmp);
     add_keyword("and", c4m_tt_and);
     add_keyword("or", c4m_tt_or);
@@ -683,6 +691,7 @@ init_keywords()
     add_keyword("typeof", c4m_tt_typeof);
     add_keyword("switch", c4m_tt_switch);
     add_keyword("infinity", c4m_tt_float_lit);
+    add_keyword("lock", c4m_tt_lock);
     add_keyword("NaN", c4m_tt_float_lit);
 #ifdef C4M_DEV
     add_keyword("print", c4m_tt_print);
@@ -969,7 +978,7 @@ line_comment:
             TOK(c4m_tt_semi);
             continue;
         case ':':
-            if (peek(state) == '=') {
+            /*  if (peek(state) == '=') {
                 advance(state);
                 TOK(c4m_tt_assign);
                 state->start           = state->pos;
@@ -978,8 +987,9 @@ line_comment:
                 scan_unquoted_literal(state);
             }
             else {
-                TOK(c4m_tt_colon);
-            }
+            */
+            TOK(c4m_tt_colon);
+            //            }
             continue;
         case '=':
             if (peek(state) == '=') {

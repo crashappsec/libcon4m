@@ -83,6 +83,7 @@ typedef enum {
     c4m_tt_bit_xor_eq,
     c4m_tt_shl_eq,
     c4m_tt_shr_eq,
+    c4m_tt_lock,
 #ifdef C4M_DEV
     c4m_tt_print,
 #endif
@@ -93,7 +94,8 @@ typedef struct {
     struct c4m_file_compile_ctx *module;
     c4m_codepoint_t             *start_ptr;
     c4m_codepoint_t             *end_ptr;
-    c4m_utf32_t                 *literal_modifier;
+    c4m_utf8_t                  *literal_modifier;
+    c4m_lit_syntax_t             syntax;
     void                        *literal_value; // Once parsed.
     c4m_token_kind_t             kind;
     int                          token_id;

@@ -29,6 +29,7 @@ typedef struct {
     // This is a bit field that keeps track of which items are themselves
     // partially evaluated.
     uint64_t        *cached_state;
+    c4m_utf8_t      *litmod;
     c4m_obj_t       *items;
     c4m_tree_node_t *node;
 } c4m_partial_lit_t;

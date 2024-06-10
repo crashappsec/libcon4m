@@ -16,6 +16,8 @@ typedef struct {
     c4m_zmodule_info_t   *cur_module;
     target_info_t        *target_info;
     int                   instruction_counter;
+    int                   current_stack_offset;
+    int                   max_stack_size;
     bool                  lvalue;
 } gen_ctx;
 
@@ -148,6 +150,12 @@ gen_apply_waiting_patches(gen_ctx *ctx, c4m_control_info_t *ci)
     }
 }
 
+static inline void
+gen_tcall(gen_ctx *ctx, c4m_builtin_type_fn fn, c4m_type_t *t)
+{
+    emit(ctx, C4M_ZTCall, c4m_kw("arg", c4m_ka(fn), "type", c4m_ka(t)));
+}
+
 // Two operands have been pushed onto the stack. But if it's a primitive
 // type, we want to generate a raw ZCmp; otherwise, we want to generate
 // a polymorphic tcall.
@@ -159,9 +167,7 @@ gen_equality_test(gen_ctx *ctx, c4m_type_t *operand_type)
         emit(ctx, C4M_ZCmp);
     }
     else {
-        emit(ctx,
-             C4M_ZTCall,
-             c4m_kw("arg", c4m_ka(C4M_BI_EQ), "type", c4m_ka(operand_type)));
+        gen_tcall(ctx, C4M_BI_EQ, operand_type);
     }
 }
 
@@ -182,20 +188,47 @@ gen_equality_test(gen_ctx *ctx, c4m_type_t *operand_type)
 #define GEN_JZ_NOPOP(user_code)  JMP_TEMPLATE(gen_jz, user_code, false)
 #define GEN_JNZ_NOPOP(user_code) JMP_TEMPLATE(gen_jnz, user_code, false)
 
+static inline void
+set_stack_offset(gen_ctx *ctx, c4m_scope_entry_t *sym)
+{
+    sym->static_offset = ctx->current_stack_offset++;
+    if (ctx->current_stack_offset > ctx->max_stack_size) {
+        ctx->max_stack_size = ctx->current_stack_offset;
+    }
+}
+
+static void
+gen_load_immediate(gen_ctx *ctx, int64_t value)
+{
+    emit(ctx, C4M_ZPushImm, c4m_kw("immediate", c4m_ka(value)));
+}
+
 // TODO: when we add refs, these should change the types written to
 // indicate the item on the stack is a ref to a particular type.
 //
 // For now, they just indicate tspec_ref().
 
-static inline uint32_t
+static inline void
 gen_load_const_obj(gen_ctx *ctx, c4m_obj_t obj)
 {
+    c4m_type_t *type = c4m_get_my_type(obj);
+
+    if (c4m_tspec_is_box(type)) {
+        gen_load_immediate(ctx, c4m_unbox(obj));
+        return;
+    }
+
+    if (c4m_type_is_value_type(type)) {
+        gen_load_immediate(ctx, (uint64_t)obj);
+        return;
+    }
+
     uint32_t offset = c4m_layout_const_obj(ctx->cctx, obj);
 
     emit(ctx,
          C4M_ZPushConstObj,
-         c4m_kw("arg", c4m_ka(offset), "type", c4m_ka(c4m_get_my_type(obj))));
-    return offset;
+         c4m_kw("arg", c4m_ka(offset), "type", c4m_ka(type)));
+    return;
 }
 
 static void
@@ -365,12 +398,6 @@ gen_bail(gen_ctx *ctx, c4m_utf8_t *s)
     emit(ctx, C4M_ZBail);
 }
 
-static void
-gen_load_immediate(gen_ctx *ctx, int64_t value)
-{
-    emit(ctx, C4M_ZPushImm, c4m_kw("immediate", c4m_ka(value)));
-}
-
 static bool
 gen_label(gen_ctx *ctx, c4m_utf8_t *s)
 {
@@ -382,12 +409,6 @@ gen_label(gen_ctx *ctx, c4m_utf8_t *s)
     emit(ctx, C4M_ZNop, c4m_kw("arg", c4m_ka(1), "immediate", c4m_ka(offset)));
 
     return true;
-}
-
-static void
-gen_tcall(gen_ctx *ctx, c4m_builtin_type_fn arg)
-{
-    emit(ctx, C4M_ZTCall, c4m_kw("arg", c4m_ka(arg)));
 }
 
 static inline void
@@ -412,6 +433,14 @@ gen_one_kid(gen_ctx *ctx, int n)
     gen_one_node(ctx);
 
     ctx->cur_node = saved;
+}
+
+static inline void
+possible_restore_from_r3(gen_ctx *ctx, bool restore)
+{
+    if (restore) {
+        emit(ctx, C4M_ZPushFromR3);
+    }
 }
 
 // Helpers above, implementations below.
@@ -446,7 +475,7 @@ gen_param_via_default_ref_type(gen_ctx                 *ctx,
     c4m_type_t *t      = c4m_get_my_type(param->default_value);
 
     GEN_JNZ(gen_load_const_by_offset(ctx, offset, t);
-            gen_tcall(ctx, C4M_BI_COPY);
+            gen_tcall(ctx, C4M_BI_COPY, t);
             gen_sym_store(ctx, sym, true));
 }
 
@@ -750,50 +779,56 @@ gen_index_var_init(gen_ctx *ctx, c4m_loop_info_t *li)
 {
     if (li->loop_ix && c4m_xlist_len(li->loop_ix->sym_uses) > 0) {
         li->gen_ix = 1;
+        set_stack_offset(ctx, li->loop_ix);
     }
     if (li->named_loop_ix && c4m_xlist_len(li->named_loop_ix->sym_uses) > 0) {
         li->gen_named_ix = 1;
+        if (!li->gen_ix) {
+            set_stack_offset(ctx, li->named_loop_ix);
+        }
     }
 
     if (!(li->gen_ix | li->gen_named_ix)) {
         return false;
     }
 
+    if (li->gen_ix && li->gen_named_ix) {
+        assert(li->loop_ix == li->named_loop_ix);
+    }
+
     gen_load_immediate(ctx, 0);
 
-    // DO NOT POP THE COUNTER; leave it on the stack.
-    if (li->gen_ix) {
-        gen_sym_store(ctx, li->loop_ix, false);
-    }
-    if (li->gen_named_ix) {
-        gen_sym_store(ctx, li->named_loop_ix, false);
-    }
-
+    // The value gets stored to the symbol at the beginning of the loop.
     return true;
 }
 
 static inline void
 gen_len_var_init(gen_ctx *ctx, c4m_loop_info_t *li)
 {
+    c4m_scope_entry_t *sym = NULL;
+
     if (li->loop_last && c4m_xlist_len(li->loop_last->sym_uses) > 0) {
-        gen_sym_store(ctx, li->loop_last, false);
+        sym = li->loop_last;
     }
     if (li->named_loop_last && c4m_xlist_len(li->named_loop_last->sym_uses) > 0) {
-        gen_sym_store(ctx, li->named_loop_last, false);
+        if (sym != NULL) {
+            assert(sym == li->named_loop_last);
+        }
+        else {
+            sym = li->named_loop_last;
+        }
     }
+
+    set_stack_offset(ctx, sym);
+    gen_sym_store(ctx, sym, false);
 }
 
-static inline void
+static inline bool
 gen_index_var_increment(gen_ctx *ctx, c4m_loop_info_t *li)
 {
     if (!(li->gen_ix | li->gen_named_ix)) {
-        return;
+        return false;
     }
-
-    // Index var would be on the stack here; the add will clobber it,
-    // making this a +=.
-    gen_load_immediate(ctx, 1);
-    emit(ctx, C4M_ZAdd);
 
     if (li->gen_ix) {
         gen_sym_store(ctx, li->loop_ix, false);
@@ -801,6 +836,11 @@ gen_index_var_increment(gen_ctx *ctx, c4m_loop_info_t *li)
     if (li->gen_named_ix) {
         gen_sym_store(ctx, li->named_loop_ix, false);
     }
+    // Index var would be on the stack here; the add will clobber it,
+    // making this a +=.
+    gen_load_immediate(ctx, 1);
+    emit(ctx, C4M_ZAdd);
+    return true;
 }
 
 static inline void
@@ -845,6 +885,77 @@ deal_with_iteration_count(gen_ctx         *ctx,
 static inline void
 gen_ranged_for(gen_ctx *ctx, c4m_loop_info_t *li)
 {
+    c4m_jump_info_t ji_top = {
+        .linked_control_structure = &li->branch_info,
+        .top                      = true,
+    };
+    // In a ranged for, the left value got pushed on, then the right
+    // value. So if it's 0 .. 10, and we call subtract to calculate the
+    // length, we're going to be computing 0 - 10, not the opposite.
+    // So we first swap the two numbers.
+    emit(ctx, C4M_ZSwap);
+    // Subtract the 2 numbers now, but DO NOT POP; we need these.
+    emit(ctx, C4M_ZSubNoPop);
+
+    bool calc_last       = false;
+    bool calc_named_last = false;
+
+    if (li->loop_last && c4m_xlist_len(li->loop_last->sym_uses) > 0) {
+        calc_last = true;
+    }
+    if (li->named_loop_last && c4m_xlist_len(li->named_loop_last->sym_uses) > 0) {
+        calc_named_last = true;
+    }
+    if (calc_last || calc_named_last) {
+        emit(ctx, C4M_ZDupTop);
+        emit(ctx, C4M_ZAbs);
+
+        if (calc_last && calc_named_last) {
+            emit(ctx, C4M_ZDupTop);
+        }
+
+        if (calc_last) {
+            gen_sym_store(ctx, li->loop_last, true);
+        }
+        if (calc_named_last) {
+            gen_sym_store(ctx, li->named_loop_last, true);
+        }
+    }
+    // Now, we have the number of iterations on top, but we actually
+    // want this to be either 1 or -1, depending on what we have to add
+    // to the count for each loop. So we use a magic instruction to
+    // convert the difference into a 1 or -1.
+    emit(ctx, C4M_ZGetSign);
+    //
+    // Now our loop is set up, with the exception of any possible iteration
+    // variable. When we're using one, we'll leave it on top of the stack.
+    gen_index_var_init(ctx, li);
+
+    // Now we're ready for the loop!
+    set_loop_entry_point(ctx, li);
+    bool using_index = gen_index_var_increment(ctx, li);
+    if (using_index) {
+        emit(ctx, C4M_ZPopToR3);
+    }
+    // pop the step for a second.
+    emit(ctx, C4M_ZPopToR1);
+    // If the two items are equal, we bail from the loop.
+    emit(ctx, C4M_ZCmpNoPop);
+
+    // Pop the step back to add it;
+    // Store a copy of the result w/o popping.
+    // Then push the step back on,
+    // And, if it's being used, the $i from R3.
+
+    GEN_JNZ(gen_sym_store(ctx, li->lvar_1, false);
+            emit(ctx, C4M_ZPushFromR1);
+            emit(ctx, C4M_ZAdd);
+            emit(ctx, C4M_ZPushFromR1);
+            possible_restore_from_r3(ctx, using_index);
+            gen_one_kid(ctx, ctx->cur_node->num_kids - 1);
+            gen_j(ctx, &ji_top));
+    gen_apply_waiting_patches(ctx, &li->branch_info);
+    emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-3)));
 }
 
 static inline void
@@ -856,7 +967,7 @@ gen_container_for(gen_ctx *ctx, c4m_loop_info_t *li)
     };
     // In between iterations we will push these items on...
     //   sp     -------> Size of container
-    //   sp + 1 -------> Iteration count (stack pointer)
+    //   sp + 1 -------> Iteration count
     //   sp + 2 -------> Number of bytes in the item; we will
     //                   advance the view this many bytes each
     //                   iteration (except, see below).
@@ -919,7 +1030,7 @@ gen_container_for(gen_ctx *ctx, c4m_loop_info_t *li)
     // though in most cases it should be no problem to bind to the
     // right approach statically.
 
-    emit(ctx, C4M_ZTCall, c4m_kw("arg", c4m_ka(C4M_BI_VIEW)));
+    gen_tcall(ctx, C4M_BI_VIEW, NULL);
     // The length of the container is on top right now; the view is
     // underneath.  We want to store a copy to $len if appropriate,
     // and then pop to a register 2, to work on the pointer. We'll
@@ -982,13 +1093,18 @@ gen_container_for(gen_ctx *ctx, c4m_loop_info_t *li)
 static inline void
 gen_for(gen_ctx *ctx)
 {
-    int              expr_ix = 0;
-    c4m_loop_info_t *li      = ctx->cur_pnode->extra_info;
+    int              expr_ix     = 0;
+    c4m_loop_info_t *li          = ctx->cur_pnode->extra_info;
+    int              saved_stack = ctx->current_stack_offset;
 
     if (gen_label(ctx, li->branch_info.label)) {
         expr_ix++;
     }
 
+    set_stack_offset(ctx, li->lvar_1);
+    if (li->lvar_2) {
+        set_stack_offset(ctx, li->lvar_2);
+    }
     // Load either the range or the container we're iterating over.
     gen_one_kid(ctx, expr_ix + 1);
 
@@ -998,18 +1114,21 @@ gen_for(gen_ctx *ctx)
     else {
         gen_container_for(ctx, li);
     }
+
+    ctx->current_stack_offset = saved_stack;
 }
 
 static inline void
 gen_while(gen_ctx *ctx)
 {
-    int              expr_ix = 0;
-    c4m_tree_node_t *n       = ctx->cur_node;
-    c4m_pnode_t     *pnode   = get_pnode(n);
-    c4m_loop_info_t *li      = pnode->extra_info;
-    c4m_jump_info_t  ji_top  = {
-          .linked_control_structure = &li->branch_info,
-          .top                      = true,
+    int              saved_stack = ctx->current_stack_offset;
+    int              expr_ix     = 0;
+    c4m_tree_node_t *n           = ctx->cur_node;
+    c4m_pnode_t     *pnode       = get_pnode(n);
+    c4m_loop_info_t *li          = pnode->extra_info;
+    c4m_jump_info_t  ji_top      = {
+              .linked_control_structure = &li->branch_info,
+              .top                      = true,
     };
 
     gen_index_var_init(ctx, li);
@@ -1032,6 +1151,7 @@ gen_while(gen_ctx *ctx)
            gen_j(ctx, &ji_top));
     gen_apply_waiting_patches(ctx, &li->branch_info);
     gen_index_var_cleanup(ctx, li);
+    ctx->current_stack_offset = saved_stack;
 }
 
 static inline void
@@ -1190,6 +1310,67 @@ gen_print(gen_ctx *ctx)
 }
 #endif
 
+// Note that if not all values are folded, then there will be sub-items,
+// and individual values will always be boxed.
+//
+// But if all values are folded, then the item will test as not partial
+// and we can emit it directly.
+static void
+gen_process_partial_part(gen_ctx *ctx, c4m_obj_t lit)
+{
+    if (!c4m_is_partial_lit(lit)) {
+        if (c4m_type_is_value_type(c4m_get_my_type(lit))) {
+            gen_load_immediate(ctx, c4m_unbox_obj(lit).i64);
+        }
+        else {
+            gen_load_const_obj(ctx, lit);
+            gen_tcall(ctx, C4M_BI_COPY, c4m_get_my_type(lit));
+        }
+        return;
+    }
+
+    c4m_partial_lit_t *partial  = lit;
+    c4m_xlist_t       *typelist = partial->type->details->items;
+
+    if (c4m_xlist_len(typelist) == 1) {
+        for (int i = 0; i < partial->num_items; i++) {
+            gen_process_partial_part(ctx, partial->items[i]);
+        }
+
+        // We push the number of items so that the VM handler knows how
+        // many arguments to pop. Note that we push the items backwards,
+        // so the handler will have to preallocate the right number of
+        // items, so this has two uses.
+        gen_load_immediate(ctx, partial->num_items);
+        // Push the type of the container to instantiate.
+        gen_tcall(ctx, C4M_BI_CONTAINER_LIT, partial->type);
+        return;
+    }
+
+    // We need to convert each set of items into a tuple object.
+    c4m_type_t *ttype = c4m_tspec_tuple_from_xlist(typelist);
+    int         ilen  = c4m_xlist_len(typelist);
+
+    for (int i = 0; i < partial->num_items;) {
+        for (int j = 0; j < c4m_xlist_len(typelist); j++) {
+            gen_process_partial_part(ctx, partial->items[i++]);
+        }
+
+        gen_load_immediate(ctx, ilen);
+        gen_tcall(ctx, C4M_BI_CONTAINER_LIT, ttype);
+    }
+
+    gen_load_immediate(ctx, partial->num_items / ilen);
+    gen_tcall(ctx, C4M_BI_CONTAINER_LIT, partial->type);
+}
+
+static inline void
+gen_partial_literal(gen_ctx *ctx)
+{
+    c4m_obj_t lit = ctx->cur_pnode->value;
+    gen_process_partial_part(ctx, c4m_fold_partial(ctx->cctx, lit));
+}
+
 static void
 gen_one_node(gen_ctx *ctx)
 {
@@ -1261,11 +1442,20 @@ gen_one_node(gen_ctx *ctx)
         gen_print(ctx);
         break;
 #endif
-    case c4m_nt_index:
+    case c4m_nt_lit_list:
+    case c4m_nt_lit_dict:
+    case c4m_nt_lit_set:
+    case c4m_nt_lit_empty_dict_or_set:
+    case c4m_nt_lit_tuple:
+    case c4m_nt_lit_unquoted:
+    case c4m_nt_lit_callback:
+    case c4m_nt_lit_tspec:
+        gen_partial_literal(ctx);
+        break;
     case c4m_nt_assign:
+    case c4m_nt_index:
     case c4m_nt_binary_assign_op:
     case c4m_nt_unary_op:
-    case c4m_nt_enum_item:
     case c4m_nt_func_def:
     case c4m_nt_func_mods:
     case c4m_nt_func_mod:
@@ -1276,14 +1466,6 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_variable_decls:
     case c4m_nt_use:
     case c4m_nt_expression:
-    case c4m_nt_lit_list:
-    case c4m_nt_lit_dict:
-    case c4m_nt_lit_set:
-    case c4m_nt_lit_empty_dict_or_set:
-    case c4m_nt_lit_tuple:
-    case c4m_nt_lit_unquoted:
-    case c4m_nt_lit_callback:
-    case c4m_nt_lit_tspec:
     case c4m_nt_attr_set_lock:
     case c4m_nt_return:
         // Many of the above will need their own bodies.
@@ -1332,6 +1514,7 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_extern_allocs:
     case c4m_nt_extern_return:
     case c4m_nt_enum:
+    case c4m_nt_enum_item:
     case c4m_nt_global_enum:
         break;
     }
@@ -1372,13 +1555,13 @@ gen_module_code(gen_ctx *ctx)
     // Also need to do a bit of work aorund sym_types, codesyms, datasyms
     // and parameters.
 
+    ctx->current_stack_offset = ctx->fctx->static_size;
+    ctx->max_stack_size       = ctx->fctx->static_size;
     gen_one_node(ctx);
-
     emit(ctx, C4M_ZModuleRet);
 
-    module->init_size = ctx->instruction_counter * sizeof(c4m_zinstruction_t);
-
-    module->module_var_size = ctx->fctx->static_size;
+    module->module_var_size = ctx->max_stack_size;
+    module->init_size       = ctx->instruction_counter * sizeof(c4m_zinstruction_t);
 
     c4m_xlist_t *symlist = ctx->fctx->fn_def_syms;
     int          n       = c4m_xlist_len(symlist);

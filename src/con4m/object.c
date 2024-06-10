@@ -442,6 +442,14 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .typeid  = C4M_T_BIT,
         .dt_kind = C4M_DT_KIND_internal,
     },
+    [C4M_T_BOX] = {
+        .name     = "box",
+        .typeid   = C4M_T_BOX,
+        .dt_kind  = C4M_DT_KIND_object,
+        .ptr_info = NULL,
+        .vtable   = &c4m_box_vtable,
+        .hash_fn  = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+    },
 };
 
 c4m_obj_t
@@ -454,7 +462,8 @@ _c4m_new(c4m_type_t *type, ...)
     uint64_t         alloc_len = tinfo->alloc_len + sizeof(c4m_obj_t);
     c4m_vtable_entry init_fn   = tinfo->vtable->methods[C4M_BI_CONSTRUCTOR];
 
-    obj = c4m_gc_raw_alloc(alloc_len, (uint64_t *)tinfo->ptr_info);
+    type = c4m_global_resolve_type(type);
+    obj  = c4m_gc_raw_alloc(alloc_len, (uint64_t *)tinfo->ptr_info);
 
     obj->base_data_type = tinfo;
     obj->concrete_type  = type;
@@ -468,6 +477,7 @@ _c4m_new(c4m_type_t *type, ...)
     case C4M_DT_KIND_list:
     case C4M_DT_KIND_dict:
     case C4M_DT_KIND_tuple:
+    case C4M_DT_KIND_object:
         if (init_fn != NULL) {
             va_start(args, type);
             (*init_fn)(result, args);
@@ -490,34 +500,65 @@ c4m_gc_ptr_info(c4m_builtin_t dtid)
 }
 
 c4m_str_t *
-c4m_value_obj_repr(c4m_obj_t obj)
+c4m_repr(void *item, c4m_type_t *t)
 {
-    // This does NOT work on direct values.
-    c4m_repr_fn ptr = (c4m_repr_fn)c4m_vtable(obj)->methods[C4M_BI_TO_STR];
-    if (!ptr) {
-        c4m_type_t *t = c4m_get_my_type(obj);
-        uint64_t    x = c4m_tspec_get_data_type_info(t)->typeid;
+    uint64_t    x = c4m_tspec_get_data_type_info(t)->typeid;
+    c4m_repr_fn p;
 
-        return c4m_cstr_format("{}@{:x}",
-                               c4m_new_utf8(c4m_base_type_info[x].name),
-                               c4m_box_u64((uint64_t)obj));
+    p = (c4m_repr_fn)c4m_base_type_info[x].vtable->methods[C4M_BI_REPR];
+
+    if (!p) {
+        p = (c4m_repr_fn)c4m_base_type_info[x].vtable->methods[C4M_BI_TO_STR];
+
+        if (!p) {
+            return c4m_cstr_format("{}@{:x}",
+                                   c4m_new_utf8(c4m_base_type_info[x].name),
+                                   c4m_box_u64((uint64_t)item));
+        }
     }
-    return (*ptr)(obj, C4M_REPR_VALUE);
+
+    return (*p)(item);
 }
 
 c4m_str_t *
-c4m_repr(void *item, c4m_type_t *t, to_str_use_t how)
+c4m_value_obj_repr(c4m_obj_t obj)
 {
-    uint64_t    x = c4m_tspec_get_data_type_info(t)->typeid;
-    c4m_repr_fn p = (c4m_repr_fn)c4m_base_type_info[x].vtable->methods[C4M_BI_TO_STR];
+    c4m_type_t *t = c4m_get_my_type(obj);
 
-    if (!p) {
-        return c4m_cstr_format("{}@{:x}",
-                               c4m_new_utf8(c4m_base_type_info[x].name),
-                               c4m_box_u64((uint64_t)item));
+    if (c4m_type_is_value_type(t)) {
+        return c4m_repr(c4m_unbox_obj(obj).v, t);
     }
 
-    return (*p)(item, how);
+    return c4m_repr(obj, t);
+}
+
+c4m_str_t *
+c4m_value_obj_to_str(c4m_obj_t obj)
+{
+    c4m_type_t *t = c4m_get_my_type(obj);
+
+    return c4m_to_str(obj, t);
+}
+
+c4m_str_t *
+c4m_to_str(void *item, c4m_type_t *t)
+{
+    uint64_t    x = c4m_tspec_get_data_type_info(t)->typeid;
+    c4m_repr_fn p;
+
+    p = (c4m_repr_fn)c4m_base_type_info[x].vtable->methods[C4M_BI_TO_STR];
+
+    if (!p) {
+        p = (c4m_repr_fn)c4m_base_type_info[x].vtable->methods[C4M_BI_REPR];
+
+        if (!p) {
+            return c4m_cstr_format("{}@{:x}",
+                                   c4m_new_utf8(c4m_base_type_info[x].name),
+                                   c4m_box_u64((uint64_t)item));
+        }
+    }
+
+    return (*p)(item);
 }
 
 c4m_obj_t
@@ -842,4 +883,24 @@ c4m_get_view(c4m_obj_t obj, uint64_t *n_items)
     uint64_t obj_as_int = (uint64_t)obj;
 
     return (*ptr)((void *)(size_bits | obj_as_int), n_items);
+}
+
+c4m_obj_t
+c4m_container_literal(c4m_type_t *t, c4m_xlist_t *items, c4m_utf8_t *mod)
+{
+    c4m_dt_info_t       *info = c4m_tspec_get_data_type_info(t);
+    c4m_vtable_t        *vtbl = (c4m_vtable_t *)info->vtable;
+    c4m_container_lit_fn ptr;
+
+    ptr = (c4m_container_lit_fn)vtbl->methods[C4M_BI_CONTAINER_LIT];
+
+    if (ptr == NULL) {
+        ptr = (c4m_container_lit_fn)vtbl->methods[C4M_BI_FROM_LITERAL];
+
+        if (ptr == NULL) {
+            C4M_CRAISE("Improper implementation; no literal fn defined.");
+        }
+    }
+
+    return (*ptr)(t, items, mod);
 }

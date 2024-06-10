@@ -907,8 +907,8 @@ loop_push_ix_var(pass2_ctx *ctx, c4m_loop_info_t *li)
                                             ctx->local_scope,
                                             ix_var_name);
 
-    li->loop_ix->type = c4m_tspec_u32();
-    li->loop_ix->flags |= C4M_F_USER_IMMUTIBLE;
+    li->loop_ix->type = c4m_tspec_i64();
+    li->loop_ix->flags |= C4M_F_USER_IMMUTIBLE | C4M_F_DECLARED_CONST;
 
     add_def(ctx, li->loop_ix, false);
 
@@ -930,8 +930,8 @@ loop_push_ix_var(pass2_ctx *ctx, c4m_loop_info_t *li)
         li->named_loop_ix       = c4m_add_inferred_symbol(ctx->file_ctx,
                                                     ctx->local_scope,
                                                     li->label_ix);
-        li->named_loop_ix->type = c4m_tspec_u32();
-        li->named_loop_ix->flags |= C4M_F_USER_IMMUTIBLE;
+        li->named_loop_ix->type = c4m_tspec_i64();
+        li->named_loop_ix->flags |= C4M_F_USER_IMMUTIBLE | C4M_F_DECLARED_CONST;
 
         add_def(ctx, li->named_loop_ix, false);
     }
@@ -1095,6 +1095,10 @@ handle_for(pass2_ctx *ctx)
     c4m_pnode_t *container_pnode = get_pnode(ctx->node);
     base_check_pass_dispatch(ctx);
 
+    if (container_pnode->kind == c4m_nt_range) {
+        li->ranged = true;
+    }
+
     // Now we start the loop's CFG block. The flow graph will evaluate
     // this part every time we get back to the top of the loop.  We
     // actually skip adding a 'use' here for the container (as if we
@@ -1147,8 +1151,8 @@ handle_for(pass2_ctx *ctx)
     li->loop_last = c4m_add_or_replace_symbol(ctx->file_ctx,
                                               ctx->local_scope,
                                               last_var_name);
-    li->loop_last->flags |= C4M_F_USER_IMMUTIBLE;
-    li->loop_last->type = c4m_tspec_u32();
+    li->loop_last->flags |= C4M_F_USER_IMMUTIBLE | C4M_F_DECLARED_CONST;
+    li->loop_last->type = c4m_tspec_i64();
 
     add_def(ctx, li->loop_last, true);
 
@@ -1159,7 +1163,7 @@ handle_for(pass2_ctx *ctx)
         li->named_loop_last       = c4m_add_inferred_symbol(ctx->file_ctx,
                                                       ctx->local_scope,
                                                       li->label_last);
-        li->named_loop_last->type = c4m_tspec_u32();
+        li->named_loop_last->type = c4m_tspec_i64();
         li->named_loop_last->flags |= C4M_F_USER_IMMUTIBLE;
 
         add_def(ctx, li->named_loop_last, false);
@@ -1832,7 +1836,12 @@ static void
 check_literal(pass2_ctx *ctx)
 {
     // Right now, we don't try to fold sub-items.
-    c4m_pnode_t *pnode = get_pnode(ctx->node);
+    c4m_pnode_t *pnode  = get_pnode(ctx->node);
+    c4m_str_t   *litmod = pnode->extra_info;
+
+    if (litmod != NULL) {
+        litmod = c4m_to_utf8(litmod);
+    }
 
     if (!c4m_is_partial_lit(pnode->value)) {
         pnode->type = c4m_get_my_type(pnode->value);
@@ -1841,8 +1850,17 @@ check_literal(pass2_ctx *ctx)
         c4m_partial_lit_t *partial = (c4m_partial_lit_t *)pnode->value;
 
         c4m_calculate_partial_type(ctx, partial);
-        pnode->type = partial->type;
+        pnode->type     = partial->type;
+        partial->litmod = litmod;
     }
+
+    // TODO:
+    //
+    // Right now, for containers, we don't look at litmods until we're
+    // generating code for the literal.
+    //
+    // We need to do that here, and we need to do whatever casting is
+    // needed.
 }
 
 static void

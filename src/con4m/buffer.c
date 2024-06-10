@@ -139,40 +139,46 @@ c4m_buffer_resize(c4m_buf_t *buffer, uint64_t new_sz)
 static char to_hex_map[] = "0123456789abcdef";
 
 static c4m_utf8_t *
-buffer_repr(c4m_buf_t *buf, to_str_use_t how)
+buffer_to_str(c4m_buf_t *buf)
 {
     c4m_utf8_t *result;
 
-    if (how == C4M_REPR_QUOTED) {
-        result  = c4m_new(c4m_tspec_utf8(),
-                         c4m_kw("length", c4m_ka(buf->byte_len * 4 + 2)));
-        char *p = result->data;
+    result  = c4m_new(c4m_tspec_utf8(),
+                     c4m_kw("length", c4m_ka(buf->byte_len * 2)));
+    char *p = result->data;
 
-        *p++ = '"';
-
-        for (int i = 0; i < buf->byte_len; i++) {
-            char c = buf->data[i];
-            *p++   = '\\';
-            *p++   = 'x';
-            *p++   = to_hex_map[(c >> 4)];
-            *p++   = to_hex_map[c & 0x0f];
-        }
-        *p++ = '"';
+    for (int i = 0; i < buf->byte_len; i++) {
+        uint8_t c = ((uint8_t *)buf->data)[i];
+        *p++      = to_hex_map[(c >> 4)];
+        *p++      = to_hex_map[c & 0x0f];
     }
-    else {
-        result  = c4m_new(c4m_tspec_utf8(),
-                         c4m_kw("length", c4m_ka(buf->byte_len * 2)));
-        char *p = result->data;
 
-        for (int i = 0; i < buf->byte_len; i++) {
-            uint8_t c = ((uint8_t *)buf->data)[i];
-            *p++      = to_hex_map[(c >> 4)];
-            *p++      = to_hex_map[c & 0x0f];
-        }
+    result->codepoints = p - result->data;
+    result->byte_len   = result->codepoints;
 
-        result->codepoints = p - result->data;
-        result->byte_len   = result->codepoints;
+    return result;
+}
+
+static c4m_utf8_t *
+buffer_repr(c4m_buf_t *buf)
+{
+    c4m_utf8_t *result;
+
+    result  = c4m_new(c4m_tspec_utf8(),
+                     c4m_kw("length", c4m_ka(buf->byte_len * 4 + 2)));
+    char *p = result->data;
+
+    *p++ = '"';
+
+    for (int i = 0; i < buf->byte_len; i++) {
+        char c = buf->data[i];
+        *p++   = '\\';
+        *p++   = 'x';
+        *p++   = to_hex_map[(c >> 4)];
+        *p++   = to_hex_map[c & 0x0f];
     }
+    *p++ = '"';
+
     return result;
 }
 
@@ -523,7 +529,8 @@ const c4m_vtable_t c4m_buffer_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)buffer_init,
-        [C4M_BI_TO_STR]       = (c4m_vtable_entry)buffer_repr,
+        [C4M_BI_REPR]         = (c4m_vtable_entry)buffer_repr,
+        [C4M_BI_TO_STR]       = (c4m_vtable_entry)buffer_to_str,
         [C4M_BI_MARSHAL]      = (c4m_vtable_entry)c4m_buffer_marshal,
         [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)c4m_buffer_unmarshal,
         [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)buffer_can_coerce_to,

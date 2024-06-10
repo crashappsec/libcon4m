@@ -387,8 +387,7 @@ lookup_arg_strings(c4m_fmt_info_t *specs, c4m_dict_t *args)
             s = c4m_to_utf8(fn(obj, &info->spec));
         }
         else {
-            s = c4m_to_utf8(
-                c4m_repr(obj, c4m_object_type(obj), C4M_REPR_VALUE));
+            s = c4m_to_utf8(c4m_to_str(obj, c4m_object_type(obj)));
         }
 
         s = apply_padding_and_alignment(s, &info->spec);

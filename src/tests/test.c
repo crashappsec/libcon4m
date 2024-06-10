@@ -359,7 +359,7 @@ table_test()
 
     c4m_grid_t *flow = c4m_grid_flow(3, g, ul, ol);
     c4m_grid_add_cell(flow, test1);
-    c4m_ansi_render(c4m_value_obj_repr(flow), sout);
+    c4m_ansi_render(c4m_value_obj_to_str(flow), sout);
 }
 
 void
@@ -804,35 +804,41 @@ main(int argc, char **argv, char **envp)
     {
         c4m_install_default_styles();
         c4m_terminal_dimensions(&term_width, NULL);
-        c4m_ansi_render_to_width(str_test, term_width, 0, sout);
-        test_rand64();
-        // Test basic string and single threaded GC.
-        test1();
-        // style1 = apply_bg_color(style1, "alice blue");
-        c4m_str_t *to_slice = test2();
-        test3(to_slice);
-        to_slice = NULL;
-        test4();
-        table_test();
 
-        printf("Sample style: %.16llx\n", (unsigned long long)style1);
-        sha_test();
+        if (argc == 1) {
+            c4m_ansi_render_to_width(str_test, term_width, 0, sout);
+            test_rand64();
+            // Test basic string and single threaded GC.
+            test1();
+            // style1 = apply_bg_color(style1, "alice blue");
+            c4m_str_t *to_slice = test2();
+            test3(to_slice);
+            to_slice = NULL;
+            test4();
+            table_test();
 
-        type_tests();
-        c4m_stream_tests();
-        marshal_test();
-        // marshal_test2();
-        create_dict_lit();
-        c4m_rich_lit_test();
-        c4m_print(c4m_box_u32((int32_t)-1));
-        c4m_print(c4m_box_i32((int32_t)-1));
+            printf("Sample style: %.16llx\n", (unsigned long long)style1);
+            sha_test();
 
-        test_format();
-        test_path();
+            type_tests();
+            c4m_stream_tests();
+            marshal_test();
+            // marshal_test2();
+            create_dict_lit();
+            c4m_rich_lit_test();
+            c4m_print(c4m_box_u32((int32_t)-1));
+            c4m_print(c4m_box_i32((int32_t)-1));
+
+            test_format();
+            test_path();
+        }
         test_compiler();
-        C4M_STATIC_ASCII_STR(local_test, "Goodbye!");
-        c4m_print((c4m_obj_t *)local_test);
-        C4M_CRAISE("Except maybe not!");
+        if (argc == 1) {
+            // C4M_STATIC_ASCII_STR(local_test, "Goodbye!");
+            // c4m_print((c4m_obj_t *)local_test);
+            c4m_print((c4m_obj_t *)c4m_new_utf8("Goodbye!"));
+            C4M_CRAISE("Except maybe not!");
+        }
     }
     C4M_EXCEPT
     {
@@ -841,7 +847,9 @@ main(int argc, char **argv, char **envp)
         C4M_JUMP_TO_TRY_END();
     }
     C4M_TRY_END;
-    c4m_stream_puts(serr, "This theoretically should run.\n");
+    if (argc == 1) {
+        c4m_stream_puts(serr, "This theoretically should run.\n");
+    }
 
 #ifdef STACK_SCAN_TEST
     c4m_get_stack_scan_region(&top, &bottom);

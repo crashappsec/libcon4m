@@ -1,0 +1,23 @@
+for i in 5 to 10 {
+    print i
+}
+
+print "---"
+
+for i in 5 to 10 {
+    print $i
+}
+
+print "---"
+
+for i in 5 to 10 {
+    print $last
+}
+
+print "---"
+
+for i in 100 to 105 {
+    #x = i - $i
+    print i - $i
+    print $last
+}

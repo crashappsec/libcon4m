@@ -40,7 +40,7 @@ c4m_flags_copy(const c4m_flags_t *self)
 }
 
 static c4m_utf8_t *
-flags_repr(const c4m_flags_t *self, to_str_use_t how)
+flags_repr(const c4m_flags_t *self)
 {
     C4M_STATIC_ASCII_STR(prefix, "0x{");
     C4M_STATIC_ASCII_STR(fmt_cons, ":{}x}");

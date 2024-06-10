@@ -390,12 +390,26 @@ c4m_set_disjunction(c4m_set_t *set1, c4m_set_t *set2)
     return ret;
 }
 
+static c4m_set_t *
+to_set_lit(c4m_type_t *objtype, c4m_xlist_t *items, c4m_utf8_t *litmod)
+{
+    c4m_set_t *result = c4m_new(objtype);
+    int        n      = c4m_xlist_len(items);
+
+    for (int i = 0; i < n; i++) {
+        hatrack_set_add(result, c4m_xlist_get(items, i, NULL));
+    }
+
+    return result;
+}
+
 const c4m_vtable_t c4m_set_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_set_init,
-        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_set_marshal,
-        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_set_unmarshal,
-        [C4M_BI_VIEW]        = (c4m_vtable_entry)c4m_set_items_sort,
+        [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)c4m_set_init,
+        [C4M_BI_MARSHAL]       = (c4m_vtable_entry)c4m_set_marshal,
+        [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_set_unmarshal,
+        [C4M_BI_VIEW]          = (c4m_vtable_entry)c4m_set_items_sort,
+        [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)to_set_lit,
     },
 };

@@ -14,6 +14,7 @@ extern c4m_type_t     *c4m_tspec_tree(c4m_type_t *);
 extern c4m_type_t     *c4m_tspec_queue(c4m_type_t *);
 extern c4m_type_t     *c4m_tspec_ring(c4m_type_t *);
 extern c4m_type_t     *c4m_tspec_stack(c4m_type_t *);
+extern c4m_type_t     *c4m_tspec_box(c4m_type_t *);
 extern c4m_type_t     *c4m_tspec_dict(c4m_type_t *, c4m_type_t *);
 extern c4m_type_t     *c4m_tspec_set(c4m_type_t *);
 extern c4m_type_t     *c4m_tspec_tuple(int64_t, ...);
@@ -550,6 +551,8 @@ c4m_tspec_is_int_type(c4m_type_t *t)
         return false;
     }
 
+    t = c4m_global_resolve_type(t);
+
     switch (t->typeid) {
     case C4M_T_I8:
     case C4M_T_BYTE:
@@ -571,6 +574,8 @@ c4m_tspec_is_signed(c4m_type_t *t)
         return false;
     }
 
+    t = c4m_global_resolve_type(t);
+
     switch (t->typeid) {
     case C4M_T_I8:
     case C4M_T_I32:
@@ -585,6 +590,7 @@ c4m_tspec_is_signed(c4m_type_t *t)
 static inline bool
 c4m_tspec_is_tvar(c4m_type_t *t)
 {
+    t = c4m_global_resolve_type(t);
     return (c4m_tspec_get_base(t) == C4M_DT_KIND_type_var);
 }
 
@@ -597,9 +603,19 @@ c4m_obj_is_int_type(const c4m_obj_t *obj)
 }
 
 static inline bool
+c4m_tspec_is_box(c4m_type_t *t)
+{
+    t = c4m_global_resolve_type(t);
+    return t->details->base_type->typeid == C4M_T_BOX;
+}
+
+static inline bool
 c4m_type_is_value_type(c4m_type_t *t)
 {
-    return c4m_tspec_get_data_type_info(t)->by_value;
+    t                 = c4m_global_resolve_type(t);
+    c4m_dt_info_t *dt = c4m_tspec_get_data_type_info(t);
+
+    return dt->by_value;
 }
 
 // Once we add objects, this will be a dynamic number.

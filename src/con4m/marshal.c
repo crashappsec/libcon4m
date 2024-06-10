@@ -133,7 +133,6 @@ c4m_marshal_compact_type(c4m_type_t *t, c4m_stream_t *s)
     case C4M_DT_KIND_primitive:
     case C4M_DT_KIND_internal:
     case C4M_DT_KIND_maybe:
-    case C4M_DT_KIND_object:
     case C4M_DT_KIND_oneof:
         return;
     case C4M_DT_KIND_type_var:
@@ -145,6 +144,7 @@ c4m_marshal_compact_type(c4m_type_t *t, c4m_stream_t *s)
     case C4M_DT_KIND_list:
     case C4M_DT_KIND_dict:
     case C4M_DT_KIND_tuple:
+    case C4M_DT_KIND_object:
         param_count = (uint16_t)c4m_len(t->details->items);
         c4m_marshal_u16(param_count, s);
         for (int i = 0; i < param_count; i++) {
@@ -168,7 +168,6 @@ c4m_unmarshal_compact_type(c4m_stream_t *s)
     case C4M_DT_KIND_primitive:
     case C4M_DT_KIND_internal:
     case C4M_DT_KIND_maybe:
-    case C4M_DT_KIND_object:
     case C4M_DT_KIND_oneof:
         result = c4m_get_builtin_type(base);
         return result;
@@ -187,6 +186,7 @@ c4m_unmarshal_compact_type(c4m_stream_t *s)
     case C4M_DT_KIND_list:
     case C4M_DT_KIND_dict:
     case C4M_DT_KIND_tuple:
+    case C4M_DT_KIND_object:
         param_count            = c4m_unmarshal_u16(s);
         result                 = c4m_new(c4m_tspec_typespec(), NULL, NULL, 1UL);
         result->typeid         = tid;

@@ -2,6 +2,7 @@
 
 typedef struct hatrack_set_st c4m_set_t;
 
+#include "con4m/datatypes/box.h"
 #include "con4m/datatypes/memory.h"
 #include "con4m/datatypes/kargs.h"
 #include "con4m/datatypes/literals.h"
@@ -37,7 +38,7 @@ typedef struct hatrack_set_st c4m_set_t;
 #include "compiler/datatypes/file.h"
 #include "compiler/datatypes/compile.h"
 
-typedef c4m_str_t *(*c4m_repr_fn)(c4m_obj_t, to_str_use_t);
+typedef c4m_str_t *(*c4m_repr_fn)(c4m_obj_t);
 typedef void (*c4m_marshal_fn)(c4m_obj_t,
                                c4m_stream_t *,
                                c4m_dict_t *,
@@ -58,9 +59,8 @@ typedef c4m_obj_t (*c4m_literal_fn)(c4m_utf8_t *,
                                     c4m_utf8_t *,
                                     c4m_compile_error_t *);
 typedef c4m_obj_t (*c4m_container_lit_fn)(c4m_type_t *,
-                                          c4m_obj_t,
-                                          c4m_lit_syntax_t,
-                                          char *);
+                                          c4m_xlist_t *,
+                                          c4m_utf8_t *);
 typedef c4m_str_t *(*c4m_format_fn)(c4m_obj_t, c4m_fmt_spec_t *);
 typedef c4m_type_t *(*c4m_ix_item_ty_fn)(c4m_type_t *);
 typedef void *(*c4m_view_fn)(c4m_obj_t, uint64_t *);

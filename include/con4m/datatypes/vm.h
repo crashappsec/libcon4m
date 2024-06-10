@@ -240,7 +240,10 @@ typedef enum : uint8_t {
     C4M_ZGte           = 0x47,
     C4M_ZNeq           = 0x48,
     // Do a GTE comparison without popping.
-    C4M_ZGteNoPop      = 0x4E,
+    C4M_ZGteNoPop      = 0x4D,
+    // Do an equality comparison without popping.
+    C4M_ZCmpNoPop      = 0x4E,
+
     // Mask out 3 bits from the top stack value; push them onto the stack.
     // Remove the bits from the pointer.
     //
@@ -253,52 +256,52 @@ typedef enum : uint8_t {
     //
     // Often we could know at compile time and generate code specific
     // to the size, but as a first pass this is easier.
-    C4M_ZUnsteal       = 0x4F,
+    C4M_ZUnsteal     = 0x4F,
     // Begin register ops.
-    C4M_ZPopToR1       = 0x50,
+    C4M_ZPopToR1     = 0x50,
     // Pushes the value in R1 onto the stack.
-    C4M_ZPushFromR1    = 0x51,
-    C4M_ZPopToR2       = 0x52,
-    C4M_ZPushFromR2    = 0x53,
-    C4M_ZPopToR3       = 0x54,
-    C4M_ZPushFromR3    = 0x55,
+    C4M_ZPushFromR1  = 0x51,
+    C4M_ZPopToR2     = 0x52,
+    C4M_ZPushFromR2  = 0x53,
+    C4M_ZPopToR3     = 0x54,
+    C4M_ZPushFromR3  = 0x55,
     // Exits the current call frame, returning the current state back to the
     // originating location, which is the instruction immediately following the
     // C4M_Z0Call instruction that created this frame.
-    C4M_ZRet           = 0x80,
+    C4M_ZRet         = 0x80,
     // Exits the current stack frame, returning the current state back to the
     // originating location, which is the instruction immediately following the
     // C4M_ZCallModule instruction that created this frame.
-    C4M_ZModuleRet     = 0x81,
+    C4M_ZModuleRet   = 0x81,
     // Halt the current program immediately.
-    C4M_ZHalt          = 0x82,
+    C4M_ZHalt        = 0x82,
     // Initialze module parameters. The number of parameters is encoded in the
     // instruction's arg field. This is only used during module initialization.
-    C4M_ZModuleEnter   = 0x83,
+    C4M_ZModuleEnter = 0x83,
     // Pops the top stack value and tests it. The value is expected to be either
     // a string or NULL. If it is a string and is not an empty string, it will
     // be used as an error message and evalutation will stop. This is basically
     // a specialized assert used during module initialization to validate
     // module parameters.
-    C4M_ZParamCheck    = 0x84,
+    C4M_ZParamCheck  = 0x84,
     // Load the return value register from the stack value at fp - 1.
-    C4M_ZSetRes        = 0x85,
+    C4M_ZSetRes      = 0x85,
     // Pushes the value stored in the return register onto the stack. The return
     // register is not cleared.
-    C4M_ZPushRes       = 0x86,
+    C4M_ZPushRes     = 0x86,
     // Adjust the stack pointer down by the amount encoded in the instruction's
     // arg field. This means specifically that the arg field is subtracted from
     // sp, so a single pop would encode -1 as the adjustment.
-    C4M_ZMoveSp        = 0x87,
+    C4M_ZMoveSp      = 0x87,
     // Test the top stack value. If it is non-zero, pop it and continue running
     // the program. Otherwise, print an assertion failure and stop running the
     // program.
-    C4M_ZAssert        = 0xA0,
+    C4M_ZAssert      = 0xA0,
     // Set the specified attribute to be "lock on write". Triggers an error if
     // the attribute is already set to lock on write. This instruction expects
     // the top stack value to be loaded via ZPushStaticPtr and does not pop it.
     // The attribute to lock is named according to the top stack value.
-    C4M_ZLockOnWrite   = 0xB0,
+    C4M_ZLockOnWrite = 0xB0,
     // Arithmetic and bitwise operators on 64-bit values; the two-arg
     // ones conceptually pop the right operand, then the left operand,
     // perform the operation, then push. But generally after the RHS
@@ -308,40 +311,49 @@ typedef enum : uint8_t {
     // Math operations have signed and unsigned variants. We can go from
     // signed to unsigned where it makes sense by adding 0x10.
     // Currently, we do not do this for bit ops, they are just all unsigned.
-
-    C4M_ZAdd  = 0xC0,
-    C4M_ZSub  = 0xC1,
-    C4M_ZMul  = 0xC2,
-    C4M_ZDiv  = 0xC3,
-    C4M_ZMod  = 0xC4,
-    C4M_ZBXOr = 0xC5,
-    C4M_ZShl  = 0xC6,
-    C4M_ZShr  = 0xC7,
-    C4M_ZBOr  = 0xC8,
-    C4M_ZBAnd = 0xC9,
-    C4M_ZBNot = 0xCA,
-
-    C4M_ZUAdd = 0xD0,
-    C4M_ZUSub = 0xD1,
-    C4M_ZUMul = 0xD2,
-    C4M_ZUDiv = 0xD3,
-    C4M_ZUMod = 0xD4,
-
-    // Versions that explicitly take an immediate on the RHS so we
-    // don't have to test for it.
-    C4M_ZShlI = 0xE0,
+    C4M_ZAdd         = 0xC0,
+    C4M_ZSub         = 0xC1,
+    C4M_ZMul         = 0xC2,
+    C4M_ZDiv         = 0xC3,
+    C4M_ZMod         = 0xC4,
+    C4M_ZBXOr        = 0xC5,
+    C4M_ZShl         = 0xC6,
+    C4M_ZShr         = 0xC7,
+    C4M_ZBOr         = 0xC8,
+    C4M_ZBAnd        = 0xC9,
+    C4M_ZBNot        = 0xCA,
+    C4M_ZUAdd        = 0xD0,
+    C4M_ZUSub        = 0xD1,
+    C4M_ZUMul        = 0xD2,
+    C4M_ZUDiv        = 0xD3,
+    C4M_ZUMod        = 0xD4,
     // Perform a logical not operation on the top stack value. If the value is
     // zero, it will be replaced with a one value of the same type. If the value
     // is non-zero, it will be replaced with a zero value of the same type.
-    C4M_ZNot  = 0xE1,
+    C4M_ZNot         = 0xE0,
+    C4M_ZAbs         = 0xE1,
+    // The rest of these mathy operators are less general purpose, and are
+    // just used to make our lives easier when generating code, so
+    // there's currently a lack of symmetry here.
+    //
+    // This version explicitly takes an immediate on the RHS so we
+    // don't have to test for it.
+    C4M_ZShlI        = 0xF0,
+    C4M_ZSubNoPop    = 0xF1,
+    // This one mostly computes abs(x) / x.
+    // The only difference is that it's well defined for 0, it returns
+    // 1 (0 is not a negative number).
+    // This is mostly used to generate the step for ranged loops; you
+    // can do for x in 10 to 0 to get 10 down to 1 (inclusive).
+    C4M_ZGetSign     = 0xF2,
+    // Print the error message that is the top value on the stack and stop
+    // running the program.
+    C4M_ZBail        = 0xFE,
+    // Nop does nothing.
+    C4M_ZNop         = 0xFF,
 #ifdef C4M_DEV
     C4M_ZPrint = 0xFD,
 #endif
-    // Print the error message that is the top value on the stack and stop
-    // running the program.
-    C4M_ZBail = 0xFE,
-    // Nop does nothing.
-    C4M_ZNop  = 0xFF,
 } c4m_zop_t;
 
 // We'll make the main VM container, c4m_vm_t an object type (C4M_T_VM) so that

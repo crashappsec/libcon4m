@@ -138,9 +138,8 @@ lock_existing_heap()
 {
     uint64_t to_lock       = (uint64_t)current_heap;
     uint64_t words_to_lock = ((uint64_t)(current_heap->next_alloc)) - to_lock;
-    c4m_gc_register_root((void *)to_lock, words_to_lock);
-    int b_to_lock = words_to_lock * 8;
-    b_to_lock     = c4m_round_up_to_given_power_of_2(getpagesize(), b_to_lock);
+    int      b_to_lock     = words_to_lock * 8;
+    b_to_lock              = c4m_round_up_to_given_power_of_2(getpagesize(), b_to_lock);
     mprotect((void *)to_lock, b_to_lock, PROT_READ);
 }
 

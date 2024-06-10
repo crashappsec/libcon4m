@@ -89,9 +89,10 @@ _c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
     c4m_str_t  *s;
     c4m_type_t *objtype = c4m_get_my_type(obj);
 
-    if (c4m_type_is_value_type(objtype)) {
+    if (c4m_type_is_value_type(objtype) || c4m_tspec_is_box(objtype)) {
         c4m_marshal_u8(1, cctx->const_stream);
-        c4m_marshal_u64(*(uint64_t *)obj, cctx->const_stream);
+
+        c4m_marshal_u64((uint64_t)obj, cctx->const_stream);
         return cctx->const_instantiation_id++;
     }
 
@@ -107,10 +108,7 @@ _c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
     case C4M_T_UTF32:
         s = obj;
 
-        if (!s->styling || s->styling->num_entries == 0) {
-            return c4m_layout_string_const(cctx, s);
-        }
-        break;
+        return c4m_layout_string_const(cctx, s);
     default:
         c4m_marshal_u8(0, cctx->const_stream);
         break;
@@ -132,18 +130,6 @@ _c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
     hatrack_dict_put(cctx->instance_map, obj, (void *)(uint64_t)result);
 
     return result;
-}
-
-static inline void
-c4m_layout_const_value(c4m_compile_ctx      *cctx,
-                       c4m_file_compile_ctx *fctx,
-                       c4m_scope_entry_t    *sym)
-{
-    sym->static_offset = c4m_layout_const_obj(cctx,
-                                              sym->value,
-                                              fctx,
-                                              sym->declaration_node,
-                                              sym->name);
 }
 
 static void

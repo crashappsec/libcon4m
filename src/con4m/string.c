@@ -1168,16 +1168,18 @@ c4m_rich(c4m_utf8_t *to_copy, c4m_utf8_t *style)
 }
 
 static c4m_str_t *
-c4m_str_repr(c4m_str_t *str, to_str_use_t how)
+c4m_str_repr(c4m_str_t *str)
 {
     // TODO: actually implement string quoting.
-    if (how == C4M_REPR_QUOTED) {
-        c4m_utf32_t *q = c4m_new(c4m_tspec_utf32(), c4m_kw("cstring", c4m_ka("\"")));
-        return c4m_str_concat(c4m_str_concat(q, str), q);
-    }
-    else {
-        return str;
-    }
+    c4m_utf32_t *q = c4m_new(c4m_tspec_utf32(),
+                             c4m_kw("cstring", c4m_ka("\"")));
+    return c4m_str_concat(c4m_str_concat(q, str), q);
+}
+
+static c4m_str_t *
+c4m_str_to_str(c4m_str_t *str)
+{
+    return str;
 }
 
 bool
@@ -1312,7 +1314,8 @@ const c4m_vtable_t c4m_u8str_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)utf8_init,
-        [C4M_BI_TO_STR]       = (c4m_vtable_entry)c4m_str_repr,
+        [C4M_BI_REPR]         = (c4m_vtable_entry)c4m_str_repr,
+        [C4M_BI_TO_STR]       = (c4m_vtable_entry)c4m_str_to_str,
         [C4M_BI_FORMAT]       = (c4m_vtable_entry)c4m_string_format,
         [C4M_BI_MARSHAL]      = (c4m_vtable_entry)c4m_string_marshal,
         [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)c4m_string_unmarshal,
@@ -1333,7 +1336,8 @@ const c4m_vtable_t c4m_u32str_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)utf32_init,
-        [C4M_BI_TO_STR]       = (c4m_vtable_entry)c4m_str_repr,
+        [C4M_BI_REPR]         = (c4m_vtable_entry)c4m_str_repr,
+        [C4M_BI_TO_STR]       = (c4m_vtable_entry)c4m_str_to_str,
         [C4M_BI_FORMAT]       = (c4m_vtable_entry)c4m_string_format,
         [C4M_BI_MARSHAL]      = (c4m_vtable_entry)c4m_string_marshal,
         [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)c4m_string_unmarshal,

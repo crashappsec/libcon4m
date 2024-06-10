@@ -230,11 +230,17 @@ const inst_info_t inst_info[256] = {
     [C4M_ZPopToR2] = {
         .name = "ZPopToR2",
     },
+    [C4M_ZPopToR3] = {
+        .name = "ZPopToR3",
+    },
     [C4M_ZPushFromR1] = {
         .name = "ZPushFromR1",
     },
     [C4M_ZPushFromR2] = {
         .name = "ZPushFromR2",
+    },
+    [C4M_ZPushFromR3] = {
+        .name = "ZPushFromR3",
     },
     [C4M_ZGteNoPop] = {
         .name = "ZGteNoPop",
@@ -251,6 +257,18 @@ const inst_info_t inst_info[256] = {
     },
     [C4M_ZUnbox] = {
         .name = "ZUnbox",
+    },
+    [C4M_ZSubNoPop] = {
+        .name = "ZSubNoPop",
+    },
+    [C4M_ZCmpNoPop] = {
+        .name = "ZCmpNoPop",
+    },
+    [C4M_ZAbs] = {
+        .name = "ZAbs",
+    },
+    [C4M_ZGetSign] = {
+        .name = "ZGetSign",
     },
 #ifdef C4M_DEV
     [C4M_ZPrint] = {
@@ -270,29 +288,31 @@ init_disasm()
         }
         c4m_gc_register_root(utf8_names, 256);
 
-        bi_fn_names[C4M_BI_TO_STR]       = c4m_new_utf8("__str__");
-        bi_fn_names[C4M_BI_FORMAT]       = c4m_new_utf8("__format__");
-        bi_fn_names[C4M_BI_FINALIZER]    = c4m_new_utf8("__final__");
-        bi_fn_names[C4M_BI_MARSHAL]      = c4m_new_utf8("__marshal__");
-        bi_fn_names[C4M_BI_UNMARSHAL]    = c4m_new_utf8("__unmarshal__");
-        bi_fn_names[C4M_BI_COERCIBLE]    = c4m_new_utf8("__can_cast__");
-        bi_fn_names[C4M_BI_COERCE]       = c4m_new_utf8("__cast__");
-        bi_fn_names[C4M_BI_FROM_LITERAL] = c4m_new_utf8("__parse_literal__");
-        bi_fn_names[C4M_BI_COPY]         = c4m_new_utf8("__copy__");
-        bi_fn_names[C4M_BI_ADD]          = c4m_new_utf8("__add__");
-        bi_fn_names[C4M_BI_SUB]          = c4m_new_utf8("__sub__");
-        bi_fn_names[C4M_BI_MUL]          = c4m_new_utf8("__mul__");
-        bi_fn_names[C4M_BI_DIV]          = c4m_new_utf8("__div__");
-        bi_fn_names[C4M_BI_MOD]          = c4m_new_utf8("__mod__");
-        bi_fn_names[C4M_BI_EQ]           = c4m_new_utf8("__eq__");
-        bi_fn_names[C4M_BI_LT]           = c4m_new_utf8("__lt__");
-        bi_fn_names[C4M_BI_GT]           = c4m_new_utf8("__gt__");
-        bi_fn_names[C4M_BI_LEN]          = c4m_new_utf8("__len__");
-        bi_fn_names[C4M_BI_INDEX_GET]    = c4m_new_utf8("__get_item__");
-        bi_fn_names[C4M_BI_INDEX_SET]    = c4m_new_utf8("__set_item__");
-        bi_fn_names[C4M_BI_SLICE_GET]    = c4m_new_utf8("__get_slice__");
-        bi_fn_names[C4M_BI_SLICE_SET]    = c4m_new_utf8("__set_slice__");
-        bi_fn_names[C4M_BI_VIEW]         = c4m_new_utf8("__view__");
+        bi_fn_names[C4M_BI_TO_STR]        = c4m_new_utf8("__str__");
+        bi_fn_names[C4M_BI_FORMAT]        = c4m_new_utf8("__format__");
+        bi_fn_names[C4M_BI_FINALIZER]     = c4m_new_utf8("__final__");
+        bi_fn_names[C4M_BI_MARSHAL]       = c4m_new_utf8("__marshal__");
+        bi_fn_names[C4M_BI_UNMARSHAL]     = c4m_new_utf8("__unmarshal__");
+        bi_fn_names[C4M_BI_COERCIBLE]     = c4m_new_utf8("__can_cast__");
+        bi_fn_names[C4M_BI_COERCE]        = c4m_new_utf8("__cast__");
+        bi_fn_names[C4M_BI_FROM_LITERAL]  = c4m_new_utf8("__parse_literal__");
+        bi_fn_names[C4M_BI_COPY]          = c4m_new_utf8("__copy__");
+        bi_fn_names[C4M_BI_ADD]           = c4m_new_utf8("__add__");
+        bi_fn_names[C4M_BI_SUB]           = c4m_new_utf8("__sub__");
+        bi_fn_names[C4M_BI_MUL]           = c4m_new_utf8("__mul__");
+        bi_fn_names[C4M_BI_DIV]           = c4m_new_utf8("__div__");
+        bi_fn_names[C4M_BI_MOD]           = c4m_new_utf8("__mod__");
+        bi_fn_names[C4M_BI_EQ]            = c4m_new_utf8("__eq__");
+        bi_fn_names[C4M_BI_LT]            = c4m_new_utf8("__lt__");
+        bi_fn_names[C4M_BI_GT]            = c4m_new_utf8("__gt__");
+        bi_fn_names[C4M_BI_LEN]           = c4m_new_utf8("__len__");
+        bi_fn_names[C4M_BI_INDEX_GET]     = c4m_new_utf8("__get_item__");
+        bi_fn_names[C4M_BI_INDEX_SET]     = c4m_new_utf8("__set_item__");
+        bi_fn_names[C4M_BI_SLICE_GET]     = c4m_new_utf8("__get_slice__");
+        bi_fn_names[C4M_BI_SLICE_SET]     = c4m_new_utf8("__set_slice__");
+        bi_fn_names[C4M_BI_VIEW]          = c4m_new_utf8("__view__");
+        bi_fn_names[C4M_BI_ITEM_TYPE]     = c4m_new_utf8("__item_type__");
+        bi_fn_names[C4M_BI_CONTAINER_LIT] = c4m_new_utf8("__parse_literal__");
     }
 }
 
@@ -311,11 +331,16 @@ fmt_builtin_fn(int64_t value)
 static c4m_obj_t
 value_to_object(c4m_vm_t *vm, uint64_t offset, c4m_type_t *t)
 {
+    if (t != NULL) {
+        t = c4m_global_resolve_type(t);
+    }
+
     if (t != NULL && c4m_type_is_value_type(t)) {
         uint64_t u = (uint64_t)vm->const_pool[offset].p;
         return c4m_box_obj((c4m_box_t)u, t);
     }
     else {
+        c4m_str_t *s = vm->const_pool[offset].p;
         return vm->const_pool[offset].p;
     }
 }
@@ -368,7 +393,8 @@ fmt_arg_or_imm_no_syms(c4m_vm_t *vm, c4m_zinstruction_t *instr, int i, bool imm)
     case fmt_label:
         return c4m_cstr_format("[h2]{}", value_to_object(vm, value, NULL));
     case fmt_tcall:
-        return c4m_cstr_format("builtin call of {}", fmt_builtin_fn(value));
+        return c4m_cstr_format("builtin call of [em]{}[/]",
+                               fmt_builtin_fn(value));
     }
 }
 

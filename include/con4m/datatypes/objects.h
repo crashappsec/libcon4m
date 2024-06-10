@@ -1,5 +1,4 @@
 #pragma once
-
 #include "con4m.h"
 
 typedef struct c4m_base_obj_t c4m_base_obj_t;
@@ -23,16 +22,6 @@ typedef enum {
 // size and know parameters in the vtable.
 typedef void (*c4m_vtable_entry)(c4m_obj_t *, va_list);
 typedef void (*c4m_container_init)(c4m_obj_t *, void *, va_list);
-
-typedef int64_t  i64_box;
-typedef uint64_t u64_box;
-typedef int32_t  i32_box;
-typedef uint32_t u32_box;
-typedef int16_t  i16_box;
-typedef uint16_t u16_box;
-typedef int8_t   i8_box;
-typedef uint8_t  u8_box;
-typedef double   double_box;
 
 typedef struct {
     uint64_t         num_entries;
@@ -133,6 +122,8 @@ typedef enum {
     // Returns the item type, given how the type is parameterized.
     C4M_BI_ITEM_TYPE,
     C4M_BI_VIEW, // Return a view on a container.
+    C4M_BI_CONTAINER_LIT,
+    C4M_BI_REPR,
     C4M_BI_NUM_FUNCS,
 } c4m_builtin_type_fn;
 
@@ -143,11 +134,6 @@ typedef enum : uint8_t {
     c4m_ix_item_sz_64_bits = 3,
     c4m_ix_item_sz_1_bit   = 0xff,
 } c4m_ix_item_sz_t;
-
-typedef enum {
-    C4M_REPR_VALUE,
-    C4M_REPR_QUOTED
-} to_str_use_t;
 
 typedef enum : int64_t {
     C4M_T_ERROR = 0,
@@ -201,5 +187,6 @@ typedef enum : int64_t {
     C4M_T_PARSE_NODE,
     C4M_T_PARTIAL_LIT,
     C4M_T_BIT,
+    C4M_T_BOX,
     C4M_NUM_BUILTIN_DTS
 } c4m_builtin_t;

@@ -3,30 +3,18 @@
 #include "con4m.h"
 
 static inline c4m_obj_t
-c4m_box_obj(c4m_box_t item, c4m_type_t *type)
+c4m_box_obj(c4m_box_t value, c4m_type_t *type)
 {
-    c4m_box_t *result = c4m_new(c4m_global_resolve_type(type));
-
-    switch (c4m_get_alloc_len(type)) {
-    case 1:
-        result->u8 = item.u8;
-        break;
-    case 2:
-        result->u16 = item.u16;
-        break;
-    case 4:
-        result->u32 = item.u32;
-        break;
-    case 8:
-        result->u64 = item.u64;
-        break;
-    default:
-        abort();
-    }
-
-    return result;
+    return c4m_new(c4m_tspec_box(c4m_global_resolve_type(type)), value);
 }
 
+// Safely dereference a boxed item, thus removing the box.
+// Since we're internally reserving 64 bits for values, we
+// return it as a 64 bit item.
+//
+// However, the allocated item allocated the actual item's size, so we
+// have to make sure to get it right on both ends; we can't just
+// dereference a uint64_t, for instance.
 static inline c4m_box_t
 c4m_unbox_obj(c4m_box_t *box)
 {
@@ -44,16 +32,15 @@ c4m_unbox_obj(c4m_box_t *box)
     case 4:
         result.u32 = box->u32;
         break;
-    case 8:
+    default:
         result.u64 = box->u64;
         break;
-    default:
-        abort();
     }
 
     return result;
 }
 
+// This just drops the union, which is not needed after the above.
 static inline uint64_t
 c4m_unbox(c4m_obj_t value)
 {
