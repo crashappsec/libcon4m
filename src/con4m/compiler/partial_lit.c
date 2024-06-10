@@ -72,7 +72,10 @@ c4m_fold_partial(c4m_compile_ctx *cctx, c4m_obj_t o)
     // Partial will be a parse tree node if it's not straightforward
     // to fold.
 
-    if (c4m_is_partial_lit(o)) {
+    switch (c4m_tspec_get_base_tid(c4m_get_my_type(o))) {
+    case C4M_T_PARTIAL_LIT:
+        break;
+    default:
         return o;
     }
 
@@ -88,7 +91,7 @@ c4m_fold_partial(c4m_compile_ctx *cctx, c4m_obj_t o)
         return o;
     }
 
-    c4m_type_t  *t       = c4m_get_my_type(o);
+    c4m_type_t  *t       = c4m_resolve_and_unbox(partial->type);
     c4m_xlist_t *params  = c4m_tspec_get_params(t);
     int          nparams = c4m_tspec_get_num_params(t);
 
@@ -99,10 +102,11 @@ c4m_fold_partial(c4m_compile_ctx *cctx, c4m_obj_t o)
 
     if (nparams == 1) {
         c4m_type_t *item_type = c4m_xlist_get(params, 0, NULL);
+        item_type             = c4m_resolve_and_unbox(item_type);
 
         items = c4m_new(c4m_tspec_xlist(item_type));
 
-        if (c4m_type_is_value_type(item_type)) {
+        if (c4m_type_is_boxed_value_type(item_type)) {
             for (int i = 0; i < partial->num_items; i++) {
                 c4m_xlist_append(items, (void *)c4m_unbox(partial->items[i]));
             }
@@ -126,7 +130,7 @@ c4m_fold_partial(c4m_compile_ctx *cctx, c4m_obj_t o)
             for (int j = 0; j < partial->num_items; j++) {
                 c4m_type_t *item_type = c4m_xlist_get(params, j, NULL);
 
-                if (c4m_type_is_value_type(item_type)) {
+                if (c4m_type_is_boxed_value_type(item_type)) {
                     obj = (void *)c4m_unbox(partial->items[i++]);
                 }
                 else {

@@ -5,7 +5,7 @@
 static inline c4m_obj_t
 c4m_box_obj(c4m_box_t value, c4m_type_t *type)
 {
-    return c4m_new(c4m_tspec_box(c4m_global_resolve_type(type)), value);
+    return c4m_new(c4m_tspec_box(type), value);
 }
 
 // Safely dereference a boxed item, thus removing the box.

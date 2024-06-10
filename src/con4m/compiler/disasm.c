@@ -25,7 +25,7 @@ typedef struct {
     unsigned int   show_module : 1;
 } inst_info_t;
 
-static c4m_utf8_t *utf8_names[256] = {
+c4m_utf8_t *c4m_instr_utf8_names[256] = {
     NULL,
 };
 
@@ -253,7 +253,8 @@ const inst_info_t inst_info[256] = {
         .name = "ZAssert",
     },
     [C4M_ZBox] = {
-        .name = "ZBox",
+        .name      = "ZBox",
+        .show_type = 1,
     },
     [C4M_ZUnbox] = {
         .name = "ZUnbox",
@@ -286,10 +287,10 @@ init_disasm()
     if (bi_fn_names[C4M_BI_TO_STR] == NULL) {
         for (int i = 0; i < 256; i++) {
             if (inst_info[i].name != NULL) {
-                utf8_names[i] = c4m_new_utf8(inst_info[i].name);
+                c4m_instr_utf8_names[i] = c4m_new_utf8(inst_info[i].name);
             }
         }
-        c4m_gc_register_root(utf8_names, 256);
+        c4m_gc_register_root(c4m_instr_utf8_names, 256);
 
         bi_fn_names[C4M_BI_TO_STR]        = c4m_new_utf8("__str__");
         bi_fn_names[C4M_BI_FORMAT]        = c4m_new_utf8("__format__");
@@ -342,9 +343,8 @@ value_to_object(c4m_vm_t *vm, uint64_t offset, c4m_type_t *t)
         uint64_t u = (uint64_t)vm->const_pool[offset].p;
         return c4m_box_obj((c4m_box_t)u, t);
     }
-    else {
-        return vm->const_pool[offset].p;
-    }
+
+    return vm->const_pool[offset].p;
 }
 
 static c4m_utf8_t *
@@ -366,9 +366,7 @@ fmt_arg_or_imm_no_syms(c4m_vm_t *vm, c4m_zinstruction_t *instr, int i, bool imm)
     case fmt_unused:
         return c4m_get_space_const();
     case fmt_const_obj:
-        return c4m_cstr_format("{}\n[i]@offset: {:8x}",
-                               value_to_object(vm, value, instr->type_info),
-                               c4m_box_i64(value));
+        return c4m_cstr_format("{}\n[i]@offset: {:8x}", c4m_box_i64(value), c4m_box_i64(value));
     case fmt_const_ptr:
         return c4m_cstr_format("offset to ptr: {:8x}",
                                value_to_object(vm, value, instr->type_info),
@@ -427,10 +425,10 @@ fmt_addr(int64_t i)
                            c4m_box_u64(i * sizeof(c4m_zinstruction_t)));
 }
 
-static inline c4m_utf8_t *
-fmt_instr_name(c4m_zinstruction_t *instr)
+c4m_utf8_t *
+c4m_fmt_instr_name(c4m_zinstruction_t *instr)
 {
-    c4m_utf8_t *result = utf8_names[instr->op];
+    c4m_utf8_t *result = c4m_instr_utf8_names[instr->op];
 
     if (!result) {
         // This shouldn't really happen.
@@ -477,7 +475,7 @@ c4m_disasm(c4m_vm_t *vm, c4m_zmodule_info_t *m)
 
         c4m_zinstruction_t *ins  = c4m_xlist_get(m->instructions, i, NULL);
         c4m_utf8_t         *addr = fmt_addr(i);
-        c4m_utf8_t         *name = fmt_instr_name(ins);
+        c4m_utf8_t         *name = c4m_fmt_instr_name(ins);
         c4m_utf8_t         *arg  = fmt_arg_or_imm_no_syms(vm, ins, i, false);
         c4m_utf8_t         *imm  = fmt_arg_or_imm_no_syms(vm, ins, i, true);
         c4m_utf8_t         *type = fmt_type_no_syms(ins);

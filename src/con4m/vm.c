@@ -1,3 +1,4 @@
+#define C4M_USE_INTERNAL_API
 #include "con4m.h"
 
 // Error handling needs to be revisited. The Nim code has a whole bunch of error
@@ -725,9 +726,16 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
     C4M_TRY
     {
         for (;;) {
-            c4m_zinstruction_t *i = c4m_xlist_get(tstate->current_module->instructions,
-                                                  tstate->pc,
-                                                  NULL);
+            c4m_zinstruction_t *i;
+
+            i = c4m_xlist_get(tstate->current_module->instructions,
+                              tstate->pc,
+                              NULL);
+#ifdef C4M_VM_DEBUG
+            c4m_print(c4m_cstr_format("[i] > {} (PC@{:x})",
+                                      c4m_fmt_instr_name(i),
+                                      c4m_box_u64(tstate->pc)));
+#endif
 
             switch (i->op) {
             case C4M_ZNop:
@@ -1475,13 +1483,19 @@ c4m_vm_reset(c4m_vm_t *vm)
     vm->module_allocations = c4m_gc_array_alloc(c4m_value_t *, nmodules);
 
     for (int64_t n = 0; n < nmodules; ++n) {
-        c4m_zmodule_info_t *m     = c4m_xlist_get(vm->obj->module_contents, n, NULL);
-        vm->module_allocations[n] = c4m_gc_array_alloc(c4m_value_t, m->module_var_size);
+        c4m_zmodule_info_t *m = c4m_xlist_get(vm->obj->module_contents,
+                                              n,
+                                              NULL);
+
+        vm->module_allocations[n] = c4m_gc_array_alloc(c4m_value_t,
+                                                       m->module_var_size);
     }
 
-    vm->attrs        = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_ref()));
+    vm->attrs        = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
+                                       c4m_tspec_ref()));
     vm->all_sections = c4m_new(c4m_tspec_set(c4m_tspec_utf8()));
-    vm->section_docs = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_ref()));
+    vm->section_docs = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
+                                              c4m_tspec_ref()));
     vm->using_attrs  = false;
 }
 

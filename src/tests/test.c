@@ -657,6 +657,7 @@ test_compiler()
                                                     i,
                                                     NULL);
 
+#if 1
             c4m_print(c4m_cstr_format("[h1]Processing module {}", f->path));
             if (ctx->entry_point->parse_tree) {
                 c4m_print(c4m_format_parse_tree(ctx->entry_point));
@@ -688,6 +689,7 @@ test_compiler()
             c4m_print(c4m_format_scope(ctx->final_globals));
             c4m_print(c4m_rich_lit("[h2]Module Scope"));
             c4m_print(c4m_format_scope(ctx->entry_point->module_scope));
+#endif
         }
 
         c4m_grid_t *err_output = c4m_format_errors(ctx);
@@ -705,13 +707,17 @@ test_compiler()
 
         c4m_vm_t *vm = c4m_generate_code(ctx);
 
+#if 1
         for (int i = 0; i < c4m_xlist_len(ctx->module_ordering); i++) {
             c4m_zmodule_info_t *m;
             m = c4m_xlist_get(vm->obj->module_contents, i, NULL);
             c4m_print(c4m_disasm(vm, m));
             c4m_print(c4m_cstr_format("Module [em]{}[/] disassembly done.",
                                       m->path));
+            c4m_print(c4m_rich_lit("[h2]Module Source Code"));
+            c4m_print(m->source);
         }
+#endif
 
         c4m_print(c4m_rich_lit("[h6]****STARTING PROGRAM EXECUTION*****[/]"));
         c4m_vmthread_t *thread = c4m_vmthread_new(vm);

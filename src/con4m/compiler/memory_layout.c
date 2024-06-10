@@ -39,6 +39,8 @@ c4m_layout_string_const(c4m_compile_ctx *cctx,
     int64_t instance_id;
     bool    found;
 
+    s = c4m_to_utf8(s);
+
     instance_id = (int64_t)hatrack_dict_get(cctx->str_map, s, &found);
 
     if (found == false) {
@@ -89,10 +91,12 @@ _c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
     c4m_str_t  *s;
     c4m_type_t *objtype = c4m_get_my_type(obj);
 
-    if (c4m_type_is_value_type(objtype) || c4m_tspec_is_box(objtype)) {
+    if (c4m_type_is_boxed_value_type(objtype)) {
+        printf("Unbox that shit.\n");
         c4m_marshal_u8(1, cctx->const_stream);
 
-        c4m_marshal_u64((uint64_t)obj, cctx->const_stream);
+        c4m_marshal_u64(c4m_unbox(obj), cctx->const_stream);
+
         return cctx->const_instantiation_id++;
     }
 
@@ -110,7 +114,6 @@ _c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
 
         return c4m_layout_string_const(cctx, s);
     default:
-        c4m_marshal_u8(0, cctx->const_stream);
         break;
     }
 
@@ -121,6 +124,7 @@ _c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
         return (8 * (int32_t)id);
     }
 
+    c4m_marshal_u8(0, cctx->const_stream);
     c4m_sub_marshal(obj,
                     cctx->const_stream,
                     cctx->const_memos,

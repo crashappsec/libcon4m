@@ -527,6 +527,8 @@ c4m_tspec_is_concrete(c4m_type_t *node)
     int          n;
     c4m_xlist_t *param;
 
+    node = c4m_resolve_and_unbox(node);
+
     // Fast path most of the time; just if we decide to check
     // before an initial tid is set, take the long road.
     if (node->typeid != 0) {
@@ -1460,13 +1462,17 @@ internal_type_repr(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
     case C4M_DT_KIND_func:
         return internal_repr_func(info, memos, nexttv);
     case C4M_DT_KIND_object:
-        // For right now, this is just boxes, and we want to pretend the
-        // box isn't there from the user's POV; it's just internal
-        // for now.
-        //
-        // Plus, boxes will never be boxing type variables, so we
-        // have no parameters to deal with.
+// For right now, this is just boxes, and we want to pretend the
+// box isn't there from the user's POV; it's just internal
+// for now.
+//
+// Plus, boxes will never be boxing type variables, so we
+// have no parameters to deal with.
+#if 0
         return c4m_tspec_repr(c4m_xlist_get(info->items, 0, NULL));
+#else
+        return internal_repr_container(info, memos, nexttv);
+#endif
     default:
         assert(false);
     }
@@ -1993,4 +1999,33 @@ c4m_format_global_type_environment()
     c4m_set_column_style(grid, 1, "snap");
     c4m_set_column_style(grid, 2, "snap");
     return grid;
+}
+
+c4m_type_t *
+c4m_resolve_and_unbox(c4m_type_t *t)
+{
+    t = c4m_global_resolve_type(t);
+
+    if (c4m_tspec_is_box(t)) {
+        return c4m_resolve_and_unbox(c4m_xlist_get(t->details->items, 0, NULL));
+    }
+
+    int          n       = c4m_xlist_len(t->details->items);
+    c4m_xlist_t *l       = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+    bool         changed = false;
+
+    for (int i = 0; i < n; i++) {
+        c4m_type_t *one      = c4m_xlist_get(t->details->items, i, NULL);
+        c4m_type_t *resolved = c4m_resolve_and_unbox(one);
+        if (resolved != one) {
+            changed = true;
+        }
+        c4m_xlist_append(l, resolved);
+    }
+
+    if (changed) {
+        t->details->items = l;
+        type_rehash(t, c4m_global_type_env);
+    }
+    return t;
 }

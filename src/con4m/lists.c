@@ -77,7 +77,8 @@ c4m_list_marshal(flexarray_t  *r,
 
     if (by_val) {
         for (uint64_t i = 0; i < len; i++) {
-            c4m_marshal_u64((uint64_t)flexarray_view_next(view, NULL), s);
+            uint64_t n = (uint64_t)flexarray_view_next(view, NULL);
+            c4m_marshal_u64(n, s);
         }
     }
     else {
@@ -101,7 +102,8 @@ c4m_list_unmarshal(flexarray_t *r, c4m_stream_t *s, c4m_dict_t *memos)
 
     if (by_val) {
         for (uint64_t i = 0; i < len; i++) {
-            flexarray_set(r, i, (void *)c4m_unmarshal_u64(s));
+            uint64_t n = c4m_unmarshal_u64(s);
+            flexarray_set(r, i, (void *)n);
         }
     }
     else {
@@ -169,12 +171,16 @@ list_copy(flexarray_t *list)
 {
     flex_view_t *view = flexarray_view(list);
     int64_t      len  = flexarray_view_len(view);
-    flexarray_t *res  = c4m_new(c4m_get_my_type((c4m_obj_t)list),
-                               c4m_kw("length", c4m_ka(len)));
+    c4m_type_t  *myty = c4m_get_my_type(list);
+
+    flexarray_t *res    = c4m_new(myty, c4m_kw("length", c4m_ka(len)));
+    c4m_type_t  *itemty = c4m_tspec_get_param(myty, 0);
+
+    itemty = c4m_global_resolve_type(itemty);
 
     for (int i = 0; i < len; i++) {
         c4m_obj_t item = flexarray_view_next(view, NULL);
-        flexarray_set(res, i, c4m_copy_object(item));
+        flexarray_set(res, i, c4m_copy_object_of_type(item, itemty));
     }
 
     return res;

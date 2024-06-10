@@ -170,7 +170,7 @@ gen_tcall(gen_ctx *ctx, c4m_builtin_type_fn fn, c4m_type_t *t)
 static inline void
 gen_equality_test(gen_ctx *ctx, c4m_type_t *operand_type)
 {
-    if (c4m_type_is_value_type(operand_type)) {
+    if (c4m_type_is_boxed_value_type(operand_type)) {
         emit(ctx, C4M_ZCmp);
     }
     else {
@@ -215,18 +215,28 @@ gen_load_immediate(gen_ctx *ctx, int64_t value)
 //
 // For now, they just indicate tspec_ref().
 
+static inline bool
+unbox_const_value(gen_ctx *ctx, c4m_obj_t obj, c4m_type_t *type)
+{
+    if (c4m_tspec_is_box(type)) {
+        gen_load_immediate(ctx, c4m_unbox(obj));
+        return true;
+    }
+
+    if (c4m_type_is_boxed_value_type(type)) {
+        gen_load_immediate(ctx, (uint64_t)obj);
+        return true;
+    }
+
+    return false;
+}
+
 static inline void
 gen_load_const_obj(gen_ctx *ctx, c4m_obj_t obj)
 {
     c4m_type_t *type = c4m_get_my_type(obj);
 
-    if (c4m_tspec_is_box(type)) {
-        gen_load_immediate(ctx, c4m_unbox(obj));
-        return;
-    }
-
-    if (c4m_type_is_value_type(type)) {
-        gen_load_immediate(ctx, (uint64_t)obj);
+    if (unbox_const_value(ctx, obj, type)) {
         return;
     }
 
@@ -249,15 +259,21 @@ gen_load_const_by_offset(gen_ctx *ctx, uint32_t offset, c4m_type_t *type)
 static inline void
 gen_sym_load_const(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
 {
+    c4m_type_t *type = sym->type;
+
+    if (unbox_const_value(ctx, sym->value, type)) {
+        return;
+    }
     emit(ctx,
          addressof ? C4M_ZPushConstRef : C4M_ZPushConstObj,
-         c4m_kw("arg", c4m_ka(sym->static_offset), "type", c4m_ka(sym->type)));
+         c4m_kw("arg", c4m_ka(sym->static_offset), "type", c4m_ka(type)));
 }
 
 static inline void
 gen_sym_load_attr(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
 {
     int64_t offset = c4m_layout_string_const(ctx->cctx, sym->name);
+
     emit(ctx,
          C4M_ZPushConstObj,
          c4m_kw("arg", c4m_ka(offset), "type", c4m_ka(sym->type)));
@@ -435,7 +451,13 @@ static inline void
 gen_one_kid(gen_ctx *ctx, int n)
 {
     c4m_tree_node_t *saved = ctx->cur_node;
-    ctx->cur_node          = saved->children[n];
+
+    // TODO: Remove this when codegen is done.
+    if (saved->num_kids <= n) {
+        return;
+    }
+
+    ctx->cur_node = saved->children[n];
 
     gen_one_node(ctx);
 
@@ -559,7 +581,7 @@ gen_parameter_checks(gen_ctx *ctx)
         // marshal'd location in const-land; ref types load by copying the
         // const.
         if (param->have_default) {
-            if (c4m_type_is_value_type(sym->type)) {
+            if (c4m_type_is_boxed_value_type(sym->type)) {
                 gen_param_via_default_value_type(ctx, param, sym);
             }
             else {
@@ -599,7 +621,7 @@ gen_simple_lit(gen_ctx *ctx)
     c4m_obj_t   obj = ctx->cur_pnode->value;
     c4m_type_t *t   = c4m_get_my_type(obj);
 
-    if (c4m_type_is_value_type(t)) {
+    if (c4m_type_is_boxed_value_type(t)) {
         gen_load_immediate(ctx, c4m_unbox(obj));
     }
     else {
@@ -1283,8 +1305,10 @@ gen_box_if_value_type(gen_ctx *ctx, int pos)
 {
     c4m_pnode_t *pnode = get_pnode(ctx->cur_node->children[pos]);
 
-    if (c4m_type_is_value_type(pnode->type)) {
-        emit(ctx, C4M_ZBox, c4m_kw("type", c4m_ka(pnode->type)));
+    if (c4m_type_is_boxed_value_type(pnode->type)) {
+        c4m_type_t *t = c4m_resolve_and_unbox(pnode->type);
+
+        emit(ctx, C4M_ZBox, c4m_kw("type", c4m_ka(t)));
     }
 }
 
@@ -1326,7 +1350,7 @@ static void
 gen_process_partial_part(gen_ctx *ctx, c4m_obj_t lit)
 {
     if (!c4m_is_partial_lit(lit)) {
-        if (c4m_type_is_value_type(c4m_get_my_type(lit))) {
+        if (c4m_type_is_boxed_value_type(c4m_get_my_type(lit))) {
             gen_load_immediate(ctx, c4m_unbox_obj(lit).i64);
         }
         else {
@@ -1335,7 +1359,6 @@ gen_process_partial_part(gen_ctx *ctx, c4m_obj_t lit)
         }
         return;
     }
-
     c4m_partial_lit_t *partial  = lit;
     c4m_xlist_t       *typelist = partial->type->details->items;
 
@@ -1375,7 +1398,8 @@ static inline void
 gen_partial_literal(gen_ctx *ctx)
 {
     c4m_obj_t lit = ctx->cur_pnode->value;
-    gen_process_partial_part(ctx, c4m_fold_partial(ctx->cctx, lit));
+    lit           = c4m_fold_partial(ctx->cctx, lit);
+    gen_process_partial_part(ctx, lit);
 }
 
 static inline void
@@ -1600,25 +1624,42 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_formals:
     case c4m_nt_varargs_param:
     case c4m_nt_call:
-    case c4m_nt_variable_decls:
     case c4m_nt_use:
     case c4m_nt_attr_set_lock:
     case c4m_nt_return:
         // These should always be passthrough.
     case c4m_nt_expression:
     case c4m_nt_paren_expr:
+    case c4m_nt_variable_decls:
         gen_kids(ctx);
         break;
         // This is only partially done, which is why it's down here
         // with unfinished stuff.
+
     case c4m_nt_sym_decl:
         do {
-            int          last = ctx->cur_node->num_kids - 1;
-            c4m_pnode_t *kid  = get_pnode(ctx->cur_node->children[last]);
+            int                last = ctx->cur_node->num_kids - 1;
+            c4m_pnode_t       *kid  = get_pnode(ctx->cur_node->children[last]);
+            c4m_pnode_t       *psym;
+            c4m_scope_entry_t *sym;
+
             if (kid->kind == c4m_nt_assign) {
+                psym = get_pnode(ctx->cur_node->children[last - 1]);
+
+                sym = (c4m_scope_entry_t *)psym->value;
+
+                if (sym->flags & C4M_F_DECLARED_CONST) {
+                    break;
+                }
+                c4m_print_parse_node(ctx->cur_node);
+                ctx->lvalue = true;
+                gen_one_kid(ctx, last - 1);
                 gen_one_kid(ctx, last);
+                emit(ctx, C4M_ZSwap);
+                emit(ctx, C4M_ZAssignToLoc);
             }
         } while (0);
+        break;
         // These nodes should NOT do any work and not descend if they're
         // hit; many of them are handled elsewhere and this should be
         // unreachable for many of them.

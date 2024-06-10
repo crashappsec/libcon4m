@@ -25,6 +25,7 @@ extern c4m_type_t     *c4m_tspec_varargs_fn(c4m_type_t *, int64_t, ...);
 extern c4m_type_t     *c4m_global_resolve_type(c4m_type_t *);
 extern c4m_type_t     *c4m_global_copy(c4m_type_t *);
 extern c4m_type_t     *c4m_global_type_check(c4m_type_t *, c4m_type_t *);
+extern c4m_type_t     *c4m_resolve_and_unbox(c4m_type_t *);
 extern void            c4m_lock_type(c4m_type_t *);
 extern c4m_type_t     *c4m_get_promotion_type(c4m_type_t *,
                                               c4m_type_t *,
@@ -78,43 +79,43 @@ c4m_type_cmp_exact(c4m_type_t *t1, c4m_type_t *t2)
 static inline c4m_dt_kind_t
 c4m_tspec_get_base(c4m_type_t *n)
 {
-    return n->details->base_type->dt_kind;
+    return c4m_global_resolve_type(n)->details->base_type->dt_kind;
 }
 
 static inline c4m_xlist_t *
 c4m_tspec_get_params(c4m_type_t *n)
 {
-    return n->details->items;
+    return c4m_global_resolve_type(n)->details->items;
 }
 
 static inline int
 c4m_tspec_get_num_params(c4m_type_t *n)
 {
-    return c4m_xlist_len(n->details->items);
+    return c4m_xlist_len(c4m_global_resolve_type(n)->details->items);
 }
 
 static inline bool
 c4m_tspec_is_bool(c4m_type_t *n)
 {
-    return n->typeid == C4M_T_BOOL;
+    return c4m_global_resolve_type(n)->typeid == C4M_T_BOOL;
 }
 
 static inline bool
 c4m_tspec_is_error(c4m_type_t *n)
 {
-    return n->typeid == C4M_T_ERROR;
+    return c4m_global_resolve_type(n)->typeid == C4M_T_ERROR;
 }
 
 static inline bool
 c4m_tspec_is_locked(c4m_type_t *t)
 {
-    return t->details->flags & C4M_FN_TY_LOCK;
+    return c4m_global_resolve_type(t)->details->flags & C4M_FN_TY_LOCK;
 }
 
 static inline void
 c4m_tspec_lock(c4m_type_t *t)
 {
-    t->details->flags |= C4M_FN_TY_LOCK;
+    c4m_global_resolve_type(t)->details->flags |= C4M_FN_TY_LOCK;
 }
 
 static inline void
@@ -138,7 +139,7 @@ c4m_merge_types(c4m_type_t *t1, c4m_type_t *t2)
 static inline c4m_xlist_t *
 c4m_tspec_get_parameters(c4m_type_t *t)
 {
-    return t->details->items;
+    return c4m_global_resolve_type(t)->details->items;
 }
 
 static inline c4m_type_t *
@@ -551,21 +552,6 @@ c4m_tspec_is_box(c4m_type_t *t)
     return t->details->base_type->typeid == C4M_T_BOX;
 }
 
-static inline c4m_type_t *
-c4m_resolve_and_unbox(c4m_type_t *t)
-{
-    if (t == NULL) {
-        return NULL;
-    }
-
-    t = c4m_global_resolve_type(t);
-    if (c4m_tspec_is_box(t)) {
-        return c4m_resolve_and_unbox(c4m_xlist_get(t->details->items, 0, NULL));
-    }
-
-    return t;
-}
-
 static inline bool
 c4m_tspec_is_int_type(c4m_type_t *t)
 {
@@ -627,10 +613,17 @@ c4m_obj_is_int_type(const c4m_obj_t *obj)
 static inline bool
 c4m_type_is_value_type(c4m_type_t *t)
 {
-    t                 = c4m_resolve_and_unbox(t);
+    // This should NOT unbox; check c4m_tspec_is_box() too if needed.
+    t                 = c4m_global_resolve_type(t);
     c4m_dt_info_t *dt = c4m_tspec_get_data_type_info(t);
 
     return dt->by_value;
+}
+
+static inline bool
+c4m_type_is_boxed_value_type(c4m_type_t *t)
+{
+    return c4m_type_is_value_type(c4m_resolve_and_unbox(t));
 }
 
 // Once we add objects, this will be a dynamic number.
