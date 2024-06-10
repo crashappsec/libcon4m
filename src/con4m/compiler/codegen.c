@@ -1506,6 +1506,7 @@ gen_one_node(gen_ctx *ctx)
         gen_binary_assign(ctx);
         break;
 
+        // The following list is still TODO:
     case c4m_nt_index:
     case c4m_nt_unary_op:
     case c4m_nt_func_def:
@@ -1514,13 +1515,13 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_formals:
     case c4m_nt_varargs_param:
     case c4m_nt_call:
-    case c4m_nt_paren_expr:
     case c4m_nt_variable_decls:
     case c4m_nt_use:
-    case c4m_nt_expression:
     case c4m_nt_attr_set_lock:
     case c4m_nt_return:
-        // Many of the above will need their own bodies.
+        // These should always be passthrough.
+    case c4m_nt_expression:
+    case c4m_nt_paren_expr:
         gen_kids(ctx);
         break;
         // This is only partially done, which is why it's down here

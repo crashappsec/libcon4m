@@ -1436,6 +1436,8 @@ first_loop_start:
     return c4m_str_join(to_join, NULL);
 }
 
+static c4m_str_t *c4m_tspec_repr(c4m_type_t *);
+
 c4m_str_t *
 internal_type_repr(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
 {
@@ -1454,10 +1456,17 @@ internal_type_repr(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
     case C4M_DT_KIND_list:
     case C4M_DT_KIND_dict:
     case C4M_DT_KIND_tuple:
-    case C4M_DT_KIND_object:
         return internal_repr_container(info, memos, nexttv);
     case C4M_DT_KIND_func:
         return internal_repr_func(info, memos, nexttv);
+    case C4M_DT_KIND_object:
+        // For right now, this is just boxes, and we want to pretend the
+        // box isn't there from the user's POV; it's just internal
+        // for now.
+        //
+        // Plus, boxes will never be boxing type variables, so we
+        // have no parameters to deal with.
+        return c4m_tspec_repr(c4m_xlist_get(info->items, 0, NULL));
     default:
         assert(false);
     }

@@ -33,13 +33,13 @@ enum {
 };
 
 typedef enum c4m_scope_kind : int8_t {
-    C4M_SCOPE_GLOBAL,
-    C4M_SCOPE_MODULE,
-    C4M_SCOPE_LOCAL,
-    C4M_SCOPE_FUNC,
-    C4M_SCOPE_FORMALS,
-    C4M_SCOPE_ATTRIBUTES,
-    C4M_SCOPE_IMPORTS,
+    C4M_SCOPE_GLOBAL     = 1,
+    C4M_SCOPE_MODULE     = 2,
+    C4M_SCOPE_LOCAL      = 4,
+    C4M_SCOPE_FUNC       = 8,
+    C4M_SCOPE_FORMALS    = 16,
+    C4M_SCOPE_ATTRIBUTES = 32,
+    C4M_SCOPE_IMPORTS    = 64,
 } c4m_scope_kind;
 
 // For module entries, the c4m_module_info_t data structure

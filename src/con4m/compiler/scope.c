@@ -22,6 +22,7 @@ c4m_new_scope(c4m_scope_t *parent, c4m_scope_kind kind)
     result->symbols     = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
                                              c4m_tspec_ref()));
     result->kind        = kind;
+
     return result;
 }
 

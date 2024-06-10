@@ -32,6 +32,17 @@ box_unmarshal(c4m_box_t *box, c4m_stream_t *in, c4m_dict_t *memos)
     box->u64 = c4m_unmarshal_u64(in);
 }
 
+static c4m_utf8_t *
+box_format(c4m_box_t *box, c4m_fmt_spec_t *spec)
+{
+    c4m_type_t    *t      = c4m_tspec_get_param(c4m_get_my_type(box), 0);
+    c4m_dt_info_t *info   = c4m_tspec_get_data_type_info(t);
+    c4m_vtable_t  *vtable = (c4m_vtable_t *)info->vtable;
+    c4m_format_fn  fn     = (c4m_format_fn)vtable->methods[C4M_BI_FORMAT];
+
+    return (*fn)(box, spec);
+}
+
 const c4m_vtable_t c4m_box_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
@@ -40,5 +51,6 @@ const c4m_vtable_t c4m_box_vtable = {
         [C4M_BI_REPR]        = (c4m_vtable_entry)box_repr,
         [C4M_BI_MARSHAL]     = (c4m_vtable_entry)box_marshal,
         [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)box_unmarshal,
+        [C4M_BI_FORMAT]      = (c4m_vtable_entry)box_format,
     },
 };
