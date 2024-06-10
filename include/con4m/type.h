@@ -545,13 +545,35 @@ c4m_obj_type_check(const c4m_obj_t *obj, c4m_type_t *t2)
 }
 
 static inline bool
+c4m_tspec_is_box(c4m_type_t *t)
+{
+    t = c4m_global_resolve_type(t);
+    return t->details->base_type->typeid == C4M_T_BOX;
+}
+
+static inline c4m_type_t *
+c4m_resolve_and_unbox(c4m_type_t *t)
+{
+    if (t == NULL) {
+        return NULL;
+    }
+
+    t = c4m_global_resolve_type(t);
+    if (c4m_tspec_is_box(t)) {
+        return c4m_resolve_and_unbox(c4m_xlist_get(t->details->items, 0, NULL));
+    }
+
+    return t;
+}
+
+static inline bool
 c4m_tspec_is_int_type(c4m_type_t *t)
 {
     if (t == NULL) {
         return false;
     }
 
-    t = c4m_global_resolve_type(t);
+    t = c4m_resolve_and_unbox(t);
 
     switch (t->typeid) {
     case C4M_T_I8:
@@ -603,16 +625,9 @@ c4m_obj_is_int_type(const c4m_obj_t *obj)
 }
 
 static inline bool
-c4m_tspec_is_box(c4m_type_t *t)
-{
-    t = c4m_global_resolve_type(t);
-    return t->details->base_type->typeid == C4M_T_BOX;
-}
-
-static inline bool
 c4m_type_is_value_type(c4m_type_t *t)
 {
-    t                 = c4m_global_resolve_type(t);
+    t                 = c4m_resolve_and_unbox(t);
     c4m_dt_info_t *dt = c4m_tspec_get_data_type_info(t);
 
     return dt->by_value;

@@ -7,6 +7,12 @@ typedef struct {
     int              next;
 } target_info_t;
 
+typedef enum {
+    assign_to_mem_slot,
+    assign_via_index_set_call,
+    assign_via_slice_set_call,
+} assign_type_t;
+
 typedef struct {
     c4m_compile_ctx      *cctx;
     c4m_file_compile_ctx *fctx;
@@ -19,6 +25,7 @@ typedef struct {
     int                   current_stack_offset;
     int                   max_stack_size;
     bool                  lvalue;
+    assign_type_t         assign_method;
 } gen_ctx;
 
 static void gen_one_node(gen_ctx *);
@@ -1374,13 +1381,48 @@ gen_partial_literal(gen_ctx *ctx)
 static inline void
 gen_assign(gen_ctx *ctx)
 {
-    ctx->lvalue = true;
+    ctx->assign_method = assign_to_mem_slot;
+    ctx->lvalue        = true;
     gen_one_kid(ctx, 0);
     ctx->lvalue = false;
     gen_one_kid(ctx, 1);
-    emit(ctx, C4M_ZSwap);
-    emit(ctx, C4M_ZAssignToLoc);
+
+    switch (ctx->assign_method) {
+    case assign_to_mem_slot:
+        emit(ctx, C4M_ZSwap);
+        emit(ctx, C4M_ZAssignToLoc);
+        break;
+    case assign_via_slice_set_call:
+        emit(ctx, C4M_ZSwap);
+        gen_tcall(ctx, C4M_BI_SLICE_SET, ctx->cur_pnode->type);
+        break;
+    case assign_via_index_set_call:
+        emit(ctx, C4M_ZSwap);
+        gen_tcall(ctx, C4M_BI_INDEX_SET, ctx->cur_pnode->type);
+        break;
+    }
 }
+
+#define BINOP_ASSIGN_GEN(ctx, op, t)                            \
+    if (c4m_tspec_get_base(t) == C4M_DT_KIND_primitive) {       \
+        if (c4m_tspec_is_int_type(t)) {                         \
+            gen_int_binary_op(ctx, op, c4m_tspec_is_signed(t)); \
+        }                                                       \
+                                                                \
+        else {                                                  \
+            if (c4m_tspec_is_bool(t)) {                         \
+                gen_int_binary_op(ctx, op, false);              \
+            }                                                   \
+            else {                                              \
+                if (t->typeid == C4M_T_F64) {                   \
+                    gen_float_binary_op(ctx, op);               \
+                }                                               \
+                else {                                          \
+                    gen_polymorphic_binary_op(ctx, op);         \
+                }                                               \
+            }                                                   \
+        }                                                       \
+    }
 
 static inline void
 gen_binary_assign(gen_ctx *ctx)
@@ -1388,34 +1430,75 @@ gen_binary_assign(gen_ctx *ctx)
     c4m_operator_t op = (c4m_operator_t)ctx->cur_pnode->extra_info;
     c4m_type_t    *t  = c4m_global_resolve_type(ctx->cur_pnode->type);
 
-    ctx->lvalue = true;
+    ctx->assign_method = assign_to_mem_slot;
+    ctx->lvalue        = true;
     gen_one_kid(ctx, 0);
     ctx->lvalue = false;
-    emit(ctx, C4M_ZDupTop);
-    emit(ctx, C4M_ZDeref);
-    gen_one_kid(ctx, 1);
 
-    if (c4m_tspec_get_base(t) == C4M_DT_KIND_primitive) {
-        if (c4m_tspec_is_int_type(t)) {
-            gen_int_binary_op(ctx, op, c4m_tspec_is_signed(t));
-        }
+    switch (ctx->assign_method) {
+    case assign_to_mem_slot:
+        emit(ctx, C4M_ZDupTop);
+        emit(ctx, C4M_ZDeref);
+        gen_one_kid(ctx, 1);
 
-        else {
-            if (c4m_tspec_is_bool(t)) {
-                gen_int_binary_op(ctx, op, false);
-            }
-            else {
-                if (t->typeid == C4M_T_F64) {
-                    gen_float_binary_op(ctx, op);
-                }
-                else {
-                    gen_polymorphic_binary_op(ctx, op);
-                }
-            }
-        }
+        BINOP_ASSIGN_GEN(ctx, op, t);
+
+        emit(ctx, C4M_ZSwap);
+        emit(ctx, C4M_ZAssignToLoc);
+        break;
+    case assign_via_index_set_call:
+        emit(ctx, C4M_ZPopToR1);
+        emit(ctx, C4M_ZPopToR2);
+        //
+        emit(ctx, C4M_ZPushFromR2);
+        emit(ctx, C4M_ZPushFromR1);
+        //
+        emit(ctx, C4M_ZPushFromR2);
+        emit(ctx, C4M_ZPushFromR1);
+
+        gen_tcall(ctx, C4M_BI_INDEX_GET, ctx->cur_pnode->type);
+        gen_one_kid(ctx, 1);
+
+        BINOP_ASSIGN_GEN(ctx, op, t);
+
+        gen_tcall(ctx, C4M_BI_INDEX_SET, ctx->cur_pnode->type);
+        break;
+    case assign_via_slice_set_call:
+        // TODO: disallow this.
+        c4m_unreachable();
     }
-    emit(ctx, C4M_ZSwap);
-    emit(ctx, C4M_ZAssignToLoc);
+}
+
+static inline void
+gen_index_or_slice(gen_ctx *ctx)
+{
+    // We turn of LHS tracking internally, because we don't poke
+    // directly into the object's memory and don't want to generate a
+    // settable ref.
+    bool lvalue = ctx->lvalue;
+    bool slice  = ctx->cur_node->num_kids == 3;
+
+    ctx->lvalue = false;
+
+    gen_kids(ctx);
+
+    if (lvalue) {
+        if (slice) {
+            ctx->assign_method = assign_via_slice_set_call;
+        }
+        else {
+            ctx->assign_method = assign_via_index_set_call;
+        }
+        ctx->lvalue = true;
+        return;
+    }
+
+    if (slice) {
+        gen_tcall(ctx, C4M_BI_SLICE_GET, ctx->cur_pnode->type);
+    }
+    else {
+        gen_tcall(ctx, C4M_BI_INDEX_GET, ctx->cur_pnode->type);
+    }
 }
 
 static void
@@ -1505,9 +1588,11 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_binary_assign_op:
         gen_binary_assign(ctx);
         break;
+    case c4m_nt_index:
+        gen_index_or_slice(ctx);
+        break;
 
         // The following list is still TODO:
-    case c4m_nt_index:
     case c4m_nt_unary_op:
     case c4m_nt_func_def:
     case c4m_nt_func_mods:

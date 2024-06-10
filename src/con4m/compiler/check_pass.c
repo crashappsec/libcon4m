@@ -35,6 +35,7 @@ typedef struct {
     // you can 'break' out of them.
     c4m_xlist_t          *loop_stack;
     c4m_xlist_t          *deferred_calls;
+    bool                  augmented_assignment;
 } pass2_ctx;
 
 static inline c4m_control_info_t *
@@ -679,6 +680,7 @@ handle_index(pass2_ctx *ctx)
 
     process_child(ctx, 0);
     container_type = get_pnode_type(ctx->node->children[0]);
+
     use_context_enter(ctx);
     process_child(ctx, 1);
     ix1_type    = get_pnode_type(ctx->node->children[1]);
@@ -712,11 +714,18 @@ handle_index(pass2_ctx *ctx)
         }
 
         if (c4m_tspec_is_tvar(ix1_type)) {
-            merge_or_err(ctx, ix1_type, c4m_tspec_i32());
+            merge_or_err(ctx, ix1_type, c4m_tspec_i64());
         }
 
         if (c4m_tspec_is_tvar(ix2_type)) {
-            merge_or_err(ctx, ix2_type, c4m_tspec_i32());
+            merge_or_err(ctx, ix2_type, c4m_tspec_i64());
+        }
+
+        if (is_def_context(ctx) && ctx->augmented_assignment) {
+            c4m_add_error(ctx->file_ctx,
+                          c4m_err_augmented_assign_to_slice,
+                          ctx->node);
+            return;
         }
 
         info = initial_function_resolution(
@@ -1746,6 +1755,8 @@ base_handle_assign(pass2_ctx *ctx, bool binop)
     c4m_tree_node_t *saved = ctx->node;
     c4m_pnode_t     *pnode = get_pnode(saved);
 
+    ctx->augmented_assignment = binop;
+
     if (binop) {
         ctx->node = saved->children[0];
         // With binops, we process the LHS twice; once in a use context
@@ -1772,7 +1783,8 @@ base_handle_assign(pass2_ctx *ctx, bool binop)
                                get_pnode_type(saved->children[0]),
                                get_pnode_type(saved->children[1]));
 
-    ctx->node = saved;
+    ctx->node                 = saved;
+    ctx->augmented_assignment = false;
 }
 
 static inline void

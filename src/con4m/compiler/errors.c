@@ -1079,6 +1079,12 @@ static error_info_t error_info[] = {
         "[em]{}[/] is declared [i]const[/], but no value was provided.",
         true,
     },
+    [c4m_err_augmented_assign_to_slice] = {
+        c4m_err_augmented_assign_to_slice,
+        "augmented_assign_to_slice",
+        "Only regular assignment to a slice is currently allowed.",
+        false,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",
