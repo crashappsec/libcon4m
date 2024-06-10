@@ -1371,6 +1371,53 @@ gen_partial_literal(gen_ctx *ctx)
     gen_process_partial_part(ctx, c4m_fold_partial(ctx->cctx, lit));
 }
 
+static inline void
+gen_assign(gen_ctx *ctx)
+{
+    ctx->lvalue = true;
+    gen_one_kid(ctx, 0);
+    ctx->lvalue = false;
+    gen_one_kid(ctx, 1);
+    emit(ctx, C4M_ZSwap);
+    emit(ctx, C4M_ZAssignToLoc);
+}
+
+static inline void
+gen_binary_assign(gen_ctx *ctx)
+{
+    c4m_operator_t op = (c4m_operator_t)ctx->cur_pnode->extra_info;
+    c4m_type_t    *t  = c4m_global_resolve_type(ctx->cur_pnode->type);
+
+    ctx->lvalue = true;
+    gen_one_kid(ctx, 0);
+    ctx->lvalue = false;
+    emit(ctx, C4M_ZDupTop);
+    emit(ctx, C4M_ZDeref);
+    gen_one_kid(ctx, 1);
+
+    if (c4m_tspec_get_base(t) == C4M_DT_KIND_primitive) {
+        if (c4m_tspec_is_int_type(t)) {
+            gen_int_binary_op(ctx, op, c4m_tspec_is_signed(t));
+        }
+
+        else {
+            if (c4m_tspec_is_bool(t)) {
+                gen_int_binary_op(ctx, op, false);
+            }
+            else {
+                if (t->typeid == C4M_T_F64) {
+                    gen_float_binary_op(ctx, op);
+                }
+                else {
+                    gen_polymorphic_binary_op(ctx, op);
+                }
+            }
+        }
+    }
+    emit(ctx, C4M_ZSwap);
+    emit(ctx, C4M_ZAssignToLoc);
+}
+
 static void
 gen_one_node(gen_ctx *ctx)
 {
@@ -1453,8 +1500,13 @@ gen_one_node(gen_ctx *ctx)
         gen_partial_literal(ctx);
         break;
     case c4m_nt_assign:
-    case c4m_nt_index:
+        gen_assign(ctx);
+        break;
     case c4m_nt_binary_assign_op:
+        gen_binary_assign(ctx);
+        break;
+
+    case c4m_nt_index:
     case c4m_nt_unary_op:
     case c4m_nt_func_def:
     case c4m_nt_func_mods:

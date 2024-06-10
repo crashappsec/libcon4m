@@ -270,6 +270,9 @@ const inst_info_t inst_info[256] = {
     [C4M_ZGetSign] = {
         .name = "ZGetSign",
     },
+    [C4M_ZDeref] = {
+        .name = "ZDeref",
+    },
 #ifdef C4M_DEV
     [C4M_ZPrint] = {
         .name = "ZPrint",
@@ -340,7 +343,6 @@ value_to_object(c4m_vm_t *vm, uint64_t offset, c4m_type_t *t)
         return c4m_box_obj((c4m_box_t)u, t);
     }
     else {
-        c4m_str_t *s = vm->const_pool[offset].p;
         return vm->const_pool[offset].p;
     }
 }

@@ -738,16 +738,16 @@ test_format()
     c4m_print(s);
 
     s = c4m_cstr_format("[red]Test 1:[/] [brown]{:c}[/] : [blue]{}[/] [i]woo.[/]",
-                        c4m_box_u32(100),
+                        c4m_box_u64(100),
                         c4m_rich_lit("Hello"));
     c4m_print(s);
     s = c4m_cstr_format("[red]Test 2:[/] [brown]{:d}[/] : [red]{:}[/]",
-                        c4m_box_u32(100),
-                        c4m_box_u32(100));
+                        c4m_box_u64(100),
+                        c4m_box_u64(100));
     c4m_print(s);
 
     s = c4m_cstr_format("[red]Test 3:[/] {1} : [blue]{0:n}[/]\n",
-                        c4m_box_u32(100),
+                        c4m_box_u64(100),
                         c4m_rich_lit("Hello"));
     c4m_print(s);
     s = c4m_cstr_format("[red]Test 4:[/] [blue]{}[/][atomic lime]{}[/]foo\n",

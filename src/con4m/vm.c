@@ -758,6 +758,11 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                         .type_info = i->type_info,
                     },
                 };
+                break;
+            case C4M_ZDeref:
+                STACK_REQUIRE_VALUES(1);
+                tstate->sp->uint = *(uint64_t *)tstate->sp->uint;
+                break;
             case C4M_ZPushImm:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;

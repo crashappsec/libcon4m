@@ -114,6 +114,8 @@ typedef enum : uint8_t {
     C4M_ZPushObjType   = 0x09,
     // Duplicate the value at the top of the stack by pushing it again.
     C4M_ZDupTop        = 0x0A,
+    // Replaces the top item on the stack with its dereference.
+    C4M_ZDeref         = 0x0B,
     // Retrieves an attribute value and pushes it onto the stack. The
     // attribute is the top stack value pushed by C4M_ZPushConstObj
     // and is replaced by the attribute value. If the instruction's
@@ -126,22 +128,26 @@ typedef enum : uint8_t {
     // pushed after the result. If not, then only a zero is pushed.
     // If that non-zero field also has the `2` bit set, then the
     // actual value will not be pushed.
-    C4M_ZLoadFromAttr  = 0x0B,
-    C4M_ZLoadFromView  = 0x0C,
+    C4M_ZLoadFromAttr  = 0x0C,
+    C4M_ZLoadFromView  = 0x0D,
     // Create a callback and push it onto the stack. The instruction's arg,
     // immediate, and type_info fields are encoded into the callback as the
     // implementation (ffi function index), name offset, and type info,
     // respectively. The ZRunCallback instruction is used to run the callback,
     // which is run as an FFI function.
-    C4M_ZPushFfiPtr    = 0x0D,
+    C4M_ZPushFfiPtr    = 0x0E,
     // Create a callback and push it onto the stack. The instruction's arg,
     // immediate, and type_info fields are encoded into the callback as the
     // implementation (function index), name offset, and type info,
     // respectively. The ZRunCallback instruction is used to run the callback,
     // which is run as a native function via C4M_Z0Call, but using a separate
     // VM state.
-    C4M_ZPushVmPtr     = 0x0E,
-    // Swap the two top values on the stack.
+    C4M_ZPushVmPtr     = 0x0F,
+    // Stores a value to the attribute named by the top value on the stack. The
+    // value to store is the stack value just below it. Both values are popped
+    // from the stack. If the instruction's arg is non-zero, the attribute
+    // will be locked when it's set. This instruction expects that the attribute
+    // is stored on the stack via C4M_ZPushStaticPtr.
     C4M_ZAssignAttr    = 0x1D,
     // Pops the top value from the stack. This is the same as C4M_ZMoveSp with
     // an adjustment of -1.
@@ -159,21 +165,17 @@ typedef enum : uint8_t {
     // stack, popping each lvalue as its assigned. The number of assignments to
     // perform is encoded in the instruction's arg field.
     C4M_ZUnpack        = 0x23,
-    // Jump if the top value on the stack is zero. The pc is adjusted by the
-    // number of bytes encoded in the instruction's arg field, which is always
-    // a multiple of the size of an instruction. A negative value jumps
-    // backward. If the comparison triggers a jump, the stack is left as-is,
-    // but the top value is popped if no jump occurs.
+    // Swap the two top values on the stack.
     C4M_ZSwap          = 0x24,
     // Perform an assignment into the lvalue at the top of the stack of the
     // value just below it and pops both items from the stack. This should be
     // paired with C4M_ZPushAddr or C4M_ZLoadFromAttr with a non-zero arg.
     C4M_ZAssignToLoc   = 0x25,
-    // Stores a value to the attribute named by the top value on the stack. The
-    // value to store is the stack value just below it. Both values are popped
-    // from the stack. If the instruction's arg is non-zero, the attribute
-    // will be locked when it's set. This instruction expects that the attribute
-    // is stored on the stack via C4M_ZPushStaticPtr.
+    // Jump if the top value on the stack is zero. The pc is adjusted by the
+    // number of bytes encoded in the instruction's arg field, which is always
+    // a multiple of the size of an instruction. A negative value jumps
+    // backward. If the comparison triggers a jump, the stack is left as-is,
+    // but the top value is popped if no jump occurs.
     C4M_ZJz            = 0x30,
     // Jump if the top value on the stack is not zero. The pc is adjusted by the
     // number of bytes encoded in the instruction's arg field, which is always
