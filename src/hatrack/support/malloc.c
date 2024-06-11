@@ -21,7 +21,6 @@
 
 #include "hatrack/malloc.h"
 
-#include <stdint.h>
 #include <string.h>
 
 // For most platforms we want to reference posix_memalign and free as weak

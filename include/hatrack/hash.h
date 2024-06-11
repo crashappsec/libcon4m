@@ -27,7 +27,6 @@
 
 #pragma once
 
-#include "base.h"
 #include "xxhash.h"
 #include "hatrack_common.h"
 

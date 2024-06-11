@@ -21,6 +21,8 @@
 
 #pragma once
 
+// IWYU pragma: begin_exports
+
 #include "hatrack_config.h"
 
 #include <stddef.h>
@@ -28,6 +30,8 @@
 #include <stdbool.h>
 #include <stdalign.h>
 #include <stdatomic.h>
+
+// IWYU program: end_exports
 
 #ifndef HATRACK_EXTERN
 #define HATRACK_EXTERN extern

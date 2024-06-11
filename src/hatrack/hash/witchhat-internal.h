@@ -1,4 +1,4 @@
-#include "hatrack/witchhat.h"
+#include "hatrack/witchhat.h" // IWYU pragma: export
 
 enum64(witchhat_flag_t,
        WITCHHAT_F_MOVING   = 0x8000000000000000,

@@ -1,4 +1,4 @@
-#include "hatrack/hatring.h"
+#include "hatrack/hatring.h" // IWYU pragma: export
 
 enum {
     HATRING_ENQUEUED = 0x8000000000000000,

@@ -78,7 +78,7 @@ HATRACK_EXTERN void       hq_enqueue        (hq_t *, void *);
 HATRACK_EXTERN void      *hq_dequeue_mmm    (hq_t *, mmm_thread_t *, bool *);
 HATRACK_EXTERN void      *hq_dequeue        (hq_t *, bool *);
 HATRACK_EXTERN int64_t    hq_len_mmm        (hq_t *, mmm_thread_t *);
-HATRACK_EXTERN int64_t    hq_len            (hq_t **);
+HATRACK_EXTERN int64_t    hq_len            (hq_t *);
 HATRACK_EXTERN hq_view_t *hq_view_mmm       (hq_t *, mmm_thread_t *);
 HATRACK_EXTERN hq_view_t *hq_view           (hq_t *);
 HATRACK_EXTERN void      *hq_view_next      (hq_view_t *, bool *);

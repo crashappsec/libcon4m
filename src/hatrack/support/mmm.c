@@ -404,7 +404,7 @@ mmm_start_linearized_op(mmm_thread_t *thread)
     mmm_reservations[thread->tid] = atomic_load(&mmm_epoch);
     read_epoch                    = atomic_load(&mmm_epoch);
 
-    HATRACK_YN_CTR_NORET(read_epoch == mmm_reservations[mmm_thread->tid],
+    HATRACK_YN_CTR_NORET(read_epoch == mmm_reservations[thread->tid],
                          HATRACK_CTR_LINEAR_EPOCH_EQ);
 
     return read_epoch;
