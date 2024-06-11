@@ -2177,9 +2177,10 @@ check_return_type(fn_check_ctx *ctx)
     c4m_type_t *decl_type;
     c4m_type_t *cmp_type;
 
-    if (ctx->num_defs == 0) {
+    if (ctx->num_defs <= 1) {
         if (ctx->num_uses == 0) {
             ctx->delete_result_var = true;
+            ctx->si->void_return   = 1;
 
             if (ctx->si->return_info.type != NULL) {
                 c4m_add_error(ctx->pass_ctx->file_ctx,

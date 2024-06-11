@@ -767,14 +767,6 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     },
                 };
                 break;
-            case C4M_ZPushRes:
-                STACK_REQUIRE_SLOTS(1);
-                --tstate->sp;
-                tstate->sp->rvalue = tstate->rr;
-                break;
-            case C4M_ZSetRes:
-                tstate->rr = tstate->fp[-1].rvalue;
-                break;
             case C4M_ZPushLocalObj:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
@@ -1323,6 +1315,19 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 ++tstate->sp;
                 break;
 #endif
+            case C4M_ZPopToR0:
+                STACK_REQUIRE_VALUES(1);
+                tstate->r0 = tstate->sp->rvalue;
+                ++tstate->sp;
+                break;
+            case C4M_ZPushFromR0:
+                STACK_REQUIRE_SLOTS(1);
+                --tstate->sp;
+                tstate->sp->rvalue = tstate->r0;
+                break;
+            case C4M_ZFPToR0:
+                tstate->r0 = (&tstate->fp[i->arg / 8])->rvalue;
+                break;
             case C4M_ZPopToR1:
                 STACK_REQUIRE_VALUES(1);
                 tstate->r1 = tstate->sp->rvalue;
@@ -1380,6 +1385,17 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZBail:
                 STACK_REQUIRE_VALUES(1);
                 C4M_RAISE(tstate->sp->rvalue.obj);
+                break;
+            case C4M_ZLockMutex:
+                STACK_REQUIRE_VALUES(1);
+                pthread_mutex_lock((pthread_mutex_t *)c4m_vm_variable(tstate,
+                                                                      i));
+                break;
+            case C4M_ZUnlockMutex:
+                STACK_REQUIRE_VALUES(1);
+                pthread_mutex_unlock((pthread_mutex_t *)c4m_vm_variable(tstate,
+                                                                        i));
+                break;
             }
 
             ++tstate->pc;
@@ -1494,7 +1510,7 @@ c4m_vmthread_reset(c4m_vmthread_t *tstate)
     tstate->fp                = tstate->sp;
     tstate->pc                = 0;
     tstate->num_frames        = 1;
-    tstate->rr                = (c4m_value_t){};
+    tstate->r0                = (c4m_value_t){};
     tstate->r1                = (c4m_value_t){};
     tstate->r2                = (c4m_value_t){};
     tstate->r3                = (c4m_value_t){};

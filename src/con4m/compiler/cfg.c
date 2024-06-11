@@ -151,11 +151,13 @@ check_for_fn_exit_errors(c4m_file_compile_ctx *file, c4m_fn_decl_t *fn_decl)
 
     // If nothing is returned at all ever, we already handled that.
     // Only look for when we didn't see it in all paths.
+#if 0
     if (c4m_xlist_len(ressym->sym_defs) > 0) {
         c4m_add_error(file,
                       c4m_cfg_return_coverage,
                       fn_decl->cfg->reference_location);
     }
+#endif
 }
 
 static void
@@ -616,6 +618,25 @@ cfg_process_node(cfg_ctx *ctx, c4m_cfg_node_t *node, c4m_cfg_node_t *parent)
                          node->parent,
                          &node->liveness_info,
                          &node->sometimes_live);
+
+        uint64_t        n;
+        c4m_cfg_node_t *ta = node->contents.jump.target;
+        void          **v  = hatrack_dict_keys_sort(node->liveness_info,
+                                          &n);
+
+        if (!ta->sometimes_live) {
+            ta->sometimes_live = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+        }
+
+        for (uint64_t i = 0; i < n; i++) {
+            c4m_xlist_append(ta->sometimes_live, v[i]);
+        }
+
+        c4m_xlist_t *old = node->sometimes_live;
+        for (uint64_t i = 0; i < c4m_xlist_len(old); i++) {
+            c4m_xlist_append(ta->sometimes_live, c4m_xlist_get(old, i, NULL));
+        }
+
         return NULL;
     }
     c4m_unreachable();

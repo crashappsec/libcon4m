@@ -530,7 +530,7 @@ gen_run_callback(gen_ctx *ctx, c4m_callback_t *cb)
     }
 
     if (useret) {
-        emit(ctx, C4M_ZPushRes);
+        emit(ctx, C4M_ZPopToR0);
     }
 }
 
@@ -612,6 +612,7 @@ gen_module(gen_ctx *ctx)
 
     int num_params = gen_parameter_checks(ctx);
 
+    printf("num_params = %d\n", num_params);
     emit(ctx, C4M_ZModuleEnter, c4m_kw("arg", c4m_ka(num_params)));
     gen_kids(ctx);
 }
@@ -1670,11 +1671,14 @@ gen_one_node(gen_ctx *ctx)
 
         // The following list is still TODO:
     case c4m_nt_func_def:
+        // We start this from our reference to the functions.  So when
+        // it comes via the top-level of the module, ignore it.
     case c4m_nt_func_mods:
     case c4m_nt_func_mod:
     case c4m_nt_formals:
     case c4m_nt_varargs_param:
     case c4m_nt_call:
+        break;
     case c4m_nt_use:
     case c4m_nt_attr_set_lock:
     case c4m_nt_return:
@@ -1724,8 +1728,92 @@ gen_one_node(gen_ctx *ctx)
 }
 
 static void
-gen_function(gen_ctx *ctx, c4m_fn_decl_t *fn_decl)
+gen_pass_retval(gen_ctx *ctx, c4m_fn_decl_t *decl)
 {
+    c4m_scope_t       *scope  = decl->signature_info->fn_scope;
+    c4m_scope_entry_t *retsym = hatrack_dict_get(scope->symbols,
+                                                 c4m_new_utf8("$result"),
+                                                 NULL);
+
+    if (!retsym) {
+        return;
+    }
+
+    emit(ctx, C4M_ZFPToR0, c4m_kw("arg", c4m_ka(retsym->static_offset)));
+}
+
+static void
+gen_function(gen_ctx *ctx, c4m_scope_entry_t *sym, c4m_zmodule_info_t *module)
+{
+    c4m_fn_decl_t *decl             = sym->value;
+    int            n                = sym->declaration_node->num_kids;
+    ctx->cur_node                   = sym->declaration_node->children[n - 1];
+    c4m_zfn_info_t *fn_info_for_obj = c4m_gc_alloc(c4m_zfn_info_t);
+
+    fn_info_for_obj->mid      = module->module_id;
+    fn_info_for_obj->offset   = ctx->instruction_counter;
+    fn_info_for_obj->tid      = decl->signature_info->full_type;
+    fn_info_for_obj->shortdoc = decl->short_doc;
+    fn_info_for_obj->longdoc  = decl->long_doc;
+    fn_info_for_obj->funcname = sym->name;
+    printf("decl->frame_size = %d\n", decl->frame_size);
+    ctx->current_stack_offset = decl->frame_size;
+
+    // TODO: fill in syms/sym types.
+    gen_label(ctx, sym->name);
+    if (decl->once) {
+        fn_info_for_obj->static_lock = decl->sc_lock_offset;
+
+        emit(ctx, C4M_ZPushStaticObj, c4m_ka(decl->sc_bool_offset));
+        GEN_JZ(emit(ctx,
+                    C4M_ZPushStaticObj,
+                    c4m_kw("arg", c4m_ka(decl->sc_memo_offset)));
+               gen_pass_retval(ctx, decl);
+               emit(ctx, C4M_ZRet););
+        emit(ctx,
+             C4M_ZLockMutex,
+             c4m_kw("arg", c4m_ka(decl->sc_lock_offset)));
+        emit(ctx,
+             C4M_ZPushStaticObj,
+             c4m_kw("arg", c4m_ka(decl->sc_bool_offset)));
+        // If it's not zero, we grabbed the lock, but waited while
+        // someone else computed the memo.
+        GEN_JNZ(emit(ctx,
+                     C4M_ZUnlockMutex,
+                     c4m_kw("arg",
+                            c4m_ka(decl->sc_lock_offset)));
+                emit(ctx,
+                     C4M_ZPushStaticObj,
+                     c4m_kw("arg", c4m_ka(decl->sc_memo_offset)));
+                gen_pass_retval(ctx, decl);
+                emit(ctx, C4M_ZRet););
+        // Set the boolean to true.
+        gen_load_immediate(ctx, 1);
+        emit(ctx,
+             C4M_ZPushStaticRef,
+             c4m_kw("arg", c4m_ka(decl->sc_bool_offset)));
+        emit(ctx, C4M_ZAssignToLoc);
+    }
+
+    // The frame size needs to be backpatched, since the needed stack
+    // space from block scopes hasn't been computed by this point. It
+    // gets computed as we generate code. So stash this:
+    int sp_loc = ctx->instruction_counter;
+    emit(ctx, C4M_ZMoveSp);
+
+    gen_one_node(ctx);
+    gen_pass_retval(ctx, decl);
+
+    if (decl->once) {
+        emit(ctx,
+             C4M_ZUnlockMutex,
+             c4m_kw("arg", c4m_ka(decl->sc_lock_offset)));
+    }
+    emit(ctx, C4M_ZRet);
+
+    c4m_zinstruction_t *ins = c4m_xlist_get(module->instructions, sp_loc, NULL);
+    ins->arg                = ctx->current_stack_offset;
+    fn_info_for_obj->size   = ctx->current_stack_offset;
 }
 
 static void
@@ -1774,10 +1862,8 @@ gen_module_code(gen_ctx *ctx)
     }
 
     for (int i = 0; i < n; i++) {
-        c4m_scope_entry_t *sym  = c4m_xlist_get(symlist, i, NULL);
-        c4m_fn_decl_t     *decl = sym->value;
-
-        gen_function(ctx, decl);
+        c4m_scope_entry_t *sym = c4m_xlist_get(symlist, i, NULL);
+        gen_function(ctx, sym, module);
     }
 
     // Version is not used yet.

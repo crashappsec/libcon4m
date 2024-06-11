@@ -8,7 +8,8 @@ typedef struct {
     c4m_fn_param_info_t *param_info;
     c4m_fn_param_info_t  return_info;
     int                  num_params;
-    unsigned int         pure : 1;
+    unsigned int         pure        : 1;
+    unsigned int         void_return : 1;
 } c4m_sig_info_t;
 
 typedef struct {

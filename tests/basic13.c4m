@@ -1,0 +1,14 @@
+"Test basic unary stuff."
+
+x = 100
+
+print x
+
+if x % 2 {
+    print x
+}
+else {
+    print -x
+}
+
+print not not 0 + 100 - 100

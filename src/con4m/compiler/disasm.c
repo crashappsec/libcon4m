@@ -135,12 +135,12 @@ const inst_info_t inst_info[256] = {
         .name    = "ZMoveSp",
         .arg_fmt = fmt_int,
     },
-    [C4M_ZPushRes] = {
-        .name = "ZPushRes",
-    },
     [C4M_ZModuleEnter] = {
         .name    = "ZModuleEnter",
         .arg_fmt = fmt_int,
+    },
+    [C4M_ZRet] = {
+        .name = "ZRet",
     },
     [C4M_ZModuleRet] = {
         .name = "ZModuleRet",
@@ -224,6 +224,9 @@ const inst_info_t inst_info[256] = {
     [C4M_ZSwap] = {
         .name = "ZSwap",
     },
+    [C4M_ZPopToR0] = {
+        .name = "ZPopToR0",
+    },
     [C4M_ZPopToR1] = {
         .name = "ZPopToR1",
     },
@@ -232,6 +235,13 @@ const inst_info_t inst_info[256] = {
     },
     [C4M_ZPopToR3] = {
         .name = "ZPopToR3",
+    },
+    [C4M_ZFPToR0] = {
+        .name    = "ZFPToR0",
+        .arg_fmt = fmt_int,
+    },
+    [C4M_ZPushFromR0] = {
+        .name = "ZPushFromR0",
     },
     [C4M_ZPushFromR1] = {
         .name = "ZPushFromR1",
@@ -279,6 +289,16 @@ const inst_info_t inst_info[256] = {
     },
     [C4M_ZBNot] = {
         .name = "ZBNot",
+    },
+    [C4M_ZLockMutex] = {
+        .name        = "ZLockMutex",
+        .arg_fmt     = fmt_hex,
+        .show_module = 1,
+    },
+    [C4M_ZUnlockMutex] = {
+        .name        = "ZUnLockMutex",
+        .arg_fmt     = fmt_hex,
+        .show_module = 1,
     },
 #ifdef C4M_DEV
     [C4M_ZPrint] = {

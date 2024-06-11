@@ -187,12 +187,12 @@ layout_static(c4m_compile_ctx      *cctx,
 }
 
 // This one measures in stack value slots, not in bytes.
-static int
+static int64_t
 layout_stack(void **view, uint64_t n)
 {
     // Address 0 is always $result, if it exists.
-    int next_formal = -1;
-    int next_local  = 1;
+    int32_t next_formal = -1;
+    int32_t next_local  = 0;
 
     for (unsigned int i = 0; i < n; i++) {
         c4m_scope_entry_t *sym = view[i];
@@ -209,7 +209,7 @@ layout_stack(void **view, uint64_t n)
             continue;
         case sk_formal:
             sym->static_offset = next_formal;
-            next_local -= 1;
+            next_formal -= 1;
             continue;
         default:
             continue;
@@ -229,9 +229,9 @@ layout_func(c4m_file_compile_ctx *ctx,
     c4m_fn_decl_t *decl       = sym->value;
     c4m_scope_t   *scope      = decl->signature_info->fn_scope;
     void         **view       = hatrack_dict_values_sort(scope->symbols, &n);
-    int            end_offset = layout_stack(view, n);
+    int            frame_size = layout_stack(view, n);
 
-    decl->frame_size = end_offset;
+    decl->frame_size = frame_size;
 
     if (decl->once) {
         decl->sc_bool_offset = c4m_layout_static_obj(ctx,
@@ -287,6 +287,7 @@ c4m_layout_module_symbols(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
     n = c4m_xlist_len(fctx->fn_def_syms);
 
     for (unsigned int i = 0; i < n; i++) {
-        layout_func(fctx, c4m_xlist_get(fctx->fn_def_syms, i, NULL), i);
+        c4m_scope_entry_t *sym = c4m_xlist_get(fctx->fn_def_syms, i, NULL);
+        layout_func(fctx, sym, i);
     }
 }
