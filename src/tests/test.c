@@ -17,7 +17,7 @@ static void
 collect_and_print_stats()
 {
     uint64_t used, available, total, live;
-    uint64_t allocs_pre, allocs_post;
+    uint64_t allocs_pre = 0, allocs_post = 0;
 
     c4m_gc_heap_stats(&used, &available, &total);
     allocs_pre = get_alloc_counter();

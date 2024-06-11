@@ -92,7 +92,6 @@ _c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
     c4m_type_t *objtype = c4m_get_my_type(obj);
 
     if (c4m_type_is_boxed_value_type(objtype)) {
-        printf("Unbox that shit.\n");
         c4m_marshal_u8(1, cctx->const_stream);
 
         c4m_marshal_u64(c4m_unbox(obj), cctx->const_stream);

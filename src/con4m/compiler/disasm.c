@@ -274,6 +274,12 @@ const inst_info_t inst_info[256] = {
     [C4M_ZDeref] = {
         .name = "ZDeref",
     },
+    [C4M_ZNot] = {
+        .name = "ZNot",
+    },
+    [C4M_ZBNot] = {
+        .name = "ZBNot",
+    },
 #ifdef C4M_DEV
     [C4M_ZPrint] = {
         .name = "ZPrint",

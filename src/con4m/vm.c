@@ -955,7 +955,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 break;
             case C4M_ZNot:
                 STACK_REQUIRE_VALUES(1);
-                tstate->sp->uint = !c4m_value_iszero(&tstate->sp->rvalue);
+                tstate->sp->uint = !tstate->sp->uint;
                 break;
             case C4M_ZAbs:
                 STACK_REQUIRE_VALUES(1);

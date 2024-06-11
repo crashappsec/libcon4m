@@ -210,18 +210,19 @@ c4m_expand_arena(size_t num_words, c4m_arena_t **cur_ptr)
 
     c4m_arena_t *current = *cur_ptr;
 
-    new_arena->next_alloc     = (c4m_alloc_hdr *)new_arena->data;
-    new_arena->previous       = current;
-    new_arena->heap_end       = arena_end;
-    new_arena->arena_id       = arena_id;
-    new_arena->late_mutations = calloc(sizeof(queue_t), 1);
+    new_arena->next_alloc    = (c4m_alloc_hdr *)new_arena->data;
+    new_arena->previous      = current;
+    new_arena->heap_end      = arena_end;
+    new_arena->arena_id      = arena_id;
+    new_arena->alloc_counter = 0;
+    // new_arena->late_mutations = calloc(sizeof(queue_t), 1);
 
     c4m_gc_trace("******** alloc late mutations dict: %p\n",
                  new_arena->late_mutations);
 
     *cur_ptr = new_arena;
 
-    queue_init(new_arena->late_mutations);
+    // queue_init(new_arena->late_mutations);
 
     if (current != NULL && current->roots != NULL) {
         new_arena->roots = c4m_rc_ref(current->roots);
@@ -291,9 +292,9 @@ c4m_delete_arena(c4m_arena_t *arena)
             c4m_rc_free_and_cleanup(arena->roots,
                                     (cleanup_fn)hatrack_dict_cleanup);
         }
-        c4m_gc_trace("******** delete late mutations dict: %p\n",
-                     arena->late_mutations);
-        free(arena->late_mutations);
+        // c4m_gc_trace("******** delete late mutations dict: %p\n",
+        // arena->late_mutations);
+        // free(arena->late_mutations);
 
 #if defined(MADV_ZERO_WIRED_PAGES)
         char *start = ((char *)arena) - page_bytes;

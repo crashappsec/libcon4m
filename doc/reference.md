@@ -252,6 +252,7 @@ information is not.
 ## Special Variables
 
 Currently, Con4m supports:
+- `$result` for return values from functions. This is the same as explicitly providing a return value via an argument to a `return` statement.
 - `$i`, in loops.
 - `label$i` for labeled loops, which can be used to access the iteration count
   in nested scopes.
@@ -281,6 +282,8 @@ Will print:
 1
 1
 ```
+
+The user may assign `$result`, but not special loop variables.
 
 # Current BNF
 

@@ -160,7 +160,7 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
 
     if (arena == 0) {
 try_again:
-        c4m_expand_arena(max(C4M_DEFAULT_ARENA_SIZE, wordlen * 2),
+        c4m_expand_arena(max(C4M_DEFAULT_ARENA_SIZE, wordlen << 4),
                          arena_ptr);
         arena = *arena_ptr;
     }

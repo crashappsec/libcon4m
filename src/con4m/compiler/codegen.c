@@ -160,6 +160,7 @@ gen_apply_waiting_patches(gen_ctx *ctx, c4m_control_info_t *ci)
 static inline void
 gen_tcall(gen_ctx *ctx, c4m_builtin_type_fn fn, c4m_type_t *t)
 {
+    t = c4m_resolve_and_unbox(t);
     emit(ctx, C4M_ZTCall, c4m_kw("arg", c4m_ka(fn), "type", c4m_ka(t)));
 }
 
@@ -1525,6 +1526,51 @@ gen_index_or_slice(gen_ctx *ctx)
     }
 }
 
+static inline void
+gen_sym_decl(gen_ctx *ctx)
+{
+    int                last = ctx->cur_node->num_kids - 1;
+    c4m_pnode_t       *kid  = get_pnode(ctx->cur_node->children[last]);
+    c4m_pnode_t       *psym;
+    c4m_scope_entry_t *sym;
+
+    if (kid->kind == c4m_nt_assign) {
+        psym = get_pnode(ctx->cur_node->children[last - 1]);
+
+        sym = (c4m_scope_entry_t *)psym->value;
+
+        if (sym->flags & C4M_F_DECLARED_CONST) {
+            return;
+        }
+
+        c4m_print_parse_node(ctx->cur_node);
+        ctx->lvalue = true;
+        gen_one_kid(ctx, last - 1);
+        gen_one_kid(ctx, last);
+        emit(ctx, C4M_ZSwap);
+        emit(ctx, C4M_ZAssignToLoc);
+    }
+}
+
+static inline void
+gen_unary_op(gen_ctx *ctx)
+{
+    // Right now, the pnode extra_info will be NULL when it's a unary
+    // minus and non-null when it's a not operation.
+    c4m_pnode_t *n = get_pnode(ctx->cur_node);
+
+    gen_kids(ctx);
+
+    if (n->extra_info != NULL) {
+        gen_kids(ctx);
+        emit(ctx, C4M_ZNot, c4m_kw("type", c4m_ka(c4m_tspec_bool())));
+    }
+    else {
+        gen_load_immediate(ctx, -1);
+        emit(ctx, C4M_ZMul);
+    }
+}
+
 static void
 gen_one_node(gen_ctx *ctx)
 {
@@ -1615,9 +1661,14 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_index:
         gen_index_or_slice(ctx);
         break;
+    case c4m_nt_sym_decl:
+        gen_sym_decl(ctx);
+        break;
+    case c4m_nt_unary_op:
+        gen_unary_op(ctx);
+        break;
 
         // The following list is still TODO:
-    case c4m_nt_unary_op:
     case c4m_nt_func_def:
     case c4m_nt_func_mods:
     case c4m_nt_func_mod:
@@ -1632,33 +1683,6 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_paren_expr:
     case c4m_nt_variable_decls:
         gen_kids(ctx);
-        break;
-        // This is only partially done, which is why it's down here
-        // with unfinished stuff.
-
-    case c4m_nt_sym_decl:
-        do {
-            int                last = ctx->cur_node->num_kids - 1;
-            c4m_pnode_t       *kid  = get_pnode(ctx->cur_node->children[last]);
-            c4m_pnode_t       *psym;
-            c4m_scope_entry_t *sym;
-
-            if (kid->kind == c4m_nt_assign) {
-                psym = get_pnode(ctx->cur_node->children[last - 1]);
-
-                sym = (c4m_scope_entry_t *)psym->value;
-
-                if (sym->flags & C4M_F_DECLARED_CONST) {
-                    break;
-                }
-                c4m_print_parse_node(ctx->cur_node);
-                ctx->lvalue = true;
-                gen_one_kid(ctx, last - 1);
-                gen_one_kid(ctx, last);
-                emit(ctx, C4M_ZSwap);
-                emit(ctx, C4M_ZAssignToLoc);
-            }
-        } while (0);
         break;
         // These nodes should NOT do any work and not descend if they're
         // hit; many of them are handled elsewhere and this should be

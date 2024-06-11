@@ -1941,15 +1941,22 @@ handle_unary_op(pass2_ctx *ctx)
 {
     process_children(ctx);
 
-    c4m_utf8_t *text = node_text(ctx->node);
+    c4m_utf8_t  *text = node_text(ctx->node);
+    c4m_pnode_t *pn   = get_pnode(ctx->node);
 
     if (!strcmp(text->data, "-")) {
+        pn->extra_info = (void *)0;
+
         if (c4m_tspec_is_error(
                 type_check_node_against_type(ctx->node, c4m_tspec_i64()))) {
             c4m_add_error(ctx->file_ctx,
                           c4m_err_unary_minus_type,
                           ctx->node);
         }
+    }
+    else { // NOT operator.
+        pn->type       = c4m_tspec_bool();
+        pn->extra_info = (void *)1;
     }
 }
 

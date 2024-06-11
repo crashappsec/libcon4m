@@ -493,6 +493,7 @@ end_of_statement(parse_ctx *ctx)
     }
 
     if (!cur_tok_is_end_of_stmt(ctx) && tok_kind(ctx)) {
+        DEBUG_CUR("Suck");
         err_skip_stmt(ctx, c4m_err_parse_expected_stmt_end);
         return;
     }
@@ -3179,7 +3180,10 @@ expression_start(parse_ctx *ctx)
     case c4m_tt_not:
         // Here the LHS is an empty string. For TtNot, if there is a LHS,
         // we need to reject that.
-        return NULL;
+        temporary_tree(ctx, c4m_nt_unary_op);
+        consume(ctx);
+        adopt_kid(ctx, expression(ctx));
+        return restore_tree(ctx);
 
     case c4m_tt_backtick:
     case c4m_tt_object:
@@ -4240,8 +4244,9 @@ repr_one_node(c4m_pnode_t *one)
     c4m_utf8_t *result = c4m_cstr_format(fmt, name, xtra, doc);
 
     if (one->type != NULL) {
-        result = c4m_str_concat(result,
-                                c4m_cstr_format("[h6]{}", one->type));
+        c4m_type_t *t = c4m_resolve_and_unbox(one->type);
+        result        = c4m_str_concat(result,
+                                c4m_cstr_format("[h6]{}", t));
     }
 
     return result;
