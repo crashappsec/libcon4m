@@ -511,6 +511,7 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - Remove the two-words-per-stack-slot thing; it's not needed anymore.
 - Test harness
 - Objects
+- automatic logfd + optional server for log messages
 - REPL
 - Keyword arguments
 - 'maybe' types / nil

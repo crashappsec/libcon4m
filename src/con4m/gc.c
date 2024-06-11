@@ -145,11 +145,12 @@ lock_existing_heap()
 
 static thread_local c4m_arena_t *stashed_heap;
 
-void
+c4m_arena_t *
 c4m_internal_stash_heap()
 {
     stashed_heap = current_heap;
     current_heap = c4m_new_arena(C4M_DEFAULT_ARENA_SIZE);
+    return stashed_heap;
 }
 
 void
@@ -157,6 +158,18 @@ c4m_internal_lock_then_unstash_heap()
 {
     lock_existing_heap();
     current_heap = stashed_heap;
+}
+
+void
+c4m_internal_unstash_heap()
+{
+    current_heap = stashed_heap;
+}
+
+void
+c4m_internal_set_heap(c4m_arena_t *heap)
+{
+    current_heap = heap;
 }
 
 static void *

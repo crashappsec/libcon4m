@@ -69,7 +69,7 @@
 // its value.
 
 #ifndef C4M_STACK_SIZE
-#define STACK_SIZE (1 << 20)
+#define STACK_SIZE (1 << 18)
 #else
 #define STACK_SIZE C4M_STACK_SIZE
 #endif

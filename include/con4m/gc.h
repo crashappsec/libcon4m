@@ -71,8 +71,9 @@
 
 #ifndef C4M_DEFAULT_ARENA_SIZE
 // 4 Meg
-#define C4M_DEFAULT_ARENA_SIZE (1 << 26)
+#define C4M_DEFAULT_ARENA_SIZE (1 << 24)
 // Was previously using 1 << 19
+// But this needs to be much bigger than the stack size.
 // #define C4M_DEFAULT_ARENA_SIZE 64 // Was using this for extreme tests
 #endif
 
@@ -226,11 +227,13 @@ c4m_gc_malloc(size_t len)
 #define c4m_gc_array_alloc(typename, n) \
     c4m_gc_raw_alloc((sizeof(typename) * n), GC_SCAN_ALL)
 
-extern void c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom);
-extern void c4m_initialize_gc();
-extern void c4m_gc_heap_stats(uint64_t *, uint64_t *, uint64_t *);
-extern void c4m_internal_stash_heap();
-extern void c4m_internal_lock_then_unstash_heap();
+extern void         c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom);
+extern void         c4m_initialize_gc();
+extern void         c4m_gc_heap_stats(uint64_t *, uint64_t *, uint64_t *);
+extern c4m_arena_t *c4m_internal_stash_heap();
+extern void         c4m_internal_unstash_heap();
+extern void         c4m_internal_set_heap(c4m_arena_t *);
+extern void         c4m_internal_lock_then_unstash_heap();
 
 #ifdef C4M_ALLOC_STATS
 uint64_t get_alloc_counter();
