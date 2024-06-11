@@ -298,7 +298,8 @@ typedef enum : uint8_t {
     // the top stack value to be loaded via ZPushStaticPtr and does not pop it.
     // The attribute to lock is named according to the top stack value.
     C4M_ZLockOnWrite   = 0xB0,
-    // Given a memory address, locks the mutext passed in the argument.
+    // Given a static offset as an argument, locks the mutex passed in
+    // the argument.
     C4M_ZLockMutex     = 0xB1,
     C4M_ZUnlockMutex   = 0xB2,
     // Arithmetic and bitwise operators on 64-bit values; the two-arg
