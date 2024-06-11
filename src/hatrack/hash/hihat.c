@@ -33,17 +33,13 @@
 
 // clang-format off
 static hihat_store_t *hihat_store_new    (uint64_t);
-static void          *hihat_store_get    (hihat_store_t *, hatrack_hash_t,
-					  bool *);
-static void          *hihat_store_put    (hihat_store_t *, mmm_thread_t *, hihat_t *,
-					  hatrack_hash_t, void *, bool *);
-static void          *hihat_store_replace(hihat_store_t *, mmm_thread_t *, hihat_t *,
-					  hatrack_hash_t, void *, bool *);
-static bool           hihat_store_add    (hihat_store_t *, mmm_thread_t *, hihat_t *,
-					  hatrack_hash_t, void *);
-static void          *hihat_store_remove (hihat_store_t *, mmm_thread_t *, hihat_t *,
-					  hatrack_hash_t, bool *);
+static void          *hihat_store_get    (hihat_store_t *, hatrack_hash_t, bool *);
+static void          *hihat_store_put    (hihat_store_t *, mmm_thread_t *, hihat_t *, hatrack_hash_t, void *, bool *);
+static void          *hihat_store_replace(hihat_store_t *, mmm_thread_t *, hihat_t *, hatrack_hash_t, void *, bool *);
+static bool           hihat_store_add    (hihat_store_t *, mmm_thread_t *, hihat_t *, hatrack_hash_t, void *);
+static void          *hihat_store_remove (hihat_store_t *, mmm_thread_t *, hihat_t *, hatrack_hash_t, bool *);
 static hihat_store_t *hihat_store_migrate(hihat_store_t *, mmm_thread_t *, hihat_t *);
+// clang-format on
 
 /* hihat_new()
  *
@@ -88,11 +84,11 @@ hihat_init_size(hihat_t *self, char size)
     uint64_t       len;
 
     if (((size_t)size) > (sizeof(intptr_t) * 8)) {
-	abort();
+        abort();
     }
 
     if (size < HATRACK_MIN_SIZE_LOG) {
-	abort();
+        abort();
     }
 
     len              = 1 << size;
@@ -124,7 +120,6 @@ hihat_cleanup(hihat_t *self)
     return;
 }
 
-
 /* hihat_delete()
  *
  * Deallocate a hihat object and its internal state (via hihat_cleanup).
@@ -140,7 +135,6 @@ hihat_delete(hihat_t *self)
 
     return;
 }
-
 
 /* hihat_get(), _put(), _replace(), _add(), _remove()
  *
@@ -304,7 +298,7 @@ hihat_add(hihat_t *self, hatrack_hash_t hv, void *item)
 void *
 hihat_remove_mmm(hihat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
-    void           *ret;
+    void          *ret;
     hihat_store_t *store;
 
     mmm_start_basic_op(thread);
@@ -426,14 +420,14 @@ hihat_view_mmm(hihat_t *self, mmm_thread_t *thread, uint64_t *num, bool sort)
         record       = atomic_read(&cur->record);
         record_epoch = record.info & HIHAT_EPOCH_MASK;
 
-	// If there's no epoch in the record, then the bucket was
-	// empty, and we skip it.
-	if (!record_epoch) {
-	    cur++;
-	    continue;
-	}
+        // If there's no epoch in the record, then the bucket was
+        // empty, and we skip it.
+        if (!record_epoch) {
+            cur++;
+            continue;
+        }
 
-	p->sort_epoch = record_epoch;
+        p->sort_epoch = record_epoch;
         p->item       = record.item;
 
         p++;
@@ -453,9 +447,9 @@ hihat_view_mmm(hihat_t *self, mmm_thread_t *thread, uint64_t *num, bool sort)
     view = hatrack_realloc(view, alloc_len, num_items * sizeof(hatrack_view_t));
 
     if (sort) {
-	// Unordered buckets should be in random order, so quicksort
-	// is a good option.
-	qsort(view, num_items, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
+        // Unordered buckets should be in random order, so quicksort
+        // is a good option.
+        qsort(view, num_items, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
     }
 
     mmm_end_op(thread);
@@ -479,10 +473,10 @@ hihat_store_new(uint64_t size)
     hihat_store_t *store;
     uint64_t       alloc_len;
 
-    alloc_len         = sizeof(hihat_store_t) + sizeof(hihat_bucket_t) * size;
-    store             = (hihat_store_t *)mmm_alloc_committed(alloc_len);
-    store->last_slot  = size - 1;
-    store->threshold  = hatrack_compute_table_threshold(size);
+    alloc_len        = sizeof(hihat_store_t) + sizeof(hihat_bucket_t) * size;
+    store            = (hihat_store_t *)mmm_alloc_committed(alloc_len);
+    store->last_slot = size - 1;
+    store->threshold = hatrack_compute_table_threshold(size);
 
     return store;
 }
@@ -526,9 +520,9 @@ hihat_store_new(uint64_t size)
  * value we got.
  */
 static void *
-hihat_store_get(hihat_store_t  *self,
-                 hatrack_hash_t hv1,
-                 bool          *found)
+hihat_store_get(hihat_store_t *self,
+                hatrack_hash_t hv1,
+                bool          *found)
 {
     uint64_t        bix;
     uint64_t        i;
@@ -613,12 +607,12 @@ not_found:
  * smaller and more easily digestable.
  */
 static void *
-hihat_store_put(hihat_store_t   *self,
-mmm_thread_t *thread,
-                 hihat_t        *top,
-                 hatrack_hash_t  hv1,
-                 void           *item,
-                 bool           *found)
+hihat_store_put(hihat_store_t *self,
+                mmm_thread_t  *thread,
+                hihat_t       *top,
+                hatrack_hash_t hv1,
+                void          *item,
+                bool          *found)
 {
     void           *old_item;
     bool            new_item;
@@ -633,48 +627,48 @@ mmm_thread_t *thread,
 
     for (i = 0; i <= self->last_slot; i++) {
         bucket = &self->buckets[bix];
-	/* We load the current hash value and check it, making sure
-	 * it's empty before we attempt to write out out value.
-	 * We *could* assume the bucket is empty, and attempt to
-	 * swap into it, then just move on if the swap fails.
-	 *
-	 * In my testing, it's generally significantly more performant
-	 * to do the extra check, and NOT CAS the hash value every
-	 * time.  The alternative involves a load anyway, since we
-	 * have to load 0's into the expected value (hv2), in that
-	 * case.
-	 */
-	hv2    = atomic_read(&bucket->hv);
+        /* We load the current hash value and check it, making sure
+         * it's empty before we attempt to write out out value.
+         * We *could* assume the bucket is empty, and attempt to
+         * swap into it, then just move on if the swap fails.
+         *
+         * In my testing, it's generally significantly more performant
+         * to do the extra check, and NOT CAS the hash value every
+         * time.  The alternative involves a load anyway, since we
+         * have to load 0's into the expected value (hv2), in that
+         * case.
+         */
+        hv2    = atomic_read(&bucket->hv);
 
-	if (hatrack_bucket_unreserved(hv2)) {
-	    /* Note that our compare-and-swap macro is defined in hatomic.h.
-	     * It includes a facility where, if we have counters turned on,
-	     * we can keep track of how often individual operations succed
-	     * or fail.
-	     *
-	     * When those facilities are off, the macros expand
-	     * directly to a C11 atomic_compare_exchange_strong()
-	     * operation.
-	     */
-	    if (LCAS(&bucket->hv, &hv2, hv1, HIHAT_CTR_BUCKET_ACQUIRE)) {
-		/* Our resize metric. If this insert puts us at the
-		 * 75% mark, then we need to resize. If this CAS
-		 * fails, we're not contributing to filling up the
-		 * table, because we're going to try to write over an
-		 * old record.  So we don't need to check on fail.
-		 */
-		if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
-		    goto migrate_and_retry;
-		}
+        if (hatrack_bucket_unreserved(hv2)) {
+            /* Note that our compare-and-swap macro is defined in hatomic.h.
+             * It includes a facility where, if we have counters turned on,
+             * we can keep track of how often individual operations succed
+             * or fail.
+             *
+             * When those facilities are off, the macros expand
+             * directly to a C11 atomic_compare_exchange_strong()
+             * operation.
+             */
+            if (LCAS(&bucket->hv, &hv2, hv1, HIHAT_CTR_BUCKET_ACQUIRE)) {
+                /* Our resize metric. If this insert puts us at the
+                 * 75% mark, then we need to resize. If this CAS
+                 * fails, we're not contributing to filling up the
+                 * table, because we're going to try to write over an
+                 * old record.  So we don't need to check on fail.
+                 */
+                if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
+                    goto migrate_and_retry;
+                }
 
-		goto found_bucket;
-	    }
-	}
+                goto found_bucket;
+            }
+        }
 
-	if (!hatrack_hashes_eq(hv1, hv2)) {
-	    bix = (bix + 1) & self->last_slot;
-	    continue;
-	}
+        if (!hatrack_hashes_eq(hv1, hv2)) {
+            bix = (bix + 1) & self->last_slot;
+            continue;
+        }
 
         goto found_bucket;
     }
@@ -683,11 +677,11 @@ mmm_thread_t *thread,
      * table got full, fast. We need to resize, to try to make room,
      * and then try again via a recursive call.
      */
- migrate_and_retry:
+migrate_and_retry:
     self = hihat_store_migrate(self, thread, top);
     return hihat_store_put(self, thread, top, hv1, item, found);
 
- found_bucket:
+found_bucket:
     /* Once we've found the right bucket, we are not quite ready to
      * try to write to it. First, we need to check to make sure that
      * this bucket isn't marked for migration.  If it is so marked,
@@ -697,54 +691,54 @@ mmm_thread_t *thread,
     record = atomic_read(&bucket->record);
 
     if (record.info & HIHAT_F_MOVING) {
-	goto migrate_and_retry;
+        goto migrate_and_retry;
     }
 
     /*
      * The way we tell if there's an actual item in this bucket is by
      * extracting the "epoch" (essentially a timestamp), and seeing if
      * it is non-zero.
-      */
+     */
     if (record.info & HIHAT_EPOCH_MASK) {
-	if (found) {
-	    *found = true;
-	}
-	/* We need to remember for later a couple of things:
-	 * 1) The old item, so that we can return it, but only
+        if (found) {
+            *found = true;
+        }
+        /* We need to remember for later a couple of things:
+         * 1) The old item, so that we can return it, but only
          *    if our CAS is successful, and
-	 *
-	 * 2) Whether or not this is a 'new item', If our CAS is
-	 *    successful. The thread that successfully adds the new
-	 *    item becomes responsible for updating the approximate
-	 *    item count.
-	 *
-	 * Plus, when setting up the record we want to swap in, since
-	 * there's already a value, we want to preserve its write
-	 * epoch for the purposes of sorting by insertion time.
-	 */
-	old_item       = record.item;
-	new_item       = false;
-	candidate.info = record.info;
+         *
+         * 2) Whether or not this is a 'new item', If our CAS is
+         *    successful. The thread that successfully adds the new
+         *    item becomes responsible for updating the approximate
+         *    item count.
+         *
+         * Plus, when setting up the record we want to swap in, since
+         * there's already a value, we want to preserve its write
+         * epoch for the purposes of sorting by insertion time.
+         */
+        old_item       = record.item;
+        new_item       = false;
+        candidate.info = record.info;
     }
     else {
-	if (found) {
-	    *found = false;
-	}
-	/* In this branch, we grab a new epoch for our (hopefully)
-	 * new item. The epoch will go unused if we don't win, and
-	 * that's just fine.
-	 *
-	 * On the flip side, multiple threads are creating epochs in
-	 * parallel, without ensuring atomicity. That means that more
-	 * than one item could end up with the same epoch.
-	 *
-	 * Since we aren't requiring full consistency for our views in
-	 * hihat, that doesn't matter to us. If we care about
-	 * consistency, lohat (and woolhat) solve this problem.
-	 */
-	old_item       = NULL;
-	new_item       = true;
-	candidate.info = HIHAT_F_INITED | top->next_epoch++;
+        if (found) {
+            *found = false;
+        }
+        /* In this branch, we grab a new epoch for our (hopefully)
+         * new item. The epoch will go unused if we don't win, and
+         * that's just fine.
+         *
+         * On the flip side, multiple threads are creating epochs in
+         * parallel, without ensuring atomicity. That means that more
+         * than one item could end up with the same epoch.
+         *
+         * Since we aren't requiring full consistency for our views in
+         * hihat, that doesn't matter to us. If we care about
+         * consistency, lohat (and woolhat) solve this problem.
+         */
+        old_item       = NULL;
+        new_item       = true;
+        candidate.info = HIHAT_F_INITED | top->next_epoch++;
     }
 
     candidate.item = item;
@@ -765,7 +759,7 @@ mmm_thread_t *thread,
      * the migration, before retrying our operation.
      */
     if (record.info & HIHAT_F_MOVING) {
-	goto migrate_and_retry;
+        goto migrate_and_retry;
     }
 
     return item;
@@ -779,12 +773,12 @@ mmm_thread_t *thread,
  * ourselves to concerns (somewhat) specific to a replace operation.
  */
 static void *
-hihat_store_replace(hihat_store_t   *self,
-		     mmm_thread_t *thread,
-hihat_t        *top,
-		     hatrack_hash_t  hv1,
-		     void           *item,
-		     bool           *found)
+hihat_store_replace(hihat_store_t *self,
+                    mmm_thread_t  *thread,
+                    hihat_t       *top,
+                    hatrack_hash_t hv1,
+                    void          *item,
+                    bool          *found)
 {
     uint64_t        bix;
     uint64_t        i;
@@ -797,39 +791,39 @@ hihat_t        *top,
 
     for (i = 0; i <= self->last_slot; i++) {
         bucket = &self->buckets[bix];
-	hv2    = atomic_read(&bucket->hv);
+        hv2    = atomic_read(&bucket->hv);
 
-	if (hatrack_bucket_unreserved(hv2)) {
-	    goto not_found;
-	}
+        if (hatrack_bucket_unreserved(hv2)) {
+            goto not_found;
+        }
 
-	if (!hatrack_hashes_eq(hv1, hv2)) {
-	    bix = (bix + 1) & self->last_slot;
-	    continue;
-	}
+        if (!hatrack_hashes_eq(hv1, hv2)) {
+            bix = (bix + 1) & self->last_slot;
+            continue;
+        }
 
         goto found_bucket;
     }
 
- not_found:
+not_found:
     if (found) {
-	*found = false;
+        *found = false;
     }
 
     return NULL;
 
- found_bucket:
+found_bucket:
     record = atomic_read(&bucket->record);
 
     if (record.info & HIHAT_F_MOVING) {
-    migrate_and_retry:
-	self = hihat_store_migrate(self, thread, top);
+migrate_and_retry:
+        self = hihat_store_migrate(self, thread, top);
 
-	return hihat_store_replace(self, thread, top, hv1, item, found);
+        return hihat_store_replace(self, thread, top, hv1, item, found);
     }
 
     if (!(record.info & HIHAT_EPOCH_MASK)) {
-	goto not_found;
+        goto not_found;
     }
 
     candidate.item = item;
@@ -856,18 +850,18 @@ hihat_t        *top,
      * this issue is one of the two real differences between hihat
      * and witchhat.
      */
-    while(!LCAS(&bucket->record, &record, candidate, HIHAT_CTR_REC_INSTALL)) {
-	if (record.info & HIHAT_F_MOVING) {
-	    goto migrate_and_retry;
-	}
+    while (!LCAS(&bucket->record, &record, candidate, HIHAT_CTR_REC_INSTALL)) {
+        if (record.info & HIHAT_F_MOVING) {
+            goto migrate_and_retry;
+        }
 
-	if (!(record.info & HIHAT_EPOCH_MASK)) {
-	    goto not_found;
-	}
+        if (!(record.info & HIHAT_EPOCH_MASK)) {
+            goto not_found;
+        }
     }
 
     if (found) {
-	*found = true;
+        *found = true;
     }
 
     return record.item;
@@ -885,11 +879,11 @@ hihat_t        *top,
  * parameter being passed.
  */
 static bool
-hihat_store_add(hihat_store_t   *self,
-mmm_thread_t *thread,
-		 hihat_t        *top,
-		 hatrack_hash_t  hv1,
-		 void           *item)
+hihat_store_add(hihat_store_t *self,
+                mmm_thread_t  *thread,
+                hihat_t       *top,
+                hatrack_hash_t hv1,
+                void          *item)
 {
     uint64_t        bix;
     uint64_t        i;
@@ -902,28 +896,27 @@ mmm_thread_t *thread,
 
     for (i = 0; i <= self->last_slot; i++) {
         bucket = &self->buckets[bix];
-	hv2    = atomic_read(&bucket->hv);
+        hv2    = atomic_read(&bucket->hv);
 
-	if (hatrack_bucket_unreserved(hv2)) {
-	    if (LCAS(&bucket->hv, &hv2, hv1, HIHAT_CTR_BUCKET_ACQUIRE)) {
+        if (hatrack_bucket_unreserved(hv2)) {
+            if (LCAS(&bucket->hv, &hv2, hv1, HIHAT_CTR_BUCKET_ACQUIRE)) {
+                if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
+                    goto migrate_and_retry;
+                }
 
-		if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
-		    goto migrate_and_retry;
-		}
+                goto found_bucket;
+            }
+        }
 
-		goto found_bucket;
-	    }
-	}
-
-	if (!hatrack_hashes_eq(hv1, hv2)) {
-	    bix = (bix + 1) & self->last_slot;
-	    continue;
-	}
+        if (!hatrack_hashes_eq(hv1, hv2)) {
+            bix = (bix + 1) & self->last_slot;
+            continue;
+        }
 
         goto found_bucket;
     }
 
- migrate_and_retry:
+migrate_and_retry:
     self = hihat_store_migrate(self, thread, top);
     return hihat_store_add(self, thread, top, hv1, item);
 
@@ -931,7 +924,7 @@ found_bucket:
     record = atomic_read(&bucket->record);
 
     if (record.info & HIHAT_F_MOVING) {
-	goto migrate_and_retry;
+        goto migrate_and_retry;
     }
 
     if (record.info & HIHAT_EPOCH_MASK) {
@@ -942,12 +935,12 @@ found_bucket:
     candidate.info = HIHAT_F_INITED | top->next_epoch++;
 
     if (LCAS(&bucket->record, &record, candidate, HIHAT_CTR_REC_INSTALL)) {
-	atomic_fetch_add(&top->item_count, 1);
+        atomic_fetch_add(&top->item_count, 1);
         return true;
     }
 
     if (record.info & HIHAT_F_MOVING) {
-	goto migrate_and_retry;
+        goto migrate_and_retry;
     }
 
     // Since we don't allow double deletions, at some point
@@ -966,11 +959,11 @@ found_bucket:
  * previous value for the sake of memory management.
  */
 static void *
-hihat_store_remove(hihat_store_t   *self,
-mmm_thread_t *thread,
-                    hihat_t        *top,
-                    hatrack_hash_t  hv1,
-                    bool           *found)
+hihat_store_remove(hihat_store_t *self,
+                   mmm_thread_t  *thread,
+                   hihat_t       *top,
+                   hatrack_hash_t hv1,
+                   bool          *found)
 {
     void           *old_item;
     uint64_t        bix;
@@ -1008,10 +1001,10 @@ found_bucket:
     record = atomic_read(&bucket->record);
 
     if (record.info & HIHAT_F_MOVING) {
-    migrate_and_retry:
-	self = hihat_store_migrate(self, thread, top);
+migrate_and_retry:
+        self = hihat_store_migrate(self, thread, top);
 
-	return hihat_store_remove(self, thread, top, hv1, found);
+        return hihat_store_remove(self, thread, top, hv1, found);
     }
 
     if (!(record.info & HIHAT_EPOCH_MASK)) {
@@ -1037,7 +1030,7 @@ found_bucket:
     }
 
     if (record.info & HIHAT_F_MOVING) {
-	goto migrate_and_retry;
+        goto migrate_and_retry;
     }
 
     if (found) {
@@ -1154,17 +1147,16 @@ hihat_store_migrate(hihat_store_t *self, mmm_thread_t *thread, hihat_t *top)
     uint64_t        new_used;
     uint64_t        expected_used;
 
-
     /* If we're a late-enough writer, let's just double check to see if
      * we need to help at all.
      */
     new_store = atomic_read(&top->store_current);
 
     if (new_store != self) {
-	return new_store;
+        return new_store;
     }
 
-    new_used  = 0;
+    new_used = 0;
 
     /* Quickly run through every history bucket, and mark any bucket
      * that doesn't already have F_MOVING set.  Note that the CAS
@@ -1193,33 +1185,34 @@ hihat_store_migrate(hihat_store_t *self, mmm_thread_t *thread, hihat_t *top)
         record                = atomic_read(&bucket->record);
         candidate_record.item = record.item;
 
-	/* Here, we look at the old record to count how many items
-	 * we're going to migrate, so we can try to install the value
-	 * in the new store when we're done, as used_count.
-	 *
-	 * Since used_count is part of our resize metric, we want this
-	 * to stay as accurate as possible, which is why we don't just
-	 * read item_count from the top-level... late writers might get
-	 * suspended before bumping the count, leading us to under-count
-	 * the items in the next table.
-	 */
+        /* Here, we look at the old record to count how many items
+         * we're going to migrate, so we can try to install the value
+         * in the new store when we're done, as used_count.
+         *
+         * Since used_count is part of our resize metric, we want this
+         * to stay as accurate as possible, which is why we don't just
+         * read item_count from the top-level... late writers might get
+         * suspended before bumping the count, leading us to under-count
+         * the items in the next table.
+         */
 
-	if (record.info & HIHAT_F_MOVING) {
-	    if (record.info & HIHAT_EPOCH_MASK) {
-		new_used++;
-	    }
-	    continue;
-	}
+        if (record.info & HIHAT_F_MOVING) {
+            if (record.info & HIHAT_EPOCH_MASK) {
+                new_used++;
+            }
+            continue;
+        }
 
-	OR2X64L(&bucket->record, HIHAT_F_MOVING);
+        OR2X64L(&bucket->record, HIHAT_F_MOVING);
 
-	record = atomic_read(&bucket->record);
+        record = atomic_read(&bucket->record);
 
-	if (record.info & HIHAT_EPOCH_MASK) {
-	    new_used++;
-	} else {
-	    OR2X64L(&bucket->record, HIHAT_F_MOVED);
-	}
+        if (record.info & HIHAT_EPOCH_MASK) {
+            new_used++;
+        }
+        else {
+            OR2X64L(&bucket->record, HIHAT_F_MOVED);
+        }
     }
 
     new_store = atomic_read(&self->store_next);
@@ -1287,54 +1280,54 @@ hihat_store_migrate(hihat_store_t *self, mmm_thread_t *thread, hihat_t *top)
             continue;
         }
 
-	// If it hasn't been moved, there's definitely an item in it,
-	// as empty buckets got MOVED set in the first loop.
+        // If it hasn't been moved, there's definitely an item in it,
+        // as empty buckets got MOVED set in the first loop.
         hv  = atomic_read(&bucket->hv);
         bix = hatrack_bucket_index(hv, new_store->last_slot);
 
-	// This loop acquires a bucket in the destination hash table,
-	// with the same bucket acquisition logic as operations above.
+        // This loop acquires a bucket in the destination hash table,
+        // with the same bucket acquisition logic as operations above.
         for (j = 0; j <= new_store->last_slot; j++) {
-            new_bucket     = &new_store->buckets[bix];
-	    expected_hv    = atomic_read(&new_bucket->hv);
+            new_bucket  = &new_store->buckets[bix];
+            expected_hv = atomic_read(&new_bucket->hv);
 
-	    if (hatrack_bucket_unreserved(expected_hv)) {
-		if (LCAS(&new_bucket->hv,
-			 &expected_hv,
-			 hv,
-			 HIHAT_CTR_MIGRATE_HV)) {
-		    break;
-		}
-	    }
+            if (hatrack_bucket_unreserved(expected_hv)) {
+                if (LCAS(&new_bucket->hv,
+                         &expected_hv,
+                         hv,
+                         HIHAT_CTR_MIGRATE_HV)) {
+                    break;
+                }
+            }
 
-	    if (!hatrack_hashes_eq(expected_hv, hv)) {
-		bix = (bix + 1) & new_store->last_slot;
-		continue;
+            if (!hatrack_hashes_eq(expected_hv, hv)) {
+                bix = (bix + 1) & new_store->last_slot;
+                continue;
             }
             break;
         }
 
-	/* Set up the value we want to install, as well as the
-	 * value we expect to see in the target bucket, if our
-	 * thread succeeds in doing the move.
-	 */
+        /* Set up the value we want to install, as well as the
+         * value we expect to see in the target bucket, if our
+         * thread succeeds in doing the move.
+         */
         candidate_record.info = record.info & HIHAT_EPOCH_MASK;
         candidate_record.item = record.item;
         expected_record.info  = 0;
         expected_record.item  = NULL;
 
-	// The only way this can fail is if some other thread succeeded,
-	// so we don't need to concern ourselves with the return value.
+        // The only way this can fail is if some other thread succeeded,
+        // so we don't need to concern ourselves with the return value.
         LCAS(&new_bucket->record,
-	     &expected_record,
-	     candidate_record,
-	     HIHAT_CTR_MIG_REC);
+             &expected_record,
+             candidate_record,
+             HIHAT_CTR_MIG_REC);
 
-	/* Whether we won or not, assume the winner might have
-	 * stalled.  Every thread updates the source
-	 * bucket, to denote that the move was successful.
-	 */
-	OR2X64L(&bucket->record, HIHAT_F_MOVED);
+        /* Whether we won or not, assume the winner might have
+         * stalled.  Every thread updates the source
+         * bucket, to denote that the move was successful.
+         */
+        OR2X64L(&bucket->record, HIHAT_F_MOVED);
     }
 
     /* All buckets are migrated. Attempt to write to the new table how

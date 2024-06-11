@@ -39,12 +39,13 @@
 
 #include <stdlib.h>
 
-// clang-format off
 // Most of the store functions are needed by other modules, for better
 // or worse, so we lifted their prototypes into the header.
-static witchhat_store_t  *witchhat_store_migrate(witchhat_store_t *, mmm_thread_t *, witchhat_t *);
-static inline bool        witchhat_help_required(uint64_t);
-static inline bool        witchhat_need_to_help (witchhat_t *);
+static witchhat_store_t *
+witchhat_store_migrate(witchhat_store_t *, mmm_thread_t *, witchhat_t *);
+
+static bool witchhat_help_required(uint64_t);
+static bool witchhat_need_to_help(witchhat_t *);
 
 witchhat_t *
 witchhat_new(void)
@@ -85,11 +86,11 @@ witchhat_init_size(witchhat_t *self, char size)
     uint64_t          len;
 
     if (((size_t)size) > (sizeof(intptr_t) * 8)) {
-	abort();
+        abort();
     }
 
     if (size < HATRACK_MIN_SIZE_LOG) {
-	abort();
+        abort();
     }
 
     len              = 1 << size;
@@ -122,7 +123,7 @@ witchhat_delete(witchhat_t *self)
 void *
 witchhat_get_mmm(witchhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
-    void           *ret;
+    void             *ret;
     witchhat_store_t *store;
 
     mmm_start_basic_op(thread);
@@ -144,7 +145,7 @@ witchhat_get(witchhat_t *self, hatrack_hash_t hv, bool *found)
 void *
 witchhat_put_mmm(witchhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
 {
-    void           *ret;
+    void             *ret;
     witchhat_store_t *store;
 
     mmm_start_basic_op(thread);
@@ -166,7 +167,7 @@ witchhat_put(witchhat_t *self, hatrack_hash_t hv, void *item, bool *found)
 void *
 witchhat_replace_mmm(witchhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
 {
-    void           *ret;
+    void             *ret;
     witchhat_store_t *store;
 
     mmm_start_basic_op(thread);
@@ -188,7 +189,7 @@ witchhat_replace(witchhat_t *self, hatrack_hash_t hv, void *item, bool *found)
 bool
 witchhat_add_mmm(witchhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item)
 {
-    bool            ret;
+    bool              ret;
     witchhat_store_t *store;
 
     mmm_start_basic_op(thread);
@@ -210,7 +211,7 @@ witchhat_add(witchhat_t *self, hatrack_hash_t hv, void *item)
 void *
 witchhat_remove_mmm(witchhat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
-    void           *ret;
+    void             *ret;
     witchhat_store_t *store;
 
     mmm_start_basic_op(thread);
@@ -242,7 +243,7 @@ witchhat_len_mmm(witchhat_t *self, mmm_thread_t *thread)
 }
 
 hatrack_view_t *
-witchhat_view_mmm(witchhat_t *self, mmm_thread_t * thread, uint64_t *num, bool start)
+witchhat_view_mmm(witchhat_t *self, mmm_thread_t *thread, uint64_t *num, bool start)
 {
     hatrack_view_t *ret;
 
@@ -287,12 +288,12 @@ witchhat_view_no_mmm(witchhat_t *self, uint64_t *num, bool sort)
         record        = atomic_read(&cur->record);
         p->sort_epoch = record.info & WITCHHAT_EPOCH_MASK;
 
-	if (!p->sort_epoch) {
-	    cur++;
-	    continue;
-	}
+        if (!p->sort_epoch) {
+            cur++;
+            continue;
+        }
 
-        p->item       = record.item;
+        p->item = record.item;
 
         p++;
         cur++;
@@ -310,7 +311,7 @@ witchhat_view_no_mmm(witchhat_t *self, uint64_t *num, bool sort)
     view = hatrack_realloc(view, alloc_len, num_items * sizeof(hatrack_view_t));
 
     if (sort) {
-	qsort(view, num_items, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
+        qsort(view, num_items, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
     }
 
     return view;
@@ -320,21 +321,21 @@ witchhat_store_t *
 witchhat_store_new(uint64_t size)
 {
     witchhat_store_t *store;
-    uint64_t        alloc_len;
+    uint64_t          alloc_len;
 
     alloc_len = sizeof(witchhat_store_t) + sizeof(witchhat_bucket_t) * size;
     store     = (witchhat_store_t *)mmm_alloc_committed(alloc_len);
 
-    store->last_slot  = size - 1;
-    store->threshold  = hatrack_compute_table_threshold(size);
+    store->last_slot = size - 1;
+    store->threshold = hatrack_compute_table_threshold(size);
 
     return store;
 }
 
 void *
 witchhat_store_get(witchhat_store_t *self,
-                 hatrack_hash_t      hv1,
-                 bool               *found)
+                   hatrack_hash_t    hv1,
+                   bool             *found)
 {
     uint64_t           bix;
     uint64_t           i;
@@ -378,12 +379,12 @@ not_found:
 
 void *
 witchhat_store_put(witchhat_store_t *self,
-mmm_thread_t *thread,
-		   witchhat_t       *top,
-		   hatrack_hash_t    hv1,
-		   void             *item,
-		   bool             *found,
-		   uint64_t          count)
+                   mmm_thread_t     *thread,
+                   witchhat_t       *top,
+                   hatrack_hash_t    hv1,
+                   void             *item,
+                   bool             *found,
+                   uint64_t          count)
 {
     void              *old_item;
     bool               new_item;
@@ -398,27 +399,27 @@ mmm_thread_t *thread,
 
     for (i = 0; i <= self->last_slot; i++) {
         bucket = &self->buckets[bix];
-	hv2    = atomic_read(&bucket->hv);
+        hv2    = atomic_read(&bucket->hv);
 
-	if (hatrack_bucket_unreserved(hv2)) {
-	    if (LCAS(&bucket->hv, &hv2, hv1, WITCHHAT_CTR_BUCKET_ACQUIRE)) {
-		if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
-		    goto migrate_and_retry;
-		}
+        if (hatrack_bucket_unreserved(hv2)) {
+            if (LCAS(&bucket->hv, &hv2, hv1, WITCHHAT_CTR_BUCKET_ACQUIRE)) {
+                if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
+                    goto migrate_and_retry;
+                }
 
-		goto found_bucket;
-	    }
-	}
+                goto found_bucket;
+            }
+        }
 
-	if (hatrack_hashes_eq(hv1, hv2)) {
-	    goto found_bucket;
-	}
+        if (hatrack_hashes_eq(hv1, hv2)) {
+            goto found_bucket;
+        }
 
-	bix = (bix + 1) & self->last_slot;
-	continue;
+        bix = (bix + 1) & self->last_slot;
+        continue;
     }
 
- migrate_and_retry:
+migrate_and_retry:
     /* One of the places where hihat is lock-free instead of wait-free
      * is when a write operation has to help migrate. In theory, it
      * could go help migrate, and by the time it tries to write again,
@@ -452,45 +453,45 @@ mmm_thread_t *thread,
      */
     count = count + 1;
     if (witchhat_help_required(count)) {
-	HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
+        HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
 
-	atomic_fetch_add(&top->help_needed, 1);
+        atomic_fetch_add(&top->help_needed, 1);
 
-	self     = witchhat_store_migrate(self, thread, top);
-	old_item = witchhat_store_put(self, thread, top, hv1, item, found, count);
+        self     = witchhat_store_migrate(self, thread, top);
+        old_item = witchhat_store_put(self, thread, top, hv1, item, found, count);
 
-	atomic_fetch_sub(&top->help_needed, 1);
+        atomic_fetch_sub(&top->help_needed, 1);
 
-	return old_item;
+        return old_item;
     }
 
     self = witchhat_store_migrate(self, thread, top);
     return witchhat_store_put(self, thread, top, hv1, item, found, count);
 
- found_bucket:
+found_bucket:
     record = atomic_read(&bucket->record);
 
     if (record.info & WITCHHAT_F_MOVING) {
-	goto migrate_and_retry;
+        goto migrate_and_retry;
     }
 
     if (record.info & WITCHHAT_EPOCH_MASK) {
-	if (found) {
-	    *found = true;
-	}
+        if (found) {
+            *found = true;
+        }
 
-	old_item       = record.item;
-	new_item       = false;
-	candidate.info = record.info;
+        old_item       = record.item;
+        new_item       = false;
+        candidate.info = record.info;
     }
     else {
-	if (found) {
-	    *found = false;
-	}
+        if (found) {
+            *found = false;
+        }
 
-	old_item       = NULL;
-	new_item       = true;
-	candidate.info = WITCHHAT_F_INITED | top->next_epoch++;
+        old_item       = NULL;
+        new_item       = true;
+        candidate.info = WITCHHAT_F_INITED | top->next_epoch++;
     }
 
     candidate.item = item;
@@ -504,7 +505,7 @@ mmm_thread_t *thread,
     }
 
     if (record.info & WITCHHAT_F_MOVING) {
-	goto migrate_and_retry;
+        goto migrate_and_retry;
     }
 
     /* In witchhat, whenever we successfully overwrite a value, we
@@ -514,9 +515,9 @@ mmm_thread_t *thread,
      * witchhat_store_migrate() wait free.
      */
     if (!new_item) {
-	if (atomic_read(&self->used_count) >= self->threshold) {
-	    witchhat_store_migrate(self, thread, top);
-	}
+        if (atomic_read(&self->used_count) >= self->threshold) {
+            witchhat_store_migrate(self, thread, top);
+        }
     }
 
     return item;
@@ -524,12 +525,12 @@ mmm_thread_t *thread,
 
 void *
 witchhat_store_replace(witchhat_store_t *self,
-mmm_thread_t *thread,
-		       witchhat_t       *top,
-		       hatrack_hash_t    hv1,
-		       void             *item,
-		       bool             *found,
-		       uint64_t          count)
+                       mmm_thread_t     *thread,
+                       witchhat_t       *top,
+                       hatrack_hash_t    hv1,
+                       void             *item,
+                       bool             *found,
+                       uint64_t          count)
 {
     void              *ret;
     uint64_t           bix;
@@ -543,53 +544,53 @@ mmm_thread_t *thread,
 
     for (i = 0; i <= self->last_slot; i++) {
         bucket = &self->buckets[bix];
-	hv2    = atomic_read(&bucket->hv);
+        hv2    = atomic_read(&bucket->hv);
 
-	if (hatrack_bucket_unreserved(hv2)) {
-	    goto not_found;
-	}
+        if (hatrack_bucket_unreserved(hv2)) {
+            goto not_found;
+        }
 
-	if (hatrack_hashes_eq(hv1, hv2)) {
-	    goto found_bucket;
-	}
+        if (hatrack_hashes_eq(hv1, hv2)) {
+            goto found_bucket;
+        }
 
-	bix = (bix + 1) & self->last_slot;
-	continue;
+        bix = (bix + 1) & self->last_slot;
+        continue;
     }
 
- not_found:
+not_found:
     if (found) {
-	*found = false;
+        *found = false;
     }
     return NULL;
 
- found_bucket:
+found_bucket:
     record = atomic_read(&bucket->record);
 
     if (record.info & WITCHHAT_F_MOVING) {
-    migrate_and_retry:
-	// This uses the same helping mechanism as in
-	// witchhat_store_put().  Look there for an overview.
-	count = count + 1;
+migrate_and_retry:
+        // This uses the same helping mechanism as in
+        // witchhat_store_put().  Look there for an overview.
+        count = count + 1;
 
-	if (witchhat_help_required(count)) {
-	    HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
+        if (witchhat_help_required(count)) {
+            HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
 
-	    atomic_fetch_add(&top->help_needed, 1);
-	    self = witchhat_store_migrate(self, thread, top);
-	    ret  = witchhat_store_replace(self, thread, top, hv1, item, found, count);
+            atomic_fetch_add(&top->help_needed, 1);
+            self = witchhat_store_migrate(self, thread, top);
+            ret  = witchhat_store_replace(self, thread, top, hv1, item, found, count);
 
-	    atomic_fetch_sub(&top->help_needed, 1);
+            atomic_fetch_sub(&top->help_needed, 1);
 
-	    return ret;
-	}
+            return ret;
+        }
 
-	self = witchhat_store_migrate(self, thread, top);
-	return witchhat_store_replace(self, thread, top, hv1, item, found, count);
+        self = witchhat_store_migrate(self, thread, top);
+        return witchhat_store_replace(self, thread, top, hv1, item, found, count);
     }
 
     if (!(record.info & WITCHHAT_EPOCH_MASK)) {
-	goto not_found;
+        goto not_found;
     }
 
     candidate.item = item;
@@ -618,16 +619,16 @@ mmm_thread_t *thread,
      * Essentially, all we are doing is simply replacing a while loop
      * that could theoretically last forever with a single attempt.
      */
-    if(!LCAS(&bucket->record, &record, candidate, WITCHHAT_CTR_REC_INSTALL)) {
-	if (record.info & WITCHHAT_F_MOVING) {
-	    goto migrate_and_retry;
-	}
+    if (!LCAS(&bucket->record, &record, candidate, WITCHHAT_CTR_REC_INSTALL)) {
+        if (record.info & WITCHHAT_F_MOVING) {
+            goto migrate_and_retry;
+        }
 
-	goto not_found;
+        goto not_found;
     }
 
     if (found) {
-	*found = true;
+        *found = true;
     }
 
     /* In witchhat, whenever we successfully overwrite a value, we
@@ -637,7 +638,7 @@ mmm_thread_t *thread,
      * wait free.
      */
     if (atomic_read(&self->used_count) >= self->threshold) {
-	witchhat_store_migrate(self, thread, top);
+        witchhat_store_migrate(self, thread, top);
     }
 
     return record.item;
@@ -645,11 +646,11 @@ mmm_thread_t *thread,
 
 bool
 witchhat_store_add(witchhat_store_t *self,
-mmm_thread_t *thread,
-		   witchhat_t       *top,
-		   hatrack_hash_t    hv1,
-		   void             *item,
-		   uint64_t          count)
+                   mmm_thread_t     *thread,
+                   witchhat_t       *top,
+                   hatrack_hash_t    hv1,
+                   void             *item,
+                   uint64_t          count)
 {
     uint64_t           bix;
     uint64_t           i;
@@ -662,42 +663,42 @@ mmm_thread_t *thread,
 
     for (i = 0; i <= self->last_slot; i++) {
         bucket = &self->buckets[bix];
-	hv2    = atomic_read(&bucket->hv);
+        hv2    = atomic_read(&bucket->hv);
 
-	if (hatrack_bucket_unreserved(hv2)) {
-	    if (LCAS(&bucket->hv, &hv2, hv1, WITCHHAT_CTR_BUCKET_ACQUIRE)) {
-		if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
-		    goto migrate_and_retry;
-		}
-		goto found_bucket;
-	    }
-	}
+        if (hatrack_bucket_unreserved(hv2)) {
+            if (LCAS(&bucket->hv, &hv2, hv1, WITCHHAT_CTR_BUCKET_ACQUIRE)) {
+                if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
+                    goto migrate_and_retry;
+                }
+                goto found_bucket;
+            }
+        }
 
-	if (!hatrack_hashes_eq(hv1, hv2)) {
-	    bix = (bix + 1) & self->last_slot;
-	    continue;
-	}
+        if (!hatrack_hashes_eq(hv1, hv2)) {
+            bix = (bix + 1) & self->last_slot;
+            continue;
+        }
 
         goto found_bucket;
     }
 
- migrate_and_retry:
+migrate_and_retry:
     // This uses the same helping mechanism as in
     // witchhat_store_put().  Look there for an overview.
     count = count + 1;
     if (witchhat_help_required(count)) {
-	bool ret;
+        bool ret;
 
-	HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
+        HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
 
-	atomic_fetch_add(&top->help_needed, 1);
+        atomic_fetch_add(&top->help_needed, 1);
 
-	self = witchhat_store_migrate(self, thread, top);
-	ret  = witchhat_store_add(self, thread, top, hv1, item, count);
+        self = witchhat_store_migrate(self, thread, top);
+        ret  = witchhat_store_add(self, thread, top, hv1, item, count);
 
-	atomic_fetch_sub(&top->help_needed, 1);
+        atomic_fetch_sub(&top->help_needed, 1);
 
-	return ret;
+        return ret;
     }
 
     self = witchhat_store_migrate(self, thread, top);
@@ -706,7 +707,7 @@ mmm_thread_t *thread,
 found_bucket:
     record = atomic_read(&bucket->record);
     if (record.info & WITCHHAT_F_MOVING) {
-	goto migrate_and_retry;
+        goto migrate_and_retry;
     }
 
     if ((record.info & WITCHHAT_EPOCH_MASK)) {
@@ -717,12 +718,12 @@ found_bucket:
     candidate.info = WITCHHAT_F_INITED | top->next_epoch++;
 
     if (LCAS(&bucket->record, &record, candidate, WITCHHAT_CTR_REC_INSTALL)) {
-	atomic_fetch_add(&top->item_count, 1);
+        atomic_fetch_add(&top->item_count, 1);
         return true;
     }
 
     if (record.info & WITCHHAT_F_MOVING) {
-	goto migrate_and_retry;
+        goto migrate_and_retry;
     }
 
     return false;
@@ -730,11 +731,11 @@ found_bucket:
 
 void *
 witchhat_store_remove(witchhat_store_t *self,
-mmm_thread_t *thread,
-		      witchhat_t       *top,
-		      hatrack_hash_t    hv1,
-		      bool             *found,
-		      uint64_t          count)
+                      mmm_thread_t     *thread,
+                      witchhat_t       *top,
+                      hatrack_hash_t    hv1,
+                      bool             *found,
+                      uint64_t          count)
 {
     void              *old_item;
     uint64_t           bix;
@@ -755,11 +756,11 @@ mmm_thread_t *thread,
         }
 
         if (hatrack_hashes_eq(hv1, hv2)) {
-	    goto found_bucket;
+            goto found_bucket;
         }
 
-	bix = (bix + 1) & self->last_slot;
-	continue;
+        bix = (bix + 1) & self->last_slot;
+        continue;
     }
 
     if (found) {
@@ -771,22 +772,22 @@ mmm_thread_t *thread,
 found_bucket:
     record = atomic_read(&bucket->record);
     if (record.info & WITCHHAT_F_MOVING) {
-    migrate_and_retry:
-	// This uses the same helping mechanism as in
-	// witchhat_store_put().  Look there for an overview.
-	count = count + 1;
+migrate_and_retry:
+        // This uses the same helping mechanism as in
+        // witchhat_store_put().  Look there for an overview.
+        count = count + 1;
 
-	if (witchhat_help_required(count)) {
-	    HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
-	    atomic_fetch_add(&top->help_needed, 1);
-	    self     = witchhat_store_migrate(self, thread, top);
-	    old_item = witchhat_store_remove(self, thread, top, hv1, found, count);
-	    atomic_fetch_sub(&top->help_needed, 1);
-	    return old_item;
-	}
+        if (witchhat_help_required(count)) {
+            HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
+            atomic_fetch_add(&top->help_needed, 1);
+            self     = witchhat_store_migrate(self, thread, top);
+            old_item = witchhat_store_remove(self, thread, top, hv1, found, count);
+            atomic_fetch_sub(&top->help_needed, 1);
+            return old_item;
+        }
 
-	self = witchhat_store_migrate(self, thread, top);
-	return witchhat_store_remove(self, thread, top, hv1, found, count);
+        self = witchhat_store_migrate(self, thread, top);
+        return witchhat_store_remove(self, thread, top, hv1, found, count);
     }
 
     if (!(record.info & WITCHHAT_EPOCH_MASK)) {
@@ -808,22 +809,21 @@ found_bucket:
             *found = true;
         }
 
-
-	/* In witchhat, whenever we successfully overwrite a value, we
-	 * need to help migrate, if a migration is in process.  See
-	 * witchhat_store_migrate() for a bit more detailed an
-	 * explaination, but doing this makes witchhat_store_migrate()
-	 * wait free.
-	 */
-	if (atomic_read(&self->used_count) >= self->threshold) {
-	    witchhat_store_migrate(self, thread, top);
-	}
+        /* In witchhat, whenever we successfully overwrite a value, we
+         * need to help migrate, if a migration is in process.  See
+         * witchhat_store_migrate() for a bit more detailed an
+         * explaination, but doing this makes witchhat_store_migrate()
+         * wait free.
+         */
+        if (atomic_read(&self->used_count) >= self->threshold) {
+            witchhat_store_migrate(self, thread, top);
+        }
 
         return old_item;
     }
 
     if (record.info & WITCHHAT_F_MOVING) {
-	goto migrate_and_retry;
+        goto migrate_and_retry;
     }
 
     if (found) {
@@ -855,7 +855,7 @@ witchhat_store_migrate(witchhat_store_t *self, mmm_thread_t *thread, witchhat_t 
     new_store = atomic_read(&top->store_current);
 
     if (new_store != self) {
-	return new_store;
+        return new_store;
     }
 
     for (i = 0; i <= self->last_slot; i++) {
@@ -863,55 +863,55 @@ witchhat_store_migrate(witchhat_store_t *self, mmm_thread_t *thread, witchhat_t 
         record                = atomic_read(&bucket->record);
         candidate_record.item = record.item;
 
-	if (record.info & WITCHHAT_F_MOVING) {
-	    if (record.info & WITCHHAT_EPOCH_MASK) {
-		new_used++;
-	    }
+        if (record.info & WITCHHAT_F_MOVING) {
+            if (record.info & WITCHHAT_EPOCH_MASK) {
+                new_used++;
+            }
 
-	    continue;
-	}
+            continue;
+        }
 
-	OR2X64L(&bucket->record, WITCHHAT_F_MOVING);
+        OR2X64L(&bucket->record, WITCHHAT_F_MOVING);
 
-	record = atomic_read(&bucket->record);
+        record = atomic_read(&bucket->record);
 
-	if (record.info & WITCHHAT_EPOCH_MASK) {
-	    new_used++;
-	}
-	else {
-	    OR2X64L(&bucket->record, WITCHHAT_F_MOVED);
-	}
+        if (record.info & WITCHHAT_EPOCH_MASK) {
+            new_used++;
+        }
+        else {
+            OR2X64L(&bucket->record, WITCHHAT_F_MOVED);
+        }
     }
 
     new_store = atomic_read(&self->store_next);
 
     if (!new_store) {
-	/* When threads need help in the face of a resize, this is
-	 * where we provide that help.  We do it simply by forcing
-	 * the table to resize up, when help is required.
-	 *
-	 * Note that different threads might end up producing
-	 * different store sizes, if their value of top->help_needed
-	 * changes.  This is ultimately irrelevent, because whichever
-	 * store we swap in will be big enough to handle the
-	 * migration.
-	 *
-	 * Plus, the helper isn't the one responsible for
-	 * determining when help is no longer necessary, so if the
-	 * smaller store is selected, the next resize will definitely
-	 * be bigger, if help was needed continuously.
-	 *
-	 * This mechanism is, in practice, the only mechanism that
-	 * seems like it might have any sort of impact on the overall
-	 * performance of the algorithm, and if it does have an
-	 * impact, it seems to be completely in the noise.
-	 */
-	if (witchhat_need_to_help(top)) {
-	    new_size = (self->last_slot + 1) << 1;
-	}
-	else {
-	    new_size        = hatrack_new_size(self->last_slot, new_used);
-	}
+        /* When threads need help in the face of a resize, this is
+         * where we provide that help.  We do it simply by forcing
+         * the table to resize up, when help is required.
+         *
+         * Note that different threads might end up producing
+         * different store sizes, if their value of top->help_needed
+         * changes.  This is ultimately irrelevent, because whichever
+         * store we swap in will be big enough to handle the
+         * migration.
+         *
+         * Plus, the helper isn't the one responsible for
+         * determining when help is no longer necessary, so if the
+         * smaller store is selected, the next resize will definitely
+         * be bigger, if help was needed continuously.
+         *
+         * This mechanism is, in practice, the only mechanism that
+         * seems like it might have any sort of impact on the overall
+         * performance of the algorithm, and if it does have an
+         * impact, it seems to be completely in the noise.
+         */
+        if (witchhat_need_to_help(top)) {
+            new_size = (self->last_slot + 1) << 1;
+        }
+        else {
+            new_size = hatrack_new_size(self->last_slot, new_used);
+        }
 
         candidate_store = witchhat_store_new(new_size);
 
@@ -938,21 +938,21 @@ witchhat_store_migrate(witchhat_store_t *self, mmm_thread_t *thread, witchhat_t 
         bix = hatrack_bucket_index(hv, new_store->last_slot);
 
         for (j = 0; j <= new_store->last_slot; j++) {
-            new_bucket     = &new_store->buckets[bix];
-	    expected_hv    = atomic_read(&new_bucket->hv);
+            new_bucket  = &new_store->buckets[bix];
+            expected_hv = atomic_read(&new_bucket->hv);
 
-	    if (hatrack_bucket_unreserved(expected_hv)) {
-		if (LCAS(&new_bucket->hv,
-			 &expected_hv,
-			 hv,
-			 WITCHHAT_CTR_MIGRATE_HV)) {
-		    break;
-		}
-	    }
+            if (hatrack_bucket_unreserved(expected_hv)) {
+                if (LCAS(&new_bucket->hv,
+                         &expected_hv,
+                         hv,
+                         WITCHHAT_CTR_MIGRATE_HV)) {
+                    break;
+                }
+            }
 
-	    if (!hatrack_hashes_eq(expected_hv, hv)) {
-		bix = (bix + 1) & new_store->last_slot;
-		continue;
+            if (!hatrack_hashes_eq(expected_hv, hv)) {
+                bix = (bix + 1) & new_store->last_slot;
+                continue;
             }
 
             break;
@@ -964,11 +964,11 @@ witchhat_store_migrate(witchhat_store_t *self, mmm_thread_t *thread, witchhat_t 
         expected_record.item  = NULL;
 
         LCAS(&new_bucket->record,
-	     &expected_record,
-	     candidate_record,
-	     WITCHHAT_CTR_MIG_REC);
+             &expected_record,
+             candidate_record,
+             WITCHHAT_CTR_MIG_REC);
 
-	OR2X64L(&bucket->record, WITCHHAT_F_MOVED);
+        OR2X64L(&bucket->record, WITCHHAT_F_MOVED);
     }
 
     expected_used = 0;
@@ -979,27 +979,27 @@ witchhat_store_migrate(witchhat_store_t *self, mmm_thread_t *thread, witchhat_t 
          WITCHHAT_CTR_LEN_INSTALL);
 
     if (LCAS(&top->store_current,
-	     &self,
-	     new_store,
-	     WITCHHAT_CTR_STORE_INSTALL)) {
+             &self,
+             new_store,
+             WITCHHAT_CTR_STORE_INSTALL)) {
         mmm_retire(thread, self);
     }
 
     return top->store_current;
 }
 
-static inline bool
+static bool
 witchhat_help_required(uint64_t count)
 {
     if (count == HATRACK_RETRY_THRESHOLD) {
-	return true;
+        return true;
     }
 
     return false;
 }
 
-
-static inline bool
-witchhat_need_to_help(witchhat_t *self) {
+static bool
+witchhat_need_to_help(witchhat_t *self)
+{
     return (bool)atomic_read(&self->help_needed);
 }

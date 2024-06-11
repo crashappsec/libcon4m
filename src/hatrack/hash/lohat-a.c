@@ -39,29 +39,12 @@
 
 // clang-format off
 static lohat_a_store_t *lohat_a_store_new          (uint64_t);
-static void            *lohat_a_store_get          (lohat_a_store_t *,
-						    hatrack_hash_t, bool *);
-static void            *lohat_a_store_put          (lohat_a_store_t *,
-						    mmm_thread_t *,
-						    lohat_a_t *,
-						    hatrack_hash_t, void *,
-						    bool *);
-static void            *lohat_a_store_replace      (lohat_a_store_t *,
-						    mmm_thread_t *,
-						    lohat_a_t *,
-						    hatrack_hash_t, void *,
-						    bool *);
-static bool             lohat_a_store_add          (lohat_a_store_t *,
-						    mmm_thread_t *,
-						    lohat_a_t *,
-						    hatrack_hash_t, void *);
-static void            *lohat_a_store_remove       (lohat_a_store_t *,
-						    mmm_thread_t *,
-						    lohat_a_t *,
-						    hatrack_hash_t, bool *);
-static lohat_a_store_t *lohat_a_store_migrate      (lohat_a_store_t *,
-						    mmm_thread_t *,
-						    lohat_a_t *);
+static void            *lohat_a_store_get          (lohat_a_store_t *, hatrack_hash_t, bool *);
+static void            *lohat_a_store_put          (lohat_a_store_t *, mmm_thread_t *, lohat_a_t *, hatrack_hash_t, void *, bool *);
+static void            *lohat_a_store_replace      (lohat_a_store_t *, mmm_thread_t *, lohat_a_t *, hatrack_hash_t, void *, bool *);
+static bool             lohat_a_store_add          (lohat_a_store_t *, mmm_thread_t *, lohat_a_t *, hatrack_hash_t, void *);
+static void            *lohat_a_store_remove       (lohat_a_store_t *, mmm_thread_t *, lohat_a_t *, hatrack_hash_t, bool *);
+static lohat_a_store_t *lohat_a_store_migrate      (lohat_a_store_t *, mmm_thread_t *, lohat_a_t *);
 
 #ifndef HATRACK_ALWAYS_USE_QSORT
 static void             lohat_a_insertion_sort     (hatrack_view_t *, uint64_t);
@@ -397,7 +380,6 @@ lohat_a_view(lohat_a_t *self, uint64_t *out_num, bool sort)
  * buckets require an additional allocation, which is done here,
  * after first allocating the store.
  */
-// clang-format off
 
 static lohat_a_store_t *
 lohat_a_store_new(uint64_t size)
@@ -406,8 +388,8 @@ lohat_a_store_new(uint64_t size)
     uint64_t         alloc_len;
     uint64_t         threshold;
 
-    alloc_len           = sizeof(lohat_a_store_t);
-    alloc_len          += sizeof(lohat_a_indirect_t) * size;
+    alloc_len = sizeof(lohat_a_store_t);
+    alloc_len += sizeof(lohat_a_indirect_t) * size;
     store               = (lohat_a_store_t *)mmm_alloc_committed(alloc_len);
     threshold           = hatrack_compute_table_threshold(size);
     alloc_len           = threshold * sizeof(lohat_a_history_t);
@@ -438,7 +420,7 @@ lohat_a_store_get(lohat_a_store_t *self,
         hv2       = atomic_read(&ptrbucket->hv);
 
         if (hatrack_bucket_unreserved(hv2)) {
-	    return hatrack_not_found(found);
+            return hatrack_not_found(found);
         }
 
         if (!hatrack_hashes_eq(hv1, hv2)) {
@@ -455,7 +437,7 @@ lohat_a_store_get(lohat_a_store_t *self,
          */
 
         if (!bucket) {
-	    return hatrack_not_found(found);
+            return hatrack_not_found(found);
         }
 
         goto found_history_bucket;
@@ -471,8 +453,7 @@ found_history_bucket:
                                LOHAT_F_MOVING | LOHAT_F_MOVED);
 
     if (head && !head->deleted) {
-
-	mmm_help_commit(head);
+        mmm_help_commit(head);
 
         return hatrack_found(found, head->item);
     }
@@ -482,7 +463,7 @@ found_history_bucket:
 
 static void *
 lohat_a_store_put(lohat_a_store_t *self,
-mmm_thread_t*thread,
+                  mmm_thread_t    *thread,
                   lohat_a_t       *top,
                   hatrack_hash_t   hv1,
                   void            *item,
@@ -533,7 +514,7 @@ found_ptr_bucket:
 
         if (!bucket) {
             new_bucket = atomic_fetch_add(&self->hist_next,
-					  fa_ptr_incr(lohat_a_history_t));
+                                          fa_ptr_incr(lohat_a_history_t));
             /* This is us testing to see if we need to resize; once
              * 'hist_next' advances to 'hist_end', we know we have
              * given out all available ordered slots, which is set to
@@ -634,7 +615,7 @@ not_overwriting:
  */
 static void *
 lohat_a_store_replace(lohat_a_store_t *self,
-                      mmm_thread_t *thread,
+                      mmm_thread_t    *thread,
                       lohat_a_t       *top,
                       hatrack_hash_t   hv1,
                       void            *item,
@@ -728,7 +709,7 @@ migrate_and_retry:
  */
 static bool
 lohat_a_store_add(lohat_a_store_t *self,
-mmm_thread_t*thread,
+                  mmm_thread_t    *thread,
                   lohat_a_t       *top,
                   hatrack_hash_t   hv1,
                   void            *item)
@@ -763,7 +744,7 @@ found_ptr_bucket:
         bucket = atomic_read(&ptrbucket->ptr);
         if (!bucket) {
             new_bucket = atomic_fetch_add(&self->hist_next,
-					  fa_ptr_incr(lohat_a_history_t));
+                                          fa_ptr_incr(lohat_a_history_t));
 
             if (new_bucket >= self->hist_end) {
                 goto migrate_and_retry;
@@ -788,7 +769,7 @@ found_ptr_bucket:
 migrate_and_retry:
     self = lohat_a_store_migrate(self, thread, top);
 
-    return lohat_a_store_add(self,thread, top, hv1, item);
+    return lohat_a_store_add(self, thread, top, hv1, item);
 
 found_history_bucket:
     head = atomic_read(&bucket->head);
@@ -835,7 +816,7 @@ found_history_bucket:
  */
 static void *
 lohat_a_store_remove(lohat_a_store_t *self,
-mmm_thread_t*thread,
+                     mmm_thread_t    *thread,
                      lohat_a_t       *top,
                      hatrack_hash_t   hv1,
                      bool            *found)
@@ -905,14 +886,13 @@ migrate_and_retry:
     candidate->deleted = true;
 
     while (!LCAS(&bucket->head, &head, candidate, LOHATa_CTR_DEL)) {
-
         if (hatrack_pflag_test(head, LOHAT_F_MOVING)) {
-	    mmm_retire_unused(candidate);
+            mmm_retire_unused(candidate);
             goto migrate_and_retry;
         }
 
         if (head->deleted) {
-	    mmm_retire_unused(candidate);
+            mmm_retire_unused(candidate);
             goto empty_bucket;
         }
 
@@ -1014,8 +994,8 @@ didnt_win:
                   &new_store,
                   candidate_store,
                   LOHATa_CTR_NEW_STORE)) {
-	    mmm_retire_unused(candidate_store->hist_buckets);
-	    mmm_retire_unused(candidate_store);
+            mmm_retire_unused(candidate_store->hist_buckets);
+            mmm_retire_unused(candidate_store);
         }
         else {
             new_store = candidate_store;
@@ -1061,11 +1041,11 @@ didnt_win:
          *
          * New array starts off zero-initialized. If there's anything else
          * after any specific swap, it means we lost a race.
-	 *
-	 * hatrack_bucket_initialize() will zero-out expected_hv.
+         *
+         * hatrack_bucket_initialize() will zero-out expected_hv.
          */
         hatrack_bucket_initialize(&expected_hv);
-        expected_head  = NULL;
+        expected_head = NULL;
 
         cur_hv = atomic_read(&cur->hv);
 
@@ -1082,9 +1062,9 @@ didnt_win:
         bix = hatrack_bucket_index(cur_hv, new_store->last_slot);
 
         for (i = 0; i <= new_store->last_slot; i++) {
-            ptr_bucket     = &new_store->ptr_buckets[bix];
+            ptr_bucket = &new_store->ptr_buckets[bix];
 
-	    hatrack_bucket_initialize(&expected_hv);
+            hatrack_bucket_initialize(&expected_hv);
 
             if (!LCAS(&ptr_bucket->hv,
                       &expected_hv,
@@ -1107,10 +1087,10 @@ didnt_win:
         LCAS(&ptr_bucket->ptr, &expected_ptr, target, LOHATa_CTR_NEW_PTR);
 
         /* Okay, this bucket is properly set up in the destination
-	 * table.  We need to make sure the old bucket is updated
-	 * properly, by adding LOHAT_F_MOVED.
-	 */
-	ORPTR(&cur->head, LOHAT_F_MOVED);
+         * table.  We need to make sure the old bucket is updated
+         * properly, by adding LOHAT_F_MOVED.
+         */
+        ORPTR(&cur->head, LOHAT_F_MOVED);
 
         target++;
         cur++;
@@ -1125,8 +1105,8 @@ didnt_win:
     LCAS(&new_store->hist_next, &expected_ptr, target, LOHATa_CTR_F_HIST);
 
     if (LCAS(&top->store_current, &self, new_store, LOHATa_CTR_STORE_INSTALL)) {
-	mmm_retire_fast(thread, self->hist_buckets);
-	mmm_retire_fast(thread, self);
+        mmm_retire_fast(thread, self->hist_buckets);
+        mmm_retire_fast(thread, self);
     }
 
     return top->store_current;

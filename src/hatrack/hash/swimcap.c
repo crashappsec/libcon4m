@@ -44,19 +44,11 @@
 
 // clang-format off
 static swimcap_store_t *swimcap_store_new    (uint64_t);
-static void            *swimcap_store_get    (swimcap_store_t *,
-					      hatrack_hash_t, bool *);
-static void            *swimcap_store_put    (swimcap_store_t *, mmm_thread_t *,
-					      swimcap_t *, hatrack_hash_t,
-					      void *, bool *);
-static void            *swimcap_store_replace(swimcap_store_t *, mmm_thread_t *,
-					      hatrack_hash_t, void *, bool *);
-static bool             swimcap_store_add    (swimcap_store_t *, mmm_thread_t *,
-					      swimcap_t *, hatrack_hash_t,
-					      void *);
-static void            *swimcap_store_remove (swimcap_store_t *, mmm_thread_t *,
-					      swimcap_t *, hatrack_hash_t,
-					      bool *);
+static void            *swimcap_store_get    (swimcap_store_t *, hatrack_hash_t, bool *);
+static void            *swimcap_store_put    (swimcap_store_t *, mmm_thread_t *, swimcap_t *, hatrack_hash_t, void *, bool *);
+static void            *swimcap_store_replace(swimcap_store_t *, mmm_thread_t *, hatrack_hash_t, void *, bool *);
+static bool             swimcap_store_add    (swimcap_store_t *, mmm_thread_t *, swimcap_t *, hatrack_hash_t, void *);
+static void            *swimcap_store_remove (swimcap_store_t *, mmm_thread_t *, swimcap_t *, hatrack_hash_t, bool *);
 static void             swimcap_migrate      (swimcap_t *, mmm_thread_t *);
 // clang-format on
 
@@ -544,7 +536,6 @@ swimcap_view(swimcap_t *self, uint64_t *num, bool sort)
  * strictly necessary for our use of MMM here; we really only care
  * about the epoch in which we were retired.
  */
-//clang-format off
 
 static swimcap_store_t *
 swimcap_store_new(uint64_t size)

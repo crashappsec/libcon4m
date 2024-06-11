@@ -44,20 +44,11 @@ enum {
 // Needs to be non-static because tophat needs it; nonetheless, do not
 // export this explicitly; it's effectively a "friend" function not public.
        woolhat_store_t *woolhat_store_new    (uint64_t);
-static void            *woolhat_store_get    (woolhat_store_t *, hatrack_hash_t,
-					      bool *);
-static void            *woolhat_store_put    (woolhat_store_t *, mmm_thread_t *, woolhat_t *,
-					      hatrack_hash_t, void *, bool *,
-					      uint64_t);
-static void            *woolhat_store_replace(woolhat_store_t *, mmm_thread_t *, woolhat_t *,
-					      hatrack_hash_t, void *, bool *,
-					      uint64_t);
-static bool             woolhat_store_add    (woolhat_store_t *, mmm_thread_t *, woolhat_t *,
-					      hatrack_hash_t, void *,
-					      uint64_t);
-static void            *woolhat_store_remove (woolhat_store_t *, mmm_thread_t *, woolhat_t *,
-					      hatrack_hash_t, bool *,
-					      uint64_t);
+static void            *woolhat_store_get    (woolhat_store_t *, hatrack_hash_t, bool *);
+static void            *woolhat_store_put    (woolhat_store_t *, mmm_thread_t *, woolhat_t *, hatrack_hash_t, void *, bool *, uint64_t);
+static void            *woolhat_store_replace(woolhat_store_t *, mmm_thread_t *, woolhat_t *, hatrack_hash_t, void *, bool *, uint64_t);
+static bool             woolhat_store_add    (woolhat_store_t *, mmm_thread_t *, woolhat_t *, hatrack_hash_t, void *, uint64_t);
+static void            *woolhat_store_remove (woolhat_store_t *, mmm_thread_t *, woolhat_t *, hatrack_hash_t, bool *, uint64_t);
 static woolhat_store_t *woolhat_store_migrate(woolhat_store_t *, mmm_thread_t *, woolhat_t *);
 static inline bool      woolhat_help_required(uint64_t);
 static inline bool      woolhat_need_to_help (woolhat_t *);

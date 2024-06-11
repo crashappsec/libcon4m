@@ -167,13 +167,13 @@
 
 #include <stdlib.h>
 
-// clang-format off
-
 // Most of the store functions are needed by other modules, for better
 // or worse, so we lifted their prototypes into the header.
-static crown_store_t  *crown_store_migrate(crown_store_t *, mmm_thread_t *, crown_t *);
-static inline bool     crown_help_required(uint64_t);
-static inline bool     crown_need_to_help (crown_t *);
+static crown_store_t *
+crown_store_migrate(crown_store_t *, mmm_thread_t *, crown_t *);
+
+static bool crown_help_required(uint64_t);
+static bool crown_need_to_help(crown_t *);
 
 crown_t *
 crown_new(void)
@@ -214,11 +214,11 @@ crown_init_size(crown_t *self, char size)
     uint64_t       len;
 
     if (((size_t)size) > (sizeof(intptr_t) * 8)) {
-	abort();
+        abort();
     }
 
     if (size < HATRACK_MIN_SIZE_LOG) {
-	abort();
+        abort();
     }
 
     len              = 1 << size;
@@ -249,9 +249,9 @@ crown_delete(crown_t *self)
 }
 
 void *
-crown_get_mmm(crown_t *self,mmm_thread_t*thread, hatrack_hash_t hv, bool *found)
+crown_get_mmm(crown_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
-    void           *ret;
+    void          *ret;
     crown_store_t *store;
 
     mmm_start_basic_op(thread);
@@ -271,11 +271,10 @@ crown_get(crown_t *self, hatrack_hash_t hv, bool *found)
 }
 
 void *
-crown_put_mmm(crown_t *self,mmm_thread_t*thread, hatrack_hash_t hv, void *item, bool *found)
+crown_put_mmm(crown_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
 {
-    void           *ret;
+    void          *ret;
     crown_store_t *store;
-
 
     mmm_start_basic_op(thread);
 
@@ -294,9 +293,9 @@ crown_put(crown_t *self, hatrack_hash_t hv, void *item, bool *found)
 }
 
 void *
-crown_replace_mmm(crown_t *self,mmm_thread_t*thread, hatrack_hash_t hv, void *item, bool *found)
+crown_replace_mmm(crown_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item, bool *found)
 {
-    void           *ret;
+    void          *ret;
     crown_store_t *store;
 
     mmm_start_basic_op(thread);
@@ -316,9 +315,9 @@ crown_replace(crown_t *self, hatrack_hash_t hv, void *item, bool *found)
 }
 
 bool
-crown_add_mmm(crown_t *self,mmm_thread_t*thread, hatrack_hash_t hv, void *item)
+crown_add_mmm(crown_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *item)
 {
-    bool            ret;
+    bool           ret;
     crown_store_t *store;
 
     mmm_start_basic_op(thread);
@@ -338,9 +337,9 @@ crown_add(crown_t *self, hatrack_hash_t hv, void *item)
 }
 
 void *
-crown_remove_mmm(crown_t *self,mmm_thread_t*thread, hatrack_hash_t hv, bool *found)
+crown_remove_mmm(crown_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool *found)
 {
-    void           *ret;
+    void          *ret;
     crown_store_t *store;
 
     mmm_start_basic_op(thread);
@@ -395,7 +394,7 @@ crown_view(crown_t *self, uint64_t *num, bool sort)
  *  class wraps this operation in mmm.
  */
 hatrack_view_t *
-crown_view_fast_mmm(crown_t *self,mmm_thread_t*thread, uint64_t *num, bool sort)
+crown_view_fast_mmm(crown_t *self, mmm_thread_t *thread, uint64_t *num, bool sort)
 {
     hatrack_view_t *view;
     hatrack_view_t *p;
@@ -417,10 +416,10 @@ crown_view_fast_mmm(crown_t *self,mmm_thread_t*thread, uint64_t *num, bool sort)
         record        = atomic_read(&cur->record);
         p->sort_epoch = record.info & CROWN_EPOCH_MASK;
 
-	if (!p->sort_epoch) {
-	    cur++;
-	    continue;
-	}
+        if (!p->sort_epoch) {
+            cur++;
+            continue;
+        }
 
         p->item = record.item;
 
@@ -440,7 +439,7 @@ crown_view_fast_mmm(crown_t *self,mmm_thread_t*thread, uint64_t *num, bool sort)
     view = hatrack_realloc(view, alloc_len, num_items * sizeof(hatrack_view_t));
 
     if (sort) {
-	qsort(view, num_items, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
+        qsort(view, num_items, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
     }
 
     return view;
@@ -461,7 +460,7 @@ crown_view_fast(crown_t *self, uint64_t *num, bool sort)
  * matter.
  */
 hatrack_view_t *
-crown_view_slow_mmm(crown_t *self,mmm_thread_t*thread, uint64_t *num, bool sort)
+crown_view_slow_mmm(crown_t *self, mmm_thread_t *thread, uint64_t *num, bool sort)
 {
     hatrack_view_t *view;
     hatrack_view_t *p;
@@ -474,13 +473,13 @@ crown_view_slow_mmm(crown_t *self,mmm_thread_t*thread, uint64_t *num, bool sort)
     bool            expected;
 
     while (true) {
-	store    = atomic_read(&self->store_current);
-	expected = false;
+        store    = atomic_read(&self->store_current);
+        expected = false;
 
-	if (CAS(&store->claimed, &expected, true)) {
-	    break;
-	}
-	crown_store_migrate(store, thread, self);
+        if (CAS(&store->claimed, &expected, true)) {
+            break;
+        }
+        crown_store_migrate(store, thread, self);
     }
 
     crown_store_migrate(store, thread, self);
@@ -495,10 +494,10 @@ crown_view_slow_mmm(crown_t *self,mmm_thread_t*thread, uint64_t *num, bool sort)
         record        = atomic_read(&cur->record);
         p->sort_epoch = record.info & CROWN_EPOCH_MASK;
 
-	if (!p->sort_epoch) {
-	    cur++;
-	    continue;
-	}
+        if (!p->sort_epoch) {
+            cur++;
+            continue;
+        }
 
         p->item = record.item;
 
@@ -518,7 +517,7 @@ crown_view_slow_mmm(crown_t *self,mmm_thread_t*thread, uint64_t *num, bool sort)
     view = hatrack_realloc(view, alloc_len, num_items * sizeof(hatrack_view_t));
 
     if (sort) {
-	qsort(view, num_items, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
+        qsort(view, num_items, sizeof(hatrack_view_t), hatrack_quicksort_cmp);
     }
 
     mmm_retire(thread, store);
@@ -541,8 +540,8 @@ crown_store_new(uint64_t size)
     alloc_len = sizeof(crown_store_t) + sizeof(crown_bucket_t) * size;
     store     = (crown_store_t *)mmm_alloc_committed(alloc_len);
 
-    store->last_slot  = size - 1;
-    store->threshold  = hatrack_compute_table_threshold(size);
+    store->last_slot = size - 1;
+    store->threshold = hatrack_compute_table_threshold(size);
 
     return store;
 }
@@ -582,36 +581,36 @@ crown_store_get(crown_store_t *self, hatrack_hash_t hv1, bool *found)
      * this bitfield).
      */
     while (map) {
-	i      = CLZ(map);
-	bucket = &self->buckets[(bix + i) & self->last_slot];
-	hv2    = atomic_read(&bucket->hv);
+        i      = CLZ(map);
+        bucket = &self->buckets[(bix + i) & self->last_slot];
+        hv2    = atomic_read(&bucket->hv);
 
-	if (hatrack_hashes_eq(hv1, hv2)) {
-	    record = atomic_read(&bucket->record);
-	    if (record.info & CROWN_EPOCH_MASK) {
-		if (found) {
-		    *found = true;
-		}
-		return record.item;
-	    }
-	    else {
-		goto not_found;
-	    }
-	}
+        if (hatrack_hashes_eq(hv1, hv2)) {
+            record = atomic_read(&bucket->record);
+            if (record.info & CROWN_EPOCH_MASK) {
+                if (found) {
+                    *found = true;
+                }
+                return record.item;
+            }
+            else {
+                goto not_found;
+            }
+        }
 
-	/* If the entry we just looked at was some other entry, we need
-	 * to remove the corresponding bit from our local copy of the map,
-	 * so that we don't end up in an infinite loop!
-	 *
-	 * CROWN_HOME_BIT is a constant, and it corresponds to turning
-	 * on the leftmost bit of the bitfield, and ONLY that bit.
-	 *
-	 * To remove the correct bit from the map, we position
-	 * CROWN_HOME_BIT by shifting it left by the result of CLZ(map),
-	 * and then taking the complement of the bits, before the AND
-	 * operation.
-	 */
-	map &= ~(CROWN_HOME_BIT >> i);
+        /* If the entry we just looked at was some other entry, we need
+         * to remove the corresponding bit from our local copy of the map,
+         * so that we don't end up in an infinite loop!
+         *
+         * CROWN_HOME_BIT is a constant, and it corresponds to turning
+         * on the leftmost bit of the bitfield, and ONLY that bit.
+         *
+         * To remove the correct bit from the map, we position
+         * CROWN_HOME_BIT by shifting it left by the result of CLZ(map),
+         * and then taking the complement of the bits, before the AND
+         * operation.
+         */
+        map &= ~(CROWN_HOME_BIT >> i);
     }
 
     /* If we get here, we exhausted our linear probe result cache, and
@@ -711,13 +710,13 @@ not_found:
  *  populated.
  */
 void *
-crown_store_put(crown_store_t  *self,
-mmm_thread_t *thread,
-		crown_t        *top,
-		hatrack_hash_t  hv1,
-		void           *item,
-		bool           *found,
-		uint64_t        count)
+crown_store_put(crown_store_t *self,
+                mmm_thread_t  *thread,
+                crown_t       *top,
+                hatrack_hash_t hv1,
+                void          *item,
+                bool          *found,
+                uint64_t       count)
 {
     void           *old_item;
     bool            new_item;
@@ -733,7 +732,7 @@ mmm_thread_t *thread,
     hop_t           bit_to_set;
 
 #ifndef HATRACK_FULL_LINEAR_PROBES
-    uint64_t        orig_index;
+    uint64_t orig_index;
 #endif
 
     bix         = hatrack_bucket_index(hv1, self->last_slot);
@@ -751,15 +750,15 @@ mmm_thread_t *thread,
     orig_index = bix;
 
     while (map) {
-	i = CLZ(map);
-	bucket = &self->buckets[(bix + i) & self->last_slot];
-	hv2    = atomic_read(&bucket->hv);
+        i      = CLZ(map);
+        bucket = &self->buckets[(bix + i) & self->last_slot];
+        hv2    = atomic_read(&bucket->hv);
 
-	if (hatrack_hashes_eq(hv1, hv2)) {
-	    goto found_bucket;
-	}
+        if (hatrack_hashes_eq(hv1, hv2)) {
+            goto found_bucket;
+        }
 
-	map &= ~(CROWN_HOME_BIT >> i);
+        map &= ~(CROWN_HOME_BIT >> i);
     }
 
     i++;
@@ -771,101 +770,101 @@ mmm_thread_t *thread,
 
     for (; i <= self->last_slot; i++) {
         bucket = &self->buckets[bix];
-	hv2    = atomic_read(&bucket->hv);
+        hv2    = atomic_read(&bucket->hv);
 
-	if (hatrack_bucket_unreserved(hv2)) {
-	    if (CAS(&bucket->hv, &hv2, hv1)) {
-		if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
-		    goto migrate_and_retry;
-		}
+        if (hatrack_bucket_unreserved(hv2)) {
+            if (CAS(&bucket->hv, &hv2, hv1)) {
+                if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
+                    goto migrate_and_retry;
+                }
 
-		map        = atomic_read(&orig_bucket->neighbor_map);
-		bit_to_set = CROWN_HOME_BIT >> i;
+                map        = atomic_read(&orig_bucket->neighbor_map);
+                bit_to_set = CROWN_HOME_BIT >> i;
 
-		do {
-		    new_map = map | bit_to_set;
-		} while (!CAS(&orig_bucket->neighbor_map, &map, new_map));
+                do {
+                    new_map = map | bit_to_set;
+                } while (!CAS(&orig_bucket->neighbor_map, &map, new_map));
 
-		goto found_bucket;
-	    }
-	}
+                goto found_bucket;
+            }
+        }
 
-	if (hatrack_hashes_eq(hv1, hv2)) {
-	    goto found_bucket;
-	}
+        if (hatrack_hashes_eq(hv1, hv2)) {
+            goto found_bucket;
+        }
 
 #ifndef HATRACK_FULL_LINEAR_PROBES
-	/* This code addresses the race condition discussed at the top
-	 * of this file. As we linear probe past the end of our cache,
-	 * when we see a hash value that is *not* ours, we check to
-	 * see if the current bucket SHOULD have a one bit set in our
-	 * probing cache.
-	 *
-	 * If the answer is yes, then we "help", and keep trying to
-	 * set the bit, until we know it's been successfully set
-	 * (whether by us, or another thread).
-	 *
-	 * We do this before we probe the next bucket. In this way, we
-	 * eliminate the chance of a race condition.
-	 */
-	if (hatrack_bucket_index(hv2, self->last_slot) == orig_index) {
-	    map        = atomic_read(&orig_bucket->neighbor_map);
-	    bit_to_set = CROWN_HOME_BIT >> i;
+        /* This code addresses the race condition discussed at the top
+         * of this file. As we linear probe past the end of our cache,
+         * when we see a hash value that is *not* ours, we check to
+         * see if the current bucket SHOULD have a one bit set in our
+         * probing cache.
+         *
+         * If the answer is yes, then we "help", and keep trying to
+         * set the bit, until we know it's been successfully set
+         * (whether by us, or another thread).
+         *
+         * We do this before we probe the next bucket. In this way, we
+         * eliminate the chance of a race condition.
+         */
+        if (hatrack_bucket_index(hv2, self->last_slot) == orig_index) {
+            map        = atomic_read(&orig_bucket->neighbor_map);
+            bit_to_set = CROWN_HOME_BIT >> i;
 
-	    while (!(map & bit_to_set)) {
-		new_map = map | bit_to_set;
-		CAS(&orig_bucket->neighbor_map, &map, new_map);
-	    }
-	}
+            while (!(map & bit_to_set)) {
+                new_map = map | bit_to_set;
+                CAS(&orig_bucket->neighbor_map, &map, new_map);
+            }
+        }
 #endif
 
-	bix = (bix + 1) & self->last_slot;
-	continue;
+        bix = (bix + 1) & self->last_slot;
+        continue;
     }
 
     // The rest of this operation is identical to Witchhat.
- migrate_and_retry:
+migrate_and_retry:
     count = count + 1;
     if (crown_help_required(count)) {
-	HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
+        HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
 
-	atomic_fetch_add(&top->help_needed, 1);
+        atomic_fetch_add(&top->help_needed, 1);
 
-	self     = crown_store_migrate(self, thread, top);
-	old_item = crown_store_put(self,thread, top, hv1, item, found, count);
+        self     = crown_store_migrate(self, thread, top);
+        old_item = crown_store_put(self, thread, top, hv1, item, found, count);
 
-	atomic_fetch_sub(&top->help_needed, 1);
+        atomic_fetch_sub(&top->help_needed, 1);
 
-	return old_item;
+        return old_item;
     }
 
     self = crown_store_migrate(self, thread, top);
     return crown_store_put(self, thread, top, hv1, item, found, count);
 
- found_bucket:
+found_bucket:
     record = atomic_read(&bucket->record);
 
     if (record.info & CROWN_F_MOVING) {
-	goto migrate_and_retry;
+        goto migrate_and_retry;
     }
 
     if (record.info & CROWN_EPOCH_MASK) {
-	if (found) {
-	    *found = true;
-	}
+        if (found) {
+            *found = true;
+        }
 
-	old_item       = record.item;
-	new_item       = false;
-	candidate.info = record.info;
+        old_item       = record.item;
+        new_item       = false;
+        candidate.info = record.info;
     }
     else {
-	if (found) {
-	    *found = false;
-	}
+        if (found) {
+            *found = false;
+        }
 
-	old_item       = NULL;
-	new_item       = true;
-	candidate.info = CROWN_F_INITED | top->next_epoch++;
+        old_item       = NULL;
+        new_item       = true;
+        candidate.info = CROWN_F_INITED | top->next_epoch++;
     }
 
     candidate.item = item;
@@ -879,26 +878,26 @@ mmm_thread_t *thread,
     }
 
     if (record.info & CROWN_F_MOVING) {
-	goto migrate_and_retry;
+        goto migrate_and_retry;
     }
 
     if (!new_item) {
-	if (atomic_read(&self->used_count) >= self->threshold) {
-	    crown_store_migrate(self, thread, top);
-	}
+        if (atomic_read(&self->used_count) >= self->threshold) {
+            crown_store_migrate(self, thread, top);
+        }
     }
 
     return item;
 }
 
 void *
-crown_store_replace(crown_store_t    *self,
-mmm_thread_t*thread,
-		       crown_t       *top,
-		       hatrack_hash_t hv1,
-		       void          *item,
-		       bool          *found,
-		       uint64_t       count)
+crown_store_replace(crown_store_t *self,
+                    mmm_thread_t  *thread,
+                    crown_t       *top,
+                    hatrack_hash_t hv1,
+                    void          *item,
+                    bool          *found,
+                    uint64_t       count)
 {
     void           *ret;
     uint64_t        bix;
@@ -921,15 +920,15 @@ mmm_thread_t*thread,
      * same as with the get operation.
      */
     while (map) {
-	i      = CLZ(map);
-	bucket = &self->buckets[(bix + i) & self->last_slot];
-	hv2    = atomic_read(&bucket->hv);
+        i      = CLZ(map);
+        bucket = &self->buckets[(bix + i) & self->last_slot];
+        hv2    = atomic_read(&bucket->hv);
 
-	if (hatrack_hashes_eq(hv1, hv2)) {
-	    goto found_bucket;
-	}
+        if (hatrack_hashes_eq(hv1, hv2)) {
+            goto found_bucket;
+        }
 
-	map &= ~(CROWN_HOME_BIT >> i);
+        map &= ~(CROWN_HOME_BIT >> i);
     }
 
     i++;
@@ -937,70 +936,70 @@ mmm_thread_t*thread,
 
     for (; i <= self->last_slot; i++) {
         bucket = &self->buckets[bix];
-	hv2    = atomic_read(&bucket->hv);
+        hv2    = atomic_read(&bucket->hv);
 
-	if (hatrack_bucket_unreserved(hv2)) {
-	    goto not_found;
-	}
+        if (hatrack_bucket_unreserved(hv2)) {
+            goto not_found;
+        }
 
-	if (hatrack_hashes_eq(hv1, hv2)) {
-	    goto found_bucket;
-	}
+        if (hatrack_hashes_eq(hv1, hv2)) {
+            goto found_bucket;
+        }
 
-	bix = (bix + 1) & self->last_slot;
-	continue;
+        bix = (bix + 1) & self->last_slot;
+        continue;
     }
 
- not_found:
+not_found:
     if (found) {
-	*found = false;
+        *found = false;
     }
     return NULL;
 
- found_bucket:
+found_bucket:
     record = atomic_read(&bucket->record);
 
     if (record.info & CROWN_F_MOVING) {
-    migrate_and_retry:
-	count = count + 1;
+migrate_and_retry:
+        count = count + 1;
 
-	if (crown_help_required(count)) {
-	    HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
+        if (crown_help_required(count)) {
+            HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
 
-	    atomic_fetch_add(&top->help_needed, 1);
-	    self = crown_store_migrate(self, thread, top);
-	    ret  = crown_store_replace(self, thread, top, hv1, item, found, count);
+            atomic_fetch_add(&top->help_needed, 1);
+            self = crown_store_migrate(self, thread, top);
+            ret  = crown_store_replace(self, thread, top, hv1, item, found, count);
 
-	    atomic_fetch_sub(&top->help_needed, 1);
+            atomic_fetch_sub(&top->help_needed, 1);
 
-	    return ret;
-	}
+            return ret;
+        }
 
-	self = crown_store_migrate(self, thread, top);
-	return crown_store_replace(self, thread, top, hv1, item, found, count);
+        self = crown_store_migrate(self, thread, top);
+        return crown_store_replace(self, thread, top, hv1, item, found, count);
     }
 
     if (!(record.info & CROWN_EPOCH_MASK)) {
-	goto not_found;
+        goto not_found;
     }
 
     candidate.item = item;
     candidate.info = record.info;
 
-    if(!CAS(&bucket->record, &record, candidate)) {
-	if (record.info & CROWN_F_MOVING) {
-	    goto migrate_and_retry;
-	}
+    if (!CAS(&bucket->record, &record, candidate)) {
+        if (record.info & CROWN_F_MOVING) {
+            goto migrate_and_retry;
+        }
 
-	goto not_found;
+        goto not_found;
     }
 
     if (found) {
-	*found = true;
+        *found = true;
     }
 
     if (atomic_read(&self->used_count) >= self->threshold) {
-	crown_store_migrate(self, thread, top);
+        crown_store_migrate(self, thread, top);
     }
 
     return record.item;
@@ -1014,12 +1013,12 @@ mmm_thread_t*thread,
  * see above for exposition.
  */
 bool
-crown_store_add(crown_store_t    *self,
-mmm_thread_t *thread,
-		   crown_t       *top,
-		   hatrack_hash_t hv1,
-		   void          *item,
-		   uint64_t       count)
+crown_store_add(crown_store_t *self,
+                mmm_thread_t  *thread,
+                crown_t       *top,
+                hatrack_hash_t hv1,
+                void          *item,
+                uint64_t       count)
 {
     uint64_t        bix;
     uint64_t        i;
@@ -1033,10 +1032,10 @@ mmm_thread_t *thread,
     hop_t           bit_to_set;
 
 #ifndef HATRACK_FULL_LINEAR_PROBES
-    uint64_t        orig_index;
+    uint64_t orig_index;
 #endif
 
-    bix = hatrack_bucket_index(hv1, self->last_slot);
+    bix         = hatrack_bucket_index(hv1, self->last_slot);
     orig_bucket = &self->buckets[bix];
 
 #ifndef HATRACK_FULL_LINEAR_PROBES
@@ -1045,15 +1044,15 @@ mmm_thread_t *thread,
     orig_index = bix;
 
     while (map) {
-	i          = CLZ(map);
-	bucket     = &self->buckets[(bix + i) & self->last_slot];
-	hv2        = atomic_read(&bucket->hv);
+        i      = CLZ(map);
+        bucket = &self->buckets[(bix + i) & self->last_slot];
+        hv2    = atomic_read(&bucket->hv);
 
-	if (hatrack_hashes_eq(hv1, hv2)) {
-	    goto found_bucket;
-	}
+        if (hatrack_hashes_eq(hv1, hv2)) {
+            goto found_bucket;
+        }
 
-	map &= ~(CROWN_HOME_BIT >> i);
+        map &= ~(CROWN_HOME_BIT >> i);
     }
 
     i++;
@@ -1065,69 +1064,69 @@ mmm_thread_t *thread,
 
     for (; i <= self->last_slot; i++) {
         bucket = &self->buckets[bix];
-	hv2    = atomic_read(&bucket->hv);
+        hv2    = atomic_read(&bucket->hv);
 
-	if (hatrack_bucket_unreserved(hv2)) {
-	    if (CAS(&bucket->hv, &hv2, hv1)) {
-		if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
-		    goto migrate_and_retry;
-		}
+        if (hatrack_bucket_unreserved(hv2)) {
+            if (CAS(&bucket->hv, &hv2, hv1)) {
+                if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
+                    goto migrate_and_retry;
+                }
 
-		map        = atomic_read(&orig_bucket->neighbor_map);
-		bit_to_set = CROWN_HOME_BIT >> i;
+                map        = atomic_read(&orig_bucket->neighbor_map);
+                bit_to_set = CROWN_HOME_BIT >> i;
 
-		do {
-		    new_map = map | bit_to_set;
-		} while (!CAS(&orig_bucket->neighbor_map, &map, new_map));
+                do {
+                    new_map = map | bit_to_set;
+                } while (!CAS(&orig_bucket->neighbor_map, &map, new_map));
 
-		goto found_bucket;
-	    }
-	}
+                goto found_bucket;
+            }
+        }
 
-	if (hatrack_hashes_eq(hv1, hv2)) {
-	    goto found_bucket;
-	}
+        if (hatrack_hashes_eq(hv1, hv2)) {
+            goto found_bucket;
+        }
 
 #ifndef HATRACK_FULL_LINEAR_PROBES
-	if (hatrack_bucket_index(hv2, self->last_slot) == orig_index) {
-	    map = atomic_read(&orig_bucket->neighbor_map);
-	    bit_to_set = CROWN_HOME_BIT >> i;
+        if (hatrack_bucket_index(hv2, self->last_slot) == orig_index) {
+            map        = atomic_read(&orig_bucket->neighbor_map);
+            bit_to_set = CROWN_HOME_BIT >> i;
 
-	    while (!(map & bit_to_set)) {
-		new_map = map | bit_to_set;
-		CAS(&orig_bucket->neighbor_map, &map, new_map);
-	    }
-	}
+            while (!(map & bit_to_set)) {
+                new_map = map | bit_to_set;
+                CAS(&orig_bucket->neighbor_map, &map, new_map);
+            }
+        }
 #endif
 
-	bix = (bix + 1) & self->last_slot;
-	continue;
+        bix = (bix + 1) & self->last_slot;
+        continue;
     }
 
- migrate_and_retry:
+migrate_and_retry:
     count = count + 1;
     if (crown_help_required(count)) {
-	bool ret;
+        bool ret;
 
-	HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
+        HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
 
-	atomic_fetch_add(&top->help_needed, 1);
+        atomic_fetch_add(&top->help_needed, 1);
 
-	self = crown_store_migrate(self, thread, top);
-	ret  = crown_store_add(self, thread, top, hv1, item, count);
+        self = crown_store_migrate(self, thread, top);
+        ret  = crown_store_add(self, thread, top, hv1, item, count);
 
-	atomic_fetch_sub(&top->help_needed, 1);
+        atomic_fetch_sub(&top->help_needed, 1);
 
-	return ret;
+        return ret;
     }
 
     self = crown_store_migrate(self, thread, top);
-    return crown_store_add(self,thread, top, hv1, item, count);
+    return crown_store_add(self, thread, top, hv1, item, count);
 
 found_bucket:
     record = atomic_read(&bucket->record);
     if (record.info & CROWN_F_MOVING) {
-	goto migrate_and_retry;
+        goto migrate_and_retry;
     }
 
     if (record.info & CROWN_EPOCH_MASK) {
@@ -1138,12 +1137,12 @@ found_bucket:
     candidate.info = CROWN_F_INITED | top->next_epoch++;
 
     if (CAS(&bucket->record, &record, candidate)) {
-	atomic_fetch_add(&top->item_count, 1);
+        atomic_fetch_add(&top->item_count, 1);
         return true;
     }
 
     if (record.info & CROWN_F_MOVING) {
-	goto migrate_and_retry;
+        goto migrate_and_retry;
     }
 
     return false;
@@ -1156,11 +1155,11 @@ found_bucket:
  */
 void *
 crown_store_remove(crown_store_t *self,
-mmm_thread_t*thread,
-		   crown_t       *top,
-		   hatrack_hash_t hv1,
-		   bool          *found,
-		   uint64_t       count)
+                   mmm_thread_t  *thread,
+                   crown_t       *top,
+                   hatrack_hash_t hv1,
+                   bool          *found,
+                   uint64_t       count)
 {
     void           *old_item;
     uint64_t        bix;
@@ -1176,15 +1175,15 @@ mmm_thread_t*thread,
     i   = -1;
 
     while (map) {
-	i      = CLZ(map);
-	bucket = &self->buckets[(bix + i) & self->last_slot];
-	hv2    = atomic_read(&bucket->hv);
+        i      = CLZ(map);
+        bucket = &self->buckets[(bix + i) & self->last_slot];
+        hv2    = atomic_read(&bucket->hv);
 
-	if (hatrack_hashes_eq(hv1, hv2)) {
-	    goto found_bucket;
-	}
+        if (hatrack_hashes_eq(hv1, hv2)) {
+            goto found_bucket;
+        }
 
-	map &= ~(CROWN_HOME_BIT >> i);
+        map &= ~(CROWN_HOME_BIT >> i);
     }
 
     i++;
@@ -1195,18 +1194,18 @@ mmm_thread_t*thread,
         hv2    = atomic_read(&bucket->hv);
 
         if (hatrack_bucket_unreserved(hv2)) {
-	    goto not_found;
+            goto not_found;
         }
 
         if (hatrack_hashes_eq(hv1, hv2)) {
-	    goto found_bucket;
+            goto found_bucket;
         }
 
-	bix = (bix + 1) & self->last_slot;
-	continue;
+        bix = (bix + 1) & self->last_slot;
+        continue;
     }
 
- not_found:
+not_found:
     if (found) {
         *found = false;
     }
@@ -1216,24 +1215,24 @@ mmm_thread_t*thread,
 found_bucket:
     record = atomic_read(&bucket->record);
     if (record.info & CROWN_F_MOVING) {
-    migrate_and_retry:
-	count = count + 1;
+migrate_and_retry:
+        count = count + 1;
 
-	if (crown_help_required(count)) {
-	    HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
-	    atomic_fetch_add(&top->help_needed, 1);
-	    self     = crown_store_migrate(self, thread, top);
-	    old_item = crown_store_remove(self, thread, top, hv1, found, count);
-	    atomic_fetch_sub(&top->help_needed, 1);
-	    return old_item;
-	}
+        if (crown_help_required(count)) {
+            HATRACK_CTR(HATRACK_CTR_WH_HELP_REQUESTS);
+            atomic_fetch_add(&top->help_needed, 1);
+            self     = crown_store_migrate(self, thread, top);
+            old_item = crown_store_remove(self, thread, top, hv1, found, count);
+            atomic_fetch_sub(&top->help_needed, 1);
+            return old_item;
+        }
 
-	self = crown_store_migrate(self, thread, top);
-	return crown_store_remove(self, thread, top, hv1, found, count);
+        self = crown_store_migrate(self, thread, top);
+        return crown_store_remove(self, thread, top, hv1, found, count);
     }
 
     if (!(record.info & CROWN_EPOCH_MASK)) {
-	goto not_found;
+        goto not_found;
     }
 
     old_item       = record.item;
@@ -1247,15 +1246,15 @@ found_bucket:
             *found = true;
         }
 
-	if (atomic_read(&self->used_count) >= self->threshold) {
-	    crown_store_migrate(self, thread, top);
-	}
+        if (atomic_read(&self->used_count) >= self->threshold) {
+            crown_store_migrate(self, thread, top);
+        }
 
         return old_item;
     }
 
     if (record.info & CROWN_F_MOVING) {
-	goto migrate_and_retry;
+        goto migrate_and_retry;
     }
 
     goto not_found;
@@ -1307,14 +1306,14 @@ crown_store_migrate(crown_store_t *self, mmm_thread_t *thread, crown_t *top)
     hop_t           new_map;
 
 #ifdef HATRACK_SKIP_ON_MIGRATIONS
-    uint64_t        original_bix;
+    uint64_t original_bix;
 #endif
 
     new_used  = 0;
     new_store = atomic_read(&top->store_current);
 
     if (new_store != self) {
-	return new_store;
+        return new_store;
     }
 
     for (i = 0; i <= self->last_slot; i++) {
@@ -1322,34 +1321,34 @@ crown_store_migrate(crown_store_t *self, mmm_thread_t *thread, crown_t *top)
         record                = atomic_read(&bucket->record);
         candidate_record.item = record.item;
 
-	if (record.info & CROWN_F_MOVING) {
+        if (record.info & CROWN_F_MOVING) {
+            if (record.info & CROWN_EPOCH_MASK) {
+                new_used++;
+            }
+            continue;
+        }
 
-	    if (record.info & CROWN_EPOCH_MASK) {
-		new_used++;
-	    }
-	    continue;
-	}
+        OR2X64L(&bucket->record, CROWN_F_MOVING);
 
-	OR2X64L(&bucket->record, CROWN_F_MOVING);
+        record = atomic_read(&bucket->record);
 
-	record = atomic_read(&bucket->record);
-
-	if (record.info & CROWN_EPOCH_MASK) {
-	    new_used++;
-	} else {
-	    OR2X64L(&bucket->record, CROWN_F_MOVED);
-	}
+        if (record.info & CROWN_EPOCH_MASK) {
+            new_used++;
+        }
+        else {
+            OR2X64L(&bucket->record, CROWN_F_MOVED);
+        }
     }
 
     new_store = atomic_read(&self->store_next);
 
     if (!new_store) {
-	if (crown_need_to_help(top)) {
-	    new_size = (self->last_slot + 1) << 1;
-	}
-	else {
-	    new_size        = hatrack_new_size(self->last_slot, new_used);
-	}
+        if (crown_need_to_help(top)) {
+            new_size = (self->last_slot + 1) << 1;
+        }
+        else {
+            new_size = hatrack_new_size(self->last_slot, new_used);
+        }
 
         candidate_store = crown_store_new(new_size);
 
@@ -1371,57 +1370,57 @@ crown_store_migrate(crown_store_t *self, mmm_thread_t *thread, crown_t *top)
 
         hv         = atomic_read(&bucket->hv);
         bix        = hatrack_bucket_index(hv, new_store->last_slot);
-	map_bucket = &new_store->buckets[bix];
+        map_bucket = &new_store->buckets[bix];
 
 #ifdef HATRACK_SKIP_ON_MIGRATIONS
-	original_bix = bix;
-	map          = atomic_read(&map_bucket->neighbor_map);
-	j            = -1;
+        original_bix = bix;
+        map          = atomic_read(&map_bucket->neighbor_map);
+        j            = -1;
 
-	while (map) {
-	    uint64_t ix;
+        while (map) {
+            uint64_t ix;
 
-	    j           = CLZ(map);
-	    ix          = (original_bix + j) & new_store->last_slot;
-	    new_bucket  = &new_store->buckets[ix];
-	    expected_hv = atomic_read(&new_bucket->hv);
-	    if (hatrack_hashes_eq(hv, expected_hv)) {
-		goto found_bucket;
-	    }
+            j           = CLZ(map);
+            ix          = (original_bix + j) & new_store->last_slot;
+            new_bucket  = &new_store->buckets[ix];
+            expected_hv = atomic_read(&new_bucket->hv);
+            if (hatrack_hashes_eq(hv, expected_hv)) {
+                goto found_bucket;
+            }
 
-	    map &= ~(CROWN_HOME_BIT >> j);
-	}
+            map &= ~(CROWN_HOME_BIT >> j);
+        }
 
-	j++;
-	bix = (original_bix + j) & new_store->last_slot;
+        j++;
+        bix = (original_bix + j) & new_store->last_slot;
 #else
-	j = 0;
+        j = 0;
 #endif
 
-	for (; j <= new_store->last_slot; j++) {
-            new_bucket     = &new_store->buckets[bix];
-	    expected_hv    = atomic_read(&new_bucket->hv);
+        for (; j <= new_store->last_slot; j++) {
+            new_bucket  = &new_store->buckets[bix];
+            expected_hv = atomic_read(&new_bucket->hv);
 
-	    if (hatrack_bucket_unreserved(expected_hv)) {
-		if (CAS(&new_bucket->hv, &expected_hv, hv)) {
-		    map        = atomic_read(&map_bucket->neighbor_map);
-		    new_map    = map | (CROWN_HOME_BIT >> j);
-		    CAS(&map_bucket->neighbor_map, &map, new_map);
+            if (hatrack_bucket_unreserved(expected_hv)) {
+                if (CAS(&new_bucket->hv, &expected_hv, hv)) {
+                    map     = atomic_read(&map_bucket->neighbor_map);
+                    new_map = map | (CROWN_HOME_BIT >> j);
+                    CAS(&map_bucket->neighbor_map, &map, new_map);
 
-		    break;
-		}
-	    }
+                    break;
+                }
+            }
 
-	    if (!hatrack_hashes_eq(expected_hv, hv)) {
-		bix = (bix + 1) & new_store->last_slot;
-		continue;
+            if (!hatrack_hashes_eq(expected_hv, hv)) {
+                bix = (bix + 1) & new_store->last_slot;
+                continue;
             }
 
             break;
         }
 
 #ifdef HATRACK_SKIP_ON_MIGRATIONS
-    found_bucket:
+found_bucket:
 #endif
         candidate_record.info = record.info & CROWN_EPOCH_MASK;
         candidate_record.item = record.item;
@@ -1429,44 +1428,41 @@ crown_store_migrate(crown_store_t *self, mmm_thread_t *thread, crown_t *top)
         expected_record.item  = NULL;
 
         CAS(&new_bucket->record,
-	     &expected_record,
-	     candidate_record
-	   );
+            &expected_record,
+            candidate_record);
 
-	OR2X64L(&bucket->record, CROWN_F_MOVED);
+        OR2X64L(&bucket->record, CROWN_F_MOVED);
     }
 
     expected_used = 0;
 
     CAS(&new_store->used_count,
-         &expected_used,
-         new_used
-       );
+        &expected_used,
+        new_used);
 
     if (CAS(&top->store_current,
-	     &self,
-	     new_store
-	   )) {
-	if (!self->claimed) {
-	    mmm_retire(thread, self);
-	}
+            &self,
+            new_store)) {
+        if (!self->claimed) {
+            mmm_retire(thread, self);
+        }
     }
 
     return top->store_current;
 }
 
-static inline bool
+static bool
 crown_help_required(uint64_t count)
 {
     if (count == HATRACK_RETRY_THRESHOLD) {
-	return true;
+        return true;
     }
 
     return false;
 }
 
-
-static inline bool
-crown_need_to_help(crown_t *self) {
+static bool
+crown_need_to_help(crown_t *self)
+{
     return (bool)atomic_read(&self->help_needed);
 }

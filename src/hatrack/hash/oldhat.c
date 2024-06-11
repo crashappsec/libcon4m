@@ -74,16 +74,11 @@
 // clang-format off
 static oldhat_store_t  *oldhat_store_new    (uint64_t);
 static void             oldhat_store_delete (oldhat_store_t *, void *);
-static void            *oldhat_store_get    (oldhat_store_t *, hatrack_hash_t,
-					     bool *);
-static void            *oldhat_store_put    (oldhat_store_t *, mmm_thread_t *, oldhat_t *,
-					      hatrack_hash_t, void *, bool *);
-static void            *oldhat_store_replace(oldhat_store_t *, mmm_thread_t *, oldhat_t *,
-					      hatrack_hash_t, void *, bool *);
-static bool             oldhat_store_add    (oldhat_store_t *, mmm_thread_t *, oldhat_t *,
-					      hatrack_hash_t, void *);
-static void            *oldhat_store_remove (oldhat_store_t *, mmm_thread_t *, oldhat_t *,
-					      hatrack_hash_t, bool *);
+static void            *oldhat_store_get    (oldhat_store_t *, hatrack_hash_t, bool *);
+static void            *oldhat_store_put    (oldhat_store_t *, mmm_thread_t *, oldhat_t *, hatrack_hash_t, void *, bool *);
+static void            *oldhat_store_replace(oldhat_store_t *, mmm_thread_t *, oldhat_t *, hatrack_hash_t, void *, bool *);
+static bool             oldhat_store_add    (oldhat_store_t *, mmm_thread_t *, oldhat_t *, hatrack_hash_t, void *);
+static void            *oldhat_store_remove (oldhat_store_t *, mmm_thread_t *, oldhat_t *, hatrack_hash_t, bool *);
 static oldhat_store_t  *oldhat_store_migrate(oldhat_store_t *, mmm_thread_t *, oldhat_t *);
 // clang-format on
 
@@ -535,7 +530,6 @@ oldhat_view(oldhat_t *self, uint64_t *num, bool sort)
  * The cleanup handler is called by the memory management system, for
  * us to do any cleanup tasks before the store is finally hatrack_free()'d.
  */
-// clang-format off
 
 static oldhat_store_t *
 oldhat_store_new(uint64_t size)
@@ -543,8 +537,8 @@ oldhat_store_new(uint64_t size)
     uint64_t        alloc_len;
     oldhat_store_t *store;
 
-    alloc_len        = sizeof(oldhat_store_t);
-    alloc_len       += sizeof(oldhat_record_t *) * size;
+    alloc_len = sizeof(oldhat_store_t);
+    alloc_len += sizeof(oldhat_record_t *) * size;
     store            = (oldhat_store_t *)mmm_alloc_committed(alloc_len);
     store->last_slot = size - 1;
     store->threshold = hatrack_compute_table_threshold(size);
@@ -674,7 +668,7 @@ oldhat_store_get(oldhat_store_t *self,
  */
 static void *
 oldhat_store_put(oldhat_store_t *self,
-mmm_thread_t*thread,
+                 mmm_thread_t   *thread,
                  oldhat_t       *top,
                  hatrack_hash_t  hv,
                  void           *item,
@@ -872,7 +866,7 @@ found_bucket:
  */
 static void *
 oldhat_store_replace(oldhat_store_t *self,
-mmm_thread_t *thread,
+                     mmm_thread_t   *thread,
                      oldhat_t       *top,
                      hatrack_hash_t  hv,
                      void           *item,
@@ -964,7 +958,7 @@ found_bucket:
  */
 static bool
 oldhat_store_add(oldhat_store_t *self,
-mmm_thread_t *thread,
+                 mmm_thread_t   *thread,
                  oldhat_t       *top,
                  hatrack_hash_t  hv,
                  void           *item)
@@ -987,7 +981,7 @@ mmm_thread_t *thread,
         if (!record) {
             if (CAS(&self->buckets[bix], &record, candidate)) {
                 if (atomic_fetch_add(&self->used_count, 1) >= self->threshold) {
-                    oldhat_store_migrate(self,thread,  top);
+                    oldhat_store_migrate(self, thread, top);
                 }
 
                 return true;
@@ -1004,9 +998,9 @@ mmm_thread_t *thread,
 
 migrate_and_retry:
     mmm_retire_unused(candidate);
-    self = oldhat_store_migrate(self,thread,  top);
+    self = oldhat_store_migrate(self, thread, top);
 
-    return oldhat_store_add(self,thread, top, hv, item);
+    return oldhat_store_add(self, thread, top, hv, item);
 
 found_bucket:
     if (record->moving) {
@@ -1047,7 +1041,7 @@ found_bucket:
  */
 static void *
 oldhat_store_remove(oldhat_store_t *self,
-mmm_thread_t *thread,
+                    mmm_thread_t   *thread,
                     oldhat_t       *top,
                     hatrack_hash_t  hv,
                     bool           *found)
@@ -1289,9 +1283,8 @@ oldhat_store_migrate(oldhat_store_t *self, mmm_thread_t *thread, oldhat_t *top)
 
         do {
             if (!record) {
-
-		// Sets the hash value to 0.
-		hatrack_bucket_initialize(&candidate_record->hv);
+                // Sets the hash value to 0.
+                hatrack_bucket_initialize(&candidate_record->hv);
 
                 candidate_record->item   = NULL;
                 candidate_record->used   = false;
