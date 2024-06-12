@@ -52,7 +52,7 @@
 
 #pragma once
 
-#include "base.h"
+#include "base.h" // IWYU pragma: keep
 
 #ifdef HATRACK_COUNTERS
 extern _Atomic uint64_t hatrack_counters[];

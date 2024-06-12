@@ -102,7 +102,7 @@ extern "C" {
  */
 #pragma once
 
-#include "base.h"
+#include "base.h" // IWYU pragma: keep
 #include "malloc.h"
 
 #if (defined(XXH_INLINE_ALL) || defined(XXH_PRIVATE_API)) \

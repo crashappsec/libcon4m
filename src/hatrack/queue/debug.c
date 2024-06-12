@@ -19,7 +19,7 @@
  *
  *  Author:         John Viega, john@zork.org
  */
-#include "hatrack/debug.h"
+#include "hatrack/debug.h" // IWYU pragma: keep
 
 #ifdef HATRACK_DEBUG
 

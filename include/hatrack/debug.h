@@ -39,7 +39,7 @@
 
 #pragma once
 
-#include "base.h"
+#include "base.h" // IWYU pragma: keep
 
 #ifdef HATRACK_DEBUG
 

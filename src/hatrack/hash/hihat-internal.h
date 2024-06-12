@@ -1,4 +1,4 @@
-#include "hatrack/hihat.h"
+#include "hatrack/hihat.h" // IWYU pragma: export
 
 // The aforementioned flags, along with a bitmask that allows us to
 // extract the epoch in the info field, ignoring any migration flags.

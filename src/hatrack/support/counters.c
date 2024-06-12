@@ -20,10 +20,11 @@
  *  Author:         John Viega, john@zork.org
  */
 
-#include "hatrack/counters.h"
+#include "hatrack/hatrack_config.h" // IWYU pragma: keep
 
 #ifdef HATRACK_COUNTERS
 
+#include "hatrack/counters.h"
 #include <stdio.h>
 
 _Atomic uint64_t hatrack_counters[HATRACK_COUNTERS_NUM]      = {};

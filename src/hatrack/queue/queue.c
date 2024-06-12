@@ -23,7 +23,6 @@
 #include "hatrack/malloc.h"
 #include "hatrack/mmm.h"
 #include "hatrack/hatomic.h"
-#include "hatrack/hatrack_common.h"
 #include "../hatrack-internal.h"
 
 #include <stdlib.h>
