@@ -93,9 +93,7 @@ duncecap_reader_exit(duncecap_store_t *store)
 static inline duncecap_store_t *
 duncecap_viewer_enter(duncecap_t *self)
 {
-    if (pthread_mutex_lock(&self->mutex)) {
-        abort();
-    }
+    hatrack_mutex_lock(&self->mutex);
 
     return self->store_current;
 }
@@ -103,9 +101,7 @@ duncecap_viewer_enter(duncecap_t *self)
 static inline void
 duncecap_viewer_exit(duncecap_t *self, duncecap_store_t *unused)
 {
-    if (pthread_mutex_unlock(&self->mutex)) {
-        abort();
-    }
+    hatrack_mutex_unlock(&self->mutex);
 
     return;
 }
@@ -161,11 +157,11 @@ duncecap_init_size(duncecap_t *self, char size)
     uint64_t          len;
 
     if (((size_t)size) > (sizeof(intptr_t) * 8)) {
-        abort();
+        hatrack_panic("invalid size in duncecap_init_size");
     }
 
     if (size < HATRACK_MIN_SIZE_LOG) {
-        abort();
+        hatrack_panic("invalid size in duncecap_init_size");
     }
 
     len                 = 1 << size;
@@ -292,15 +288,11 @@ duncecap_put(duncecap_t *self, hatrack_hash_t hv, void *item, bool *found)
 {
     void *ret;
 
-    if (pthread_mutex_lock(&self->mutex)) {
-        abort();
-    }
+    hatrack_mutex_lock(&self->mutex);
 
     ret = duncecap_store_put(self->store_current, self, hv, item, found);
 
-    if (pthread_mutex_unlock(&self->mutex)) {
-        abort();
-    }
+    hatrack_mutex_unlock(&self->mutex);
 
     return ret;
 }
@@ -335,15 +327,11 @@ duncecap_replace(duncecap_t *self, hatrack_hash_t hv, void *item, bool *found)
 {
     void *ret;
 
-    if (pthread_mutex_lock(&self->mutex)) {
-        abort();
-    }
+    hatrack_mutex_lock(&self->mutex);
 
     ret = duncecap_store_replace(self->store_current, hv, item, found);
 
-    if (pthread_mutex_unlock(&self->mutex)) {
-        abort();
-    }
+    hatrack_mutex_unlock(&self->mutex);
 
     return ret;
 }
@@ -375,15 +363,11 @@ duncecap_add(duncecap_t *self, hatrack_hash_t hv, void *item)
 {
     bool ret;
 
-    if (pthread_mutex_lock(&self->mutex)) {
-        abort();
-    }
+    hatrack_mutex_lock(&self->mutex);
 
     ret = duncecap_store_add(self->store_current, self, hv, item);
 
-    if (pthread_mutex_unlock(&self->mutex)) {
-        abort();
-    }
+    hatrack_mutex_unlock(&self->mutex);
 
     return ret;
 }
@@ -421,15 +405,11 @@ duncecap_remove(duncecap_t *self, hatrack_hash_t hv, bool *found)
 {
     void *ret;
 
-    if (pthread_mutex_lock(&self->mutex)) {
-        abort();
-    }
+    hatrack_mutex_lock(&self->mutex);
 
     ret = duncecap_store_remove(self->store_current, self, hv, found);
 
-    if (pthread_mutex_unlock(&self->mutex)) {
-        abort();
-    }
+    hatrack_mutex_unlock(&self->mutex);
 
     return ret;
 }

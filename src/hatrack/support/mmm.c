@@ -25,11 +25,9 @@
 #include "hatrack/counters.h"
 #include "hatrack/malloc.h"
 #include "hatrack/hatomic.h"
+#include "hatrack/hatrack_common.h"
 
-#include <stdlib.h>
-#ifdef HATRACK_NO_PTHREAD
-#include <stdio.h>
-#else
+#ifndef HATRACK_NO_PTHREAD
 #include <pthread.h>
 #endif
 
@@ -152,8 +150,7 @@ static mmm_thread_t *
 mmm_thread_acquire_default(void *aux, size_t size)
 {
 #ifdef HATRACK_NO_PTHREAD
-    fprintf(stderr, "No implementation for mmm_thread_acquire defined\n");
-    abort();
+    hatrack_panic("no implementation for mmm_thread_acquire defined");
 #else
     static pthread_once_t init = PTHREAD_ONCE_INIT;
     pthread_once(&init, mmm_thread_acquire_init_pthread);
@@ -182,14 +179,14 @@ mmm_thread_acquire(void)
          * sequentially till they're done, and then we give out ones that have
          * been "given back", which are stored on a stack (mmm_free_tids).
          *
-         * If we finally run out, we abort.
+         * If we finally run out, we panic.
          */
         thread->tid = atomic_fetch_add(&mmm_nexttid, 1);
         if (thread->tid >= HATRACK_THREADS_MAX) {
             mmm_free_tids_t *head = atomic_load(&mmm_free_tids);
             do {
                 if (!head) {
-                    abort();
+                    hatrack_panic("HATRACK_THREADS_MAX limit reached");
                 }
             } while (!CAS(&mmm_free_tids, &head, head->next));
 
@@ -248,13 +245,13 @@ mmm_retire(mmm_thread_t *thread, void *ptr)
     // Don't need this check when not debugging algorithms.
     if (!cell->write_epoch) {
         DEBUG_MMM_INTERNAL(ptr, "No write epoch??");
-        abort();
+        hatrack_panic("no write epoch");
     }
     // Algorithms that steal bits from pointers might steal up to
     // three bits, thus the mask of 0x07.
     if (hatrack_pflag_test(ptr, 0x07)) {
         DEBUG_MMM_INTERNAL(ptr, "Bad alignment on retired pointer.");
-        abort();
+        hatrack_panic("bad alignment on retired pointer");
     }
 
     /* Detect multiple threads adding this to their retire list.
@@ -264,10 +261,7 @@ mmm_retire(mmm_thread_t *thread, void *ptr)
     if (cell->retire_epoch) {
         DEBUG_MMM_INTERNAL(ptr, "Double free");
         DEBUG_PTR((void *)atomic_load(&mmm_epoch), "epoch of double free");
-
-        abort();
-
-        return;
+        hatrack_panic("double free");
     }
 #endif
 

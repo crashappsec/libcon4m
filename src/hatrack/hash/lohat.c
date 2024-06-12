@@ -85,11 +85,11 @@ lohat_init_size(lohat_t *self, char size)
     uint64_t       len;
 
     if (((size_t)size) > (sizeof(intptr_t) * 8)) {
-        abort();
+        hatrack_panic("invalid size in lohat_init_size");
     }
 
     if (size < HATRACK_MIN_SIZE_LOG) {
-        abort();
+        hatrack_panic("invalid size in lohat_init_size");
     }
 
     len   = 1 << size;

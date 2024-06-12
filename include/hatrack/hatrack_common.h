@@ -174,6 +174,39 @@ hatrack_round_up_to_power_of_2(uint64_t n)
     return 0x8000000000000000ull >> (__builtin_clzll(n) - 1);
 }
 
+typedef void (*hatrack_panic_func)(void *arg, const char *msg);
+
+[[noreturn]] HATRACK_EXTERN void
+hatrack_panic(const char *msg);
+
+HATRACK_EXTERN void
+hatrack_setpanicfn(hatrack_panic_func panicfn, void *arg);
+
+#ifndef HATRACK_NO_PTHREAD
+#define hatrack_mutex_lock(_m)                          \
+    ({                                                  \
+        if (pthread_mutex_lock(_m)) {                   \
+            hatrack_panic("pthread_mutex_lock failed"); \
+        }                                               \
+    })
+#define hatrack_mutex_unlock(_m)                          \
+    ({                                                    \
+        if (pthread_mutex_unlock(_m)) {                   \
+            hatrack_panic("pthread_mutex_unlock failed"); \
+        }                                                 \
+    })
+#define hatrack_mutex_destroy(_m)                          \
+    ({                                                     \
+        if (pthread_mutex_destroy(_m)) {                   \
+            hatrack_panic("pthread_mutex_destroy failed"); \
+        }                                                  \
+    })
+#else
+#define hatrack_mutex_lock(_m)    ({})
+#define hatrack_mutex_unlock(_m)  ({})
+#define hatrack_mutex_destroy(_m) ({})
+#endif
+
 /* For testing, and for our tophat implementation (which switches the
  * backend hash table out when it notices multiple writers), we keep
  * vtables of the operations to make it easier to switch between

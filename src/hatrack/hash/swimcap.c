@@ -104,11 +104,11 @@ swimcap_init_size(swimcap_t *self, char size)
     uint64_t         len;
 
     if (((size_t)size) > (sizeof(intptr_t) * 8)) {
-        abort();
+        hatrack_panic("invalid size in swimcap_init_size");
     }
 
     if (size < HATRACK_MIN_SIZE_LOG) {
-        abort();
+        hatrack_panic("invalid size in swimcap_init_size");
     }
 
     len                 = 1 << size;
@@ -262,15 +262,11 @@ swimcap_put_mmm(swimcap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *
 {
     void *ret;
 
-    if (pthread_mutex_lock(&self->write_mutex)) {
-        abort();
-    }
+    hatrack_mutex_lock(&self->write_mutex);
 
     ret = swimcap_store_put(self->store_current, thread, self, hv, item, found);
 
-    if (pthread_mutex_unlock(&self->write_mutex)) {
-        abort();
-    }
+    hatrack_mutex_unlock(&self->write_mutex);
 
     return ret;
 }
@@ -304,15 +300,11 @@ swimcap_replace_mmm(swimcap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, vo
 {
     void *ret;
 
-    if (pthread_mutex_lock(&self->write_mutex)) {
-        abort();
-    }
+    hatrack_mutex_lock(&self->write_mutex);
 
     ret = swimcap_store_replace(self->store_current, thread, hv, item, found);
 
-    if (pthread_mutex_unlock(&self->write_mutex)) {
-        abort();
-    }
+    hatrack_mutex_unlock(&self->write_mutex);
 
     return ret;
 }
@@ -343,15 +335,11 @@ swimcap_add_mmm(swimcap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *
 {
     bool ret;
 
-    if (pthread_mutex_lock(&self->write_mutex)) {
-        abort();
-    }
+    hatrack_mutex_lock(&self->write_mutex);
 
     ret = swimcap_store_add(self->store_current, thread, self, hv, item);
 
-    if (pthread_mutex_unlock(&self->write_mutex)) {
-        abort();
-    }
+    hatrack_mutex_unlock(&self->write_mutex);
 
     return ret;
 }
@@ -388,15 +376,11 @@ swimcap_remove_mmm(swimcap_t *self, mmm_thread_t *thread, hatrack_hash_t hv, boo
 {
     void *ret;
 
-    if (pthread_mutex_lock(&self->write_mutex)) {
-        abort();
-    }
+    hatrack_mutex_lock(&self->write_mutex);
 
     ret = swimcap_store_remove(self->store_current, thread, self, hv, found);
 
-    if (pthread_mutex_unlock(&self->write_mutex)) {
-        abort();
-    }
+    hatrack_mutex_unlock(&self->write_mutex);
 
     return ret;
 }
@@ -459,9 +443,7 @@ swimcap_view_mmm(swimcap_t *self, mmm_thread_t *thread, uint64_t *num, bool sort
     uint64_t          alloc_len;
 
 #ifdef SWIMCAP_CONSISTENT_VIEWS
-    if (pthread_mutex_lock(&self->write_mutex)) {
-        abort();
-    }
+    hatrack_mutex_lock(&self->write_mutex);
 #else
     mmm_start_basic_op(thread);
 #endif
@@ -497,9 +479,7 @@ swimcap_view_mmm(swimcap_t *self, mmm_thread_t *thread, uint64_t *num, bool sort
         hatrack_free(view, alloc_len);
 
 #ifdef SWIMCAP_CONSISTENT_VIEWS
-        if (pthread_mutex_unlock(&self->write_mutex)) {
-            abort();
-        }
+        hatrack_mutex_unlock(&self->write_mutex);
 #else
         mmm_end_op(thread);
 #endif
@@ -514,9 +494,7 @@ swimcap_view_mmm(swimcap_t *self, mmm_thread_t *thread, uint64_t *num, bool sort
     }
 
 #ifdef SWIMCAP_CONSISTENT_VIEWS
-    if (pthread_mutex_unlock(&self->write_views)) {
-        abort();
-    }
+    hatrack_mutex_unlock(&self->write_mutex);
 #else
     mmm_end_op(thread);
 #endif

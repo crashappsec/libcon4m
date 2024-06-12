@@ -61,7 +61,7 @@ hatrack_dict_init(hatrack_dict_t *self, uint32_t key_type)
         self->key_type = key_type;
         break;
     default:
-        abort();
+        hatrack_panic("invalid key type for hatrack_dict_init");
     }
 
     self->hash_info.offsets.hash_offset  = 0;
@@ -706,7 +706,7 @@ hatrack_dict_get_hash_value(hatrack_dict_t *self, void *key)
         hv = hash_pointer(loc_to_hash);
         break;
     default:
-        abort();
+        hatrack_panic("invalid key type in hatrack_dict_get_hash_value");
     }
 
     if (offset != (int32_t)HATRACK_DICT_NO_CACHE) {
