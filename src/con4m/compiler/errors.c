@@ -1085,6 +1085,13 @@ static error_info_t error_info[] = {
         "Only regular assignment to a slice is currently allowed.",
         false,
     },
+    [c4m_warn_cant_export] = {
+        c4m_warn_cant_export,
+        "cant_export",
+        "Cannot export this function, because there is already a "
+        "global with the same name.",
+        false,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",

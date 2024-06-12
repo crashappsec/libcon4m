@@ -249,6 +249,35 @@ information is not.
 
 ## Whitespace rules
 
+## Scoping rules
+
+All scoping rules are currently static:
+
+1. The global scope contains variables explicitly placed in it with a
+`global` declaration. It also contains all functions that are not
+explicitly marked `private`. Modules do not automaticly have access to
+global variables in inherited modules; you have to explicitly import
+them with another `global` declaration.
+
+2. The module scope contains variables declared or used in module code
+outside of functions. The module symbols are available to functions
+unless the function explicitly declares a variable that masks it.
+
+3. If variables are declared in functions, it will shadow anything at
+the module level. If variables are not declared inside the function,
+but they are declared or used in the module, then the variable will be
+used from the module scope.
+
+4. Variables explicitly declared inside a function, and variables only
+used inside a function have the scope of the function (as opposed to
+block scoped). However, `for` index variables are block scoped, as are
+special variables like `$i` and `$last`.
+
+5. Any declare functions are automatically exported into the global
+scope, unless the function is marked private, or there is already a
+global of the same name. All functions in the standard library are
+available without importing.
+
 ## Special Variables
 
 Currently, Con4m supports:
@@ -505,8 +534,9 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - Folding
 - Checkpointing
 - Hot loading
+- Finish data types (date, ip, and extra hatrack stuff)
 
-# Items for afterwarcd
+# Items for afterward
 - Clean up unused instructions in VM
 - Remove the two-words-per-stack-slot thing; it's not needed anymore.
 - Test harness

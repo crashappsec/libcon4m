@@ -683,6 +683,10 @@ test_compiler()
                                           sym->name,
                                           sym->type));
                 c4m_print(c4m_cfg_repr(decl->cfg));
+                c4m_print(c4m_cstr_format("[h2]Function Scope for {}{}",
+                                          sym->name,
+                                          sym->type));
+                c4m_print(c4m_format_scope(decl->signature_info->fn_scope));
             }
 
             c4m_print(c4m_rich_lit("[h2]Global Scope"));

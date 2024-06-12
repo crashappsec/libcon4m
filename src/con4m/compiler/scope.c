@@ -129,10 +129,19 @@ c4m_declare_symbol(c4m_file_compile_ctx *ctx,
     entry->type              = c4m_tspec_typevar();
     entry->kind              = kind;
     entry->my_scope          = scope;
+    entry->sym_defs          = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
 
     if (hatrack_dict_add(scope->symbols, name, entry)) {
         if (success != NULL) {
             *success = true;
+        }
+
+        switch (kind) {
+        case sk_attr:
+        case sk_variable:
+            break;
+        default:
+            c4m_xlist_append(entry->sym_defs, node);
         }
 
         return entry;
@@ -360,7 +369,7 @@ c4m_format_scope(c4m_scope_t *scope)
     hatrack_dict_value_t *values;
     c4m_grid_t           *grid       = c4m_new(c4m_tspec_grid(),
                                c4m_kw("start_cols",
-                                      c4m_ka(4),
+                                      c4m_ka(6),
                                       "header_rows",
                                       c4m_ka(1),
                                       "stripe",
@@ -375,10 +384,20 @@ c4m_format_scope(c4m_scope_t *scope)
     values = hatrack_dict_values_sort(scope->symbols,
                                       &len);
 
+    if (len == 0) {
+        grid = c4m_new(c4m_tspec_grid(), c4m_kw("start_cols", c4m_ka(1)));
+        c4m_xlist_append(row, c4m_new_utf8("Scope is empty"));
+        c4m_grid_add_row(grid, row);
+        c4m_set_column_style(grid, 0, "full_snap");
+        return grid;
+    }
+
     c4m_xlist_append(row, c4m_new_utf8("Name"));
     c4m_xlist_append(row, c4m_new_utf8("Kind"));
     c4m_xlist_append(row, c4m_new_utf8("Type"));
     c4m_xlist_append(row, c4m_new_utf8("Constant Value"));
+    c4m_xlist_append(row, c4m_new_utf8("Defs"));
+    c4m_xlist_append(row, c4m_new_utf8("Uses"));
     c4m_grid_add_row(grid, row);
 
     for (uint64_t i = 0; i < len; i++) {
@@ -437,12 +456,53 @@ c4m_format_scope(c4m_scope_t *scope)
         else {
             c4m_xlist_append(row, c4m_cstr_format("[gray]n/a[/]"));
         }
+
+        int         n = c4m_xlist_len(entry->sym_defs);
+        c4m_utf8_t *def_text;
+
+        if (n == 0) {
+            def_text = c4m_cstr_format("[gray]none[/]");
+        }
+        else {
+            c4m_xlist_t *defs = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+            for (int i = 0; i < n; i++) {
+                c4m_tree_node_t *t = c4m_xlist_get(entry->sym_defs, i, NULL);
+                if (t == NULL) {
+                    c4m_xlist_append(defs, c4m_new_utf8("??"));
+                    continue;
+                }
+                c4m_xlist_append(defs, c4m_node_get_loc_str(t));
+            }
+            def_text = c4m_str_join(defs, c4m_new_utf8(", "));
+        }
+        c4m_xlist_append(row, def_text);
+
+        n = c4m_xlist_len(entry->sym_uses);
+        c4m_utf8_t *use_text;
+
+        if (n == 0) {
+            use_text = c4m_cstr_format("[gray]none[/]");
+        }
+        else {
+            c4m_xlist_t *uses = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+            for (int i = 0; i < n; i++) {
+                c4m_tree_node_t *t = c4m_xlist_get(entry->sym_uses, i, NULL);
+                if (t == NULL) {
+                    c4m_xlist_append(uses, c4m_new_utf8("??"));
+                    continue;
+                }
+                c4m_xlist_append(uses, c4m_node_get_loc_str(t));
+            }
+            use_text = c4m_str_join(uses, c4m_new_utf8(", "));
+        }
+        c4m_xlist_append(row, use_text);
         c4m_grid_add_row(grid, row);
     }
 
     c4m_set_column_style(grid, 0, "snap");
     c4m_set_column_style(grid, 1, "snap");
     c4m_set_column_style(grid, 2, "snap");
+    c4m_set_column_style(grid, 3, "snap");
 
     return grid;
 }

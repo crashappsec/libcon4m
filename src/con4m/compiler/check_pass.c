@@ -1790,7 +1790,12 @@ base_handle_assign(pass2_ctx *ctx, bool binop)
 static inline void
 handle_assign(pass2_ctx *ctx)
 {
-    base_handle_assign(ctx, false);
+    if (ctx->node->num_kids == 1) {
+        process_children(ctx);
+    }
+    else {
+        base_handle_assign(ctx, false);
+    }
 }
 
 static inline void
@@ -1961,6 +1966,35 @@ handle_unary_op(pass2_ctx *ctx)
 }
 
 static void
+handle_var_decl(pass2_ctx *ctx)
+{
+    c4m_xlist_t *syms = apply_pattern_on_node(ctx->node, c4m_sym_decls);
+    for (int i = 0; i < c4m_xlist_len(syms); i++) {
+        c4m_tree_node_t *one_set   = c4m_xlist_get(syms, i, NULL);
+        c4m_xlist_t     *var_names = apply_pattern_on_node(one_set,
+                                                       c4m_sym_names);
+        c4m_tree_node_t *init      = get_match_on_node(one_set, c4m_sym_init);
+
+        if (init == NULL) {
+            continue;
+        }
+
+        c4m_tree_node_t   *one_name = c4m_xlist_get(var_names,
+                                                  c4m_xlist_len(var_names) - 1,
+                                                  NULL);
+        c4m_pnode_t       *pn       = get_pnode(one_name);
+        c4m_scope_entry_t *sym      = (c4m_scope_entry_t *)pn->value;
+
+        if (sym->flags & C4M_F_HAS_INITIALIZER) {
+            ctx->node = init;
+            base_check_pass_dispatch(ctx);
+            ctx->node = one_name;
+            add_def(ctx, sym, true);
+        }
+    }
+}
+
+static void
 base_check_pass_dispatch(pass2_ctx *ctx)
 {
     c4m_pnode_t *pnode = c4m_tree_get_contents(ctx->node);
@@ -1969,13 +2003,15 @@ base_check_pass_dispatch(pass2_ctx *ctx)
     case c4m_nt_global_enum:
     case c4m_nt_enum:
     case c4m_nt_func_def:
-    case c4m_nt_variable_decls:
     case c4m_nt_config_spec:
     case c4m_nt_section_spec:
     case c4m_nt_param_block:
     case c4m_nt_extern_block:
     case c4m_nt_use:
         return;
+    case c4m_nt_variable_decls:
+        handle_var_decl(ctx);
+        break;
     case c4m_nt_section:
         handle_section_decl(ctx);
         break;

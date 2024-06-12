@@ -1,10 +1,12 @@
+m = "foo"
+
 func f(x) {
   print x
 }
 
 once func sum1(a, b, c)
 {
-    m = 1
+    var  m = 1
     return a + b + c + m
 }
 

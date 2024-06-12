@@ -1056,7 +1056,6 @@ extract_fn_sig_info(pass1_ctx       *ctx,
 static void
 handle_func_decl(pass1_ctx *ctx)
 {
-    // YOU ARE HERE- HANDLE `ONCE` modifier.
     c4m_tree_node_t   *tnode = cur_node(ctx);
     c4m_fn_decl_t     *decl  = c4m_gc_alloc(c4m_fn_decl_t);
     c4m_utf8_t        *name  = node_text(get_match(ctx, c4m_2nd_kid_id));
@@ -1105,7 +1104,8 @@ static void
 handle_extern_block(pass1_ctx *ctx)
 {
     c4m_ffi_decl_t  *info          = c4m_gc_alloc(c4m_ffi_info_t);
-    c4m_utf8_t      *external_name = node_text(get_match(ctx, c4m_first_kid_id));
+    c4m_utf8_t      *external_name = node_text(get_match(ctx,
+                                                    c4m_first_kid_id));
     c4m_xlist_t     *ext_params    = apply_pattern(ctx, c4m_extern_params);
     c4m_tree_node_t *ext_ret       = get_match(ctx, c4m_extern_return);
     c4m_pnode_t     *pnode         = get_pnode(cur_node(ctx));

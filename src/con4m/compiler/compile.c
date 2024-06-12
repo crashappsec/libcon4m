@@ -697,6 +697,34 @@ c4m_str_to_type(c4m_utf8_t *str)
     return result;
 }
 
+static void
+merge_function_decls(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
+{
+    c4m_scope_t          *scope = fctx->module_scope;
+    hatrack_dict_value_t *items;
+    uint64_t              n;
+
+    items = hatrack_dict_values(scope->symbols, &n);
+
+    for (uint64_t i = 0; i < n; i++) {
+        c4m_scope_entry_t *new = items[i];
+
+        if (new->kind != sk_func &&new->kind != sk_extern_func) {
+            continue;
+        }
+        c4m_fn_decl_t *decl = new->value;
+        if (decl->private) {
+            continue;
+        }
+
+        if (!hatrack_dict_add(cctx->final_globals->symbols, new->name, new)) {
+            c4m_add_warning(fctx,
+                            c4m_warn_cant_export,
+                            new->declaration_node);
+        }
+    }
+}
+
 // This loads all modules up through symbol declaration.
 void
 c4m_perform_module_loads(c4m_compile_ctx *ctx)
@@ -716,6 +744,8 @@ c4m_perform_module_loads(c4m_compile_ctx *ctx)
                 ctx->fatality = true;
             }
         }
+
+        merge_function_decls(ctx, cur);
 
         c4m_set_put(ctx->processed, cur);
         c4m_set_remove(ctx->backlog, cur);

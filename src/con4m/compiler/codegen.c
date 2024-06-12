@@ -612,7 +612,6 @@ gen_module(gen_ctx *ctx)
 
     int num_params = gen_parameter_checks(ctx);
 
-    printf("num_params = %d\n", num_params);
     emit(ctx, C4M_ZModuleEnter, c4m_kw("arg", c4m_ka(num_params)));
     gen_kids(ctx);
 }
@@ -1544,7 +1543,6 @@ gen_sym_decl(gen_ctx *ctx)
             return;
         }
 
-        c4m_print_parse_node(ctx->cur_node);
         ctx->lvalue = true;
         gen_one_kid(ctx, last - 1);
         gen_one_kid(ctx, last);
@@ -1632,7 +1630,9 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_identifier:
         do {
             c4m_scope_entry_t *sym = ctx->cur_pnode->extra_info;
-            gen_sym_load(ctx, sym, ctx->lvalue);
+            if (sym != NULL) {
+                gen_sym_load(ctx, sym, ctx->lvalue);
+            }
         } while (0);
         break;
     case c4m_nt_assert:
@@ -1756,7 +1756,7 @@ gen_function(gen_ctx *ctx, c4m_scope_entry_t *sym, c4m_zmodule_info_t *module)
     fn_info_for_obj->shortdoc = decl->short_doc;
     fn_info_for_obj->longdoc  = decl->long_doc;
     fn_info_for_obj->funcname = sym->name;
-    printf("decl->frame_size = %d\n", decl->frame_size);
+
     ctx->current_stack_offset = decl->frame_size;
 
     // TODO: fill in syms/sym types.
@@ -1764,7 +1764,9 @@ gen_function(gen_ctx *ctx, c4m_scope_entry_t *sym, c4m_zmodule_info_t *module)
     if (decl->once) {
         fn_info_for_obj->static_lock = decl->sc_lock_offset;
 
-        emit(ctx, C4M_ZPushStaticObj, c4m_ka(decl->sc_bool_offset));
+        emit(ctx,
+             C4M_ZPushStaticObj,
+             c4m_kw("arg", c4m_ka(c4m_ka(decl->sc_bool_offset))));
         GEN_JZ(emit(ctx,
                     C4M_ZPushStaticObj,
                     c4m_kw("arg", c4m_ka(decl->sc_memo_offset)));
