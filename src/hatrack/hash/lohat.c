@@ -35,16 +35,11 @@
 // clang-format off
 
 static lohat_store_t  *lohat_store_new    (uint64_t);
-static void           *lohat_store_get    (lohat_store_t *, hatrack_hash_t,
-					   bool *);
-static void           *lohat_store_put    (lohat_store_t *, mmm_thread_t *, lohat_t *,
-					   hatrack_hash_t, void *, bool *);
-static void           *lohat_store_replace(lohat_store_t *, mmm_thread_t *, lohat_t *,
-					   hatrack_hash_t, void *, bool *);
-static bool            lohat_store_add    (lohat_store_t *, mmm_thread_t *, lohat_t *,
-					   hatrack_hash_t, void *);
-static void           *lohat_store_remove (lohat_store_t *, mmm_thread_t *, lohat_t *,
-					   hatrack_hash_t, bool *);
+static void           *lohat_store_get    (lohat_store_t *, hatrack_hash_t, bool *);
+static void           *lohat_store_put    (lohat_store_t *, mmm_thread_t *, lohat_t *, hatrack_hash_t, void *, bool *);
+static void           *lohat_store_replace(lohat_store_t *, mmm_thread_t *, lohat_t *, hatrack_hash_t, void *, bool *);
+static bool            lohat_store_add    (lohat_store_t *, mmm_thread_t *, lohat_t *, hatrack_hash_t, void *);
+static void           *lohat_store_remove (lohat_store_t *, mmm_thread_t *, lohat_t *, hatrack_hash_t, bool *);
 static lohat_store_t  *lohat_store_migrate(lohat_store_t *, mmm_thread_t *, lohat_t *);
 
 // clang-format on

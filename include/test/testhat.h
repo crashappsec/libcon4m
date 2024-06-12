@@ -201,37 +201,35 @@ typedef struct {
 extern _Atomic uint64_t mmm_nexttid;
 extern hatrack_hash_t  *precomputed_hashes;
 
-// clang-format off
 // from rand.c
-void           test_init_rand        (__int128_t);
-uint32_t       test_rand             (void);
-void           test_shuffle_array    (void *, uint32_t, uint32_t);
+void     test_init_rand(__int128_t);
+uint32_t test_rand(void);
+void     test_shuffle_array(void *, uint32_t, uint32_t);
 
 // from testhat.c: basic algorithm registering / info / instantiation.
-uint32_t       algorithm_register    (char *, hatrack_vtable_t *, size_t, int,
-				      bool);
-uint32_t       get_num_algorithms    (void);
-alg_info_t    *get_all_algorithm_info(void);
-int32_t        algorithm_id_by_name  (char *);
-alg_info_t    *algorithm_info        (char *);
-testhat_t     *testhat_new           (char *);
-testhat_t     *testhat_new_size      (char *, char);
+uint32_t    algorithm_register(char *, hatrack_vtable_t *, size_t, int, bool);
+uint32_t    get_num_algorithms(void);
+alg_info_t *get_all_algorithm_info(void);
+int32_t     algorithm_id_by_name(char *);
+alg_info_t *algorithm_info(char *);
+testhat_t  *testhat_new(char *);
+testhat_t  *testhat_new_size(char *, char);
 
 // functional.c -- functional tests, off by default.
-void           run_functional_tests  (config_info_t *);
+void run_functional_tests(config_info_t *);
 
 // default.c -- default tests.
-void           run_default_tests     (config_info_t *);
+void run_default_tests(config_info_t *);
 
 // performance.c -- run one performance test. Custom tests are
 // kicked off from the main() function in test.c
-void           run_performance_test  (benchmark_t *);
+void run_performance_test(benchmark_t *);
 
 // config.c -- Command-line argument parsing.
-config_info_t *parse_args            (int, char *[]);
+config_info_t *parse_args(int, char *[]);
 
 // Items kept in test.c.
-void           precompute_hashes     (uint64_t);
+void precompute_hashes(uint64_t);
 
 typedef union {
     struct {

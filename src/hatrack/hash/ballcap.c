@@ -56,20 +56,13 @@
 #ifndef HATRACK_NO_PTHREAD
 
 // clang-format off
-
        ballcap_store_t *ballcap_store_new    (uint64_t);
-static void            *ballcap_store_get    (ballcap_store_t *, hatrack_hash_t,
-					      bool *);
-static void            *ballcap_store_put    (ballcap_store_t *, mmm_thread_t *,
-					      ballcap_t *, hatrack_hash_t, void *, bool *);
-static void            *ballcap_store_replace(ballcap_store_t *, mmm_thread_t *,
-					      ballcap_t *, hatrack_hash_t, void *, bool *);
-static bool             ballcap_store_add    (ballcap_store_t *, mmm_thread_t *,
-					      ballcap_t *, hatrack_hash_t, void *);
-static void            *ballcap_store_remove (ballcap_store_t *, mmm_thread_t *,
-					      ballcap_t *, hatrack_hash_t, bool *);
+static void            *ballcap_store_get    (ballcap_store_t *, hatrack_hash_t, bool *);
+static void            *ballcap_store_put    (ballcap_store_t *, mmm_thread_t *, ballcap_t *, hatrack_hash_t, void *, bool *);
+static void            *ballcap_store_replace(ballcap_store_t *, mmm_thread_t *, ballcap_t *, hatrack_hash_t, void *, bool *);
+static bool             ballcap_store_add    (ballcap_store_t *, mmm_thread_t *, ballcap_t *, hatrack_hash_t, void *);
+static void            *ballcap_store_remove (ballcap_store_t *, mmm_thread_t *, ballcap_t *, hatrack_hash_t, bool *);
 static ballcap_store_t *ballcap_store_migrate(ballcap_store_t *, mmm_thread_t *, ballcap_t *);
-
 // clang-format on
 
 ballcap_t *

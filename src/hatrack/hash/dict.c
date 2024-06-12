@@ -25,10 +25,11 @@
 #include "crown-internal.h"
 #include "../hatrack-internal.h"
 
-// clang-format off
-static hatrack_hash_t hatrack_dict_get_hash_value(hatrack_dict_t *, void *);
-static void           hatrack_dict_record_eject  (hatrack_dict_item_t *,
-						  hatrack_dict_t *);
+static hatrack_hash_t
+hatrack_dict_get_hash_value(hatrack_dict_t *, void *);
+
+static void
+hatrack_dict_record_eject(hatrack_dict_item_t *, hatrack_dict_t *);
 
 hatrack_dict_t *
 hatrack_dict_new(uint32_t key_type)
@@ -76,10 +77,10 @@ hatrack_dict_init(hatrack_dict_t *self, uint32_t key_type)
 void
 hatrack_dict_cleanup(hatrack_dict_t *self)
 {
-    uint64_t           i;
+    uint64_t        i;
     crown_store_t  *store;
     crown_bucket_t *bucket;
-    hatrack_hash_t     hv;
+    hatrack_hash_t  hv;
     crown_record_t  record;
 
     if (self->free_handler) {
@@ -201,7 +202,6 @@ hatrack_dict_get_mmm(hatrack_dict_t *self, mmm_thread_t *thread, void *key, bool
     hatrack_dict_item_t *item;
     crown_store_t       *store;
 
-
     hv = hatrack_dict_get_hash_value(self, key);
 
     mmm_start_basic_op(thread);
@@ -214,7 +214,7 @@ hatrack_dict_get_mmm(hatrack_dict_t *self, mmm_thread_t *thread, void *key, bool
             *found = 0;
         }
 
-	mmm_end_op(thread);
+        mmm_end_op(thread);
         return NULL;
     }
 
@@ -223,7 +223,7 @@ hatrack_dict_get_mmm(hatrack_dict_t *self, mmm_thread_t *thread, void *key, bool
     }
 
     if (self->val_return_hook) {
-	(*self->val_return_hook)(self, item->value);
+        (*self->val_return_hook)(self, item->value);
     }
 
     mmm_end_op(thread);
@@ -251,7 +251,7 @@ hatrack_dict_put_mmm(hatrack_dict_t *self, mmm_thread_t *thread, void *key, void
     hatrack_hash_t       hv;
     hatrack_dict_item_t *new_item;
     hatrack_dict_item_t *old_item;
-    crown_store_t    *store;
+    crown_store_t       *store;
 
     hv = hatrack_dict_get_hash_value(self, key);
 
@@ -263,12 +263,12 @@ hatrack_dict_put_mmm(hatrack_dict_t *self, mmm_thread_t *thread, void *key, void
     store           = atomic_read(&self->crown_instance.store_current);
 
     old_item = crown_store_put(store,
-    thread,
-                                  &self->crown_instance,
-                                  hv,
-                                  new_item,
-                                  NULL,
-                                  0);
+                               thread,
+                               &self->crown_instance,
+                               hv,
+                               new_item,
+                               NULL,
+                               0);
 
     if (old_item) {
         if (self->free_handler) {
@@ -297,7 +297,7 @@ hatrack_dict_replace_mmm(hatrack_dict_t *self, mmm_thread_t *thread, void *key, 
     hatrack_hash_t       hv;
     hatrack_dict_item_t *new_item;
     hatrack_dict_item_t *old_item;
-    crown_store_t    *store;
+    crown_store_t       *store;
 
     hv = hatrack_dict_get_hash_value(self, key);
 
@@ -309,12 +309,12 @@ hatrack_dict_replace_mmm(hatrack_dict_t *self, mmm_thread_t *thread, void *key, 
     store           = atomic_read(&self->crown_instance.store_current);
 
     old_item = crown_store_put(store,
-    thread,
-                                  &self->crown_instance,
-                                  hv,
-                                  new_item,
-                                  NULL,
-                                  0);
+                               thread,
+                               &self->crown_instance,
+                               hv,
+                               new_item,
+                               NULL,
+                               0);
 
     if (old_item) {
         if (self->free_handler) {
@@ -346,7 +346,7 @@ hatrack_dict_add_mmm(hatrack_dict_t *self, mmm_thread_t *thread, void *key, void
 {
     hatrack_hash_t       hv;
     hatrack_dict_item_t *new_item;
-    crown_store_t    *store;
+    crown_store_t       *store;
 
     hv = hatrack_dict_get_hash_value(self, key);
 
@@ -380,7 +380,7 @@ hatrack_dict_remove_mmm(hatrack_dict_t *self, mmm_thread_t *thread, void *key)
 {
     hatrack_hash_t       hv;
     hatrack_dict_item_t *old_item;
-    crown_store_t    *store;
+    crown_store_t       *store;
 
     hv = hatrack_dict_get_hash_value(self, key);
 
@@ -426,28 +426,28 @@ hatrack_dict_keys_base(hatrack_dict_t *self, mmm_thread_t *thread, uint64_t *num
     mmm_start_basic_op(thread);
 
     if (self->slow_views) {
-	view = crown_view_slow_mmm(&self->crown_instance, thread, num, sort);
+        view = crown_view_slow_mmm(&self->crown_instance, thread, num, sort);
     }
     else {
-	view = crown_view_fast_mmm(&self->crown_instance, thread, num, sort);
+        view = crown_view_fast_mmm(&self->crown_instance, thread, num, sort);
     }
 
     alloc_len = sizeof(hatrack_dict_key_t) * *num;
     ret       = (hatrack_dict_key_t *)hatrack_malloc(alloc_len);
 
     if (self->key_return_hook) {
-	for (i = 0; i < *num; i++) {
-	    item   = (hatrack_dict_item_t *)view[i].item;
-	    ret[i] = item->key;
+        for (i = 0; i < *num; i++) {
+            item   = (hatrack_dict_item_t *)view[i].item;
+            ret[i] = item->key;
 
-	    (*self->key_return_hook)(self, item->key);
-	}
+            (*self->key_return_hook)(self, item->key);
+        }
     }
     else {
-	for (i = 0; i < *num; i++) {
-	    item   = (hatrack_dict_item_t *)view[i].item;
-	    ret[i] = item->key;
-	}
+        for (i = 0; i < *num; i++) {
+            item   = (hatrack_dict_item_t *)view[i].item;
+            ret[i] = item->key;
+        }
     }
 
     mmm_end_op(thread);
@@ -469,27 +469,28 @@ hatrack_dict_values_base(hatrack_dict_t *self, mmm_thread_t *thread, uint64_t *n
     mmm_start_basic_op(thread);
 
     if (self->slow_views) {
-	view = crown_view_slow_mmm(&self->crown_instance, thread, num, sort);
+        view = crown_view_slow_mmm(&self->crown_instance, thread, num, sort);
     }
     else {
-	view = crown_view_fast_mmm(&self->crown_instance, thread, num, sort);
+        view = crown_view_fast_mmm(&self->crown_instance, thread, num, sort);
     }
 
     alloc_len = sizeof(hatrack_dict_value_t) * *num;
     ret       = (hatrack_dict_value_t *)hatrack_malloc(alloc_len);
 
     if (self->val_return_hook) {
-	for (i = 0; i < *num; i++) {
-	    item   = (hatrack_dict_item_t *)view[i].item;
-	    ret[i] = item->value;
+        for (i = 0; i < *num; i++) {
+            item   = (hatrack_dict_item_t *)view[i].item;
+            ret[i] = item->value;
 
-	    (*self->val_return_hook)(self, item->value);
-	}
-    } else {
-	for (i = 0; i < *num; i++) {
-	    item   = (hatrack_dict_item_t *)view[i].item;
-	    ret[i] = item->value;
-	}
+            (*self->val_return_hook)(self, item->value);
+        }
+    }
+    else {
+        for (i = 0; i < *num; i++) {
+            item   = (hatrack_dict_item_t *)view[i].item;
+            ret[i] = item->value;
+        }
     }
 
     mmm_end_op(thread);
@@ -511,26 +512,26 @@ hatrack_dict_items_base(hatrack_dict_t *self, mmm_thread_t *thread, uint64_t *nu
     mmm_start_basic_op(thread);
 
     if (self->slow_views) {
-	view = crown_view_slow_mmm(&self->crown_instance, thread, num, sort);
+        view = crown_view_slow_mmm(&self->crown_instance, thread, num, sort);
     }
     else {
-	view = crown_view_fast_mmm(&self->crown_instance, thread, num, sort);
+        view = crown_view_fast_mmm(&self->crown_instance, thread, num, sort);
     }
 
     alloc_len = sizeof(hatrack_dict_item_t) * *num;
     ret       = (hatrack_dict_item_t *)hatrack_malloc(alloc_len);
 
     for (i = 0; i < *num; i++) {
-	item         = (hatrack_dict_item_t *)view[i].item;
-	ret[i].key   = item->key;
-	ret[i].value = item->value;
+        item         = (hatrack_dict_item_t *)view[i].item;
+        ret[i].key   = item->key;
+        ret[i].value = item->value;
 
-	if (self->key_return_hook) {
-	    (*self->key_return_hook)(self, item->key);
-	}
-	if (self->val_return_hook) {
-	    (*self->val_return_hook)(self, item->value);
-	}
+        if (self->key_return_hook) {
+            (*self->key_return_hook)(self, item->key);
+        }
+        if (self->val_return_hook) {
+            (*self->val_return_hook)(self, item->value);
+        }
     }
 
     mmm_end_op(thread);
@@ -688,7 +689,7 @@ hatrack_dict_get_hash_value(hatrack_dict_t *self, void *key)
     loc_to_hash = (uint8_t *)key;
 
     if (self->hash_info.offsets.hash_offset) {
-	loc_to_hash += self->hash_info.offsets.hash_offset;
+        loc_to_hash += self->hash_info.offsets.hash_offset;
     }
 
     switch (self->key_type) {
@@ -717,7 +718,7 @@ hatrack_dict_get_hash_value(hatrack_dict_t *self, void *key)
 
 static void
 hatrack_dict_record_eject(hatrack_dict_item_t *record,
-			  hatrack_dict_t *dict)
+                          hatrack_dict_t      *dict)
 {
     hatrack_mem_hook_t callback;
 

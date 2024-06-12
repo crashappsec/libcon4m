@@ -40,19 +40,11 @@
 
 // clang-format off
 static duncecap_store_t *duncecap_store_new    (uint64_t);
-static void             *duncecap_store_get    (duncecap_store_t *,
-						hatrack_hash_t, bool *);
-static void             *duncecap_store_put    (duncecap_store_t *,
-						duncecap_t *, hatrack_hash_t,
-						void *, bool *);
-static void             *duncecap_store_replace(duncecap_store_t *,
-						hatrack_hash_t, void *, bool *);
-static bool              duncecap_store_add    (duncecap_store_t *,
-						duncecap_t *, hatrack_hash_t,
-						void *);
-static void             *duncecap_store_remove (duncecap_store_t *,
-						duncecap_t *, hatrack_hash_t,
-						bool *);
+static void             *duncecap_store_get    (duncecap_store_t *, hatrack_hash_t, bool *);
+static void             *duncecap_store_put    (duncecap_store_t *, duncecap_t *, hatrack_hash_t, void *, bool *);
+static void             *duncecap_store_replace(duncecap_store_t *, hatrack_hash_t, void *, bool *);
+static bool              duncecap_store_add    (duncecap_store_t *, duncecap_t *, hatrack_hash_t, void *);
+static void             *duncecap_store_remove (duncecap_store_t *, duncecap_t *, hatrack_hash_t, bool *);
 static void             duncecap_migrate       (duncecap_t *);
 // clang-format on
 
@@ -541,15 +533,14 @@ duncecap_view_mmm(duncecap_t *self, mmm_thread_t *thread, uint64_t *num, bool so
     return duncecap_view(self, num, sort);
 }
 
-// clang-format off
 static duncecap_store_t *
 duncecap_store_new(uint64_t size)
 {
     duncecap_store_t *ret;
     uint64_t          alloc_len;
 
-    alloc_len      = sizeof(duncecap_store_t);
-    alloc_len     += size * sizeof(duncecap_bucket_t);
+    alloc_len = sizeof(duncecap_store_t);
+    alloc_len += size * sizeof(duncecap_bucket_t);
     ret            = (duncecap_store_t *)hatrack_zalloc(alloc_len);
     ret->alloc_len = alloc_len;
     ret->last_slot = size - 1;
@@ -880,7 +871,7 @@ duncecap_migrate(duncecap_t *self)
 
     cur_store     = self->store_current;
     new_size      = hatrack_new_size(cur_store->last_slot,
-				     duncecap_len(self) + 1);
+                                duncecap_len(self) + 1);
     cur_last_slot = cur_store->last_slot;
     new_last_slot = new_size - 1;
     new_store     = duncecap_store_new(new_size);

@@ -154,7 +154,6 @@ testhat_new_size(char *name, char sz)
     return ret;
 }
 
-// clang-format off
 hatrack_vtable_t refhat_vtable = {
     .init    = (hatrack_init_func)refhat_init,
     .init_sz = (hatrack_init_sz_func)refhat_init_size,
@@ -165,7 +164,7 @@ hatrack_vtable_t refhat_vtable = {
     .remove  = (hatrack_remove_func)refhat_remove_mmm,
     .delete  = (hatrack_delete_func)refhat_delete,
     .len     = (hatrack_len_func)refhat_len_mmm,
-    .view    = (hatrack_view_func)refhat_view_mmm
+    .view    = (hatrack_view_func)refhat_view_mmm,
 };
 
 #ifndef HATRACK_NO_PTHREAD
@@ -180,7 +179,7 @@ hatrack_vtable_t dcap_vtable = {
     .remove  = (hatrack_remove_func)duncecap_remove_mmm,
     .delete  = (hatrack_delete_func)duncecap_delete,
     .len     = (hatrack_len_func)duncecap_len_mmm,
-    .view    = (hatrack_view_func)duncecap_view_mmm
+    .view    = (hatrack_view_func)duncecap_view_mmm,
 };
 
 hatrack_vtable_t swimcap_vtable = {
@@ -193,7 +192,7 @@ hatrack_vtable_t swimcap_vtable = {
     .remove  = (hatrack_remove_func)swimcap_remove_mmm,
     .delete  = (hatrack_delete_func)swimcap_delete,
     .len     = (hatrack_len_func)swimcap_len_mmm,
-    .view    = (hatrack_view_func)swimcap_view_mmm
+    .view    = (hatrack_view_func)swimcap_view_mmm,
 };
 
 hatrack_vtable_t newshat_vtable = {
@@ -206,7 +205,7 @@ hatrack_vtable_t newshat_vtable = {
     .remove  = (hatrack_remove_func)newshat_remove_mmm,
     .delete  = (hatrack_delete_func)newshat_delete,
     .len     = (hatrack_len_func)newshat_len_mmm,
-    .view    = (hatrack_view_func)newshat_view_mmm
+    .view    = (hatrack_view_func)newshat_view_mmm,
 };
 
 hatrack_vtable_t ballcap_vtable = {
@@ -219,7 +218,7 @@ hatrack_vtable_t ballcap_vtable = {
     .remove  = (hatrack_remove_func)ballcap_remove_mmm,
     .delete  = (hatrack_delete_func)ballcap_delete,
     .len     = (hatrack_len_func)ballcap_len_mmm,
-    .view    = (hatrack_view_func)ballcap_view_mmm
+    .view    = (hatrack_view_func)ballcap_view_mmm,
 };
 
 #endif
@@ -234,7 +233,7 @@ hatrack_vtable_t hihat_vtable = {
     .remove  = (hatrack_remove_func)hihat_remove_mmm,
     .delete  = (hatrack_delete_func)hihat_delete,
     .len     = (hatrack_len_func)hihat_len_mmm,
-    .view    = (hatrack_view_func)hihat_view_mmm
+    .view    = (hatrack_view_func)hihat_view_mmm,
 };
 
 hatrack_vtable_t hihat_a_vtable = {
@@ -247,7 +246,7 @@ hatrack_vtable_t hihat_a_vtable = {
     .remove  = (hatrack_remove_func)hihat_a_remove_mmm,
     .delete  = (hatrack_delete_func)hihat_a_delete,
     .len     = (hatrack_len_func)hihat_a_len_mmm,
-    .view    = (hatrack_view_func)hihat_a_view_mmm
+    .view    = (hatrack_view_func)hihat_a_view_mmm,
 };
 
 hatrack_vtable_t lohat_vtable = {
@@ -260,7 +259,7 @@ hatrack_vtable_t lohat_vtable = {
     .remove  = (hatrack_remove_func)lohat_remove_mmm,
     .delete  = (hatrack_delete_func)lohat_delete,
     .len     = (hatrack_len_func)lohat_len_mmm,
-    .view    = (hatrack_view_func)lohat_view_mmm
+    .view    = (hatrack_view_func)lohat_view_mmm,
 };
 
 hatrack_vtable_t lohat_a_vtable = {
@@ -273,7 +272,7 @@ hatrack_vtable_t lohat_a_vtable = {
     .remove  = (hatrack_remove_func)lohat_a_remove_mmm,
     .delete  = (hatrack_delete_func)lohat_a_delete,
     .len     = (hatrack_len_func)lohat_a_len_mmm,
-    .view    = (hatrack_view_func)lohat_a_view_mmm
+    .view    = (hatrack_view_func)lohat_a_view_mmm,
 };
 
 hatrack_vtable_t witch_vtable = {
@@ -286,7 +285,7 @@ hatrack_vtable_t witch_vtable = {
     .remove  = (hatrack_remove_func)witchhat_remove_mmm,
     .delete  = (hatrack_delete_func)witchhat_delete,
     .len     = (hatrack_len_func)witchhat_len_mmm,
-    .view    = (hatrack_view_func)witchhat_view_mmm
+    .view    = (hatrack_view_func)witchhat_view_mmm,
 };
 
 hatrack_vtable_t woolhat_vtable = {
@@ -299,7 +298,7 @@ hatrack_vtable_t woolhat_vtable = {
     .remove  = (hatrack_remove_func)woolhat_remove_mmm,
     .delete  = (hatrack_delete_func)woolhat_delete,
     .len     = (hatrack_len_func)woolhat_len_mmm,
-    .view    = (hatrack_view_func)woolhat_view_mmm
+    .view    = (hatrack_view_func)woolhat_view_mmm,
 };
 
 hatrack_vtable_t oldhat_vtable = {
@@ -312,7 +311,7 @@ hatrack_vtable_t oldhat_vtable = {
     .remove  = (hatrack_remove_func)oldhat_remove_mmm,
     .delete  = (hatrack_delete_func)oldhat_delete,
     .len     = (hatrack_len_func)oldhat_len_mmm,
-    .view    = (hatrack_view_func)oldhat_view_mmm
+    .view    = (hatrack_view_func)oldhat_view_mmm,
 };
 
 #ifndef HATRACK_NO_PTHREAD
@@ -327,7 +326,7 @@ hatrack_vtable_t thfmx_vtable = {
     .remove  = (hatrack_remove_func)tophat_remove_mmm,
     .delete  = (hatrack_delete_func)tophat_delete,
     .len     = (hatrack_len_func)tophat_len_mmm,
-    .view    = (hatrack_view_func)tophat_view_mmm
+    .view    = (hatrack_view_func)tophat_view_mmm,
 };
 
 hatrack_vtable_t thfwf_vtable = {
@@ -340,7 +339,7 @@ hatrack_vtable_t thfwf_vtable = {
     .remove  = (hatrack_remove_func)tophat_remove_mmm,
     .delete  = (hatrack_delete_func)tophat_delete,
     .len     = (hatrack_len_func)tophat_len_mmm,
-    .view    = (hatrack_view_func)tophat_view_mmm
+    .view    = (hatrack_view_func)tophat_view_mmm,
 };
 
 hatrack_vtable_t thcmx_vtable = {
@@ -353,7 +352,7 @@ hatrack_vtable_t thcmx_vtable = {
     .remove  = (hatrack_remove_func)tophat_remove_mmm,
     .delete  = (hatrack_delete_func)tophat_delete,
     .len     = (hatrack_len_func)tophat_len_mmm,
-    .view    = (hatrack_view_func)tophat_view_mmm
+    .view    = (hatrack_view_func)tophat_view_mmm,
 };
 
 hatrack_vtable_t thcwf_vtable = {
@@ -366,7 +365,7 @@ hatrack_vtable_t thcwf_vtable = {
     .remove  = (hatrack_remove_func)tophat_remove_mmm,
     .delete  = (hatrack_delete_func)tophat_delete,
     .len     = (hatrack_len_func)tophat_len_mmm,
-    .view    = (hatrack_view_func)tophat_view_mmm
+    .view    = (hatrack_view_func)tophat_view_mmm,
 };
 
 #endif
@@ -381,7 +380,7 @@ hatrack_vtable_t crown_vtable = {
     .remove  = (hatrack_remove_func)crown_remove_mmm,
     .delete  = (hatrack_delete_func)crown_delete,
     .len     = (hatrack_len_func)crown_len_mmm,
-    .view    = (hatrack_view_func)crown_view_mmm
+    .view    = (hatrack_view_func)crown_view_mmm,
 };
 
 hatrack_vtable_t tiara_vtable = {
@@ -394,10 +393,8 @@ hatrack_vtable_t tiara_vtable = {
     .remove  = (hatrack_remove_func)tiara_remove_mmm,
     .delete  = (hatrack_delete_func)tiara_delete,
     .len     = (hatrack_len_func)tiara_len_mmm,
-    .view    = (hatrack_view_func)tiara_view_mmm
+    .view    = (hatrack_view_func)tiara_view_mmm,
 };
-
-// clang-format on
 
 static void
 testhat_init_default_algorithms(void)
