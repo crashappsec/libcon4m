@@ -81,7 +81,7 @@ c4m_gc_heap_stats(uint64_t *used, uint64_t *available, uint64_t *total)
 }
 
 static void *
-c4m_gc_malloc_wrapper(size_t size)
+c4m_gc_malloc_wrapper(size_t size, void *arg)
 {
     // Hatrack wants a 16-byte aligned pointer. The con4m gc allocator will
     // always produce a 16-byte aligned pointer. The raw allocation header is
@@ -90,13 +90,13 @@ c4m_gc_malloc_wrapper(size_t size)
 }
 
 static void
-c4m_gc_free_wrapper(void *oldptr, size_t size)
+c4m_gc_free_wrapper(void *oldptr, size_t size, void *arg)
 {
     // do nothing; memory is garbage collected
 }
 
 static void *
-c4m_gc_realloc_wrapper(void *oldptr, size_t oldsize, size_t newsize)
+c4m_gc_realloc_wrapper(void *oldptr, size_t oldsize, size_t newsize, void *arg)
 {
     return c4m_gc_resize(oldptr, newsize);
 }
@@ -122,7 +122,8 @@ c4m_initialize_gc()
         hatrack_setmallocfns(c4m_gc_malloc_wrapper,
                              c4m_gc_malloc_wrapper,
                              c4m_gc_realloc_wrapper,
-                             c4m_gc_free_wrapper);
+                             c4m_gc_free_wrapper,
+                             NULL);
 
         hatrack_dict_init(global_roots, HATRACK_DICT_KEY_TYPE_PTR);
     }

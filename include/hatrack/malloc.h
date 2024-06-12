@@ -28,7 +28,7 @@
 // memory. The size is a minimum size; the function may return a larger size.
 // The function must return a pointer that is 16-byte aligned. The returned
 // pointer may be NULL if the requested allocation cannot be satisfied.
-typedef void *(*hatrack_malloc_t)(size_t size);
+typedef void *(*hatrack_malloc_t)(size_t size, void *arg);
 
 // hatrack_realloc_t is the signature of a function that is used to resize an
 // existing allocation. The old pointer and size are always provided (oldptr
@@ -42,12 +42,13 @@ typedef void *(*hatrack_malloc_t)(size_t size);
 // case the original pointer remains valid.
 typedef void *(*hatrack_realloc_t)(void  *oldptr,
                                    size_t oldsize,
-                                   size_t newsize);
+                                   size_t newsize,
+                                   void  *arg);
 
 // hatrack_free_t is the signature of a function that is used to deallocate
 // previously allocated memory. The pointer to free is always provided (it will
 // never be NULL).
-typedef void (*hatrack_free_t)(void *ptr, size_t size);
+typedef void (*hatrack_free_t)(void *ptr, size_t size, void *arg);
 
 // hatrack_setmallocfns sets the function pointers to use for malloc, zalloc,
 // realloc, and free operations. The zalloc function is the same as malloc,
@@ -58,7 +59,8 @@ extern void
 hatrack_setmallocfns(hatrack_malloc_t  mallocfn,
                      hatrack_malloc_t  zallocfn,
                      hatrack_realloc_t reallocfn,
-                     hatrack_free_t    freefn);
+                     hatrack_free_t    freefn,
+                     void             *arg);
 
 // hatrack_malloc calls the configured memory allocation function to allocate
 // the requested amount of memory. The returned pointer may be NULL if the
