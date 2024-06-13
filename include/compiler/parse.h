@@ -108,6 +108,7 @@ typedef struct pass1_ctx {
     c4m_spec_t           *spec;
     c4m_file_compile_ctx *file_ctx;
     c4m_scope_t          *static_scope;
+    bool                  in_func;
 } pass1_ctx;
 
 static inline c4m_tree_node_t *

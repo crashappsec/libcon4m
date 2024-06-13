@@ -2,12 +2,21 @@ m = "foo"
 
 func f(x) {
   print x
+  return x // Deleting this should cause an error on the assignment.
 }
 
-once func sum1(a, b, c)
+// once func also works.
+private once sum1(a, b, c)
 {
-    var  m = 1
-    return a + b + c + m
+    var m = a + b + c + 1
+    return c
 }
 
-f(12)
+y = f(12)
+
+print y
+
+print(sum1(1,2,3))
+# Should eventually give a warning about it being called w/
+# different arguments.
+print(sum1(4,5,6))

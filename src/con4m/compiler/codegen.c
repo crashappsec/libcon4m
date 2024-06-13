@@ -14,18 +14,26 @@ typedef enum {
 } assign_type_t;
 
 typedef struct {
+    c4m_fn_decl_t      *decl;
+    c4m_zinstruction_t *i;
+} call_backpatch_info_t;
+
+typedef struct {
     c4m_compile_ctx      *cctx;
     c4m_file_compile_ctx *fctx;
     c4m_xlist_t          *instructions;
+    c4m_xlist_t          *module_functions;
     c4m_tree_node_t      *cur_node;
     c4m_pnode_t          *cur_pnode;
     c4m_zmodule_info_t   *cur_module;
+    c4m_xlist_t          *call_backpatches;
     target_info_t        *target_info;
     int                   instruction_counter;
     int                   current_stack_offset;
     int                   max_stack_size;
     bool                  lvalue;
     assign_type_t         assign_method;
+    c4m_scope_entry_t    *retsym;
 } gen_ctx;
 
 static void gen_one_node(gen_ctx *);
@@ -346,7 +354,11 @@ gen_sym_load(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
         gen_sym_load_attr(ctx, sym, addressof);
         return;
     case sk_variable:
-        switch (sym->flags & (C4M_F_DECLARED_CONST | C4M_F_USER_IMMUTIBLE)) {
+        // clang-format off
+        switch (sym->flags & (C4M_F_DECLARED_CONST |
+			      C4M_F_USER_IMMUTIBLE |
+			      C4M_F_REGISTER_STORAGE)) {
+        // clang-format on
         case C4M_F_DECLARED_CONST:
             gen_sym_load_const(ctx, sym, addressof);
             return;
@@ -355,6 +367,11 @@ gen_sym_load(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
             // automatic variable like $i or $last.
         case C4M_F_USER_IMMUTIBLE:
             gen_sym_load_stack(ctx, sym, addressof);
+            return;
+
+        case C4M_F_REGISTER_STORAGE:
+            assert(!addressof);
+            emit(ctx, C4M_ZPushFromR0);
             return;
 
         default:
@@ -398,6 +415,11 @@ gen_sym_store(gen_ctx *ctx, c4m_scope_entry_t *sym, bool pop_and_lock)
     case sk_formal:
         if (!pop_and_lock) {
             emit(ctx, C4M_ZDupTop);
+        }
+
+        if (sym->flags & C4M_F_REGISTER_STORAGE) {
+            emit(ctx, C4M_ZPopToR0);
+            break;
         }
 
         gen_sym_load(ctx, sym, true);
@@ -532,6 +554,121 @@ gen_run_callback(gen_ctx *ctx, c4m_callback_t *cb)
     if (useret) {
         emit(ctx, C4M_ZPopToR0);
     }
+}
+
+static inline void
+gen_box_if_needed(gen_ctx           *ctx,
+                  c4m_tree_node_t   *n,
+                  c4m_scope_entry_t *sym,
+                  int                ix)
+{
+    c4m_pnode_t *pn          = get_pnode(n);
+    c4m_type_t  *actual_type = c4m_resolve_and_unbox(pn->type);
+    c4m_type_t  *param_type  = c4m_tspec_get_param(sym->type, ix);
+
+    if (!c4m_type_is_value_type(actual_type)) {
+        return;
+    }
+
+    // We've already type checked, so we can play fast and loose
+    // with the test here.
+    if (!c4m_type_is_value_type(param_type)) {
+        emit(ctx, C4M_ZBox, c4m_kw("type", c4m_ka(actual_type)));
+    }
+}
+static inline void
+gen_unbox_if_needed(gen_ctx           *ctx,
+                    c4m_tree_node_t   *n,
+                    c4m_scope_entry_t *sym)
+{
+    c4m_pnode_t *pn          = get_pnode(n);
+    c4m_type_t  *actual_type = c4m_resolve_and_unbox(pn->type);
+    int          ix          = c4m_tspec_get_num_params(sym->type) - 1;
+    c4m_type_t  *param_type  = c4m_tspec_get_param(sym->type, ix);
+
+    if (!c4m_type_is_value_type(actual_type)) {
+        return;
+    }
+
+    // We've already type checked, so we can play fast and loose
+    // with the test here.
+    if (!c4m_type_is_value_type(param_type)) {
+        emit(ctx, C4M_ZUnbox, c4m_kw("type", c4m_ka(actual_type)));
+    }
+}
+
+static void
+gen_call(gen_ctx *ctx)
+{
+    call_resolution_info_t *info = ctx->cur_pnode->extra_info;
+    c4m_scope_entry_t      *fsym = info->resolution;
+
+    int n = ctx->cur_node->num_kids;
+
+    // Pushes arguments onto the stack.
+    for (int i = 1; i < n; i++) {
+        gen_one_kid(ctx, i);
+        gen_box_if_needed(ctx, ctx->cur_node->children[i], fsym, i - 1);
+    }
+
+    if (fsym->kind != sk_func) {
+        // emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-1 * nargs)));
+    }
+    else {
+        // Needed to calculate the loc of module variables.
+        // Currently that's done at runtime, tho could be done in
+        // a proper link pass in the future.
+        int            target_module;
+        // Index into the object file's cache.
+        int            target_fn_id;
+        int            loc  = ctx->instruction_counter;
+        // When the call is generated, we might not have generated the
+        // function we're calling. In that case, we will just generate
+        // a stub and add the actual call instruction to a backpatch
+        // list that gets processed at the end of compilation.
+        //
+        // To test this reliably, we can check the 'offset' field of
+        // the function info object, as a function never starts at
+        // offset 0.
+        c4m_fn_decl_t *decl = fsym->value;
+        target_module       = decl->module_id;
+        target_fn_id        = decl->local_id;
+
+        emit(ctx,
+             C4M_Z0Call,
+             c4m_kw("arg", c4m_ka(target_fn_id), "module_id", target_module));
+
+        if (target_fn_id == 0) {
+            call_backpatch_info_t *bp;
+
+            bp       = c4m_gc_alloc(call_backpatch_info_t);
+            bp->decl = decl;
+            bp->i    = c4m_xlist_get(ctx->instructions, loc, NULL);
+
+            c4m_xlist_append(ctx->call_backpatches, bp);
+        }
+
+        n = decl->signature_info->num_params;
+
+        if (n != 0) {
+            emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-n)));
+        }
+        if (!decl->signature_info->void_return) {
+            emit(ctx, C4M_ZPushFromR0);
+            gen_unbox_if_needed(ctx, ctx->cur_node, fsym);
+        }
+    }
+}
+
+static void
+gen_ret(gen_ctx *ctx)
+{
+    if (ctx->cur_node->num_kids != 0) {
+        gen_kids(ctx);
+        emit(ctx, C4M_ZPopToR0);
+    }
+
+    emit(ctx, C4M_ZRet);
 }
 
 static inline void
@@ -1544,9 +1681,8 @@ gen_sym_decl(gen_ctx *ctx)
         }
 
         ctx->lvalue = true;
-        gen_one_kid(ctx, last - 1);
         gen_one_kid(ctx, last);
-        emit(ctx, C4M_ZSwap);
+        gen_sym_load(ctx, sym, true);
         emit(ctx, C4M_ZAssignToLoc);
     }
 }
@@ -1668,32 +1804,29 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_unary_op:
         gen_unary_op(ctx);
         break;
-
-        // The following list is still TODO:
-    case c4m_nt_func_def:
-        // We start this from our reference to the functions.  So when
-        // it comes via the top-level of the module, ignore it.
-    case c4m_nt_func_mods:
-    case c4m_nt_func_mod:
-    case c4m_nt_formals:
-    case c4m_nt_varargs_param:
     case c4m_nt_call:
+        gen_call(ctx);
         break;
+    case c4m_nt_return:
+        gen_ret(ctx);
+        break;
+        // The following list is still TODO:
+
+    case c4m_nt_varargs_param:
     case c4m_nt_use:
     case c4m_nt_attr_set_lock:
-    case c4m_nt_return:
         // These should always be passthrough.
     case c4m_nt_expression:
     case c4m_nt_paren_expr:
     case c4m_nt_variable_decls:
         gen_kids(ctx);
         break;
-        // These nodes should NOT do any work and not descend if they're
-        // hit; many of them are handled elsewhere and this should be
-        // unreachable for many of them.
-        //
-        // Some things spec related, param related, etc will get generated
-        // before the tree is walked from cached info.
+    // These nodes should NOT do any work and not descend if they're
+    // hit; many of them are handled elsewhere and this should be
+    // unreachable for many of them.
+    //
+    // Some things spec related, param related, etc will get generated
+    // before the tree is walked from cached info.
     case c4m_nt_case:
     case c4m_nt_decl_qualifiers:
     case c4m_nt_label:
@@ -1723,43 +1856,68 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_enum:
     case c4m_nt_enum_item:
     case c4m_nt_global_enum:
+    case c4m_nt_func_def:
+    // We start this from our reference to the functions.  So when
+    // it comes via the top-level of the module, ignore it.
+    case c4m_nt_func_mods:
+    case c4m_nt_func_mod:
+    case c4m_nt_formals:
         break;
     }
 }
 
 static void
-gen_pass_retval(gen_ctx *ctx, c4m_fn_decl_t *decl)
+gen_set_once_memo(gen_ctx *ctx, c4m_fn_decl_t *decl)
 {
-    c4m_scope_t       *scope  = decl->signature_info->fn_scope;
-    c4m_scope_entry_t *retsym = hatrack_dict_get(scope->symbols,
-                                                 c4m_new_utf8("$result"),
-                                                 NULL);
-
-    if (!retsym) {
+    if (decl->signature_info->void_return) {
         return;
     }
 
-    emit(ctx, C4M_ZFPToR0, c4m_kw("arg", c4m_ka(retsym->static_offset)));
+    emit(ctx, C4M_ZPushFromR0);
+    emit(ctx, C4M_ZPushStaticRef, c4m_kw("arg", c4m_ka(decl->sc_memo_offset)));
+    emit(ctx, C4M_ZAssignToLoc);
 }
 
 static void
-gen_function(gen_ctx *ctx, c4m_scope_entry_t *sym, c4m_zmodule_info_t *module)
+gen_return_once_memo(gen_ctx *ctx, c4m_fn_decl_t *decl)
+{
+    if (decl->signature_info->void_return) {
+        return;
+    }
+
+    emit(ctx, C4M_ZPushStaticObj, c4m_kw("arg", c4m_ka(decl->sc_memo_offset)));
+    emit(ctx, C4M_ZRet);
+}
+
+static void
+gen_function(gen_ctx            *ctx,
+             c4m_scope_entry_t  *sym,
+             c4m_zmodule_info_t *module,
+             c4m_vm_t           *vm)
 {
     c4m_fn_decl_t *decl             = sym->value;
     int            n                = sym->declaration_node->num_kids;
     ctx->cur_node                   = sym->declaration_node->children[n - 1];
     c4m_zfn_info_t *fn_info_for_obj = c4m_gc_alloc(c4m_zfn_info_t);
 
+    ctx->retsym = hatrack_dict_get(decl->signature_info->fn_scope->symbols,
+                                   c4m_new_utf8("$result"),
+                                   NULL);
+
     fn_info_for_obj->mid      = module->module_id;
+    decl->module_id           = module->module_id;
+    decl->offset              = ctx->instruction_counter;
     fn_info_for_obj->offset   = ctx->instruction_counter;
     fn_info_for_obj->tid      = decl->signature_info->full_type;
     fn_info_for_obj->shortdoc = decl->short_doc;
     fn_info_for_obj->longdoc  = decl->long_doc;
     fn_info_for_obj->funcname = sym->name;
-
     ctx->current_stack_offset = decl->frame_size;
 
-    // TODO: fill in syms/sym types.
+    // In anticipation of supporting multi-threaded access, I've put a
+    // write-lock around this. And once the result is cached, the lock
+    // does not matter. It's really only there to avoid multiple
+    // threads competing to cache the memo.
     gen_label(ctx, sym->name);
     if (decl->once) {
         fn_info_for_obj->static_lock = decl->sc_lock_offset;
@@ -1767,11 +1925,7 @@ gen_function(gen_ctx *ctx, c4m_scope_entry_t *sym, c4m_zmodule_info_t *module)
         emit(ctx,
              C4M_ZPushStaticObj,
              c4m_kw("arg", c4m_ka(c4m_ka(decl->sc_bool_offset))));
-        GEN_JZ(emit(ctx,
-                    C4M_ZPushStaticObj,
-                    c4m_kw("arg", c4m_ka(decl->sc_memo_offset)));
-               gen_pass_retval(ctx, decl);
-               emit(ctx, C4M_ZRet););
+        GEN_JZ(gen_return_once_memo(ctx, decl));
         emit(ctx,
              C4M_ZLockMutex,
              c4m_kw("arg", c4m_ka(decl->sc_lock_offset)));
@@ -1780,15 +1934,14 @@ gen_function(gen_ctx *ctx, c4m_scope_entry_t *sym, c4m_zmodule_info_t *module)
              c4m_kw("arg", c4m_ka(decl->sc_bool_offset)));
         // If it's not zero, we grabbed the lock, but waited while
         // someone else computed the memo.
-        GEN_JNZ(emit(ctx,
-                     C4M_ZUnlockMutex,
-                     c4m_kw("arg",
-                            c4m_ka(decl->sc_lock_offset)));
-                emit(ctx,
-                     C4M_ZPushStaticObj,
-                     c4m_kw("arg", c4m_ka(decl->sc_memo_offset)));
-                gen_pass_retval(ctx, decl);
-                emit(ctx, C4M_ZRet););
+        GEN_JZ(emit(ctx,
+                    C4M_ZUnlockMutex,
+                    c4m_kw("arg",
+                           c4m_ka(decl->sc_lock_offset)));
+               emit(ctx,
+                    C4M_ZPushStaticObj,
+                    c4m_kw("arg", c4m_ka(decl->sc_memo_offset)));
+               emit(ctx, C4M_ZRet););
         // Set the boolean to true.
         gen_load_immediate(ctx, 1);
         emit(ctx,
@@ -1797,6 +1950,11 @@ gen_function(gen_ctx *ctx, c4m_scope_entry_t *sym, c4m_zmodule_info_t *module)
         emit(ctx, C4M_ZAssignToLoc);
     }
 
+    // Until we have full PDG analysis, always zero out the return register
+    // on a call entry.
+    if (!decl->signature_info->void_return) {
+        emit(ctx, C4M_Z0R0c00l);
+    }
     // The frame size needs to be backpatched, since the needed stack
     // space from block scopes hasn't been computed by this point. It
     // gets computed as we generate code. So stash this:
@@ -1804,22 +1962,32 @@ gen_function(gen_ctx *ctx, c4m_scope_entry_t *sym, c4m_zmodule_info_t *module)
     emit(ctx, C4M_ZMoveSp);
 
     gen_one_node(ctx);
-    gen_pass_retval(ctx, decl);
 
     if (decl->once) {
+        gen_set_once_memo(ctx, decl);
         emit(ctx,
              C4M_ZUnlockMutex,
              c4m_kw("arg", c4m_ka(decl->sc_lock_offset)));
     }
     emit(ctx, C4M_ZRet);
 
+    // The actual backpatching of the needed frame size.
     c4m_zinstruction_t *ins = c4m_xlist_get(module->instructions, sp_loc, NULL);
     ins->arg                = ctx->current_stack_offset;
     fn_info_for_obj->size   = ctx->current_stack_offset;
+
+    c4m_xlist_append(vm->obj->func_info, fn_info_for_obj);
+
+    // TODO: Local id is set to 1 more than its natural index because
+    // 0 was taken to mean the module entry point back when I was
+    // going to cache fn info per module. But since we don't handle
+    // the same way, should probably make this more sane, but
+    // that's why this is below the append.
+    decl->local_id = c4m_xlist_len(vm->obj->func_info);
 }
 
 static void
-gen_module_code(gen_ctx *ctx)
+gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
 {
     c4m_zmodule_info_t *module = c4m_gc_alloc(c4m_zmodule_info_t);
     c4m_pnode_t        *root;
@@ -1840,7 +2008,6 @@ gen_module_code(gen_ctx *ctx)
     module->shortdoc         = c4m_token_raw_content(root->short_doc);
     module->longdoc          = c4m_token_raw_content(root->long_doc);
 
-    ctx->fctx->call_patch_locs = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
     // Still to fill in to the zmodule object (need to reshuffle to align):
     // authority/path/provided_path/package/module_id
     // Remove key / location / ext / url.
@@ -1865,7 +2032,7 @@ gen_module_code(gen_ctx *ctx)
 
     for (int i = 0; i < n; i++) {
         c4m_scope_entry_t *sym = c4m_xlist_get(symlist, i, NULL);
-        gen_function(ctx, sym, module);
+        gen_function(ctx, sym, module, vm);
     }
 
     // Version is not used yet.
@@ -1874,11 +2041,27 @@ gen_module_code(gen_ctx *ctx)
     // Parameters not done yet.
 }
 
+static inline void
+backpatch_calls(gen_ctx *ctx)
+{
+    int                    n = c4m_xlist_len(ctx->call_backpatches);
+    call_backpatch_info_t *info;
+
+    for (int i = 0; i < n; i++) {
+        info               = c4m_xlist_get(ctx->call_backpatches, i, NULL);
+        info->i->arg       = info->decl->local_id;
+        info->i->module_id = info->decl->module_id;
+
+        assert(info->i->arg != 0);
+    }
+}
+
 void
 c4m_internal_codegen(c4m_compile_ctx *cctx, c4m_vm_t *c4m_new_vm)
 {
     gen_ctx ctx = {
-        .cctx = cctx,
+        .cctx             = cctx,
+        .call_backpatches = c4m_new(c4m_tspec_xlist(c4m_tspec_ref())),
         0,
     };
 
@@ -1900,11 +2083,13 @@ c4m_internal_codegen(c4m_compile_ctx *cctx, c4m_vm_t *c4m_new_vm)
             continue;
         }
 
-        gen_module_code(&ctx);
+        gen_module_code(&ctx, c4m_new_vm);
 
         ctx.fctx->status = c4m_compile_status_generated_code;
         c4m_add_module(c4m_new_vm->obj, ctx.fctx->module_object);
     }
+
+    backpatch_calls(&ctx);
 
     c4m_new_vm->obj->num_const_objs = cctx->const_instantiation_id;
     c4m_new_vm->obj->static_data    = cctx->const_data;

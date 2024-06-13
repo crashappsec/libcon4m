@@ -565,22 +565,20 @@ c4m_vm_0call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
 
     // combine pc / module id together and push it onto the stack for recovery
     // on return
-    *--tstate->sp = (c4m_stack_value_t){
-        .uint = ((uint64_t)tstate->pc << 32u)
-              | tstate->current_module->module_id,
-    };
-    *--tstate->fp = (c4m_stack_value_t){
-        .fp = tstate->fp,
-    };
+    --tstate->sp;
+    tstate->sp->uint = ((uint64_t)tstate->pc << 32u) | tstate->current_module->module_id;
+    --tstate->sp;
 
-    tstate->fp                     = tstate->sp;
+    tstate->sp->vptr = tstate->fp;
+    tstate->fp       = (c4m_stack_value_t *)&tstate->sp->vptr;
+
     c4m_zmodule_info_t *old_module = tstate->current_module;
 
     c4m_zfn_info_t *fn = c4m_xlist_get(tstate->vm->obj->func_info,
                                        ix - 1,
                                        NULL);
 
-    tstate->pc             = fn->offset / sizeof(c4m_zinstruction_t);
+    tstate->pc             = fn->offset;
     tstate->current_module = c4m_xlist_get(tstate->vm->obj->module_contents,
                                            fn->mid,
                                            NULL);
@@ -605,20 +603,18 @@ c4m_vm_call_module(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 
     // combine pc / module id together and push it onto the stack for recovery
     // on return
-    *--tstate->sp = (c4m_stack_value_t){
-        .uint = ((uint64_t)tstate->pc << 32u)
-              | tstate->current_module->module_id,
-    };
-    *--tstate->fp = (c4m_stack_value_t){
-        .fp = tstate->fp,
-    };
+    tstate->sp->uint = ((uint64_t)tstate->pc << 32u) | tstate->current_module->module_id;
+    --tstate->sp;
 
-    tstate->fp                     = tstate->sp;
+    tstate->sp->fp = tstate->fp;
+    --tstate->sp;
+    tstate->fp = tstate->sp;
+
     c4m_zmodule_info_t *old_module = tstate->current_module;
 
     tstate->pc             = 0;
     tstate->current_module = c4m_xlist_get(tstate->vm->obj->module_contents,
-                                           i->arg - 1,
+                                           i->arg,
                                            NULL);
 
     c4m_zinstruction_t *nexti = c4m_xlist_get(tstate->current_module->instructions,
@@ -674,15 +670,17 @@ c4m_vm_return(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         C4M_CRAISE("call stack underflow");
     }
 
-    tstate->sp             = tstate->fp;
-    tstate->fp             = tstate->sp[0].fp;
+    tstate->sp = tstate->fp;
+    tstate->fp = tstate->sp->vptr;
+
     uint64_t v             = tstate->sp[1].uint;
     tstate->pc             = (v >> 32u);
     tstate->current_module = c4m_xlist_get(tstate->vm->obj->module_contents,
-                                           (v & 0xFFFFFFFF) - 1,
+                                           (v & 0xFFFFFFFF),
                                            NULL);
 
     tstate->sp += 2;
+
     --tstate->num_frames; // pop call frame
 }
 
@@ -719,10 +717,17 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             i = c4m_xlist_get(tstate->current_module->instructions,
                               tstate->pc,
                               NULL);
+// #define C4M_VM_DEBUG
 #ifdef C4M_VM_DEBUG
-            c4m_print(c4m_cstr_format("[i] > {} (PC@{:x})",
-                                      c4m_fmt_instr_name(i),
-                                      c4m_box_u64(tstate->pc)));
+            c4m_print(
+                c4m_cstr_format(
+                    "[i] > {} (PC@{:x}; SP@{:x}; FP@{:x}; a = {}; m = {})",
+                    c4m_fmt_instr_name(i),
+                    c4m_box_u64(tstate->pc * 16),
+                    c4m_box_u64((uint64_t)(void *)tstate->sp),
+                    c4m_box_u64((uint64_t)(void *)tstate->fp),
+                    c4m_box_i64((int64_t)i->arg),
+                    c4m_box_u64((uint64_t)tstate->current_module->module_id)));
 #endif
 
             switch (i->op) {
@@ -770,15 +775,13 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZPushLocalObj:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
-                *tstate->sp = (c4m_stack_value_t){
-                    .rvalue = tstate->fp[i->arg].rvalue,
-                };
+                tstate->sp->rvalue.obj = tstate->fp[-i->arg].rvalue.obj;
                 break;
             case C4M_ZPushLocalRef:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
                 *tstate->sp = (c4m_stack_value_t){
-                    .lvalue = &tstate->fp[i->arg].rvalue,
+                    .lvalue = &tstate->fp[-i->arg].rvalue,
                 };
                 break;
             case C4M_ZPushStaticObj:
@@ -1325,8 +1328,8 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 --tstate->sp;
                 tstate->sp->rvalue = tstate->r0;
                 break;
-            case C4M_ZFPToR0:
-                tstate->r0 = (&tstate->fp[i->arg / 8])->rvalue;
+            case C4M_Z0R0c00l:
+                tstate->r0.obj = (void *)NULL;
                 break;
             case C4M_ZPopToR1:
                 STACK_REQUIRE_VALUES(1);

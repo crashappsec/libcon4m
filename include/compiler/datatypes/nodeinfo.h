@@ -29,11 +29,14 @@ typedef struct {
     // The idea is, if the boolean is true, we only ever read and
     // return the cached (memoized) result, stored in the void *. If
     // it's false, we grab the lock, check the boolean a second time,
-    // run the function, set the memo and the boolean, and then
+    // run thecm function, set the memo and the boolean, and then
     // unlock.
     int32_t                sc_lock_offset;
     int32_t                sc_bool_offset;
     int32_t                sc_memo_offset;
+    int32_t                local_id;
+    int32_t                offset;
+    int32_t                module_id;
 
     unsigned int private : 1;
     unsigned int once    : 1;
@@ -101,3 +104,14 @@ typedef struct c4m_jump_info_t {
     c4m_zinstruction_t *to_patch;
     bool                top;
 } c4m_jump_info_t;
+
+#ifdef C4M_USE_INTERNAL_API
+typedef struct {
+    c4m_utf8_t        *name;
+    c4m_type_t        *sig;
+    c4m_tree_node_t   *loc;
+    c4m_scope_entry_t *resolution;
+    unsigned int       polymorphic : 1;
+    unsigned int       deferred    : 1;
+} call_resolution_info_t;
+#endif

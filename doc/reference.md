@@ -532,6 +532,7 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - Actually collect garbage.
 - Doc API.
 - Folding
+- Casting
 - Checkpointing
 - Hot loading
 - Finish data types (date, ip, and extra hatrack stuff)

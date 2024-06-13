@@ -1092,6 +1092,14 @@ static error_info_t error_info[] = {
         "global with the same name.",
         false,
     },
+    [c4m_err_assigned_void] = {
+        c4m_err_assigned_void,
+        "assigned_void",
+        "Cannot assign the results of a function that returns [em]void[/] "
+        "(void explicitly is reserved to indicate the function does not use "
+        "return values.",
+        false,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",

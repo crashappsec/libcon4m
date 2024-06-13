@@ -643,7 +643,6 @@ expect(parse_ctx *ctx, c4m_token_kind_t tk)
         consume(ctx);
         return true;
     }
-
     add_parse_error(ctx,
                     c4m_err_parse_expected_token,
                     token_type_to_string(tk));
@@ -2195,6 +2194,7 @@ func_def(parse_ctx *ctx)
 {
     bool got_private = false;
     bool got_once    = false;
+    bool got_func    = false;
 
     start_node(ctx, c4m_nt_func_def, false);
     start_node(ctx, c4m_nt_func_mods, false);
@@ -2223,16 +2223,22 @@ func_def(parse_ctx *ctx)
             got_once = true;
             continue;
         case c4m_tt_func:
+            // func always comes last.
+            got_func = true;
             consume(ctx);
             break;
         default:
-            expect(ctx, c4m_tt_func);
-            return;
+            break;
         }
         break;
     }
 
     end_node(ctx);
+
+    if (!(got_private | got_once | got_func)) {
+        expect(ctx, c4m_tt_func);
+    }
+
     ctx->in_function = true;
     identifier(ctx);
     formal_list(ctx);

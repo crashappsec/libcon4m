@@ -157,6 +157,13 @@ static const c4m_render_style_t default_table = {
     .alignment    = C4M_ALIGN_MID_LEFT,
 };
 
+static const c4m_render_style_t col_borders_table = {
+    .name      = "table2",
+    .borders   = C4M_BORDER_TOP | C4M_BORDER_BOTTOM | C4M_BORDER_LEFT | C4M_BORDER_RIGHT | C4M_INTERIOR_VERTICAL,
+    .dim_kind  = C4M_DIM_AUTO,
+    .alignment = C4M_ALIGN_MID_LEFT,
+};
+
 static const c4m_render_style_t default_tr = {
     .name       = "tr",
     .dim_kind   = C4M_DIM_AUTO,
@@ -682,6 +689,7 @@ c4m_install_default_styles()
     init_style_db();
 
     c4m_set_style("table", (c4m_render_style_t *)&default_table);
+    c4m_set_style("table2", (c4m_render_style_t *)&col_borders_table);
     c4m_set_style("tr", (c4m_render_style_t *)&default_tr);
     c4m_set_style("tr.even", (c4m_render_style_t *)&default_tr_even);
     c4m_set_style("tr.odd", (c4m_render_style_t *)&default_tr_odd);

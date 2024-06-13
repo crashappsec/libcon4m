@@ -236,8 +236,8 @@ const inst_info_t inst_info[256] = {
     [C4M_ZPopToR3] = {
         .name = "ZPopToR3",
     },
-    [C4M_ZFPToR0] = {
-        .name    = "ZFPToR0",
+    [C4M_Z0R0c00l] = {
+        .name    = "Z0R0(c00l)",
         .arg_fmt = fmt_int,
     },
     [C4M_ZPushFromR0] = {
@@ -267,7 +267,8 @@ const inst_info_t inst_info[256] = {
         .show_type = 1,
     },
     [C4M_ZUnbox] = {
-        .name = "ZUnbox",
+        .name      = "ZUnbox",
+        .show_type = 1,
     },
     [C4M_ZSubNoPop] = {
         .name = "ZSubNoPop",
@@ -298,6 +299,11 @@ const inst_info_t inst_info[256] = {
     [C4M_ZUnlockMutex] = {
         .name        = "ZUnLockMutex",
         .arg_fmt     = fmt_hex,
+        .show_module = 1,
+    },
+    [C4M_Z0Call] = {
+        .name        = "Z0Call",
+        .arg_fmt     = fmt_hex, // Should add a fmt here.
         .show_module = 1,
     },
 #ifdef C4M_DEV
@@ -399,7 +405,7 @@ fmt_arg_or_imm_no_syms(c4m_vm_t *vm, c4m_zinstruction_t *instr, int i, bool imm)
                                c4m_box_i64(value));
     case fmt_offset:
         do {
-            int64_t *b = c4m_box_i64(value * sizeof(c4m_zinstruction_t));
+            int64_t *b = c4m_box_i64(value);
             return c4m_cstr_format("target @{:8x}", b);
         } while (false);
     case fmt_bool:
@@ -447,8 +453,7 @@ fmt_module_no_syms(c4m_zinstruction_t *instr)
 static inline c4m_utf8_t *
 fmt_addr(int64_t i)
 {
-    return c4m_cstr_format("{:8x}",
-                           c4m_box_u64(i * sizeof(c4m_zinstruction_t)));
+    return c4m_cstr_format("{:8x}", c4m_box_u64(i));
 }
 
 c4m_utf8_t *
@@ -480,6 +485,8 @@ c4m_disasm(c4m_vm_t *vm, c4m_zmodule_info_t *m)
                                       c4m_ka(7),
                                       "header_rows",
                                       c4m_ka(1),
+                                      "container_tag",
+                                      c4m_ka("table2"),
                                       "stripe",
                                       c4m_ka(true)));
 

@@ -29,7 +29,8 @@ enum {
     C4M_F_USE_ERROR        = 0x0080,
     C4M_F_STATIC_STORAGE   = 0x0100,
     C4M_F_STACK_STORAGE    = 0x0200,
-    C4M_F_FUNCTION_SCOPE   = 0x0400,
+    C4M_F_REGISTER_STORAGE = 0x0400,
+    C4M_F_FUNCTION_SCOPE   = 0x0800,
 };
 
 typedef enum c4m_scope_kind : int8_t {

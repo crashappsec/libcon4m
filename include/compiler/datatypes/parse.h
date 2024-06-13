@@ -138,4 +138,5 @@ typedef struct {
     void               *extra_info;
     struct c4m_scope_t *static_scope;
     c4m_type_t         *type;
+    bool                have_value;
 } c4m_pnode_t;

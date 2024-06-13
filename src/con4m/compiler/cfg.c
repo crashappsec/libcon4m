@@ -633,7 +633,7 @@ cfg_process_node(cfg_ctx *ctx, c4m_cfg_node_t *node, c4m_cfg_node_t *parent)
         }
 
         c4m_xlist_t *old = node->sometimes_live;
-        for (uint64_t i = 0; i < c4m_xlist_len(old); i++) {
+        for (int64_t i = 0; i < c4m_xlist_len(old); i++) {
             c4m_xlist_append(ta->sometimes_live, c4m_xlist_get(old, i, NULL));
         }
 

@@ -2,15 +2,6 @@
 #include "con4m.h"
 
 typedef struct {
-    c4m_utf8_t        *name;
-    c4m_type_t        *sig;
-    c4m_tree_node_t   *loc;
-    c4m_scope_entry_t *resolution;
-    unsigned int       polymorphic : 1;
-    unsigned int       deferred    : 1;
-} call_resolution_info_t;
-
-typedef struct {
     c4m_scope_t          *attr_scope;
     c4m_scope_t          *global_scope;
     c4m_spec_t           *spec;
@@ -290,9 +281,10 @@ c4m_calculate_partial_type(pass2_ctx *ctx, c4m_partial_lit_t *partial)
 }
 
 // This maps names to how many arguments the function takes.  If
-// there's no return type, it'll be a negative number.  For now, the
-// type constraints will be handled by the caller, and the # of args
-// should already be checked.
+// there's no return type, it'll be a negative number (but a
+// straight-up NOT not a properly negated number).  For now, the type
+// constraints will be handled by the caller, and the # of args should
+// already be checked.
 
 static c4m_dict_t *polymorphic_fns = NULL;
 
@@ -419,9 +411,7 @@ initial_function_resolution(pass2_ctx       *ctx,
 
         if (!(sym->flags & C4M_F_FN_PASS_DONE)) {
             info->deferred = 1;
-            set_node_type(ctx,
-                          call_loc,
-                          c4m_tspec_get_param(info->sig, sig_params - 1));
+            c4m_xlist_append(ctx->deferred_calls, info);
             return info;
         }
 
@@ -799,7 +789,7 @@ handle_call(pass2_ctx *ctx)
     pnode->type = c4m_tspec_typevar();
     fn_type     = c4m_tspec_fn(pnode->type, argtypes, false);
 
-    initial_function_resolution(ctx, fname, fn_type, saved);
+    pnode->extra_info = initial_function_resolution(ctx, fname, fn_type, saved);
 
     ctx->current_rhs_uses = stashed_uses;
     def_use_context_exit(ctx);
@@ -853,6 +843,9 @@ handle_return(pass2_ctx *ctx)
                                     get_pnode(n->children[0]),
                                     sym);
         add_def(ctx, sym, true);
+
+        c4m_pnode_t *pn = get_pnode(n);
+        pn->extra_info  = sym;
     }
 
     ctx->cfg = c4m_cfg_add_return(ctx->cfg, n, ctx->fn_exit_node);
@@ -2740,11 +2733,29 @@ typedef struct {
 } defer_info_t;
 
 static void
+scan_for_void_symbols(c4m_file_compile_ctx *f, c4m_scope_t *scope)
+{
+    uint64_t n;
+    void   **view = hatrack_dict_values_sort(scope->symbols, &n);
+
+    for (uint64_t i = 0; i < n; i++) {
+        c4m_scope_entry_t *sym = view[i];
+
+        if (sym->kind == sk_variable || sym->kind == sk_attr) {
+            if (c4m_resolve_and_unbox(sym->type)->typeid == C4M_T_VOID) {
+                c4m_tree_node_t *def = c4m_xlist_get(sym->sym_defs, 0, NULL);
+                c4m_add_error(f, c4m_err_assigned_void, def);
+            }
+        }
+    }
+}
+
+static void
 process_deferred_calls(c4m_compile_ctx *cctx,
                        defer_info_t    *info,
                        int              num_deferrals)
 {
-    for (int i = 0; i < num_deferrals; i++) {
+    for (int j = 0; j < num_deferrals; j++) {
         c4m_file_compile_ctx *f       = info->file;
         c4m_xlist_t          *one_set = info->deferrals;
         int                   n       = c4m_xlist_len(one_set);
@@ -2752,26 +2763,54 @@ process_deferred_calls(c4m_compile_ctx *cctx,
         for (int i = 0; i < n; i++) {
             call_resolution_info_t *info = c4m_xlist_get(one_set, i, NULL);
 
-            if (!info->deferred) {
-                continue;
-            }
-            if (!info->polymorphic) {
-                c4m_type_t *sym_type  = c4m_global_copy(info->resolution->type);
-                c4m_type_t *call_type = info->sig;
-                c4m_type_t *merged    = c4m_merge_types(sym_type, call_type);
+            c4m_type_t  *sym_type   = c4m_global_copy(info->resolution->type);
+            c4m_pnode_t *pnode      = get_pnode(info->loc);
+            c4m_type_t  *node_type  = pnode->type;
+            c4m_type_t  *call_type  = info->sig;
+            int          np         = c4m_tspec_get_num_params(call_type);
+            c4m_type_t  *param_type = c4m_tspec_get_param(call_type, np - 1);
+            c4m_type_t  *merged     = c4m_merge_types(node_type, param_type);
+            bool         err        = c4m_tspec_is_error(merged);
 
-                if (c4m_tspec_is_error(merged)) {
-                    c4m_add_error(f,
-                                  c4m_err_call_type_err,
-                                  info->loc,
-                                  call_type,
-                                  sym_type);
-                }
+            if (!err) {
+                merged = c4m_merge_types(sym_type, call_type);
+                err    = c4m_tspec_is_error(merged);
             }
-            else {
-                // Nothing for now.  We'll deal with this when we do code
-                // generation.
+
+            if (err) {
+                c4m_add_error(f,
+                              c4m_err_call_type_err,
+                              info->loc,
+                              call_type,
+                              sym_type);
             }
+        }
+
+        // The only problem with deferred resolution is that the return
+        // value could be assigned, and in the absense of other checks,
+        // some previous variable who we previously had labeled as 'type
+        // unknown' could show up here as 'void' (if it were 'error' it
+        // would have been caught above).
+        //
+        // So to finish up, we walk through all symbols the module has
+        // scoped again, to look for symbols typed 'void', and if we see
+        // them, complain at their def sites.
+        //
+        // Note that we don't hold onto loop temporaries; they are all
+        // either typed to int, or based on a type restricted to indexible
+        // types.
+
+        scan_for_void_symbols(f, f->module_scope);
+        scan_for_void_symbols(f, f->global_scope);
+        scan_for_void_symbols(f, f->attribute_scope);
+
+        c4m_xlist_t *fns = f->fn_def_syms;
+
+        for (int i = 0; i < c4m_xlist_len(fns); i++) {
+            c4m_scope_entry_t *sym  = c4m_xlist_get(fns, i, NULL);
+            c4m_fn_decl_t     *decl = sym->value;
+
+            scan_for_void_symbols(f, decl->signature_info->fn_scope);
         }
     }
 }
@@ -2811,6 +2850,7 @@ c4m_check_pass(c4m_compile_ctx *cctx)
             all_deferred[num_deferred++].deferrals = one_deferred;
         }
     }
+
     process_deferred_calls(cctx, all_deferred, num_deferred);
 
     for (int i = 0; i < n; i++) {

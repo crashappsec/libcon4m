@@ -460,17 +460,27 @@ c4m_tspec_init(c4m_type_t *n, va_list args)
     assert(n->details != NULL && (((int64_t)n->details) & 0x07) == 0);
 }
 
-c4m_type_t *
-c4m_tspec_copy(c4m_type_t *node, c4m_type_env_t *env)
+static c4m_type_t *
+tspec_copy_internal(c4m_type_t *node, c4m_type_env_t *env, c4m_dict_t *dupes)
 {
     // Copies, anything that might be mutated, returning an unlocked
     // instance where mutation is okay.
+    //
+    // TODO: this is wrong for general purpose; uses global environment.
+    // Need to do a base version that works for any type env.
 
-    node = c4m_resolve_type_aliases(node, env);
+    node             = c4m_resolve_and_unbox(node);
+    c4m_type_t *dupe = hatrack_dict_get(dupes, node, NULL);
+
+    if (dupe != NULL) {
+        return dupe;
+    }
 
     if (c4m_tspec_is_concrete(node)) {
         return node;
     }
+
+    int              n       = c4m_tspec_get_num_params(node);
     c4m_type_info_t *ts_from = node->details;
     c4m_type_t      *result;
 
@@ -485,26 +495,36 @@ c4m_tspec_copy(c4m_type_t *node, c4m_type_env_t *env)
             new_opts[i] = old_opts[i];
         }
 
+        hatrack_dict_put(dupes, node, result);
         return result;
     }
     else {
         result = c4m_new(c4m_tspec_typespec(), env, ts_from->base_type->typeid);
     }
 
-    int          n       = c4m_tspec_get_num_params(node);
     c4m_xlist_t *to_copy = c4m_tspec_get_params(node);
     c4m_xlist_t *ts_dst  = result->details->items;
 
     for (int i = 0; i < n; i++) {
         c4m_type_t *original = c4m_xlist_get(to_copy, i, NULL);
-        c4m_type_t *copy     = c4m_tspec_copy(original, env);
+        c4m_type_t *copy     = tspec_copy_internal(original, env, dupes);
 
         c4m_xlist_append(ts_dst, copy);
     }
 
     c4m_type_hash(result, env);
 
+    hatrack_dict_put(dupes, node, result);
     return result;
+}
+
+c4m_type_t *
+c4m_tspec_copy(c4m_type_t *node, c4m_type_env_t *env)
+{
+    c4m_dict_t *dupes = c4m_new(c4m_tspec_dict(c4m_tspec_ref(),
+                                               c4m_tspec_ref()));
+
+    return tspec_copy_internal(node, env, dupes);
 }
 
 static c4m_type_t *

@@ -410,6 +410,10 @@ handle_var_decl(pass1_ctx *ctx)
                                                  true);
 
             if (sym != NULL) {
+                if (ctx->in_func && !is_global) {
+                    sym->flags |= C4M_F_STACK_STORAGE | C4M_F_FUNCTION_SCOPE;
+                }
+
                 c4m_pnode_t *pn = get_pnode(name_node);
                 pn->value       = (void *)sym;
 
@@ -427,8 +431,13 @@ handle_var_decl(pass1_ctx *ctx)
 
                     sym->flags |= C4M_F_HAS_INITIALIZER;
 
-                    c4m_pnode_t *initpn   = get_pnode(init);
-                    c4m_type_t  *inf_type = c4m_get_my_type(initpn->value);
+                    c4m_pnode_t *initpn = get_pnode(init);
+
+                    if (initpn->value == NULL) {
+                        return;
+                    }
+
+                    c4m_type_t *inf_type = c4m_get_my_type(initpn->value);
 
                     if (!c4m_is_partial_type(inf_type)) {
                         sym->value = initpn->value;
@@ -1024,19 +1033,21 @@ extract_fn_sig_info(pass1_ctx       *ctx,
                                                   retnode,
                                                   NULL);
         formal->type           = info->return_info.type;
-        formal->flags |= C4M_F_TYPE_IS_DECLARED;
+        formal->flags |= C4M_F_TYPE_IS_DECLARED | C4M_F_REGISTER_STORAGE;
     }
     else {
         formal->type = c4m_tspec_typevar();
     }
 
-    declare_sym(ctx,
-                info->fn_scope,
-                c4m_new_utf8("$result"),
-                ctx->cur_tnode,
-                sk_variable,
-                NULL,
-                true);
+    c4m_scope_entry_t *actual = declare_sym(ctx,
+                                            info->fn_scope,
+                                            c4m_new_utf8("$result"),
+                                            ctx->cur_tnode,
+                                            sk_variable,
+                                            NULL,
+                                            true);
+
+    actual->flags = formal->flags;
 
     // Now fill out the 'local_type' field of the ffi decl.
     // TODO: support varargs.
@@ -1095,9 +1106,11 @@ handle_func_decl(pass1_ctx *ctx)
     c4m_pnode_t *pnode = get_pnode(tnode);
     pnode->value       = (c4m_obj_t)sym;
 
+    ctx->in_func = true;
     node_down(ctx, tnode->num_kids - 1);
     process_children(ctx);
     node_up(ctx);
+    ctx->in_func = false;
 }
 
 static void

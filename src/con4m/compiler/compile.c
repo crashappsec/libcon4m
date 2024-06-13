@@ -742,6 +742,7 @@ c4m_perform_module_loads(c4m_compile_ctx *ctx)
 
             if (c4m_fatal_error_in_module(cur)) {
                 ctx->fatality = true;
+                return;
             }
         }
 

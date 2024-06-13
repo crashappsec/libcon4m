@@ -257,8 +257,8 @@ typedef enum : uint8_t {
     C4M_ZPopToR0       = 0x50,
     // Pushes the value in R1 onto the stack.
     C4M_ZPushFromR0    = 0x51,
-    // Copy something at a particular frame pointer offset to R0.
-    C4M_ZFPToR0        = 0x52,
+    // Zero out R0
+    C4M_Z0R0c00l       = 0x52,
     C4M_ZPopToR1       = 0x53,
     // Pushes the value in R1 onto the stack.
     C4M_ZPushFromR1    = 0x54,
@@ -404,6 +404,7 @@ typedef union c4m_stack_value_t {
     c4m_zcallback_t         *callback;
     // saved pc / module_id, along with unsigned int values where
     // we don't care about the type field for the operation.
+    void                    *vptr;
     uint64_t                 uint;
     int64_t                  sint; // signed int values.
     double                   dbl;

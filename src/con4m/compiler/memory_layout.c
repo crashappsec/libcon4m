@@ -191,11 +191,11 @@ static int64_t
 layout_stack(void **view, uint64_t n)
 {
     // Address 0 is always $result, if it exists.
-    int32_t next_formal = -1;
-    int32_t next_local  = 0;
+    int32_t next_formal = -2;
+    int32_t next_local  = 1;
 
-    for (unsigned int i = 0; i < n; i++) {
-        c4m_scope_entry_t *sym = view[i];
+    while (n--) {
+        c4m_scope_entry_t *sym = view[n];
 
         // Will already be zero-allocated.
         if (!strcmp(sym->name->data, "$result")) {
