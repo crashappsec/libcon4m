@@ -99,7 +99,6 @@
 #include "compiler/parse.h"
 #include "compiler/scope.h"
 #include "compiler/spec.h"
-#include "compiler/partial.h"
 #include "compiler/cfgs.h"
 #include "compiler/codegen.h"
 

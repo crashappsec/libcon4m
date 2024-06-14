@@ -771,6 +771,14 @@ static error_info_t error_info[] = {
         "type used in this context ([em]{}[/]). ",
         true,
     },
+    [c4m_err_inconsistent_item_type] = {
+        c4m_err_inconsistent_item_type,
+        "inconsistent_item_type",
+        "Item types must be either identical to the first item type in "
+        " the {}, or must be automatically convertable to that type. "
+        "First item type was [em]{}[/], but this one is [em]{}[/]",
+        true,
+    },
     [c4m_err_decl_mask] = {
         c4m_err_decl_mask,
         "decl_mask",

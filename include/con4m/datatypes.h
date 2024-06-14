@@ -32,7 +32,6 @@ typedef struct hatrack_set_st c4m_set_t;
 #include "compiler/datatypes/parse.h"
 #include "compiler/datatypes/scope.h"
 #include "compiler/datatypes/nodeinfo.h"
-#include "compiler/datatypes/partials.h"
 #include "compiler/datatypes/spec.h"
 #include "compiler/datatypes/cfg.h"
 #include "compiler/datatypes/file.h"

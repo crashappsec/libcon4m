@@ -54,15 +54,6 @@ declare_sym(pass1_ctx       *ctx,
     return result;
 }
 
-static inline void
-handle_literal(pass1_ctx *ctx)
-{
-    c4m_tree_node_t *tnode = cur_node(ctx);
-    c4m_pnode_t     *pnode = get_pnode(tnode);
-
-    pnode->value = node_literal(ctx->file_ctx, tnode, NULL);
-}
-
 static void
 validate_str_enum_vals(pass1_ctx *ctx, c4m_xlist_t *items)
 {
@@ -430,6 +421,7 @@ handle_var_decl(pass1_ctx *ctx)
                     set_current_node(ctx, n);
 
                     sym->flags |= C4M_F_HAS_INITIALIZER;
+                    sym->value_node = init;
 
                     c4m_pnode_t *initpn = get_pnode(init);
 
@@ -439,14 +431,8 @@ handle_var_decl(pass1_ctx *ctx)
 
                     c4m_type_t *inf_type = c4m_get_my_type(initpn->value);
 
-                    if (!c4m_is_partial_type(inf_type)) {
-                        sym->value = initpn->value;
-                        sym->type  = inf_type;
-                    }
-
-                    else {
-                        sym->value = init;
-                    }
+                    sym->value = initpn->value;
+                    sym->type  = inf_type;
 
                     if (type) {
                         sym->flags |= C4M_F_TYPE_IS_DECLARED;
@@ -516,13 +502,13 @@ handle_param_block(pass1_ctx *ctx)
 
         switch (prop_name->data[0]) {
         case 'v':
-            prop->validator = node_literal(ctx->file_ctx, lit, NULL);
+            prop->validator = lit;
             break;
         case 'c':
-            prop->callback = node_literal(ctx->file_ctx, lit, NULL);
+            prop->callback = lit;
             break;
         case 'd':
-            prop->default_value = node_literal(ctx->file_ctx, lit, NULL);
+            prop->default_value = lit;
             break;
         default:
             c4m_unreachable();
@@ -682,17 +668,13 @@ one_field(pass1_ctx          *ctx,
         case 'c': // choice:
                   // For now, we just stash the raw nodes, and
                   // evaluate it later.
-            f->stashed_options = node_literal(ctx->file_ctx,
-                                              c4m_tree_get_child(kid, 0),
-                                              NULL);
+            f->stashed_options = c4m_tree_get_child(kid, 0);
             f->validate_choice = 1;
             break;
 
         case 'd': // default:
                   // Same.
-            f->default_value    = node_literal(ctx->file_ctx,
-                                            c4m_tree_get_child(kid, 0),
-                                            NULL);
+            f->default_value    = c4m_tree_get_child(kid, 0);
             f->default_provided = 1;
             break;
 
@@ -1361,18 +1343,6 @@ pass_dispatch(pass1_ctx *ctx)
 
     case c4m_nt_use:
         handle_use_stmt(ctx);
-        break;
-
-    case c4m_nt_simple_lit:
-    case c4m_nt_lit_list:
-    case c4m_nt_lit_dict:
-    case c4m_nt_lit_set:
-    case c4m_nt_lit_empty_dict_or_set:
-    case c4m_nt_lit_tuple:
-    case c4m_nt_lit_unquoted:
-    case c4m_nt_lit_callback:
-    case c4m_nt_lit_tspec:
-        handle_literal(ctx);
         break;
 
     case c4m_nt_break:

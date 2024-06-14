@@ -535,8 +535,6 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - __repr__
 
 # Features to re-add from old con4m
-- Finish initial code gen (almost done!)
-- Slices aren't working
 - FFI
 - VM save restore
 - Arg parsing

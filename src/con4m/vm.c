@@ -16,6 +16,13 @@
 // Marshalling and unmarshalling of object files needs to be done. That's a
 // large body of work that'll be done separately from the main VM code drop.
 
+// I seem to have broken this macro, so here's a replacement for the moment,
+// but not static.
+
+#undef C4M_STATIC_ASCII_STR
+#define C4M_STATIC_ASCII_STR(var, contents) \
+    c4m_utf8_t *var = c4m_new_utf8(contents)
+
 static void
 c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
 {
@@ -28,9 +35,8 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
     C4M_STATIC_ASCII_STR(error_prefix, "Runtime Error: ");
     c4m_stream_write_object(f, (c4m_obj_t)error_prefix, false);
     c4m_stream_write_object(f, c4m_exception_get_message(exc), false);
-    c4m_stream_write_object(f, (c4m_obj_t)c4m_newline_const, false);
 
-    C4M_STATIC_ASCII_STR(stack_trace, "Stack Trace:\n");
+    C4M_STATIC_ASCII_STR(stack_trace, "\nStack Trace:\n");
     c4m_stream_write_object(f, (c4m_obj_t)stack_trace, false);
 
     C4M_STATIC_ASCII_STR(indent, "    ");
@@ -56,7 +62,7 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
         c4m_str_t *lineno = c4m_str_from_int(i->line_no);
         c4m_stream_write_object(f, lineno, false);
     }
-    c4m_stream_write_object(f, (c4m_obj_t)c4m_newline_const, false);
+    c4m_stream_write_object(f, (c4m_obj_t)c4m_new_utf8("\n"), false);
 
     // When a frame pushes for a call, the calling module and line number are
     // recorded, but the calling function is not. The called module, function,
@@ -481,10 +487,6 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         return;
     case C4M_BI_SLICE_GET:
         STACK_REQUIRE_VALUES(3);
-        // endIx = sp[0]
-        // startIx = sp[1]
-        // container = sp[2]
-
         obj = c4m_slice_get(tstate->sp[2].rvalue.obj,
                             (int64_t)tstate->sp[1].rvalue.obj,
                             (int64_t)tstate->sp[0].rvalue.obj);
@@ -496,15 +498,15 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         return;
     case C4M_BI_SLICE_SET:
         STACK_REQUIRE_VALUES(4);
-        // endIx = sp[0]
+        // endIx = sp[3]
         // startIx = sp[1]
         // container = sp[2]
-        // value = sp[3]
+        // value = sp[0]
 
-        c4m_slice_set(tstate->sp[2].rvalue.obj,
+        c4m_slice_set(tstate->sp[3].rvalue.obj,
+                      (int64_t)tstate->sp[2].rvalue.obj,
                       (int64_t)tstate->sp[1].rvalue.obj,
-                      (int64_t)tstate->sp[0].rvalue.obj,
-                      tstate->sp[3].rvalue.obj);
+                      tstate->sp[0].rvalue.obj);
 
         tstate->sp += 4;
         return;
@@ -720,7 +722,6 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             i = c4m_xlist_get(tstate->current_module->instructions,
                               tstate->pc,
                               NULL);
-// #define C4M_VM_DEBUG
 #ifdef C4M_VM_DEBUG
             c4m_print(
                 c4m_cstr_format(

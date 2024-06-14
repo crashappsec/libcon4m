@@ -8,9 +8,8 @@ typedef enum {
     ST_Bool   = 3,
     ST_2Quote = 4,
     ST_1Quote = 5,
-    // 6 was 'other' which has gone away.
-    ST_List   = 7,
-    ST_Dict   = 8,
-    ST_Tuple  = 9,
-    ST_MAX    = 10
+    ST_List   = 6,
+    ST_Dict   = 7,
+    ST_Tuple  = 8,
+    ST_MAX    = 9
 } c4m_lit_syntax_t;

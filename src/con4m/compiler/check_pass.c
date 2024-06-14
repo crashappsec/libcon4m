@@ -198,102 +198,166 @@ type_check_node_against_type(c4m_tree_node_t *n, c4m_type_t *t)
     return c4m_merge_types(pnode->type, t);
 }
 
-// Extract type info from partials.
-#define extract_type(obj, varname)                  \
-    if (c4m_is_partial_lit(obj)) {                  \
-        varname = ((c4m_partial_lit_t *)obj)->type; \
-    }                                               \
-    else {                                          \
-        varname = c4m_get_my_type(obj);             \
-    }
-
-static inline void
-calculate_partial_dict_type(pass2_ctx *ctx, c4m_partial_lit_t *partial)
+void
+c4m_fold_container(c4m_tree_node_t *n, c4m_lit_info_t *li)
 {
-    c4m_type_t *key_type   = c4m_tspec_get_param(partial->type, 0);
-    c4m_type_t *value_type = c4m_tspec_get_param(partial->type, 1);
-    int         n          = partial->num_items;
-    int         i          = 0;
+    c4m_pnode_t *pn = get_pnode(n);
 
-    while (i < n) {
-        c4m_obj_t   obj = partial->items[i++];
-        c4m_type_t *one_type;
-
-        extract_type(obj, one_type);
-        merge_or_err(ctx, one_type, key_type);
-
-        obj = partial->items[i++];
-        extract_type(obj, one_type);
-        merge_or_err(ctx, one_type, value_type);
+    // Don't waste if we can't fold.
+    for (int i = 0; i < n->num_kids; i++) {
+        c4m_pnode_t *kid_pnode = get_pnode(n->children[i]);
+        if (kid_pnode->value == NULL) {
+            return;
+        }
     }
-}
+    c4m_xlist_t *items = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    c4m_xlist_t *tlist = li->type->details->items;
+    c4m_obj_t    obj;
 
-static inline void
-calculate_partial_tuple_type(pass2_ctx *ctx, c4m_partial_lit_t *partial)
-{
-    int n = partial->num_items;
+    if (li->num_items == 1) {
+        bool val_type = c4m_type_is_value_type(c4m_xlist_get(tlist, 0, NULL));
 
-    for (int i = 0; i < n; i++) {
-        c4m_obj_t   obj = partial->items[i];
-        c4m_type_t *t;
+        for (int i = 0; i < n->num_kids; i++) {
+            c4m_pnode_t *kid_pnode = get_pnode(n->children[i]);
+            obj                    = kid_pnode->value;
 
-        extract_type(obj, t);
-
-        merge_or_err(ctx, t, c4m_tspec_get_param(partial->type, i));
+            if (val_type) {
+                obj = c4m_unbox_obj(obj).v;
+            }
+            c4m_xlist_append(items, obj);
+        }
     }
-}
+    else {
+        c4m_xlist_t *item_types = li->type->details->items;
 
-static inline void
-calculate_partial_list_or_set_type(pass2_ctx *ctx, c4m_partial_lit_t *partial)
-{
-    int         n         = partial->num_items;
-    c4m_type_t *item_type = c4m_tspec_get_param(partial->type, 0);
+        c4m_tuple_t *t = c4m_new(c4m_tspec_tuple_from_xlist(item_types));
+        for (int i = 0; i < n->num_kids; i++) {
+            c4m_pnode_t *kid_pnode = get_pnode(n->children[i]);
+            int          ix        = i % li->num_items;
+            obj                    = kid_pnode->value;
 
-    for (int i = 0; i < n; i++) {
-        c4m_obj_t   obj = partial->items[i];
-        c4m_type_t *t;
+            if (c4m_type_is_value_type(c4m_xlist_get(tlist, ix, NULL))) {
+                obj = c4m_unbox_obj(obj).v;
+            }
 
-        extract_type(obj, t);
+            c4m_tuple_set(t, i % li->num_items, obj);
 
-        merge_or_err(ctx, t, item_type);
+            if ((i + 1) % li->num_items) {
+                c4m_xlist_append(items, t);
+                t = c4m_new(c4m_tspec_tuple_from_xlist(item_types));
+            }
+        }
     }
+
+    pn->value = c4m_container_literal(li->type, items, li->litmod);
 }
 
 static void
-c4m_calculate_partial_type(pass2_ctx *ctx, c4m_partial_lit_t *partial)
+calculate_container_type(pass2_ctx *ctx, c4m_tree_node_t *n)
 {
-    if (partial->empty_container) {
-        if (partial->empty_dict_or_set) {
-            partial->type = c4m_tspec_typevar();
-            c4m_remove_list_options(partial->type);
-            c4m_remove_tuple_options(partial->type);
+    c4m_pnode_t    *pn = get_pnode(n);
+    c4m_lit_info_t *li = (c4m_lit_info_t *)pn->extra_info;
+
+    li->base_type = c4m_base_type_from_litmod(li->st, li->litmod);
+
+    if (li->base_type == C4M_T_ERROR) {
+        c4m_utf8_t *s;
+        switch (li->st) {
+        case ST_List:
+            s = c4m_new_utf8("list");
+            break;
+        case ST_Dict:
+            s = c4m_new_utf8("dict");
+            break;
+        case ST_Tuple:
+            s = c4m_new_utf8("tuple");
+            break;
+        default:
+            c4m_unreachable();
         }
+
+        c4m_add_error(ctx->file_ctx,
+                      c4m_err_parse_no_lit_mod_match,
+                      n,
+                      li->litmod,
+                      s);
         return;
     }
 
-    if (c4m_type_has_dict_syntax(partial->type)) {
-        calculate_partial_dict_type(ctx, partial);
+    li->type = c4m_new(c4m_tspec_typespec(),
+                       c4m_global_type_env,
+                       li->base_type);
+    pn->type = li->type;
+
+    if (pn->kind == c4m_nt_lit_empty_dict_or_set) {
+        pn->type = c4m_tspec_typevar();
+        c4m_remove_list_options(pn->type);
+        c4m_remove_tuple_options(pn->type);
         return;
     }
-    if (c4m_type_has_tuple_syntax(partial->type)) {
-        calculate_partial_tuple_type(ctx, partial);
-        return;
+
+    c4m_xlist_t *items = li->type->details->items;
+
+    switch (li->st) {
+    case ST_List:
+        li->num_items = 1;
+        break;
+
+    case ST_Tuple:
+        li->num_items = n->num_kids;
+        break;
+
+    case ST_Dict:
+        if (pn->kind == c4m_nt_lit_set) {
+            li->num_items = 1;
+        }
+        else {
+            li->num_items = 2;
+        }
+        break;
+    default:
+        c4m_unreachable();
     }
-    calculate_partial_list_or_set_type(ctx, partial);
 
-    for (int i = 0; i < c4m_tspec_get_num_params(partial->type); i++) {
-        c4m_type_t *t = c4m_tspec_get_param(partial->type, i);
+    for (int i = 0; i < li->num_items; i++) {
+        c4m_xlist_append(items, c4m_tspec_typevar());
+    }
 
-        if (!c4m_tspec_is_error(
-                c4m_merge_types(t, c4m_tspec_tree(c4m_tspec_parse_node())))) {
-            c4m_tree_node_t *saved = ctx->node;
-            ctx->node              = partial->node->children[i];
-            c4m_pnode_t *pnode     = get_pnode(ctx->node);
-            base_check_pass_dispatch(ctx);
-            ctx->node = saved;
-            c4m_xlist_set(partial->type->details->items, i, pnode->type);
+    for (int i = 0; i < n->num_kids; i++) {
+        c4m_pnode_t *kid_pnode = get_pnode(n->children[i]);
+        c4m_type_t  *t         = c4m_xlist_get(items, i % li->num_items, NULL);
+
+        ctx->node = n->children[i];
+        base_check_pass_dispatch(ctx);
+
+        if (c4m_tspec_is_error(c4m_merge_types(t, kid_pnode->type))) {
+            if (c4m_can_coerce(kid_pnode->type, t)) {
+                c4m_lit_info_t *li = (c4m_lit_info_t *)kid_pnode->extra_info;
+                li->cast_to        = t;
+                if (kid_pnode->value != NULL) {
+                    kid_pnode->value = c4m_coerce(kid_pnode->value,
+                                                  kid_pnode->type,
+                                                  t);
+                }
+            }
+            else {
+                char       *p = (char *)c4m_base_type_info[li->base_type].name;
+                c4m_utf8_t *s = c4m_new_utf8(p);
+
+                c4m_add_error(ctx->file_ctx,
+                              c4m_err_inconsistent_item_type,
+                              n->children[i],
+                              s,
+                              t,
+                              kid_pnode->type);
+                c4m_type_hash(li->type, c4m_global_type_env);
+                return;
+            }
         }
     }
+
+    c4m_type_hash(li->type, c4m_global_type_env);
+    c4m_fold_container(n, li);
 }
 
 // This maps names to how many arguments the function takes.  If
@@ -448,15 +512,6 @@ initial_function_resolution(pass2_ctx       *ctx,
 
         return NULL;
     }
-}
-
-static inline void
-process_node(pass2_ctx *ctx, c4m_tree_node_t *n)
-{
-    c4m_tree_node_t *saved = ctx->node;
-    ctx->node              = n;
-    base_check_pass_dispatch(ctx);
-    ctx->node = saved;
 }
 
 static inline void
@@ -1849,27 +1904,30 @@ check_literal(pass2_ctx *ctx)
         litmod = c4m_to_utf8(litmod);
     }
 
-    if (pnode->kind == c4m_nt_simple_lit) {
-        pnode->value = node_literal(ctx->file_ctx, ctx->node, NULL);
-    }
-    if (!c4m_is_partial_lit(pnode->value)) {
-        pnode->type = c4m_get_my_type(pnode->value);
-    }
-    else {
-        c4m_partial_lit_t *partial = (c4m_partial_lit_t *)pnode->value;
+    switch (pnode->kind) {
+    case c4m_nt_simple_lit:
+        pnode->value = node_simp_literal(ctx->node);
+        pnode->type  = c4m_get_my_type(pnode->value);
+        break;
+    case c4m_nt_lit_callback:
+        pnode->value = node_to_callback(ctx->file_ctx, ctx->node);
+        break;
+    case c4m_nt_lit_tspec:
+        do {
+            c4m_type_t *t;
 
-        c4m_calculate_partial_type(ctx, partial);
-        pnode->type     = partial->type;
-        partial->litmod = litmod;
-    }
+            t = c4m_node_to_type(ctx->file_ctx,
+                                 ctx->node,
+                                 c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
+                                                        c4m_tspec_ref())));
 
-    // TODO:
-    //
-    // Right now, for containers, we don't look at litmods until we're
-    // generating code for the literal.
-    //
-    // We need to do that here, and we need to do whatever casting is
-    // needed.
+            pnode->value = (c4m_obj_t *)t;
+        } while (0);
+        break;
+    default:
+        calculate_container_type(ctx, ctx->node);
+        break;
+    }
 }
 
 static void
@@ -1982,6 +2040,9 @@ handle_var_decl(pass2_ctx *ctx)
             base_check_pass_dispatch(ctx);
             ctx->node = one_name;
             add_def(ctx, sym, true);
+            c4m_pnode_t *pn = get_pnode(sym->value_node);
+            sym->value      = pn->value;
+            type_check_node_against_sym(ctx, pn, sym);
         }
     }
 }
@@ -1990,7 +2051,6 @@ static void
 base_check_pass_dispatch(pass2_ctx *ctx)
 {
     c4m_pnode_t *pnode = c4m_tree_get_contents(ctx->node);
-
     switch (pnode->kind) {
     case c4m_nt_global_enum:
     case c4m_nt_enum:
@@ -2002,6 +2062,7 @@ base_check_pass_dispatch(pass2_ctx *ctx)
     case c4m_nt_use:
         return;
     case c4m_nt_variable_decls:
+        printf("WTFFFF\n");
         handle_var_decl(ctx);
         break;
     case c4m_nt_section:
@@ -2120,46 +2181,6 @@ process_toplevel_children(pass2_ctx *ctx)
 }
 
 static void
-process_var_decls(pass2_ctx *ctx)
-{
-    c4m_tree_node_t  *cur  = ctx->node;
-    int               num  = cur->num_kids;
-    c4m_tree_node_t **kids = cur->children;
-
-    for (int i = 1; i < num; i++) {
-        c4m_tree_node_t *decl_node       = kids[i];
-        int              last            = decl_node->num_kids - 1;
-        c4m_tree_node_t *possible_assign = decl_node->children[last];
-        c4m_pnode_t     *pnode           = get_pnode(possible_assign);
-
-        if (pnode->kind == c4m_nt_assign) {
-            ctx->node                 = possible_assign;
-            c4m_tree_node_t *var_node = decl_node->children[--last];
-            c4m_pnode_t     *vpnode   = get_pnode(var_node);
-
-            if (vpnode->kind != c4m_nt_identifier && last) {
-                var_node = decl_node->children[last - 1];
-                vpnode   = get_pnode(var_node);
-            }
-
-            c4m_scope_entry_t *sym    = (c4m_scope_entry_t *)vpnode->value;
-            c4m_tree_node_t   *tnode  = possible_assign->children[0];
-            c4m_pnode_t       *tpnode = get_pnode(tnode);
-
-            start_data_flow(ctx);
-            process_node(ctx, tnode);
-            add_def(ctx, sym, true);
-
-            type_check_node_against_sym(ctx, tpnode, sym);
-            tpnode->type = sym->type;
-            pnode->type  = sym->type;
-
-            ctx->node = cur;
-        }
-    }
-}
-
-static void
 check_pass_toplevel_dispatch(pass2_ctx *ctx)
 {
     c4m_pnode_t *pnode = c4m_tree_get_contents(ctx->node);
@@ -2169,7 +2190,7 @@ check_pass_toplevel_dispatch(pass2_ctx *ctx)
         process_toplevel_children(ctx);
         return;
     case c4m_nt_variable_decls:
-        process_var_decls(ctx);
+        handle_var_decl(ctx);
         return;
     case c4m_nt_func_def:
         c4m_xlist_append(ctx->func_nodes, ctx->node);

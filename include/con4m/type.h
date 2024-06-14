@@ -431,12 +431,6 @@ c4m_tspec_parse_node()
 }
 
 static inline c4m_type_t *
-c4m_tspec_partial_lit()
-{
-    return c4m_bi_types[C4M_T_PARTIAL_LIT];
-}
-
-static inline c4m_type_t *
 c4m_tspec_bit()
 {
     return c4m_bi_types[C4M_T_BIT];

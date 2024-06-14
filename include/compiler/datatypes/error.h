@@ -123,6 +123,7 @@ typedef enum {
     c4m_err_decl_mismatch,
     c4m_err_inconsistent_type,
     c4m_err_inconsistent_infer_type,
+    c4m_err_inconsistent_item_type,
     c4m_err_decl_mask,
     c4m_warn_attr_mask,
     c4m_err_attr_mask,

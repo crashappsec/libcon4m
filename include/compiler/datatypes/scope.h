@@ -72,6 +72,7 @@ typedef struct c4m_scope_entry_t {
     struct c4m_scope_entry_t *linked_symbol;
     c4m_utf8_t               *name;
     c4m_tree_node_t          *declaration_node;
+    c4m_tree_node_t          *value_node;
     c4m_obj_t                 value;
     c4m_utf8_t               *path;
     c4m_symbol_kind           kind;

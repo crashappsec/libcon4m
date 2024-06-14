@@ -444,12 +444,7 @@ c4m_format_scope(c4m_scope_t *scope)
                 c4m_xlist_append(row, c4m_cstr_format("[red]not set[/]"));
             }
             else {
-                if (c4m_is_partial_type(c4m_get_my_type(entry->value))) {
-                    c4m_xlist_append(row, c4m_cstr_format("[yellow]TBD"));
-                }
-                else {
-                    c4m_xlist_append(row, c4m_value_obj_repr(entry->value));
-                }
+                c4m_xlist_append(row, c4m_value_obj_repr(entry->value));
             }
         }
         else {

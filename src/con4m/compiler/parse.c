@@ -229,15 +229,15 @@ static const node_type_info_t node_type_info[] = {
     { "nt_break", 0, 0, 0, 0, sizeof(c4m_jump_info_t), },
     { "nt_continue", 0, 0, 0, 0, sizeof(c4m_jump_info_t), },
     { "nt_return", 0, 0, 0, 0, 0, },
-    { "nt_simple_lit", 1, 1, 1, 0, 0, },
-    { "nt_lit_list", 0, 0, 1, 0, 0, },
-    { "nt_lit_dict", 0, 0, 1, 0, 0, },
-    { "nt_lit_set", 0, 0, 1, 0, 0, },
-    { "nt_lit_empty_dict_or_set", 0, 1, 1, 0, 0, },
-    { "nt_lit_tuple", 0, 0, 1, 0, 0, },
-    { "nt_lit_unquoted", 1, 1, 1, 0, 0, },
-    { "nt_lit_callback", 0, 0, 0, 0, 0, },
-    { "nt_lit_tspec", 0, 0, 0, 0, 0, },
+    { "nt_simple_lit", 1, 1, 1, 0, sizeof(c4m_lit_info_t), },
+    { "nt_lit_list", 0, 0, 1, 0, sizeof(c4m_lit_info_t), },
+    { "nt_lit_dict", 0, 0, 1, 0, sizeof(c4m_lit_info_t), },
+    { "nt_lit_set", 0, 0, 1, 0, sizeof(c4m_lit_info_t), },
+    { "nt_lit_empty_dict_or_set", 0, 1, 1, 0, sizeof(c4m_lit_info_t), },
+    { "nt_lit_tuple", 0, 0, 1, 0, sizeof(c4m_lit_info_t), },
+    { "nt_lit_unquoted", 1, 1, 1, 0, sizeof(c4m_lit_info_t), },
+    { "nt_lit_callback", 0, 0, 0, 0, sizeof(c4m_lit_info_t), },
+    { "nt_lit_tspec", 0, 0, 0, 0, sizeof(c4m_lit_info_t), },
     { "nt_lit_tspec_tvar", 1, 1, 1, 0, 0, },
     { "nt_lit_tspec_named_type", 1, 1, 1, 0, 0, },
     { "nt_lit_tspec_parameterized_type", 1, 0, 0, 0, 0, },
@@ -954,55 +954,52 @@ simple_lit(parse_ctx *ctx)
         add_parse_error(ctx, c4m_err_parse_need_simple_lit);
     }
     else {
-        c4m_token_t *tok = tok_cur(ctx);
+        c4m_token_t        *tok = tok_cur(ctx);
+        c4m_lit_info_t     *li;
+        c4m_compile_error_t err;
+
         start_node(ctx, c4m_nt_simple_lit, true);
-        if (tok->kind == c4m_tt_unquoted_lit) {
-            C4M_CRAISE("Unquoted literals not reimplemented yet");
-        }
-        c4m_compile_error_t err = c4m_parse_simple_lit(tok);
-        c4m_utf8_t         *mod;
-        c4m_utf8_t         *syntax_kind;
+
+        li  = current_parse_node(ctx)->extra_info;
+        err = c4m_parse_simple_lit(tok, &li->st, &li->litmod);
 
         switch (err) {
+            c4m_utf8_t *syntax_str;
+
         case c4m_err_parse_no_lit_mod_match:
-            mod = c4m_to_utf8(tok->literal_modifier);
             switch (tok->kind) {
             case c4m_tt_int_lit:
-                syntax_kind = c4m_new_utf8("integer");
+                syntax_str = c4m_new_utf8("integer");
                 break;
             case c4m_tt_hex_lit:
-                syntax_kind = c4m_new_utf8("hex");
+                syntax_str = c4m_new_utf8("hex");
                 break;
             case c4m_tt_float_lit:
-                syntax_kind = c4m_new_utf8("float");
+                syntax_str = c4m_new_utf8("float");
                 break;
             case c4m_tt_true:
             case c4m_tt_false:
-                syntax_kind = c4m_new_utf8("boolean");
+                syntax_str = c4m_new_utf8("boolean");
                 break;
-
             case c4m_tt_string_lit:
-                syntax_kind = c4m_new_utf8("string");
+                syntax_str = c4m_new_utf8("string");
                 break;
-
             case c4m_tt_char_lit:
-                syntax_kind = c4m_new_utf8("character");
+                syntax_str = c4m_new_utf8("character");
                 break;
 
             default:
                 c4m_unreachable();
             }
 
-            c4m_error_from_token(ctx->file_ctx, err, tok, mod, syntax_kind);
+            c4m_error_from_token(ctx->file_ctx, err, tok, li->litmod, syntax_str);
             break;
         case c4m_err_no_error:
             break;
         default:
             c4m_error_from_token(ctx->file_ctx, err, tok);
+            break;
         }
-        if (err != c4m_err_no_error) {
-        }
-
         end_node(ctx);
     }
 }
@@ -1018,7 +1015,7 @@ string_lit(parse_ctx *ctx)
 
         start_node(ctx, c4m_nt_simple_lit, true);
 
-        c4m_compile_error_t err = c4m_parse_simple_lit(tok);
+        c4m_compile_error_t err = c4m_parse_simple_lit(tok, NULL, NULL);
 
         if (err != c4m_err_no_error) {
             c4m_error_from_token(ctx->file_ctx, err, tok);
@@ -1039,7 +1036,7 @@ bool_lit(parse_ctx *ctx)
 
         start_node(ctx, c4m_nt_simple_lit, true);
 
-        c4m_compile_error_t err = c4m_parse_simple_lit(tok);
+        c4m_compile_error_t err = c4m_parse_simple_lit(tok, NULL, NULL);
 
         if (err != c4m_err_no_error) {
             c4m_error_from_token(ctx->file_ctx, err, tok);
@@ -2506,7 +2503,10 @@ list_lit(parse_ctx *ctx)
         }
     }
 
-    current_parse_node(ctx)->extra_info = tok_cur(ctx)->literal_modifier;
+    c4m_lit_info_t *li = (c4m_lit_info_t *)current_parse_node(ctx)->extra_info;
+    li->litmod         = tok_cur(ctx)->literal_modifier;
+    li->st             = ST_List;
+
     end_node(ctx);
     ctx->lit_depth--;
 
@@ -2556,9 +2556,13 @@ finish_lit:
         }
     }
 
-    current_parse_node(ctx)->extra_info = tok_cur(ctx)->literal_modifier;
-    end_node(ctx);
+    c4m_lit_info_t *li = (c4m_lit_info_t *)current_parse_node(ctx)->extra_info;
+    li->litmod         = tok_cur(ctx)->literal_modifier;
+    li->st             = ST_Dict;
+
     ctx->lit_depth--;
+
+    end_node(ctx);
     expect(ctx, c4m_tt_rbrace);
 }
 
@@ -2585,8 +2589,9 @@ tuple_lit(parse_ctx *ctx)
     }
 
     ctx->lit_depth--;
-
-    current_parse_node(ctx)->extra_info = tok_cur(ctx)->literal_modifier;
+    c4m_lit_info_t *li = (c4m_lit_info_t *)current_parse_node(ctx)->extra_info;
+    li->litmod         = tok_cur(ctx)->literal_modifier;
+    li->st             = ST_Tuple;
 
     if (expect(ctx, c4m_tt_rparen) && num_items < 2) {
         current_parse_node(ctx)->kind = c4m_nt_paren_expr;

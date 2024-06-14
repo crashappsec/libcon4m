@@ -110,7 +110,6 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/compiler/codegen.c',
             'src/con4m/compiler/disasm.c',
             'src/con4m/compiler/objgen.c',
-            'src/con4m/compiler/partial_lit.c',
             ]
 
 hat_primary = ['src/hatrack/support/hatrack_common.c',

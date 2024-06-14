@@ -97,14 +97,16 @@ c4m_register_literal(c4m_lit_syntax_t st, char *mod, c4m_builtin_t bi)
 }
 
 c4m_builtin_t
-base_type_from_litmod(c4m_lit_syntax_t st, c4m_utf8_t *mod)
+c4m_base_type_from_litmod(c4m_lit_syntax_t st, c4m_utf8_t *mod)
 {
     c4m_builtin_t bi;
     bool          found = false;
 
-    if (mod != NULL) {
-        bi = (c4m_builtin_t)(int64_t)hatrack_dict_get(mod_map[st], mod, &found);
+    if (mod == NULL) {
+        mod = c4m_new_utf8("");
     }
+
+    bi = (c4m_builtin_t)(int64_t)hatrack_dict_get(mod_map[st], mod, &found);
 
     if (found) {
         return bi;
@@ -212,7 +214,7 @@ c4m_init_literal_handling()
 }
 
 c4m_compile_error_t
-c4m_parse_simple_lit(c4m_token_t *tok)
+c4m_parse_simple_lit(c4m_token_t *tok, c4m_lit_syntax_t *kptr, c4m_utf8_t **lm)
 {
     c4m_init_literal_handling();
 
@@ -249,7 +251,7 @@ c4m_parse_simple_lit(c4m_token_t *tok)
         C4M_CRAISE("Token is not a simple literal");
     }
 
-    c4m_builtin_t base_type = base_type_from_litmod(kind, mod);
+    c4m_builtin_t base_type = c4m_base_type_from_litmod(kind, mod);
 
     if (base_type == C4M_T_ERROR) {
         return c4m_err_parse_no_lit_mod_match;
@@ -263,6 +265,11 @@ c4m_parse_simple_lit(c4m_token_t *tok)
     }
 
     tok->literal_value = (*fn)(txt, kind, mod, &err);
+
+    if (kptr != NULL) {
+        *kptr = kind;
+        *lm   = mod;
+    }
 
     return err;
 }

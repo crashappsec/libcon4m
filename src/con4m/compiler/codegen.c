@@ -179,7 +179,7 @@ gen_tcall(gen_ctx *ctx, c4m_builtin_type_fn fn, c4m_type_t *t)
 static inline void
 gen_equality_test(gen_ctx *ctx, c4m_type_t *operand_type)
 {
-    if (c4m_type_is_boxed_value_type(operand_type)) {
+    if (c4m_type_is_value_type(operand_type)) {
         emit(ctx, C4M_ZCmp);
     }
     else {
@@ -227,7 +227,7 @@ gen_load_immediate(gen_ctx *ctx, int64_t value)
 static inline bool
 unbox_const_value(gen_ctx *ctx, c4m_obj_t obj, c4m_type_t *type)
 {
-    if (c4m_tspec_is_box(type)) {
+    if (c4m_tspec_is_box(type) || c4m_type_is_value_type(type)) {
         gen_load_immediate(ctx, c4m_unbox(obj));
         return true;
     }
@@ -719,7 +719,7 @@ gen_parameter_checks(gen_ctx *ctx)
         // marshal'd location in const-land; ref types load by copying the
         // const.
         if (param->have_default) {
-            if (c4m_type_is_boxed_value_type(sym->type)) {
+            if (c4m_type_is_value_type(sym->type)) {
                 gen_param_via_default_value_type(ctx, param, sym);
             }
             else {
@@ -751,20 +751,6 @@ gen_module(gen_ctx *ctx)
 
     emit(ctx, C4M_ZModuleEnter, c4m_kw("arg", c4m_ka(num_params)));
     gen_kids(ctx);
-}
-
-static inline void
-gen_simple_lit(gen_ctx *ctx)
-{
-    c4m_obj_t   obj = ctx->cur_pnode->value;
-    c4m_type_t *t   = c4m_get_my_type(obj);
-
-    if (c4m_type_is_boxed_value_type(t)) {
-        gen_load_immediate(ctx, c4m_unbox(obj));
-    }
-    else {
-        gen_load_const_obj(ctx, obj);
-    }
 }
 
 static inline void
@@ -1443,7 +1429,7 @@ gen_box_if_value_type(gen_ctx *ctx, int pos)
 {
     c4m_pnode_t *pnode = get_pnode(ctx->cur_node->children[pos]);
 
-    if (c4m_type_is_boxed_value_type(pnode->type)) {
+    if (c4m_type_is_value_type(pnode->type)) {
         c4m_type_t *t = c4m_resolve_and_unbox(pnode->type);
 
         emit(ctx, C4M_ZBox, c4m_kw("type", c4m_ka(t)));
@@ -1479,75 +1465,57 @@ gen_print(gen_ctx *ctx)
 }
 #endif
 
-// Note that if not all values are folded, then there will be sub-items,
-// and individual values will always be boxed.
-//
-// But if all values are folded, then the item will test as not partial
-// and we can emit it directly.
-static void
-gen_process_partial_part(gen_ctx *ctx, c4m_obj_t lit)
+static inline void
+gen_literal(gen_ctx *ctx)
 {
-    if (!c4m_is_partial_lit(lit)) {
-        if (c4m_type_is_boxed_value_type(c4m_get_my_type(lit))) {
-            gen_load_immediate(ctx, c4m_unbox_obj(lit).i64);
+    c4m_obj_t        lit = ctx->cur_pnode->value;
+    c4m_lit_info_t  *li  = (c4m_lit_info_t *)ctx->cur_pnode->extra_info;
+    c4m_tree_node_t *n   = ctx->cur_node;
+
+    if (lit != NULL) {
+        c4m_obj_t   obj = ctx->cur_pnode->value;
+        c4m_type_t *t   = c4m_get_my_type(obj);
+
+        if (c4m_type_is_value_type(t) || c4m_type_is_value_type(t)) {
+            gen_load_immediate(ctx, c4m_unbox(obj));
         }
         else {
-            gen_load_const_obj(ctx, lit);
-            gen_tcall(ctx, C4M_BI_COPY, c4m_get_my_type(lit));
+            gen_load_const_obj(ctx, obj);
+            // This is only true for containers, which need to be
+            // copied since they are mutable, but the const version
+            // is... const.
+            if (li->type != NULL) {
+                gen_tcall(ctx, C4M_BI_COPY, c4m_get_my_type(lit));
+            }
         }
+
         return;
     }
 
-    if (c4m_is_partial_parse_node(lit)) {
-        c4m_tree_node_t *saved = ctx->cur_node;
-        ctx->cur_node          = lit;
-        gen_one_node(ctx);
-        ctx->cur_node = saved;
-        return;
-    }
-
-    c4m_partial_lit_t *partial  = lit;
-    c4m_xlist_t       *typelist = partial->type->details->items;
-
-    if (c4m_xlist_len(typelist) == 1) {
-        for (int i = 0; i < partial->num_items; i++) {
-            gen_process_partial_part(ctx, partial->items[i]);
-        }
-
-        // We push the number of items so that the VM handler knows how
-        // many arguments to pop. Note that we push the items backwards,
-        // so the handler will have to preallocate the right number of
-        // items, so this has two uses.
-        gen_load_immediate(ctx, partial->num_items);
-        // Push the type of the container to instantiate.
-        gen_tcall(ctx, C4M_BI_CONTAINER_LIT, partial->type);
+    if (li->num_items == 1) {
+        gen_kids(ctx);
+        gen_load_immediate(ctx, n->num_kids);
+        gen_tcall(ctx, C4M_BI_CONTAINER_LIT, li->type);
         return;
     }
 
     // We need to convert each set of items into a tuple object.
-    c4m_type_t *ttype = c4m_tspec_tuple_from_xlist(typelist);
-    int         ilen  = c4m_xlist_len(typelist);
+    c4m_type_t *ttype = c4m_tspec_tuple_from_xlist(li->type->details->items);
 
-    for (int i = 0; i < partial->num_items;) {
-        for (int j = 0; j < c4m_xlist_len(typelist); j++) {
-            gen_process_partial_part(ctx, partial->items[i++]);
+    for (int i = 0; i < n->num_kids;) {
+        for (int j = 0; j < li->num_items; j++) {
+            ctx->cur_node = n->children[i];
+            gen_one_node(ctx);
         }
 
-        gen_load_immediate(ctx, ilen);
+        gen_load_immediate(ctx, li->num_items);
         gen_tcall(ctx, C4M_BI_CONTAINER_LIT, ttype);
     }
 
-    gen_load_immediate(ctx, partial->num_items / ilen);
-    gen_tcall(ctx, C4M_BI_CONTAINER_LIT, partial->type);
-}
+    gen_load_immediate(ctx, n->num_kids / li->num_items);
+    gen_tcall(ctx, C4M_BI_CONTAINER_LIT, li->type);
 
-static inline void
-gen_partial_literal(gen_ctx *ctx)
-{
-    c4m_obj_t lit = ctx->cur_pnode->value;
-    lit           = c4m_fold_partial(ctx->cctx, lit);
-
-    gen_process_partial_part(ctx, lit);
+    ctx->cur_node = n;
 }
 
 static inline void
@@ -1779,9 +1747,6 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_range:
         gen_kids(ctx);
         break;
-    case c4m_nt_simple_lit:
-        gen_simple_lit(ctx);
-        break;
     case c4m_nt_or:
         gen_or(ctx);
         break;
@@ -1809,6 +1774,7 @@ gen_one_node(gen_ctx *ctx)
         gen_print(ctx);
         break;
 #endif
+    case c4m_nt_simple_lit:
     case c4m_nt_lit_list:
     case c4m_nt_lit_dict:
     case c4m_nt_lit_set:
@@ -1817,7 +1783,7 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_lit_unquoted:
     case c4m_nt_lit_callback:
     case c4m_nt_lit_tspec:
-        gen_partial_literal(ctx);
+        gen_literal(ctx);
         break;
     case c4m_nt_assign:
         gen_assign(ctx);

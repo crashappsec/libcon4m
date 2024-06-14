@@ -185,7 +185,6 @@ typedef enum : int64_t {
     C4M_T_KEYWORD, // Keyword arg object for internal use.
     C4M_T_VM,
     C4M_T_PARSE_NODE,
-    C4M_T_PARTIAL_LIT,
     C4M_T_BIT,
     C4M_T_BOX,
     C4M_NUM_BUILTIN_DTS

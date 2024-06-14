@@ -2,6 +2,15 @@
 #include "con4m.h"
 
 typedef struct {
+    c4m_utf8_t      *litmod;
+    c4m_lit_syntax_t st;
+    c4m_type_t      *cast_to;
+    c4m_builtin_t    base_type; // only set for containers from here down.
+    int              num_items;
+    c4m_type_t      *type;
+} c4m_lit_info_t;
+
+typedef struct {
     c4m_type_t          *full_type;
     c4m_scope_t         *fn_scope;
     c4m_scope_t         *formals;

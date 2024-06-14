@@ -429,6 +429,7 @@ c4m_tspec_init(c4m_type_t *n, va_list args)
     case C4M_DT_KIND_internal:
         n->typeid = base_id;
         if (hatrack_dict_get(env->store, (void *)base_id, NULL)) {
+            n[-(int64_t)n].typeid = base_id;
             C4M_CRAISE("Call get_builtin_type(), not c4m_new().");
         }
         if ((n->typeid = info->typeid) == C4M_T_TYPESPEC) {
@@ -905,10 +906,6 @@ c4m_unify(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
 
     t1 = copy_if_needed(t1, env);
     t2 = copy_if_needed(t2, env);
-
-    if (c4m_is_partial_type(t1) || c4m_is_partial_type(t2)) {
-        abort();
-    }
 
     // If comparing types w/ something boxed, ignored the box.
     if (c4m_tspec_is_box(t1)) {

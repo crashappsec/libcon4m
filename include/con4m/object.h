@@ -107,7 +107,6 @@ extern const c4m_vtable_t c4m_stream_vtable;
 extern const c4m_vtable_t c4m_kargs_vtable;
 extern const c4m_vtable_t c4m_vm_vtable;
 extern const c4m_vtable_t c4m_parse_node_vtable;
-extern const c4m_vtable_t c4m_partial_lit_vtable;
 extern const c4m_vtable_t c4m_callback_vtable;
 extern const c4m_vtable_t c4m_flags_vtable;
 extern const c4m_vtable_t c4m_box_vtable;
