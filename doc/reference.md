@@ -273,10 +273,21 @@ used inside a function have the scope of the function (as opposed to
 block scoped). However, `for` index variables are block scoped, as are
 special variables like `$i` and `$last`.
 
-5. Any declare functions are automatically exported into the global
-scope, unless the function is marked private, or there is already a
-global of the same name. All functions in the standard library are
-available without importing.
+5. Any declared functions are automatically exported into the global
+scope, unless the function is explicitly marked private, or there is
+already a global of the same name. All functions in the standard
+library are available without importing.
+
+## Once functions
+
+The body of functions marked with the `once` modifier will only ever
+run a single time. This is intended for initialization code that needs
+to run a single time.
+
+After that, if the function has a return type, the same value is
+returned every time.
+
+If there is no return value, nothing happens.
 
 ## Special Variables
 
@@ -525,6 +536,7 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 
 # Features to re-add from old con4m
 - Finish initial code gen (almost done!)
+- Slices aren't working
 - FFI
 - VM save restore
 - Arg parsing
@@ -538,6 +550,7 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - Finish data types (date, ip, and extra hatrack stuff)
 
 # Items for afterward
+- Varargs functions
 - Clean up unused instructions in VM
 - Remove the two-words-per-stack-slot thing; it's not needed anymore.
 - Test harness

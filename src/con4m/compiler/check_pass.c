@@ -29,6 +29,8 @@ typedef struct {
     bool                  augmented_assignment;
 } pass2_ctx;
 
+static void base_check_pass_dispatch(pass2_ctx *);
+
 static inline c4m_control_info_t *
 control_init(c4m_control_info_t *ci)
 {
@@ -278,6 +280,20 @@ c4m_calculate_partial_type(pass2_ctx *ctx, c4m_partial_lit_t *partial)
         return;
     }
     calculate_partial_list_or_set_type(ctx, partial);
+
+    for (int i = 0; i < c4m_tspec_get_num_params(partial->type); i++) {
+        c4m_type_t *t = c4m_tspec_get_param(partial->type, i);
+
+        if (!c4m_tspec_is_error(
+                c4m_merge_types(t, c4m_tspec_tree(c4m_tspec_parse_node())))) {
+            c4m_tree_node_t *saved = ctx->node;
+            ctx->node              = partial->node->children[i];
+            c4m_pnode_t *pnode     = get_pnode(ctx->node);
+            base_check_pass_dispatch(ctx);
+            ctx->node = saved;
+            c4m_xlist_set(partial->type->details->items, i, pnode->type);
+        }
+    }
 }
 
 // This maps names to how many arguments the function takes.  If
@@ -434,8 +450,6 @@ initial_function_resolution(pass2_ctx       *ctx,
     }
 }
 
-static void base_check_pass_dispatch(pass2_ctx *);
-
 static inline void
 process_node(pass2_ctx *ctx, c4m_tree_node_t *n)
 {
@@ -496,12 +510,6 @@ process_children(pass2_ctx *ctx)
     }
 
     ctx->node = saved;
-}
-
-static inline int
-num_children(pass2_ctx *ctx)
-{
-    return ctx->node->num_kids;
 }
 
 static inline void
@@ -662,11 +670,11 @@ static void
 handle_index(pass2_ctx *ctx)
 {
     c4m_pnode_t *pnode     = get_pnode(ctx->node);
-    int          num_kids  = num_children(ctx);
+    c4m_pnode_t *kid_pnode = get_pnode(ctx->node->children[1]);
     c4m_type_t  *node_type = c4m_tspec_typevar();
+    bool         is_slice  = kid_pnode->kind == c4m_nt_range;
     c4m_type_t  *container_type;
     c4m_type_t  *ix1_type;
-    c4m_type_t  *ix2_type;
 
     process_child(ctx, 0);
     container_type = get_pnode_type(ctx->node->children[0]);
@@ -677,7 +685,7 @@ handle_index(pass2_ctx *ctx)
     pnode->type = node_type;
 
     if (!c4m_tspec_is_int_type(ix1_type)) {
-        if (num_kids == 3) {
+        if (is_slice) {
             c4m_add_error(ctx->file_ctx,
                           c4m_err_slice_on_dict,
                           ctx->node);
@@ -690,26 +698,8 @@ handle_index(pass2_ctx *ctx)
 
     call_resolution_info_t *info = NULL;
 
-    if (num_kids == 3) {
-        process_child(ctx, 2);
-        ix2_type = get_pnode_type(ctx->node->children[2]);
-
-        // This would give too generic an error if we just try to
-        // merge first.
-        if (!c4m_tspec_is_int_type(ix2_type) && !c4m_tspec_is_tvar(ix2_type)) {
-            c4m_add_error(ctx->file_ctx,
-                          c4m_err_bad_slice_ix,
-                          ctx->node);
-            return;
-        }
-
-        if (c4m_tspec_is_tvar(ix1_type)) {
-            merge_or_err(ctx, ix1_type, c4m_tspec_i64());
-        }
-
-        if (c4m_tspec_is_tvar(ix2_type)) {
-            merge_or_err(ctx, ix2_type, c4m_tspec_i64());
-        }
+    if (is_slice) {
+        merge_or_err(ctx, container_type, node_type);
 
         if (is_def_context(ctx) && ctx->augmented_assignment) {
             c4m_add_error(ctx->file_ctx,
@@ -724,9 +714,11 @@ handle_index(pass2_ctx *ctx)
             c4m_tspec_varargs_fn(node_type,
                                  3,
                                  container_type,
-                                 ix1_type,
-                                 ix2_type),
+                                 c4m_tspec_int(),
+                                 c4m_tspec_int()),
             ctx->node);
+
+        pnode->type = container_type;
     }
     else {
         info = initial_function_resolution(
@@ -746,14 +738,18 @@ handle_index(pass2_ctx *ctx)
             tsi->value_type = c4m_tspec_typevar();
         }
 
-        merge_or_err(ctx, node_type, tsi->value_type);
+        if (!is_slice) {
+            merge_or_err(ctx, node_type, tsi->value_type);
+        }
     }
 
     else {
         int         nparams = c4m_tspec_get_num_params(container_type);
         c4m_type_t *tmp     = c4m_tspec_get_param(container_type, nparams - 1);
 
-        merge_or_err(ctx, node_type, tmp);
+        if (!is_slice) {
+            merge_or_err(ctx, node_type, tmp);
+        }
     }
 
     c4m_xlist_append(ctx->deferred_calls, info);
@@ -1845,7 +1841,7 @@ handle_identifier(pass2_ctx *ctx)
 static void
 check_literal(pass2_ctx *ctx)
 {
-    // Right now, we don't try to fold sub-items.
+    //  Right now, we don't try to fold sub-items.
     c4m_pnode_t *pnode  = get_pnode(ctx->node);
     c4m_str_t   *litmod = pnode->extra_info;
 
@@ -1853,6 +1849,9 @@ check_literal(pass2_ctx *ctx)
         litmod = c4m_to_utf8(litmod);
     }
 
+    if (pnode->kind == c4m_nt_simple_lit) {
+        pnode->value = node_literal(ctx->file_ctx, ctx->node, NULL);
+    }
     if (!c4m_is_partial_lit(pnode->value)) {
         pnode->type = c4m_get_my_type(pnode->value);
     }
@@ -2762,6 +2761,10 @@ process_deferred_calls(c4m_compile_ctx *cctx,
 
         for (int i = 0; i < n; i++) {
             call_resolution_info_t *info = c4m_xlist_get(one_set, i, NULL);
+
+            if (info->polymorphic == 1) {
+                continue;
+            }
 
             c4m_type_t  *sym_type   = c4m_global_copy(info->resolution->type);
             c4m_pnode_t *pnode      = get_pnode(info->loc);

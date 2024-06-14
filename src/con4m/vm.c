@@ -603,8 +603,11 @@ c4m_vm_call_module(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 
     // combine pc / module id together and push it onto the stack for recovery
     // on return
-    tstate->sp->uint = ((uint64_t)tstate->pc << 32u) | tstate->current_module->module_id;
+    // clang-format: off
+    tstate->sp->uint = ((uint64_t)tstate->pc << 32u)
+                     | tstate->current_module->module_id;
     --tstate->sp;
+    // clang-format: on
 
     tstate->sp->fp = tstate->fp;
     --tstate->sp;

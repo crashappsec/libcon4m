@@ -1497,6 +1497,15 @@ gen_process_partial_part(gen_ctx *ctx, c4m_obj_t lit)
         }
         return;
     }
+
+    if (c4m_is_partial_parse_node(lit)) {
+        c4m_tree_node_t *saved = ctx->cur_node;
+        ctx->cur_node          = lit;
+        gen_one_node(ctx);
+        ctx->cur_node = saved;
+        return;
+    }
+
     c4m_partial_lit_t *partial  = lit;
     c4m_xlist_t       *typelist = partial->type->details->items;
 
@@ -1537,6 +1546,7 @@ gen_partial_literal(gen_ctx *ctx)
 {
     c4m_obj_t lit = ctx->cur_pnode->value;
     lit           = c4m_fold_partial(ctx->cctx, lit);
+
     gen_process_partial_part(ctx, lit);
 }
 
@@ -1555,7 +1565,6 @@ gen_assign(gen_ctx *ctx)
         emit(ctx, C4M_ZAssignToLoc);
         break;
     case assign_via_slice_set_call:
-        emit(ctx, C4M_ZSwap);
         gen_tcall(ctx, C4M_BI_SLICE_SET, ctx->cur_pnode->type);
         break;
     case assign_via_index_set_call:
@@ -1637,8 +1646,9 @@ gen_index_or_slice(gen_ctx *ctx)
     // We turn of LHS tracking internally, because we don't poke
     // directly into the object's memory and don't want to generate a
     // settable ref.
-    bool lvalue = ctx->lvalue;
-    bool slice  = ctx->cur_node->num_kids == 3;
+    bool         lvalue = ctx->lvalue;
+    c4m_pnode_t *pnode  = get_pnode(ctx->cur_node->children[1]);
+    bool         slice  = pnode->kind == c4m_nt_range;
 
     ctx->lvalue = false;
 
@@ -1704,6 +1714,26 @@ gen_unary_op(gen_ctx *ctx)
         gen_load_immediate(ctx, -1);
         emit(ctx, C4M_ZMul);
     }
+}
+
+static inline void
+gen_lock(gen_ctx *ctx)
+{
+    c4m_tree_node_t *saved = ctx->cur_node;
+    ctx->cur_node          = saved->children[0];
+    gen_one_kid(ctx, 0);
+    ctx->cur_node = saved;
+    emit(ctx, C4M_ZLockOnWrite);
+    gen_kids(ctx);
+}
+
+static inline void
+gen_use(gen_ctx *ctx)
+{
+    c4m_file_compile_ctx *tocall;
+
+    tocall = (c4m_file_compile_ctx *)ctx->cur_pnode->value;
+    emit(ctx, C4M_ZCallModule, c4m_kw("arg", c4m_ka(tocall->local_module_id)));
 }
 
 static void
@@ -1810,11 +1840,14 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_return:
         gen_ret(ctx);
         break;
-        // The following list is still TODO:
-
-    case c4m_nt_varargs_param:
-    case c4m_nt_use:
     case c4m_nt_attr_set_lock:
+        gen_lock(ctx);
+        break;
+    case c4m_nt_use:
+        gen_use(ctx);
+        break;
+        // The following list is still TODO:
+    case c4m_nt_varargs_param:
         // These should always be passthrough.
     case c4m_nt_expression:
     case c4m_nt_paren_expr:
