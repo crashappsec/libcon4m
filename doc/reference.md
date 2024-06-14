@@ -536,6 +536,7 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 
 # Features to re-add from old con4m
 - FFI
+- Handle boxing of value elements inside container types
 - VM save restore
 - Arg parsing
 - Libraries

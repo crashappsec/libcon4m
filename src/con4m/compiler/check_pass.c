@@ -2062,7 +2062,6 @@ base_check_pass_dispatch(pass2_ctx *ctx)
     case c4m_nt_use:
         return;
     case c4m_nt_variable_decls:
-        printf("WTFFFF\n");
         handle_var_decl(ctx);
         break;
     case c4m_nt_section:
