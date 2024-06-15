@@ -59,5 +59,8 @@ const c4m_vtable_t c4m_box_vtable = {
         [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)box_unmarshal,
         [C4M_BI_FORMAT]       = (c4m_vtable_entry)box_format,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)box_from_lit,
+        // Explicit because some compilers don't seem to always properly
+        // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
+        [C4M_BI_FINALIZER]    = NULL,
     },
 };

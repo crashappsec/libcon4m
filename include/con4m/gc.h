@@ -107,6 +107,7 @@ extern void         c4m_delete_arena(c4m_arena_t *);
 extern void         c4m_expand_arena(size_t, c4m_arena_t **);
 extern void         c4m_collect_arena(c4m_arena_t **);
 extern void        *c4m_gc_raw_alloc(size_t, uint64_t *);
+extern void        *c4m_gc_raw_alloc_with_finalizer(size_t, uint64_t *);
 extern void        *c4m_gc_resize(void *ptr, size_t len);
 extern void         c4m_gc_thread_collect();
 extern void         c4m_arena_register_root(c4m_arena_t *,
@@ -114,6 +115,8 @@ extern void         c4m_arena_register_root(c4m_arena_t *,
                                             uint64_t);
 extern void         c4m_gc_register_root(void *ptr, uint64_t num_words);
 extern bool         c4m_is_read_only_memory(volatile void *);
+extern void        *c4m_alloc_from_arena(c4m_arena_t **, size_t, const uint64_t *, bool);
+extern void         c4m_gc_set_finalize_callback(c4m_system_finalizer_fn);
 
 // #define GC_TRACE
 #ifdef GC_TRACE
@@ -147,71 +150,6 @@ c4m_round_up_to_given_power_of_2(uint64_t power, uint64_t n)
     else {
         return (n & ~modulus) + power;
     }
-}
-
-// This currently assumes ptr_map doesn't need more than 64 entries.
-static inline void *
-c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
-                     size_t          len,
-                     const uint64_t *ptr_map)
-{
-    c4m_arena_t *arena = *arena_ptr;
-
-    // Round up to aligned length.
-    size_t wordlen = c4m_round_up_to_given_power_of_2(C4M_FORCED_ALIGNMENT,
-                                                      len);
-
-    if (arena == 0) {
-        int initial_len = max(C4M_DEFAULT_ARENA_SIZE, wordlen << 4);
-        arena           = c4m_new_arena(initial_len, NULL);
-        *arena_ptr      = arena;
-    }
-
-// Come back here if, when we trigger the collector, the resulting
-// free space isn't enough, in which case we do a second collect.
-// There are better ways to handle this like to just grab enough extra
-// zero- mapped pages to ensure we get the allocation, but ideally
-// people won't ask for such large allocs relative to the arena size
-// without just asking for a new arena, so I'm not going to bother
-// right now; maybe someday.
-try_again:;
-    c4m_alloc_hdr *raw  = arena->next_alloc;
-    c4m_alloc_hdr *next = (c4m_alloc_hdr *)&(raw->data[wordlen]);
-
-    if (((uint64_t *)next) > arena->heap_end) {
-        c4m_collect_arena(arena_ptr);
-        arena = *arena_ptr;
-
-        raw  = arena->next_alloc;
-        next = (c4m_alloc_hdr *)&(raw->data[wordlen]);
-        if (((uint64_t *)next) > arena->heap_end) {
-            arena->grow_next = true;
-            c4m_collect_arena(arena_ptr);
-            arena = *arena_ptr;
-            goto try_again;
-        }
-    }
-
-    arena->next_alloc = next;
-    raw->guard        = c4m_gc_guard;
-    raw->arena        = arena;
-    raw->next_addr    = (uint64_t *)arena->next_alloc;
-    raw->alloc_len    = wordlen;
-    raw->ptr_map      = (uint64_t *)ptr_map;
-
-    c4m_gc_trace("new_record:%p-%p:data:%p:len:%zu:arena:%p-%p",
-                 raw,
-                 raw->next_addr,
-                 raw->data,
-                 len,
-                 arena,
-                 arena->heap_end);
-
-#ifdef C4M_ALLOC_STATS
-    arena->alloc_counter++;
-#endif
-
-    return (void *)(raw->data);
 }
 
 #define GC_SCAN_ALL ((uint64_t *)0xffffffffffffffff)

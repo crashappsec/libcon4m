@@ -71,6 +71,7 @@ extern void       *c4m_get_view(c4m_obj_t, uint64_t *);
 extern c4m_obj_t   c4m_container_literal(c4m_type_t *,
                                          c4m_xlist_t *,
                                          c4m_utf8_t *);
+extern void        c4m_finalize_allocation(c4m_base_obj_t *);
 
 extern const uint64_t     str_ptr_info[];
 extern const c4m_vtable_t c4m_i8_type;

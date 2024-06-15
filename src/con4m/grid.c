@@ -2223,6 +2223,9 @@ const c4m_vtable_t c4m_grid_vtable = {
         [C4M_BI_TO_STR]      = (c4m_vtable_entry)c4m_grid_to_str,
         [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_grid_marshal,
         [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_grid_unmarshal,
+        // Explicit because some compilers don't seem to always properly
+        // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
+        [C4M_BI_FINALIZER]   = NULL,
     },
 };
 
@@ -2232,5 +2235,6 @@ const c4m_vtable_t c4m_renderable_vtable = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)renderable_init,
         [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_renderable_marshal,
         [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_renderable_unmarshal,
+        [C4M_BI_FINALIZER]   = NULL,
     },
 };

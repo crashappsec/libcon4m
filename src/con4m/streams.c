@@ -579,9 +579,16 @@ c4m_stream_set_location(c4m_stream_t *stream, int64_t offset)
 void
 c4m_stream_close(c4m_stream_t *stream)
 {
+    if (stream->flags & C4M_F_STREAM_CLOSED) {
+        return;
+    }
+
     if (stream->flags & C4M_F_STREAM_USING_COOKIE) {
         c4m_cookie_t *cookie = stream->contents.cookie;
 
+        if (!cookie) {
+            return;
+        }
         c4m_stream_close_fn fn = cookie->ptr_close;
 
         cookie->flags = C4M_F_STREAM_CLOSED;
@@ -713,10 +720,53 @@ _c4m_print(c4m_obj_t first, ...)
     va_end(args);
 }
 
+static c4m_stream_t *c4m_stream_stdin  = NULL;
+static c4m_stream_t *c4m_stream_stdout = NULL;
+static c4m_stream_t *c4m_stream_stderr = NULL;
+
+static inline void
+init_std_streams()
+{
+    if (c4m_stream_stdin == NULL) {
+        c4m_stream_stdin  = c4m_new(c4m_tspec_stream(),
+                                   c4m_kw("cstream", c4m_ka(stdin)));
+        c4m_stream_stdout = c4m_new(c4m_tspec_stream(),
+                                    c4m_kw("cstream", c4m_ka(stdout)));
+        c4m_stream_stderr = c4m_new(c4m_tspec_stream(),
+                                    c4m_kw("cstream", c4m_ka(stderr)));
+        c4m_gc_register_root(&c4m_stream_stdin, 1);
+        c4m_gc_register_root(&c4m_stream_stdout, 1);
+        c4m_gc_register_root(&c4m_stream_stderr, 1);
+    }
+}
+
+c4m_stream_t *
+c4m_get_stdin()
+{
+    init_std_streams();
+    return c4m_stream_stdin;
+}
+
+c4m_stream_t *
+c4m_get_stdout()
+{
+    init_std_streams();
+    return c4m_stream_stdout;
+}
+
+c4m_stream_t *
+c4m_get_stderr()
+{
+    init_std_streams();
+    return c4m_stream_stderr;
+}
+
 const c4m_vtable_t c4m_stream_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)c4m_stream_init,
-        NULL, // Aboslutelty nothing else.
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_stream_init,
+        // This is not supposed to be necessary, but it sometimes crashes w/o.
+        [C4M_BI_FINALIZER]   = (c4m_vtable_entry)c4m_stream_close,
+        NULL,
     },
 };

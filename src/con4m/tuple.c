@@ -152,5 +152,6 @@ const c4m_vtable_t c4m_tuple_vtable = {
         [C4M_BI_INDEX_GET]     = (c4m_vtable_entry)c4m_tuple_get,
         [C4M_BI_INDEX_SET]     = (c4m_vtable_entry)c4m_tuple_set,
         [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)tuple_from_lit,
+        NULL,
     },
 };

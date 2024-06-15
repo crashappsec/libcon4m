@@ -73,10 +73,7 @@ callback_init(c4m_callback_t *cb, va_list args)
 const c4m_vtable_t c4m_callback_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)callback_init,
-        NULL,
-        //(c4m_vtable_entry)callback_marshal,
-        //(c4m_vtable_entry)callback_unmarshal,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)callback_init,
         NULL,
     },
 };

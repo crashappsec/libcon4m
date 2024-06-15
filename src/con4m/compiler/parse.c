@@ -4369,6 +4369,10 @@ c4m_parse_type(c4m_file_compile_ctx *file_ctx)
 const c4m_vtable_t c4m_parse_node_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)parse_node_init,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)parse_node_init,
+        // Explicit because some compilers don't seem to always properly
+        // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
+        [C4M_BI_FINALIZER]   = NULL,
+        NULL,
     },
 };

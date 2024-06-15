@@ -117,8 +117,15 @@ c4m_sha_finish(c4m_sha_t *ctx)
 }
 
 const c4m_vtable_t c4m_sha_vtable = {
-    .num_entries = 1,
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)c4m_sha_init,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_sha_init,
+        // Explicit because some compilers don't seem to always properly
+        // zero it (Was sometimes crashing both here and on a `c4m_stream_t`
+        // on my mac).
+        //
+        // The C standard claims that if we partially initialize
+        // everything else should be zero'd out, but not so.
+        [C4M_BI_FINALIZER]   = NULL,
     },
 };

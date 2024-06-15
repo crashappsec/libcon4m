@@ -371,6 +371,7 @@ const c4m_vtable_t c4m_list_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)c4m_list_init,
+        [C4M_BI_FINALIZER]     = (c4m_vtable_entry)flexarray_cleanup,
         [C4M_BI_TO_STR]        = (c4m_vtable_entry)list_repr,
         [C4M_BI_MARSHAL]       = (c4m_vtable_entry)c4m_list_marshal,
         [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_list_unmarshal,
@@ -385,33 +386,42 @@ const c4m_vtable_t c4m_list_vtable = {
         [C4M_BI_SLICE_SET]     = (c4m_vtable_entry)list_set_slice,
         [C4M_BI_VIEW]          = (c4m_vtable_entry)flexarray_view,
         [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)to_list_lit,
+        NULL,
     },
 };
 
 const c4m_vtable_t c4m_queue_vtable = {
-    .num_entries = 1,
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_queue_init,
+        [C4M_BI_FINALIZER]   = (c4m_vtable_entry)queue_cleanup,
+        NULL,
     },
 };
 
 const c4m_vtable_t c4m_ring_vtable = {
-    .num_entries = 1,
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_ring_init,
+        [C4M_BI_FINALIZER]   = (c4m_vtable_entry)hatring_cleanup,
+        NULL,
     },
 };
 
 const c4m_vtable_t c4m_logring_vtable = {
-    .num_entries = 1,
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_logring_init,
+        [C4M_BI_FINALIZER]   = (c4m_vtable_entry)logring_cleanup,
+        NULL,
     },
 };
 
 const c4m_vtable_t c4m_stack_vtable = {
-    .num_entries = 1,
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_stack_init,
+        [C4M_BI_FINALIZER]   = (c4m_vtable_entry)hatstack_cleanup,
+        NULL,
     },
 };

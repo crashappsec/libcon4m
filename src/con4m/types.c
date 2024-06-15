@@ -1533,6 +1533,9 @@ const c4m_vtable_t c4m_type_env_vtable = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_type_env_init,
         [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_type_env_marshal,
         [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_type_env_unmarshal,
+        // Explicit because some compilers don't seem to always properly
+        // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
+        [C4M_BI_FINALIZER]   = NULL,
     },
 };
 
@@ -1544,6 +1547,7 @@ const c4m_vtable_t c4m_type_spec_vtable = {
         [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_tspec_marshal,
         [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_tspec_unmarshal,
         [C4M_BI_COPY]        = (c4m_vtable_entry)c4m_global_copy,
+        [C4M_BI_FINALIZER]   = NULL,
     },
 };
 
