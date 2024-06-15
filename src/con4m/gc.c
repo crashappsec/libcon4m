@@ -13,7 +13,6 @@
 
 static c4m_dict_t               *global_roots;
 uint64_t                         c4m_gc_guard = 0;
-static _Atomic uint64_t          num_arenas   = 0;
 static thread_local c4m_arena_t *current_heap = NULL;
 static uint64_t                  page_bytes;
 static uint64_t                  page_modulus;
@@ -50,8 +49,8 @@ c4m_get_stack_bounds(uint64_t *top, uint64_t *bottom)
 #endif
 }
 
-// This puts a junk call frame on we scan, which on yhr mac seems
-// to be 256 bytes. Playing it safe and not subtracking it out, though.
+// This puts a junk call frame on we scan, which on my mac seems
+// to be 256 bytes. Playing it safe and not subtracting it out, though.
 void
 c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom)
 {
@@ -119,11 +118,12 @@ c4m_initialize_gc()
 
         // use c4m_gc_malloc_wrapper for hatrack's zalloc function since our
         // gc allocator always returns zeroed memory.
-        hatrack_setmallocfns(c4m_gc_malloc_wrapper,
-                             c4m_gc_malloc_wrapper,
-                             c4m_gc_realloc_wrapper,
-                             c4m_gc_free_wrapper,
-                             NULL);
+        // hatrack_setmallocfns(NULL,
+        // NULL,
+        // NULL,
+        // NULL,
+        // c4m_gc_malloc_wrapper,
+        // NULL);
 
         hatrack_dict_init(global_roots, HATRACK_DICT_KEY_TYPE_PTR);
     }
@@ -149,7 +149,8 @@ c4m_arena_t *
 c4m_internal_stash_heap()
 {
     stashed_heap = current_heap;
-    current_heap = c4m_new_arena(C4M_DEFAULT_ARENA_SIZE);
+    current_heap = c4m_new_arena(C4M_DEFAULT_ARENA_SIZE,
+                                 c4m_rc_ref(global_roots));
     return stashed_heap;
 }
 
@@ -175,10 +176,7 @@ c4m_internal_set_heap(c4m_arena_t *heap)
 static void *
 raw_arena_alloc(uint64_t len, void **end)
 {
-    if (len & page_modulus) {
-        len = (len & modulus_mask) + page_bytes;
-    }
-
+    // Add two guard pages to sandwich the alloc.
     size_t total_len  = (size_t)(page_bytes * 2 + len);
     char  *full_alloc = mmap(NULL,
                             total_len,
@@ -200,8 +198,8 @@ raw_arena_alloc(uint64_t len, void **end)
     return ret;
 }
 
-void
-c4m_expand_arena(size_t num_words, c4m_arena_t **cur_ptr)
+c4m_arena_t *
+c4m_new_arena(size_t num_words, c4m_dict_t *roots)
 {
     // Convert words to bytes.
     uint64_t allocation = ((uint64_t)num_words) * 8;
@@ -217,39 +215,23 @@ c4m_expand_arena(size_t num_words, c4m_arena_t **cur_ptr)
     void        *arena_end;
     c4m_arena_t *new_arena = raw_arena_alloc(allocation, &arena_end);
 
-    uint64_t arena_id = atomic_fetch_add(&num_arenas, 1);
-    // Really this creates another linked arena. We'll call it
-    // a 'sub-arena' for now.
-
-    c4m_arena_t *current = *cur_ptr;
-
     new_arena->next_alloc    = (c4m_alloc_hdr *)new_arena->data;
-    new_arena->previous      = current;
     new_arena->heap_end      = arena_end;
-    new_arena->arena_id      = arena_id;
     new_arena->alloc_counter = 0;
     // new_arena->late_mutations = calloc(sizeof(queue_t), 1);
 
-    c4m_gc_trace("******** alloc late mutations dict: %p\n",
-                 new_arena->late_mutations);
-
-    *cur_ptr = new_arena;
+    // c4m_gc_trace("******** alloc late mutations dict: %p\n",
+    //              new_arena->late_mutations);
 
     // queue_init(new_arena->late_mutations);
 
-    if (current != NULL && current->roots != NULL) {
-        new_arena->roots = c4m_rc_ref(current->roots);
+    if (roots == NULL) {
+        roots = global_roots;
     }
-}
 
-c4m_arena_t *
-c4m_new_arena(size_t num_words)
-{
-    c4m_arena_t *result = NULL;
+    new_arena->roots = roots;
 
-    c4m_expand_arena(num_words, &result);
-
-    return result;
+    return new_arena;
 }
 
 void *
@@ -295,28 +277,22 @@ c4m_delete_arena(c4m_arena_t *arena)
     // for cross-thread to work.
     //
     // TODO-- need to make this use mmap now.
-    c4m_arena_t *prev_active;
-
     c4m_gc_trace("arena:skip_unmap");
 
-    while (arena != NULL) {
-        prev_active = arena->previous;
-        if (arena->roots != NULL) {
-            c4m_rc_free_and_cleanup(arena->roots,
-                                    (cleanup_fn)hatrack_dict_cleanup);
-        }
-        // c4m_gc_trace("******** delete late mutations dict: %p\n",
-        // arena->late_mutations);
-        // free(arena->late_mutations);
+    if (arena->roots != NULL) {
+        c4m_rc_free_and_cleanup(arena->roots,
+                                (cleanup_fn)hatrack_dict_cleanup);
+    }
+    // c4m_gc_trace("******** delete late mutations dict: %p\n",
+    // arena->late_mutations);
+    // free(arena->late_mutations);
 
 #if defined(MADV_ZERO_WIRED_PAGES)
-        char *start = ((char *)arena) - page_bytes;
-        char *end   = ((char *)arena->heap_end) - page_bytes;
-        madvise(start, end - start, MADV_ZERO_WIRED_PAGES);
+    char *start = ((char *)arena) - page_bytes;
+    char *end   = ((char *)arena->heap_end) - page_bytes;
+    madvise(start, end - start, MADV_ZERO_WIRED_PAGES);
 #endif
 
-        arena = prev_active;
-    }
     return;
 }
 
@@ -433,20 +409,23 @@ header_scan(uint64_t *ptr, uint64_t *stop_location, uint64_t *offset)
     while (p >= stop_location) {
         if (*p == c4m_gc_guard) {
             c4m_alloc_hdr *result = (c4m_alloc_hdr *)p;
-            c4m_gc_trace("find_alloc:%p-%p:start:%p:data:%p:len:%d:total:%d",
-                         p,
-                         result->next_addr,
-                         ptr,
-                         result->data,
-                         (int)(((char *)result->next_addr) - (char *)result->data),
-                         (int)(((char *)result->next_addr) - (char *)result));
+
+            c4m_gc_trace(
+                "find_alloc:%p-%p:start:%p:data:%p:len:%d:total:%d",
+                p,
+                result->next_addr,
+                ptr,
+                result->data,
+                (int)(((char *)result->next_addr) - (char *)result->data),
+                (int)(((char *)result->next_addr) - (char *)result));
+
             *offset = ((uint64_t)ptr) - ((uint64_t)p);
             return result;
         }
         p -= 1;
     }
     fprintf(stderr,
-            "Corrupted heap; could not find an allocation record for "
+            "Corrupted con4m heap; could not find an allocation record for "
             "the memory address: %p\n",
             ptr);
     abort();
@@ -497,14 +476,14 @@ process_traced_pointer(uint64_t   **addr,
     // That will prevent anyone else from winning the lock.
     //
     // Then we spin until the write thread is done.
-    uint32_t processing_flags = GC_FLAG_COLLECTING | GC_FLAG_REACHED | GC_FLAG_WRITER_LOCK;
+    uint32_t flags = GC_FLAG_COLLECTING | GC_FLAG_REACHED | GC_FLAG_WRITER_LOCK;
 
-    if (!CAS(&(hdr->flags), &found_flags, processing_flags)) {
+    if (!CAS(&(hdr->flags), &found_flags, flags)) {
         c4m_gc_trace("!!!!! busy wait; mution in progress for alloc @%p", hdr);
         atomic_fetch_xor(&(hdr->flags), GC_FLAG_OWNER_WAITING);
         do {
             found_flags = GC_FLAG_OWNER_WAITING;
-        } while (!CAS(&(hdr->flags), &found_flags, processing_flags));
+        } while (!CAS(&(hdr->flags), &found_flags, flags));
     }
 
     c4m_gc_trace("!!!!!! Shut off fromspace writes to alloc @%p", hdr);
@@ -544,13 +523,13 @@ process_traced_pointer(uint64_t   **addr,
                  GC_FLAG_COLLECTING | GC_FLAG_REACHED | GC_FLAG_MOVED);
 }
 
-static void
-c4m_collect_sub_arena(c4m_arena_t *old,
-                      c4m_arena_t *new,
-                      hatrack_dict_item_t *roots,
-                      uint64_t             num_roots,
-                      uint64_t            *stack_top,
-                      uint64_t            *stack_bottom)
+static inline void
+scan_arena(c4m_arena_t *old,
+           c4m_arena_t *new,
+           hatrack_dict_item_t *roots,
+           uint64_t             num_roots,
+           uint64_t            *stack_top,
+           uint64_t            *stack_bottom)
 {
     // TODO: should have a debug option that keeps a dict with
     // all valid allocations and ensures them.
@@ -585,49 +564,42 @@ c4m_collect_sub_arena(c4m_arena_t *old,
             p++;
         }
     }
+
+    uint64_t old_len = old->heap_end - old->data;
+    uint64_t new_len = ((uint64_t *)new->next_alloc) - new->data;
+
+    if (old_len < (new_len << 1)) {
+        new->grow_next = true;
+    }
 }
 
 void
 c4m_collect_arena(c4m_arena_t **ptr_loc)
 {
     c4m_arena_t *cur = *ptr_loc;
-    uint64_t     len = 0;
-
-    while (cur != NULL) {
-        uint64_t arena_size = cur->heap_end - cur->data;
-        len += arena_size;
-        cur = cur->previous;
-    }
-
-    c4m_arena_t *new = c4m_new_arena((size_t)len);
-
-    cur = *ptr_loc;
-
-    if (cur->roots == NULL) {
-        cur->roots = c4m_rc_ref(global_roots);
-    }
-
+    uint64_t     len = cur->heap_end - (uint64_t *)cur;
+    c4m_dict_t  *r   = cur->roots;
+    c4m_arena_t *new;
     uint64_t             num_roots = 0;
     hatrack_dict_item_t *roots;
 
-    roots      = hatrack_dict_items_nosort(cur->roots, &num_roots);
-    new->roots = c4m_rc_ref(global_roots);
-
-    uint64_t stack_top, stack_bottom;
-
-    c4m_get_stack_scan_region(&stack_top, &stack_bottom);
-
-    while (cur != NULL) {
-        c4m_arena_t *prior_sub_arena = cur->previous;
-        c4m_collect_sub_arena(cur,
-                              new,
-                              roots,
-                              num_roots,
-                              (uint64_t *)stack_top,
-                              (uint64_t *)stack_bottom);
-        cur = prior_sub_arena;
+    if (r == NULL) {
+        r = c4m_rc_ref(global_roots);
     }
 
+    if (cur->grow_next) {
+        len <<= 1;
+    }
+
+    new = c4m_new_arena((size_t)len, r);
+
+    roots = hatrack_dict_items_nosort(r, &num_roots);
+
+    uint64_t *stack_top, *stack_bottom;
+
+    c4m_get_stack_scan_region((uint64_t *)&stack_top,
+                              (uint64_t *)&stack_bottom);
+    scan_arena(cur, new, roots, num_roots, stack_top, stack_bottom);
     c4m_delete_arena(*ptr_loc);
     *ptr_loc = new;
 }

@@ -102,7 +102,7 @@
 // Shouldn't be accessed by developer, but allows us to inline.
 extern uint64_t c4m_gc_guard;
 
-extern c4m_arena_t *c4m_new_arena(size_t);
+extern c4m_arena_t *c4m_new_arena(size_t, c4m_dict_t *);
 extern void         c4m_delete_arena(c4m_arena_t *);
 extern void         c4m_expand_arena(size_t, c4m_arena_t **);
 extern void         c4m_collect_arena(c4m_arena_t **);
@@ -155,37 +155,50 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
                      size_t          len,
                      const uint64_t *ptr_map)
 {
+    c4m_arena_t *arena = *arena_ptr;
+
     // Round up to aligned length.
-    size_t       wordlen = c4m_round_up_to_given_power_of_2(C4M_FORCED_ALIGNMENT, len);
-    c4m_arena_t *arena   = *arena_ptr;
+    size_t wordlen = c4m_round_up_to_given_power_of_2(C4M_FORCED_ALIGNMENT,
+                                                      len);
 
     if (arena == 0) {
-try_again:
-        c4m_expand_arena(max(C4M_DEFAULT_ARENA_SIZE, wordlen << 4),
-                         arena_ptr);
+        int initial_len = max(C4M_DEFAULT_ARENA_SIZE, wordlen << 4);
+        arena           = c4m_new_arena(initial_len, NULL);
+        *arena_ptr      = arena;
+    }
+
+// Come back here if, when we trigger the collector, the resulting
+// free space isn't enough, in which case we do a second collect.
+// There are better ways to handle this like to just grab enough extra
+// zero- mapped pages to ensure we get the allocation, but ideally
+// people won't ask for such large allocs relative to the arena size
+// without just asking for a new arena, so I'm not going to bother
+// right now; maybe someday.
+try_again:;
+    c4m_alloc_hdr *raw  = arena->next_alloc;
+    c4m_alloc_hdr *next = (c4m_alloc_hdr *)&(raw->data[wordlen]);
+
+    if (((uint64_t *)next) > arena->heap_end) {
+        c4m_collect_arena(arena_ptr);
         arena = *arena_ptr;
+
+        raw  = arena->next_alloc;
+        next = (c4m_alloc_hdr *)&(raw->data[wordlen]);
+        if (((uint64_t *)next) > arena->heap_end) {
+            arena->grow_next = true;
+            c4m_collect_arena(arena_ptr);
+            arena = *arena_ptr;
+            goto try_again;
+        }
     }
 
-    c4m_alloc_hdr *raw = arena->next_alloc;
+    arena->next_alloc = next;
+    raw->guard        = c4m_gc_guard;
+    raw->arena        = arena;
+    raw->next_addr    = (uint64_t *)arena->next_alloc;
+    raw->alloc_len    = wordlen;
+    raw->ptr_map      = (uint64_t *)ptr_map;
 
-    if (raw >= (c4m_alloc_hdr *)arena->heap_end) {
-        goto try_again;
-    }
-    arena->next_alloc = (c4m_alloc_hdr *)&(raw->data[wordlen]);
-
-    if (arena->next_alloc > (c4m_alloc_hdr *)arena->heap_end) {
-        goto try_again;
-    }
-
-    raw->guard     = c4m_gc_guard;
-    raw->arena     = arena->arena_id;
-    raw->next_addr = (uint64_t *)arena->next_alloc;
-    raw->alloc_len = wordlen;
-    raw->ptr_map   = (uint64_t *)ptr_map;
-
-    if (arena->heap_end < raw->next_addr) {
-        goto try_again;
-    }
     c4m_gc_trace("new_record:%p-%p:data:%p:len:%zu:arena:%p-%p",
                  raw,
                  raw->next_addr,

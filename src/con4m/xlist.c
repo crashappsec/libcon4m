@@ -54,6 +54,7 @@ c4m_xlist_set(c4m_xlist_t *list, int64_t ix, void *item)
         list->append_ix = ix + 1;
     }
 
+    assert(item != NULL);
     list->data[ix] = (int64_t *)item;
     return true;
 }
