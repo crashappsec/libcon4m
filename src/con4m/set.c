@@ -1,37 +1,5 @@
 #include "con4m.h"
 
-static int
-hatrack_set_epoch_sort_cmp(const void *b1, const void *b2)
-{
-    hatrack_set_view_t *item1;
-    hatrack_set_view_t *item2;
-
-    item1 = (hatrack_set_view_t *)b1;
-    item2 = (hatrack_set_view_t *)b2;
-
-    return item2->sort_epoch - item1->sort_epoch;
-}
-
-static int
-hatrack_set_hv_sort_cmp(const void *b1, const void *b2)
-{
-    hatrack_set_view_t *item1;
-    hatrack_set_view_t *item2;
-
-    item1 = (hatrack_set_view_t *)b1;
-    item2 = (hatrack_set_view_t *)b2;
-
-    if (hatrack_hash_gt(item1->hv, item2->hv)) {
-        return 1;
-    }
-
-    if (hatrack_hashes_eq(item1->hv, item2->hv)) {
-        abort(); // Shouldn't happen; hash entries should be unique.
-    }
-
-    return -1;
-}
-
 static void
 c4m_set_init(c4m_set_t *set, va_list args)
 {
@@ -196,9 +164,11 @@ const c4m_vtable_t c4m_set_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)c4m_set_init,
+        [C4M_BI_FINALIZER]     = (c4m_vtable_entry)hatrack_set_cleanup,
         [C4M_BI_MARSHAL]       = (c4m_vtable_entry)c4m_set_marshal,
         [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_set_unmarshal,
         [C4M_BI_VIEW]          = (c4m_vtable_entry)hatrack_set_items_sort,
         [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)to_set_lit,
+        NULL,
     },
 };

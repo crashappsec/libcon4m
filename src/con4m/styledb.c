@@ -719,12 +719,11 @@ c4m_install_default_styles()
 const c4m_vtable_t c4m_render_style_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)c4m_style_init,
-        NULL,
-        NULL,
-        NULL,
-        (c4m_vtable_entry)c4m_style_marshal,
-        (c4m_vtable_entry)c4m_style_unmarshal,
-        NULL,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_style_init,
+        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_style_marshal,
+        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_style_unmarshal,
+        // Explicit because some compilers don't seem to always properly
+        // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
+        [C4M_BI_FINALIZER]   = NULL,
     },
 };

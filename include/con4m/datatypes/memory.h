@@ -44,6 +44,14 @@ typedef struct {
     // 64-bit blocks.
     uint32_t            alloc_len;
     //
+    // Set to 'true' if this object requires finalization. This is
+    // necessary, even though the arena tracks allocations needing
+    // finalization, because resizes could move the pointer.
+    //
+    // So when a resize is triggered and we see this bit, we go
+    // update the pointer in the finalizer list.
+    unsigned int        finalize : 1;
+    //
     // This is a pointer to a sized bitfield. The first word indicates the
     // number of subsequent words in the bitfield. The bits then
     // represent the words of the data structure, in order, and whether
@@ -58,13 +66,19 @@ typedef struct {
     alignas(C4M_FORCED_ALIGNMENT) uint64_t data[];
 } c4m_alloc_hdr;
 
+typedef struct c4m_finalizer_info_t {
+    c4m_alloc_hdr               *allocation;
+    struct c4m_finalizer_info_t *next;
+} c4m_finalizer_info_t;
+
 typedef struct c4m_arena_t {
-    c4m_alloc_hdr *next_alloc;
-    c4m_dict_t    *roots;
+    c4m_alloc_hdr        *next_alloc;
+    c4m_dict_t           *roots;
     //    queue_t            *late_mutations;
-    uint64_t      *heap_end;
-    uint32_t       arena_id;
-    bool           grow_next;
+    uint64_t             *heap_end;
+    c4m_finalizer_info_t *to_finalize;
+    uint32_t              arena_id;
+    bool                  grow_next;
 #ifdef C4M_ALLOC_STATS
     uint64_t alloc_counter;
 #endif
@@ -72,3 +86,5 @@ typedef struct c4m_arena_t {
     // This must be 16-byte aligned!
     alignas(C4M_FORCED_ALIGNMENT) uint64_t data[];
 } c4m_arena_t;
+
+typedef void (*c4m_system_finalizer_fn)(void *);

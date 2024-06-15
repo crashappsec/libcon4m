@@ -12,8 +12,9 @@
 // state.
 
 static c4m_dict_t               *global_roots;
-uint64_t                         c4m_gc_guard = 0;
-static thread_local c4m_arena_t *current_heap = NULL;
+uint64_t                         c4m_gc_guard     = 0;
+static thread_local c4m_arena_t *current_heap     = NULL;
+static c4m_system_finalizer_fn   system_finalizer = NULL;
 static uint64_t                  page_bytes;
 static uint64_t                  page_modulus;
 static uint64_t                  modulus_mask;
@@ -77,27 +78,6 @@ c4m_gc_heap_stats(uint64_t *used, uint64_t *available, uint64_t *total)
     if (total != NULL) {
         *total = end - start;
     }
-}
-
-static void *
-c4m_gc_malloc_wrapper(size_t size, void *arg)
-{
-    // Hatrack wants a 16-byte aligned pointer. The con4m gc allocator will
-    // always produce a 16-byte aligned pointer. The raw allocation header is
-    // 48 bytes and its base pointer is always 16-byte aligned.
-    return c4m_gc_malloc(size);
-}
-
-static void
-c4m_gc_free_wrapper(void *oldptr, size_t size, void *arg)
-{
-    // do nothing; memory is garbage collected
-}
-
-static void *
-c4m_gc_realloc_wrapper(void *oldptr, size_t oldsize, size_t newsize, void *arg)
-{
-    return c4m_gc_resize(oldptr, newsize);
 }
 
 void
@@ -238,9 +218,19 @@ void *
 c4m_gc_raw_alloc(size_t len, uint64_t *ptr_map)
 {
 #ifdef ALLOW_POINTER_MAPS
-    return c4m_alloc_from_arena(&current_heap, len, ptr_map);
+    return c4m_alloc_from_arena(&current_heap, len, ptr_map, false);
 #else
-    return c4m_alloc_from_arena(&current_heap, len, GC_SCAN_ALL);
+    return c4m_alloc_from_arena(&current_heap, len, GC_SCAN_ALL, false);
+#endif
+}
+
+void *
+c4m_gc_raw_alloc_with_finalizer(size_t len, uint64_t *ptr_map)
+{
+#ifdef ALLOW_POINTER_MAPS
+    return c4m_alloc_from_arena(&current_heap, len, ptr_map, true);
+#else
+    return c4m_alloc_from_arena(&current_heap, len, GC_SCAN_ALL, true);
 #endif
 }
 
@@ -258,16 +248,44 @@ c4m_gc_resize(void *ptr, size_t len)
     assert(hdr->guard = c4m_gc_guard);
 
 #ifdef ALLOW_POINTER_MAPS
-    void *result = c4m_alloc_from_arena(&current_heap, len, hdr->ptr_map);
+    void *result = c4m_alloc_from_arena(&current_heap,
+                                        len,
+                                        hdr->ptr_map,
+                                        (bool)hdr->finalize);
 #else
-    void *result = c4m_alloc_from_arena(&current_heap, len, GC_SCAN_ALL);
+    void *result = c4m_alloc_from_arena(&current_heap,
+                                        len,
+                                        GC_SCAN_ALL,
+                                        (bool)hdr->finalize);
 #endif
     if (len > 0) {
         size_t bytes = ((size_t)(hdr->next_addr - hdr->data)) * 8;
         memcpy(result, ptr, min(len, bytes));
     }
 
+    if (hdr->finalize == 1) {
+        c4m_alloc_hdr *newhdr = &((c4m_alloc_hdr *)result)[-1];
+        newhdr->finalize      = 1;
+
+        c4m_finalizer_info_t *p = current_heap->to_finalize;
+
+        while (p != NULL) {
+            if (p->allocation == hdr) {
+                p->allocation = newhdr;
+                return result;
+            }
+            p = p->next;
+        }
+        c4m_unreachable();
+    }
+
     return result;
+}
+
+void
+c4m_gc_set_finalize_callback(c4m_system_finalizer_fn fn)
+{
+    system_finalizer = fn;
 }
 
 void
@@ -491,9 +509,15 @@ process_traced_pointer(uint64_t   **addr,
     uint64_t len = sizeof(uint64_t) * (uint64_t)(hdr->next_addr - hdr->data);
 
 #ifdef ALLOW_POINTER_MAPS
-    uint64_t *forward = c4m_alloc_from_arena(&new_arena, len / 8, hdr->ptr_map);
+    uint64_t *forward = c4m_alloc_from_arena(&new_arena,
+                                             len / 8,
+                                             hdr->ptr_map,
+                                             (bool)hdr->finalize);
 #else
-    uint64_t *forward = c4m_alloc_from_arena(&new_arena, len / 8, GC_SCAN_ALL);
+    uint64_t *forward = c4m_alloc_from_arena(&new_arena,
+                                             len / 8,
+                                             GC_SCAN_ALL,
+                                             (bool)hdr->finalize);
 #endif
 
     // Forward before we descend.
@@ -573,6 +597,35 @@ scan_arena(c4m_arena_t *old,
     }
 }
 
+static void
+migrate_finalizers(c4m_arena_t *old, c4m_arena_t *new)
+{
+    c4m_finalizer_info_t *cur = old->to_finalize;
+    c4m_finalizer_info_t *next;
+
+    while (cur != NULL) {
+        c4m_alloc_hdr *alloc = cur->allocation;
+        next                 = cur->next;
+
+        // If it's been forwarded, we migrate the record to the new heap.
+        // In the other branch, we'll call the finalizer and delete the
+        // record (we do not cache records right now).
+        if (alloc->fw_addr) {
+            cur->next        = new->to_finalize;
+            new->to_finalize = cur;
+            // fw_addr is the user-facing address; but the alloc record
+            // gets the actual header, which is why we do the -1 index.
+            cur->allocation  = &((c4m_alloc_hdr *)alloc->fw_addr)[-1];
+        }
+        else {
+            system_finalizer(alloc->data);
+            c4m_rc_free(cur);
+        }
+
+        cur = next;
+    }
+}
+
 void
 c4m_collect_arena(c4m_arena_t **ptr_loc)
 {
@@ -600,6 +653,9 @@ c4m_collect_arena(c4m_arena_t **ptr_loc)
     c4m_get_stack_scan_region((uint64_t *)&stack_top,
                               (uint64_t *)&stack_bottom);
     scan_arena(cur, new, roots, num_roots, stack_top, stack_bottom);
+    if (system_finalizer != NULL) {
+        migrate_finalizers(cur, new);
+    }
     c4m_delete_arena(*ptr_loc);
     *ptr_loc = new;
 }
@@ -618,6 +674,8 @@ c4m_gc_register_root(void *ptr, uint64_t num_words)
     c4m_gc_trace("root_register:@%p", ptr);
     c4m_arena_register_root(current_heap, ptr, num_words);
 }
+
+#if 0 // not used anymore.
 
 __thread int  ro_test_pipe_fds[2] = {0, 0};
 __thread bool ro_test_pipe_inited = false;
@@ -662,7 +720,82 @@ c4m_is_read_only_memory(volatile void *address)
         }
     }
 
+
     return false;
+}
+#endif
+
+// This currently assumes ptr_map doesn't need more than 64 entries.
+void *
+c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
+                     size_t          len,
+                     const uint64_t *ptr_map,
+                     bool            finalize)
+{
+    c4m_arena_t *arena = *arena_ptr;
+
+    // Round up to aligned length.
+    size_t wordlen = c4m_round_up_to_given_power_of_2(C4M_FORCED_ALIGNMENT,
+                                                      len);
+
+    if (arena == 0) {
+        int initial_len = max(C4M_DEFAULT_ARENA_SIZE, wordlen << 4);
+        arena           = c4m_new_arena(initial_len, NULL);
+        *arena_ptr      = arena;
+    }
+
+// Come back here if, when we trigger the collector, the resulting
+// free space isn't enough, in which case we do a second collect.
+// There are better ways to handle this like to just grab enough extra
+// zero- mapped pages to ensure we get the allocation, but ideally
+// people won't ask for such large allocs relative to the arena size
+// without just asking for a new arena, so I'm not going to bother
+// right now; maybe someday.
+try_again:;
+    c4m_alloc_hdr *raw  = arena->next_alloc;
+    c4m_alloc_hdr *next = (c4m_alloc_hdr *)&(raw->data[wordlen]);
+
+    if (((uint64_t *)next) > arena->heap_end) {
+        c4m_collect_arena(arena_ptr);
+        arena = *arena_ptr;
+
+        raw  = arena->next_alloc;
+        next = (c4m_alloc_hdr *)&(raw->data[wordlen]);
+        if (((uint64_t *)next) > arena->heap_end) {
+            arena->grow_next = true;
+            c4m_collect_arena(arena_ptr);
+            arena = *arena_ptr;
+            goto try_again;
+        }
+    }
+
+    arena->next_alloc = next;
+    raw->guard        = c4m_gc_guard;
+    raw->arena        = arena;
+    raw->next_addr    = (uint64_t *)arena->next_alloc;
+    raw->alloc_len    = wordlen;
+    raw->ptr_map      = (uint64_t *)ptr_map;
+
+    c4m_gc_trace("new_record:%p-%p:data:%p:len:%zu:arena:%p-%p",
+                 raw,
+                 raw->next_addr,
+                 raw->data,
+                 len,
+                 arena,
+                 arena->heap_end);
+
+#ifdef C4M_ALLOC_STATS
+    arena->alloc_counter++;
+#endif
+
+    if (finalize) {
+        c4m_finalizer_info_t *record = c4m_rc_alloc(sizeof(c4m_finalizer_info_t));
+        record->allocation           = raw;
+        record->next                 = arena->to_finalize;
+        arena->to_finalize           = record;
+    }
+
+    return (void *)(raw->data);
 }
 
 #ifdef GC_TRACE

@@ -101,12 +101,12 @@ ipaddr_repr(ipaddr_t *obj)
 const c4m_vtable_t c4m_ipaddr_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)ipaddr_init,
-        (c4m_vtable_entry)ipaddr_repr,
-        NULL,
-        NULL,
-        (c4m_vtable_entry)ipaddr_marshal,
-        (c4m_vtable_entry)ipaddr_unmarshal,
-        NULL,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)ipaddr_init,
+        [C4M_BI_TO_STR]      = (c4m_vtable_entry)ipaddr_repr,
+        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)ipaddr_marshal,
+        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)ipaddr_unmarshal,
+        // Explicit because some compilers don't seem to always properly
+        // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
+        [C4M_BI_FINALIZER]   = NULL,
     },
 };

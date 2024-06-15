@@ -436,5 +436,8 @@ const c4m_vtable_t c4m_flags_vtable = {
         [C4M_BI_SLICE_GET]    = (c4m_vtable_entry)c4m_flags_slice,
         [C4M_BI_SLICE_SET]    = (c4m_vtable_entry)c4m_flags_set_slice,
 #endif
+        // Explicit because some compilers don't seem to always properly
+        // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
+        [C4M_BI_FINALIZER] = NULL,
     },
 };

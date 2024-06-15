@@ -255,6 +255,7 @@ const c4m_vtable_t c4m_dict_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)c4m_dict_init,
+        [C4M_BI_FINALIZER]     = (c4m_vtable_entry)hatrack_dict_cleanup,
         [C4M_BI_TO_STR]        = (c4m_vtable_entry)dict_repr,
         [C4M_BI_MARSHAL]       = (c4m_vtable_entry)c4m_dict_marshal,
         [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_dict_unmarshal,
@@ -267,5 +268,6 @@ const c4m_vtable_t c4m_dict_vtable = {
         [C4M_BI_INDEX_SET]     = (c4m_vtable_entry)hatrack_dict_put,
         [C4M_BI_VIEW]          = (c4m_vtable_entry)hatrack_dict_items_sort,
         [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)to_dict_lit,
+        NULL,
     },
 };
