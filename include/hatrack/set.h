@@ -59,10 +59,10 @@ HATRACK_EXTERN bool            hatrack_set_is_eq_mmm       (hatrack_set_t *, mmm
 HATRACK_EXTERN bool            hatrack_set_is_superset_mmm (hatrack_set_t *, mmm_thread_t *, hatrack_set_t *, bool);
 HATRACK_EXTERN bool            hatrack_set_is_subset_mmm   (hatrack_set_t *, mmm_thread_t *, hatrack_set_t *, bool);
 HATRACK_EXTERN bool            hatrack_set_is_disjoint_mmm (hatrack_set_t *, mmm_thread_t *, hatrack_set_t *);
-HATRACK_EXTERN hatrack_set_t  *hatrack_set_difference_mmm  (hatrack_set_t *, mmm_thread_t *, hatrack_set_t *);
-HATRACK_EXTERN hatrack_set_t  *hatrack_set_union_mmm       (hatrack_set_t *, mmm_thread_t *, hatrack_set_t *);
-HATRACK_EXTERN hatrack_set_t  *hatrack_set_intersection_mmm(hatrack_set_t *, mmm_thread_t *, hatrack_set_t *);
-HATRACK_EXTERN hatrack_set_t  *hatrack_set_disjunction_mmm (hatrack_set_t *, mmm_thread_t *, hatrack_set_t *);
+HATRACK_EXTERN void            hatrack_set_difference_mmm  (hatrack_set_t *, mmm_thread_t *, hatrack_set_t *, hatrack_set_t *);
+HATRACK_EXTERN void            hatrack_set_union_mmm       (hatrack_set_t *, mmm_thread_t *, hatrack_set_t *, hatrack_set_t *);
+HATRACK_EXTERN void            hatrack_set_intersection_mmm(hatrack_set_t *, mmm_thread_t *, hatrack_set_t *, hatrack_set_t *);
+HATRACK_EXTERN void            hatrack_set_disjunction_mmm (hatrack_set_t *, mmm_thread_t *, hatrack_set_t *, hatrack_set_t *);
 
 HATRACK_EXTERN bool            hatrack_set_contains    (hatrack_set_t *, void *);
 HATRACK_EXTERN bool            hatrack_set_put         (hatrack_set_t *, void *);
@@ -75,7 +75,7 @@ HATRACK_EXTERN bool            hatrack_set_is_eq       (hatrack_set_t *, hatrack
 HATRACK_EXTERN bool            hatrack_set_is_superset (hatrack_set_t *, hatrack_set_t *, bool);
 HATRACK_EXTERN bool            hatrack_set_is_subset   (hatrack_set_t *, hatrack_set_t *, bool);
 HATRACK_EXTERN bool            hatrack_set_is_disjoint (hatrack_set_t *, hatrack_set_t *);
-HATRACK_EXTERN hatrack_set_t  *hatrack_set_difference  (hatrack_set_t *, hatrack_set_t *);
-HATRACK_EXTERN hatrack_set_t  *hatrack_set_union       (hatrack_set_t *, hatrack_set_t *);
-HATRACK_EXTERN hatrack_set_t  *hatrack_set_intersection(hatrack_set_t *, hatrack_set_t *);
-HATRACK_EXTERN hatrack_set_t  *hatrack_set_disjunction (hatrack_set_t *, hatrack_set_t *);
+HATRACK_EXTERN void            hatrack_set_difference  (hatrack_set_t *, hatrack_set_t *, hatrack_set_t *);
+HATRACK_EXTERN void            hatrack_set_union       (hatrack_set_t *, hatrack_set_t *, hatrack_set_t *);
+HATRACK_EXTERN void            hatrack_set_intersection(hatrack_set_t *, hatrack_set_t *, hatrack_set_t *);
+HATRACK_EXTERN void            hatrack_set_disjunction (hatrack_set_t *, hatrack_set_t *, hatrack_set_t *);

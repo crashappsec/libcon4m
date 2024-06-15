@@ -299,7 +299,7 @@ capture(search_ctx_t *ctx, c4m_tree_node_t *node)
         ctx->captures = c4m_new(c4m_tspec_set(c4m_tspec_ref()));
     }
 
-    c4m_set_add(ctx->captures, node);
+    hatrack_set_add(ctx->captures, node);
 }
 
 static int
