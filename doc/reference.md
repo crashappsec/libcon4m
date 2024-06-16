@@ -124,7 +124,9 @@ Additionally, until the FFI is re-implemented, `print` is a reserved
 keyword. This will change soon, and will no longer be special.
 
 The following are current and expected *contextual keywords*:
+
 | Keyword | Status | Notes |
+| ------- | ------ | ----- |
 | choice | | |
 | choices | | |
 | default | | |
@@ -216,7 +218,7 @@ Currently, Con4m has the following literal syntaxes:
 ## Types in Con4m
 
 Con4m is a strongly typed language, that is also fully type
-inferenced.  This means that, while Types may be specified, they do
+inferenced.  This means that, while types may be specified, they do
 not need to be. In cases where a type cannot be statically bound,
 Con4m will automatically add runtime checks.
 
@@ -581,7 +583,9 @@ now := 11 Jan 2024
 
 Is equal to:
 
+```
 now = "11 Jan 2024"'date
+```
 
 Note that currently, without a literal modifier, "" always assume
 'string', so the following does NOT work:
