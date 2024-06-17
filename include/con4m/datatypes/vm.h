@@ -426,6 +426,14 @@ typedef struct {
     c4m_str_t *name;
 } c4m_zffi_arg_info_t;
 
+/*
+    c4m_ffi_cif   call_interface;
+    c4m_ffi_abi   abi;
+    c4m_ffi_type  return_type;
+    unsigned int  fixedargs;
+    c4m_ffi_type *arg_types;
+*/
+
 typedef struct {
     int64_t      nameoffset;
     int64_t      localname;

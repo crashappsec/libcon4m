@@ -209,11 +209,10 @@ node_to_callback(c4m_file_compile_ctx *ctx, c4m_tree_node_t *n)
     c4m_utf8_t *name = node_text(c4m_tree_get_child(n, 0));
     c4m_type_t *type = c4m_node_to_type(ctx, c4m_tree_get_child(n, 1), NULL);
 
-    return c4m_new(c4m_tspec_callback(),
-                   c4m_kw("symbol_name",
-                          c4m_ka(name),
-                          "type",
-                          c4m_ka(type)));
+    c4m_callback_t *result = c4m_new(c4m_tspec_callback(), name, type);
+    result->decl_loc       = n;
+
+    return result;
 }
 
 c4m_type_t *

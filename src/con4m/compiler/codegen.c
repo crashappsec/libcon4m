@@ -535,7 +535,7 @@ static inline void
 gen_run_callback(gen_ctx *ctx, c4m_callback_t *cb)
 {
     uint32_t    offset   = c4m_layout_const_obj(ctx->cctx, cb);
-    c4m_type_t *t        = cb->info->type;
+    c4m_type_t *t        = cb->target_type;
     int         nargs    = c4m_tspec_get_num_params(t) - 1;
     c4m_type_t *ret_type = c4m_tspec_get_param(t, nargs);
     bool        useret   = !(c4m_tspecs_are_compat(ret_type,
@@ -598,6 +598,58 @@ gen_unbox_if_needed(gen_ctx           *ctx,
 }
 
 static void
+gen_native_call(gen_ctx *ctx, c4m_scope_entry_t *fsym)
+{
+    // Needed to calculate the loc of module variables.
+    // Currently that's done at runtime, tho could be done in
+    // a proper link pass in the future.
+    int            target_module;
+    // Index into the object file's cache.
+    int            target_fn_id;
+    int            loc  = ctx->instruction_counter;
+    // When the call is generated, we might not have generated the
+    // function we're calling. In that case, we will just generate
+    // a stub and add the actual call instruction to a backpatch
+    // list that gets processed at the end of compilation.
+    //
+    // To test this reliably, we can check the 'offset' field of
+    // the function info object, as a function never starts at
+    // offset 0.
+    c4m_fn_decl_t *decl = fsym->value;
+    target_module       = decl->module_id;
+    target_fn_id        = decl->local_id;
+
+    emit(ctx,
+         C4M_Z0Call,
+         c4m_kw("arg", c4m_ka(target_fn_id), "module_id", target_module));
+
+    if (target_fn_id == 0) {
+        call_backpatch_info_t *bp;
+
+        bp       = c4m_gc_alloc(call_backpatch_info_t);
+        bp->decl = decl;
+        bp->i    = c4m_xlist_get(ctx->instructions, loc, NULL);
+
+        c4m_xlist_append(ctx->call_backpatches, bp);
+    }
+
+    int n = decl->signature_info->num_params;
+
+    if (n != 0) {
+        emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-n)));
+    }
+    if (!decl->signature_info->void_return) {
+        emit(ctx, C4M_ZPushFromR0);
+        gen_unbox_if_needed(ctx, ctx->cur_node, fsym);
+    }
+}
+
+static void
+gen_extern_call(gen_ctx *ctx, c4m_scope_entry_t *fsym)
+{
+}
+
+static void
 gen_call(gen_ctx *ctx)
 {
     call_resolution_info_t *info = ctx->cur_pnode->extra_info;
@@ -612,51 +664,11 @@ gen_call(gen_ctx *ctx)
     }
 
     if (fsym->kind != sk_func) {
+        gen_extern_call(ctx, fsym);
         // emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-1 * nargs)));
     }
     else {
-        // Needed to calculate the loc of module variables.
-        // Currently that's done at runtime, tho could be done in
-        // a proper link pass in the future.
-        int            target_module;
-        // Index into the object file's cache.
-        int            target_fn_id;
-        int            loc  = ctx->instruction_counter;
-        // When the call is generated, we might not have generated the
-        // function we're calling. In that case, we will just generate
-        // a stub and add the actual call instruction to a backpatch
-        // list that gets processed at the end of compilation.
-        //
-        // To test this reliably, we can check the 'offset' field of
-        // the function info object, as a function never starts at
-        // offset 0.
-        c4m_fn_decl_t *decl = fsym->value;
-        target_module       = decl->module_id;
-        target_fn_id        = decl->local_id;
-
-        emit(ctx,
-             C4M_Z0Call,
-             c4m_kw("arg", c4m_ka(target_fn_id), "module_id", target_module));
-
-        if (target_fn_id == 0) {
-            call_backpatch_info_t *bp;
-
-            bp       = c4m_gc_alloc(call_backpatch_info_t);
-            bp->decl = decl;
-            bp->i    = c4m_xlist_get(ctx->instructions, loc, NULL);
-
-            c4m_xlist_append(ctx->call_backpatches, bp);
-        }
-
-        n = decl->signature_info->num_params;
-
-        if (n != 0) {
-            emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-n)));
-        }
-        if (!decl->signature_info->void_return) {
-            emit(ctx, C4M_ZPushFromR0);
-            gen_unbox_if_needed(ctx, ctx->cur_node, fsym);
-        }
+        gen_native_call(ctx, fsym);
     }
 }
 

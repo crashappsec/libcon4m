@@ -502,10 +502,29 @@ handle_param_block(pass1_ctx *ctx)
 
         switch (prop_name->data[0]) {
         case 'v':
-            prop->validator = lit;
+            prop->validator = node_to_callback(ctx->file_ctx, lit);
+            if (!prop->validator) {
+                c4m_add_error(ctx->file_ctx,
+                              c4m_err_spec_callback_required,
+                              prop_node);
+            }
+            else {
+                c4m_xlist_append(ctx->file_ctx->callback_literals,
+                                 prop->validator);
+            }
+
             break;
         case 'c':
-            prop->callback = lit;
+            prop->callback = node_to_callback(ctx->file_ctx, lit);
+            if (!prop->callback) {
+                c4m_add_error(ctx->file_ctx,
+                              c4m_err_spec_callback_required,
+                              prop_node);
+            }
+            else {
+                c4m_xlist_append(ctx->file_ctx->callback_literals,
+                                 prop->callback);
+            }
             break;
         case 'd':
             prop->default_value = lit;
@@ -603,6 +622,7 @@ one_section_prop(pass1_ctx          *ctx,
         }
         else {
             section->validator = callback;
+            c4m_xlist_append(ctx->file_ctx->callback_literals, callback);
         }
         break;
     case 'r': // require
@@ -740,6 +760,7 @@ one_field(pass1_ctx          *ctx,
             }
             else {
                 f->validator = callback;
+                c4m_xlist_append(ctx->file_ctx->callback_literals, callback);
             }
             break;
         default:
@@ -1098,7 +1119,7 @@ handle_func_decl(pass1_ctx *ctx)
 static void
 handle_extern_block(pass1_ctx *ctx)
 {
-    c4m_ffi_decl_t  *info          = c4m_gc_alloc(c4m_ffi_info_t);
+    c4m_ffi_decl_t  *info          = c4m_gc_alloc(c4m_ffi_decl_t);
     c4m_utf8_t      *external_name = node_text(get_match(ctx,
                                                     c4m_first_kid_id));
     c4m_xlist_t     *ext_params    = apply_pattern(ctx, c4m_extern_params);
@@ -1406,14 +1427,15 @@ c4m_file_decl_pass(c4m_compile_ctx *cctx, c4m_file_compile_ctx *file_ctx)
 
     set_current_node(&ctx, file_ctx->parse_tree);
 
-    file_ctx->global_scope    = c4m_new_scope(NULL, C4M_SCOPE_GLOBAL);
-    file_ctx->module_scope    = c4m_new_scope(file_ctx->global_scope,
+    file_ctx->global_scope      = c4m_new_scope(NULL, C4M_SCOPE_GLOBAL);
+    file_ctx->module_scope      = c4m_new_scope(file_ctx->global_scope,
                                            C4M_SCOPE_MODULE);
-    file_ctx->attribute_scope = c4m_new_scope(NULL, C4M_SCOPE_ATTRIBUTES);
-    file_ctx->imports         = c4m_new_scope(NULL, C4M_SCOPE_IMPORTS);
-    file_ctx->parameters      = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
+    file_ctx->attribute_scope   = c4m_new_scope(NULL, C4M_SCOPE_ATTRIBUTES);
+    file_ctx->imports           = c4m_new_scope(NULL, C4M_SCOPE_IMPORTS);
+    file_ctx->parameters        = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
                                                   c4m_tspec_ref()));
-    file_ctx->fn_def_syms     = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    file_ctx->fn_def_syms       = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    file_ctx->callback_literals = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
 
     ctx.cur->static_scope = file_ctx->module_scope;
     ctx.static_scope      = file_ctx->module_scope;

@@ -46,6 +46,7 @@ typedef struct c4m_file_compile_ctx {
     c4m_xlist_t            *fn_def_syms; // Cache of fns defined.
     c4m_zmodule_info_t     *module_object;
     c4m_xlist_t            *call_patch_locs;
+    c4m_xlist_t            *callback_literals;
     int32_t                 static_size;
     uint32_t                num_params;
     uint16_t                local_module_id;

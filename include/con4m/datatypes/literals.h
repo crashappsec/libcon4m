@@ -13,3 +13,12 @@ typedef enum {
     ST_Tuple  = 8,
     ST_MAX    = 9
 } c4m_lit_syntax_t;
+
+typedef struct {
+    struct c4m_str_t  *litmod;
+    c4m_lit_syntax_t   st;
+    struct c4m_type_t *cast_to;
+    c4m_builtin_t      base_type; // only set for containers from here down.
+    struct c4m_type_t *type;
+    int                num_items;
+} c4m_lit_info_t;
