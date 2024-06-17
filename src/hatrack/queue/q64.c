@@ -70,7 +70,7 @@ q64_init_size(q64_t *self, char size_log)
     }
     else {
         if (size_log < QSIZE_LOG_MIN || size_log > QSIZE_LOG_MAX) {
-            abort();
+            hatrack_panic("invalid size_log value for q64_init_size");
         }
     }
 

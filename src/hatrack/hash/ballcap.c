@@ -104,11 +104,11 @@ ballcap_init_size(ballcap_t *self, char size)
     uint64_t         len;
 
     if (((size_t)size) > (sizeof(intptr_t) * 8)) {
-        abort();
+        hatrack_panic("invalid size in ballcap_init_size");
     }
 
     if (size < HATRACK_MIN_SIZE_LOG) {
-        abort();
+        hatrack_panic("invalid size in ballcap_init_size");
     }
 
     len                 = 1 << size;
@@ -137,9 +137,7 @@ ballcap_cleanup(ballcap_t *self)
 
     mmm_retire_unused(self->store_current);
 
-    if (pthread_mutex_destroy(&self->migrate_mutex)) {
-        abort();
-    }
+    hatrack_mutex_destroy(&self->migrate_mutex);
 
     return;
 }
@@ -314,9 +312,7 @@ ballcap_view_mmm(ballcap_t *self, mmm_thread_t *thread, uint64_t *num, bool sort
             continue;
         }
 
-        if (pthread_mutex_lock(&cur->mutex)) {
-            abort();
-        }
+        hatrack_mutex_lock(&cur->mutex);
 
         record = cur->record;
 
@@ -331,9 +327,7 @@ ballcap_view_mmm(ballcap_t *self, mmm_thread_t *thread, uint64_t *num, bool sort
         }
 
         if (!record || sort_epoch > target_epoch || record->deleted) {
-            if (pthread_mutex_unlock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&cur->mutex);
 
             cur++;
             continue;
@@ -342,9 +336,7 @@ ballcap_view_mmm(ballcap_t *self, mmm_thread_t *thread, uint64_t *num, bool sort
         p->item       = record->item;
         p->sort_epoch = mmm_get_create_epoch(record);
 
-        if (pthread_mutex_unlock(&cur->mutex)) {
-            abort();
-        }
+        hatrack_mutex_unlock(&cur->mutex);
 
         count++;
         p++;
@@ -478,14 +470,10 @@ ballcap_store_put(ballcap_store_t *self,
 
 check_bucket_again:
         if (hatrack_hashes_eq(hv, cur->hv)) {
-            if (pthread_mutex_lock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_lock(&cur->mutex);
 
             if (cur->migrated) {
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 mmm_retire_unused(record);
                 return ballcap_store_put(top->store_current,
@@ -529,22 +517,16 @@ check_bucket_again:
             mmm_commit_write(record);
             mmm_retire(thread, old_record);
 
-            if (pthread_mutex_unlock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&cur->mutex);
 
             return ret;
         }
 
         if (hatrack_bucket_unreserved(cur->hv)) {
-            if (pthread_mutex_lock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_lock(&cur->mutex);
 
             if (cur->migrated) {
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 mmm_retire_unused(record);
                 return ballcap_store_put(top->store_current,
@@ -556,17 +538,13 @@ check_bucket_again:
             }
 
             if (!hatrack_bucket_unreserved(cur->hv)) {
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 goto check_bucket_again;
             }
 
             if (atomic_read(&self->used_count) >= self->threshold) {
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 mmm_retire_unused(record);
 
@@ -587,9 +565,7 @@ check_bucket_again:
             cur->record = record;
             mmm_commit_write(record);
 
-            if (pthread_mutex_unlock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&cur->mutex);
 
             return ret;
         }
@@ -632,14 +608,10 @@ ballcap_store_replace(ballcap_store_t *self,
         }
 
         if (hatrack_hashes_eq(hv, cur->hv)) {
-            if (pthread_mutex_lock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_lock(&cur->mutex);
 
             if (cur->migrated) {
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 return ballcap_store_replace(top->store_current,
                                              thread,
@@ -658,9 +630,7 @@ ballcap_store_replace(ballcap_store_t *self,
                     *found = false;
                 }
 
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
                 return NULL;
             }
 
@@ -684,9 +654,7 @@ ballcap_store_replace(ballcap_store_t *self,
             mmm_commit_write(record);
             mmm_retire(thread, record->next);
 
-            if (pthread_mutex_unlock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&cur->mutex);
 
             return ret;
         }
@@ -722,22 +690,16 @@ ballcap_store_add(ballcap_store_t *self,
 
 check_bucket_again:
         if (hatrack_hashes_eq(hv, cur->hv)) {
-            if (pthread_mutex_lock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_lock(&cur->mutex);
 
             if (cur->migrated) {
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 return ballcap_store_add(top->store_current, thread, top, hv, item);
             }
 
             if (!cur->record->deleted) {
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 return false;
             }
@@ -746,30 +708,22 @@ check_bucket_again:
         }
 
         if (hatrack_bucket_unreserved(cur->hv)) {
-            if (pthread_mutex_lock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_lock(&cur->mutex);
 
             if (cur->migrated) {
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 return ballcap_store_add(top->store_current, thread, top, hv, item);
             }
 
             if (!hatrack_bucket_unreserved(cur->hv)) {
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 goto check_bucket_again;
             }
 
             if (atomic_read(&self->used_count) >= self->threshold) {
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 ballcap_store_migrate(self, thread, top);
                 return ballcap_store_add(top->store_current, thread, top, hv, item);
@@ -793,9 +747,7 @@ fill_record:
                 mmm_retire(thread, record->next);
             }
 
-            if (pthread_mutex_unlock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&cur->mutex);
 
             return true;
         }
@@ -836,14 +788,10 @@ ballcap_store_remove(ballcap_store_t *self,
         }
 
         if (hatrack_hashes_eq(hv, cur->hv)) {
-            if (pthread_mutex_lock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_lock(&cur->mutex);
 
             if (cur->migrated) {
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 return ballcap_store_remove(top->store_current, thread, top, hv, found);
             }
@@ -853,9 +801,7 @@ ballcap_store_remove(ballcap_store_t *self,
                     *found = false;
                 }
 
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 return NULL;
             }
@@ -876,9 +822,7 @@ ballcap_store_remove(ballcap_store_t *self,
                 *found = true;
             }
 
-            if (pthread_mutex_unlock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&cur->mutex);
 
             return ret;
         }
@@ -904,18 +848,14 @@ ballcap_store_migrate(ballcap_store_t *store, mmm_thread_t *thread, ballcap_t *t
     uint64_t          i, n, bix;
     uint64_t          items_to_migrate;
 
-    if (pthread_mutex_lock(&top->migrate_mutex)) {
-        abort();
-    }
+    hatrack_mutex_lock(&top->migrate_mutex);
 
     if (store != top->store_current) {
         // Someone else migrated it, and now we can go finish our
         // write.
         new_store = top->store_current;
 
-        if (pthread_mutex_unlock(&top->migrate_mutex)) {
-            abort();
-        }
+        hatrack_mutex_unlock(&top->migrate_mutex);
 
         return new_store;
     }
@@ -926,9 +866,7 @@ ballcap_store_migrate(ballcap_store_t *store, mmm_thread_t *thread, ballcap_t *t
     for (n = 0; n <= cur_last_slot; n++) {
         cur = &store->buckets[n];
 
-        if (pthread_mutex_lock(&cur->mutex)) {
-            abort();
-        }
+        hatrack_mutex_lock(&cur->mutex);
 
         if (!hatrack_bucket_unreserved(cur->hv) && !cur->record->deleted) {
             items_to_migrate++;
@@ -974,16 +912,12 @@ ballcap_store_migrate(ballcap_store_t *store, mmm_thread_t *thread, ballcap_t *t
     for (n = 0; n <= cur_last_slot; n++) {
         cur = &store->buckets[n];
 
-        if (pthread_mutex_unlock(&cur->mutex)) {
-            abort();
-        }
+        hatrack_mutex_unlock(&cur->mutex);
     }
 
     mmm_retire_fast(thread, store);
 
-    if (pthread_mutex_unlock(&top->migrate_mutex)) {
-        abort();
-    }
+    hatrack_mutex_unlock(&top->migrate_mutex);
 
     return new_store;
 }

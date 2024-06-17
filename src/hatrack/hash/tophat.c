@@ -471,9 +471,7 @@ tophat_put_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *it
          * necessary will have set it, before releasing the lock).  If
          * not, we'll do a migration, and then retry in the new table.
          */
-        if (pthread_mutex_lock(&self->mutex)) {
-            abort();
-        }
+        hatrack_mutex_lock(&self->mutex);
 
         mt_table = atomic_read(&self->mt_table);
 
@@ -481,10 +479,7 @@ tophat_put_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *it
             mt_table = tophat_migrate(self, thread);
         }
 
-        if (pthread_mutex_unlock(&self->mutex)) {
-            abort();
-        }
-
+        hatrack_mutex_unlock(&self->mutex);
         mt_table = atomic_load(&self->mt_table);
 
         return (*self->mt_vtable.put)(mt_table, thread, hv, item, found);
@@ -519,9 +514,7 @@ tophat_put_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *it
                     *found = false;
                 }
 
-                if (pthread_mutex_unlock(&self->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&self->mutex);
 
                 return NULL;
             }
@@ -534,9 +527,7 @@ tophat_put_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *it
                 *found = true;
             }
 
-            if (pthread_mutex_unlock(&self->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&self->mutex);
 
             return ret;
         }
@@ -544,9 +535,7 @@ tophat_put_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *it
             if (ctx->used_count + 1 == ctx->threshold) {
                 tophat_st_migrate(ctx, thread);
 
-                if (pthread_mutex_unlock(&self->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&self->mutex);
 
                 return tophat_put_mmm(self, thread, hv, item, found);
             }
@@ -564,9 +553,7 @@ tophat_put_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *it
                 *found = false;
             }
 
-            if (pthread_mutex_unlock(&self->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&self->mutex);
 
             return NULL;
         }
@@ -601,9 +588,7 @@ tophat_replace_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void
     }
 
     if (pthread_mutex_trylock(&self->mutex)) {
-        if (pthread_mutex_lock(&self->mutex)) {
-            abort();
-        }
+        hatrack_mutex_lock(&self->mutex);
 
         mt_table = atomic_read(&self->mt_table);
 
@@ -611,9 +596,7 @@ tophat_replace_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void
             mt_table = tophat_migrate(self, thread);
         }
 
-        if (pthread_mutex_unlock(&self->mutex)) {
-            abort();
-        }
+        hatrack_mutex_unlock(&self->mutex);
 
         mt_table = atomic_load(&self->mt_table);
 
@@ -635,9 +618,7 @@ empty:
                     *found = false;
                 }
 
-                if (pthread_mutex_unlock(&self->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&self->mutex);
 
                 return NULL;
             }
@@ -651,9 +632,7 @@ empty:
                 *found = true;
             }
 
-            if (pthread_mutex_unlock(&self->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&self->mutex);
 
             return ret;
         }
@@ -691,9 +670,7 @@ tophat_add_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *it
     }
 
     if (pthread_mutex_trylock(&self->mutex)) {
-        if (pthread_mutex_lock(&self->mutex)) {
-            abort();
-        }
+        hatrack_mutex_lock(&self->mutex);
 
         mt_table = atomic_read(&self->mt_table);
 
@@ -701,9 +678,7 @@ tophat_add_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *it
             mt_table = tophat_migrate(self, thread);
         }
 
-        if (pthread_mutex_unlock(&self->mutex)) {
-            abort();
-        }
+        hatrack_mutex_unlock(&self->mutex);
 
         mt_table = atomic_load(&self->mt_table);
 
@@ -727,15 +702,11 @@ tophat_add_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *it
 
                 ctx->item_count++;
 
-                if (pthread_mutex_unlock(&self->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&self->mutex);
 
                 return true;
             }
-            if (pthread_mutex_unlock(&self->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&self->mutex);
 
             return false;
         }
@@ -744,9 +715,7 @@ tophat_add_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *it
             if (ctx->used_count + 1 == ctx->threshold) {
                 tophat_st_migrate(ctx, thread);
 
-                if (pthread_mutex_unlock(&self->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&self->mutex);
 
                 return tophat_add_mmm(self, thread, hv, item);
             }
@@ -760,9 +729,7 @@ tophat_add_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, void *it
 
             atomic_store(&cur->record, record);
 
-            if (pthread_mutex_unlock(&self->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&self->mutex);
 
             return true;
         }
@@ -797,9 +764,7 @@ tophat_remove_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool 
     }
 
     if (pthread_mutex_trylock(&self->mutex)) {
-        if (pthread_mutex_lock(&self->mutex)) {
-            abort();
-        }
+        hatrack_mutex_lock(&self->mutex);
 
         mt_table = atomic_read(&self->mt_table);
 
@@ -807,9 +772,7 @@ tophat_remove_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool 
             mt_table = tophat_migrate(self, thread);
         }
 
-        if (pthread_mutex_unlock(&self->mutex)) {
-            abort();
-        }
+        hatrack_mutex_unlock(&self->mutex);
 
         mt_table = atomic_load(&self->mt_table);
 
@@ -830,9 +793,7 @@ tophat_remove_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool 
                     *found = false;
                 }
 
-                if (pthread_mutex_unlock(&self->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&self->mutex);
 
                 return NULL;
             }
@@ -850,9 +811,7 @@ tophat_remove_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool 
                 *found = true;
             }
 
-            if (pthread_mutex_unlock(&self->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&self->mutex);
 
             return ret;
         }
@@ -861,9 +820,7 @@ tophat_remove_mmm(tophat_t *self, mmm_thread_t *thread, hatrack_hash_t hv, bool 
                 *found = false;
             }
 
-            if (pthread_mutex_unlock(&self->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&self->mutex);
 
             return NULL;
         }
@@ -1009,11 +966,11 @@ tophat_init_base(tophat_t *self, char size)
     tophat_st_ctx_t *table;
 
     if (((size_t)size) > (sizeof(intptr_t) * 8)) {
-        abort();
+        hatrack_panic("invalid size in tophat_init_base");
     }
 
     if (size < HATRACK_MIN_SIZE_LOG) {
-        abort();
+        hatrack_panic("invalid size in tophat_init_base");
     }
 
     table_len         = 1 << size;

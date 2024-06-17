@@ -98,11 +98,11 @@ newshat_init_size(newshat_t *self, char size)
     uint64_t         len;
 
     if (((size_t)size) > (sizeof(intptr_t) * 8)) {
-        abort();
+        hatrack_panic("invalid size in newshat_init_size");
     }
 
     if (size < HATRACK_MIN_SIZE_LOG) {
-        abort();
+        hatrack_panic("invalid size in newshat_init_size");
     }
 
     len                 = 1 << size;
@@ -132,9 +132,7 @@ newshat_cleanup(newshat_t *self)
 {
     mmm_retire_unused(self->store_current);
 
-    if (pthread_mutex_destroy(&self->migrate_mutex)) {
-        abort();
-    }
+    hatrack_mutex_destroy(&self->migrate_mutex);
 
     return;
 }
@@ -558,16 +556,12 @@ newshat_store_put(newshat_store_t *self,
          * with a miss, because the bucket isn't written, resulting in
          * no action, which is the correct outcome).
          */
-        if (pthread_mutex_lock(&cur->mutex)) {
-            abort();
-        }
+        hatrack_mutex_lock(&cur->mutex);
         // We could have checked this before acquiring the lock,
         // but we would still have to check it again after. It's
         // not worth checking twice.
         if (cur->migrated) {
-            if (pthread_mutex_unlock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&cur->mutex);
             return newshat_store_put(top->store_current, thread, top, hv, item, found);
         }
 
@@ -585,9 +579,7 @@ newshat_store_put(newshat_store_t *self,
                     *found = false;
                 }
 
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 return NULL;
             }
@@ -602,18 +594,14 @@ newshat_store_put(newshat_store_t *self,
                 *found = true;
             }
 
-            if (pthread_mutex_unlock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&cur->mutex);
 
             return ret;
         }
 
         if (hatrack_bucket_unreserved(cur->hv)) {
             if (atomic_read(&self->used_count) >= self->threshold) {
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 self = newshat_store_migrate(self, thread, top);
 
@@ -633,15 +621,11 @@ newshat_store_put(newshat_store_t *self,
                 *found = false;
             }
 
-            if (pthread_mutex_unlock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&cur->mutex);
 
             return NULL;
         }
-        if (pthread_mutex_unlock(&cur->mutex)) {
-            abort();
-        }
+        hatrack_mutex_unlock(&cur->mutex);
 
         bix = (bix + 1) & last_slot;
     }
@@ -676,14 +660,10 @@ newshat_store_replace(newshat_store_t *self,
         // bucket once we've made sure we've found the right one.
         // See the note in newshat_store_put() for more detail.
         if (hatrack_hashes_eq(hv, cur->hv)) {
-            if (pthread_mutex_lock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_lock(&cur->mutex);
 
             if (cur->migrated) {
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 return newshat_store_put(top->store_current,
                                          thread,
@@ -700,9 +680,7 @@ newshat_store_replace(newshat_store_t *self,
                     *found = false;
                 }
 
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 return NULL;
             }
@@ -718,9 +696,7 @@ newshat_store_replace(newshat_store_t *self,
                 *found = true;
             }
 
-            if (pthread_mutex_unlock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&cur->mutex);
 
             return ret;
         }
@@ -764,14 +740,10 @@ newshat_store_add(newshat_store_t *self,
 
         // This operation needs to acquire the bucket lock before
         // running tests, per the comment in newshat_store_put().
-        if (pthread_mutex_lock(&cur->mutex)) {
-            abort();
-        }
+        hatrack_mutex_lock(&cur->mutex);
 
         if (cur->migrated) {
-            if (pthread_mutex_unlock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&cur->mutex);
 
             return newshat_store_add(top->store_current, thread, top, hv, item);
         }
@@ -786,25 +758,19 @@ newshat_store_add(newshat_store_t *self,
                 atomic_store(&cur->record, record);
                 atomic_fetch_add(&top->item_count, 1);
 
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 return true;
             }
 
-            if (pthread_mutex_unlock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&cur->mutex);
 
             return false;
         }
 
         if (hatrack_bucket_unreserved(cur->hv)) {
             if (atomic_read(&self->used_count) >= self->threshold) {
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 self = newshat_store_migrate(self, thread, top);
 
@@ -820,15 +786,11 @@ newshat_store_add(newshat_store_t *self,
 
             atomic_store(&cur->record, record);
 
-            if (pthread_mutex_unlock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&cur->mutex);
 
             return true;
         }
-        if (pthread_mutex_unlock(&cur->mutex)) {
-            abort();
-        }
+        hatrack_mutex_unlock(&cur->mutex);
 
         bix = (bix + 1) & last_slot;
     }
@@ -867,14 +829,10 @@ newshat_store_remove(newshat_store_t *self,
         }
 
         if (hatrack_hashes_eq(hv, cur->hv)) {
-            if (pthread_mutex_lock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_lock(&cur->mutex);
 
             if (cur->migrated) {
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 return newshat_store_remove(top->store_current, thread, top, hv, found);
             }
@@ -885,9 +843,7 @@ newshat_store_remove(newshat_store_t *self,
                     *found = false;
                 }
 
-                if (pthread_mutex_unlock(&cur->mutex)) {
-                    abort();
-                }
+                hatrack_mutex_unlock(&cur->mutex);
 
                 return NULL;
             }
@@ -902,9 +858,7 @@ newshat_store_remove(newshat_store_t *self,
                 *found = true;
             }
 
-            if (pthread_mutex_unlock(&cur->mutex)) {
-                abort();
-            }
+            hatrack_mutex_unlock(&cur->mutex);
 
             return ret;
         }
@@ -937,9 +891,7 @@ newshat_store_migrate(newshat_store_t *store, mmm_thread_t *thread, newshat_t *t
      * that ensures only one thread is working on migrations.
      * We're definitely relying on a fair scheduler.
      */
-    if (pthread_mutex_lock(&top->migrate_mutex)) {
-        abort();
-    }
+    hatrack_mutex_lock(&top->migrate_mutex);
 
     /* Our first order of business once we acquire the lock is to make
      * sure that there's still work to do.  Esentially, the first
@@ -951,9 +903,7 @@ newshat_store_migrate(newshat_store_t *store, mmm_thread_t *thread, newshat_t *t
         // write (handled by the code that called newshat_store_migrate).
         new_store = top->store_current;
 
-        if (pthread_mutex_unlock(&top->migrate_mutex)) {
-            abort();
-        }
+        hatrack_mutex_unlock(&top->migrate_mutex);
 
         return new_store;
     }
@@ -969,9 +919,7 @@ newshat_store_migrate(newshat_store_t *store, mmm_thread_t *thread, newshat_t *t
         cur    = &store->buckets[n];
         record = atomic_read(&cur->record);
 
-        if (pthread_mutex_lock(&cur->mutex)) {
-            abort();
-        }
+        hatrack_mutex_lock(&cur->mutex);
 
         if (record.epoch) {
             items_to_migrate++;
@@ -1033,14 +981,10 @@ newshat_store_migrate(newshat_store_t *store, mmm_thread_t *thread, newshat_t *t
     for (n = 0; n <= cur_last_slot; n++) {
         cur = &store->buckets[n];
 
-        if (pthread_mutex_unlock(&cur->mutex)) {
-            abort();
-        }
+        hatrack_mutex_unlock(&cur->mutex);
     }
 
-    if (pthread_mutex_unlock(&top->migrate_mutex)) {
-        abort();
-    }
+    hatrack_mutex_unlock(&top->migrate_mutex);
 
     return new_store;
 }

@@ -61,7 +61,7 @@ hatrack_set_init(hatrack_set_t *self, uint32_t item_type)
         self->item_type = item_type;
         break;
     default:
-        abort();
+        hatrack_panic("invalid item_type in hatrack_set_init");
     }
 
     self->hash_info.offsets.hash_offset  = 0;
@@ -580,7 +580,7 @@ hatrack_set_difference_mmm(hatrack_set_t *set1, mmm_thread_t *thread, hatrack_se
     uint64_t            i, j;
 
     if (set1->item_type != set2->item_type) {
-        abort();
+        hatrack_panic("item types do not match in hatrack_set_difference");
     }
 
     ret   = hatrack_set_new(set1->item_type);
@@ -652,7 +652,7 @@ hatrack_set_union_mmm(hatrack_set_t *set1, mmm_thread_t *thread, hatrack_set_t *
     uint64_t            i, j;
 
     if (set1->item_type != set2->item_type) {
-        abort();
+        hatrack_panic("item types do not match in hatrack_set_union");
     }
 
     ret   = hatrack_set_new(set1->item_type);
@@ -753,7 +753,7 @@ hatrack_set_intersection_mmm(hatrack_set_t *set1, mmm_thread_t *thread, hatrack_
     uint64_t            i, j;
 
     if (set1->item_type != set2->item_type) {
-        abort();
+        hatrack_panic("item types do not match in hatrack_set_intersection");
     }
 
     ret   = hatrack_set_new(set1->item_type);
@@ -827,7 +827,7 @@ hatrack_set_disjunction_mmm(hatrack_set_t *set1, mmm_thread_t *thread, hatrack_s
     uint64_t            i, j;
 
     if (set1->item_type != set2->item_type) {
-        abort();
+        hatrack_panic("item types do not match in hatrack_set_disjunction");
     }
 
     ret   = hatrack_set_new(set1->item_type);
@@ -938,7 +938,7 @@ hatrack_set_get_hash_value(hatrack_set_t *self, void *key)
         hv = hash_pointer(loc_to_hash);
         break;
     default:
-        abort();
+        hatrack_panic("invalid item type in hatrack_set_get_hash_value");
     }
 
     if (offset != (int32_t)HATRACK_DICT_NO_CACHE) {
@@ -974,7 +974,8 @@ hatrack_set_hv_sort_cmp(const void *b1, const void *b2)
     }
 
     if (hatrack_hashes_eq(item1->hv, item2->hv)) {
-        abort(); // Shouldn't happen; hash entries should be unique.
+        // Shouldn't happen; hash entries should be unique.
+        hatrack_panic("duplicate hash values in sort comparison");
     }
 
     return -1;
