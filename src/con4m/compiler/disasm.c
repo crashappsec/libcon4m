@@ -433,6 +433,8 @@ fmt_arg_or_imm_no_syms(c4m_vm_t *vm, c4m_zinstruction_t *instr, int i, bool imm)
     case fmt_tcall:
         return c4m_cstr_format("builtin call of [em]{}[/]",
                                fmt_builtin_fn(value));
+    default:
+        c4m_unreachable();
     }
 }
 
