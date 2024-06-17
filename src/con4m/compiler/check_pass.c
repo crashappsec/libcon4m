@@ -2905,6 +2905,27 @@ process_deferred_callbacks(c4m_compile_ctx *cctx)
     }
 }
 
+static void
+order_ffi_decls(c4m_compile_ctx *cctx)
+{
+    // TODO: when incrementally compiling we need to take into
+    // acount existing FFI decl indexing.
+    int n  = c4m_xlist_len(cctx->module_ordering);
+    int ix = 0;
+
+    for (int i = 0; i < n; i++) {
+        c4m_file_compile_ctx *f = c4m_xlist_get(cctx->module_ordering, i, NULL);
+        int                   m = c4m_xlist_len(f->extern_decls);
+
+        for (int j = 0; j < m; j++) {
+            c4m_scope_entry_t *sym  = c4m_xlist_get(f->extern_decls, j, NULL);
+            c4m_ffi_decl_t    *decl = (c4m_ffi_decl_t *)sym->value;
+
+            decl->global_ffi_call_ix = ix++;
+        }
+    }
+}
+
 void
 c4m_check_pass(c4m_compile_ctx *cctx)
 {
@@ -2941,6 +2962,7 @@ c4m_check_pass(c4m_compile_ctx *cctx)
         }
     }
 
+    order_ffi_decls(cctx);
     process_deferred_calls(cctx, all_deferred, num_deferred);
     process_deferred_callbacks(cctx);
 

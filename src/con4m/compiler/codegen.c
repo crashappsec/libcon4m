@@ -638,6 +638,7 @@ gen_native_call(gen_ctx *ctx, c4m_scope_entry_t *fsym)
     if (n != 0) {
         emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-n)));
     }
+
     if (!decl->signature_info->void_return) {
         emit(ctx, C4M_ZPushFromR0);
         gen_unbox_if_needed(ctx, ctx->cur_node, fsym);
@@ -647,6 +648,18 @@ gen_native_call(gen_ctx *ctx, c4m_scope_entry_t *fsym)
 static void
 gen_extern_call(gen_ctx *ctx, c4m_scope_entry_t *fsym)
 {
+    c4m_ffi_decl_t *decl = (c4m_ffi_decl_t *)fsym->value;
+
+    emit(ctx, C4M_ZFFICall, c4m_kw("arg", c4m_ka(decl->global_ffi_call_ix)));
+
+    if (decl->num_ext_params != 0) {
+        emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-decl->num_ext_params)));
+    }
+
+    if (!decl->local_params->void_return) {
+        emit(ctx, C4M_ZPushFromR0);
+        gen_unbox_if_needed(ctx, ctx->cur_node, fsym);
+    }
 }
 
 static void
@@ -665,7 +678,6 @@ gen_call(gen_ctx *ctx)
 
     if (fsym->kind != sk_func) {
         gen_extern_call(ctx, fsym);
-        // emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-1 * nargs)));
     }
     else {
         gen_native_call(ctx, fsym);
@@ -2044,6 +2056,18 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
     for (int i = 0; i < n; i++) {
         c4m_scope_entry_t *sym = c4m_xlist_get(symlist, i, NULL);
         gen_function(ctx, sym, module, vm);
+    }
+
+    int l = c4m_xlist_len(ctx->fctx->extern_decls);
+    if (l != 0) {
+        for (int j = 0; j < l; j++) {
+            c4m_scope_entry_t *d    = c4m_xlist_get(ctx->fctx->extern_decls,
+                                                 j,
+                                                 NULL);
+            c4m_ffi_decl_t    *decl = d->value;
+
+            c4m_xlist_append(vm->obj->ffi_info, decl);
+        }
     }
 
     // Version is not used yet.

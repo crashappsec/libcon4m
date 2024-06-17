@@ -1140,7 +1140,7 @@ handle_extern_block(pass1_ctx *ctx)
 
     if (ext_params != NULL) {
         int64_t n             = c4m_xlist_len(ext_params);
-        info->num_params      = n;
+        info->num_ext_params  = n;
         info->external_name   = external_name;
         info->external_params = c4m_gc_array_alloc(uint8_t, n);
 
@@ -1257,6 +1257,8 @@ next_alloc:
         sym->type  = info->local_params->full_type;
         sym->value = (void *)info;
     }
+
+    c4m_xlist_append(ctx->file_ctx->extern_decls, sym);
 }
 
 static void
@@ -1436,6 +1438,7 @@ c4m_file_decl_pass(c4m_compile_ctx *cctx, c4m_file_compile_ctx *file_ctx)
                                                   c4m_tspec_ref()));
     file_ctx->fn_def_syms       = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
     file_ctx->callback_literals = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    file_ctx->extern_decls      = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
 
     ctx.cur->static_scope = file_ctx->module_scope;
     ctx.static_scope      = file_ctx->module_scope;

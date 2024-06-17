@@ -31,7 +31,23 @@ typedef struct {
     c4m_ffi_type  *rtype;
     unsigned       bytes;
     unsigned       flags;
+    // Currently, no platform in libffi takes more than two 'unsigned int's
+    // worth of space, so only one of these should be necessary, but
+    // adding an extra one just in case; enough platforms take two fields
+    // that I can see there eventually being a platform w/ 2 64-bit slots.
+    // We alloc ourselves based on this size, so no worries there.
+    uint64_t       extra_cif1;
+    uint64_t       extra_cif2;
 } c4m_ffi_cif;
+
+typedef struct {
+    void          *fptr;
+    c4m_utf8_t    *local_name;
+    c4m_utf8_t    *extern_name;
+    c4m_ffi_cif    cif;
+    c4m_ffi_type **args;
+    c4m_ffi_type  *ret;
+} c4m_zffi_cif;
 
 typedef enum {
     C4M_FFI_OK = 0,
@@ -40,15 +56,17 @@ typedef enum {
     C4M_FFI_BAD_ARGTYPE
 } c4m_ffi_status;
 
-typedef struct {
+typedef struct c4m_ffi_decl_t {
     c4m_utf8_t            *short_doc;
     c4m_utf8_t            *long_doc;
     c4m_utf8_t            *local_name;
     struct c4m_sig_info_t *local_params;
-    int                    num_params;
+    int                    num_ext_params;
+    int                    global_ffi_call_ix;
     c4m_utf8_t            *external_name;
     uint8_t               *external_params;
     uint8_t                external_return_type;
+    c4m_zffi_cif           cif;
 } c4m_ffi_decl_t;
 
 extern c4m_ffi_type ffi_type_void;
@@ -62,12 +80,15 @@ extern c4m_ffi_type ffi_type_uint64;
 extern c4m_ffi_type ffi_type_sint64;
 extern c4m_ffi_type ffi_type_float;
 extern c4m_ffi_type ffi_type_double;
-extern c4m_ffi_type ffi_type_uchar;
-extern c4m_ffi_type ffi_type_schar;
-extern c4m_ffi_type ffi_type_ushort;
-extern c4m_ffi_type ffi_type_sshort;
-extern c4m_ffi_type ffi_type_uint;
-extern c4m_ffi_type ffi_type_ulong;
-extern c4m_ffi_type ffi_type_slong;
-extern c4m_ffi_type ffi_type_longdouble;
 extern c4m_ffi_type ffi_type_pointer;
+
+#define ffi_type_uchar  ffi_type_uint8
+#define ffi_type_schar  ffi_type_sint8
+#define ffi_type_ushort ffi_type_uint16
+#define ffi_type_sshort ffi_type_sint16
+#define ffi_type_ushort ffi_type_uint16
+#define ffi_type_sshort ffi_type_sint16
+#define ffi_type_uint   ffi_type_uint32
+#define ffi_type_sint   ffi_type_sint32
+#define ffi_type_ulong  ffi_type_uint64
+#define ffi_type_slong  ffi_type_sint64

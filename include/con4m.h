@@ -103,3 +103,5 @@
 #include "compiler/codegen.h"
 
 #include "con4m/set.h"
+
+#include "con4m/ffi.h"

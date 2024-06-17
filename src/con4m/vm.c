@@ -638,7 +638,32 @@ c4m_vm_call_module(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 static void
 c4m_vm_ffi_call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
 {
-    // TODO ffi_call
+    c4m_ffi_decl_t *decl = c4m_xlist_get(tstate->vm->obj->ffi_info,
+                                         i->arg,
+                                         NULL);
+
+    if (decl == NULL) {
+        fprintf(stderr, "Could not load external function.\n");
+        abort();
+    }
+
+    c4m_zffi_cif *ffiinfo = &decl->cif;
+
+    void **args;
+
+    if (!ffiinfo->cif.nargs) {
+        args = NULL;
+    }
+    else {
+        args  = c4m_gc_array_alloc(void *, ffiinfo->cif.nargs);
+        int n = ffiinfo->cif.nargs;
+
+        for (unsigned int i = 0; i < ffiinfo->cif.nargs; i++) {
+            args[--n] = &tstate->sp[i].rvalue.obj;
+        }
+    }
+
+    ffi_call(&ffiinfo->cif, ffiinfo->fptr, &tstate->r0, args);
 }
 
 static void
@@ -1469,10 +1494,51 @@ c4m_vm_load_const_data(c4m_vm_t *vm)
     c4m_internal_lock_then_unstash_heap();
 }
 
+static inline void
+c4m_vm_setup_ffi(c4m_vm_t *vm)
+{
+    vm->ffi_info_entries = c4m_xlist_len(vm->obj->ffi_info);
+
+    if (vm->ffi_info_entries == 0) {
+        return;
+    }
+
+    for (int i = 0; i < vm->ffi_info_entries; i++) {
+        c4m_ffi_decl_t *ffi_info = c4m_xlist_get(vm->obj->ffi_info, i, NULL);
+        c4m_zffi_cif   *cif      = &ffi_info->cif;
+
+        cif->fptr = c4m_ffi_find_symbol(ffi_info->external_name, NULL);
+
+        if (!cif->fptr) {
+            // TODO: warn. For now, just error if it gets called.
+            continue;
+        }
+
+        int            n       = ffi_info->num_ext_params;
+        c4m_ffi_type **arglist = c4m_gc_array_alloc(c4m_ffi_type *, n);
+        c4m_ffi_type  *ret     = c4m_gc_alloc(c4m_ffi_type *);
+
+        for (int j = 0; j < n; j++) {
+            uint8_t param = ffi_info->external_params[j];
+
+            arglist[j] = c4m_ffi_arg_type_map(param);
+        }
+        ret            = c4m_ffi_arg_type_map(ffi_info->external_return_type);
+        cif->cif.nargs = n;
+
+        ffi_prep_cif(&cif->cif,
+                     C4M_FFI_DEFAULT_ABI,
+                     n,
+                     ret,
+                     arglist);
+    }
+}
+
 void
 c4m_vm_setup_runtime(c4m_vm_t *vm)
 {
     c4m_vm_load_const_data(vm);
+    c4m_vm_setup_ffi(vm);
 }
 
 void

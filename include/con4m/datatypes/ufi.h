@@ -1,15 +1,22 @@
 #pragma once
 #include "con4m.h"
 
+typedef struct {
+    c4m_utf8_t  *name;
+    c4m_type_t  *type;
+    unsigned int ffi_holds  : 1;
+    unsigned int ffi_allocs : 1;
+} c4m_fn_param_info_t;
+
 typedef struct c4m_sig_info_t {
     c4m_type_t          *full_type;
-    c4m_scope_t         *fn_scope;
-    c4m_scope_t         *formals;
     c4m_fn_param_info_t *param_info;
     c4m_fn_param_info_t  return_info;
     int                  num_params;
     unsigned int         pure        : 1;
     unsigned int         void_return : 1;
+    c4m_scope_t         *fn_scope;
+    c4m_scope_t         *formals;
 } c4m_sig_info_t;
 
 typedef struct {
@@ -43,7 +50,6 @@ typedef struct {
 } c4m_fn_decl_t;
 
 typedef struct c4m_funcinfo_t {
-    void *fptr;
     union {
         c4m_ffi_decl_t *ffi_interface;
         c4m_fn_decl_t  *local_interface;

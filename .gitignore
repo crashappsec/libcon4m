@@ -3,3 +3,4 @@ subprojects/*/
 .meson_last
 .vscode
 .cache
+deps/local
