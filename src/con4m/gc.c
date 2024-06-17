@@ -96,15 +96,6 @@ c4m_initialize_gc()
         c4m_gc_trace("init:set_guard:%llx", c4m_gc_guard);
         c4m_gc_trace("init:global_root_addr:@%p", global_roots);
 
-        // use c4m_gc_malloc_wrapper for hatrack's zalloc function since our
-        // gc allocator always returns zeroed memory.
-        // hatrack_setmallocfns(NULL,
-        // NULL,
-        // NULL,
-        // NULL,
-        // c4m_gc_malloc_wrapper,
-        // NULL);
-
         hatrack_dict_init(global_roots, HATRACK_DICT_KEY_TYPE_PTR);
     }
 }
