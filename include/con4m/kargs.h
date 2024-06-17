@@ -173,8 +173,17 @@ _c4m_kw_float(c4m_karg_info_t *provided, char *name, double *ptr)
 // print(foo, bar, boz, kw("file", stdin, "sep", ' ', "end", '\n',
 //                         "flush", false ));
 
-#define c4m_ka(x)   ((int64_t)x)
+#define c4m_ka(x) ((int64_t)x)
+
+#ifdef C4M_DEBUG_KARGS
+#define c4m_kw(...) c4m_pass_kargs(PP_NARG(__VA_ARGS__), \
+                                   (char *)__FILE__,     \
+                                   (int)__LINE__,        \
+                                   __VA_ARGS__),         \
+                    NULL
+#else
 #define c4m_kw(...) c4m_pass_kargs(PP_NARG(__VA_ARGS__), __VA_ARGS__), NULL
+#endif
 #define c4m_karg_only_init(last)                           \
     va_list _args;                                         \
     va_start(_args, last);                                 \

@@ -1676,7 +1676,7 @@ _c4m_grid_render(c4m_grid_t *grid, ...)
 }
 
 c4m_utf32_t *
-c4m_grid_to_str(c4m_grid_t *g, to_str_use_t how)
+c4m_grid_to_str(c4m_grid_t *g)
 {
     c4m_xlist_t *l = c4m_grid_render(g);
 
@@ -2219,41 +2219,18 @@ _c4m_grid_tree(c4m_tree_node_t *tree, ...)
 const c4m_vtable_t c4m_grid_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)grid_init,
-        (c4m_vtable_entry)c4m_grid_to_str,
-        NULL, // Format; use default to_str
-        NULL,
-        (c4m_vtable_entry)c4m_grid_marshal,
-        (c4m_vtable_entry)c4m_grid_unmarshal,
-        NULL, // can coerce
-        NULL, // do coerce
-        NULL, // No literal rep.
-        NULL, // Default copy
-        NULL, // No add right now.
-        NULL, // No sub
-        NULL, // No mul
-        NULL, // No div
-        NULL, // No mod
-        NULL, // EQ
-        NULL, // LT
-        NULL, // GT
-        NULL, // No len
-        NULL, // No index
-        NULL, // No index
-        NULL, // No slice
-        NULL, // No slice
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)grid_init,
+        [C4M_BI_TO_STR]      = (c4m_vtable_entry)c4m_grid_to_str,
+        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_grid_marshal,
+        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_grid_unmarshal,
     },
 };
 
 const c4m_vtable_t c4m_renderable_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)renderable_init,
-        NULL,
-        NULL,
-        NULL,
-        (c4m_vtable_entry)c4m_renderable_marshal,
-        (c4m_vtable_entry)c4m_renderable_unmarshal,
-        NULL,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)renderable_init,
+        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_renderable_marshal,
+        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_renderable_unmarshal,
     },
 };

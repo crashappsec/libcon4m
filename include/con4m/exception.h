@@ -169,6 +169,7 @@ void                   c4m_exception_uncaught(c4m_exception_t *);
 void                   c4m_exception_raise(c4m_exception_t *,
                                            char *,
                                            int) __attribute((__noreturn__));
+c4m_utf8_t            *c4m_repr_exception_stack_no_vm(c4m_utf8_t *);
 
 static inline c4m_utf8_t *
 c4m_exception_get_file(c4m_exception_t *exception)

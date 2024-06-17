@@ -18,6 +18,12 @@ extern c4m_obj_t *c4m_stream_read_all(c4m_stream_t *);
 #define c4m_print(s, ...) _c4m_print(s, KFUNC(__VA_ARGS__))
 
 static inline bool
+c4m_stream_put_binary(c4m_stream_t *s, void *p, uint64_t len)
+{
+    return c4m_stream_raw_write(s, len, (char *)p) == len;
+}
+
+static inline bool
 c4m_stream_putc(c4m_stream_t *s, char c)
 {
     return c4m_stream_raw_write(s, 1, &c) == 1;
@@ -85,7 +91,7 @@ c4m_buffer_instream(c4m_buf_t *inbuf)
 }
 
 static inline c4m_stream_t *
-c4m_buffer_outstream(c4m_buf_t *outbuf)
+c4m_buffer_outstream(c4m_buf_t *outbuf, bool append)
 {
     return c4m_new(c4m_tspec_stream(),
                    c4m_kw("buffer",
@@ -93,7 +99,9 @@ c4m_buffer_outstream(c4m_buf_t *outbuf)
                           "read",
                           c4m_ka(false),
                           "write",
-                          c4m_ka(true)));
+                          c4m_ka(true),
+                          "append",
+                          c4m_ka(append)));
 }
 
 static inline c4m_stream_t *

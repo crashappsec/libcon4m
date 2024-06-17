@@ -77,7 +77,8 @@ c4m_list_marshal(flexarray_t  *r,
 
     if (by_val) {
         for (uint64_t i = 0; i < len; i++) {
-            c4m_marshal_u64((uint64_t)flexarray_view_next(view, NULL), s);
+            uint64_t n = (uint64_t)flexarray_view_next(view, NULL);
+            c4m_marshal_u64(n, s);
         }
     }
     else {
@@ -101,7 +102,8 @@ c4m_list_unmarshal(flexarray_t *r, c4m_stream_t *s, c4m_dict_t *memos)
 
     if (by_val) {
         for (uint64_t i = 0; i < len; i++) {
-            flexarray_set(r, i, (void *)c4m_unmarshal_u64(s));
+            uint64_t n = c4m_unmarshal_u64(s);
+            flexarray_set(r, i, (void *)n);
         }
     }
     else {
@@ -169,12 +171,16 @@ list_copy(flexarray_t *list)
 {
     flex_view_t *view = flexarray_view(list);
     int64_t      len  = flexarray_view_len(view);
-    flexarray_t *res  = c4m_new(c4m_get_my_type((c4m_obj_t)list),
-                               c4m_kw("length", c4m_ka(len)));
+    c4m_type_t  *myty = c4m_get_my_type(list);
+
+    flexarray_t *res    = c4m_new(myty, c4m_kw("length", c4m_ka(len)));
+    c4m_type_t  *itemty = c4m_tspec_get_param(myty, 0);
+
+    itemty = c4m_global_resolve_type(itemty);
 
     for (int i = 0; i < len; i++) {
         c4m_obj_t item = flexarray_view_next(view, NULL);
-        flexarray_set(res, i, c4m_copy_object(item));
+        flexarray_set(res, i, c4m_copy_object_of_type(item, itemty));
     }
 
     return res;
@@ -320,7 +326,7 @@ list_set_slice(flexarray_t *list, int64_t start, int64_t end, flexarray_t *new)
 }
 
 static c4m_str_t *
-list_repr(flexarray_t *list, to_str_use_t how)
+list_repr(flexarray_t *list)
 {
     c4m_type_t  *list_type   = c4m_get_my_type(list);
     c4m_xlist_t *type_params = c4m_tspec_get_parameters(list_type);
@@ -335,16 +341,27 @@ list_repr(flexarray_t *list, to_str_use_t how)
         if (err) {
             continue;
         }
-        c4m_str_t *s = c4m_repr(item, item_type, how);
+        c4m_str_t *s = c4m_repr(item, item_type);
         c4m_xlist_append(items, s);
     }
 
     c4m_str_t *sep    = c4m_get_comma_const();
     c4m_str_t *result = c4m_str_join(items, sep);
 
-    if (how == C4M_REPR_QUOTED) {
-        result = c4m_str_concat(c4m_get_lbrak_const(),
-                                c4m_str_concat(result, c4m_get_rbrak_const()));
+    result = c4m_str_concat(c4m_get_lbrak_const(),
+                            c4m_str_concat(result, c4m_get_rbrak_const()));
+
+    return result;
+}
+
+static flexarray_t *
+to_list_lit(c4m_type_t *objtype, c4m_xlist_t *items, c4m_utf8_t *litmod)
+{
+    uint64_t     n      = c4m_xlist_len(items);
+    flexarray_t *result = c4m_new(objtype, c4m_kw("length", c4m_ka(n)));
+
+    for (unsigned int i = 0; i < n; i++) {
+        list_set(result, i, c4m_xlist_get(items, i, NULL));
     }
 
     return result;
@@ -353,56 +370,48 @@ list_repr(flexarray_t *list, to_str_use_t how)
 const c4m_vtable_t c4m_list_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)c4m_list_init,
-        (c4m_vtable_entry)list_repr,
-        NULL,
-        NULL, // no finalizer
-        (c4m_vtable_entry)c4m_list_marshal,
-        (c4m_vtable_entry)c4m_list_unmarshal,
-        (c4m_vtable_entry)list_can_coerce_to,
-        (c4m_vtable_entry)list_coerce_to,
-        NULL, // From lit,
-        (c4m_vtable_entry)list_copy,
-        (c4m_vtable_entry)flexarray_add,
-        NULL, // Subtract
-        NULL, // Mul
-        NULL, // Div
-        NULL, // MOD
-        NULL, // EQ
-        NULL, // LT
-        NULL, // GT
-        (c4m_vtable_entry)flexarray_len,
-        (c4m_vtable_entry)list_get,
-        (c4m_vtable_entry)list_set,
-        (c4m_vtable_entry)list_get_slice,
-        (c4m_vtable_entry)list_set_slice,
+        [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)c4m_list_init,
+        [C4M_BI_TO_STR]        = (c4m_vtable_entry)list_repr,
+        [C4M_BI_MARSHAL]       = (c4m_vtable_entry)c4m_list_marshal,
+        [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_list_unmarshal,
+        [C4M_BI_COERCIBLE]     = (c4m_vtable_entry)list_can_coerce_to,
+        [C4M_BI_COERCE]        = (c4m_vtable_entry)list_coerce_to,
+        [C4M_BI_COPY]          = (c4m_vtable_entry)list_copy,
+        [C4M_BI_ADD]           = (c4m_vtable_entry)flexarray_add,
+        [C4M_BI_LEN]           = (c4m_vtable_entry)flexarray_len,
+        [C4M_BI_INDEX_GET]     = (c4m_vtable_entry)list_get,
+        [C4M_BI_INDEX_SET]     = (c4m_vtable_entry)list_set,
+        [C4M_BI_SLICE_GET]     = (c4m_vtable_entry)list_get_slice,
+        [C4M_BI_SLICE_SET]     = (c4m_vtable_entry)list_set_slice,
+        [C4M_BI_VIEW]          = (c4m_vtable_entry)flexarray_view,
+        [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)to_list_lit,
     },
 };
 
 const c4m_vtable_t c4m_queue_vtable = {
     .num_entries = 1,
     .methods     = {
-        (c4m_vtable_entry)c4m_queue_init,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_queue_init,
     },
 };
 
 const c4m_vtable_t c4m_ring_vtable = {
     .num_entries = 1,
     .methods     = {
-        (c4m_vtable_entry)c4m_ring_init,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_ring_init,
     },
 };
 
 const c4m_vtable_t c4m_logring_vtable = {
     .num_entries = 1,
     .methods     = {
-        (c4m_vtable_entry)c4m_logring_init,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_logring_init,
     },
 };
 
 const c4m_vtable_t c4m_stack_vtable = {
     .num_entries = 1,
     .methods     = {
-        (c4m_vtable_entry)c4m_stack_init,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_stack_init,
     },
 };

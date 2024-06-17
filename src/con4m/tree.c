@@ -201,11 +201,8 @@ c4m_tree_walk(c4m_tree_node_t *t, c4m_walker_fn callback)
 const c4m_vtable_t c4m_tree_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)tree_node_init,
-        NULL,
-        NULL,
-        NULL,
-        (c4m_vtable_entry)tree_node_marshal,
-        (c4m_vtable_entry)tree_node_unmarshal,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)tree_node_init,
+        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)tree_node_marshal,
+        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)tree_node_unmarshal,
     },
 };

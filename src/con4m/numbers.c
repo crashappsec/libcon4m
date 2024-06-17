@@ -18,7 +18,7 @@ clz_u128(__uint128_t u)
 }
 
 static c4m_str_t *
-signed_repr(int64_t item, to_str_use_t how)
+signed_repr(int64_t item)
 {
     // TODO, add hex as an option in how.
     char buf[21] = {
@@ -50,7 +50,7 @@ signed_repr(int64_t item, to_str_use_t how)
 }
 
 static c4m_str_t *
-unsigned_repr(int64_t item, to_str_use_t how)
+unsigned_repr(int64_t item)
 {
     // TODO, add hex as an option in how.
     char buf[21] = {
@@ -196,16 +196,15 @@ raw_hex_parse(c4m_utf8_t *u8, c4m_compile_error_t *err)
             *code = c4m_err_parse_lit_underflow;             \
             return NULL;                                     \
         }                                                    \
-        *result = -1 * (magic_type)val;                      \
+        return c4m_box_##magic_type(-1 * val);               \
     }                                                        \
     else {                                                   \
         if (val > overflow_val) {                            \
             *code = c4m_err_parse_lit_overflow;              \
             return NULL;                                     \
         }                                                    \
-        *result = (magic_type)val;                           \
-    }                                                        \
-    return (c4m_obj_t)result
+        return c4m_box_##magic_type(val);                    \
+    }
 
 #define UNSIGNED_PARSE(overflow_val, magic_type) \
     BASE_INT_PARSE()                             \
@@ -218,9 +217,7 @@ raw_hex_parse(c4m_utf8_t *u8, c4m_compile_error_t *err)
         *code = c4m_err_parse_lit_overflow;      \
         return NULL;                             \
     }                                            \
-    *result = (magic_type)val;                   \
-                                                 \
-    return (c4m_obj_t)result
+    return c4m_box_##magic_type(val)
 
 static c4m_obj_t
 i8_parse(c4m_utf8_t          *s,
@@ -228,9 +225,7 @@ i8_parse(c4m_utf8_t          *s,
          c4m_utf8_t          *litmod,
          c4m_compile_error_t *code)
 {
-    char *result = c4m_new(c4m_tspec_i8());
-
-    SIGNED_PARSE(0x80, 0x7f, char);
+    SIGNED_PARSE(0x80, 0x7f, i8);
 }
 
 static c4m_obj_t
@@ -239,9 +234,7 @@ u8_parse(c4m_utf8_t          *s,
          c4m_utf8_t          *litmod,
          c4m_compile_error_t *code)
 {
-    uint8_t *result = c4m_new(c4m_tspec_byte());
-
-    UNSIGNED_PARSE(0xff, uint8_t);
+    UNSIGNED_PARSE(0xff, u8);
 }
 
 c4m_obj_t
@@ -250,9 +243,7 @@ i32_parse(c4m_utf8_t          *s,
           c4m_utf8_t          *litmod,
           c4m_compile_error_t *code)
 {
-    int32_t *result = c4m_new(c4m_tspec_i32());
-
-    SIGNED_PARSE(0x80000000, 0x7fffffff, int32_t);
+    SIGNED_PARSE(0x80000000, 0x7fffffff, i32);
 }
 
 c4m_obj_t
@@ -261,9 +252,7 @@ u32_parse(c4m_utf8_t          *s,
           c4m_utf8_t          *litmod,
           c4m_compile_error_t *code)
 {
-    uint32_t *result = c4m_new(c4m_tspec_char());
-
-    UNSIGNED_PARSE(0xffffffff, uint32_t);
+    UNSIGNED_PARSE(0xffffffff, u32);
 }
 
 c4m_obj_t
@@ -272,9 +261,7 @@ i64_parse(c4m_utf8_t          *s,
           c4m_utf8_t          *litmod,
           c4m_compile_error_t *code)
 {
-    int64_t *result = c4m_new(c4m_tspec_int());
-
-    SIGNED_PARSE(0x8000000000000000, 0x7fffffffffffffff, int64_t);
+    SIGNED_PARSE(0x8000000000000000, 0x7fffffffffffffff, i64);
 }
 
 c4m_obj_t
@@ -283,9 +270,7 @@ u64_parse(c4m_utf8_t          *s,
           c4m_utf8_t          *litmod,
           c4m_compile_error_t *code)
 {
-    uint64_t *result = c4m_new(c4m_tspec_uint());
-
-    UNSIGNED_PARSE(0xffffffffffffffff, uint64_t);
+    UNSIGNED_PARSE(0xffffffffffffffff, u64);
 }
 
 static c4m_obj_t false_lit = NULL;
@@ -304,9 +289,7 @@ bool_parse(c4m_utf8_t          *u8,
     case 'T':
         if (!strcmp(s, "rue")) {
             if (true_lit == NULL) {
-                int32_t *lit = c4m_new(c4m_tspec_bool());
-                *lit         = 1;
-                true_lit     = (c4m_obj_t)lit;
+                true_lit = c4m_box_bool(true);
                 c4m_gc_register_root(&true_lit, 1);
             }
             return true_lit;
@@ -316,9 +299,7 @@ bool_parse(c4m_utf8_t          *u8,
     case 'F':
         if (!strcmp(s, "alse")) {
             if (false_lit == NULL) {
-                int32_t *lit = c4m_new(c4m_tspec_bool());
-                *lit         = 0;
-                false_lit    = (c4m_obj_t)lit;
+                false_lit = c4m_box_bool(false);
                 c4m_gc_register_root(&false_lit, 1);
             }
             return false_lit;
@@ -339,9 +320,8 @@ f64_parse(c4m_utf8_t          *s,
           c4m_utf8_t          *litmod,
           c4m_compile_error_t *code)
 {
-    char   *end;
-    double *lit = c4m_new(c4m_tspec_f64());
-    double  d   = strtod(s->data, &end);
+    char  *end;
+    double d = strtod(s->data, &end);
 
     if (end == s->data || !*end) {
         *code = c4m_err_parse_invalid_lit_char;
@@ -356,57 +336,16 @@ f64_parse(c4m_utf8_t          *s,
         *code = c4m_err_parse_lit_underflow;
         return NULL;
     }
-    *lit = d;
-    return lit;
-}
-
-static c4m_str_t *
-i8_repr(i8_box *i8, to_str_use_t how)
-{
-    int64_t n = *i8;
-    return signed_repr(n, how);
-}
-
-static c4m_str_t *
-u8_repr(u8_box *u8, to_str_use_t how)
-{
-    uint64_t n = *u8;
-    return unsigned_repr(n, how);
-}
-
-static c4m_str_t *
-i32_repr(i32_box *i32, to_str_use_t how)
-{
-    int64_t n = *i32;
-    return signed_repr(n, how);
-}
-
-static c4m_str_t *
-u32_repr(u32_box *u32, to_str_use_t how)
-{
-    uint64_t n = *u32;
-    return unsigned_repr(n, how);
-}
-
-static c4m_str_t *
-i64_repr(i64_box *i64, to_str_use_t how)
-{
-    return signed_repr(*i64, how);
-}
-
-static c4m_str_t *
-u64_repr(u64_box *u64, to_str_use_t how)
-{
-    return unsigned_repr(*u64, how);
+    return c4m_box_double(d);
 }
 
 static c4m_str_t *true_repr  = NULL;
 static c4m_str_t *false_repr = NULL;
 
 static c4m_str_t *
-bool_repr(bool *b, to_str_use_t how)
+bool_repr(bool b)
 {
-    if (*b == false) {
+    if (b == false) {
         if (false_repr == NULL) {
             false_repr = c4m_new(c4m_tspec_utf8(),
                                  c4m_kw("cstring", c4m_ka("false")));
@@ -415,7 +354,8 @@ bool_repr(bool *b, to_str_use_t how)
         return false_repr;
     }
     if (true_repr == NULL) {
-        true_repr = c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka("true")));
+        true_repr = c4m_new(c4m_tspec_utf8(),
+                            c4m_kw("cstring", c4m_ka("true")));
         c4m_gc_register_root(&true_repr, 1);
     }
 
@@ -498,10 +438,9 @@ bool_coerce_to(const int64_t data, c4m_type_t *target_type)
 }
 
 static c4m_str_t *
-float_repr(const double *dp, to_str_use_t how)
+float_repr(const double d)
 {
-    double d       = *dp;
-    char   buf[20] = {
+    char buf[20] = {
         0,
     };
 
@@ -915,127 +854,87 @@ float_fmt(double *repr, c4m_fmt_spec_t *spec)
 const c4m_vtable_t c4m_u8_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        NULL, // You have to get it through a reference or mixed.
-        (c4m_vtable_entry)u8_repr,
-        (c4m_vtable_entry)u8_fmt,
-        NULL, // finalizer
-        NULL, // Not used for ints.
-        NULL, // Not used for ints.
-        (c4m_vtable_entry)any_number_can_coerce_to,
-        (c4m_vtable_entry)any_int_coerce_to,
-        (c4m_vtable_entry)u8_parse,
-        NULL, // The rest are not implemented for value types.
+        [C4M_BI_REPR]         = (c4m_vtable_entry)unsigned_repr,
+        [C4M_BI_FORMAT]       = (c4m_vtable_entry)u8_fmt,
+        [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
+        [C4M_BI_COERCE]       = (c4m_vtable_entry)any_int_coerce_to,
+        [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)u8_parse,
     },
 };
 
 const c4m_vtable_t c4m_i8_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        NULL, // You have to get it through a reference or mixed.
-        (c4m_vtable_entry)i8_repr,
-        (c4m_vtable_entry)i8_fmt,
-        NULL, // finalizer
-        NULL, // Not used for ints.
-        NULL, // Not used for ints.
-        (c4m_vtable_entry)any_number_can_coerce_to,
-        (c4m_vtable_entry)any_int_coerce_to,
-        (c4m_vtable_entry)i8_parse,
-        NULL, // The rest are not implemented for value types.
+        [C4M_BI_REPR]         = (c4m_vtable_entry)signed_repr,
+        [C4M_BI_FORMAT]       = (c4m_vtable_entry)i8_fmt,
+        [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
+        [C4M_BI_COERCE]       = (c4m_vtable_entry)any_int_coerce_to,
+        [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)i8_parse,
     },
 };
 
 const c4m_vtable_t c4m_u32_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        NULL, // You have to get it through a reference or mixed.
-        (c4m_vtable_entry)u32_repr,
-        (c4m_vtable_entry)u32_fmt,
-        NULL, // finalizer
-        NULL, // Not used for ints.
-        NULL, // Not used for ints.
-        (c4m_vtable_entry)any_number_can_coerce_to,
-        (c4m_vtable_entry)any_int_coerce_to,
-        (c4m_vtable_entry)u32_parse,
-        NULL, // The rest are not implemented for value types.
+        [C4M_BI_REPR]         = (c4m_vtable_entry)unsigned_repr,
+        [C4M_BI_FORMAT]       = (c4m_vtable_entry)u32_fmt,
+        [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
+        [C4M_BI_COERCE]       = (c4m_vtable_entry)any_int_coerce_to,
+        [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)u32_parse,
     },
 };
 
 const c4m_vtable_t c4m_i32_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        NULL, // You have to get it through a reference or mixed.
-        (c4m_vtable_entry)i32_repr,
-        (c4m_vtable_entry)i32_fmt,
-        NULL, // finalizer
-        NULL, // Not used for ints.
-        NULL, // Not used for ints.
-        (c4m_vtable_entry)any_number_can_coerce_to,
-        (c4m_vtable_entry)any_int_coerce_to,
-        (c4m_vtable_entry)i32_parse,
-        NULL, // The rest are not implemented for value types.
+        [C4M_BI_REPR]         = (c4m_vtable_entry)signed_repr,
+        [C4M_BI_FORMAT]       = (c4m_vtable_entry)i32_fmt,
+        [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
+        [C4M_BI_COERCE]       = (c4m_vtable_entry)any_int_coerce_to,
+        [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)i32_parse,
     },
 };
 
 const c4m_vtable_t c4m_u64_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        NULL, // You have to get it through a reference or mixed.
-        (c4m_vtable_entry)u64_repr,
-        (c4m_vtable_entry)u64_fmt,
-        NULL, // finalizer
-        NULL, // Not used for ints.
-        NULL, // Not used for ints.
-        (c4m_vtable_entry)any_number_can_coerce_to,
-        (c4m_vtable_entry)any_int_coerce_to,
-        (c4m_vtable_entry)u64_parse,
-        NULL, // The rest are not implemented for value types.
+        [C4M_BI_REPR]         = (c4m_vtable_entry)unsigned_repr,
+        [C4M_BI_FORMAT]       = (c4m_vtable_entry)u64_fmt,
+        [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
+        [C4M_BI_COERCE]       = (c4m_vtable_entry)any_int_coerce_to,
+        [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)u64_parse,
     },
 };
 
 const c4m_vtable_t c4m_i64_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        NULL, // You have to get it through a reference or mixed.
-        (c4m_vtable_entry)i64_repr,
-        (c4m_vtable_entry)i64_fmt,
-        NULL, // finalizer
-        NULL, // Not used for ints.
-        NULL, // Not used for ints.
-        (c4m_vtable_entry)any_number_can_coerce_to,
-        (c4m_vtable_entry)any_int_coerce_to,
-        (c4m_vtable_entry)i64_parse,
-        NULL, // The rest are not implemented for value types.
+        [C4M_BI_REPR]         = (c4m_vtable_entry)signed_repr,
+        [C4M_BI_FORMAT]       = (c4m_vtable_entry)i64_fmt,
+        [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
+        [C4M_BI_COERCE]       = (c4m_vtable_entry)any_int_coerce_to,
+        [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)i64_parse,
     },
 };
 
 const c4m_vtable_t c4m_bool_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        NULL, // You have to get it through a reference or mixed.
-        (c4m_vtable_entry)bool_repr,
-        (c4m_vtable_entry)bool_fmt,
-        NULL, // finalizer
-        NULL, // Not used for ints.
-        NULL, // Not used for ints.
-        (c4m_vtable_entry)any_number_can_coerce_to,
-        (c4m_vtable_entry)bool_coerce_to,
-        (c4m_vtable_entry)bool_parse,
-        NULL, // The rest are not implemented for value types.
+        [C4M_BI_REPR]         = (c4m_vtable_entry)bool_repr,
+        [C4M_BI_FORMAT]       = (c4m_vtable_entry)bool_fmt,
+        [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
+        [C4M_BI_COERCE]       = (c4m_vtable_entry)bool_coerce_to,
+        [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)bool_parse,
     },
 };
 
 const c4m_vtable_t c4m_float_type = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        NULL, // You have to get it through a reference or mixed.
-        (c4m_vtable_entry)float_repr,
-        (c4m_vtable_entry)float_fmt,
-        NULL, // finalizer
-        NULL, // Not used for ints.
-        NULL, // Not used for ints.
-        (c4m_vtable_entry)any_number_can_coerce_to,
-        (c4m_vtable_entry)float_coerce_to,
-        (c4m_vtable_entry)f64_parse,
-        NULL, // The rest are not implemented for value types.
+        [C4M_BI_REPR]         = (c4m_vtable_entry)float_repr,
+        [C4M_BI_FORMAT]       = (c4m_vtable_entry)float_fmt,
+        [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
+        [C4M_BI_COERCE]       = (c4m_vtable_entry)float_coerce_to,
+        [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)f64_parse,
     },
 };

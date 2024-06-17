@@ -1,0 +1,4 @@
+print "hello, world!"
+const x = 3
+assert 4 - 1 == x
+print x

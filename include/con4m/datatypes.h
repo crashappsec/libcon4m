@@ -2,6 +2,7 @@
 
 typedef struct hatrack_set_st c4m_set_t;
 
+#include "con4m/datatypes/box.h"
 #include "con4m/datatypes/memory.h"
 #include "con4m/datatypes/kargs.h"
 #include "con4m/datatypes/literals.h"
@@ -10,6 +11,7 @@ typedef struct hatrack_set_st c4m_set_t;
 #include "con4m/datatypes/codepoints.h"
 #include "con4m/datatypes/styles.h"
 #include "con4m/datatypes/strings.h"
+#include "con4m/datatypes/flags.h"
 #include "con4m/datatypes/lists.h"
 #include "con4m/datatypes/trees.h"
 #include "con4m/datatypes/tree_pattern.h"
@@ -25,17 +27,17 @@ typedef struct hatrack_set_st c4m_set_t;
 #include "con4m/datatypes/streams.h"
 #include "con4m/datatypes/format.h"
 #include "con4m/datatypes/vm.h"
-#include "frontend/datatypes/lex.h"
-#include "frontend/datatypes/error.h"
-#include "frontend/datatypes/parse.h"
-#include "frontend/datatypes/scope.h"
-#include "frontend/datatypes/partials.h"
-#include "frontend/datatypes/spec.h"
-#include "frontend/datatypes/cfg.h"
-#include "frontend/datatypes/file.h"
-#include "frontend/datatypes/compile.h"
+#include "compiler/datatypes/lex.h"
+#include "compiler/datatypes/error.h"
+#include "compiler/datatypes/parse.h"
+#include "compiler/datatypes/scope.h"
+#include "compiler/datatypes/nodeinfo.h"
+#include "compiler/datatypes/spec.h"
+#include "compiler/datatypes/cfg.h"
+#include "compiler/datatypes/file.h"
+#include "compiler/datatypes/compile.h"
 
-typedef c4m_str_t *(*c4m_repr_fn)(c4m_obj_t, to_str_use_t);
+typedef c4m_str_t *(*c4m_repr_fn)(c4m_obj_t);
 typedef void (*c4m_marshal_fn)(c4m_obj_t,
                                c4m_stream_t *,
                                c4m_dict_t *,
@@ -56,7 +58,8 @@ typedef c4m_obj_t (*c4m_literal_fn)(c4m_utf8_t *,
                                     c4m_utf8_t *,
                                     c4m_compile_error_t *);
 typedef c4m_obj_t (*c4m_container_lit_fn)(c4m_type_t *,
-                                          c4m_obj_t,
-                                          c4m_lit_syntax_t,
-                                          char *);
+                                          c4m_xlist_t *,
+                                          c4m_utf8_t *);
 typedef c4m_str_t *(*c4m_format_fn)(c4m_obj_t, c4m_fmt_spec_t *);
+typedef c4m_type_t *(*c4m_ix_item_ty_fn)(c4m_type_t *);
+typedef void *(*c4m_view_fn)(c4m_obj_t, uint64_t *);

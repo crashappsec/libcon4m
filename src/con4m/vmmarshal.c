@@ -74,7 +74,7 @@ unmarshal_instruction(c4m_stream_t *in, c4m_dict_t *memos)
     c4m_zinstruction_t *out = c4m_gc_alloc(c4m_zinstruction_t);
 
     out->op        = c4m_unmarshal_u8(in);
-    out->pad       = c4m_unmarshal_u16(in);
+    out->pad       = c4m_unmarshal_u8(in);
     out->module_id = c4m_unmarshal_i16(in);
     out->line_no   = c4m_unmarshal_i32(in);
     out->arg       = c4m_unmarshal_i32(in);
@@ -274,21 +274,18 @@ marshal_module_info(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mi
 {
     c4m_zmodule_info_t *in = ref;
 
+    c4m_marshal_i32(in->module_id, out);
+    c4m_marshal_u64(in->module_hash, out);
     c4m_sub_marshal(in->modname, out, memos, mid);
-    c4m_sub_marshal(in->location, out, memos, mid);
-    c4m_sub_marshal(in->key, out, memos, mid);
-    c4m_sub_marshal(in->ext, out, memos, mid);
-    c4m_sub_marshal(in->url, out, memos, mid);
-    c4m_sub_marshal(in->version, out, memos, mid);
-    marshal_xlist_ref(in->sym_types, out, memos, mid, marshal_symbol);
-    c4m_sub_marshal(in->codesyms, out, memos, mid);
-    c4m_sub_marshal(in->datasyms, out, memos, mid);
+    c4m_sub_marshal(in->authority, out, memos, mid);
+    c4m_sub_marshal(in->path, out, memos, mid);
+    c4m_sub_marshal(in->package, out, memos, mid);
     c4m_sub_marshal(in->source, out, memos, mid);
+    c4m_sub_marshal(in->version, out, memos, mid);
     c4m_sub_marshal(in->shortdoc, out, memos, mid);
     c4m_sub_marshal(in->longdoc, out, memos, mid);
-    c4m_marshal_i64(in->module_id, out);
-    c4m_marshal_i64(in->module_var_size, out);
-    c4m_marshal_i64(in->init_size, out);
+    c4m_marshal_i32(in->module_var_size, out);
+    c4m_marshal_i32(in->init_size, out);
     marshal_xlist_ref(in->parameters, out, memos, mid, marshal_param_info);
     marshal_xlist_ref(in->instructions, out, memos, mid, marshal_instruction);
 }
@@ -298,21 +295,21 @@ unmarshal_module_info(c4m_stream_t *in, c4m_dict_t *memos)
 {
     c4m_zmodule_info_t *out = c4m_gc_alloc(c4m_zmodule_info_t);
 
-    out->modname  = c4m_sub_unmarshal(in, memos);
-    out->location = c4m_sub_unmarshal(in, memos);
-    out->key      = c4m_sub_unmarshal(in, memos);
-    out->ext      = c4m_sub_unmarshal(in, memos);
-    out->url      = c4m_sub_unmarshal(in, memos);
-    out->version  = c4m_sub_unmarshal(in, memos);
-    unmarshal_xlist_ref(in, memos, unmarshal_symbol);
-    out->codesyms        = c4m_sub_unmarshal(in, memos);
-    out->datasyms        = c4m_sub_unmarshal(in, memos);
+    out->module_id       = c4m_unmarshal_i32(in);
+    out->module_hash     = c4m_unmarshal_u64(in);
+    out->modname         = c4m_sub_unmarshal(in, memos);
+    out->authority       = c4m_sub_unmarshal(in, memos);
+    out->path            = c4m_sub_unmarshal(in, memos);
+    out->package         = c4m_sub_unmarshal(in, memos);
     out->source          = c4m_sub_unmarshal(in, memos);
+    out->version         = c4m_sub_unmarshal(in, memos);
+    //  unmarshal_xlist_ref(in, memos, unmarshal_symbol);
+    // out->codesyms        = c4m_sub_unmarshal(in, memos);
+    // out->datasyms        = c4m_sub_unmarshal(in, memos);
     out->shortdoc        = c4m_sub_unmarshal(in, memos);
     out->longdoc         = c4m_sub_unmarshal(in, memos);
-    out->module_id       = c4m_unmarshal_i64(in);
-    out->module_var_size = c4m_unmarshal_i64(in);
-    out->init_size       = c4m_unmarshal_i64(in);
+    out->module_var_size = c4m_unmarshal_i32(in);
+    out->init_size       = c4m_unmarshal_i32(in);
     out->parameters      = unmarshal_xlist_ref(in, memos, unmarshal_param_info);
     out->instructions    = unmarshal_xlist_ref(in, memos, unmarshal_instruction);
 
@@ -331,6 +328,18 @@ marshal_object_file(c4m_zobject_file_t *in, c4m_stream_t *out, c4m_dict_t *memos
     //     support, but it is here. So, does this adjustment make sense or even
     //     work? Second, it seems like next_entrypoint is supposed to be a
     //     module_id, so why does that even correlate with the marshal id?
+
+    // Just to be clear, the code that didn't get copied in
+    // essentially is just making sure that the saved object sets the
+    // next entry point in the output module correctly.  It didn't
+    // change the marshal memo index; it set the value we marshal for
+    // the next entry point (which is where the program will start up
+    // from if resume is turned on).
+    //
+    // Basically, that value can be changed from run to run, which is
+    // why I was waiting till the end to commit it, exactly at the
+    // time of marshaling.
+
     if (!*mid && in->next_entrypoint != 0) {
         *mid = in->next_entrypoint;
     }
@@ -339,10 +348,7 @@ marshal_object_file(c4m_zobject_file_t *in, c4m_stream_t *out, c4m_dict_t *memos
     c4m_marshal_u64(in->zero_magic, out);
     c4m_marshal_u16(in->zc_object_vers, out);
     c4m_sub_marshal(in->static_data, out, memos, mid);
-    c4m_sub_marshal(in->t_info, out, memos, mid);
-    c4m_sub_marshal(in->globals, out, memos, mid);
-    marshal_xlist_ref(in->sym_types, out, memos, mid, marshal_symbol);
-    c4m_marshal_i64(in->global_scope_sz, out);
+    c4m_marshal_i32(in->num_const_objs, out);
     marshal_xlist_ref(in->module_contents, out, memos, mid, marshal_module_info);
     c4m_marshal_i32(in->entrypoint, out);
     c4m_marshal_i32(in->next_entrypoint, out);
@@ -359,10 +365,7 @@ unmarshal_object_file(c4m_stream_t *in, c4m_dict_t *memos)
     out->zero_magic      = c4m_unmarshal_u64(in);
     out->zc_object_vers  = c4m_unmarshal_u16(in);
     out->static_data     = c4m_sub_unmarshal(in, memos);
-    out->t_info          = c4m_sub_unmarshal(in, memos);
-    out->globals         = c4m_sub_unmarshal(in, memos);
-    out->sym_types       = unmarshal_xlist_ref(in, memos, unmarshal_symbol);
-    out->global_scope_sz = c4m_unmarshal_i64(in);
+    out->num_const_objs  = c4m_unmarshal_i32(in);
     out->module_contents = unmarshal_xlist_ref(in, memos, unmarshal_module_info);
     out->entrypoint      = c4m_unmarshal_i32(in);
     out->next_entrypoint = c4m_unmarshal_i32(in);
@@ -374,7 +377,10 @@ unmarshal_object_file(c4m_stream_t *in, c4m_dict_t *memos)
 }
 
 static void
-marshal_attr_contents(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
+marshal_attr_contents(void         *ref,
+                      c4m_stream_t *out,
+                      c4m_dict_t   *memos,
+                      int64_t      *mid)
 {
     c4m_attr_contents_t *in = ref;
 
@@ -432,12 +438,12 @@ unmarshal_docs_container(c4m_stream_t *in, c4m_dict_t *memos)
 static void
 marshal_module_allocations(c4m_vm_t *vm, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
 {
-    for (int64_t i = 0; i < vm->obj->global_scope_sz; ++i) {
-        marshal_value(&vm->module_allocations[0][i], out, memos, mid);
-    }
     const int64_t nmodules = c4m_xlist_len(vm->obj->module_contents);
-    for (int64_t n = 1; n <= nmodules; ++n) {
-        for (int64_t i = 0; i < vm->obj->global_scope_sz; ++i) {
+    for (int64_t n = 0; n < nmodules; ++n) {
+        c4m_zmodule_info_t *module = c4m_xlist_get(vm->obj->module_contents,
+                                                   n,
+                                                   NULL);
+        for (int64_t i = 0; i < module->module_var_size; ++i) {
             marshal_value(&vm->module_allocations[n][i], out, memos, mid);
         }
     }
@@ -446,12 +452,12 @@ marshal_module_allocations(c4m_vm_t *vm, c4m_stream_t *out, c4m_dict_t *memos, i
 static void
 unmarshal_module_allocations(c4m_vm_t *vm, c4m_stream_t *in, c4m_dict_t *memos)
 {
-    for (int64_t i = 0; i < vm->obj->global_scope_sz; ++i) {
-        unmarshal_value(&vm->module_allocations[0][i], in, memos);
-    }
     const int64_t nmodules = c4m_xlist_len(vm->obj->module_contents);
-    for (int64_t n = 1; n <= nmodules; ++n) {
-        for (int64_t i = 0; i < vm->obj->global_scope_sz; ++i) {
+    for (int64_t n = 0; n < nmodules; ++n) {
+        c4m_zmodule_info_t *module = c4m_xlist_get(vm->obj->module_contents,
+                                                   n,
+                                                   NULL);
+        for (int64_t i = 0; i < module->module_var_size; ++i) {
             unmarshal_value(&vm->module_allocations[n][i], in, memos);
         }
     }

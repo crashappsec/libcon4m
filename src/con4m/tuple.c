@@ -8,7 +8,9 @@ tuple_init(c4m_tuple_t *tup, va_list args)
     c4m_karg_va_init(args);
     c4m_kw_ptr("contents", ptr);
 
-    tup->num_items = c4m_xlist_len(c4m_tspec_get_parameters(c4m_get_my_type(tup)));
+    uint64_t n = c4m_xlist_len(c4m_tspec_get_parameters(c4m_get_my_type(tup)));
+
+    tup->num_items = n;
 
     if (ptr != NULL) {
         for (int i = 0; i < tup->num_items; i++) {
@@ -31,7 +33,10 @@ c4m_tuple_get(c4m_tuple_t *tup, int64_t ix)
 }
 
 static void
-tuple_marshal(c4m_tuple_t *tup, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
+tuple_marshal(c4m_tuple_t  *tup,
+              c4m_stream_t *s,
+              c4m_dict_t   *memos,
+              int64_t      *mid)
 {
     c4m_xlist_t *tparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
 
@@ -75,7 +80,7 @@ c4m_tuple_len(c4m_tuple_t *tup)
 }
 
 static c4m_str_t *
-tuple_repr(c4m_tuple_t *tup, to_str_use_t how)
+tuple_repr(c4m_tuple_t *tup)
 {
     c4m_xlist_t *tparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
     int          len     = tup->num_items;
@@ -84,16 +89,14 @@ tuple_repr(c4m_tuple_t *tup, to_str_use_t how)
     for (int i = 0; i < len; i++) {
         c4m_type_t *one_type = c4m_xlist_get(tparams, i, NULL);
 
-        c4m_xlist_append(items, c4m_repr(tup->items[i], one_type, how));
+        c4m_xlist_append(items, c4m_repr(tup->items[i], one_type));
     }
 
     c4m_str_t *sep    = c4m_get_comma_const();
     c4m_str_t *result = c4m_str_join(items, sep);
 
-    if (how == C4M_REPR_QUOTED) {
-        result = c4m_str_concat(c4m_get_lparen_const(),
-                                c4m_str_concat(result, c4m_get_rparen_const()));
-    }
+    result = c4m_str_concat(c4m_get_lparen_const(),
+                            c4m_str_concat(result, c4m_get_rparen_const()));
 
     return result;
 }
@@ -128,31 +131,26 @@ tuple_copy(c4m_tuple_t *tup)
     return tuple_coerce(tup, c4m_get_my_type(tup));
 }
 
+static c4m_obj_t
+tuple_from_lit(c4m_type_t *objtype, c4m_xlist_t *items, c4m_utf8_t *litmod)
+{
+    assert(c4m_xlist_len(items) == 1);
+    return c4m_xlist_get(items, 0, NULL);
+}
+
 const c4m_vtable_t c4m_tuple_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)tuple_init,
-        (c4m_vtable_entry)tuple_repr,
-        NULL,
-        NULL,
-        (c4m_vtable_entry)tuple_marshal,
-        (c4m_vtable_entry)tuple_unmarshal,
-        (c4m_vtable_entry)tuple_can_coerce,
-        (c4m_vtable_entry)tuple_coerce,
-        NULL,
-        (c4m_vtable_entry)tuple_copy,
-        NULL, // Plus
-        NULL, // Subtract
-        NULL, // Mul
-        NULL, // Div
-        NULL, // MOD
-        NULL, // EQ
-        NULL, // LT
-        NULL, // GT
-        (c4m_vtable_entry)c4m_tuple_len,
-        (c4m_vtable_entry)c4m_tuple_get,
-        (c4m_vtable_entry)c4m_tuple_set,
-        NULL, // Slice get
-        NULL, // Slice set
+        [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)tuple_init,
+        [C4M_BI_TO_STR]        = (c4m_vtable_entry)tuple_repr,
+        [C4M_BI_MARSHAL]       = (c4m_vtable_entry)tuple_marshal,
+        [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)tuple_unmarshal,
+        [C4M_BI_COERCIBLE]     = (c4m_vtable_entry)tuple_can_coerce,
+        [C4M_BI_COERCE]        = (c4m_vtable_entry)tuple_coerce,
+        [C4M_BI_COPY]          = (c4m_vtable_entry)tuple_copy,
+        [C4M_BI_LEN]           = (c4m_vtable_entry)c4m_tuple_len,
+        [C4M_BI_INDEX_GET]     = (c4m_vtable_entry)c4m_tuple_get,
+        [C4M_BI_INDEX_SET]     = (c4m_vtable_entry)c4m_tuple_set,
+        [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)tuple_from_lit,
     },
 };

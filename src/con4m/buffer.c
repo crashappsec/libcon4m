@@ -39,6 +39,13 @@ buffer_init(c4m_buf_t *obj, va_list args)
         }
     }
 
+    if (length == 0) {
+        obj->alloc_len = C4M_EMPTY_BUFFER_ALLOC;
+        obj->data      = c4m_gc_raw_alloc(obj->alloc_len, NULL);
+        obj->byte_len  = 0;
+        return;
+    }
+
     if (length > 0 && ptr == NULL) {
         int64_t alloc_len = hatrack_round_up_to_power_of_2(length);
 
@@ -132,40 +139,46 @@ c4m_buffer_resize(c4m_buf_t *buffer, uint64_t new_sz)
 static char to_hex_map[] = "0123456789abcdef";
 
 static c4m_utf8_t *
-buffer_repr(c4m_buf_t *buf, to_str_use_t how)
+buffer_to_str(c4m_buf_t *buf)
 {
     c4m_utf8_t *result;
 
-    if (how == C4M_REPR_QUOTED) {
-        result  = c4m_new(c4m_tspec_utf8(),
-                         c4m_kw("length", c4m_ka(buf->byte_len * 4 + 2)));
-        char *p = result->data;
+    result  = c4m_new(c4m_tspec_utf8(),
+                     c4m_kw("length", c4m_ka(buf->byte_len * 2)));
+    char *p = result->data;
 
-        *p++ = '"';
-
-        for (int i = 0; i < buf->byte_len; i++) {
-            char c = buf->data[i];
-            *p++   = '\\';
-            *p++   = 'x';
-            *p++   = to_hex_map[(c >> 4)];
-            *p++   = to_hex_map[c & 0x0f];
-        }
-        *p++ = '"';
+    for (int i = 0; i < buf->byte_len; i++) {
+        uint8_t c = ((uint8_t *)buf->data)[i];
+        *p++      = to_hex_map[(c >> 4)];
+        *p++      = to_hex_map[c & 0x0f];
     }
-    else {
-        result  = c4m_new(c4m_tspec_utf8(),
-                         c4m_kw("length", c4m_ka(buf->byte_len * 2)));
-        char *p = result->data;
 
-        for (int i = 0; i < buf->byte_len; i++) {
-            uint8_t c = ((uint8_t *)buf->data)[i];
-            *p++      = to_hex_map[(c >> 4)];
-            *p++      = to_hex_map[c & 0x0f];
-        }
+    result->codepoints = p - result->data;
+    result->byte_len   = result->codepoints;
 
-        result->codepoints = p - result->data;
-        result->byte_len   = result->codepoints;
+    return result;
+}
+
+static c4m_utf8_t *
+buffer_repr(c4m_buf_t *buf)
+{
+    c4m_utf8_t *result;
+
+    result  = c4m_new(c4m_tspec_utf8(),
+                     c4m_kw("length", c4m_ka(buf->byte_len * 4 + 2)));
+    char *p = result->data;
+
+    *p++ = '"';
+
+    for (int i = 0; i < buf->byte_len; i++) {
+        char c = buf->data[i];
+        *p++   = '\\';
+        *p++   = 'x';
+        *p++   = to_hex_map[(c >> 4)];
+        *p++   = to_hex_map[c & 0x0f];
     }
+    *p++ = '"';
+
     return result;
 }
 
@@ -496,32 +509,42 @@ buffer_copy(c4m_buf_t *inbuf)
     return outbuf;
 }
 
+static c4m_type_t *
+buffer_item_type(c4m_obj_t x)
+{
+    return c4m_tspec_byte();
+}
+
+static void *
+buffer_view(c4m_buf_t *inbuf, uint64_t *outlen)
+{
+    c4m_buf_t *result = buffer_copy(inbuf);
+
+    *outlen = result->byte_len;
+
+    return result->data;
+}
+
 const c4m_vtable_t c4m_buffer_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)buffer_init,
-        (c4m_vtable_entry)buffer_repr,
-        NULL, // format; TODO
-        NULL, // finalizer
-        (c4m_vtable_entry)c4m_buffer_marshal,
-        (c4m_vtable_entry)c4m_buffer_unmarshal,
-        (c4m_vtable_entry)buffer_can_coerce_to,
-        (c4m_vtable_entry)buffer_coerce_to,
-        (c4m_vtable_entry)buffer_lit,
-        (c4m_vtable_entry)buffer_copy,
-        (c4m_vtable_entry)c4m_buffer_add,
-        NULL, // Subtract
-        NULL, // Mul
-        NULL, // Div
-        NULL, // MOD
-        NULL, // EQ
-        NULL, // LT
-        NULL, // GT
-        (c4m_vtable_entry)c4m_buffer_len,
-        (c4m_vtable_entry)buffer_get_index,
-        (c4m_vtable_entry)buffer_set_index,
-        (c4m_vtable_entry)buffer_get_slice,
-        (c4m_vtable_entry)buffer_set_slice,
+        [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)buffer_init,
+        [C4M_BI_REPR]         = (c4m_vtable_entry)buffer_repr,
+        [C4M_BI_TO_STR]       = (c4m_vtable_entry)buffer_to_str,
+        [C4M_BI_MARSHAL]      = (c4m_vtable_entry)c4m_buffer_marshal,
+        [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)c4m_buffer_unmarshal,
+        [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)buffer_can_coerce_to,
+        [C4M_BI_COERCE]       = (c4m_vtable_entry)buffer_coerce_to,
+        [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)buffer_lit,
+        [C4M_BI_COPY]         = (c4m_vtable_entry)buffer_copy,
+        [C4M_BI_ADD]          = (c4m_vtable_entry)c4m_buffer_add,
+        [C4M_BI_LEN]          = (c4m_vtable_entry)c4m_buffer_len,
+        [C4M_BI_INDEX_GET]    = (c4m_vtable_entry)buffer_get_index,
+        [C4M_BI_INDEX_SET]    = (c4m_vtable_entry)buffer_set_index,
+        [C4M_BI_SLICE_GET]    = (c4m_vtable_entry)buffer_get_slice,
+        [C4M_BI_SLICE_SET]    = (c4m_vtable_entry)buffer_set_slice,
+        [C4M_BI_ITEM_TYPE]    = (c4m_vtable_entry)buffer_item_type,
+        [C4M_BI_VIEW]         = (c4m_vtable_entry)buffer_view,
     },
 };
 

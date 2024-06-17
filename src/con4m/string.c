@@ -521,6 +521,7 @@ utf8_init(c4m_utf8_t *s, va_list args)
     else {
         if (length < 0) {
             s->data = 0;
+            abort();
             C4M_CRAISE("length cannot be < 0 for string initialization");
         }
         s->data = c4m_gc_raw_alloc(length + 1, NULL);
@@ -1167,16 +1168,18 @@ c4m_rich(c4m_utf8_t *to_copy, c4m_utf8_t *style)
 }
 
 static c4m_str_t *
-c4m_str_repr(c4m_str_t *str, to_str_use_t how)
+c4m_str_repr(c4m_str_t *str)
 {
     // TODO: actually implement string quoting.
-    if (how == C4M_REPR_QUOTED) {
-        c4m_utf32_t *q = c4m_new(c4m_tspec_utf32(), c4m_kw("cstring", c4m_ka("\"")));
-        return c4m_str_concat(c4m_str_concat(q, str), q);
-    }
-    else {
-        return str;
-    }
+    c4m_utf32_t *q = c4m_new(c4m_tspec_utf32(),
+                             c4m_kw("cstring", c4m_ka("\"")));
+    return c4m_str_concat(c4m_str_concat(q, str), q);
+}
+
+static c4m_str_t *
+c4m_str_to_str(c4m_str_t *str)
+{
+    return str;
 }
 
 bool
@@ -1292,59 +1295,61 @@ c4m_u8_map(const c4m_xlist_t *inlist)
     return result;
 }
 
+static inline c4m_type_t *
+c4m_str_item_type(c4m_obj_t ignore)
+{
+    return c4m_tspec_char();
+}
+
+static void *
+c4m_str_view(c4m_str_t *s, uint64_t *n)
+{
+    c4m_utf32_t *as_u32 = c4m_to_utf32(s);
+    *n                  = c4m_str_codepoint_len(as_u32);
+
+    return as_u32->data;
+}
+
 const c4m_vtable_t c4m_u8str_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)utf8_init,
-        (c4m_vtable_entry)c4m_str_repr,
-        (c4m_vtable_entry)c4m_string_format,
-        NULL, // finalizer
-        (c4m_vtable_entry)c4m_string_marshal,
-        (c4m_vtable_entry)c4m_string_unmarshal,
-        (c4m_vtable_entry)c4m_str_can_coerce_to,
-        (c4m_vtable_entry)c4m_str_coerce_to,
-        (c4m_vtable_entry)c4m_str_lit,
-        (c4m_vtable_entry)c4m_str_copy,
-        (c4m_vtable_entry)c4m_str_concat,
-        NULL, // Subtract
-        NULL, // Mul
-        NULL, // Div
-        NULL, // MOD
-        NULL, // EQ
-        NULL, // LT
-        NULL, // GT
-        (c4m_vtable_entry)c4m_str_codepoint_len,
-        (c4m_vtable_entry)c4m_utf8_index,
-        NULL, // Index set
-        (c4m_vtable_entry)c4m_str_slice,
-        NULL, // Slice set
+        [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)utf8_init,
+        [C4M_BI_REPR]         = (c4m_vtable_entry)c4m_str_repr,
+        [C4M_BI_TO_STR]       = (c4m_vtable_entry)c4m_str_to_str,
+        [C4M_BI_FORMAT]       = (c4m_vtable_entry)c4m_string_format,
+        [C4M_BI_MARSHAL]      = (c4m_vtable_entry)c4m_string_marshal,
+        [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)c4m_string_unmarshal,
+        [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)c4m_str_can_coerce_to,
+        [C4M_BI_COERCE]       = (c4m_vtable_entry)c4m_str_coerce_to,
+        [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)c4m_str_lit,
+        [C4M_BI_COPY]         = (c4m_vtable_entry)c4m_str_copy,
+        [C4M_BI_ADD]          = (c4m_vtable_entry)c4m_str_concat,
+        [C4M_BI_LEN]          = (c4m_vtable_entry)c4m_str_codepoint_len,
+        [C4M_BI_INDEX_GET]    = (c4m_vtable_entry)c4m_utf8_index,
+        [C4M_BI_SLICE_GET]    = (c4m_vtable_entry)c4m_str_slice,
+        [C4M_BI_ITEM_TYPE]    = (c4m_vtable_entry)c4m_str_item_type,
+        [C4M_BI_VIEW]         = (c4m_vtable_entry)c4m_str_view,
     },
 };
 
 const c4m_vtable_t c4m_u32str_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)utf32_init,
-        (c4m_vtable_entry)c4m_str_repr,
-        NULL, // finalizer
-        (c4m_vtable_entry)c4m_string_marshal,
-        (c4m_vtable_entry)c4m_string_unmarshal,
-        (c4m_vtable_entry)c4m_str_can_coerce_to,
-        (c4m_vtable_entry)c4m_str_coerce_to,
-        (c4m_vtable_entry)c4m_str_lit,
-        (c4m_vtable_entry)c4m_str_copy,
-        (c4m_vtable_entry)c4m_str_concat,
-        NULL,                         // Subtract
-        NULL,                         // Mul
-        NULL,                         // Div
-        NULL,                         // MOD
-        (c4m_vtable_entry)c4m_str_eq, // EQ
-        NULL,                         // LT
-        NULL,                         // GT
-        (c4m_vtable_entry)c4m_str_codepoint_len,
-        (c4m_vtable_entry)c4m_utf32_index,
-        NULL, // Index set; strings are immutable.
-        (c4m_vtable_entry)c4m_str_slice,
-        NULL, // Slice set; strings are immutable.
+        [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)utf32_init,
+        [C4M_BI_REPR]         = (c4m_vtable_entry)c4m_str_repr,
+        [C4M_BI_TO_STR]       = (c4m_vtable_entry)c4m_str_to_str,
+        [C4M_BI_FORMAT]       = (c4m_vtable_entry)c4m_string_format,
+        [C4M_BI_MARSHAL]      = (c4m_vtable_entry)c4m_string_marshal,
+        [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)c4m_string_unmarshal,
+        [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)c4m_str_can_coerce_to,
+        [C4M_BI_COERCE]       = (c4m_vtable_entry)c4m_str_coerce_to,
+        [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)c4m_str_lit,
+        [C4M_BI_COPY]         = (c4m_vtable_entry)c4m_str_copy,
+        [C4M_BI_ADD]          = (c4m_vtable_entry)c4m_str_concat,
+        [C4M_BI_LEN]          = (c4m_vtable_entry)c4m_str_codepoint_len,
+        [C4M_BI_INDEX_GET]    = (c4m_vtable_entry)c4m_utf32_index,
+        [C4M_BI_SLICE_GET]    = (c4m_vtable_entry)c4m_str_slice,
+        [C4M_BI_ITEM_TYPE]    = (c4m_vtable_entry)c4m_str_item_type,
+        [C4M_BI_VIEW]         = (c4m_vtable_entry)c4m_str_view,
     },
 };

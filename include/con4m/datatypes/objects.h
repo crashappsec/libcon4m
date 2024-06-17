@@ -1,5 +1,4 @@
 #pragma once
-
 #include "con4m.h"
 
 typedef struct c4m_base_obj_t c4m_base_obj_t;
@@ -24,16 +23,6 @@ typedef enum {
 typedef void (*c4m_vtable_entry)(c4m_obj_t *, va_list);
 typedef void (*c4m_container_init)(c4m_obj_t *, void *, va_list);
 
-typedef int64_t  i64_box;
-typedef uint64_t u64_box;
-typedef int32_t  i32_box;
-typedef uint32_t u32_box;
-typedef int16_t  i16_box;
-typedef uint16_t u16_box;
-typedef int8_t   i8_box;
-typedef uint8_t  u8_box;
-typedef double   double_box;
-
 typedef struct {
     uint64_t         num_entries;
     c4m_vtable_entry methods[];
@@ -49,11 +38,11 @@ typedef struct {
     // everything.
     const char         *name;
     const uint64_t      typeid;
-    const uint64_t      alloc_len; // How much space to allocate.
     const uint64_t     *ptr_info;  // Shows GC u64 offsets to examine for ptrs.
     const c4m_vtable_t *vtable;
-    const c4m_dt_kind_t dt_kind;
     const uint32_t      hash_fn;
+    const uint32_t      alloc_len; // How much space to allocate.
+    const c4m_dt_kind_t dt_kind;
     const bool          by_value : 1;
     // clang-format on
 } c4m_dt_info_t;
@@ -130,13 +119,21 @@ typedef enum {
     C4M_BI_INDEX_SET, // `t[`n] = `v -- requires index type
     C4M_BI_SLICE_GET, // `t[int:int] -> `v
     C4M_BI_SLICE_SET,
-    C4M_BI_NUM_FUNCS
+    // Returns the item type, given how the type is parameterized.
+    C4M_BI_ITEM_TYPE,
+    C4M_BI_VIEW, // Return a view on a container.
+    C4M_BI_CONTAINER_LIT,
+    C4M_BI_REPR,
+    C4M_BI_NUM_FUNCS,
 } c4m_builtin_type_fn;
 
-typedef enum {
-    C4M_REPR_VALUE,
-    C4M_REPR_QUOTED
-} to_str_use_t;
+typedef enum : uint8_t {
+    c4m_ix_item_sz_byte    = 0,
+    c4m_ix_item_sz_16_bits = 1,
+    c4m_ix_item_sz_32_bits = 2,
+    c4m_ix_item_sz_64_bits = 3,
+    c4m_ix_item_sz_1_bit   = 0xff,
+} c4m_ix_item_sz_t;
 
 typedef enum : int64_t {
     C4M_T_ERROR = 0,
@@ -168,6 +165,7 @@ typedef enum : int64_t {
     C4M_T_DATE,
     C4M_T_TIME,
     C4M_T_URL,
+    C4M_T_FLAGS,
     C4M_T_CALLBACK,
     C4M_T_QUEUE,
     C4M_T_RING,
@@ -187,6 +185,7 @@ typedef enum : int64_t {
     C4M_T_KEYWORD, // Keyword arg object for internal use.
     C4M_T_VM,
     C4M_T_PARSE_NODE,
-    C4M_T_PARTIAL_LIT,
+    C4M_T_BIT,
+    C4M_T_BOX,
     C4M_NUM_BUILTIN_DTS
 } c4m_builtin_t;

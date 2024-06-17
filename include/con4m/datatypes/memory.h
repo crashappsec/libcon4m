@@ -63,7 +63,7 @@ typedef struct c4m_arena_t {
     c4m_alloc_hdr      *next_alloc;
     c4m_dict_t         *roots;
     struct c4m_arena_t *previous;
-    queue_t            *late_mutations;
+    //    queue_t            *late_mutations;
     uint64_t           *heap_end;
     uint64_t            arena_id;
 #ifdef C4M_ALLOC_STATS

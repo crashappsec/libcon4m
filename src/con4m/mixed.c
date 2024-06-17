@@ -210,15 +210,18 @@ mixed_as_word(c4m_mixed_t *m)
 }
 
 static c4m_str_t *
-mixed_repr(c4m_mixed_t *mixed, to_str_use_t how)
+mixed_repr(c4m_mixed_t *mixed)
 {
     // For the value types, we need to convert them to a 64-bit equiv
     // to send to the appropriate repr.
-    return c4m_repr((void *)mixed_as_word(mixed), mixed->held_type, how);
+    return c4m_repr((void *)mixed_as_word(mixed), mixed->held_type);
 }
 
 static void
-mixed_marshal_arts(c4m_mixed_t *m, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
+mixed_marshal_arts(c4m_mixed_t  *m,
+                   c4m_stream_t *s,
+                   c4m_dict_t   *memos,
+                   int64_t      *mid)
 {
     c4m_sub_marshal(m->held_type, s, memos, mid);
 
@@ -266,16 +269,10 @@ mixed_copy(c4m_mixed_t *m)
 const c4m_vtable_t c4m_mixed_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)mixed_init,
-        (c4m_vtable_entry)mixed_repr,
-        NULL,
-        NULL, // finalizer
-        (c4m_vtable_entry)mixed_marshal_arts,
-        (c4m_vtable_entry)mixed_unmarshal_arts,
-        NULL, // Mixed is not directly coercible statically.
-        NULL, // NO! Call unbox_mixed() at runtime.
-        NULL, // From lit,
-        (c4m_vtable_entry)mixed_copy,
-        NULL, // Nothing else supported w/o unboxing.
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)mixed_init,
+        [C4M_BI_REPR]        = (c4m_vtable_entry)mixed_repr,
+        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)mixed_marshal_arts,
+        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)mixed_unmarshal_arts,
+        [C4M_BI_COPY]        = (c4m_vtable_entry)mixed_copy,
     },
 };

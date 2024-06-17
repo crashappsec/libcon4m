@@ -132,14 +132,14 @@ c4m_dict_unmarshal(c4m_dict_t *d, c4m_stream_t *s, c4m_dict_t *memos)
 }
 
 static c4m_str_t *
-dict_repr(c4m_dict_t *dict, to_str_use_t how)
+dict_repr(c4m_dict_t *dict)
 {
     uint64_t             view_len;
-    c4m_type_t          *c4m_dict_type = c4m_get_my_type(dict);
-    c4m_xlist_t         *type_params   = c4m_tspec_get_parameters(c4m_dict_type);
-    c4m_type_t          *key_type      = c4m_xlist_get(type_params, 0, NULL);
-    c4m_type_t          *val_type      = c4m_xlist_get(type_params, 1, NULL);
-    hatrack_dict_item_t *view          = hatrack_dict_items_sort(dict, &view_len);
+    c4m_type_t          *dict_type   = c4m_get_my_type(dict);
+    c4m_xlist_t         *type_params = c4m_tspec_get_parameters(dict_type);
+    c4m_type_t          *key_type    = c4m_xlist_get(type_params, 0, NULL);
+    c4m_type_t          *val_type    = c4m_xlist_get(type_params, 1, NULL);
+    hatrack_dict_item_t *view        = hatrack_dict_items_sort(dict, &view_len);
 
     c4m_xlist_t *items    = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()),
                                  c4m_kw("length", c4m_ka(view_len)));
@@ -147,8 +147,8 @@ dict_repr(c4m_dict_t *dict, to_str_use_t how)
     c4m_utf8_t  *colon    = c4m_get_colon_const();
 
     for (uint64_t i = 0; i < view_len; i++) {
-        c4m_xlist_set(one_item, 0, c4m_repr(view[i].key, key_type, how));
-        c4m_xlist_set(one_item, 1, c4m_repr(view[i].value, val_type, how));
+        c4m_xlist_set(one_item, 0, c4m_repr(view[i].key, key_type));
+        c4m_xlist_set(one_item, 1, c4m_repr(view[i].value, val_type));
         c4m_xlist_append(items, c4m_str_join(one_item, colon));
     }
 
@@ -237,31 +237,35 @@ dict_get(c4m_dict_t *d, void *k)
     return result;
 }
 
+static c4m_dict_t *
+to_dict_lit(c4m_type_t *objtype, c4m_xlist_t *items, c4m_utf8_t *lm)
+{
+    uint64_t    n      = c4m_xlist_len(items);
+    c4m_dict_t *result = c4m_new(objtype);
+
+    for (unsigned int i = 0; i < n; i++) {
+        c4m_tuple_t *tup = c4m_xlist_get(items, i, NULL);
+        hatrack_dict_put(result, c4m_tuple_get(tup, 0), c4m_tuple_get(tup, 1));
+    }
+
+    return result;
+}
+
 const c4m_vtable_t c4m_dict_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)c4m_dict_init,
-        (c4m_vtable_entry)dict_repr,
-        NULL,
-        NULL,
-        (c4m_vtable_entry)c4m_dict_marshal,
-        (c4m_vtable_entry)c4m_dict_unmarshal,
-        (c4m_vtable_entry)dict_can_coerce_to,
-        (c4m_vtable_entry)dict_coerce_to,
-        NULL,
-        (c4m_vtable_entry)dict_copy,
-        (c4m_vtable_entry)dict_plus,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL, // EQ
-        NULL, // LT
-        NULL, // GT
-        (c4m_vtable_entry)dict_len,
-        (c4m_vtable_entry)dict_get,
-        (c4m_vtable_entry)hatrack_dict_put,
-        NULL, // No slices on dicts.
-        NULL,
+        [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)c4m_dict_init,
+        [C4M_BI_TO_STR]        = (c4m_vtable_entry)dict_repr,
+        [C4M_BI_MARSHAL]       = (c4m_vtable_entry)c4m_dict_marshal,
+        [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_dict_unmarshal,
+        [C4M_BI_COERCIBLE]     = (c4m_vtable_entry)dict_can_coerce_to,
+        [C4M_BI_COERCE]        = (c4m_vtable_entry)dict_coerce_to,
+        [C4M_BI_COPY]          = (c4m_vtable_entry)dict_copy,
+        [C4M_BI_ADD]           = (c4m_vtable_entry)dict_plus,
+        [C4M_BI_LEN]           = (c4m_vtable_entry)dict_len,
+        [C4M_BI_INDEX_GET]     = (c4m_vtable_entry)dict_get,
+        [C4M_BI_INDEX_SET]     = (c4m_vtable_entry)hatrack_dict_put,
+        [C4M_BI_VIEW]          = (c4m_vtable_entry)hatrack_dict_items_sort,
+        [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)to_dict_lit,
     },
 };

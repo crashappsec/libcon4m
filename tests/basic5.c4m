@@ -1,0 +1,9 @@
+const x = 3
+
+
+if 4 - 1 != x {
+    print "hello, world!" # Make sure both 'hello' consts have the same offset.
+    print "Con4m sucks."
+} else {
+    print "hello, world!"
+}

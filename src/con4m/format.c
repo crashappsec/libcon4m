@@ -3,7 +3,7 @@
 // This function is a little overly defensive on bounds, since the caller
 // does validate the presence of { and }.
 static void
-parse_one_format_spec(c4m_utf32_t *s, c4m_fmt_info_t *cur)
+parse_one_format_spec(const c4m_utf32_t *s, c4m_fmt_info_t *cur)
 {
     int             pos  = cur->start;
     c4m_fmt_spec_t *info = &cur->spec;
@@ -253,8 +253,8 @@ look_for_sign:
     }
 }
 
-c4m_fmt_info_t *
-c4m_extract_format_specifiers(c4m_str_t *fmt)
+static c4m_fmt_info_t *
+c4m_extract_format_specifiers(const c4m_str_t *fmt)
 {
     c4m_fmt_info_t  *top  = NULL;
     c4m_fmt_info_t  *last = NULL;
@@ -387,8 +387,7 @@ lookup_arg_strings(c4m_fmt_info_t *specs, c4m_dict_t *args)
             s = c4m_to_utf8(fn(obj, &info->spec));
         }
         else {
-            s = c4m_to_utf8(
-                c4m_repr(obj, c4m_object_type(obj), C4M_REPR_VALUE));
+            s = c4m_to_utf8(c4m_to_str(obj, c4m_object_type(obj)));
         }
 
         s = apply_padding_and_alignment(s, &info->spec);
@@ -411,7 +410,7 @@ style_adjustment(c4m_utf32_t *s, int64_t start, int64_t offset)
     }
 
     for (int64_t i = 0; i < styles->num_entries; i++) {
-        if (styles->styles[i].end < start) {
+        if (styles->styles[i].end <= start) {
             continue;
         }
 
@@ -424,7 +423,7 @@ style_adjustment(c4m_utf32_t *s, int64_t start, int64_t offset)
 }
 
 static inline c4m_utf8_t *
-assemble_formatted_result(c4m_str_t *fmt, c4m_xlist_t *arg_strings)
+assemble_formatted_result(const c4m_str_t *fmt, c4m_xlist_t *arg_strings)
 {
     // We need to re-parse the {}'s, and also copy stuff (including
     // style info) into the final string.
@@ -516,7 +515,7 @@ assemble_formatted_result(c4m_str_t *fmt, c4m_xlist_t *arg_strings)
 }
 
 c4m_utf8_t *
-c4m_str_vformat(c4m_str_t *fmt, c4m_dict_t *args)
+c4m_str_vformat(const c4m_str_t *fmt, c4m_dict_t *args)
 {
     // Positional items are looked up via their ASCII string.
     // Keys are expected to be utf8.
@@ -567,7 +566,7 @@ c4m_str_vformat(c4m_str_t *fmt, c4m_dict_t *args)
 }
 
 c4m_utf8_t *
-c4m_base_format(c4m_str_t *fmt, int nargs, va_list args)
+c4m_base_format(const c4m_str_t *fmt, int nargs, va_list args)
 {
     c4m_obj_t   one;
     c4m_dict_t *dict = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
@@ -583,7 +582,7 @@ c4m_base_format(c4m_str_t *fmt, int nargs, va_list args)
 }
 
 c4m_utf8_t *
-_c4m_str_format(c4m_str_t *fmt, int nargs, ...)
+_c4m_str_format(const c4m_str_t *fmt, int nargs, ...)
 {
     va_list     args;
     c4m_utf8_t *result;
@@ -602,7 +601,7 @@ _c4m_cstr_format(char *fmt, int nargs, ...)
     c4m_utf8_t *result;
 
     va_start(args, nargs);
-    result = c4m_base_format(c4m_new_utf8(fmt), nargs, args);
+    result = c4m_base_format((const c4m_str_t *)c4m_new_utf8(fmt), nargs, args);
     va_end(args);
 
     return result;
@@ -621,5 +620,5 @@ c4m_cstr_array_format(char *fmt, int num_args, c4m_utf8_t **params)
         hatrack_dict_add(dict, key, one);
     }
 
-    return c4m_str_vformat(c4m_new_utf8(fmt), dict);
+    return c4m_str_vformat((const c4m_str_t *)c4m_new_utf8(fmt), dict);
 }

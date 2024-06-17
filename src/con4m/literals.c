@@ -97,14 +97,16 @@ c4m_register_literal(c4m_lit_syntax_t st, char *mod, c4m_builtin_t bi)
 }
 
 c4m_builtin_t
-base_type_from_litmod(c4m_lit_syntax_t st, c4m_utf8_t *mod)
+c4m_base_type_from_litmod(c4m_lit_syntax_t st, c4m_utf8_t *mod)
 {
     c4m_builtin_t bi;
     bool          found = false;
 
-    if (mod != NULL) {
-        bi = (c4m_builtin_t)(int64_t)hatrack_dict_get(mod_map[st], mod, &found);
+    if (mod == NULL) {
+        mod = c4m_new_utf8("");
     }
+
+    bi = (c4m_builtin_t)(int64_t)hatrack_dict_get(mod_map[st], mod, &found);
 
     if (found) {
         return bi;
@@ -212,7 +214,7 @@ c4m_init_literal_handling()
 }
 
 c4m_compile_error_t
-c4m_parse_simple_lit(c4m_token_t *tok)
+c4m_parse_simple_lit(c4m_token_t *tok, c4m_lit_syntax_t *kptr, c4m_utf8_t **lm)
 {
     c4m_init_literal_handling();
 
@@ -249,7 +251,7 @@ c4m_parse_simple_lit(c4m_token_t *tok)
         C4M_CRAISE("Token is not a simple literal");
     }
 
-    c4m_builtin_t base_type = base_type_from_litmod(kind, mod);
+    c4m_builtin_t base_type = c4m_base_type_from_litmod(kind, mod);
 
     if (base_type == C4M_T_ERROR) {
         return c4m_err_parse_no_lit_mod_match;
@@ -263,6 +265,11 @@ c4m_parse_simple_lit(c4m_token_t *tok)
     }
 
     tok->literal_value = (*fn)(txt, kind, mod, &err);
+
+    if (kptr != NULL) {
+        *kptr = kind;
+        *lm   = mod;
+    }
 
     return err;
 }
@@ -310,52 +317,6 @@ c4m_type_has_tuple_syntax(c4m_type_t *t)
 
     return tuple_types[word] & to_test;
 }
-
-static void
-partial_literal_init(c4m_partial_lit_t *partial, va_list args)
-{
-    int              n         = va_arg(args, int);
-    c4m_builtin_t    base_type = va_arg(args, c4m_builtin_t);
-    c4m_tree_node_t *node      = va_arg(args, c4m_tree_node_t *);
-
-    partial->num_items = n;
-    partial->items     = c4m_gc_array_alloc(c4m_obj_t, n);
-    partial->type      = c4m_new(c4m_tspec_typespec(),
-                            c4m_global_type_env,
-                            base_type);
-    partial->node      = node;
-
-    if (!n) {
-        partial->empty_container = 1;
-        if (base_type == C4M_T_VOID) {
-            partial->empty_dict_or_set = 1;
-        }
-        return;
-    }
-
-    int flagwords_needed = (n + 63) / 64;
-
-    if (flagwords_needed > 1) {
-        partial->cached_state = c4m_gc_array_alloc(uint64_t, flagwords_needed);
-        for (int i = 0; i < flagwords_needed - 1; i++) {
-            partial->cached_state[0] = ~(0ULL);
-        }
-
-        partial->cached_state[flagwords_needed - 1] = (1 << (n % 64)) - 1;
-    }
-    else {
-        uint64_t tmp          = (1 << n) - 1;
-        partial->cached_state = (void *)tmp;
-    }
-}
-
-const c4m_vtable_t c4m_partial_lit_vtable = {
-    .num_entries = C4M_BI_NUM_FUNCS,
-    .methods     = {
-        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)partial_literal_init,
-    },
-};
-
 int
 c4m_get_num_bitfield_words()
 {

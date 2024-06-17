@@ -1,5 +1,6 @@
 #pragma once
-#define C4M_TYPE_LOG
+#undef C4M_TYPE_LOG
+#define C4M_DEV
 
 // Everything includes this; the ordering here is somewhat important
 // due to interdependencies, though they can always be solved via
@@ -84,15 +85,21 @@
 // Virtual machine for running con4m code
 #include "con4m/vm.h"
 
-// The front end.
-#include "frontend/treematch.h"
-#include "frontend/compile.h"
-#include "frontend/errors.h"
-#include "frontend/lex.h"
-#include "frontend/parse.h"
-#include "frontend/scope.h"
-#include "frontend/spec.h"
-#include "frontend/partial.h"
-#include "frontend/cfgs.h"
+// Bitfields.
+#include "con4m/flags.h"
+
+// Really int log2 only right now.
+#include "con4m/math.h"
+
+// The compiler.
+#include "compiler/ast_utils.h"
+#include "compiler/compile.h"
+#include "compiler/errors.h"
+#include "compiler/lex.h"
+#include "compiler/parse.h"
+#include "compiler/scope.h"
+#include "compiler/spec.h"
+#include "compiler/cfgs.h"
+#include "compiler/codegen.h"
 
 #include "con4m/set.h"

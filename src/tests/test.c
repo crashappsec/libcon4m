@@ -17,7 +17,7 @@ static void
 collect_and_print_stats()
 {
     uint64_t used, available, total, live;
-    uint64_t allocs_pre, allocs_post;
+    uint64_t allocs_pre = 0, allocs_post = 0;
 
     c4m_gc_heap_stats(&used, &available, &total);
     allocs_pre = get_alloc_counter();
@@ -359,7 +359,7 @@ table_test()
 
     c4m_grid_t *flow = c4m_grid_flow(3, g, ul, ol);
     c4m_grid_add_cell(flow, test1);
-    c4m_ansi_render(c4m_value_obj_repr(flow), sout);
+    c4m_ansi_render(c4m_value_obj_to_str(flow), sout);
 }
 
 void
@@ -555,49 +555,57 @@ c4m_rich_lit_test()
     test = c4m_rich_lit("[atomic lime]Hello, [jazzberry]world[/]!");
     c4m_print(test);
 
-    test = c4m_rich_lit("[atomic lime on jazzberry]Hello, world[/]!");
+    test = c4m_rich_lit("[atomic lime %jazzberry]Hello, world[/]!");
     c4m_print(test);
 
-    test = c4m_rich_lit("[jazzberry on atomic lime]Hello, world![/]");
+    test = c4m_rich_lit("[jazzberry %atomic lime]Hello, world![/]");
     c4m_print(test);
 
     test = c4m_rich_lit(
-        "[bold italic jazzberry on atomic lime]Hello,[/color] "
+        "[bold italic jazzberry %atomic lime]Hello,[/jazzberry atomic lime] "
         "world!");
     c4m_print(test);
 
     test = c4m_rich_lit(
-        "[bold italic jazzberry on atomic lime]Hello,"
-        "[/color bold] world!");
+        "[bold italic jazzberry %atomic lime]Hello,"
+        "[/jazzberry atomic lime bold] world!");
     c4m_print(test);
 
     test = c4m_rich_lit(
-        "[bold italic jazzberry on atomic lime]Hello,"
-        "[/color bold italic] world!");
+        "[bold italic jazzberry %atomic lime]Hello,"
+        "[-jazzberry atomic lime bold italic + underline] world??");
     c4m_print(test);
 
     test = c4m_rich_lit(
-        "[bold italic jazzberry on atomic lime]Hello,[/bg bold] "
+        "[bold italic jazzberry %atomic lime]Hello,[/ bold] "
         "world!");
     c4m_print(test);
 
     test = c4m_rich_lit(
-        "[bold italic u jazzberry on atomic lime]Hello,[/bold] "
+        "[bold italic u jazzberry %atomic lime]Hello,[/bold] "
         "world!\n\n");
     c4m_print(test);
 
     test = c4m_rich_lit(
-        "[bold italic atomic lime on jazzberry]Hello,[/bold fg] "
+        "[bold italic u jazzberry %atomic lime]Hello,[/bold] "
+        "world![/]\n\n");
+    c4m_print(test);
+
+    test = c4m_rich_lit(
+        "[bold italic atomic lime %jazzberry]Hello,[/bold    ] "
         "world!");
     c4m_print(test);
 
     test = c4m_rich_lit("[h2]Hello, world!");
     c4m_print(test);
 
-    test = c4m_rich_lit("[h2]Hello, [i u]world[/i u], it is me!");
+    test = c4m_rich_lit("[h2]Hello, [i u]world[/i u], it is me![/]");
     c4m_print(test);
 
     c4m_print(test, test, c4m_kw("no_color", c4m_ka(true), "sep", c4m_ka('&')));
+
+    test = c4m_rich_lit("[em]Hi c.[/em]");
+    c4m_print(test);
 }
 
 bool
@@ -638,40 +646,95 @@ test_compiler()
             path = fname;
         }
 
-        ctx = c4m_compile_from_entry_point(path);
+        c4m_print(c4m_cstr_format("[atomic lime]info:[/] Compiling from: {}",
+                                  fname));
 
+        ctx = c4m_compile_from_entry_point(path);
         // c4m_print(c4m_format_tokens(ctx->entry_point));
 
-        if (ctx->entry_point->parse_tree) {
-            // c4m_print(c4m_format_parse_tree(ctx->entry_point));
-        }
+        for (int i = 0; i < c4m_xlist_len(ctx->module_ordering); i++) {
+            c4m_file_compile_ctx *f = c4m_xlist_get(ctx->module_ordering,
+                                                    i,
+                                                    NULL);
 
-        c4m_print(c4m_cstr_format("[atomic lime]info: [/] Finished parsing: {}",
-                                  fname));
+#if 1
+            c4m_print(c4m_cstr_format("[h1]Processing module {}", f->path));
+            if (ctx->entry_point->parse_tree) {
+                c4m_print(c4m_format_parse_tree(ctx->entry_point));
+            }
+            else {
+                continue;
+            }
+
+            if (ctx->entry_point->cfg) {
+                c4m_print(c4m_cstr_format("[h1]Toplevel CFG for {}", f->path));
+                c4m_print(c4m_cfg_repr(ctx->entry_point->cfg));
+            }
+            else {
+                continue;
+            }
+
+            for (int j = 0; j < c4m_xlist_len(f->fn_def_syms); j++) {
+                c4m_scope_entry_t *sym  = c4m_xlist_get(f->fn_def_syms,
+                                                       j,
+                                                       NULL);
+                c4m_fn_decl_t     *decl = sym->value;
+                c4m_print(c4m_cstr_format("[h1]CFG for Function {}{}",
+                                          sym->name,
+                                          sym->type));
+                c4m_print(c4m_cfg_repr(decl->cfg));
+                c4m_print(c4m_cstr_format("[h2]Function Scope for {}{}",
+                                          sym->name,
+                                          sym->type));
+                c4m_print(c4m_format_scope(decl->signature_info->fn_scope));
+            }
+
+            c4m_print(c4m_rich_lit("[h2]Global Scope"));
+            c4m_print(c4m_format_scope(ctx->final_globals));
+            c4m_print(c4m_rich_lit("[h2]Module Scope"));
+            c4m_print(c4m_format_scope(ctx->entry_point->module_scope));
+#endif
+        }
 
         c4m_grid_t *err_output = c4m_format_errors(ctx);
 
         if (err_output != NULL) {
             c4m_print(err_output);
         }
-        else {
-            c4m_print(c4m_cfg_repr(ctx->entry_point->cfg));
-            c4m_print(c4m_rich_lit("[h2]Global Scope"));
-            c4m_print(c4m_format_scope(ctx->final_globals));
-            c4m_print(c4m_rich_lit("[h2]Module Scope for entry point module"));
-            c4m_print(c4m_format_scope(ctx->entry_point->module_scope));
+
+        c4m_print(c4m_cstr_format("[atomic lime]info:[/] Done processing: {}",
+                                  fname));
+
+        if (c4m_got_fatal_compiler_error(ctx)) {
+            return;
         }
+
+        c4m_vm_t *vm = c4m_generate_code(ctx);
+
+#if 1
+        for (int i = 0; i < c4m_xlist_len(ctx->module_ordering); i++) {
+            c4m_zmodule_info_t *m;
+            m = c4m_xlist_get(vm->obj->module_contents, i, NULL);
+            c4m_print(c4m_disasm(vm, m));
+            c4m_print(c4m_cstr_format("Module [em]{}[/] disassembly done.",
+                                      m->path));
+            c4m_print(c4m_rich_lit("[h2]Module Source Code"));
+            c4m_print(m->source);
+        }
+#endif
+
+        c4m_print(c4m_rich_lit("[h6]****STARTING PROGRAM EXECUTION*****[/]"));
+        c4m_vmthread_t *thread = c4m_vmthread_new(vm);
+        c4m_vmthread_run(thread);
+        c4m_print(c4m_rich_lit("[h6]****PROGRAM EXECUTION FINISHED*****[/]\n"));
+        // TODO: We need to mark unlocked types with sub-variables at some point,
+        // so they don't get clobbered.
+        //
+        // E.g.,  (dict[`x, list[int]]) -> int
+
+        // c4m_clean_environment();
+        // c4m_print(c4m_format_global_type_environment());
     }
-    c4m_print(c4m_str_to_type(c4m_new_utf8("(dict[`x, list[int]]) -> int")));
-
-    // TODO: We need to mark unlocked types with sub-variables at some point,
-    // so they don't get clobbered.
-    //
-    // E.g.,  (dict[`x, list[int]]) -> int
-
-    // c4m_clean_environment();
-    // c4m_print(c4m_format_global_type_environment());
-    c4m_print_parse_node(ctx->entry_point->parse_tree);
 }
 #else
 #define test_compiler(...)
@@ -685,17 +748,21 @@ test_format()
     c4m_print(s);
 
     s = c4m_cstr_format("[red]Test 1:[/] [brown]{:c}[/] : [blue]{}[/] [i]woo.[/]",
-                        c4m_box_u32(100),
+                        c4m_box_u64(100),
                         c4m_rich_lit("Hello"));
     c4m_print(s);
     s = c4m_cstr_format("[red]Test 2:[/] [brown]{:d}[/] : [red]{:}[/]",
-                        c4m_box_u32(100),
-                        c4m_box_u32(100));
+                        c4m_box_u64(100),
+                        c4m_box_u64(100));
     c4m_print(s);
 
     s = c4m_cstr_format("[red]Test 3:[/] {1} : [blue]{0:n}[/]\n",
-                        c4m_box_u32(100),
+                        c4m_box_u64(100),
                         c4m_rich_lit("Hello"));
+    c4m_print(s);
+    s = c4m_cstr_format("[red]Test 4:[/] [blue]{}[/][atomic lime]{}[/]foo\n",
+                        c4m_rich_lit("Hello"),
+                        c4m_rich_lit("Sir "));
     c4m_print(s);
 }
 
@@ -747,54 +814,52 @@ main(int argc, char **argv, char **envp)
     {
         c4m_install_default_styles();
         c4m_terminal_dimensions(&term_width, NULL);
-        c4m_ansi_render_to_width(str_test, term_width, 0, sout);
-        test_rand64();
-        // Test basic string and single threaded GC.
-        test1();
-        // style1 = apply_bg_color(style1, "alice blue");
-        c4m_str_t *to_slice = test2();
-        test3(to_slice);
-        to_slice = NULL;
-        test4();
-        table_test();
 
-        printf("Sample style: %.16llx\n", (unsigned long long)style1);
-        sha_test();
+        if (argc == 1) {
+            c4m_ansi_render_to_width(str_test, term_width, 0, sout);
+            test_rand64();
+            // Test basic string and single threaded GC.
+            test1();
+            // style1 = apply_bg_color(style1, "alice blue");
+            c4m_str_t *to_slice = test2();
+            test3(to_slice);
+            to_slice = NULL;
+            test4();
+            table_test();
 
-        type_tests();
-        c4m_stream_tests();
-        marshal_test();
-        // marshal_test2();
-        create_dict_lit();
-        c4m_rich_lit_test();
-        c4m_print(c4m_box_u32((int32_t)-1));
-        c4m_print(c4m_box_i32((int32_t)-1));
+            printf("Sample style: %.16llx\n", (unsigned long long)style1);
+            sha_test();
 
-        test_format();
-        test_path();
+            type_tests();
+            c4m_stream_tests();
+            marshal_test();
+            // marshal_test2();
+            create_dict_lit();
+            c4m_rich_lit_test();
+            c4m_print(c4m_box_u32((int32_t)-1));
+            c4m_print(c4m_box_i32((int32_t)-1));
+
+            test_format();
+            test_path();
+        }
         test_compiler();
-
-        C4M_STATIC_ASCII_STR(local_test, "Goodbye!");
-        // c4m_ansi_render(local_test, sout);
-        c4m_print((c4m_obj_t *)local_test);
-        C4M_CRAISE("Except maybe not!");
+        if (argc == 1) {
+            // C4M_STATIC_ASCII_STR(local_test, "Goodbye!");
+            // c4m_print((c4m_obj_t *)local_test);
+            c4m_print((c4m_obj_t *)c4m_new_utf8("Goodbye!"));
+            C4M_CRAISE("Except maybe not!");
+        }
     }
     C4M_EXCEPT
     {
-        c4m_exception_t *e = C4M_X_CUR();
-        printf("Just kidding. An exception was raised before exit:\n");
-        switch (e->code) {
-        default:
-            c4m_stream_puts(serr, c4m_exception_get_file(e)->data);
-            c4m_stream_puti(serr, c4m_exception_get_line(e));
-            c4m_stream_puts(serr, ": Caught you, exception man: ");
-            c4m_ansi_render(c4m_exception_get_message(C4M_X_CUR()), serr);
-            c4m_stream_putc(serr, '\n');
-            C4M_JUMP_TO_TRY_END();
-        };
+        printf("An exception was raised before exit:\n");
+        c4m_print(c4m_repr_exception_stack_no_vm(c4m_new_utf8("Error: ")));
+        C4M_JUMP_TO_TRY_END();
     }
     C4M_TRY_END;
-    c4m_stream_puts(serr, "This theoretically should run.\n");
+    if (argc == 1) {
+        c4m_stream_puts(serr, "This theoretically should run.\n");
+    }
 
 #ifdef STACK_SCAN_TEST
     c4m_get_stack_scan_region(&top, &bottom);

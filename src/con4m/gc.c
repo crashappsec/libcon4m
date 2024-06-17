@@ -129,6 +129,49 @@ c4m_initialize_gc()
     }
 }
 
+// The idea here is once the object unmarshals the object file and
+// const objects, it can make the heap up till that point read-only.
+// We definitely won't want to allocate anything that will need
+// to be writable at runtime...
+static void
+lock_existing_heap()
+{
+    uint64_t to_lock       = (uint64_t)current_heap;
+    uint64_t words_to_lock = ((uint64_t)(current_heap->next_alloc)) - to_lock;
+    int      b_to_lock     = words_to_lock * 8;
+    b_to_lock              = c4m_round_up_to_given_power_of_2(getpagesize(), b_to_lock);
+    mprotect((void *)to_lock, b_to_lock, PROT_READ);
+}
+
+static thread_local c4m_arena_t *stashed_heap;
+
+c4m_arena_t *
+c4m_internal_stash_heap()
+{
+    stashed_heap = current_heap;
+    current_heap = c4m_new_arena(C4M_DEFAULT_ARENA_SIZE);
+    return stashed_heap;
+}
+
+void
+c4m_internal_lock_then_unstash_heap()
+{
+    lock_existing_heap();
+    current_heap = stashed_heap;
+}
+
+void
+c4m_internal_unstash_heap()
+{
+    current_heap = stashed_heap;
+}
+
+void
+c4m_internal_set_heap(c4m_arena_t *heap)
+{
+    current_heap = heap;
+}
+
 static void *
 raw_arena_alloc(uint64_t len, void **end)
 {
@@ -180,18 +223,19 @@ c4m_expand_arena(size_t num_words, c4m_arena_t **cur_ptr)
 
     c4m_arena_t *current = *cur_ptr;
 
-    new_arena->next_alloc     = (c4m_alloc_hdr *)new_arena->data;
-    new_arena->previous       = current;
-    new_arena->heap_end       = arena_end;
-    new_arena->arena_id       = arena_id;
-    new_arena->late_mutations = calloc(sizeof(queue_t), 1);
+    new_arena->next_alloc    = (c4m_alloc_hdr *)new_arena->data;
+    new_arena->previous      = current;
+    new_arena->heap_end      = arena_end;
+    new_arena->arena_id      = arena_id;
+    new_arena->alloc_counter = 0;
+    // new_arena->late_mutations = calloc(sizeof(queue_t), 1);
 
     c4m_gc_trace("******** alloc late mutations dict: %p\n",
                  new_arena->late_mutations);
 
     *cur_ptr = new_arena;
 
-    queue_init(new_arena->late_mutations);
+    // queue_init(new_arena->late_mutations);
 
     if (current != NULL && current->roots != NULL) {
         new_arena->roots = c4m_rc_ref(current->roots);
@@ -261,9 +305,9 @@ c4m_delete_arena(c4m_arena_t *arena)
             c4m_rc_free_and_cleanup(arena->roots,
                                     (cleanup_fn)hatrack_dict_cleanup);
         }
-        c4m_gc_trace("******** delete late mutations dict: %p\n",
-                     arena->late_mutations);
-        free(arena->late_mutations);
+        // c4m_gc_trace("******** delete late mutations dict: %p\n",
+        // arena->late_mutations);
+        // free(arena->late_mutations);
 
 #if defined(MADV_ZERO_WIRED_PAGES)
         char *start = ((char *)arena) - page_bytes;

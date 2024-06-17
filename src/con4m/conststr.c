@@ -17,7 +17,8 @@ enum {
     SLASH_IX     = 13,
     PERIOD_IX    = 14,
     EMPTY_FMT_IX = 15,
-    PUNC_MAX     = 16,
+    NEWLINE_IX   = 16,
+    PUNC_MAX     = 17,
 };
 
 static c4m_str_t *type_punct[PUNC_MAX] = {
@@ -47,6 +48,7 @@ init_punctuation()
         type_punct[SLASH_IX]     = c4m_utf8_repeat('/', 1);
         type_punct[EMPTY_FMT_IX] = c4m_new(c4m_tspec_utf8(),
                                            c4m_kw("cstring", c4m_ka("{}")));
+        type_punct[NEWLINE_IX]   = c4m_utf8_repeat('\n', 1);
     }
     c4m_gc_register_root(&type_punct[0], PUNC_MAX);
 }
@@ -161,6 +163,13 @@ c4m_get_empty_fmt_const()
 {
     init_punctuation();
     return type_punct[EMPTY_FMT_IX];
+}
+
+c4m_utf8_t *
+c4m_get_newline_const()
+{
+    init_punctuation();
+    return type_punct[NEWLINE_IX];
 }
 
 c4m_utf8_t *

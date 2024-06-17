@@ -196,7 +196,7 @@ c4m_xlist(c4m_type_t *x)
 }
 
 static c4m_str_t *
-xlist_repr(c4m_xlist_t *list, to_str_use_t how)
+xlist_repr(c4m_xlist_t *list)
 {
     c4m_type_t  *list_type   = c4m_get_my_type(list);
     c4m_xlist_t *type_params = c4m_tspec_get_parameters(list_type);
@@ -210,17 +210,15 @@ xlist_repr(c4m_xlist_t *list, to_str_use_t how)
         if (err) {
             continue;
         }
-        c4m_str_t *s = c4m_repr(item, item_type, how);
+        c4m_str_t *s = c4m_repr(item, item_type);
         c4m_xlist_append(items, s);
     }
 
     c4m_str_t *sep    = c4m_get_comma_const();
     c4m_str_t *result = c4m_str_join(items, sep);
 
-    if (how == C4M_REPR_QUOTED) {
-        result = c4m_str_concat(c4m_get_lbrak_const(),
-                                c4m_str_concat(result, c4m_get_rbrak_const()));
-    }
+    result = c4m_str_concat(c4m_get_lbrak_const(),
+                            c4m_str_concat(result, c4m_get_rbrak_const()));
 
     return result;
 }
@@ -416,33 +414,39 @@ c4m_xlist_contains(c4m_xlist_t *list, c4m_obj_t item)
     return false;
 }
 
+static void *
+xlist_view(c4m_xlist_t *list, uint64_t *n)
+{
+    c4m_xlist_t *copy = c4m_xlist_shallow_copy(list);
+    *n                = c4m_xlist_len(copy);
+    return copy->data;
+}
+
+static c4m_xlist_t *
+to_xlist_lit(c4m_type_t *objtype, c4m_xlist_t *items, c4m_utf8_t *litmod)
+{
+    return items;
+}
+
 extern bool list_can_coerce_to(c4m_type_t *, c4m_type_t *);
 
 const c4m_vtable_t c4m_xlist_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)xlist_init,
-        (c4m_vtable_entry)xlist_repr,
-        NULL,
-        NULL,
-        (c4m_vtable_entry)c4m_xlist_marshal,
-        (c4m_vtable_entry)c4m_xlist_unmarshal,
-        (c4m_vtable_entry)list_can_coerce_to,
-        (c4m_vtable_entry)xlist_coerce_to,
-        NULL,
-        (c4m_vtable_entry)xlist_copy,
-        (c4m_vtable_entry)c4m_xlist_plus,
-        NULL, // Subtract
-        NULL, // Mul
-        NULL, // Div
-        NULL, // MOD
-        NULL, // EQ
-        NULL, // LT
-        NULL, // GT
-        (c4m_vtable_entry)c4m_xlist_len,
-        (c4m_vtable_entry)c4m_xlist_safe_get,
-        (c4m_vtable_entry)c4m_xlist_set,
-        (c4m_vtable_entry)c4m_xlist_get_slice,
-        (c4m_vtable_entry)c4m_xlist_set_slice,
+        [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)xlist_init,
+        [C4M_BI_TO_STR]        = (c4m_vtable_entry)xlist_repr,
+        [C4M_BI_MARSHAL]       = (c4m_vtable_entry)c4m_xlist_marshal,
+        [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_xlist_unmarshal,
+        [C4M_BI_COERCIBLE]     = (c4m_vtable_entry)list_can_coerce_to,
+        [C4M_BI_COERCE]        = (c4m_vtable_entry)xlist_coerce_to,
+        [C4M_BI_COPY]          = (c4m_vtable_entry)xlist_copy,
+        [C4M_BI_ADD]           = (c4m_vtable_entry)c4m_xlist_plus,
+        [C4M_BI_LEN]           = (c4m_vtable_entry)c4m_xlist_len,
+        [C4M_BI_INDEX_GET]     = (c4m_vtable_entry)c4m_xlist_safe_get,
+        [C4M_BI_INDEX_SET]     = (c4m_vtable_entry)c4m_xlist_set,
+        [C4M_BI_SLICE_GET]     = (c4m_vtable_entry)c4m_xlist_get_slice,
+        [C4M_BI_SLICE_SET]     = (c4m_vtable_entry)c4m_xlist_set_slice,
+        [C4M_BI_VIEW]          = (c4m_vtable_entry)xlist_view,
+        [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)to_xlist_lit,
     },
 };

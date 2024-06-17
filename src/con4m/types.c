@@ -1,7 +1,6 @@
 #define C4M_USE_INTERNAL_API
 #include "con4m.h"
 
-#define C4M_TYPE_LOG
 #ifdef C4M_TYPE_LOG
 
 static bool log_types = false;
@@ -430,6 +429,7 @@ c4m_tspec_init(c4m_type_t *n, va_list args)
     case C4M_DT_KIND_internal:
         n->typeid = base_id;
         if (hatrack_dict_get(env->store, (void *)base_id, NULL)) {
+            n[-(int64_t)n].typeid = base_id;
             C4M_CRAISE("Call get_builtin_type(), not c4m_new().");
         }
         if ((n->typeid = info->typeid) == C4M_T_TYPESPEC) {
@@ -443,6 +443,7 @@ c4m_tspec_init(c4m_type_t *n, va_list args)
     case C4M_DT_KIND_tuple:
     case C4M_DT_KIND_dict:
     case C4M_DT_KIND_func:
+    case C4M_DT_KIND_object:
         internal_add_items_array(n);
         c4m_type_t *arg = va_arg(args, c4m_type_t *);
 
@@ -460,17 +461,27 @@ c4m_tspec_init(c4m_type_t *n, va_list args)
     assert(n->details != NULL && (((int64_t)n->details) & 0x07) == 0);
 }
 
-c4m_type_t *
-c4m_tspec_copy(c4m_type_t *node, c4m_type_env_t *env)
+static c4m_type_t *
+tspec_copy_internal(c4m_type_t *node, c4m_type_env_t *env, c4m_dict_t *dupes)
 {
     // Copies, anything that might be mutated, returning an unlocked
     // instance where mutation is okay.
+    //
+    // TODO: this is wrong for general purpose; uses global environment.
+    // Need to do a base version that works for any type env.
 
-    node = c4m_resolve_type_aliases(node, env);
+    node             = c4m_resolve_and_unbox(node);
+    c4m_type_t *dupe = hatrack_dict_get(dupes, node, NULL);
+
+    if (dupe != NULL) {
+        return dupe;
+    }
 
     if (c4m_tspec_is_concrete(node)) {
         return node;
     }
+
+    int              n       = c4m_tspec_get_num_params(node);
     c4m_type_info_t *ts_from = node->details;
     c4m_type_t      *result;
 
@@ -485,26 +496,36 @@ c4m_tspec_copy(c4m_type_t *node, c4m_type_env_t *env)
             new_opts[i] = old_opts[i];
         }
 
+        hatrack_dict_put(dupes, node, result);
         return result;
     }
     else {
         result = c4m_new(c4m_tspec_typespec(), env, ts_from->base_type->typeid);
     }
 
-    int          n       = c4m_tspec_get_num_params(node);
     c4m_xlist_t *to_copy = c4m_tspec_get_params(node);
     c4m_xlist_t *ts_dst  = result->details->items;
 
     for (int i = 0; i < n; i++) {
         c4m_type_t *original = c4m_xlist_get(to_copy, i, NULL);
-        c4m_type_t *copy     = c4m_tspec_copy(original, env);
+        c4m_type_t *copy     = tspec_copy_internal(original, env, dupes);
 
         c4m_xlist_append(ts_dst, copy);
     }
 
     c4m_type_hash(result, env);
 
+    hatrack_dict_put(dupes, node, result);
     return result;
+}
+
+c4m_type_t *
+c4m_tspec_copy(c4m_type_t *node, c4m_type_env_t *env)
+{
+    c4m_dict_t *dupes = c4m_new(c4m_tspec_dict(c4m_tspec_ref(),
+                                               c4m_tspec_ref()));
+
+    return tspec_copy_internal(node, env, dupes);
 }
 
 static c4m_type_t *
@@ -526,6 +547,8 @@ c4m_tspec_is_concrete(c4m_type_t *node)
 {
     int          n;
     c4m_xlist_t *param;
+
+    node = c4m_resolve_and_unbox(node);
 
     // Fast path most of the time; just if we decide to check
     // before an initial tid is set, take the long road.
@@ -884,8 +907,18 @@ c4m_unify(c4m_type_t *t1, c4m_type_t *t2, c4m_type_env_t *env)
     t1 = copy_if_needed(t1, env);
     t2 = copy_if_needed(t2, env);
 
-    if (c4m_is_partial_type(t1) || c4m_is_partial_type(t2)) {
-        abort();
+    // If comparing types w/ something boxed, ignored the box.
+    if (c4m_tspec_is_box(t1)) {
+        t1 = c4m_xlist_get(t1->details->items, 0, NULL);
+        if (c4m_tspec_is_box(t2)) {
+            t2 = c4m_xlist_get(t2->details->items, 0, NULL);
+        }
+        return c4m_unify(t1, t2, env);
+    }
+
+    if (c4m_tspec_is_box(t2)) {
+        t2 = c4m_xlist_get(t2->details->items, 0, NULL);
+        return c4m_unify(t1, t2, env);
     }
 
     // This is going to re-check the structure, just to cover any
@@ -1099,11 +1132,11 @@ unify_sub_nodes:
 
         break;
     }
+    case C4M_DT_KIND_object:
     case C4M_DT_KIND_nil:
     case C4M_DT_KIND_primitive:
     case C4M_DT_KIND_internal:
     case C4M_DT_KIND_maybe:
-    case C4M_DT_KIND_object:
     case C4M_DT_KIND_oneof:
     default:
         // Either not implemented yet or covered before the switch.
@@ -1422,6 +1455,8 @@ first_loop_start:
     return c4m_str_join(to_join, NULL);
 }
 
+static c4m_str_t *c4m_tspec_repr(c4m_type_t *);
+
 c4m_str_t *
 internal_type_repr(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
 {
@@ -1443,6 +1478,18 @@ internal_type_repr(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
         return internal_repr_container(info, memos, nexttv);
     case C4M_DT_KIND_func:
         return internal_repr_func(info, memos, nexttv);
+    case C4M_DT_KIND_object:
+// For right now, this is just boxes, and we want to pretend the
+// box isn't there from the user's POV; it's just internal
+// for now.
+//
+// Plus, boxes will never be boxing type variables, so we
+// have no parameters to deal with.
+#if 0
+        return c4m_tspec_repr(c4m_xlist_get(info->items, 0, NULL));
+#else
+        return internal_repr_container(info, memos, nexttv);
+#endif
     default:
         assert(false);
     }
@@ -1451,7 +1498,7 @@ internal_type_repr(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
 }
 
 static c4m_str_t *
-c4m_tspec_repr(c4m_type_t *t, to_str_use_t how)
+c4m_tspec_repr(c4m_type_t *t)
 {
     c4m_dict_t *memos = c4m_new(c4m_tspec_dict(c4m_tspec_ref(),
                                                c4m_tspec_utf8()));
@@ -1483,31 +1530,22 @@ c4m_tspec_unmarshal(c4m_type_t *n, c4m_stream_t *s, c4m_dict_t *m)
 const c4m_vtable_t c4m_type_env_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)c4m_type_env_init,
-        NULL,
-        NULL,
-        NULL,
-        (c4m_vtable_entry)c4m_type_env_marshal,
-        (c4m_vtable_entry)c4m_type_env_unmarshal,
-        NULL,
-    }};
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_type_env_init,
+        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_type_env_marshal,
+        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_type_env_unmarshal,
+    },
+};
 
 const c4m_vtable_t c4m_type_spec_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)c4m_tspec_init,
-        (c4m_vtable_entry)c4m_tspec_repr,
-        NULL,
-        NULL,
-        (c4m_vtable_entry)c4m_tspec_marshal,
-        (c4m_vtable_entry)c4m_tspec_unmarshal,
-        NULL, // Nothing to coerce to.
-        NULL,
-        NULL, // from-lit still handled in Nim.
-        (c4m_vtable_entry)c4m_global_copy,
-        NULL,
-        // Nothing else is appropriate.
-    }};
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_tspec_init,
+        [C4M_BI_REPR]        = (c4m_vtable_entry)c4m_tspec_repr,
+        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_tspec_marshal,
+        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_tspec_unmarshal,
+        [C4M_BI_COPY]        = (c4m_vtable_entry)c4m_global_copy,
+    },
+};
 
 void
 c4m_initialize_global_types()
@@ -1624,95 +1662,29 @@ c4m_initialize_global_types()
     }
 }
 
-c4m_type_t *
-c4m_tspec_list(c4m_type_t *sub)
-{
-    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
-                                 c4m_global_type_env,
-                                 C4M_T_LIST);
-    c4m_xlist_t *items  = result->details->items;
+#define DECLARE_ONE_PARAM_FN(tname, idnumber)               \
+    c4m_type_t *                                            \
+        c4m_tspec_##tname(c4m_type_t *sub)                  \
+    {                                                       \
+        c4m_type_t  *result = c4m_new(c4m_tspec_typespec(), \
+                                     c4m_global_type_env,  \
+                                     idnumber);            \
+        c4m_xlist_t *items  = result->details->items;       \
+        c4m_xlist_append(items, sub);                       \
+                                                            \
+        type_hash_and_dedupe(&result, c4m_global_type_env); \
+                                                            \
+        return result;                                      \
+    }
 
-    c4m_xlist_append(items, sub);
-
-    type_hash_and_dedupe(&result, c4m_global_type_env);
-
-    return result;
-}
-
-c4m_type_t *
-c4m_tspec_xlist(c4m_type_t *sub)
-{
-    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
-                                 c4m_global_type_env,
-                                 C4M_T_XLIST);
-    c4m_xlist_t *items  = result->details->items;
-
-    c4m_xlist_append(items, sub);
-
-    type_hash_and_dedupe(&result, c4m_global_type_env);
-
-    return result;
-}
-
-c4m_type_t *
-c4m_tspec_tree(c4m_type_t *sub)
-{
-    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
-                                 c4m_global_type_env,
-                                 C4M_T_TREE);
-    c4m_xlist_t *items  = result->details->items;
-
-    c4m_xlist_append(items, sub);
-
-    type_hash_and_dedupe(&result, c4m_global_type_env);
-
-    return result;
-}
-
-c4m_type_t *
-c4m_tspec_queue(c4m_type_t *sub)
-{
-    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
-                                 c4m_global_type_env,
-                                 C4M_T_QUEUE);
-    c4m_xlist_t *items  = result->details->items;
-
-    c4m_xlist_append(items, sub);
-
-    type_hash_and_dedupe(&result, c4m_global_type_env);
-
-    return result;
-}
-
-c4m_type_t *
-c4m_tspec_ring(c4m_type_t *sub)
-{
-    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
-                                 c4m_global_type_env,
-                                 C4M_T_RING);
-    c4m_xlist_t *items  = result->details->items;
-
-    c4m_xlist_append(items, sub);
-
-    type_hash_and_dedupe(&result, c4m_global_type_env);
-
-    return result;
-}
-
-c4m_type_t *
-c4m_tspec_stack(c4m_type_t *sub)
-{
-    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
-                                 c4m_global_type_env,
-                                 C4M_T_STACK);
-    c4m_xlist_t *items  = result->details->items;
-
-    c4m_xlist_append(items, sub);
-
-    type_hash_and_dedupe(&result, c4m_global_type_env);
-
-    return result;
-}
+DECLARE_ONE_PARAM_FN(list, C4M_T_LIST);
+DECLARE_ONE_PARAM_FN(xlist, C4M_T_XLIST);
+DECLARE_ONE_PARAM_FN(tree, C4M_T_TREE);
+DECLARE_ONE_PARAM_FN(queue, C4M_T_QUEUE);
+DECLARE_ONE_PARAM_FN(ring, C4M_T_RING);
+DECLARE_ONE_PARAM_FN(stack, C4M_T_STACK);
+DECLARE_ONE_PARAM_FN(set, C4M_T_SET);
+DECLARE_ONE_PARAM_FN(box, C4M_T_BOX);
 
 c4m_type_t *
 c4m_tspec_dict(c4m_type_t *sub1, c4m_type_t *sub2)
@@ -1724,21 +1696,6 @@ c4m_tspec_dict(c4m_type_t *sub1, c4m_type_t *sub2)
 
     c4m_xlist_append(items, sub1);
     c4m_xlist_append(items, sub2);
-
-    type_hash_and_dedupe(&result, c4m_global_type_env);
-
-    return result;
-}
-
-c4m_type_t *
-c4m_tspec_set(c4m_type_t *sub1)
-{
-    c4m_type_t  *result = c4m_new(c4m_tspec_typespec(),
-                                 c4m_global_type_env,
-                                 C4M_T_SET);
-    c4m_xlist_t *items  = result->details->items;
-
-    c4m_xlist_append(items, sub1);
 
     type_hash_and_dedupe(&result, c4m_global_type_env);
 
@@ -2059,4 +2016,33 @@ c4m_format_global_type_environment()
     c4m_set_column_style(grid, 1, "snap");
     c4m_set_column_style(grid, 2, "snap");
     return grid;
+}
+
+c4m_type_t *
+c4m_resolve_and_unbox(c4m_type_t *t)
+{
+    t = c4m_global_resolve_type(t);
+
+    if (c4m_tspec_is_box(t)) {
+        return c4m_resolve_and_unbox(c4m_xlist_get(t->details->items, 0, NULL));
+    }
+
+    int          n       = c4m_xlist_len(t->details->items);
+    c4m_xlist_t *l       = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+    bool         changed = false;
+
+    for (int i = 0; i < n; i++) {
+        c4m_type_t *one      = c4m_xlist_get(t->details->items, i, NULL);
+        c4m_type_t *resolved = c4m_resolve_and_unbox(one);
+        if (resolved != one) {
+            changed = true;
+        }
+        c4m_xlist_append(l, resolved);
+    }
+
+    if (changed) {
+        t->details->items = l;
+        type_rehash(t, c4m_global_type_env);
+    }
+    return t;
 }

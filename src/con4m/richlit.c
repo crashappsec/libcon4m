@@ -1,13 +1,57 @@
 #include "con4m.h"
 
+typedef struct {
+    c4m_utf8_t *name;
+    union {
+        c4m_style_t style;
+        c4m_color_t color;
+        int         kw_ix;
+    } contents;
+    uint32_t    flags;
+    c4m_style_t prev_style;
+
+} tag_item_t;
+
 typedef struct fmt_frame_t {
-    int32_t             absolute_start;
-    int32_t             absolute_end;
-    int32_t             cp_start;
-    int32_t             cp_end;
-    c4m_style_t         style;
     struct fmt_frame_t *next;
+    c4m_utf8_t         *raw_contents;
+    int32_t             start;
+    int32_t             end;
+    c4m_style_t         style; // Calculated incremental style from a tag.
 } fmt_frame_t;
+
+typedef struct {
+    fmt_frame_t *start_frame;
+    fmt_frame_t *cur_frame;
+    c4m_xlist_t *style_directions;
+    c4m_utf8_t  *style_text;
+    c4m_style_t  cur_style;
+    tag_item_t **stack;
+    int          stack_ix;
+} style_ctx;
+
+typedef struct {
+    c4m_utf8_t  *raw;
+    c4m_xlist_t *tokens;
+    fmt_frame_t *cur_frame;
+    style_ctx   *style_ctx;
+    c4m_utf8_t  *not_matched;
+    int          num_toks;
+    int          tok_ix;
+    int          num_atoms;
+    bool         negating;
+    bool         at_start;
+    bool         got_percent;
+    c4m_style_t  cur_style;
+} tag_parse_ctx;
+
+#define F_NEG         (1 << 1)
+#define F_BGCOLOR     (1 << 2)
+#define F_STYLE_KW    (1 << 3)
+#define F_STYLE_CELL  (1 << 4)
+#define F_STYLE_COLOR (1 << 5)
+#define F_TAG_START   (1 << 6)
+#define F_POPPED      (1 << 7)
 
 // top: '[' ['/']
 // centity: COLOR ('on' COLOR)
@@ -38,436 +82,570 @@ init_style_keywords()
                                       c4m_ka(_marshaled_style_keywords),
                                       "length",
                                       c4m_ka(1426)));
-        c4m_stream_t *s = c4m_new(c4m_tspec_stream(), c4m_kw("buffer", c4m_ka(b)));
+        c4m_stream_t *s = c4m_new(c4m_tspec_stream(),
+                                  c4m_kw("buffer", c4m_ka(b)));
 
         c4m_gc_register_root(&style_keywords, 1);
         style_keywords = c4m_unmarshal(s);
     }
 }
 
-// Not using zero to make the 'miss' code easier.
+#define rich_tok_emit()                       \
+    if (p != start) {                         \
+        slice = c4m_new(c4m_tspec_utf8(),     \
+                        c4m_kw("cstring",     \
+                               c4m_ka(start), \
+                               "length",      \
+                               p - start));   \
+        c4m_xlist_append(ret, slice);         \
+    }
 
-#define F_NEG    (1 << 1)
-#define F_BOLD   (1 << 2)
-#define F_ITALIC (1 << 3)
-#define F_STRIKE (1 << 4)
-#define F_U      (1 << 5)
-#define F_UU     (1 << 6)
-#define F_REV    (1 << 7)
-#define F_TCASE  (1 << 8)
-#define F_LCASE  (1 << 9)
-#define F_UCASE  (1 << 10)
-#define F_ON     (1 << 11)
-#define F_CUR    (1 << 12)
+// tokenize the text between '[' and ']' into useful bits.
+static c4m_xlist_t *
+tokenize_rich_tag(c4m_utf8_t *s)
+{
+    c4m_xlist_t *ret   = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+    char        *p     = s->data;
+    char        *end   = s->data + c4m_str_byte_len(s);
+    char        *start = p;
+    c4m_utf8_t  *slice;
+
+    while (p < end) {
+        switch (*p) {
+        case ' ':
+            rich_tok_emit();
+            p++;
+            start = p;
+            continue;
+        case 0:
+            break;
+            // '-' and '/' are aliases; they indicate that subsequent tokens
+            // turn OFF things.
+            // '+' can be used to turn things back on in the same tag (tags
+            // start in this state so it's never really necessary)
+            // '%' indicates that the next token(s) represent a color, and
+            // we are looking to set the BACKGROUND with the color, not
+            // the foreground (which is the default for colors). The '%' was
+            // chosen because in Unix shells, jobs are often referred to by
+            // %; for instance; backgrounding a job is usually `bg %1`.
+            // Of course, you'd use the same syntax to fg it, but hopefully
+            // is okay.
+        case '/':
+        case '-':
+        case '+':
+        case '%':
+            rich_tok_emit();
+            start = p;
+            p++;
+            rich_tok_emit();
+            start = p;
+            continue;
+        default:
+            p++;
+            continue;
+        }
+    }
+    rich_tok_emit();
+
+    return ret;
+}
+
+static inline void
+enter_default_state(tag_parse_ctx *ctx)
+{
+    ctx->got_percent = false;
+}
+
+static inline void
+unmatched_check(tag_parse_ctx *ctx)
+{
+    if (ctx->not_matched != NULL) {
+        c4m_utf8_t *msg = c4m_cstr_format(
+            "When processing rich lit specifier \\[{}\\], could not find a "
+            "match for {} in either our color list or style list.",
+            ctx->raw,
+            ctx->not_matched);
+        C4M_RAISE(msg);
+    }
+}
+
+static inline void
+no_pct_check(tag_parse_ctx *ctx)
+{
+    if (ctx->got_percent == true) {
+        c4m_utf8_t *msg = c4m_cstr_format(
+            "When processing rich lit specifier \\[{}\\], found a '%' followed "
+            "by another special character, when a color was expected.",
+            ctx->raw);
+        C4M_RAISE(msg);
+    }
+}
+
+static inline tag_item_t *
+alloc_tag_item(tag_parse_ctx *ctx)
+{
+    tag_item_t *out = c4m_gc_alloc(tag_item_t);
+    out->name       = ctx->not_matched;
+
+    if (ctx->negating == true) {
+        out->flags |= F_NEG;
+    }
+
+    if (ctx->got_percent) {
+        out->flags |= F_BGCOLOR;
+    }
+
+    if (ctx->at_start) {
+        out->flags |= F_TAG_START;
+    }
+
+    ctx->num_atoms++;
+    ctx->not_matched = NULL;
+
+    enter_default_state(ctx);
+
+    c4m_xlist_append(ctx->style_ctx->style_directions, out);
+
+    return out;
+}
+
+static inline bool
+try_style_keyword(tag_parse_ctx *ctx)
+{
+    c4m_utf8_t *s = ctx->not_matched;
+
+    uint64_t n = (uint64_t)hatrack_dict_get(style_keywords, s, NULL);
+
+    if (n == 0) {
+        return false;
+    }
+
+    if (ctx->got_percent == true) {
+        c4m_utf8_t *msg = c4m_cstr_format(
+            "When processing rich lit specifier \\[{}\\], expected a "
+            "color name after '%', but got a builtin style keyword ({}).",
+            ctx->raw,
+            s);
+        C4M_RAISE(msg);
+    }
+
+    tag_item_t *out     = alloc_tag_item(ctx);
+    out->contents.kw_ix = n;
+    out->flags |= F_STYLE_KW;
+    return true;
+}
+
+static inline bool
+try_cell_style(tag_parse_ctx *ctx)
+{
+    c4m_utf8_t         *s  = ctx->not_matched;
+    c4m_render_style_t *rs = c4m_lookup_cell_style((c4m_to_utf8(s))->data);
+
+    if (rs == NULL) {
+        return false;
+    }
+
+    if (ctx->got_percent == true) {
+        c4m_utf8_t *msg = c4m_cstr_format(
+            "When processing rich lit specifier \\[{}\\], expected a "
+            "color name after '%', but got a style name ({}).",
+            ctx->raw,
+            s);
+        C4M_RAISE(msg);
+    }
+
+    tag_item_t *out     = alloc_tag_item(ctx);
+    out->contents.style = c4m_str_style(rs);
+    out->flags |= F_STYLE_CELL;
+
+    return true;
+}
+
+static inline bool
+try_color(tag_parse_ctx *ctx)
+{
+    c4m_utf8_t *s     = ctx->not_matched;
+    c4m_color_t color = c4m_lookup_color(s);
+
+    if (color == -1) {
+        return false;
+    }
+
+    tag_item_t *out     = alloc_tag_item(ctx);
+    out->contents.color = color;
+    out->flags |= F_STYLE_COLOR;
+
+    return true;
+}
+
+#define punc_checks(ctx)  \
+    unmatched_check(ctx); \
+    no_pct_check(ctx);    \
+    enter_default_state(ctx)
+
+// Turn the extracted style block into data that we can then turn into
+// a style.
+static inline void
+internal_parse_style_lit(tag_parse_ctx *ctx)
+{
+    while (ctx->tok_ix < ctx->num_toks) {
+        c4m_utf8_t *text = c4m_xlist_get(ctx->tokens, ctx->tok_ix++, NULL);
+        switch (text->data[0]) {
+        case '%':
+            punc_checks(ctx);
+            ctx->got_percent = true;
+            continue;
+        case '/':
+        case '-':
+            punc_checks(ctx);
+            ctx->negating = true;
+            continue;
+        case '+':
+            punc_checks(ctx);
+            ctx->negating = false;
+            continue;
+        default:
+            if (ctx->not_matched == NULL) {
+                ctx->not_matched = text;
+            }
+            else {
+                ctx->not_matched = c4m_cstr_format("{} {}",
+                                                   ctx->not_matched,
+                                                   text);
+            }
+
+            if (try_style_keyword(ctx)) {
+                continue;
+            }
+
+            if (try_cell_style(ctx)) {
+                continue;
+            }
+
+            if (try_color(ctx)) {
+                continue;
+            }
+            // Else; next loop.
+        }
+    }
+
+    if (ctx->not_matched != NULL) {
+        c4m_utf8_t *msg = c4m_cstr_format(
+            "When processing rich lit specifier \\[{}\\], could not match "
+            "{} to a known style or color.",
+            ctx->raw,
+            ctx->not_matched);
+        C4M_RAISE(msg);
+    }
+
+    if (ctx->num_atoms == 0) {
+        if (ctx->negating == false) {
+            c4m_utf8_t *msg = c4m_new_utf8(
+                "Empty tags are not allowed in rich literals. You can use [/] "
+                "to close all tags in a string, or to get literal square "
+                "brackets, escape with a backslash (e.g., \\[\\]");
+            C4M_RAISE(msg);
+        }
+        alloc_tag_item(ctx);
+    }
+}
 
 static void
-parse_style_lit(fmt_frame_t *f, c4m_utf8_t *instr)
+parse_style_lit(style_ctx *ctx)
 {
-    uint64_t            seen         = 0;
-    c4m_utf8_t         *space        = c4m_get_space_const();
-    c4m_xlist_t        *parts        = c4m_str_xsplit(instr, space);
-    int                 len          = c4m_xlist_len(parts);
-    int                 color_start  = -1;
-    c4m_style_t         result       = f->style;
-    bool                saw_fg       = false;
-    bool                on_ok        = false;
-    bool                expect_color = false; // Used after the 'on' keyword.
-    bool                color_done   = false;
-    int64_t             l;                    // used for a string length.
-    int64_t             n;                    // Used to count how many styles
-                                              // a string will end up w
-    c4m_utf8_t         *s;
-    c4m_render_style_t *rs;
-    int                 i; // Loop variable needs to survive after loop.
+    fmt_frame_t *f      = ctx->cur_frame;
+    c4m_xlist_t *tokens = tokenize_rich_tag(f->raw_contents);
+
+    tag_parse_ctx tag_ctx = {
+        .tokens      = tokens,
+        .cur_frame   = f,
+        .style_ctx   = ctx,
+        .not_matched = NULL,
+        .num_toks    = c4m_xlist_len(tokens),
+        .tok_ix      = 0,
+        .num_atoms   = 0,
+        .at_start    = true,
+        .negating    = false,
+        .got_percent = false,
+        .raw         = f->raw_contents,
+    };
 
     init_style_keywords();
 
     if (f->next != NULL) {
-        f->cp_end = f->next->cp_start;
+        f->end = f->next->start;
     }
     else {
-        f->cp_end = -1;
+        f->end = -1;
     }
 
-    if (len == 1) {
-        s  = c4m_xlist_get(parts, 0, NULL);
-        rs = c4m_lookup_cell_style((c4m_to_utf8(s))->data);
+    internal_parse_style_lit(&tag_ctx);
+}
 
-        if (rs != NULL) {
-            f->style = c4m_str_style(rs);
-            if (f->next != NULL) {
-                f->next->style = f->style;
-            }
-            return;
-        }
+// Extract the raw text between '[' and ']'.
+static inline void
+c4m_extract_style_blocks(style_ctx *ctx, char *original_input)
+{
+    int             n   = strlen(original_input);
+    char           *p   = original_input;
+    char           *end = p + n;
+    c4m_codepoint_t cp;
+    fmt_frame_t    *style_first = NULL;
+    fmt_frame_t    *style_cur   = NULL;
+    fmt_frame_t    *tmp;
 
-        l = c4m_str_codepoint_len(s);
-        switch (l) {
-        case 0:
-            C4M_CRAISE("Empty style block not allowed.");
-        case 1:
-            if (s->data[0] == '/') {
-                f->style = 0;
-                return;
-            }
-            break;
-        default:
-            if (s->data[0] == '/') {
-                seen |= F_NEG;
-                s = c4m_str_slice(s, 1, -1);
+    char *unstyled_string = alloca(n + 1);
+    char *tag_text        = alloca(n);
+    bool  in_tag          = false;
+    int   unstyled_ix     = 0;
+    int   unstyled_cp     = 0;
+    int   tag_ix;
 
-                rs = c4m_lookup_cell_style(s->data);
-                if (rs != NULL) {
-                    // [/style] is not different from [/] since we are
-                    // not keeping a stack. This doesn't need to be
-                    // styled forward either.
-                    f->style = 0;
-                    return;
+    while (p < end) {
+        char c = *p++;
+
+        if (in_tag) {
+            switch (c) {
+            case ']':
+                tag_text[tag_ix++] = 0;
+                in_tag             = false;
+                tmp                = c4m_gc_alloc(fmt_frame_t);
+                tmp->start         = unstyled_cp;
+                tmp->raw_contents  = c4m_new_utf8(tag_text);
+                if (style_first == NULL) {
+                    style_first = tmp;
                 }
-                if (len > 1) {
-                    goto skip_first_load;
+                else {
+                    style_cur->next = tmp;
                 }
+                style_cur = tmp;
+                continue;
+            default:
+                tag_text[tag_ix++] = c;
+                continue;
             }
-            else {
-                // Special case 'default' by itself to
-                // reset any accumulated style.
-                if (!strcmp(s->data, "default")) {
-                    f->style = 0;
-                    return;
-                }
-            }
-            break;
-        }
-    }
-
-    for (i = 0; i < len; i++) {
-        s = c4m_to_utf8(c4m_xlist_get(parts, i, NULL));
-        l = c4m_str_codepoint_len(s);
-
-        if (i == 0 && l != 0) {
-            if (s->data[0] == '/') {
-                seen |= F_NEG;
-                if (l == 1) {
-                    continue;
-                }
-                s = c4m_to_utf8(c4m_str_slice(s, 1, -1));
-                c4m_xlist_set(parts, i, s);
-            }
-        }
-
-skip_first_load:
-
-        n = (int64_t)hatrack_dict_get(style_keywords, s, NULL);
-
-        if (n == 0) {
-            if (color_start == -1) {
-                if (color_done) {
-                    C4M_RAISE(c4m_str_concat(
-                        c4m_new_utf8("Invalid element in style block: "),
-                        s));
-                }
-                color_start = i;
-            }
-            continue;
         }
         else {
-            if (expect_color && color_start == -1) {
-                C4M_CRAISE("Expected a color after the 'on' keyword.");
+            if (!(c & 0x80)) {
+                unstyled_cp++;
             }
-
-            on_ok = false;
-
-            if (color_start != -1) {
-check_color: {
-    // When we exit the loop, if color_start is -1, then
-    // we jump back up here to reuse the code, then
-    // jump back down to where we calculate the style.
-
-    c4m_xlist_t *slice = c4m_xlist_get_slice(parts, color_start, i);
-    c4m_utf8_t  *cname = c4m_to_utf8(c4m_str_join(slice, space));
-    c4m_color_t  color = c4m_lookup_color(cname);
-
-    if (color == -1) {
-        C4M_RAISE(c4m_str_concat(c4m_new_utf8("Color not found: "),
-                                 cname));
+            switch (c) {
+            case '\\':
+                if (p == end) {
+                    C4M_CRAISE("Last character was an escape (not allowed).");
+                }
+                cp = *p++;
+                switch (cp) {
+                case 'n':
+                    unstyled_string[unstyled_ix++] = '\n';
+                    break;
+                case 'r':
+                    unstyled_string[unstyled_ix++] = '\r';
+                    break;
+                case 't':
+                    unstyled_string[unstyled_ix++] = '\t';
+                    break;
+                default:
+                    unstyled_string[unstyled_ix++] = cp;
+                    break;
+                }
+                continue;
+            case '[':
+                unstyled_cp--;
+                in_tag = true;
+                tag_ix = 0;
+                continue;
+            default:
+                unstyled_string[unstyled_ix++] = c;
+                continue;
+            }
+        }
     }
-
-    color_start = -1;
-
-    if (saw_fg) {
-        color_done = true;
-        result     = c4m_set_bg_color(result, color);
+    if (in_tag) {
+        C4M_CRAISE("EOF in style marker");
     }
+    unstyled_string[unstyled_ix] = 0;
+    ctx->style_text              = c4m_new_utf8(unstyled_string);
+    ctx->style_directions        = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    ctx->start_frame             = style_first;
+    ctx->cur_frame               = style_first;
+}
 
-    else {
-        saw_fg = true;
-        on_ok  = true;
-        result = c4m_set_fg_color(result, color);
+#define OP_EXTRACT (F_STYLE_CELL | F_STYLE_COLOR | F_STYLE_KW)
+
+static void
+apply_one_atom(style_ctx *ctx, tag_item_t *atom, uint32_t op)
+{
+    atom->prev_style = ctx->cur_style;
+    atom->flags &= ~F_POPPED;
+
+    ctx->stack[ctx->stack_ix++] = atom;
+
+    switch (op) {
+    case F_STYLE_CELL:
+        ctx->cur_style = atom->contents.style;
+        return;
+
+    case F_STYLE_COLOR:
+        if (atom->flags & F_BGCOLOR) {
+            ctx->cur_style = c4m_set_bg_color(ctx->cur_style,
+                                              atom->contents.color);
+        }
+        else {
+            ctx->cur_style = c4m_set_fg_color(ctx->cur_style,
+                                              atom->contents.color);
+        }
+        return;
+    default:
+        switch (atom->contents.kw_ix) {
+        case 2:
+            ctx->cur_style = c4m_add_bold(ctx->cur_style);
+            return;
+        case 3:
+            ctx->cur_style = c4m_add_italic(ctx->cur_style);
+            return;
+        case 4:
+            ctx->cur_style = c4m_add_strikethrough(ctx->cur_style);
+            return;
+        case 5:
+            ctx->cur_style = c4m_add_underline(ctx->cur_style);
+            return;
+        case 6:
+            ctx->cur_style = c4m_add_double_underline(ctx->cur_style);
+            return;
+        case 7:
+            ctx->cur_style = c4m_add_inverse(ctx->cur_style);
+            return;
+        case 8:
+            ctx->cur_style = c4m_add_lower_case(ctx->cur_style);
+            return;
+        case 9:
+            ctx->cur_style = c4m_add_upper_case(ctx->cur_style);
+            return;
+        case 10:
+            ctx->cur_style = c4m_add_title_case(ctx->cur_style);
+            return;
+        default:
+            return;
+        }
     }
 }
 
-                f->style = result;
+static void
+reapply_styles(style_ctx *ctx, uint32_t flags, c4m_xlist_t *to_apply)
+{
+    int op_kind = flags & (F_STYLE_CELL | F_STYLE_COLOR);
 
-                if (i == len) {
-                    if (f->next != NULL) {
-                        f->next->style = result;
-                    }
-                    return;
+    while (c4m_xlist_len(to_apply)) {
+        tag_item_t *top = c4m_xlist_pop(to_apply);
+
+        // If we've popped a color or cell type, we don't want to
+        // re-apply any later adds for color or cell.  But if color is
+        // set, we only listen if BGCOLOR flags are the same.
+
+        if (top->flags & op_kind) {
+            if (!((top->flags & F_BGCOLOR) ^ (flags & F_BGCOLOR))) {
+                continue;
+            }
+        }
+
+        apply_one_atom(ctx, top, top->flags & OP_EXTRACT);
+    }
+}
+
+// Take the parsed styles in the string so far, and figure out
+// what style to emit.
+static void
+convert_parse_to_style(style_ctx *ctx)
+{
+    tag_item_t *tag_atom;
+    int         n = c4m_xlist_len(ctx->style_directions);
+    int         op_kind;
+
+    ctx->cur_style = 0;
+    ctx->stack     = alloca(sizeof(tag_item_t **) * n);
+    ctx->stack_ix  = 0;
+
+    for (int i = 0; i < n; i++) {
+        tag_atom = c4m_xlist_get(ctx->style_directions, i, NULL);
+        // We reuse these atoms, so reset this flag the first time we see it.
+        tag_atom->flags &= ~F_POPPED;
+
+        op_kind = tag_atom->flags & OP_EXTRACT;
+
+        if (tag_atom->flags & F_NEG) {
+            if (!tag_atom->name) {
+                ctx->cur_style = 0;
+                ctx->stack_ix  = 0;
+                continue;
+            }
+
+            c4m_xlist_t *we_popped = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+
+            while (true) {
+                if (!ctx->stack_ix) {
+                    c4m_utf8_t *err = c4m_cstr_format(
+                        "There is no active element named '{}' to close; "
+                        "either it wasn't turned on, or was already turned "
+                        "off by an later overriding style in this literal.",
+                        tag_atom->name);
+                    C4M_RAISE(err);
                 }
-            }
-            if (seen & F_NEG) {
-                switch (n) {
-                case 1:
-                    C4M_CRAISE("Double negation in one style tag.");
-                case 2:
-                    result = c4m_remove_bold(result);
-                    break;
-                case 3:
-                    result = c4m_remove_italic(result);
-                    break;
-                case 4:
-                    result = c4m_remove_strikethrough(result);
-                    break;
-                case 5:
-                case 6:
-                    result = c4m_remove_underline(result);
-                    break;
-                case 7:
-                    result = c4m_remove_inverse(result);
-                    break;
-                case 8:
-                case 9:
-                case 10:
-                    result = c4m_remove_case(result);
-                    break;
-                case 11:
-                    C4M_CRAISE(
-                        "Use the 'on' keyword to set color, not "
-                        "clear it.");
-                case 12:
-                    result = c4m_remove_fg_color(result);
-                    break;
-                case 13:
-                    result = c4m_remove_bg_color(result);
-                    break;
-                case 14:
-                    result = c4m_remove_all_color(result);
-                    break;
+                tag_item_t *top = ctx->stack[--ctx->stack_ix];
+                if (top->flags & (F_POPPED | F_NEG)) { // Already popped
+                    continue;
                 }
-            }
-            else {
-                switch (n) {
-                case 1:
-                    break; // F_NEG will get set below.
-                case 2:
-                    result = c4m_add_bold(result);
-                    break;
-                case 3:
-                    result = c4m_add_italic(result);
-                    break;
-                case 4:
-                    result = c4m_add_strikethrough(result);
-                    break;
-                case 5:
-                    result = c4m_add_underline(result);
-                    break;
-                case 6:
-                    result = c4m_add_double_underline(result);
-                    break;
-                case 7:
-                    result = c4m_add_inverse(result);
-                    break;
-                case 8:
-                    result = c4m_add_lower_case(result);
-                    break;
-                case 9:
-                    result = c4m_add_upper_case(result);
-                    break;
-                case 10:
-                    result = c4m_add_title_case(result);
-                    break;
-                case 11:
-                    if (!on_ok) {
-                        C4M_CRAISE(
-                            "'on' keyword in style tag must appear after "
-                            "a valid color.");
-                    }
-                    on_ok        = false;
-                    expect_color = true;
-                    break;
-                default:
-                    C4M_RAISE(
-                        c4m_str_concat(s,
-                                       c4m_new_utf8(
-                                           ": style keyword is for "
-                                           "turning off colors. Either "
-                                           "add a / to the block before "
-                                           "this keyword, or the "
-                                           "word 'no'. ")));
+
+                top->flags |= F_POPPED;
+
+                if (strcmp(top->name->data, tag_atom->name->data)) {
+                    c4m_xlist_append(we_popped, top);
+                    continue;
                 }
+
+                ctx->cur_style = top->prev_style;
+
+                reapply_styles(ctx, tag_atom->flags, we_popped);
+                break;
             }
-
-            if (saw_fg && !on_ok && !expect_color) {
-                color_done = true;
-            }
-
-            n = 1 << n;
-
-            if (seen & n) {
-                C4M_RAISE(c4m_str_concat(
-                    c4m_new_utf8("Duplicate param in style tag: "),
-                    s));
-            }
-
-            seen |= n;
             continue;
         }
+
+        // NOT a negative.
+
+        apply_one_atom(ctx, tag_atom, op_kind);
     }
 
-    if (color_start != -1) {
-        goto check_color;
-    }
-
-    // Whatever style we end up with is still in effect until the
-    // end of the string unless explicitly turned off.
-    // So pay it forward to the next marked region, which can
-    // add and/or subtract from it.
-    f->style = result;
-
-    if (f->next != NULL) {
-        f->next->style = f->style;
-    }
-    return;
+    ctx->cur_frame->style = ctx->cur_style;
 }
 
 c4m_utf8_t *
 c4m_rich_lit(char *instr)
 {
-    c4m_buf_t      *b = c4m_new(c4m_tspec_buffer(),
-                           c4m_kw("length", c4m_ka(1)));
-    c4m_stream_t   *s = c4m_new(c4m_tspec_stream(),
-                              c4m_kw("buffer",
-                                     c4m_ka(b),
-                                     "write",
-                                     c4m_ka(1),
-                                     "read",
-                                     c4m_ka(0)));
-    fmt_frame_t    *style_next;
-    fmt_frame_t    *style_top = NULL;
-    fmt_frame_t    *style_cur = NULL;
-    char           *p         = instr;
-    char           *end       = p + strlen(instr);
-    int             cp_count  = 0;
-    int             i         = 0;
-    c4m_codepoint_t cp;
-    int             one_len;
+    style_ctx ctx = {
+        0,
+    };
 
     // Phase 1, find all the style blocks.
-    while (p < end) {
-        one_len = utf8proc_iterate((uint8_t *)p, 4, &cp);
-        if (one_len < 0) {
-            C4M_RAISE(c4m_str_from_int(-1 * ((int64_t)(p - one_len) + 1)));
-        }
+    c4m_extract_style_blocks(&ctx, instr);
 
-        switch (cp) {
-        case '\\':
-            p += one_len;
-
-            if (p >= end) {
-                C4M_CRAISE("Last character was an escape (not allowed.");
-            }
-            one_len = utf8proc_iterate((uint8_t *)p, 4, &cp);
-            if (one_len < 0) {
-                C4M_RAISE(c4m_str_from_int(-1 * ((int64_t)(p - one_len) + 1)));
-            }
-
-            switch (cp) {
-            case 'n':
-                c4m_stream_putc(s, '\n');
-                break;
-            case 'r':
-                c4m_stream_putc(s, '\r');
-                break;
-            case 't':
-                c4m_stream_putc(s, '\t');
-                break;
-            default:
-                c4m_stream_raw_write(s, one_len, p);
-                break;
-            }
-
-            p += one_len;
-            break;
-        case '[':
-            p += one_len;
-            style_next = (fmt_frame_t *)alloca(sizeof(fmt_frame_t));
-
-            // Zero out the fields we might not set.
-            style_next->absolute_end = 0;
-            style_next->style        = 0;
-            style_next->next         = NULL;
-
-            if (style_top == NULL) {
-                style_top = style_next;
-            }
-            else {
-                style_cur->next = style_next;
-            }
-            style_cur = style_next;
-
-            style_cur->cp_start       = cp_count;
-            style_cur->absolute_start = p - instr;
-
-            while (p < end) {
-                one_len = utf8proc_iterate((uint8_t *)p, 4, &cp);
-                if (one_len < 0) {
-                    C4M_RAISE(
-                        c4m_str_from_int(-1 * ((int64_t)(p - one_len) + 1)));
-                }
-                p += one_len;
-                if (cp == ']') {
-                    goto not_eof;
-                }
-            }
-            C4M_CRAISE("EOF in style marker");
-
-not_eof:
-            style_cur->absolute_end = p - instr - 1;
-            continue; // do not update the cp count.
-        default:
-            c4m_stream_raw_write(s, one_len, p);
-            p += one_len;
-            break;
-        }
-
-        cp_count += 1;
-    }
-
-    c4m_stream_close(s);
-
-    c4m_utf8_t *result = c4m_buf_to_utf8_string(b);
+    c4m_utf8_t *result = ctx.style_text;
 
     // If style blobs, parse them. (otherwise, return the whole string).
-    if (style_top == NULL) {
+    if (ctx.start_frame == NULL) {
         return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(instr)));
     }
 
-    fmt_frame_t *f          = style_top;
-    int          num_styles = 0;
-    while (f != NULL) {
-        c4m_utf8_t *s = c4m_new(
-            c4m_tspec_utf8(),
-            c4m_kw("cstring",
-                   c4m_ka(instr + f->absolute_start),
-                   "length",
-                   c4m_ka(f->absolute_end - f->absolute_start)));
-        parse_style_lit(f, s);
+    int num_styles = 0;
+    while (ctx.cur_frame != NULL) {
+        parse_style_lit(&ctx);
+        convert_parse_to_style(&ctx);
 
-        if (f->style != 0) {
+        if (ctx.cur_frame->style != 0) {
             num_styles++;
         }
 
-        f = f->next;
+        ctx.cur_frame = ctx.cur_frame->next;
     }
 
     if (!num_styles) {
@@ -477,23 +655,24 @@ not_eof:
     // Final phase, apply the styles.
     c4m_alloc_styles(result, num_styles);
 
-    i = 0;
-    f = style_top;
+    int i         = 0;
+    ctx.cur_frame = ctx.start_frame;
 
-    while (f != NULL) {
-        if (f->style != 0) {
-            if (f->cp_end == -1) {
-                f->cp_end = cp_count;
+    while (ctx.cur_frame != NULL) {
+        if (ctx.cur_frame->style != 0) {
+            if (ctx.cur_frame->end == -1) {
+                ctx.cur_frame->end = c4m_str_byte_len(result);
             }
             c4m_style_entry_t entry = {
-                .start = f->cp_start,
-                .end   = f->cp_end,
-                .info  = f->style};
+                .start = ctx.cur_frame->start,
+                .end   = ctx.cur_frame->end,
+                .info  = ctx.cur_frame->style,
+            };
 
             result->styling->styles[i] = entry;
             i++;
         }
-        f = f->next;
+        ctx.cur_frame = ctx.cur_frame->next;
     }
 
     return result;

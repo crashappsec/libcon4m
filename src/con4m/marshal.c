@@ -133,7 +133,6 @@ c4m_marshal_compact_type(c4m_type_t *t, c4m_stream_t *s)
     case C4M_DT_KIND_primitive:
     case C4M_DT_KIND_internal:
     case C4M_DT_KIND_maybe:
-    case C4M_DT_KIND_object:
     case C4M_DT_KIND_oneof:
         return;
     case C4M_DT_KIND_type_var:
@@ -145,11 +144,15 @@ c4m_marshal_compact_type(c4m_type_t *t, c4m_stream_t *s)
     case C4M_DT_KIND_list:
     case C4M_DT_KIND_dict:
     case C4M_DT_KIND_tuple:
+    case C4M_DT_KIND_object:
         param_count = (uint16_t)c4m_len(t->details->items);
         c4m_marshal_u16(param_count, s);
         for (int i = 0; i < param_count; i++) {
             c4m_marshal_compact_type(c4m_xlist_get(t->details->items, i, NULL), s);
         }
+        return;
+    default:
+        c4m_unreachable();
     }
 }
 
@@ -168,25 +171,26 @@ c4m_unmarshal_compact_type(c4m_stream_t *s)
     case C4M_DT_KIND_primitive:
     case C4M_DT_KIND_internal:
     case C4M_DT_KIND_maybe:
-    case C4M_DT_KIND_object:
     case C4M_DT_KIND_oneof:
         result = c4m_get_builtin_type(base);
         return result;
     case C4M_DT_KIND_type_var:
-        result                     = c4m_new(c4m_tspec_typespec(),
+        result = c4m_new(c4m_tspec_typespec(),
                          NULL,
                          NULL,
                          NULL);
-        result->details->base_type = (c4m_dt_info_t *)&c4m_base_type_info[base];
-        result->typeid             = tid;
-        result->details->name      = c4m_unmarshal_cstring(s);
-        return result;
+
+        result->typeid        = tid;
+        result->details->name = c4m_unmarshal_cstring(s);
+        break;
+
     case C4M_DT_KIND_func:
         flags = c4m_unmarshal_u8(s);
         // Fallthrough.
     case C4M_DT_KIND_list:
     case C4M_DT_KIND_dict:
     case C4M_DT_KIND_tuple:
+    case C4M_DT_KIND_object:
         param_count            = c4m_unmarshal_u16(s);
         result                 = c4m_new(c4m_tspec_typespec(), NULL, NULL, 1UL);
         result->typeid         = tid;
@@ -195,12 +199,12 @@ c4m_unmarshal_compact_type(c4m_stream_t *s)
         for (int i = 0; i < param_count; i++) {
             c4m_xlist_append(result->details->items, c4m_unmarshal_compact_type(s));
         }
-
-        // Mainly just to re-insert it.
-        c4m_type_hash(result, c4m_global_type_env);
-        return result;
+        break;
     }
-    c4m_unreachable();
+
+    hatrack_dict_put(c4m_global_type_env->store, (void *)tid, result);
+    result->details->base_type = (c4m_dt_info_t *)&c4m_base_type_info[base];
+    return result;
 }
 
 void
