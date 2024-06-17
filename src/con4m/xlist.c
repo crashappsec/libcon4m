@@ -54,6 +54,7 @@ c4m_xlist_set(c4m_xlist_t *list, int64_t ix, void *item)
         list->append_ix = ix + 1;
     }
 
+    assert(item != NULL);
     list->data[ix] = (int64_t *)item;
     return true;
 }
@@ -434,7 +435,6 @@ const c4m_vtable_t c4m_xlist_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)xlist_init,
-        [C4M_BI_TO_STR]        = (c4m_vtable_entry)xlist_repr,
         [C4M_BI_MARSHAL]       = (c4m_vtable_entry)c4m_xlist_marshal,
         [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_xlist_unmarshal,
         [C4M_BI_COERCIBLE]     = (c4m_vtable_entry)list_can_coerce_to,
@@ -448,5 +448,9 @@ const c4m_vtable_t c4m_xlist_vtable = {
         [C4M_BI_SLICE_SET]     = (c4m_vtable_entry)c4m_xlist_set_slice,
         [C4M_BI_VIEW]          = (c4m_vtable_entry)xlist_view,
         [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)to_xlist_lit,
+        [C4M_BI_REPR]          = (c4m_vtable_entry)xlist_repr,
+        // Explicit because some compilers don't seem to always properly
+        // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
+        [C4M_BI_FINALIZER]     = NULL,
     },
 };

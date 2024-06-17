@@ -102,11 +102,12 @@
 // Shouldn't be accessed by developer, but allows us to inline.
 extern uint64_t c4m_gc_guard;
 
-extern c4m_arena_t *c4m_new_arena(size_t);
+extern c4m_arena_t *c4m_new_arena(size_t, c4m_dict_t *);
 extern void         c4m_delete_arena(c4m_arena_t *);
 extern void         c4m_expand_arena(size_t, c4m_arena_t **);
 extern void         c4m_collect_arena(c4m_arena_t **);
 extern void        *c4m_gc_raw_alloc(size_t, uint64_t *);
+extern void        *c4m_gc_raw_alloc_with_finalizer(size_t, uint64_t *);
 extern void        *c4m_gc_resize(void *ptr, size_t len);
 extern void         c4m_gc_thread_collect();
 extern void         c4m_arena_register_root(c4m_arena_t *,
@@ -114,6 +115,8 @@ extern void         c4m_arena_register_root(c4m_arena_t *,
                                             uint64_t);
 extern void         c4m_gc_register_root(void *ptr, uint64_t num_words);
 extern bool         c4m_is_read_only_memory(volatile void *);
+extern void        *c4m_alloc_from_arena(c4m_arena_t **, size_t, const uint64_t *, bool);
+extern void         c4m_gc_set_finalize_callback(c4m_system_finalizer_fn);
 
 // #define GC_TRACE
 #ifdef GC_TRACE
@@ -147,58 +150,6 @@ c4m_round_up_to_given_power_of_2(uint64_t power, uint64_t n)
     else {
         return (n & ~modulus) + power;
     }
-}
-
-// This currently assumes ptr_map doesn't need more than 64 entries.
-static inline void *
-c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
-                     size_t          len,
-                     const uint64_t *ptr_map)
-{
-    // Round up to aligned length.
-    size_t       wordlen = c4m_round_up_to_given_power_of_2(C4M_FORCED_ALIGNMENT, len);
-    c4m_arena_t *arena   = *arena_ptr;
-
-    if (arena == 0) {
-try_again:
-        c4m_expand_arena(max(C4M_DEFAULT_ARENA_SIZE, wordlen << 4),
-                         arena_ptr);
-        arena = *arena_ptr;
-    }
-
-    c4m_alloc_hdr *raw = arena->next_alloc;
-
-    if (raw >= (c4m_alloc_hdr *)arena->heap_end) {
-        goto try_again;
-    }
-    arena->next_alloc = (c4m_alloc_hdr *)&(raw->data[wordlen]);
-
-    if (arena->next_alloc > (c4m_alloc_hdr *)arena->heap_end) {
-        goto try_again;
-    }
-
-    raw->guard     = c4m_gc_guard;
-    raw->arena     = arena->arena_id;
-    raw->next_addr = (uint64_t *)arena->next_alloc;
-    raw->alloc_len = wordlen;
-    raw->ptr_map   = (uint64_t *)ptr_map;
-
-    if (arena->heap_end < raw->next_addr) {
-        goto try_again;
-    }
-    c4m_gc_trace("new_record:%p-%p:data:%p:len:%zu:arena:%p-%p",
-                 raw,
-                 raw->next_addr,
-                 raw->data,
-                 len,
-                 arena,
-                 arena->heap_end);
-
-#ifdef C4M_ALLOC_STATS
-    arena->alloc_counter++;
-#endif
-
-    return (void *)(raw->data);
 }
 
 #define GC_SCAN_ALL ((uint64_t *)0xffffffffffffffff)

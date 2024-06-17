@@ -456,7 +456,13 @@ _c4m_new(c4m_type_t *type, ...)
     uint64_t         alloc_len = tinfo->alloc_len + sizeof(c4m_obj_t);
     c4m_vtable_entry init_fn   = tinfo->vtable->methods[C4M_BI_CONSTRUCTOR];
 
-    obj = c4m_gc_raw_alloc(alloc_len, (uint64_t *)tinfo->ptr_info);
+    if (tinfo->vtable->methods[C4M_BI_FINALIZER] == NULL) {
+        obj = c4m_gc_raw_alloc(alloc_len, (uint64_t *)tinfo->ptr_info);
+    }
+    else {
+        obj = c4m_gc_raw_alloc_with_finalizer(alloc_len,
+                                              (uint64_t *)tinfo->ptr_info);
+    }
 
     obj->base_data_type = tinfo;
     obj->concrete_type  = type;
@@ -892,4 +898,14 @@ c4m_container_literal(c4m_type_t *t, c4m_xlist_t *items, c4m_utf8_t *mod)
     }
 
     return (*ptr)(t, items, mod);
+}
+
+void
+c4m_finalize_allocation(c4m_base_obj_t *obj)
+{
+    c4m_system_finalizer_fn fn;
+
+    fn = (void *)obj->base_data_type->vtable->methods[C4M_BI_FINALIZER];
+    assert(fn != NULL);
+    (*fn)(obj->data);
 }

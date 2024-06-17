@@ -107,7 +107,10 @@ c4m_get_kargs_and_count(va_list args, int *nargs)
 const c4m_vtable_t c4m_kargs_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)kargs_init,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)kargs_init,
+        // Explicit because some compilers don't seem to always properly
+        // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
+        [C4M_BI_FINALIZER]   = NULL,
         NULL, // Aboslutelty nothing else.
     },
 };

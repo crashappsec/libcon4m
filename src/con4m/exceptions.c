@@ -143,8 +143,13 @@ c4m_exception_raise(c4m_exception_t *exception, char *filename, int line)
 }
 
 const c4m_vtable_t c4m_exception_vtable = {
-    .num_entries = 1,
+    .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        (c4m_vtable_entry)exception_init,
+        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)exception_init,
+        // Explicit because some compilers don't seem to always properly
+        // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
+        [C4M_BI_FINALIZER]   = NULL,
+
+        NULL,
     },
 };

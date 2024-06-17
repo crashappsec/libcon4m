@@ -18,33 +18,40 @@ typedef struct {
     // The guard value is picked once per runtime by reading from
     // /dev/urandom, to make sure that we do not start adding
     // references in memory to it.
-    uint64_t guard;
-
-    // This is a pointer to the memory arena this allocation is from,
-    // so that other threads can register their pointer with the arena
-    // when doing cross-thread references.
-    uint64_t arena;
-
+    uint64_t            guard;
+    //
     // When scanning memory allocations in the object's current arena,
     // this pointer points to the next allocation spot. We use this
     // when it's time to mark all of the allocations as 'collecting'.
+    uint64_t           *next_addr;
     //
-    uint64_t *next_addr;
-
     // Once the object is migrated, this field is then used to store
     // the forwarding address...
-    uint64_t *fw_addr;
-
+    uint64_t           *fw_addr;
+    //
+    // This is a pointer to the memory arena this allocation is from,
+    // so that other threads can register their pointer with the arena
+    // when doing cross-thread references.
+    struct c4m_arena_t *arena;
+    //
     // Flags associated with the allocation. This is atomic, because
     // threads attempt to lock accesses any time. This only needs to
     // be 32-bit aligned, but let's keep it in a slot that is 64-bit
     // aligned.
-    _Atomic uint32_t flags;
-
+    _Atomic uint32_t    flags;
+    //
     // This stores the allocated length of the data object measured in
     // 64-bit blocks.
-    uint32_t alloc_len;
-
+    uint32_t            alloc_len;
+    //
+    // Set to 'true' if this object requires finalization. This is
+    // necessary, even though the arena tracks allocations needing
+    // finalization, because resizes could move the pointer.
+    //
+    // So when a resize is triggered and we see this bit, we go
+    // update the pointer in the finalizer list.
+    unsigned int        finalize : 1;
+    //
     // This is a pointer to a sized bitfield. The first word indicates the
     // number of subsequent words in the bitfield. The bits then
     // represent the words of the data structure, in order, and whether
@@ -53,19 +60,25 @@ typedef struct {
     //
     // The map doesn't need to be as long as the data structure; it only
     // needs to be long enough to capture all pointers to track in it.
-    uint64_t *ptr_map;
-
+    uint64_t           *ptr_map;
+    //
     // The actual exposed data. This must be 16-byte aligned!
     alignas(C4M_FORCED_ALIGNMENT) uint64_t data[];
 } c4m_alloc_hdr;
 
+typedef struct c4m_finalizer_info_t {
+    c4m_alloc_hdr               *allocation;
+    struct c4m_finalizer_info_t *next;
+} c4m_finalizer_info_t;
+
 typedef struct c4m_arena_t {
-    c4m_alloc_hdr      *next_alloc;
-    c4m_dict_t         *roots;
-    struct c4m_arena_t *previous;
+    c4m_alloc_hdr        *next_alloc;
+    c4m_dict_t           *roots;
     //    queue_t            *late_mutations;
-    uint64_t           *heap_end;
-    uint64_t            arena_id;
+    uint64_t             *heap_end;
+    c4m_finalizer_info_t *to_finalize;
+    uint32_t              arena_id;
+    bool                  grow_next;
 #ifdef C4M_ALLOC_STATS
     uint64_t alloc_counter;
 #endif
@@ -73,3 +86,5 @@ typedef struct c4m_arena_t {
     // This must be 16-byte aligned!
     alignas(C4M_FORCED_ALIGNMENT) uint64_t data[];
 } c4m_arena_t;
+
+typedef void (*c4m_system_finalizer_fn)(void *);

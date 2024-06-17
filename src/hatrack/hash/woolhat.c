@@ -451,6 +451,7 @@ woolhat_view(woolhat_t *self, uint64_t *out_num, bool sort)
  * And, there's no sort option here; the caller must choose how to
  * sort, and do it herself.
  */
+
 hatrack_set_view_t *
 woolhat_view_epoch(woolhat_t *self, uint64_t *out_num, uint64_t epoch)
 {
@@ -468,9 +469,10 @@ woolhat_view_epoch(woolhat_t *self, uint64_t *out_num, uint64_t epoch)
     store     = self->store_current;
     cur       = store->hist_buckets;
     end       = cur + (store->last_slot + 1);
-    alloc_len = sizeof(hatrack_set_view_t);
-    view      = (hatrack_set_view_t *)hatrack_zalloc((end - cur) * alloc_len);
-    p         = view;
+    alloc_len = (end - cur) * sizeof(hatrack_set_view_t);
+
+    view = (hatrack_set_view_t *)hatrack_zalloc(alloc_len);
+    p    = view;
 
     while (cur < end) {
         state = atomic_read(&cur->state);
@@ -518,11 +520,9 @@ woolhat_view_epoch(woolhat_t *self, uint64_t *out_num, uint64_t epoch)
         return NULL;
     }
 
-    view = (hatrack_set_view_t *)hatrack_realloc(view,
+    return (hatrack_set_view_t *)hatrack_realloc(view,
                                                  alloc_len,
                                                  num_items * sizeof(hatrack_set_view_t));
-
-    return view;
 }
 
 woolhat_store_t *

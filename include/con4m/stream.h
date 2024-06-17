@@ -156,23 +156,9 @@ c4m_file_iostream(c4m_str_t *filename, bool no_create)
                           c4m_ka(no_create)));
 }
 
-static inline c4m_stream_t *
-c4m_get_stdin()
-{
-    return c4m_new(c4m_tspec_stream(), c4m_kw("cstream", c4m_ka(stdin)));
-}
-
-static inline c4m_stream_t *
-c4m_get_stdout()
-{
-    return c4m_new(c4m_tspec_stream(), c4m_kw("cstream", c4m_ka(stdout)));
-}
-
-static inline c4m_stream_t *
-c4m_get_stderr()
-{
-    return c4m_new(c4m_tspec_stream(), c4m_kw("cstream", c4m_ka(stderr)));
-}
+c4m_stream_t *c4m_get_stdin();
+c4m_stream_t *c4m_get_stdout();
+c4m_stream_t *c4m_get_stderr();
 
 static inline bool
 c4m_stream_using_cookie(c4m_stream_t *s)

@@ -14,6 +14,7 @@ c4m_init(int argc, char **argv, char **envp)
 
     c4m_gc_openssl();
     c4m_initialize_gc();
+    c4m_gc_set_finalize_callback((void *)c4m_finalize_allocation);
     c4m_initialize_global_types();
 }
 

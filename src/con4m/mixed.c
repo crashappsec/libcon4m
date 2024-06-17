@@ -274,5 +274,8 @@ const c4m_vtable_t c4m_mixed_vtable = {
         [C4M_BI_MARSHAL]     = (c4m_vtable_entry)mixed_marshal_arts,
         [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)mixed_unmarshal_arts,
         [C4M_BI_COPY]        = (c4m_vtable_entry)mixed_copy,
+        // Explicit because some compilers don't seem to always properly
+        // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
+        [C4M_BI_FINALIZER]   = NULL,
     },
 };

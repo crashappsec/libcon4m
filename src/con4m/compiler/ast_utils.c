@@ -370,11 +370,13 @@ apply_pattern_on_node(c4m_tree_node_t *node, c4m_tpat_node_t *pattern)
                              pattern,
                              (c4m_cmp_fn)tcmp,
                              &cap);
-
     if (!ok) {
         return NULL;
     }
 
+    for (int i = 0; i < c4m_xlist_len(cap); i++) {
+        assert(c4m_xlist_get(cap, i, NULL) != NULL);
+    }
     return cap;
 }
 
