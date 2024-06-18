@@ -407,6 +407,7 @@ typedef union c4m_stack_value_t {
     void                    *vptr;
     uint64_t                 uint;
     int64_t                  sint; // signed int values.
+    c4m_box_t                box;
     double                   dbl;
     bool                     boolean;
     char                    *cptr;

@@ -659,11 +659,34 @@ c4m_vm_ffi_call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
         int n = ffiinfo->cif.nargs;
 
         for (unsigned int i = 0; i < ffiinfo->cif.nargs; i++) {
-            args[--n] = &tstate->sp[i].rvalue.obj;
+            // clang-format off
+	    --n;
+
+	    if (ffiinfo->str_convert &&
+		n < 63 &&
+		((1 << n) & ffiinfo->str_convert)) {
+
+		c4m_utf8_t *s = (c4m_utf8_t *)tstate->sp[i].rvalue.obj;
+		s             = c4m_to_utf8(s);
+		args[n]       = &s->data;
+            }
+            // clang-format on
+            else {
+                c4m_box_t  value = {.u64 = tstate->sp[i].uint};
+                c4m_box_t *box   = c4m_new(c4m_tspec_box(c4m_tspec_ref()),
+                                         value);
+                args[n]          = c4m_ref_via_ffi_type(box,
+                                               ffiinfo->cif.arg_types[n]);
+            }
         }
     }
 
     ffi_call(&ffiinfo->cif, ffiinfo->fptr, &tstate->r0, args);
+
+    if (ffiinfo->str_convert & (1UL << 63)) {
+        char *s        = (char *)tstate->r0.obj;
+        tstate->r0.obj = c4m_new_utf8(s);
+    }
 }
 
 static void
@@ -1516,20 +1539,25 @@ c4m_vm_setup_ffi(c4m_vm_t *vm)
 
         int            n       = ffi_info->num_ext_params;
         c4m_ffi_type **arglist = c4m_gc_array_alloc(c4m_ffi_type *, n);
-        c4m_ffi_type  *ret     = c4m_gc_alloc(c4m_ffi_type *);
 
         for (int j = 0; j < n; j++) {
             uint8_t param = ffi_info->external_params[j];
-
+            printf("Got param: %d\n", param);
             arglist[j] = c4m_ffi_arg_type_map(param);
+
+            if (param == C4M_CSTR_CTYPE_CONST && j < 63) {
+                cif->str_convert |= (1UL << j);
+            }
         }
-        ret            = c4m_ffi_arg_type_map(ffi_info->external_return_type);
-        cif->cif.nargs = n;
+
+        if (ffi_info->external_return_type == C4M_CSTR_CTYPE_CONST) {
+            cif->str_convert |= (1UL << 63);
+        }
 
         ffi_prep_cif(&cif->cif,
                      C4M_FFI_DEFAULT_ABI,
                      n,
-                     ret,
+                     c4m_ffi_arg_type_map(ffi_info->external_return_type),
                      arglist);
     }
 }

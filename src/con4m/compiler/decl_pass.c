@@ -1122,12 +1122,12 @@ handle_extern_block(pass1_ctx *ctx)
     c4m_ffi_decl_t  *info          = c4m_gc_alloc(c4m_ffi_decl_t);
     c4m_utf8_t      *external_name = node_text(get_match(ctx,
                                                     c4m_first_kid_id));
-    c4m_xlist_t     *ext_params    = apply_pattern(ctx, c4m_extern_params);
     c4m_tree_node_t *ext_ret       = get_match(ctx, c4m_extern_return);
     c4m_pnode_t     *pnode         = get_pnode(cur_node(ctx));
     c4m_tree_node_t *ext_pure      = get_match(ctx, c4m_find_pure);
     c4m_tree_node_t *ext_holds     = get_match(ctx, c4m_find_holds);
     c4m_tree_node_t *ext_allocs    = get_match(ctx, c4m_find_allocs);
+    c4m_tree_node_t *csig          = cur_node(ctx)->children[1];
     c4m_tree_node_t *ext_lsig      = get_match(ctx, c4m_find_extern_local);
 
     if (pnode->short_doc) {
@@ -1138,14 +1138,15 @@ handle_extern_block(pass1_ctx *ctx)
         }
     }
 
-    if (ext_params != NULL) {
-        int64_t n             = c4m_xlist_len(ext_params);
-        info->num_ext_params  = n;
-        info->external_name   = external_name;
+    int64_t n            = csig->num_kids - 1;
+    info->num_ext_params = n;
+    info->external_name  = external_name;
+
+    if (n) {
         info->external_params = c4m_gc_array_alloc(uint8_t, n);
 
         for (int64_t i = 0; i < n; i++) {
-            c4m_tree_node_t *tnode = c4m_xlist_get(ext_params, i, NULL);
+            c4m_tree_node_t *tnode = csig->children[i];
             c4m_pnode_t     *pnode = c4m_tree_get_contents(tnode);
             uint64_t         val   = (uint64_t)pnode->extra_info;
 

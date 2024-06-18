@@ -44,6 +44,7 @@ typedef struct {
     void          *fptr;
     c4m_utf8_t    *local_name;
     c4m_utf8_t    *extern_name;
+    uint64_t       str_convert;
     c4m_ffi_cif    cif;
     c4m_ffi_type **args;
     c4m_ffi_type  *ret;

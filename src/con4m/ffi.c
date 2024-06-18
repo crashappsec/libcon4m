@@ -52,9 +52,9 @@ static const ctype_name_info_t ctype_name_info[] = {
     { "cssize_t", 21, false, },
     { "ptr",      22, true, },
     { "pointer",  22, true, },
-    { "cstring",  23, true, },
-    { "carray",   24, true, },
-    { "array",    24, true, },
+    { "carray",   23, true, },
+    { "array",    23, true, },
+    { "cstring",  C4M_CSTR_CTYPE_CONST, true, },
     { NULL,       0,  false, },
     // clang-format on
 };
@@ -85,7 +85,24 @@ static const c4m_ffi_type *ffi_type_map[] = {
     &ffi_type_pointer,
     &ffi_type_pointer,
     &ffi_type_pointer,
+    NULL,
 };
+
+void *
+c4m_ref_via_ffi_type(c4m_box_t *box, c4m_ffi_type *t)
+{
+    if (t == &ffi_type_uint8 || t == &ffi_type_sint8) {
+        return &box->u8;
+    }
+    if (t == &ffi_type_uint16 || t == &ffi_type_sint16) {
+        return &box->u16;
+    }
+    if (t == &ffi_type_uint32 || t == &ffi_type_sint32) {
+        return &box->u32;
+    }
+
+    return box;
+}
 
 static c4m_dict_t *c4m_symbol_cache = NULL;
 
