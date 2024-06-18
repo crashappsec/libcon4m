@@ -197,7 +197,7 @@ c4m_sb_new_party_listener(c4m_switchboard_t *ctx,
                           bool               stop_when_closed,
                           bool               close_on_destroy)
 {
-    c4m_party_t *result = (c4m_party_t *)calloc(sizeof(c4m_party_t), 1);
+    c4m_party_t *result = (c4m_party_t *)calloc(1, sizeof(c4m_party_t));
     c4m_sb_init_party_listener(ctx,
                                result,
                                sockfd,
@@ -267,7 +267,7 @@ c4m_sb_new_party_fd(c4m_switchboard_t *ctx,
                     bool               close_on_destroy,
                     bool               proxy_close)
 {
-    c4m_party_t *result = (c4m_party_t *)calloc(sizeof(c4m_party_t), 1);
+    c4m_party_t *result = (c4m_party_t *)calloc(1, sizeof(c4m_party_t));
     c4m_sb_init_party_fd(ctx,
                          result,
                          fd,
@@ -323,7 +323,7 @@ c4m_sb_new_party_input_buf(c4m_switchboard_t *ctx,
                            bool               free,
                            bool               close_fd_when_done)
 {
-    c4m_party_t *result = (c4m_party_t *)calloc(sizeof(c4m_party_t), 1);
+    c4m_party_t *result = (c4m_party_t *)calloc(1, sizeof(c4m_party_t));
     c4m_sb_init_party_input_buf(ctx,
                                 result,
                                 input,
@@ -408,7 +408,7 @@ c4m_sb_init_party_output_buf(c4m_switchboard_t *ctx,
 c4m_party_t *
 c4m_sb_new_party_output_buf(c4m_switchboard_t *ctx, char *tag, size_t buflen)
 {
-    c4m_party_t *result = (c4m_party_t *)calloc(sizeof(c4m_party_t), 1);
+    c4m_party_t *result = (c4m_party_t *)calloc(1, sizeof(c4m_party_t));
     c4m_sb_init_party_output_buf(ctx, result, tag, buflen);
 
     return result;
@@ -451,7 +451,7 @@ c4m_sb_monitor_pid(c4m_switchboard_t *ctx,
                    c4m_party_t       *stderr_fd_party,
                    bool               shutdown)
 {
-    c4m_monitor_t *monitor = (c4m_monitor_t *)calloc(sizeof(c4m_monitor_t), 1);
+    c4m_monitor_t *monitor = (c4m_monitor_t *)calloc(1, sizeof(c4m_monitor_t));
 
     monitor->pid                  = pid;
     monitor->stdin_fd_party       = stdin_fd_party;
@@ -660,8 +660,8 @@ c4m_sb_route(c4m_switchboard_t *ctx,
         c4m_party_fd_t *r_fd_obj = get_fd_obj(read_from);
 
         c4m_subscription_t *subscription;
-        subscription = (c4m_subscription_t *)calloc(sizeof(c4m_subscription_t),
-                                                    1);
+        subscription = (c4m_subscription_t *)calloc(1,
+                                                    sizeof(c4m_subscription_t));
 
         if (write_to->c4m_party_type == C4M_PT_FD) {
 #if defined(C4M_SB_DEBUG) || defined(C4M_SB_TEST)
@@ -1571,7 +1571,7 @@ c4m_sb_get_results(c4m_switchboard_t *ctx, c4m_capture_result_t *result)
     }
 
     result->num_captures = capcount;
-    result->captures     = calloc(sizeof(c4m_one_capture_t), capcount + 1);
+    result->captures     = calloc(capcount + 1, sizeof(c4m_one_capture_t));
 
     party = ctx->party_loners;
 

@@ -492,7 +492,7 @@ c4m_subproc_do_exec(c4m_subproc_t *ctx)
 c4m_party_t *
 c4m_subproc_new_party_callback(c4m_switchboard_t *ctx, c4m_sb_cb_t cb)
 {
-    c4m_party_t *result = (c4m_party_t *)calloc(sizeof(c4m_party_t), 1);
+    c4m_party_t *result = (c4m_party_t *)calloc(1, sizeof(c4m_party_t));
     c4m_sb_init_party_callback(ctx, result, cb);
 
     return result;
