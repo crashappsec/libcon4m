@@ -67,6 +67,7 @@ typedef struct c4m_ffi_decl_t {
     c4m_utf8_t            *external_name;
     uint8_t               *external_params;
     uint8_t                external_return_type;
+    c4m_xlist_t           *dll_list;
     c4m_zffi_cif           cif;
 } c4m_ffi_decl_t;
 

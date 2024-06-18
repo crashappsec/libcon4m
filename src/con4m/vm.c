@@ -1530,7 +1530,8 @@ c4m_vm_setup_ffi(c4m_vm_t *vm)
         c4m_ffi_decl_t *ffi_info = c4m_xlist_get(vm->obj->ffi_info, i, NULL);
         c4m_zffi_cif   *cif      = &ffi_info->cif;
 
-        cif->fptr = c4m_ffi_find_symbol(ffi_info->external_name, NULL);
+        cif->fptr = c4m_ffi_find_symbol(ffi_info->external_name,
+                                        ffi_info->dll_list);
 
         if (!cif->fptr) {
             // TODO: warn. For now, just error if it gets called.

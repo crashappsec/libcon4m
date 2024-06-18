@@ -1123,18 +1123,31 @@ handle_extern_block(pass1_ctx *ctx)
     c4m_utf8_t      *external_name = node_text(get_match(ctx,
                                                     c4m_first_kid_id));
     c4m_tree_node_t *ext_ret       = get_match(ctx, c4m_extern_return);
-    c4m_pnode_t     *pnode         = get_pnode(cur_node(ctx));
+    c4m_tree_node_t *cur           = cur_node(ctx);
     c4m_tree_node_t *ext_pure      = get_match(ctx, c4m_find_pure);
     c4m_tree_node_t *ext_holds     = get_match(ctx, c4m_find_holds);
     c4m_tree_node_t *ext_allocs    = get_match(ctx, c4m_find_allocs);
     c4m_tree_node_t *csig          = cur_node(ctx)->children[1];
     c4m_tree_node_t *ext_lsig      = get_match(ctx, c4m_find_extern_local);
+    c4m_pnode_t     *pnode         = get_pnode(cur);
 
     if (pnode->short_doc) {
         info->short_doc = c4m_token_raw_content(pnode->short_doc);
 
         if (pnode->long_doc) {
             info->long_doc = c4m_token_raw_content(pnode->long_doc);
+        }
+    }
+
+    for (int i = 2; i < cur->num_kids; i++) {
+        c4m_pnode_t *kid = get_pnode(cur->children[i]);
+
+        if (kid->kind == c4m_nt_extern_dll) {
+            if (info->dll_list == NULL) {
+                info->dll_list = c4m_xlist(c4m_tspec_utf8());
+            }
+            c4m_utf8_t *s = node_text(cur->children[i]->children[0]);
+            c4m_xlist_append(info->dll_list, s);
         }
     }
 

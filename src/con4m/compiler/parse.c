@@ -1106,7 +1106,7 @@ extern_local(parse_ctx *ctx)
 static void
 extern_dll(parse_ctx *ctx)
 {
-    start_node(ctx, c4m_nt_extern_local, true);
+    start_node(ctx, c4m_nt_extern_dll, true);
     if (!expect(ctx, c4m_tt_colon)) {
         end_node(ctx);
         return;
