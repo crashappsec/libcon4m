@@ -1542,8 +1542,7 @@ c4m_vm_setup_ffi(c4m_vm_t *vm)
 
         for (int j = 0; j < n; j++) {
             uint8_t param = ffi_info->external_params[j];
-            printf("Got param: %d\n", param);
-            arglist[j] = c4m_ffi_arg_type_map(param);
+            arglist[j]    = c4m_ffi_arg_type_map(param);
 
             if (param == C4M_CSTR_CTYPE_CONST && j < 63) {
                 cif->str_convert |= (1UL << j);
