@@ -1,0 +1,62 @@
+name: test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            runs-on: ubuntu-24.04
+            arch: x86_64
+
+          - os: macOS
+            runs-on: macos-14
+            arch: aarch64
+
+    name: "${{ matrix.os }}-${{ matrix.arch }}"
+    runs-on: ${{ matrix.runs-on }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # 4.1.7
+
+      - name: On Linux, switch to GCC 14
+        if: runner.os == 'Linux'
+        run: |
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+          gcc --version
+
+      - name: Install Meson and Ninja
+        shell: bash
+        run: |
+          case "${RUNNER_OS}" in
+            Linux)
+              sudo apt install meson ninja-build
+              ;;
+            macOS)
+              brew install meson ninja
+              # TODO: Fix error:
+              # meson.build:170:14: ERROR: C shared or static library 'crypto' not found
+              ;;
+            *)
+              exit 1
+              ;;
+          esac
+
+      - name: Build
+        run: ./dev build
+
+      - name: Run
+        run: ./dev run
