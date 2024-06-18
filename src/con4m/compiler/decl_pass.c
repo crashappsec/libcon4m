@@ -1206,11 +1206,13 @@ handle_extern_block(pass1_ctx *ctx)
                     continue;
                 }
                 param->ffi_holds = 1;
-                uint64_t flag    = (uint64_t)(1 << j);
-                if (bitfield & flag) {
-                    c4m_add_warning(ctx->file_ctx, c4m_warn_dupe_hold, kid);
+                if (j < 64) {
+                    uint64_t flag = (uint64_t)(1 << j);
+                    if (bitfield & flag) {
+                        c4m_add_warning(ctx->file_ctx, c4m_warn_dupe_hold, kid);
+                    }
+                    bitfield |= flag;
                 }
-                bitfield |= flag;
                 goto next_i;
             }
             c4m_add_error(ctx->file_ctx, c4m_err_bad_hold_name, kid);
@@ -1218,6 +1220,7 @@ handle_extern_block(pass1_ctx *ctx)
 next_i:
     /* nothing. */;
         }
+        info->cif.hold_info = bitfield;
     }
 
     if (ext_allocs) {
@@ -1245,11 +1248,15 @@ next_i:
                     continue;
                 }
                 param->ffi_allocs = 1;
-                uint64_t flag     = (uint64_t)(1 << j);
-                if (bitfield & flag) {
-                    c4m_add_warning(ctx->file_ctx, c4m_warn_dupe_alloc, kid);
+                if (j < 63) {
+                    uint64_t flag = (uint64_t)(1 << j);
+                    if (bitfield & flag) {
+                        c4m_add_warning(ctx->file_ctx,
+                                        c4m_warn_dupe_alloc,
+                                        kid);
+                    }
+                    bitfield |= flag;
                 }
-                bitfield |= flag;
                 goto next_alloc;
             }
             c4m_add_error(ctx->file_ctx, c4m_err_bad_alloc_name, kid);
@@ -1257,6 +1264,7 @@ next_i:
 next_alloc:
     /* nothing. */;
         }
+        info->cif.alloc_info = bitfield;
     }
 
     c4m_scope_entry_t *sym = declare_sym(ctx,

@@ -648,8 +648,7 @@ c4m_vm_ffi_call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
     }
 
     c4m_zffi_cif *ffiinfo = &decl->cif;
-
-    void **args;
+    void        **args;
 
     if (!ffiinfo->cif.nargs) {
         args = NULL;
@@ -677,6 +676,10 @@ c4m_vm_ffi_call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
                                          value);
                 args[n]          = c4m_ref_via_ffi_type(box,
                                                ffiinfo->cif.arg_types[n]);
+            }
+
+            if (n < 63 && ((1 << n) & ffiinfo->hold_info)) {
+                c4m_gc_add_hold(tstate->sp[i].rvalue.obj);
             }
         }
     }

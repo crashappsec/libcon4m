@@ -74,6 +74,7 @@ typedef struct c4m_finalizer_info_t {
 typedef struct c4m_arena_t {
     c4m_alloc_hdr        *next_alloc;
     c4m_dict_t           *roots;
+    c4m_set_t            *external_holds;
     //    queue_t            *late_mutations;
     uint64_t             *heap_end;
     c4m_finalizer_info_t *to_finalize;

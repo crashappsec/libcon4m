@@ -16,6 +16,8 @@ static void
 c4m_register_builtins()
 {
     c4m_add_static_function(c4m_new_utf8("c4m_clz"), c4m_clz);
+    c4m_add_static_function(c4m_new_utf8("c4m_gc_remove_hold"),
+                            c4m_gc_remove_hold);
 }
 
 __attribute__((constructor)) void
