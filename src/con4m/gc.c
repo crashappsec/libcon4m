@@ -637,8 +637,10 @@ c4m_collect_arena(c4m_arena_t **ptr_loc)
     hatrack_dict_item_t *roots;
 
     if (r == NULL) {
-        r = c4m_rc_ref(global_roots);
+        r = global_roots;
     }
+
+    c4m_rc_ref(r);
 
     if (cur->grow_next) {
         len <<= 1;
