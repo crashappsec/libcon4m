@@ -159,6 +159,7 @@ c4m_file_iostream(c4m_str_t *filename, bool no_create)
 c4m_stream_t *c4m_get_stdin();
 c4m_stream_t *c4m_get_stdout();
 c4m_stream_t *c4m_get_stderr();
+void          c4m_init_std_streams();
 
 static inline bool
 c4m_stream_using_cookie(c4m_stream_t *s)

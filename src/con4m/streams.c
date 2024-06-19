@@ -724,8 +724,8 @@ static c4m_stream_t *c4m_stream_stdin  = NULL;
 static c4m_stream_t *c4m_stream_stdout = NULL;
 static c4m_stream_t *c4m_stream_stderr = NULL;
 
-static inline void
-init_std_streams()
+void
+c4m_init_std_streams()
 {
     if (c4m_stream_stdin == NULL) {
         c4m_stream_stdin  = c4m_new(c4m_tspec_stream(),
@@ -743,21 +743,18 @@ init_std_streams()
 c4m_stream_t *
 c4m_get_stdin()
 {
-    init_std_streams();
     return c4m_stream_stdin;
 }
 
 c4m_stream_t *
 c4m_get_stdout()
 {
-    init_std_streams();
     return c4m_stream_stdout;
 }
 
 c4m_stream_t *
 c4m_get_stderr()
 {
-    init_std_streams();
     return c4m_stream_stderr;
 }
 

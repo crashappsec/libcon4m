@@ -427,13 +427,12 @@ scan_int_or_float_literal(lex_state_t *state)
             goto finished_int;
         }
     }
-finished_int: {
+finished_int:;
     uint64_t n = (uint64_t)val;
     state->pos = state->start + i;
     LITERAL_TOK(c4m_tt_int_lit);
     state->last_token->literal_value = (void *)n;
     return;
-}
 }
 
 static inline void
@@ -483,6 +482,7 @@ scan_int_float_or_hex_literal(lex_state_t *state)
     switch (peek(state)) {
     case 'x':
     case 'X':
+        advance(state);
         scan_hex_literal(state);
         return;
     default:

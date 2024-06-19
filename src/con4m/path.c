@@ -36,8 +36,13 @@ c4m_get_user_dir(c4m_utf8_t *user)
     if (user == NULL) {
         result = c4m_get_env(c4m_new_utf8("HOME"));
         if (!result) {
-            pw     = getpwent();
-            result = c4m_new_utf8(pw->pw_dir);
+            pw = getpwent();
+            if (pw == NULL) {
+                result = c4m_new_utf8("/");
+            }
+            else {
+                result = c4m_new_utf8(pw->pw_dir);
+            }
         }
     }
     else {

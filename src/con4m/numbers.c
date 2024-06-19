@@ -115,7 +115,7 @@ raw_hex_parse(c4m_utf8_t *u8, c4m_compile_error_t *err)
     // Here we expect *s to point to the first
     // character after any leading '0x'.
     __uint128_t cur = 0;
-    char       *s   = u8->data;
+    char       *s   = u8->data + 2;
     char        c;
     bool        even = true;
 
@@ -199,7 +199,7 @@ raw_hex_parse(c4m_utf8_t *u8, c4m_compile_error_t *err)
         return c4m_box_##magic_type(-1 * val);               \
     }                                                        \
     else {                                                   \
-        if (val > overflow_val) {                            \
+        if (st == ST_Base10 && val > overflow_val) {         \
             *code = c4m_err_parse_lit_overflow;              \
             return NULL;                                     \
         }                                                    \

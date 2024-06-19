@@ -407,36 +407,15 @@ typedef union c4m_stack_value_t {
     void                    *vptr;
     uint64_t                 uint;
     int64_t                  sint; // signed int values.
+    c4m_box_t                box;
     double                   dbl;
     bool                     boolean;
     char                    *cptr;
     union c4m_stack_value_t *fp; // saved fp
 } c4m_stack_value_t;
 
-typedef struct {
-    // whether passing a pointer to the thing causes it to hold the pointer,
-    // in which case decref must be explicit.
-    bool       held;
-    // this passes a value back that was allocated in the FFI.
-    bool       alloced;
-    // an index into the CTypeNames data structure in ffi.nim.
-    int16_t    arg_type;
-    // To look up any FFI processing we do for the type.
-    int32_t    our_type;
-    c4m_str_t *name;
-} c4m_zffi_arg_info_t;
-
-typedef struct {
-    int64_t      nameoffset;
-    int64_t      localname;
-    int32_t      mid; // module_id
-    c4m_type_t  *tid;
-    bool         va;
-    c4m_xlist_t *dlls;     // int64_t
-    c4m_xlist_t *arg_info; // tspec_ref: c4m_zffi_arg_info_t
-    c4m_str_t   *shortdoc;
-    c4m_str_t   *longdoc;
-} c4m_zffi_info_t;
+// Might want to trim a bit out of it, but for right now, an going to not.
+typedef struct c4m_ffi_decl_t c4m_zffi_info_t;
 
 typedef struct {
     int64_t     offset;
@@ -555,6 +534,8 @@ typedef struct {
     c4m_dict_t   *attrs;        // string, c4m_attr_contents_t (tspec_ref)
     c4m_set_t    *all_sections; // string
     c4m_dict_t   *section_docs; // string, c4m_docs_container_t (tspec_ref)
+    c4m_xlist_t  *ffi_info;
+    int           ffi_info_entries;
     bool          using_attrs;
 } c4m_vm_t;
 

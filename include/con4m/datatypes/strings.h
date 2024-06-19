@@ -6,7 +6,7 @@
  ** NOT to distinguish whether strings are UTF-8 (the high bit will
  ** always be 0 with UTF-8).
  **/
-typedef struct {
+typedef struct c4m_str_t {
     // clang-format off
     alignas(8)
     int32_t           codepoints;

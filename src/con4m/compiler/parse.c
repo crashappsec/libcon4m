@@ -143,65 +143,6 @@ static c4m_tree_node_t *ne_expr_rhs(parse_ctx *);
 static c4m_tree_node_t *and_expr_rhs(parse_ctx *);
 
 typedef struct {
-    char *ctype_name;
-    int   index;
-    bool  can_take_param;
-} ctype_name_info_t;
-
-static const ctype_name_info_t ctype_info[] = {
-    // clang-format off
-    { "void",     0,  false, },
-    { "cvoid",    0,  false, },
-    { "u8",       1,  false, },
-    { "cu8",      1,  false, },
-    { "i8",       2,  false, },
-    { "ci8",      2,  false, },
-    { "u16",      3,  false, },
-    { "cu16",     3,  false, },
-    { "i16",      4,  false, },
-    { "ci16",     4,  false, },
-    { "u32",      5,  false, },
-    { "cu32",     5,  false, },
-    { "i32",      6,  false, },
-    { "ci32",     6,  false, },
-    { "u64",      7,  false, },
-    { "cu64",     7,  false, },
-    { "i64",      8,  false, },
-    { "ci64",     8,  false, },
-    { "cfloat",   9,  false, },
-    { "cdouble",  10, false, },
-    { "double",   10, false, },
-    { "cuchar",   11, false, },
-    { "cchar",    12, false, },
-    { "short",    13, false, },
-    { "cshort",   13, false, },
-    { "ushort",   14, false, },
-    { "cushort",  14, false, },
-    { "cint",     15, false, },
-    { "cuint",    16, false, },
-    { "long",     17, false, },
-    { "ulong",    18, false, },
-    { "bool",     19, false, },
-    { "size_t",   20, false, },
-    { "size",     20, false, },
-    { "size_t",   20, false, },
-    { "csize",    20, false, },
-    { "csize_t",  20, false, },
-    { "ssize",    21, false, },
-    { "ssize_t",  21, false, },
-    { "cssize",   21, false, },
-    { "ssize_t",  21, false, },
-    { "cssize_t", 21, false, },
-    { "ptr",      22, true, },
-    { "pointer",  22, true, },
-    { "cstring",  23, true, },
-    { "carray",   24, true, },
-    { "array",    24, true, },
-    { NULL,       0,  false, },
-    // clang-format on
-};
-
-typedef struct {
     char        *name;
     unsigned int show_contents : 1;
     unsigned int terminal      : 1;
@@ -293,23 +234,6 @@ static const node_type_info_t node_type_info[] = {
 #endif
     // clang-format on
 };
-
-static int
-lookup_ctype_id(char *found)
-{
-    ctype_name_info_t *info = (ctype_name_info_t *)&ctype_info[0];
-
-    while (true) {
-        if (info->ctype_name == NULL) {
-            return -1;
-        }
-        if (!strcmp(info->ctype_name, found)) {
-            return info->index;
-        }
-
-        info++;
-    }
-}
 
 #ifdef PARSE_DEBUG
 static inline c4m_token_t *
@@ -1182,7 +1106,7 @@ extern_local(parse_ctx *ctx)
 static void
 extern_dll(parse_ctx *ctx)
 {
-    start_node(ctx, c4m_nt_extern_local, true);
+    start_node(ctx, c4m_nt_extern_dll, true);
     if (!expect(ctx, c4m_tt_colon)) {
         end_node(ctx);
         return;
@@ -1264,6 +1188,24 @@ extern_allocs(parse_ctx *ctx)
 }
 
 static void
+extern_sig_item(parse_ctx *ctx, c4m_node_kind_t kind)
+{
+    char   *txt      = identifier_text(tok_cur(ctx))->data;
+    int64_t ctype_id = (int64_t)c4m_lookup_ctype_id(txt);
+    if (ctype_id == -1) {
+        add_parse_error(ctx, c4m_err_parse_bad_ctype_id);
+        consume(ctx);
+    }
+    else {
+        start_node(ctx, kind, true);
+        c4m_pnode_t *n = current_parse_node(ctx);
+
+        n->extra_info = (void *)(uint64_t)ctype_id;
+        end_node(ctx);
+    }
+}
+
+static void
 extern_signature(parse_ctx *ctx)
 {
     start_node(ctx, c4m_nt_extern_sig, false);
@@ -1274,7 +1216,9 @@ extern_signature(parse_ctx *ctx)
     if (tok_kind(ctx) == c4m_tt_rparen) {
         consume(ctx);
         end_node(ctx);
-        opt_return_type(ctx);
+        expect(ctx, c4m_tt_arrow);
+        extern_sig_item(ctx, c4m_nt_lit_tspec_return_type);
+
         return;
     }
     while (true) {
@@ -1283,20 +1227,7 @@ extern_signature(parse_ctx *ctx)
             consume(ctx);
         }
         else {
-            char   *txt      = identifier_text(tok_cur(ctx))->data;
-            int64_t ctype_id = (int64_t)lookup_ctype_id(txt);
-
-            if (ctype_id == -1) {
-                add_parse_error(ctx, c4m_err_parse_bad_ctype_id);
-                consume(ctx);
-            }
-            else {
-                start_node(ctx, c4m_nt_extern_param, true);
-                c4m_pnode_t *n = current_parse_node(ctx);
-
-                n->extra_info = (void *)(uint64_t)ctype_id;
-                end_node(ctx);
-            }
+            extern_sig_item(ctx, c4m_nt_extern_param);
         }
 
         if (tok_kind(ctx) != c4m_tt_comma) {
@@ -1306,7 +1237,8 @@ extern_signature(parse_ctx *ctx)
     }
 
     expect(ctx, c4m_tt_rparen);
-    opt_return_type(ctx);
+    expect(ctx, c4m_tt_arrow);
+    extern_sig_item(ctx, c4m_nt_lit_tspec_return_type);
     end_node(ctx);
 }
 

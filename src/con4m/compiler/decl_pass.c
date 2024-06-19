@@ -502,10 +502,29 @@ handle_param_block(pass1_ctx *ctx)
 
         switch (prop_name->data[0]) {
         case 'v':
-            prop->validator = lit;
+            prop->validator = node_to_callback(ctx->file_ctx, lit);
+            if (!prop->validator) {
+                c4m_add_error(ctx->file_ctx,
+                              c4m_err_spec_callback_required,
+                              prop_node);
+            }
+            else {
+                c4m_xlist_append(ctx->file_ctx->callback_literals,
+                                 prop->validator);
+            }
+
             break;
         case 'c':
-            prop->callback = lit;
+            prop->callback = node_to_callback(ctx->file_ctx, lit);
+            if (!prop->callback) {
+                c4m_add_error(ctx->file_ctx,
+                              c4m_err_spec_callback_required,
+                              prop_node);
+            }
+            else {
+                c4m_xlist_append(ctx->file_ctx->callback_literals,
+                                 prop->callback);
+            }
             break;
         case 'd':
             prop->default_value = lit;
@@ -603,6 +622,7 @@ one_section_prop(pass1_ctx          *ctx,
         }
         else {
             section->validator = callback;
+            c4m_xlist_append(ctx->file_ctx->callback_literals, callback);
         }
         break;
     case 'r': // require
@@ -740,6 +760,7 @@ one_field(pass1_ctx          *ctx,
             }
             else {
                 f->validator = callback;
+                c4m_xlist_append(ctx->file_ctx->callback_literals, callback);
             }
             break;
         default:
@@ -1098,16 +1119,17 @@ handle_func_decl(pass1_ctx *ctx)
 static void
 handle_extern_block(pass1_ctx *ctx)
 {
-    c4m_ffi_decl_t  *info          = c4m_gc_alloc(c4m_ffi_info_t);
+    c4m_ffi_decl_t  *info          = c4m_gc_alloc(c4m_ffi_decl_t);
     c4m_utf8_t      *external_name = node_text(get_match(ctx,
                                                     c4m_first_kid_id));
-    c4m_xlist_t     *ext_params    = apply_pattern(ctx, c4m_extern_params);
     c4m_tree_node_t *ext_ret       = get_match(ctx, c4m_extern_return);
-    c4m_pnode_t     *pnode         = get_pnode(cur_node(ctx));
+    c4m_tree_node_t *cur           = cur_node(ctx);
     c4m_tree_node_t *ext_pure      = get_match(ctx, c4m_find_pure);
     c4m_tree_node_t *ext_holds     = get_match(ctx, c4m_find_holds);
     c4m_tree_node_t *ext_allocs    = get_match(ctx, c4m_find_allocs);
+    c4m_tree_node_t *csig          = cur_node(ctx)->children[1];
     c4m_tree_node_t *ext_lsig      = get_match(ctx, c4m_find_extern_local);
+    c4m_pnode_t     *pnode         = get_pnode(cur);
 
     if (pnode->short_doc) {
         info->short_doc = c4m_token_raw_content(pnode->short_doc);
@@ -1117,14 +1139,27 @@ handle_extern_block(pass1_ctx *ctx)
         }
     }
 
-    if (ext_params != NULL) {
-        int64_t n             = c4m_xlist_len(ext_params);
-        info->num_params      = n;
-        info->external_name   = external_name;
+    for (int i = 2; i < cur->num_kids; i++) {
+        c4m_pnode_t *kid = get_pnode(cur->children[i]);
+
+        if (kid->kind == c4m_nt_extern_dll) {
+            if (info->dll_list == NULL) {
+                info->dll_list = c4m_xlist(c4m_tspec_utf8());
+            }
+            c4m_utf8_t *s = node_text(cur->children[i]->children[0]);
+            c4m_xlist_append(info->dll_list, s);
+        }
+    }
+
+    int64_t n            = csig->num_kids - 1;
+    info->num_ext_params = n;
+    info->external_name  = external_name;
+
+    if (n) {
         info->external_params = c4m_gc_array_alloc(uint8_t, n);
 
         for (int64_t i = 0; i < n; i++) {
-            c4m_tree_node_t *tnode = c4m_xlist_get(ext_params, i, NULL);
+            c4m_tree_node_t *tnode = csig->children[i];
             c4m_pnode_t     *pnode = c4m_tree_get_contents(tnode);
             uint64_t         val   = (uint64_t)pnode->extra_info;
 
@@ -1171,11 +1206,13 @@ handle_extern_block(pass1_ctx *ctx)
                     continue;
                 }
                 param->ffi_holds = 1;
-                uint64_t flag    = (uint64_t)(1 << j);
-                if (bitfield & flag) {
-                    c4m_add_warning(ctx->file_ctx, c4m_warn_dupe_hold, kid);
+                if (j < 64) {
+                    uint64_t flag = (uint64_t)(1 << j);
+                    if (bitfield & flag) {
+                        c4m_add_warning(ctx->file_ctx, c4m_warn_dupe_hold, kid);
+                    }
+                    bitfield |= flag;
                 }
-                bitfield |= flag;
                 goto next_i;
             }
             c4m_add_error(ctx->file_ctx, c4m_err_bad_hold_name, kid);
@@ -1183,6 +1220,7 @@ handle_extern_block(pass1_ctx *ctx)
 next_i:
     /* nothing. */;
         }
+        info->cif.hold_info = bitfield;
     }
 
     if (ext_allocs) {
@@ -1210,11 +1248,15 @@ next_i:
                     continue;
                 }
                 param->ffi_allocs = 1;
-                uint64_t flag     = (uint64_t)(1 << j);
-                if (bitfield & flag) {
-                    c4m_add_warning(ctx->file_ctx, c4m_warn_dupe_alloc, kid);
+                if (j < 63) {
+                    uint64_t flag = (uint64_t)(1 << j);
+                    if (bitfield & flag) {
+                        c4m_add_warning(ctx->file_ctx,
+                                        c4m_warn_dupe_alloc,
+                                        kid);
+                    }
+                    bitfield |= flag;
                 }
-                bitfield |= flag;
                 goto next_alloc;
             }
             c4m_add_error(ctx->file_ctx, c4m_err_bad_alloc_name, kid);
@@ -1222,6 +1264,7 @@ next_i:
 next_alloc:
     /* nothing. */;
         }
+        info->cif.alloc_info = bitfield;
     }
 
     c4m_scope_entry_t *sym = declare_sym(ctx,
@@ -1236,6 +1279,8 @@ next_alloc:
         sym->type  = info->local_params->full_type;
         sym->value = (void *)info;
     }
+
+    c4m_xlist_append(ctx->file_ctx->extern_decls, sym);
 }
 
 static void
@@ -1406,14 +1451,16 @@ c4m_file_decl_pass(c4m_compile_ctx *cctx, c4m_file_compile_ctx *file_ctx)
 
     set_current_node(&ctx, file_ctx->parse_tree);
 
-    file_ctx->global_scope    = c4m_new_scope(NULL, C4M_SCOPE_GLOBAL);
-    file_ctx->module_scope    = c4m_new_scope(file_ctx->global_scope,
+    file_ctx->global_scope      = c4m_new_scope(NULL, C4M_SCOPE_GLOBAL);
+    file_ctx->module_scope      = c4m_new_scope(file_ctx->global_scope,
                                            C4M_SCOPE_MODULE);
-    file_ctx->attribute_scope = c4m_new_scope(NULL, C4M_SCOPE_ATTRIBUTES);
-    file_ctx->imports         = c4m_new_scope(NULL, C4M_SCOPE_IMPORTS);
-    file_ctx->parameters      = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
+    file_ctx->attribute_scope   = c4m_new_scope(NULL, C4M_SCOPE_ATTRIBUTES);
+    file_ctx->imports           = c4m_new_scope(NULL, C4M_SCOPE_IMPORTS);
+    file_ctx->parameters        = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
                                                   c4m_tspec_ref()));
-    file_ctx->fn_def_syms     = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    file_ctx->fn_def_syms       = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    file_ctx->callback_literals = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    file_ctx->extern_decls      = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
 
     ctx.cur->static_scope = file_ctx->module_scope;
     ctx.static_scope      = file_ctx->module_scope;
