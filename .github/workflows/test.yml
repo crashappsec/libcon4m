@@ -38,6 +38,14 @@ jobs:
           sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
           gcc --version
 
+      - name: On macOS, allow Meson to find libcrypto and libssl
+        if: runner.os == 'macOS'
+        run: |
+          # For now, symlink rather than altering `meson.build` to pass
+          # `dirs : ['/opt/homebrew/lib']` to the relevant find_library()` calls.
+          sudo mkdir -p /usr/local/lib
+          sudo ln -s /opt/homebrew/lib/{libcrypto,libssl}.dylib /usr/local/lib/
+
       - name: Install Meson and Ninja
         shell: bash
         run: |
@@ -47,8 +55,6 @@ jobs:
               ;;
             macOS)
               brew install meson ninja
-              # TODO: Fix error:
-              # meson.build:170:14: ERROR: C shared or static library 'crypto' not found
               ;;
             *)
               exit 1
