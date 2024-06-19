@@ -260,14 +260,14 @@ c4m_get_file_kind(c4m_utf8_t *p)
     case S_IFLNK:
         if (stat(p->data, &file_info) != 0) {
             return C4M_FK_NOT_FOUND;
-            switch (file_info.st_mode & S_IFMT) {
-            case S_IFREG:
-                return C4M_FK_IS_FLINK;
-            case S_IFDIR:
-                return C4M_FK_IS_DLINK;
-            default:
-                return C4M_FK_OTHER;
-            }
+        }
+        switch (file_info.st_mode & S_IFMT) {
+        case S_IFREG:
+            return C4M_FK_IS_FLINK;
+        case S_IFDIR:
+            return C4M_FK_IS_DLINK;
+        default:
+            return C4M_FK_OTHER;
         }
     default:
         return C4M_FK_OTHER;
