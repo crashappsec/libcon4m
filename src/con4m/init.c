@@ -6,10 +6,17 @@
 char **c4m_stashed_argv;
 char **c4m_stashed_envp;
 
+// A few builtins here; will break this out soon.
 uint64_t
 c4m_clz(uint64_t n)
 {
     return __builtin_clzll(n);
+}
+
+uint64_t
+c4m_rand()
+{
+    return c4m_rand64();
 }
 
 static void
@@ -18,6 +25,7 @@ c4m_register_builtins()
     c4m_add_static_function(c4m_new_utf8("c4m_clz"), c4m_clz);
     c4m_add_static_function(c4m_new_utf8("c4m_gc_remove_hold"),
                             c4m_gc_remove_hold);
+    c4m_add_static_function(c4m_new_utf8("c4m_rand"), c4m_rand);
 }
 
 __attribute__((constructor)) void

@@ -1,9 +1,18 @@
+"""
+Initial test of basic conditionals. Also manually inspected to make
+sure that the string constant only is added once into the constant
+pool (they should have the same offset).
+"""
+"""
+$output: 
+hello, world!
+"""
 const x = 3
 
 
 if 4 - 1 != x {
-    print "hello, world!" # Make sure both 'hello' consts have the same offset.
-    print "Con4m sucks."
+    print("hello, world!")
+    print("Con4m sucks.")
 } else {
-    print "hello, world!"
+    print("hello, world!")
 }

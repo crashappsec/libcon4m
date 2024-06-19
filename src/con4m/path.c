@@ -234,3 +234,238 @@ c4m_path_join(c4m_xlist_t *items)
 
     return result;
 }
+
+c4m_file_kind
+c4m_get_file_kind(c4m_utf8_t *p)
+{
+    struct stat file_info;
+    p = c4m_resolve_path(p);
+    if (lstat(p->data, &file_info) != 0) {
+        return C4M_FK_NOT_FOUND;
+    }
+
+    switch (file_info.st_mode & S_IFMT) {
+    case S_IFREG:
+        return C4M_FK_IS_REG_FILE;
+    case S_IFDIR:
+        return C4M_FK_IS_DIR;
+    case S_IFSOCK:
+        return C4M_FK_IS_SOCK;
+    case S_IFCHR:
+        return C4M_FK_IS_CHR_DEVICE;
+    case S_IFBLK:
+        return C4M_FK_IS_BLOCK_DEVICE;
+    case S_IFIFO:
+        return C4M_FK_IS_FIFO;
+    case S_IFLNK:
+        if (stat(p->data, &file_info) != 0) {
+            return C4M_FK_NOT_FOUND;
+            switch (file_info.st_mode & S_IFMT) {
+            case S_IFREG:
+                return C4M_FK_IS_FLINK;
+            case S_IFDIR:
+                return C4M_FK_IS_DLINK;
+            default:
+                return C4M_FK_OTHER;
+            }
+        }
+    default:
+        return C4M_FK_OTHER;
+    }
+}
+
+typedef struct {
+    bool         recurse;
+    bool         yield_links;
+    bool         yield_dirs;
+    bool         follow_links;
+    bool         ignore_special;
+    bool         done_with_safety_checks;
+    c4m_utf8_t  *sc_proc;
+    c4m_utf8_t  *sc_dev;
+    c4m_utf8_t  *sc_cwd;
+    c4m_utf8_t  *sc_up;
+    c4m_xlist_t *result;
+    c4m_utf8_t  *resolved;
+} c4m_walk_ctx;
+
+static void
+internal_path_walk(c4m_walk_ctx *ctx)
+{
+    struct stat    file_info;
+    DIR           *dirobj;
+    struct dirent *entry;
+    c4m_utf8_t    *saved;
+    bool           add_slash;
+
+    if (!ctx->done_with_safety_checks) {
+        if (c4m_str_starts_with(ctx->resolved, ctx->sc_proc)) {
+            return;
+        }
+        if (c4m_str_starts_with(ctx->resolved, ctx->sc_dev)) {
+            return;
+        }
+        if (c4m_str_codepoint_len(ctx->resolved) != 1) {
+            ctx->done_with_safety_checks = true;
+        }
+    }
+
+    if (lstat(ctx->resolved->data, &file_info) != 0) {
+        return;
+    }
+
+    switch (file_info.st_mode & S_IFMT) {
+    case S_IFREG:
+        c4m_xlist_append(ctx->result, ctx->resolved);
+        return;
+
+    case S_IFDIR:
+        if (ctx->yield_dirs) {
+            c4m_xlist_append(ctx->result, ctx->resolved);
+            return;
+        }
+
+actual_directory:
+        if (!ctx->recurse) {
+            return;
+        }
+        dirobj = opendir(ctx->resolved->data);
+        if (dirobj == NULL) {
+            return;
+        }
+
+        saved = ctx->resolved;
+        if (c4m_index(saved, c4m_str_codepoint_len(saved) - 1) == '/') {
+            add_slash = false;
+        }
+        else {
+            add_slash = true;
+        }
+
+        while (true) {
+            entry = readdir(dirobj);
+
+            if (entry == NULL) {
+                ctx->resolved = saved;
+                return;
+            }
+
+            if (!strcmp(entry->d_name, "..")) {
+                continue;
+            }
+
+            if (!strcmp(entry->d_name, ".")) {
+                continue;
+            }
+
+            if (add_slash) {
+                ctx->resolved = c4m_cstr_format("{}/{}",
+                                                saved,
+                                                c4m_new_utf8(entry->d_name));
+            }
+            else {
+                ctx->resolved = c4m_cstr_format("{}{}",
+                                                saved,
+                                                c4m_new_utf8(entry->d_name));
+            }
+            internal_path_walk(ctx);
+        }
+        ctx->resolved = saved;
+        return;
+
+    case S_IFLNK:
+        if (stat(ctx->resolved->data, &file_info) != 0) {
+            return;
+        }
+
+        switch (file_info.st_mode & S_IFMT) {
+        case S_IFREG:
+            if (ctx->follow_links && ctx->yield_links) {
+                char buf[PATH_MAX + 1] = {
+                    0,
+                };
+                readlink(ctx->resolved->data, buf, PATH_MAX);
+                c4m_xlist_append(ctx->result,
+                                 c4m_resolve_path(c4m_new_utf8(buf)));
+            }
+            else {
+                if (ctx->yield_links) {
+                    c4m_xlist_append(ctx->result, ctx->resolved);
+                }
+            }
+            return;
+        case S_IFDIR:
+
+            if (ctx->yield_dirs && ctx->yield_links) {
+                c4m_xlist_append(ctx->result, ctx->resolved);
+            }
+
+            if (!ctx->follow_links || !ctx->recurse) {
+                return;
+            }
+
+            saved                  = ctx->resolved;
+            char buf[PATH_MAX + 1] = {
+                0,
+            };
+            readlink(ctx->resolved->data, buf, PATH_MAX);
+            ctx->resolved = c4m_resolve_path(c4m_new_utf8(buf));
+            if (ctx->yield_dirs && !ctx->yield_links) {
+                c4m_xlist_append(ctx->result, ctx->resolved);
+            }
+
+            goto actual_directory;
+
+        default:
+            if (!ctx->ignore_special) {
+                c4m_xlist_append(ctx->result, ctx->resolved);
+            }
+            return;
+        }
+    case S_IFSOCK:
+    case S_IFCHR:
+    case S_IFBLK:
+    case S_IFIFO:
+    default:
+        if (!ctx->ignore_special) {
+            c4m_xlist_append(ctx->result, ctx->resolved);
+        }
+        return;
+    }
+}
+
+c4m_xlist_t *
+_c4m_path_walk(c4m_utf8_t *dir, ...)
+{
+    bool recurse        = true;
+    bool yield_links    = false;
+    bool yield_dirs     = false;
+    bool ignore_special = true;
+    bool follow_links   = false;
+
+    c4m_karg_only_init(dir);
+    c4m_kw_bool("recurse", recurse);
+    c4m_kw_bool("yield_links", yield_links);
+    c4m_kw_bool("yield_dirs", yield_dirs);
+    c4m_kw_bool("follow_links", follow_links);
+    c4m_kw_bool("ignore_special", ignore_special);
+
+    c4m_walk_ctx ctx = {
+        .sc_proc                 = c4m_new_utf8("/proc/"),
+        .sc_dev                  = c4m_new_utf8("/dev/"),
+        .sc_cwd                  = c4m_new_utf8("."),
+        .sc_up                   = c4m_new_utf8(".."),
+        .recurse                 = recurse,
+        .yield_links             = yield_links,
+        .yield_dirs              = yield_dirs,
+        .follow_links            = follow_links,
+        .ignore_special          = ignore_special,
+        .done_with_safety_checks = false,
+        .result                  = c4m_xlist(c4m_tspec_utf8()),
+        .resolved                = c4m_resolve_path(dir),
+    };
+
+    internal_path_walk(&ctx);
+
+    return ctx.result;
+}

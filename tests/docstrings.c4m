@@ -2,8 +2,10 @@
 This is my module.
 Here is one of its two doc strings.
 """
-"Here's it's other doc."
-
+"""
+$output: 
+"""
+/*
 extern callecho(ptr) -> cvoid {
   "This has some docs too."
   
@@ -33,3 +35,4 @@ func fib(x) {
 
 x = fib(10)
 assert x == 55
+*/

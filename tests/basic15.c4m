@@ -1,6 +1,14 @@
+"""
+Initial test of an external function.
+"""
+"""
+$output:
+4
+"""
+
 extern c4m_clz(i64) -> i64 {
   local: clz(x: int) -> int
 }
 
-print clz(0x0fffffffffffffff)
+print(clz(0x0fffffffffffffff))
 

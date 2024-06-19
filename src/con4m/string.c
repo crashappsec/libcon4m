@@ -397,6 +397,9 @@ _c4m_str_join(const c4m_xlist_t *l, const c4m_str_t *joiner, ...)
     }
 
     if (!add_trailing) {
+        uint64_t wrong_cp  = ~result->codepoints;
+        result->codepoints = ~(wrong_cp - joinlen);
+
         c4m_utf32_t *line = c4m_to_utf32((c4m_str_t *)c4m_xlist_get(l,
                                                                     n_parts,
                                                                     NULL));
@@ -521,7 +524,6 @@ utf8_init(c4m_utf8_t *s, va_list args)
     else {
         if (length < 0) {
             s->data = 0;
-            abort();
             C4M_CRAISE("length cannot be < 0 for string initialization");
         }
         s->data = c4m_gc_raw_alloc(length + 1, NULL);
@@ -860,6 +862,24 @@ c4m_str_starts_with(const c4m_str_t *s1, const c4m_str_t *s2)
     }
 
     return u32_starts_with(s1, c4m_to_utf32(s2));
+}
+
+bool
+c4m_str_ends_with(const c4m_str_t *s1, const c4m_str_t *s2)
+{
+    int l1 = c4m_str_codepoint_len(s1);
+    int l2 = c4m_str_codepoint_len(s2);
+
+    if (l2 > l1) {
+        return false;
+    }
+
+    c4m_utf32_t *u1 = c4m_to_utf32(s1);
+    c4m_utf32_t *u2 = c4m_to_utf32(s2);
+
+    u1 = c4m_str_slice(u1, l1 - l2, -1);
+
+    return c4m_str_eq(u1, u2);
 }
 
 c4m_utf8_t *
@@ -1255,6 +1275,16 @@ c4m_str_lit(c4m_utf8_t          *s_u8,
 bool
 c4m_str_eq(c4m_str_t *s1, c4m_str_t *s2)
 {
+    if (!s1) {
+        if (!s2) {
+            return true;
+        }
+        return false;
+    }
+    if (!s2) {
+        return false;
+    }
+
     bool s1_is_u32 = c4m_str_is_u32(s1);
     bool s2_is_u32 = c4m_str_is_u32(s2);
 

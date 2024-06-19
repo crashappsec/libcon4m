@@ -537,29 +537,33 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - __repr__
 
 # Features to re-add from old con4m
-- FFI
 - VM save restore
 - Arg parsing
 - Libraries
-- Actually collect garbage.
 - Doc API.
-- Folding
-- Casting
 - Checkpointing
 - Hot loading
 - Finish data types (date, ip, and extra hatrack stuff)
+- Test harness
+- Final mile: specs
+- Final mile: params
+- Auto-import standard library.
+- Callbacks
+- Tuple unpacking
+- Len, etc.
 
 # Items for afterward
+- Objects
+- Folding
+- Casting
 - Varargs functions
 - Clean up unused instructions in VM
 - Remove the two-words-per-stack-slot thing; it's not needed anymore.
-- Test harness
-- Objects
 - automatic logfd + optional server for log messages
 - REPL
 - Keyword arguments
 - 'maybe' types / nil
-- Aspects
+- Aspects (before / after / around pattern(sig) when x) 
 - Casting
 - (Possibly) re-add := literals
 - Threading
@@ -567,6 +571,7 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - Pretty printing w/ type annotations
 - Language server
 - Checks based on PDG
+- Full-program info on unused fields & fns.
 
 # Features removed (considered for adding back in)
 Also, the language accepts ":=", which has the special syntax of
