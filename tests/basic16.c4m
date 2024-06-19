@@ -1,0 +1,7 @@
+extern strndup(cstring, csize_t) -> cstring {
+  local: test(s: string, n: int) -> string
+}
+
+x = "Hello, world!"
+print x
+print(test(x, 4))

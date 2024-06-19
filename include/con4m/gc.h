@@ -181,6 +181,8 @@ c4m_gc_malloc(size_t len)
 extern void         c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom);
 extern void         c4m_initialize_gc();
 extern void         c4m_gc_heap_stats(uint64_t *, uint64_t *, uint64_t *);
+extern void         c4m_gc_add_hold(c4m_obj_t);
+extern void         c4m_gc_remove_hold(c4m_obj_t);
 extern c4m_arena_t *c4m_internal_stash_heap();
 extern void         c4m_internal_unstash_heap();
 extern void         c4m_internal_set_heap(c4m_arena_t *);

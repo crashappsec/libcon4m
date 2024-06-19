@@ -1911,6 +1911,7 @@ check_literal(pass2_ctx *ctx)
         break;
     case c4m_nt_lit_callback:
         pnode->value = node_to_callback(ctx->file_ctx, ctx->node);
+        c4m_xlist_append(ctx->file_ctx->callback_literals, pnode->value);
         break;
     case c4m_nt_lit_tspec:
         do {
@@ -2838,6 +2839,93 @@ process_deferred_calls(c4m_compile_ctx *cctx,
     }
 }
 
+static void
+process_deferred_callbacks(c4m_compile_ctx *cctx)
+{
+    // Now that we have a 'whole program view', go ahead and
+    // try to find a match for any callback literals used.
+    //
+    // Meaning, there must either be an in-scope con4m function, or
+    // an extern declaration that matches the callback, as viewed from
+    // the module in which the symbol was declared.
+
+    int         n = c4m_xlist_len(cctx->module_ordering);
+    c4m_utf8_t *s;
+
+    for (int i = 0; i < n; i++) {
+        c4m_file_compile_ctx *f = c4m_xlist_get(cctx->module_ordering, i, NULL);
+        int                   m = c4m_xlist_len(f->callback_literals);
+        for (int j = 0; j < m; j++) {
+            c4m_callback_t *cb = c4m_xlist_get(f->callback_literals, j, NULL);
+
+            c4m_scope_entry_t *sym = c4m_symbol_lookup(NULL,
+                                                       f->module_scope,
+                                                       f->global_scope,
+                                                       NULL,
+                                                       cb->target_symbol_name);
+
+            if (!sym) {
+                c4m_add_error(f, c4m_err_callback_no_match, cb->decl_loc);
+                return;
+            }
+
+            switch (sym->kind) {
+            case sk_func:
+                cb->binding.ffi                          = 0;
+                cb->binding.implementation.ffi_interface = sym->value;
+                break;
+            case sk_extern_func:
+                cb->binding.ffi                            = 1;
+                cb->binding.implementation.local_interface = sym->value;
+                break;
+            default:;
+                c4m_tree_node_t *l = sym->declaration_node;
+                if (l == NULL) {
+                    l = c4m_xlist_get(sym->sym_defs, 0, NULL);
+                }
+                s = c4m_node_get_loc_str(l);
+                c4m_add_error(f, c4m_err_callback_bad_target, cb->decl_loc, s);
+                return;
+            }
+
+            c4m_type_t *sym_type = c4m_global_copy(sym->type);
+            c4m_type_t *lit_type = cb->target_type;
+            c4m_type_t *merged   = c4m_merge_types(sym_type, lit_type);
+
+            if (c4m_tspec_is_error(merged)) {
+                s = c4m_node_get_loc_str(sym->declaration_node);
+                c4m_add_error(f,
+                              c4m_err_callback_type_mismatch,
+                              cb->decl_loc,
+                              lit_type,
+                              sym_type,
+                              s);
+            }
+        }
+    }
+}
+
+static void
+order_ffi_decls(c4m_compile_ctx *cctx)
+{
+    // TODO: when incrementally compiling we need to take into
+    // acount existing FFI decl indexing.
+    int n  = c4m_xlist_len(cctx->module_ordering);
+    int ix = 0;
+
+    for (int i = 0; i < n; i++) {
+        c4m_file_compile_ctx *f = c4m_xlist_get(cctx->module_ordering, i, NULL);
+        int                   m = c4m_xlist_len(f->extern_decls);
+
+        for (int j = 0; j < m; j++) {
+            c4m_scope_entry_t *sym  = c4m_xlist_get(f->extern_decls, j, NULL);
+            c4m_ffi_decl_t    *decl = (c4m_ffi_decl_t *)sym->value;
+
+            decl->global_ffi_call_ix = ix++;
+        }
+    }
+}
+
 void
 c4m_check_pass(c4m_compile_ctx *cctx)
 {
@@ -2874,7 +2962,9 @@ c4m_check_pass(c4m_compile_ctx *cctx)
         }
     }
 
+    order_ffi_decls(cctx);
     process_deferred_calls(cctx, all_deferred, num_deferred);
+    process_deferred_callbacks(cctx);
 
     for (int i = 0; i < n; i++) {
         c4m_file_compile_ctx *f = c4m_xlist_get(cctx->module_ordering, i, NULL);

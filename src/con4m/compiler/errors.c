@@ -1108,6 +1108,28 @@ static error_info_t error_info[] = {
         "return values.",
         false,
     },
+    [c4m_err_callback_no_match] = {
+        c4m_err_callback_no_match,
+        "callback_no_match",
+        "Callback does not have a matching declaration. It requires either a "
+        "con4m function, or an [em]extern[/] declaration.",
+        false,
+    },
+    [c4m_err_callback_bad_target] = {
+        c4m_err_callback_bad_target,
+        "callback_bad_target",
+        "Callback matches a symbol that is defined, but not as a callable "
+        "function. First definition is here: {}",
+        true,
+    },
+    [c4m_err_callback_type_mismatch] = {
+        c4m_err_callback_type_mismatch,
+        "callback_type_mismatch",
+        "Declared callback type is not compatable with the implementation "
+        "callback type ([em]{}[/] vs declared type [em]{}[/]). "
+        " Declaration is here: {}",
+        true,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",

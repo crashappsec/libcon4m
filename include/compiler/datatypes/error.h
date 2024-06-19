@@ -173,6 +173,9 @@ typedef enum {
     c4m_err_augmented_assign_to_slice,
     c4m_warn_cant_export,
     c4m_err_assigned_void,
+    c4m_err_callback_no_match,
+    c4m_err_callback_bad_target,
+    c4m_err_callback_type_mismatch,
     c4m_err_last,
 } c4m_compile_error_t;
 

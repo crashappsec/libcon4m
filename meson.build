@@ -94,6 +94,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/path.c',
             'src/con4m/flags.c',
             'src/con4m/box.c',
+            'src/con4m/ffi.c',
             'src/con4m/crypto/sha.c',
             'src/con4m/compiler/compile.c',
             'src/con4m/compiler/lex.c',
@@ -165,7 +166,7 @@ test_src = ['src/tests/test.c']
             
 threads  = dependency('threads')
 math     = cc.find_library('m', required : false)
-ffi      = cc.find_library('ffi')
+ffi      = cc.find_library('ffi', required : true, dirs: meson.current_source_dir() + '/deps/local/')
 
 crypto   = cc.find_library('crypto')
 ssl      = cc.find_library('ssl')

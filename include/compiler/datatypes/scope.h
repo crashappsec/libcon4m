@@ -51,16 +51,6 @@ typedef struct {
     c4m_utf8_t *specified_uri;
 } c4m_module_info_t;
 
-// For extern entries, the data structure will be in the `value`
-// field.
-
-typedef struct {
-    c4m_utf8_t  *name;
-    c4m_type_t  *type;
-    unsigned int ffi_holds  : 1;
-    unsigned int ffi_allocs : 1;
-} c4m_fn_param_info_t;
-
 typedef struct c4m_scope_entry_t {
     // The `value` field gets the proper value for vars and enums, but
     // for other types, it gets a pointer to one of the specific data

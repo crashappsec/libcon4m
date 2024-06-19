@@ -635,6 +635,8 @@ test_compiler()
         return;
     }
 
+    c4m_add_static_function(c4m_new_utf8("strndup"), strndup);
+
     for (int64_t i = 0; i < l; i++) {
         c4m_utf8_t *fname = c4m_xlist_get(files, i, NULL);
         c4m_utf8_t *path;
