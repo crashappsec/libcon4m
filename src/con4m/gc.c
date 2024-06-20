@@ -14,6 +14,7 @@
 static c4m_dict_t               *global_roots;
 uint64_t                         c4m_gc_guard     = 0;
 static thread_local c4m_arena_t *current_heap     = NULL;
+static c4m_set_t                *external_holds   = NULL;
 static c4m_system_finalizer_fn   system_finalizer = NULL;
 static uint64_t                  page_bytes;
 static uint64_t                  page_modulus;
@@ -86,27 +87,33 @@ c4m_initialize_gc()
     static bool once = false;
 
     if (!once) {
-        c4m_gc_guard = c4m_rand64();
-        global_roots = c4m_rc_alloc(sizeof(c4m_dict_t));
-        once         = true;
-        page_bytes   = getpagesize();
-        page_modulus = page_bytes - 1; // Page size is always a power of 2.
-        modulus_mask = ~page_modulus;
+        c4m_gc_guard   = c4m_rand64();
+        global_roots   = c4m_rc_alloc(sizeof(c4m_dict_t));
+        external_holds = c4m_rc_alloc(sizeof(c4m_set_t));
+        once           = true;
+        page_bytes     = getpagesize();
+        page_modulus   = page_bytes - 1; // Page size is always a power of 2.
+        modulus_mask   = ~page_modulus;
 
         c4m_gc_trace("init:set_guard:%llx", c4m_gc_guard);
         c4m_gc_trace("init:global_root_addr:@%p", global_roots);
 
-        // use c4m_gc_malloc_wrapper for hatrack's zalloc function since our
-        // gc allocator always returns zeroed memory.
-        // hatrack_setmallocfns(NULL,
-        // NULL,
-        // NULL,
-        // NULL,
-        // c4m_gc_malloc_wrapper,
-        // NULL);
-
         hatrack_dict_init(global_roots, HATRACK_DICT_KEY_TYPE_PTR);
+        hatrack_set_init(external_holds, HATRACK_DICT_KEY_TYPE_PTR);
+        hatrack_dict_put(global_roots, &external_holds, (void *)1);
     }
+}
+
+void
+c4m_gc_add_hold(c4m_obj_t obj)
+{
+    hatrack_set_add(external_holds, obj);
+}
+
+void
+c4m_gc_remove_hold(c4m_obj_t obj)
+{
+    hatrack_set_remove(external_holds, obj);
 }
 
 // The idea here is once the object unmarshals the object file and
@@ -637,8 +644,10 @@ c4m_collect_arena(c4m_arena_t **ptr_loc)
     hatrack_dict_item_t *roots;
 
     if (r == NULL) {
-        r = c4m_rc_ref(global_roots);
+        r = global_roots;
     }
+
+    c4m_rc_ref(r);
 
     if (cur->grow_next) {
         len <<= 1;

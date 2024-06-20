@@ -23,6 +23,7 @@
 #include <netdb.h>
 #include <dlfcn.h>
 #include <pwd.h>
+#include <dirent.h>
 
 #include <sys/select.h>
 #include <sys/types.h>

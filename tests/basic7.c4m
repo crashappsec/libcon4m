@@ -1,1 +1,8 @@
-print ["1", "2", "3", "four"]
+"""
+Basic test of arrays.
+"""
+"""
+$output: 
+["1", "2", "3", "four"]
+"""
+print(["1", "2", "3", "four"])

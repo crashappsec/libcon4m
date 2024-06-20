@@ -97,7 +97,6 @@ c4m_subproc_pass_to_stdin(c4m_subproc_t *ctx,
                                 str,
                                 len,
                                 true,
-                                true,
                                 close_fd);
 
     if (ctx->run) {
@@ -187,7 +186,7 @@ c4m_subproc_set_io_callback(c4m_subproc_t *ctx,
         return false;
     }
 
-    c4m_deferred_cb_t *cbinfo = malloc(sizeof(c4m_deferred_cb_t));
+    c4m_deferred_cb_t *cbinfo = c4m_gc_alloc(c4m_deferred_cb_t);
 
     cbinfo->next  = ctx->deferred_cbs;
     cbinfo->which = which;
@@ -492,7 +491,7 @@ c4m_subproc_do_exec(c4m_subproc_t *ctx)
 c4m_party_t *
 c4m_subproc_new_party_callback(c4m_switchboard_t *ctx, c4m_sb_cb_t cb)
 {
-    c4m_party_t *result = c4m_gc_array_alloc(c4m_party_t, 1);
+    c4m_party_t *result = (c4m_party_t *)c4m_gc_alloc(c4m_party_t);
     c4m_sb_init_party_callback(ctx, result, cb);
 
     return result;
@@ -760,16 +759,6 @@ c4m_subproc_close(c4m_subproc_t *ctx)
 {
     c4m_subproc_reset_terminal(ctx);
     c4m_sb_destroy(&ctx->sb, false);
-
-    c4m_deferred_cb_t *cbs = ctx->deferred_cbs;
-    c4m_deferred_cb_t *next;
-
-    while (cbs) {
-        next = cbs->next;
-        free(cbs->to_free);
-        free(cbs);
-        cbs = next;
-    }
 }
 
 /*

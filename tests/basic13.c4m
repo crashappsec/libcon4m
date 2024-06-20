@@ -1,14 +1,22 @@
-"Test basic unary stuff."
+"""
+Test basic unary operations.
+"""
+"""
+$output:
+100
+-100
+false
+"""
 
 x = 100
 
-print x
+print(x)
 
 if x % 2 {
-    print x
+    print(x)
 }
 else {
-    print -x
+    print(-x)
 }
 
-print not not 0 + 100 - 100
+print(not not 0 + 100 - 100)

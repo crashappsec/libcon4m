@@ -197,7 +197,7 @@ c4m_sb_new_party_listener(c4m_switchboard_t *ctx,
                           bool               stop_when_closed,
                           bool               close_on_destroy)
 {
-    c4m_party_t *result = c4m_gc_array_alloc(c4m_party_t, 1);
+    c4m_party_t *result = (c4m_party_t *)c4m_gc_alloc(c4m_party_t);
     c4m_sb_init_party_listener(ctx,
                                result,
                                sockfd,
@@ -267,7 +267,7 @@ c4m_sb_new_party_fd(c4m_switchboard_t *ctx,
                     bool               close_on_destroy,
                     bool               proxy_close)
 {
-    c4m_party_t *result = c4m_gc_array_alloc(c4m_party_t, 1);
+    c4m_party_t *result = (c4m_party_t *)c4m_gc_alloc(c4m_party_t);
     c4m_sb_init_party_fd(ctx,
                          result,
                          fd,
@@ -291,14 +291,12 @@ c4m_sb_init_party_input_buf(c4m_switchboard_t *ctx,
                             char              *input,
                             size_t             len,
                             bool               dup,
-                            bool               free,
                             bool               close_fd_when_done)
 {
     char *to_set = input;
 
     if (dup) {
-        free   = true;
-        to_set = (char *)calloc(len + 1, 1);
+        to_set = (char *)c4m_gc_alloc(len + 1);
         memcpy(to_set, input, len);
     }
     party->open_for_read     = true;
@@ -309,7 +307,6 @@ c4m_sb_init_party_input_buf(c4m_switchboard_t *ctx,
     c4m_party_instr_t *sobj  = get_sstr_obj(party);
     sobj->strbuf             = to_set;
     sobj->len                = len;
-    sobj->free_on_close      = free;
     sobj->close_fd_when_done = close_fd_when_done;
 
     register_loner(ctx, party);
@@ -320,16 +317,14 @@ c4m_sb_new_party_input_buf(c4m_switchboard_t *ctx,
                            char              *input,
                            size_t             len,
                            bool               dup,
-                           bool               free,
                            bool               close_fd_when_done)
 {
-    c4m_party_t *result = c4m_gc_array_alloc(c4m_party_t, 1);
+    c4m_party_t *result = (c4m_party_t *)c4m_gc_alloc(c4m_party_t);
     c4m_sb_init_party_input_buf(ctx,
                                 result,
                                 input,
                                 len,
                                 dup,
-                                free,
                                 close_fd_when_done);
 
     return result;
@@ -345,17 +340,13 @@ c4m_sb_party_input_buf_new_string(c4m_party_t *party,
     if (party->c4m_party_type != C4M_PT_STRING || !party->can_read_from_it) {
         return;
     }
-    c4m_party_instr_t *sobj = get_sstr_obj(party);
-    if (sobj->free_on_close && sobj->strbuf) {
-        free(sobj->strbuf);
-    }
+    c4m_party_instr_t *sobj  = get_sstr_obj(party);
     sobj->len                = len;
     sobj->close_fd_when_done = close_fd_when_done;
 
     if (dup) {
-        sobj->strbuf = (char *)calloc(len + 1, 1);
+        sobj->strbuf = c4m_gc_alloc(len + 1);
         memcpy(sobj->strbuf, input, len);
-        sobj->free_on_close = true;
     }
     else {
         sobj->strbuf = input;
@@ -396,7 +387,7 @@ c4m_sb_init_party_output_buf(c4m_switchboard_t *ctx,
     party->c4m_party_type   = C4M_PT_STRING;
 
     c4m_party_outstr_t *dobj = get_dstr_obj(party);
-    dobj->strbuf             = (char *)calloc(PIPE_BUF, n);
+    dobj->strbuf             = (char *)c4m_gc_array_alloc(PIPE_BUF, n);
     dobj->len                = n * PIPE_BUF;
     dobj->step               = party->info.wstrinfo.len;
     dobj->tag                = tag;
@@ -408,7 +399,7 @@ c4m_sb_init_party_output_buf(c4m_switchboard_t *ctx,
 c4m_party_t *
 c4m_sb_new_party_output_buf(c4m_switchboard_t *ctx, char *tag, size_t buflen)
 {
-    c4m_party_t *result = c4m_gc_array_alloc(c4m_party_t, 1);
+    c4m_party_t *result = (c4m_party_t *)c4m_gc_alloc(c4m_party_t);
     c4m_sb_init_party_output_buf(ctx, result, tag, buflen);
 
     return result;
@@ -451,7 +442,7 @@ c4m_sb_monitor_pid(c4m_switchboard_t *ctx,
                    c4m_party_t       *stderr_fd_party,
                    bool               shutdown)
 {
-    c4m_monitor_t *monitor = c4m_gc_array_alloc(c4m_monitor_t, 1);
+    c4m_monitor_t *monitor = (c4m_monitor_t *)c4m_gc_alloc(c4m_monitor_t);
 
     monitor->pid                  = pid;
     monitor->stdin_fd_party       = stdin_fd_party;
@@ -504,7 +495,8 @@ add_heap(c4m_switchboard_t *ctx)
     c4m_sb_heap_t *old        = ctx->heap;
     int            elem_space = ctx->heap_elems * sizeof(c4m_sb_msg_t);
 
-    ctx->heap           = calloc(elem_space + sizeof(c4m_sb_heap_t), 1);
+    ctx->heap           = c4m_gc_raw_alloc(elem_space + sizeof(c4m_sb_heap_t),
+                                 GC_SCAN_ALL);
     ctx->heap->next     = old;
     ctx->heap->cur_cell = 0;
 }
@@ -1444,10 +1436,13 @@ handle_loop_end(c4m_switchboard_t *ctx)
     }
 }
 
+#if 0
 /*
  * Used only to make sure we don't free registered readers when
  * they're also registered writers; we wait until we process the
  * registered writer list.
+ *
+ * No longer needed w/ GC.
  */
 static bool
 is_registered_writer(c4m_switchboard_t *ctx, c4m_party_t *target)
@@ -1463,29 +1458,18 @@ is_registered_writer(c4m_switchboard_t *ctx, c4m_party_t *target)
 
     return false;
 }
+#endif
 
 /*
- * Dealloc any memory we're responsible for.
+ * With GC, this is currently just about closing file descriptors.
  *
  * Note that this does NOT free the switchboard object,
  * just any internal data structures.
  */
-#undef free
+
 void
 c4m_sb_destroy(c4m_switchboard_t *ctx, bool free_parties)
 {
-    while (ctx->heap) {
-        c4m_sb_heap_t *to_free = ctx->heap;
-        ctx->heap              = ctx->heap->next;
-        free(to_free);
-    }
-
-    while (ctx->pid_watch_list) {
-        c4m_monitor_t *to_free = ctx->pid_watch_list;
-        ctx->pid_watch_list    = ctx->pid_watch_list->next;
-        free(to_free);
-    }
-
     c4m_party_t *cur, *next;
 
     cur = ctx->parties_for_reading;
@@ -1495,53 +1479,18 @@ c4m_sb_destroy(c4m_switchboard_t *ctx, bool free_parties)
             if (cur->c4m_party_type & (C4M_PT_FD | C4M_PT_LISTENER)) {
                 close(c4m_sb_party_fd(cur));
             }
+            cur = cur->next_reader;
         }
-
-        c4m_party_fd_t     *fdobj = get_fd_obj(cur);
-        c4m_subscription_t *sub   = fdobj->subscribers;
-
-        while (sub) {
-            c4m_subscription_t *next_sub = sub->next;
-            free(sub);
-            sub = next_sub;
-        }
-
-        if (cur->c4m_party_type == C4M_PT_STRING) {
-            c4m_party_instr_t *sstr = get_sstr_obj(cur);
-            if (sstr->strbuf != NULL) {
-                free(sstr->strbuf);
-            }
-        }
-        next = cur->next_reader;
-
-        if (free_parties) {
-            if (!cur->can_write_to_it || !is_registered_writer(ctx, cur)) {
-                free(cur);
-            }
-        }
-        cur = next;
     }
 
     cur = ctx->parties_for_writing;
+
     while (cur) {
         if (cur->close_on_destroy && cur->c4m_party_type == C4M_PT_FD) {
             close(c4m_sb_party_fd(cur));
         }
         next = cur->next_writer;
-        if (free_parties) {
-            free(cur);
-        }
-        cur = next;
-    }
-
-    if (free_parties) {
-        cur = ctx->party_loners;
-
-        while (cur) {
-            next = cur->next_loner;
-            free(cur);
-            cur = next;
-        }
+        cur  = next;
     }
 }
 
@@ -1618,20 +1567,11 @@ c4m_sb_result_get_capture(c4m_capture_result_t *ctx,
 }
 
 /*
- * The tags are borrowed, so we don't free. If you call this, then
- * you're asking to free the capture string copies and the array of
- * captures, but the actual c4m_capture_result_t object wasn't allocated by
- * this API, so we don't own it and this does not try to free it.
+ * A noop w/ GC.
  */
 void
 c4m_sb_result_destroy(c4m_capture_result_t *ctx)
 {
-    for (int i = 0; i < ctx->num_captures; i++) {
-        if (ctx->captures[i].contents) {
-            free(ctx->captures[i].contents);
-        }
-    }
-    free(ctx->captures);
 }
 
 /*

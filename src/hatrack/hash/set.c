@@ -980,5 +980,5 @@ hatrack_set_epoch_sort_cmp(const void *b1, const void *b2)
     item1 = (hatrack_set_view_t *)b1;
     item2 = (hatrack_set_view_t *)b2;
 
-    return item2->sort_epoch - item1->sort_epoch;
+    return item1->sort_epoch - item2->sort_epoch;
 }

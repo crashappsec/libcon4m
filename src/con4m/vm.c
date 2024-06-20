@@ -638,7 +638,58 @@ c4m_vm_call_module(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 static void
 c4m_vm_ffi_call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
 {
-    // TODO ffi_call
+    c4m_ffi_decl_t *decl = c4m_xlist_get(tstate->vm->obj->ffi_info,
+                                         i->arg,
+                                         NULL);
+
+    if (decl == NULL) {
+        fprintf(stderr, "Could not load external function.\n");
+        abort();
+    }
+
+    c4m_zffi_cif *ffiinfo = &decl->cif;
+    void        **args;
+
+    if (!ffiinfo->cif.nargs) {
+        args = NULL;
+    }
+    else {
+        args  = c4m_gc_array_alloc(void *, ffiinfo->cif.nargs);
+        int n = ffiinfo->cif.nargs;
+
+        for (unsigned int i = 0; i < ffiinfo->cif.nargs; i++) {
+            // clang-format off
+	    --n;
+
+	    if (ffiinfo->str_convert &&
+		n < 63 &&
+		((1 << n) & ffiinfo->str_convert)) {
+
+		c4m_utf8_t *s = (c4m_utf8_t *)tstate->sp[i].rvalue.obj;
+		s             = c4m_to_utf8(s);
+		args[n]       = &s->data;
+            }
+            // clang-format on
+            else {
+                c4m_box_t  value = {.u64 = tstate->sp[i].uint};
+                c4m_box_t *box   = c4m_new(c4m_tspec_box(c4m_tspec_ref()),
+                                         value);
+                args[n]          = c4m_ref_via_ffi_type(box,
+                                               ffiinfo->cif.arg_types[n]);
+            }
+
+            if (n < 63 && ((1 << n) & ffiinfo->hold_info)) {
+                c4m_gc_add_hold(tstate->sp[i].rvalue.obj);
+            }
+        }
+    }
+
+    ffi_call(&ffiinfo->cif, ffiinfo->fptr, &tstate->r0, args);
+
+    if (ffiinfo->str_convert & (1UL << 63)) {
+        char *s        = (char *)tstate->r0.obj;
+        tstate->r0.obj = c4m_new_utf8(s);
+    }
 }
 
 static void
@@ -1100,24 +1151,10 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     tstate->sp->uint = view_item.u64;
                 } while (0);
                 break;
-            case C4M_ZStoreTop:
-                STACK_REQUIRE_VALUES(1);
-                *c4m_vm_variable(tstate, i) = tstate->sp->rvalue;
-                break;
             case C4M_ZStoreImm:
                 *c4m_vm_variable(tstate, i) = (c4m_value_t){
                     .obj = (c4m_obj_t)i->immediate,
                 };
-                break;
-            case C4M_ZPushSType:
-                STACK_REQUIRE_SLOTS(1);
-                --tstate->sp;
-                *tstate->sp = (c4m_stack_value_t){
-                    .rvalue = (c4m_value_t){
-                        //.type_info = c4m_vm_variable(tstate, i)->type_info,
-                    },
-                };
-                tstate->sp->rvalue.obj = tstate->sp->rvalue.type_info;
                 break;
             case C4M_ZPushObjType:
                 STACK_REQUIRE_SLOTS(1);
@@ -1213,15 +1250,6 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZModuleEnter:
                 c4m_vm_module_enter(tstate, i);
                 break;
-            case C4M_ZParamCheck:
-                STACK_REQUIRE_VALUES(1);
-                if (tstate->sp->rvalue.obj != NULL) {
-                    if (c4m_str_codepoint_len(tstate->sp->rvalue.obj)) {
-                        C4M_RAISE(tstate->sp->rvalue.obj);
-                    }
-                }
-                ++tstate->sp;
-                break;
             case C4M_ZModuleRet:
                 if (tstate->num_frames <= 2) {
                     C4M_JUMP_TO_TRY_END();
@@ -1316,9 +1344,14 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 }
                 break;
 #ifdef C4M_DEV
+                // This is not threadsafe. It's just for early days.
             case C4M_ZPrint:
                 STACK_REQUIRE_VALUES(1);
                 c4m_print(tstate->sp->rvalue.obj);
+                c4m_stream_write_object(tstate->vm->print_stream,
+                                        tstate->sp->rvalue.obj);
+                c4m_stream_putc(tstate->vm->print_stream, '\n');
+
                 ++tstate->sp;
                 break;
 #endif
@@ -1469,10 +1502,64 @@ c4m_vm_load_const_data(c4m_vm_t *vm)
     c4m_internal_lock_then_unstash_heap();
 }
 
+static inline void
+c4m_vm_setup_ffi(c4m_vm_t *vm)
+{
+    vm->ffi_info_entries = c4m_xlist_len(vm->obj->ffi_info);
+
+    if (vm->ffi_info_entries == 0) {
+        return;
+    }
+
+    for (int i = 0; i < vm->ffi_info_entries; i++) {
+        c4m_ffi_decl_t *ffi_info = c4m_xlist_get(vm->obj->ffi_info, i, NULL);
+        c4m_zffi_cif   *cif      = &ffi_info->cif;
+
+        cif->fptr = c4m_ffi_find_symbol(ffi_info->external_name,
+                                        ffi_info->dll_list);
+
+        if (!cif->fptr) {
+            // TODO: warn. For now, just error if it gets called.
+            continue;
+        }
+
+        int            n       = ffi_info->num_ext_params;
+        c4m_ffi_type **arglist = c4m_gc_array_alloc(c4m_ffi_type *, n);
+
+        if (n < 0) {
+            n = 0;
+        }
+        for (int j = 0; j < n; j++) {
+            uint8_t param = ffi_info->external_params[j];
+            arglist[j]    = c4m_ffi_arg_type_map(param);
+
+            if (param == C4M_CSTR_CTYPE_CONST && j < 63) {
+                cif->str_convert |= (1UL << j);
+            }
+        }
+
+        if (ffi_info->external_return_type == C4M_CSTR_CTYPE_CONST) {
+            cif->str_convert |= (1UL << 63);
+        }
+
+        ffi_prep_cif(&cif->cif,
+                     C4M_FFI_DEFAULT_ABI,
+                     n,
+                     c4m_ffi_arg_type_map(ffi_info->external_return_type),
+                     arglist);
+    }
+}
+
 void
 c4m_vm_setup_runtime(c4m_vm_t *vm)
 {
     c4m_vm_load_const_data(vm);
+    c4m_vm_setup_ffi(vm);
+
+#ifdef C4M_DEV
+    vm->print_buf    = c4m_buffer_empty();
+    vm->print_stream = c4m_buffer_outstream(vm->print_buf, false);
+#endif
 }
 
 void

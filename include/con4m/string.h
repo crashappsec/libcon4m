@@ -28,6 +28,8 @@ extern c4m_xlist_t        *c4m_str_xsplit(c4m_str_t *, c4m_str_t *);
 extern struct flexarray_t *c4m_str_split(c4m_str_t *, c4m_str_t *);
 extern bool                c4m_str_starts_with(const c4m_str_t *,
                                                const c4m_str_t *);
+extern bool                c4m_str_ends_with(const c4m_str_t *,
+                                             const c4m_str_t *);
 // This is in richlit.c
 extern c4m_utf8_t         *c4m_rich_lit(char *);
 

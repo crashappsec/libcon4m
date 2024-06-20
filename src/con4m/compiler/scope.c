@@ -404,8 +404,12 @@ c4m_format_scope(c4m_scope_t *scope)
         c4m_utf8_t        *kind;
         c4m_scope_entry_t *entry = values[i];
 
-        kind = c4m_type_is_declared(entry) ? decl_const : inf_const;
-        row  = c4m_new_table_row();
+        kind = inf_const;
+
+        if (c4m_type_is_declared(entry) || entry->kind == sk_extern_func) {
+            kind = decl_const;
+        }
+        row = c4m_new_table_row();
 
         c4m_xlist_append(row, entry->name);
 

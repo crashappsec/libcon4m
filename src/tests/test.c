@@ -1,17 +1,146 @@
 #define C4M_USE_INTERNAL_API
 #include "con4m.h"
 
-c4m_style_t style1;
-c4m_style_t style2;
-size_t      term_width;
+size_t term_width;
 
-C4M_STATIC_ASCII_STR(str_test,
-                     "Welcome to the testing center. First order of "
-                     "business: This is a static string, stored in static "
-                     "memory. However, we have not set any styling "
-                     "information on it.\n");
-c4m_stream_t *sout;
-c4m_stream_t *serr;
+static bool dev_mode = false;
+
+typedef struct {
+    c4m_utf8_t  *expected_output;
+    c4m_xlist_t *expected_errors;
+    bool         ignore_output;
+} c4m_test_kat;
+
+static void
+err_basic_usage(c4m_utf8_t *fname)
+{
+    c4m_printf(
+        "[red]error:[/][em]{}[/]: Bad test case format. The second doc  "
+        "string may have 0 or 1 [em]$output[/] sections and 0 or 1 "
+        "[em]$errors[/] sections ONLY. If neither are provided, "
+        "then the harness expects no errors and ignores output.\n"
+        "There may be nothing else in the doc string except whitespace.\n"
+        "\[i]nNote: If you want to explicitly test for no output, then "
+        "provide `$output:` with nothing following.",
+        fname);
+
+    exit(0);
+}
+
+static void
+extract_output(c4m_test_kat *kat, c4m_utf32_t *s, int64_t start, int64_t end)
+{
+    s                    = c4m_str_slice(s, start, end);
+    kat->expected_output = c4m_to_utf8(c4m_str_strip(s));
+}
+
+static void
+extract_errors(c4m_test_kat *kat, c4m_utf32_t *s, int64_t start, int64_t end)
+{
+    s                    = c4m_str_slice(s, start, end);
+    kat->expected_errors = c4m_xlist(c4m_tspec_utf8());
+    c4m_xlist_t *split   = c4m_str_xsplit(s, c4m_new_utf8("\n"));
+    int          l       = c4m_xlist_len(split);
+
+    for (int i = 0; i < l; i++) {
+        s = c4m_str_strip(c4m_xlist_get(split, i, NULL));
+
+        if (!c4m_str_codepoint_len(s)) {
+            continue;
+        }
+
+        c4m_xlist_append(kat->expected_errors, c4m_to_utf8(s));
+    }
+}
+
+static c4m_test_kat *
+c4m_parse_kat(c4m_str_t *path, c4m_str_t *s)
+{
+    s = c4m_str_strip(s);
+
+    c4m_test_kat *result = c4m_gc_alloc(c4m_test_kat);
+    c4m_utf8_t   *output = c4m_new_utf8("$output:");
+    c4m_utf8_t   *errors = c4m_new_utf8("$errors:");
+    int64_t       outix  = c4m_str_find(s, output);
+    int64_t       errix  = c4m_str_find(s, errors);
+
+    if (outix == -1 && errix == -1) {
+        if (c4m_str_codepoint_len(s) != 0) {
+            err_basic_usage(path);
+            return NULL;
+        }
+        return result;
+    }
+
+    if (outix == -1) {
+        if (errix != 0) {
+            err_basic_usage(path);
+            return NULL;
+        }
+        extract_errors(result, s, 9, -1);
+        result->ignore_output = 1;
+        return result;
+    }
+
+    if (errix == -1) {
+        if (outix != 0) {
+            err_basic_usage(path);
+            return NULL;
+        }
+        extract_output(result, s, 9, -1);
+        return result;
+    }
+
+    if (outix != 0 && errix != 0) {
+        err_basic_usage(path);
+        return NULL;
+    }
+
+    if (errix != 0) {
+        extract_output(result, s, 9, errix);
+        extract_errors(result, s, errix + 9, -1);
+    }
+    else {
+        extract_errors(result, s, 9, outix);
+        extract_output(result, s, outix + 9, -1);
+    }
+
+    return result;
+}
+
+static c4m_test_kat *
+c4m_extract_kat(c4m_utf8_t *path)
+{
+    c4m_file_compile_ctx *ctx = c4m_gc_alloc(c4m_file_compile_ctx);
+    c4m_stream_t         *s   = c4m_file_instream(path, C4M_T_UTF8);
+
+    c4m_lex(ctx, s);
+
+    bool have_doc1 = false;
+    int  l         = c4m_xlist_len(ctx->tokens);
+
+    for (int i = 0; i < l; i++) {
+        c4m_token_t *t = c4m_xlist_get(ctx->tokens, i, NULL);
+
+        switch (t->kind) {
+        case c4m_tt_space:
+        case c4m_tt_newline:
+        case c4m_tt_line_comment:
+        case c4m_tt_long_comment:
+            continue;
+        case c4m_tt_string_lit:
+            if (!have_doc1) {
+                have_doc1 = true;
+                continue;
+            }
+            return c4m_parse_kat(path, c4m_token_raw_content(t));
+        default:
+            return NULL;
+        }
+    }
+
+    return NULL;
+}
 
 static void
 collect_and_print_stats()
@@ -44,840 +173,387 @@ collect_and_print_stats()
             c4m_box_u64((used - live) / 1024)));
 }
 
-void
-test1()
+static void
+show_dev_compile_info(c4m_compile_ctx *ctx)
 {
-    style1 = c4m_lookup_text_style("h1");
-    style2 = c4m_lookup_text_style("h2");
-    style2 = c4m_add_upper_case(style2);
-
-    c4m_str_t *s1 = c4m_new(c4m_tspec_utf8(),
-                            c4m_kw("cstring",
-                                   c4m_ka("\ehello,"),
-                                   "style",
-                                   c4m_ka(style1)));
-
-    c4m_str_t *s2 = c4m_new(c4m_tspec_utf8(),
-                            c4m_kw("cstring", c4m_ka(" world!")));
-    c4m_str_t *s3 = c4m_new(c4m_tspec_utf8(),
-                            c4m_kw("cstring", c4m_ka(" magic?\n")));
-
-    c4m_ansi_render(s1, sout);
-    c4m_ansi_render(s2, sout);
-    c4m_ansi_render(s3, sout);
-
-    s1 = c4m_to_utf32(s1);
-    c4m_str_set_style(s3, style2);
-    s2 = c4m_to_utf32(s2);
-    s3 = c4m_to_utf32(s3);
-
-    c4m_ansi_render(s1, sout);
-    c4m_ansi_render(s2, sout);
-    c4m_ansi_render(s3, sout);
-
-    c4m_utf32_t *s = c4m_str_concat(s1, s2);
-    s              = c4m_str_concat(s, s3);
-
-    c4m_ansi_render(s, sout);
-    printf("That was at %p\n", s);
-
-    c4m_break_info_t *g;
-
-    g = c4m_get_grapheme_breaks(s, 1, 10);
-
-    for (int i = 0; i < g->num_breaks; i++) {
-        printf("%d ", g->breaks[i]);
-    }
-
-    printf("\n");
-
-    g = c4m_get_all_line_break_ops(s);
-    for (int i = 0; i < g->num_breaks; i++) {
-        printf("%d ", g->breaks[i]);
-    }
-
-    printf("\n");
-
-    g = c4m_get_line_breaks(s);
-    for (int i = 0; i < g->num_breaks; i++) {
-        printf("%d ", g->breaks[i]);
-    }
-
-    printf("\n");
-
-    collect_and_print_stats();
-
-    printf("s is now at: %p\n Let's render s again.\n", s);
-    c4m_ansi_render(s, sout);
-}
-
-c4m_str_t *
-test2()
-{
-    c4m_utf8_t *w1 = c4m_new(
-        c4m_tspec_utf8(),
-        c4m_kw("cstring",
-               c4m_ka("Once upon a time, there was a ")));
-    c4m_utf8_t *w2 = c4m_new(
-        c4m_tspec_utf8(),
-        c4m_kw("cstring",
-               c4m_ka("thing I cared about. But then ")));
-    c4m_utf8_t *w3 = c4m_new(
-        c4m_tspec_utf8(),
-        c4m_kw("cstring",
-               c4m_ka("I stopped caring. I don't really "
-                      "remember what it was, though. Do ")));
-    c4m_utf8_t *w4 = c4m_new(
-        c4m_tspec_utf8(),
-        c4m_kw("cstring",
-               c4m_ka("you? No, I didn't think so, because it "
-                      "wasn't really all that "
-                      "interesting, to be quite honest. "
-                      "Maybe someday I'll find something "
-                      "interesting to care about, besides my "
-                      "family. Oh yeah, that's "
-                      "what it was, my family! Oh, wait, no, "
-                      "they're either not interesting, "
-                      "or I don't care about them.\n")));
-    c4m_utf8_t *w5 = c4m_new(
-        c4m_tspec_utf8(),
-        c4m_kw("cstring",
-               c4m_ka("Basically AirTags for Software")));
-    c4m_utf8_t *w6 = c4m_new(
-        c4m_tspec_utf8(),
-        c4m_kw("cstring", c4m_ka("\n")));
-
-    c4m_str_set_style(w2, style1);
-    c4m_str_set_style(w3, style2);
-    c4m_str_set_style(w5, style1);
-
-    c4m_utf32_t *to_wrap;
-
-    to_wrap = c4m_str_concat(w1, w2);
-    to_wrap = c4m_str_concat(to_wrap, w3);
-    to_wrap = c4m_str_concat(to_wrap, w4);
-    to_wrap = c4m_str_concat(to_wrap, w5);
-    to_wrap = c4m_str_concat(to_wrap, w6);
-
-    c4m_utf8_t *dump1 = c4m_hex_dump(to_wrap->styling,
-                                     c4m_alloc_style_len(to_wrap),
-                                     c4m_kw("start_offset",
-                                            c4m_ka(to_wrap->styling),
-                                            "width",
-                                            c4m_ka(80),
-                                            "prefix",
-                                            c4m_ka("Style dump\n")));
-
-    c4m_utf8_t *dump2 = c4m_hex_dump(to_wrap,
-                                     to_wrap->byte_len,
-                                     c4m_kw("start_offset",
-                                            c4m_ka((uint64_t)to_wrap),
-                                            "width",
-                                            c4m_ka(80),
-                                            "prefix",
-                                            c4m_ka("String Dump\n")));
-
-    c4m_ansi_render(dump1, serr);
-    c4m_ansi_render(dump2, serr);
-
-    c4m_ansi_render_to_width(to_wrap, term_width, 0, sout);
-    collect_and_print_stats();
-    return to_wrap;
-}
-
-void
-test_rand64()
-{
-    uint64_t random = 0;
-
-    random = c4m_rand64();
-    printf("Random value: %16llx\n", (unsigned long long)random);
-    assert(random != 0);
-}
-
-void
-test3(c4m_str_t *to_slice)
-{
-    // c4m_ansi_render(c4m_str_slice(to_slice, 10, 50), sout);
-    c4m_ansi_render_to_width(c4m_str_slice(to_slice, 10, 50),
-                             term_width,
-                             0,
-                             sout);
-    printf("\n");
-    c4m_ansi_render_to_width(c4m_str_slice(to_slice, 40, 100),
-                             term_width,
-                             0,
-                             sout);
-    printf("\n");
-}
-
-void
-test4()
-{
-    c4m_utf8_t *w1 = c4m_new(
-        c4m_tspec_utf8(),
-        c4m_kw("cstring",
-               c4m_ka("Once upon a time, there was a ")));
-    c4m_utf8_t *w2 = c4m_new(
-        c4m_tspec_utf8(),
-        c4m_kw("cstring",
-               c4m_ka("thing I cared about. But then ")));
-    c4m_utf8_t *w3 = c4m_new(
-        c4m_tspec_utf8(),
-        c4m_kw("cstring",
-               c4m_ka("I stopped caring. I don't really "
-                      "remember what it was, though. Do ")));
-    c4m_utf8_t *w4 = c4m_new(
-        c4m_tspec_utf8(),
-        c4m_kw("cstring",
-               c4m_ka("you? No, I didn't think so, because it "
-                      "wasn't really all that interesting, to "
-                      "be quite honest. Maybe someday I'll "
-                      "find something interesting to care "
-                      "about, besides my family. Oh yeah, "
-                      "that's what it was, my family! Oh, "
-                      "wait, no, they're either not "
-                      "interesting, or I don't care about "
-                      "them.\n")));
-    c4m_utf8_t *w5 = c4m_new(c4m_tspec_utf8(),
-                             c4m_kw("cstring",
-                                    c4m_ka("Basically AirTags for Software")));
-    c4m_utf8_t *w6 = c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka("\n")));
-
-    c4m_dict_t *d = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
-                                           c4m_tspec_ref()));
-
-    hatrack_dict_put(d, w1, "w1");
-    hatrack_dict_put(d, w2, "w2");
-    hatrack_dict_put(d, w3, "w3");
-    hatrack_dict_put(d, w4, "w4");
-    hatrack_dict_put(d, w5, "w5");
-    hatrack_dict_put(d, w6, "w6");
-
-    uint64_t num;
-
-    hatrack_dict_item_t *view = hatrack_dict_items_sort(d, &num);
-
-    for (uint64_t i = 0; i < num; i++) {
-        c4m_ansi_render((c4m_str_t *)(view[i].key), serr);
-    }
-
-    collect_and_print_stats();
-}
-
-void
-table_test()
-{
-    c4m_utf8_t *test1 = c4m_new(c4m_tspec_utf8(),
-                                c4m_kw("cstring",
-                                       c4m_ka("Some example 🤯 🤯 🤯"
-                                              " Let's make it a fairly "
-                                              "long 🤯 example, so it will "
-                                              "be sure to need some reynolds' "
-                                              "wrap.")));
-    c4m_utf8_t *test2 = c4m_new(c4m_tspec_utf8(),
-                                c4m_kw("cstring",
-                                       c4m_ka("Some other example.")));
-    c4m_utf8_t *test3 = c4m_new(c4m_tspec_utf8(),
-                                c4m_kw("cstring",
-                                       c4m_ka("Example 3.")));
-    c4m_utf8_t *test4 = c4m_new(c4m_tspec_utf8(),
-                                c4m_kw("cstring",
-                                       c4m_ka("Defaults.")));
-    c4m_utf8_t *test5 = c4m_new(c4m_tspec_utf8(),
-                                c4m_kw("cstring",
-                                       c4m_ka("Last one.")));
-    c4m_grid_t *g     = c4m_new(c4m_tspec_grid(),
-                            c4m_kw("start_rows",
-                                   c4m_ka(4),
-                                   "start_cols",
-                                   c4m_ka(3),
-                                   "header_rows",
-                                   c4m_ka(1)));
-    c4m_utf8_t *hdr   = c4m_new(c4m_tspec_utf8(),
-                              c4m_kw("cstring",
-                                     c4m_ka("Yes, this is a table.")));
-
-    c4m_grid_add_row(g, c4m_to_str_renderable(hdr, "td"));
-    c4m_grid_add_cell(g, test1);
-    c4m_grid_add_cell(g, test2);
-    c4m_grid_add_cell(g, test4);
-    c4m_grid_set_cell_contents(g, 2, 2, test3);
-    c4m_grid_set_cell_contents(g, 2, 1, test5);
-    c4m_grid_add_col_span(g, c4m_to_str_renderable(test1, "td"), 3, 0, 2);
-    c4m_grid_set_cell_contents(g, 2, 0, c4m_empty_string());
-    // If we don't explicitly set this, there can be some render issues
-    // when there's not enough room.
-    c4m_grid_set_cell_contents(g, 3, 2, c4m_empty_string());
-    c4m_str_set_style(test1, style1);
-    c4m_str_set_style(test2, style2);
-    c4m_str_set_style(test3, style1);
-    c4m_str_set_style(test5, style2);
-    c4m_new(c4m_tspec_render_style(),
-            c4m_kw("flex_units", c4m_ka(3), "tag", c4m_ka("col1")));
-    c4m_new(c4m_tspec_render_style(),
-            c4m_kw("flex_units", c4m_ka(2), "tag", c4m_ka("col3")));
-    //    c4m_new(c4m_tspec_render_style(), "width_pct", 10., "tag", "col1");
-    //    c4m_new(c4m_tspec_render_style(), "width_pct", 30., "tag", "col3");
-    c4m_set_column_style(g, 0, "col1");
-    c4m_set_column_style(g, 2, "col3");
-
-    // Ordered / unordered lists.
-    c4m_utf8_t  *ol1 = c4m_new(c4m_tspec_utf8(),
-                              c4m_kw("cstring",
-                                     c4m_ka("This is a good point, one that you "
-                                             "haven't heard before.")));
-    c4m_utf8_t  *ol2 = c4m_new(c4m_tspec_utf8(),
-                              c4m_kw("cstring",
-                                     c4m_ka("This is a point that's also valid,"
-                                             " but you already know it.")));
-    c4m_utf8_t  *ol3 = c4m_new(c4m_tspec_utf8(),
-                              c4m_kw("cstring",
-                                     c4m_ka("This is a small point.")));
-    c4m_utf8_t  *ol4 = c4m_new(c4m_tspec_utf8(),
-                              c4m_kw("cstring", c4m_ka("Conclusion.")));
-    flexarray_t *l   = c4m_new(c4m_tspec_list(c4m_tspec_utf8()),
-                             c4m_kw("length", c4m_ka(12)));
-
-    flexarray_set(l, 0, ol1);
-    flexarray_set(l, 1, ol2);
-    flexarray_set(l, 2, ol3);
-    flexarray_set(l, 3, ol4);
-    flexarray_set(l, 4, ol1);
-    flexarray_set(l, 5, ol2);
-    flexarray_set(l, 6, ol3);
-    flexarray_set(l, 7, ol4);
-    flexarray_set(l, 8, ol1);
-    flexarray_set(l, 9, ol2);
-    flexarray_set(l, 0xa, ol3);
-    flexarray_set(l, 0xb, ol4);
-
-    c4m_grid_t *ol = c4m_ordered_list(l);
-    c4m_grid_t *ul = c4m_unordered_list(l);
-
-    c4m_grid_stripe_rows(ol);
-
-    c4m_grid_t *flow = c4m_grid_flow(3, g, ul, ol);
-    c4m_grid_add_cell(flow, test1);
-    c4m_ansi_render(c4m_value_obj_to_str(flow), sout);
-}
-
-void
-sha_test()
-{
-    c4m_utf8_t *test1 = c4m_new(c4m_tspec_utf8(),
-                                c4m_kw("cstring",
-                                       c4m_ka("Some example 🤯 🤯 🤯"
-                                              " Let's make it a fairly long 🤯 "
-                                              "example, so it will be sure to need"
-                                              " some reynolds' wrap.")));
-
-    c4m_sha_t *ctx = c4m_new(c4m_tspec_hash());
-    c4m_sha_string_update(ctx, test1);
-    c4m_buf_t *b = c4m_sha_finish(ctx);
-
-    printf("Sha256 is: ");
-    c4m_ansi_render(c4m_value_obj_repr(b), sout);
-    printf("\n");
-}
-
-void
-type_tests()
-{
-    c4m_type_t *t1 = c4m_tspec_int();
-    c4m_type_t *t2 = c4m_tspec_grid();
-    c4m_type_t *t3 = c4m_tspec_dict(t1, t2);
-
-    c4m_ansi_render(c4m_value_obj_repr(t3), sout);
-    printf("\n");
-
-    c4m_type_t *t4 = c4m_new_typevar(c4m_global_type_env);
-    c4m_type_t *t5 = c4m_new_typevar(c4m_global_type_env);
-    c4m_type_t *t6 = c4m_tspec_dict(t4, t5);
-
-    c4m_ansi_render(c4m_value_obj_repr(t6), sout);
-    printf("\n");
-    c4m_ansi_render(c4m_value_obj_repr(c4m_merge_types(t3, t6)), sout);
-    printf("\n");
-}
-
-void
-c4m_stream_tests()
-{
-    c4m_utf8_t   *n  = c4m_new(c4m_tspec_utf8(),
-                            c4m_kw("cstring",
-                                   c4m_ka("../meson.build")));
-    c4m_stream_t *s1 = c4m_new(c4m_tspec_stream(),
-                               c4m_kw("filename", c4m_ka(n)));
-    c4m_buf_t    *b  = c4m_new(c4m_tspec_buffer(),
-                           c4m_kw("length", c4m_ka(16)));
-    c4m_stream_t *s2 = c4m_new(c4m_tspec_stream(),
-                               c4m_kw("buffer",
-                                      c4m_ka(b),
-                                      "write",
-                                      c4m_ka(1)));
-
-    c4m_style_t sty = c4m_add_bold(c4m_add_italic(c4m_new_style()));
-
-    while (true) {
-        c4m_utf8_t *s = c4m_stream_read(s1, 16);
-
-        if (c4m_len(s) == 0) {
-            break;
-        }
-
-        c4m_stream_write_object(s2, s);
-    }
-
-    c4m_print(c4m_hex_dump(b->data, b->byte_len));
-    c4m_utf8_t *s = c4m_buf_to_utf8_string(b);
-
-    c4m_str_set_style(s, sty);
-    c4m_print(s);
-}
-
-extern c4m_color_info_t color_data[];
-
-void
-marshal_test()
-{
-    c4m_utf8_t   *contents = c4m_new(c4m_tspec_utf8(),
-                                   c4m_kw("cstring",
-                                          c4m_ka("This is a test of marshal.\n")));
-    c4m_buf_t    *b        = c4m_new(c4m_tspec_buffer(),
-                           c4m_kw("length", c4m_ka(16)));
-    c4m_stream_t *s        = c4m_new(c4m_tspec_stream(),
-                              c4m_kw("buffer",
-                                     c4m_ka(b),
-                                     "write",
-                                     c4m_ka(1),
-                                     "read",
-                                     c4m_ka(0)));
-
-    c4m_marshal(contents, s);
-    c4m_stream_close(s);
-
-    s = c4m_new(c4m_tspec_stream(), c4m_kw("buffer", c4m_ka(b)));
-
-    c4m_utf8_t *new_str = c4m_unmarshal(s);
-
-    c4m_ansi_render(new_str, sout);
-}
-
-#if 0
-// This works, and now is in color.c locally.
-#include "/tmp/color.c"
-
-void
-marshal_test2()
-{
-    c4m_dict_t *d = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_int()));
-    int n;
-
-    for (n = 0; color_data[n].name != NULL; n++) {
-	c4m_utf8_t  *color = c4m_new(c4m_tspec_utf8(),
-				   c4m_kw("cstring",
-					  c4m_ka(color_data[n].name)));
-	int64_t rgb    = (int64_t)color_data[n].rgb;
-
-	hatrack_dict_put(d, color, (void *)rgb);
-    }
-
-    printf("Writing test color dictionary to /tmp/color.c\n");
-    c4m_dump_c_static_instance_code(d, "color_table",
-				c4m_new(c4m_tspec_utf8(),
-					  c4m_kw("cstring",
-					     c4m_ka("/tmp/color.c"))));
-
-    for (int64_t i = 0; i < n - 1; i++) {
-	char   *ckey = color_data[i].name;
-	if (ckey == NULL) {
-	    continue;
-	}
-	c4m_utf8_t *key  = c4m_new(c4m_tspec_utf8(),
-				   c4m_kw("cstring", karg(ckey)));
-	int64_t val  = c4m_lookup_color(key);
-	printf("%s: %06llx\n", key->data, val);
-    }
-}
-#endif
-
-void
-create_dict_lit()
-{
-    c4m_dict_t *d = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_int()));
-
-    hatrack_dict_add(d, c4m_new_utf8("no"), (void *)1LLU);
-    hatrack_dict_add(d, c4m_new_utf8("b"), (void *)2LLU);
-    hatrack_dict_add(d, c4m_new_utf8("bold"), (void *)2LLU);
-    hatrack_dict_add(d, c4m_new_utf8("i"), (void *)3LLU);
-    hatrack_dict_add(d, c4m_new_utf8("italic"), (void *)3LLU);
-    hatrack_dict_add(d, c4m_new_utf8("italics"), (void *)3LLU);
-    hatrack_dict_add(d, c4m_new_utf8("st"), (void *)4LLU);
-    hatrack_dict_add(d, c4m_new_utf8("strike"), (void *)4LLU);
-    hatrack_dict_add(d, c4m_new_utf8("strikethru"), (void *)4LLU);
-    hatrack_dict_add(d, c4m_new_utf8("strikethrough"), (void *)4LLU);
-    hatrack_dict_add(d, c4m_new_utf8("u"), (void *)5LLU);
-    hatrack_dict_add(d, c4m_new_utf8("underline"), (void *)5LLU);
-    hatrack_dict_add(d, c4m_new_utf8("uu"), (void *)6LLU);
-    hatrack_dict_add(d, c4m_new_utf8("2u"), (void *)6LLU);
-    hatrack_dict_add(d, c4m_new_utf8("r"), (void *)7LLU);
-    hatrack_dict_add(d, c4m_new_utf8("reverse"), (void *)7LLU);
-    hatrack_dict_add(d, c4m_new_utf8("inverse"), (void *)7LLU);
-    hatrack_dict_add(d, c4m_new_utf8("invert"), (void *)7LLU);
-    hatrack_dict_add(d, c4m_new_utf8("inv"), (void *)7LLU);
-    hatrack_dict_add(d, c4m_new_utf8("t"), (void *)8LLU);
-    hatrack_dict_add(d, c4m_new_utf8("title"), (void *)8LLU);
-    hatrack_dict_add(d, c4m_new_utf8("l"), (void *)9LLU);
-    hatrack_dict_add(d, c4m_new_utf8("lower"), (void *)9LLU);
-    hatrack_dict_add(d, c4m_new_utf8("up"), (void *)10LLU);
-    hatrack_dict_add(d, c4m_new_utf8("upper"), (void *)10LLU);
-    hatrack_dict_add(d, c4m_new_utf8("on"), (void *)11LLU);
-    hatrack_dict_add(d, c4m_new_utf8("fg"), (void *)12LLU);
-    hatrack_dict_add(d, c4m_new_utf8("foreground"), (void *)12LLU);
-    hatrack_dict_add(d, c4m_new_utf8("bg"), (void *)13LLU);
-    hatrack_dict_add(d, c4m_new_utf8("background"), (void *)13LLU);
-    hatrack_dict_add(d, c4m_new_utf8("color"), (void *)14LLU);
-
-    c4m_dump_c_static_instance_code(d,
-                                    "style_keywords",
-                                    c4m_new_utf8("/tmp/style_keys.c"));
-}
-
-void
-c4m_rich_lit_test()
-{
-    c4m_utf8_t *test;
-
-    test = c4m_rich_lit("H[atomic lime]ello, [jazzberry]world!");
-    c4m_print(test);
-
-    test = c4m_rich_lit("[atomic lime]Hello, [jazzberry]world[/]!");
-    c4m_print(test);
-
-    test = c4m_rich_lit("[atomic lime %jazzberry]Hello, world[/]!");
-    c4m_print(test);
-
-    test = c4m_rich_lit("[jazzberry %atomic lime]Hello, world![/]");
-    c4m_print(test);
-
-    test = c4m_rich_lit(
-        "[bold italic jazzberry %atomic lime]Hello,[/jazzberry atomic lime] "
-        "world!");
-    c4m_print(test);
-
-    test = c4m_rich_lit(
-        "[bold italic jazzberry %atomic lime]Hello,"
-        "[/jazzberry atomic lime bold] world!");
-    c4m_print(test);
-
-    test = c4m_rich_lit(
-        "[bold italic jazzberry %atomic lime]Hello,"
-        "[-jazzberry atomic lime bold italic + underline] world??");
-    c4m_print(test);
-
-    test = c4m_rich_lit(
-        "[bold italic jazzberry %atomic lime]Hello,[/ bold] "
-        "world!");
-    c4m_print(test);
-
-    test = c4m_rich_lit(
-        "[bold italic u jazzberry %atomic lime]Hello,[/bold] "
-        "world!\n\n");
-    c4m_print(test);
-
-    test = c4m_rich_lit(
-        "[bold italic u jazzberry %atomic lime]Hello,[/bold] "
-        "world![/]\n\n");
-    c4m_print(test);
-
-    test = c4m_rich_lit(
-        "[bold italic atomic lime %jazzberry]Hello,[/bold    ] "
-        "world!");
-    c4m_print(test);
-
-    test = c4m_rich_lit("[h2]Hello, world!");
-    c4m_print(test);
-
-    test = c4m_rich_lit("[h2]Hello, [i u]world[/i u], it is me![/]");
-    c4m_print(test);
-
-    c4m_print(test, test, c4m_kw("no_color", c4m_ka(true), "sep", c4m_ka('&')));
-
-    test = c4m_rich_lit("[em]Hi c.[/em]");
-    c4m_print(test);
-}
-
-bool
-test_tree_search(int64_t kind_as_64, c4m_tree_node_t *node)
-{
-    c4m_node_kind_t kind  = (c4m_node_kind_t)(unsigned int)kind_as_64;
-    c4m_pnode_t    *pnode = c4m_tree_get_contents(node);
-
-    if (kind == c4m_nt_error) {
-        return true;
-    }
-
-    return kind == pnode->kind;
-}
-
-#if 1
-void
-test_compiler()
-{
-    c4m_xlist_t     *files  = c4m_get_program_arguments();
-    int64_t          l      = c4m_xlist_len(files);
-    c4m_utf8_t      *joiner = c4m_new_utf8("../tests/");
-    c4m_utf8_t      *slash  = c4m_get_slash_const();
-    c4m_compile_ctx *ctx;
-
-    if (l < 1) {
+    if (!dev_mode) {
         return;
     }
 
-    for (int64_t i = 0; i < l; i++) {
-        c4m_utf8_t *fname = c4m_xlist_get(files, i, NULL);
-        c4m_utf8_t *path;
+    c4m_print(c4m_format_tokens(ctx->entry_point));
 
-        if (c4m_str_find(fname, slash) == -1) {
-            path = c4m_str_concat(joiner, fname);
+    for (int i = 0; i < c4m_xlist_len(ctx->module_ordering); i++) {
+        c4m_file_compile_ctx *f = c4m_xlist_get(ctx->module_ordering,
+                                                i,
+                                                NULL);
+
+        c4m_print(c4m_cstr_format("[h1]Processing module {}", f->path));
+        if (ctx->entry_point->parse_tree) {
+            c4m_print(c4m_format_parse_tree(ctx->entry_point));
         }
         else {
-            path = fname;
+            continue;
         }
 
-        c4m_print(c4m_cstr_format("[atomic lime]info:[/] Compiling from: {}",
-                                  fname));
-
-        ctx = c4m_compile_from_entry_point(path);
-        // c4m_print(c4m_format_tokens(ctx->entry_point));
-
-        for (int i = 0; i < c4m_xlist_len(ctx->module_ordering); i++) {
-            c4m_file_compile_ctx *f = c4m_xlist_get(ctx->module_ordering,
-                                                    i,
-                                                    NULL);
-
-#if 1
-            c4m_print(c4m_cstr_format("[h1]Processing module {}", f->path));
-            if (ctx->entry_point->parse_tree) {
-                c4m_print(c4m_format_parse_tree(ctx->entry_point));
-            }
-            else {
-                continue;
-            }
-
-            if (ctx->entry_point->cfg) {
-                c4m_print(c4m_cstr_format("[h1]Toplevel CFG for {}", f->path));
-                c4m_print(c4m_cfg_repr(ctx->entry_point->cfg));
-            }
-            else {
-                continue;
-            }
-
-            for (int j = 0; j < c4m_xlist_len(f->fn_def_syms); j++) {
-                c4m_scope_entry_t *sym  = c4m_xlist_get(f->fn_def_syms,
-                                                       j,
-                                                       NULL);
-                c4m_fn_decl_t     *decl = sym->value;
-                c4m_print(c4m_cstr_format("[h1]CFG for Function {}{}",
-                                          sym->name,
-                                          sym->type));
-                c4m_print(c4m_cfg_repr(decl->cfg));
-                c4m_print(c4m_cstr_format("[h2]Function Scope for {}{}",
-                                          sym->name,
-                                          sym->type));
-                c4m_print(c4m_format_scope(decl->signature_info->fn_scope));
-            }
-
-            c4m_print(c4m_rich_lit("[h2]Global Scope"));
-            c4m_print(c4m_format_scope(ctx->final_globals));
-            c4m_print(c4m_rich_lit("[h2]Module Scope"));
-            c4m_print(c4m_format_scope(ctx->entry_point->module_scope));
-#endif
+        if (ctx->entry_point->cfg) {
+            c4m_print(c4m_cstr_format("[h1]Toplevel CFG for {}", f->path));
+            c4m_print(c4m_cfg_repr(ctx->entry_point->cfg));
+        }
+        else {
+            continue;
         }
 
-        c4m_grid_t *err_output = c4m_format_errors(ctx);
-
-        if (err_output != NULL) {
-            c4m_print(err_output);
+        for (int j = 0; j < c4m_xlist_len(f->fn_def_syms); j++) {
+            c4m_scope_entry_t *sym  = c4m_xlist_get(f->fn_def_syms,
+                                                   j,
+                                                   NULL);
+            c4m_fn_decl_t     *decl = sym->value;
+            c4m_print(c4m_cstr_format("[h1]CFG for Function {}{}",
+                                      sym->name,
+                                      sym->type));
+            c4m_print(c4m_cfg_repr(decl->cfg));
+            c4m_print(c4m_cstr_format("[h2]Function Scope for {}{}",
+                                      sym->name,
+                                      sym->type));
+            c4m_print(c4m_format_scope(decl->signature_info->fn_scope));
         }
 
-        c4m_print(c4m_cstr_format("[atomic lime]info:[/] Done processing: {}",
-                                  fname));
+        c4m_print(c4m_rich_lit("[h2]Global Scope"));
+        c4m_print(c4m_format_scope(ctx->final_globals));
+        c4m_print(c4m_rich_lit("[h2]Module Scope"));
+        c4m_print(c4m_format_scope(ctx->entry_point->module_scope));
+    }
+}
 
-        if (c4m_got_fatal_compiler_error(ctx)) {
-            return;
+static void
+show_dev_disasm(c4m_vm_t *vm, c4m_zmodule_info_t *m)
+{
+    c4m_print(c4m_disasm(vm, m));
+    c4m_print(c4m_cstr_format("Module [em]{}[/] disassembly done.",
+                              m->path));
+    c4m_print(c4m_rich_lit("[h2]Module Source Code"));
+    c4m_print(m->source);
+}
+
+c4m_dict_t *
+build_file_list()
+{
+    bool          fatal      = false;
+    c4m_xlist_t  *argv       = c4m_get_program_arguments();
+    c4m_xlist_t  *to_recurse = c4m_xlist(c4m_tspec_utf8());
+    c4m_dict_t   *result     = c4m_dict(c4m_tspec_utf8(), c4m_tspec_ref());
+    c4m_utf8_t   *test_dir   = c4m_get_env(c4m_new_utf8("CON4M_TEST_DIR"));
+    c4m_utf8_t   *ext        = c4m_new_utf8(".c4m");
+    c4m_test_kat *kat;
+
+    int n = c4m_xlist_len(argv);
+
+    if (test_dir == NULL) {
+        test_dir = c4m_new_utf8("../tests/");
+    }
+
+    test_dir = c4m_resolve_path(test_dir);
+
+    if (!n) {
+        n    = 1;
+        argv = c4m_xlist(c4m_tspec_utf8());
+        c4m_xlist_append(argv, test_dir);
+    }
+
+    for (int i = 0; i < n; i++) {
+        c4m_utf8_t *s = c4m_to_utf8(c4m_xlist_get(argv, i, NULL));
+        s             = c4m_resolve_path(s);
+        switch (c4m_get_file_kind(s)) {
+        case C4M_FK_IS_REG_FILE:
+        case C4M_FK_IS_FLINK:
+            // Don't worry about the extension if the explicitly
+            // passed a file name.
+            kat = c4m_extract_kat(s);
+            hatrack_dict_put(result, s, kat);
+            continue;
+        case C4M_FK_IS_DIR:
+        case C4M_FK_IS_DLINK:
+            c4m_xlist_append(to_recurse, s);
+            continue;
+        case C4M_FK_NOT_FOUND:
+            c4m_printf("[red]error:[/] No such file or directory: {}", s);
+            fatal = true;
+            continue;
+        default:
+            c4m_printf("[red]error:[/] Cannot process special file: {}", s);
+            fatal = true;
+            continue;
+        }
+    }
+
+    if (fatal) {
+        exit(-1);
+    }
+
+    n = c4m_xlist_len(to_recurse);
+    for (int i = 0; i < n; i++) {
+        int          num_hits = 0;
+        c4m_utf8_t  *path     = c4m_xlist_get(to_recurse, i, NULL);
+        c4m_xlist_t *files    = c4m_path_walk(path,
+                                           c4m_kw("follow_links",
+                                                  c4m_ka(true)));
+
+        int walk_len = c4m_xlist_len(files);
+        for (int j = 0; j < walk_len; j++) {
+            c4m_utf8_t *one = c4m_xlist_get(files, j, NULL);
+            if (c4m_str_ends_with(one, ext)) {
+                kat = c4m_extract_kat(one);
+                // When scanning dirs, if we have test cases that span
+                // multiple files, we don't want to process multiple
+                // times redundantly, so we only add ones w/ kat info.
+                if (kat == NULL) {
+                    continue;
+                }
+
+                num_hits++;
+                hatrack_dict_put(result, one, kat);
+            }
         }
 
-        c4m_vm_t *vm = c4m_generate_code(ctx);
+        if (num_hits == 0) {
+            c4m_printf("[yellow]warning[/]: No con4m files found in dir: {}",
+                       path);
+        }
+    }
 
-#if 1
+    return result;
+}
+
+static void
+show_err_diffs(c4m_utf8_t *fname, c4m_xlist_t *expected, c4m_xlist_t *actual)
+{
+    c4m_compile_error_t err;
+    c4m_utf8_t         *errstr;
+
+    c4m_printf("[red]FAIL[/]: test [i]{}[/]: error mismatch.", fname);
+
+    if (!expected || c4m_xlist_len(expected) == 0) {
+        c4m_printf("[h1]Expected no errors.");
+    }
+    else {
+        c4m_printf("[h1]Expected errors:");
+
+        int n = c4m_xlist_len(expected);
+
+        for (int i = 0; i < n; i++) {
+            errstr = c4m_xlist_get(expected, i, NULL);
+            c4m_printf("[em]{}", errstr);
+        }
+    }
+
+    if (!actual || c4m_xlist_len(actual) == 0) {
+        c4m_printf("[h2]Got no errors.");
+    }
+    else {
+        c4m_printf("[h2]Actual errors:");
+
+        int n = c4m_xlist_len(actual);
+
+        for (int i = 0; i < n; i++) {
+            uint64_t u64     = (uint64_t)c4m_xlist_get(actual, i, NULL);
+            err              = (c4m_compile_error_t)u64;
+            c4m_utf8_t *code = c4m_err_code_to_str(err);
+            c4m_printf("[em]{}", code);
+        }
+    }
+}
+
+static bool
+compare_results(c4m_utf8_t      *fname,
+                c4m_test_kat    *kat,
+                c4m_compile_ctx *ctx,
+                c4m_buf_t       *outbuf)
+{
+    bool ret = true;
+
+    if (kat == NULL) {
+        return ret;
+    }
+
+    if (kat->expected_output) {
+        if (c4m_buffer_len(outbuf) == 0) {
+            if (!c4m_str_codepoint_len(kat->expected_output)) {
+                goto next_comparison;
+            }
+empty_err:
+            ret = false;
+            c4m_printf(
+                "[red]FAIL[/]: test [i]{}[/]: program expected output "
+                "but did not compile. Expected output:\n {}",
+                fname,
+                kat->expected_output);
+        }
+        else {
+            c4m_utf8_t *output = c4m_buf_to_utf8_string(outbuf);
+            output             = c4m_to_utf8(c4m_str_strip(output));
+
+            if (c4m_str_codepoint_len(output) == 0) {
+                goto empty_err;
+            }
+            if (!c4m_str_eq(output, kat->expected_output)) {
+                ret = false;
+
+                c4m_printf(
+                    "[red]FAIL[/]: test [i]{}[/]: output mismatch.",
+                    fname);
+                c4m_printf(
+                    "[h1]Expected output[/]\n{}\n[h1]Actual[/]\n{}\n",
+                    kat->expected_output,
+                    output);
+                c4m_printf(
+                    "[h2]Expected (Hex)[/]\n{}\n[h2]Actual (Hex)[/]\n{}\n",
+                    c4m_hex_dump(kat->expected_output->data,
+                                 c4m_str_byte_len(kat->expected_output)),
+                    c4m_hex_dump(output->data, c4m_str_byte_len(output)));
+            }
+        }
+    }
+
+next_comparison:;
+    c4m_xlist_t *actual_errs  = c4m_compile_extract_all_error_codes(ctx);
+    int          num_expected = 0;
+    int          num_actual   = c4m_xlist_len(actual_errs);
+
+    if (kat->expected_errors != NULL) {
+        num_expected = c4m_xlist_len(kat->expected_errors);
+    }
+
+    if (num_expected != num_actual) {
+        ret = false;
+        show_err_diffs(fname, kat->expected_errors, actual_errs);
+    }
+    else {
+        for (int i = 0; i < num_expected; i++) {
+            c4m_compile_error_t c1;
+            c4m_utf8_t         *c2;
+
+            c1 = (uint64_t)c4m_xlist_get(actual_errs, i, NULL);
+            c2 = c4m_xlist_get(kat->expected_errors, i, NULL);
+            c2 = c4m_to_utf8(c4m_str_strip(c2));
+
+            if (!c4m_str_eq(c4m_err_code_to_str(c1), c2)) {
+                ret = false;
+                show_err_diffs(fname, kat->expected_errors, actual_errs);
+                break;
+            }
+        }
+    }
+
+    return ret;
+}
+
+bool
+test_compiler(c4m_utf8_t *fname, c4m_test_kat *kat)
+{
+    c4m_compile_ctx *ctx;
+
+    c4m_printf("[atomic lime]info:[/] Compiling: {}", fname);
+
+    ctx = c4m_compile_from_entry_point(fname);
+
+    show_dev_compile_info(ctx);
+
+    c4m_grid_t *err_output = c4m_format_errors(ctx);
+
+    if (err_output != NULL) {
+        c4m_print(err_output);
+    }
+
+    c4m_printf("[atomic lime]info:[/] Done processing: {}", fname);
+
+    if (c4m_got_fatal_compiler_error(ctx)) {
+        return compare_results(fname, kat, ctx, NULL);
+    }
+
+    c4m_vm_t *vm = c4m_generate_code(ctx);
+
+    if (dev_mode) {
         for (int i = 0; i < c4m_xlist_len(ctx->module_ordering); i++) {
             c4m_zmodule_info_t *m;
             m = c4m_xlist_get(vm->obj->module_contents, i, NULL);
-            c4m_print(c4m_disasm(vm, m));
-            c4m_print(c4m_cstr_format("Module [em]{}[/] disassembly done.",
-                                      m->path));
-            c4m_print(c4m_rich_lit("[h2]Module Source Code"));
-            c4m_print(m->source);
+            show_dev_disasm(vm, m);
         }
-#endif
-
-        c4m_print(c4m_rich_lit("[h6]****STARTING PROGRAM EXECUTION*****[/]"));
-        c4m_vmthread_t *thread = c4m_vmthread_new(vm);
-        c4m_vmthread_run(thread);
-        c4m_print(c4m_rich_lit("[h6]****PROGRAM EXECUTION FINISHED*****[/]\n"));
-        // TODO: We need to mark unlocked types with sub-variables at some point,
-        // so they don't get clobbered.
-        //
-        // E.g.,  (dict[`x, list[int]]) -> int
-
-        // c4m_clean_environment();
-        // c4m_print(c4m_format_global_type_environment());
     }
-}
-#else
-#define test_compiler(...)
-#endif
 
-void
-test_format()
-{
-    c4m_str_t *s;
-    s = c4m_cstr_format("Test 0");
-    c4m_print(s);
+    c4m_printf("[h6]****STARTING PROGRAM EXECUTION*****[/]");
+    c4m_vmthread_t *thread = c4m_vmthread_new(vm);
+    c4m_vmthread_run(thread);
+    c4m_printf("[h6]****PROGRAM EXECUTION FINISHED*****[/]\n");
+    // TODO: We need to mark unlocked types with sub-variables at some point,
+    // so they don't get clobbered.
+    //
+    // E.g.,  (dict[`x, list[int]]) -> int
 
-    s = c4m_cstr_format("[red]Test 1:[/] [brown]{:c}[/] : [blue]{}[/] [i]woo.[/]",
-                        c4m_box_u64(100),
-                        c4m_rich_lit("Hello"));
-    c4m_print(s);
-    s = c4m_cstr_format("[red]Test 2:[/] [brown]{:d}[/] : [red]{:}[/]",
-                        c4m_box_u64(100),
-                        c4m_box_u64(100));
-    c4m_print(s);
+    // c4m_clean_environment();
+    // c4m_print(c4m_format_global_type_environment());
 
-    s = c4m_cstr_format("[red]Test 3:[/] {1} : [blue]{0:n}[/]\n",
-                        c4m_box_u64(100),
-                        c4m_rich_lit("Hello"));
-    c4m_print(s);
-    s = c4m_cstr_format("[red]Test 4:[/] [blue]{}[/][atomic lime]{}[/]foo\n",
-                        c4m_rich_lit("Hello"),
-                        c4m_rich_lit("Sir "));
-    c4m_print(s);
+    return compare_results(fname, kat, ctx, vm->print_buf);
 }
 
 void
-test_path()
+add_static_symbols()
 {
-    c4m_utf8_t *user = c4m_get_user_name();
-
-    c4m_utf8_t *tests[] = {
-        c4m_new_utf8("/"),
-        c4m_cstr_format("/home/{}/dev/libcon4m/", user),
-        c4m_cstr_format("~{}/dev/libcon4m/", user),
-        c4m_cstr_format("~{}/dev/libcon4m/../con4m////src//", user),
-        c4m_cstr_format("~{}/dev/libcon4m/.././con4m/././///src//", user),
-        c4m_new_utf8(""),
-        c4m_new_utf8("~"),
-        NULL,
-    };
-
-    c4m_utf8_t *one;
-    int         i = 0;
-
-    c4m_print(c4m_cstr_format("[h2]Path resolution tests"));
-
-    while ((one = tests[i++]) != NULL) {
-        c4m_print(c4m_cstr_format(
-            "[h4]Test #{}:[/]\n[u]input:[/] [i]{}[/]\n[u]output:[/] [em]{}\n",
-            c4m_box_u64(i),
-            one,
-            c4m_resolve_path(one)));
-    }
+    c4m_add_static_function(c4m_new_utf8("strndup"), strndup);
 }
-
-#undef STACK_SCAN_TEST
 
 int
 main(int argc, char **argv, char **envp)
 {
-#ifdef STACK_SCAN_TEST
-    uint64_t top, bottom;
-#endif
+    add_static_symbols();
 
     c4m_init(argc, argv, envp);
+    int num_errs     = 0;
+    int num_tests    = 0;
+    int no_exception = 1;
 
-    sout = c4m_get_stdout();
-    serr = c4m_get_stderr();
+    if (c4m_get_env(c4m_new_utf8("CON4M_DEV"))) {
+        dev_mode = true;
+    }
 
     C4M_TRY
     {
         c4m_install_default_styles();
         c4m_terminal_dimensions(&term_width, NULL);
+        c4m_dict_t          *targets = build_file_list();
+        uint64_t             n;
+        hatrack_dict_item_t *items = hatrack_dict_items_sort(targets, &n);
 
-        if (argc == 1) {
-            c4m_ansi_render_to_width(str_test, term_width, 0, sout);
-            test_rand64();
-            // Test basic string and single threaded GC.
-            test1();
-            // style1 = apply_bg_color(style1, "alice blue");
-            c4m_str_t *to_slice = test2();
-            test3(to_slice);
-            to_slice = NULL;
-            test4();
-            table_test();
+        for (uint64_t i = 0; i < n; i++) {
+            c4m_utf8_t   *fname = items[i].key;
+            c4m_test_kat *kat   = items[i].value;
 
-            printf("Sample style: %.16llx\n", (unsigned long long)style1);
-            sha_test();
+            if (kat != NULL) {
+                num_tests++;
+            }
 
-            type_tests();
-            c4m_stream_tests();
-            marshal_test();
-            // marshal_test2();
-            create_dict_lit();
-            c4m_rich_lit_test();
-            c4m_print(c4m_box_u32((int32_t)-1));
-            c4m_print(c4m_box_i32((int32_t)-1));
-
-            test_format();
-            test_path();
-        }
-        test_compiler();
-        if (argc == 1) {
-            // C4M_STATIC_ASCII_STR(local_test, "Goodbye!");
-            // c4m_print((c4m_obj_t *)local_test);
-            c4m_print((c4m_obj_t *)c4m_new_utf8("Goodbye!"));
-            C4M_CRAISE("Except maybe not!");
+            if (!test_compiler(fname, kat)) {
+                num_errs++;
+            }
         }
     }
     C4M_EXCEPT
     {
+        no_exception = -1;
         printf("An exception was raised before exit:\n");
         c4m_print(c4m_repr_exception_stack_no_vm(c4m_new_utf8("Error: ")));
         C4M_JUMP_TO_TRY_END();
     }
     C4M_TRY_END;
-    if (argc == 1) {
-        c4m_stream_puts(serr, "This theoretically should run.\n");
-    }
 
-#ifdef STACK_SCAN_TEST
-    c4m_get_stack_scan_region(&top, &bottom);
-
-    uint64_t q = bottom - top;
-
-    // Give ourselves something to see where the real start is.
-    bottom        = 0x4141414141414141;
-    c4m_utf8_t *s = c4m_hex_dump((void *)top, q, top, 80, "");
-    c4m_stream_puts(sout, s->data);
-    c4m_stream_putc(sout, '\n');
-
-    bottom = top + q;
-    printf("(start) = %p; (end) = %p (%llu bytes)\n",
-           (void *)top,
-           (void *)bottom,
-           (unsigned long long)q);
-#endif
+    c4m_printf("Passed [em]{}[/] out of [em]{}[/] run tests.",
+               c4m_box_u64(num_tests - num_errs),
+               c4m_box_u64(num_tests));
 
     collect_and_print_stats();
+
+    if (!num_errs && !no_exception) {
+        exit(-127);
+    }
+
+    exit(num_errs * no_exception);
 }

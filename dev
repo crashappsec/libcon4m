@@ -20,6 +20,9 @@ function color {
 }
 
 OS=$(uname -o 2>/dev/null)
+ARCH=$(uname -m 2>/dev/null)
+PWD=$(pwd)
+
 if [[ $? -ne 0 ]] ; then
     # Older macOS/OSX versions of uname don't support -o
     OS=$(uname -s)
@@ -32,6 +35,8 @@ function log {
 function meson_build {
 
     echo ${1} > .meson_last
+    rm deps/local 2>/dev/null
+    ln -s ${PWD}/deps/${OS}-${ARCH} ${PWD}/deps/local
 
 
     if [[ ! -d ${1} ]]; then

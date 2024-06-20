@@ -84,6 +84,7 @@ unmarshal_instruction(c4m_stream_t *in, c4m_dict_t *memos)
     return out;
 }
 
+#if 0 // Removing for now
 static void
 marshal_ffi_arg_info(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
 {
@@ -99,6 +100,7 @@ marshal_ffi_arg_info(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *m
 static void *
 unmarshal_ffi_arg_info(c4m_stream_t *in, c4m_dict_t *memos)
 {
+
     c4m_zffi_arg_info_t *out = c4m_gc_alloc(c4m_zffi_arg_info_t);
 
     out->held     = c4m_unmarshal_bool(in);
@@ -109,10 +111,12 @@ unmarshal_ffi_arg_info(c4m_stream_t *in, c4m_dict_t *memos)
 
     return out;
 }
+#endif
 
 static void
 marshal_ffi_info(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
 {
+#if 0
     c4m_zffi_info_t *in = ref;
 
     c4m_marshal_i64(in->nameoffset, out);
@@ -124,11 +128,13 @@ marshal_ffi_info(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
     marshal_xlist_ref(in->arg_info, out, memos, mid, marshal_ffi_arg_info);
     c4m_sub_marshal(in->shortdoc, out, memos, mid);
     c4m_sub_marshal(in->longdoc, out, memos, mid);
+#endif
 }
 
 static void *
 unmarshal_ffi_info(c4m_stream_t *in, c4m_dict_t *memos)
 {
+#if 0
     c4m_zffi_info_t *out = c4m_gc_alloc(c4m_zffi_info_t);
 
     out->nameoffset = c4m_unmarshal_i64(in);
@@ -142,6 +148,8 @@ unmarshal_ffi_info(c4m_stream_t *in, c4m_dict_t *memos)
     out->longdoc    = c4m_sub_unmarshal(in, memos);
 
     return out;
+#endif
+    return NULL;
 }
 
 static void
