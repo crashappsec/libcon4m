@@ -759,9 +759,6 @@ c4m_subproc_close(c4m_subproc_t *ctx)
 {
     c4m_subproc_reset_terminal(ctx);
     c4m_sb_destroy(&ctx->sb, false);
-
-    c4m_deferred_cb_t *cbs = ctx->deferred_cbs;
-    c4m_deferred_cb_t *next;
 }
 
 /*
