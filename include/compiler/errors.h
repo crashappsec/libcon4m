@@ -1,8 +1,11 @@
 #pragma once
 #include "con4m.h"
 
-extern c4m_str_t         *c4m_format_error_message(c4m_compile_error *, bool);
-extern c4m_grid_t        *c4m_format_errors(c4m_compile_ctx *);
+extern c4m_str_t   *c4m_format_error_message(c4m_compile_error *, bool);
+extern c4m_grid_t  *c4m_format_errors(c4m_compile_ctx *);
+extern c4m_xlist_t *c4m_compile_extract_all_error_codes(c4m_compile_ctx *);
+extern c4m_utf8_t  *c4m_err_code_to_str(c4m_compile_error_t);
+
 extern c4m_compile_error *c4m_base_add_error(c4m_xlist_t *,
                                              c4m_compile_error_t,
                                              c4m_token_t *,

@@ -100,9 +100,6 @@ typedef enum : uint8_t {
     // value. The type of the immediate value is encoded in the instruction's
     // type_info.
     C4M_ZPushImm       = 0x07,
-    // Push the type of a value onto the stack. The value to operate on is
-    // determined as described in the above comment about address encodings.
-    C4M_ZPushSType     = 0x08,
     // For an object on top of the stack, will retrieve and push the object's
     // type. Note that the top of the stack must not be a raw value type;
     // if it's not a by-reference type, box it first.
@@ -130,6 +127,8 @@ typedef enum : uint8_t {
     // implementation (ffi function index), name offset, and type info,
     // respectively. The ZRunCallback instruction is used to run the callback,
     // which is run as an FFI function.
+    //
+    // Currently unused.
     C4M_ZPushFfiPtr    = 0x0E,
     // Create a callback and push it onto the stack. The instruction's arg,
     // immediate, and type_info fields are encoded into the callback as the
@@ -147,11 +146,6 @@ typedef enum : uint8_t {
     // Pops the top value from the stack. This is the same as C4M_ZMoveSp with
     // an adjustment of -1.
     C4M_ZPop           = 0x20,
-    // Stores the value at the top of the stack to the value address encoded in
-    // the instruction. The storage address is determined as described in the
-    // above comment about address encodings. The value assigned from the stack
-    // is not popped.
-    C4M_ZStoreTop      = 0x21,
     // Stores the encoded immediate value into the value address encoded in the
     // instruction. The storage address is determined as described in the above
     // comment about address encodings.
@@ -159,6 +153,7 @@ typedef enum : uint8_t {
     // Unpack the elements of a tuple, storing each one into the lvalue on the
     // stack, popping each lvalue as its assigned. The number of assignments to
     // perform is encoded in the instruction's arg field.
+    // currently unused.
     C4M_ZUnpack        = 0x23,
     // Swap the two top values on the stack.
     C4M_ZSwap          = 0x24,
@@ -215,11 +210,7 @@ typedef enum : uint8_t {
     // from the callback. Otherwise, the callback is the same as a native call
     // via C4M_Z0Call, except it uses the index from the callback.
     C4M_ZRunCallback   = 0x37,
-    // which currently always gets stored in 64 bits, and must be a value type.
-    // Unmarshals the data stored in the static data area beginning at the
-    // offset encoded into the instruction's immediate field. The length of the
-    // marhsalled data is encoded in the instruction's arg field. The resulting
-    // object is pushed onto the stack.
+    // Unused; will redo when adding objects.
     C4M_ZSObjNew       = 0x38,
     // Box a literal, which requires supplying the type for the object.
     C4M_ZBox           = 0x40,
@@ -279,12 +270,6 @@ typedef enum : uint8_t {
     // Initialze module parameters. The number of parameters is encoded in the
     // instruction's arg field. This is only used during module initialization.
     C4M_ZModuleEnter   = 0x83,
-    // Pops the top stack value and tests it. The value is expected to be either
-    // a string or NULL. If it is a string and is not an empty string, it will
-    // be used as an error message and evalutation will stop. This is basically
-    // a specialized assert used during module initialization to validate
-    // module parameters.
-    C4M_ZParamCheck    = 0x84,
     // Adjust the stack pointer down by the amount encoded in the instruction's
     // arg field. This means specifically that the arg field is subtracted from
     // sp, so a single pop would encode -1 as the adjustment.
@@ -537,6 +522,10 @@ typedef struct {
     c4m_xlist_t  *ffi_info;
     int           ffi_info_entries;
     bool          using_attrs;
+#ifdef C4M_DEV
+    c4m_buf_t    *print_buf;
+    c4m_stream_t *print_stream;
+#endif
 } c4m_vm_t;
 
 typedef struct {

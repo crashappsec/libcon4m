@@ -34,12 +34,10 @@ extern void         c4m_sb_init_party_input_buf(c4m_switchboard_t *,
                                                 char *,
                                                 size_t,
                                                 bool,
-                                                bool,
                                                 bool);
 extern c4m_party_t *c4m_sb_new_party_input_buf(c4m_switchboard_t *,
                                                char *,
                                                size_t,
-                                               bool,
                                                bool,
                                                bool);
 extern void         c4m_sb_party_input_buf_new_string(c4m_party_t *,

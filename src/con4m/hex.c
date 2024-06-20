@@ -67,9 +67,10 @@ add_offset(char   **optr,
 #define ASCIICHAR()                        \
     if (*lineptr < 32 || *lineptr > 126) { \
         *outptr++ = '.';                   \
+        lineptr++;                         \
     }                                      \
     else {                                 \
-        *outptr++ = *lineptr;              \
+        *outptr++ = *lineptr++;            \
     }
 
 char *

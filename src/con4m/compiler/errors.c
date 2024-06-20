@@ -1139,6 +1139,13 @@ static error_info_t error_info[] = {
 };
 
 c4m_utf8_t *
+c4m_err_code_to_str(c4m_compile_error_t code)
+{
+    error_info_t *info = (error_info_t *)&error_info[code];
+    return c4m_new_utf8(info->name);
+}
+
+c4m_utf8_t *
 c4m_format_error_message(c4m_compile_error *one_err, bool add_code_name)
 {
     // This formats JUST the error message. We look it up in the error
@@ -1263,6 +1270,31 @@ c4m_format_errors(c4m_compile_ctx *cctx)
     c4m_set_column_style(table, 1, "full_snap");
 
     return table;
+}
+
+c4m_xlist_t *
+c4m_compile_extract_all_error_codes(c4m_compile_ctx *cctx)
+{
+    c4m_xlist_t         *result      = c4m_xlist(c4m_tspec_ref());
+    uint64_t             num_modules = 0;
+    hatrack_dict_item_t *view;
+
+    view = hatrack_dict_items_sort(cctx->module_cache, &num_modules);
+
+    for (unsigned int i = 0; i < num_modules; i++) {
+        c4m_file_compile_ctx *ctx = view[i].value;
+
+        if (ctx->errors != NULL) {
+            int n = c4m_xlist_len(ctx->errors);
+            for (int j = 0; j < n; j++) {
+                c4m_compile_error *err = c4m_xlist_get(ctx->errors, i, NULL);
+
+                c4m_xlist_append(result, (void *)(uint64_t)err->code);
+            }
+        }
+    }
+
+    return result;
 }
 
 c4m_compile_error *

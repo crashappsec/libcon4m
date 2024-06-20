@@ -1151,24 +1151,10 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     tstate->sp->uint = view_item.u64;
                 } while (0);
                 break;
-            case C4M_ZStoreTop:
-                STACK_REQUIRE_VALUES(1);
-                *c4m_vm_variable(tstate, i) = tstate->sp->rvalue;
-                break;
             case C4M_ZStoreImm:
                 *c4m_vm_variable(tstate, i) = (c4m_value_t){
                     .obj = (c4m_obj_t)i->immediate,
                 };
-                break;
-            case C4M_ZPushSType:
-                STACK_REQUIRE_SLOTS(1);
-                --tstate->sp;
-                *tstate->sp = (c4m_stack_value_t){
-                    .rvalue = (c4m_value_t){
-                        //.type_info = c4m_vm_variable(tstate, i)->type_info,
-                    },
-                };
-                tstate->sp->rvalue.obj = tstate->sp->rvalue.type_info;
                 break;
             case C4M_ZPushObjType:
                 STACK_REQUIRE_SLOTS(1);
@@ -1264,15 +1250,6 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZModuleEnter:
                 c4m_vm_module_enter(tstate, i);
                 break;
-            case C4M_ZParamCheck:
-                STACK_REQUIRE_VALUES(1);
-                if (tstate->sp->rvalue.obj != NULL) {
-                    if (c4m_str_codepoint_len(tstate->sp->rvalue.obj)) {
-                        C4M_RAISE(tstate->sp->rvalue.obj);
-                    }
-                }
-                ++tstate->sp;
-                break;
             case C4M_ZModuleRet:
                 if (tstate->num_frames <= 2) {
                     C4M_JUMP_TO_TRY_END();
@@ -1367,9 +1344,14 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 }
                 break;
 #ifdef C4M_DEV
+                // This is not threadsafe. It's just for early days.
             case C4M_ZPrint:
                 STACK_REQUIRE_VALUES(1);
                 c4m_print(tstate->sp->rvalue.obj);
+                c4m_stream_write_object(tstate->vm->print_stream,
+                                        tstate->sp->rvalue.obj);
+                c4m_stream_putc(tstate->vm->print_stream, '\n');
+
                 ++tstate->sp;
                 break;
 #endif
@@ -1544,6 +1526,9 @@ c4m_vm_setup_ffi(c4m_vm_t *vm)
         int            n       = ffi_info->num_ext_params;
         c4m_ffi_type **arglist = c4m_gc_array_alloc(c4m_ffi_type *, n);
 
+        if (n < 0) {
+            n = 0;
+        }
         for (int j = 0; j < n; j++) {
             uint8_t param = ffi_info->external_params[j];
             arglist[j]    = c4m_ffi_arg_type_map(param);
@@ -1570,6 +1555,11 @@ c4m_vm_setup_runtime(c4m_vm_t *vm)
 {
     c4m_vm_load_const_data(vm);
     c4m_vm_setup_ffi(vm);
+
+#ifdef C4M_DEV
+    vm->print_buf    = c4m_buffer_empty();
+    vm->print_stream = c4m_buffer_outstream(vm->print_buf, false);
+#endif
 }
 
 void

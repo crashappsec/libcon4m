@@ -1900,7 +1900,7 @@ check_literal(pass2_ctx *ctx)
     c4m_pnode_t *pnode  = get_pnode(ctx->node);
     c4m_str_t   *litmod = pnode->extra_info;
 
-    if (litmod != NULL) {
+    if (litmod != NULL && litmod->data) {
         litmod = c4m_to_utf8(litmod);
     }
 
