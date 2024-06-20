@@ -48,3 +48,15 @@ c4m_set_disjunction(c4m_set_t *s1, c4m_set_t *s2)
     hatrack_set_disjunction(s1, s2, result);
     return result;
 }
+
+static inline c4m_dict_t *
+c4m_dict(c4m_type_t *t1, c4m_type_t *t2)
+{
+    return c4m_new(c4m_tspec_dict(t1, t2));
+}
+
+static inline c4m_set_t *
+c4m_set(c4m_type_t *t)
+{
+    return c4m_new(c4m_tspec_set(t));
+}

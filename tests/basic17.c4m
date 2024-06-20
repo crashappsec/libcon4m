@@ -1,0 +1,13 @@
+"""
+Just print a random value; basic idea is to test proper behavior of the
+test harness if 'output' key is not provided.
+
+Also tests FFI with 0 arguments.
+"""
+"""
+"""
+extern c4m_rand() -> i64 {
+  local: random() -> int
+}
+
+print(random());

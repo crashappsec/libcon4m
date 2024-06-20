@@ -1215,9 +1215,9 @@ extern_signature(parse_ctx *ctx)
 
     if (tok_kind(ctx) == c4m_tt_rparen) {
         consume(ctx);
-        end_node(ctx);
         expect(ctx, c4m_tt_arrow);
         extern_sig_item(ctx, c4m_nt_lit_tspec_return_type);
+        end_node(ctx);
 
         return;
     }

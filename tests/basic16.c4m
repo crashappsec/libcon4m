@@ -1,7 +1,15 @@
+"""
+A more complicated FFI test, particularly testing whether
+con4m strings are properly translated.
+"""
+"""
+$output:
+Hello,
+"""
+
 extern strndup(cstring, csize_t) -> cstring {
   local: test(s: string, n: int) -> string
 }
 
 x = "Hello, world!"
-print x
-print(test(x, 4))
+print(test(x, 6))

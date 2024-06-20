@@ -1671,6 +1671,7 @@ gen_sym_decl(gen_ctx *ctx)
     int                last = ctx->cur_node->num_kids - 1;
     c4m_pnode_t       *kid  = get_pnode(ctx->cur_node->children[last]);
     c4m_pnode_t       *psym;
+    c4m_tree_node_t   *cur = ctx->cur_node;
     c4m_scope_entry_t *sym;
 
     if (kid->kind == c4m_nt_assign) {
@@ -1682,8 +1683,9 @@ gen_sym_decl(gen_ctx *ctx)
             return;
         }
 
-        ctx->lvalue = true;
-        gen_one_kid(ctx, last);
+        ctx->cur_node = cur->children[last]->children[0];
+        gen_one_node(ctx);
+        ctx->cur_node = cur;
         gen_sym_load(ctx, sym, true);
         emit(ctx, C4M_ZAssignToLoc);
     }
