@@ -135,7 +135,9 @@ function libcon4m_run_tests {
 
     cd $TARGET
     ./c4test $@
+    CODE_TESTS=$?
     cd ..
+    exit "${CODE_TESTS}"
 }
 
 function libcon4m_dev_clean {
