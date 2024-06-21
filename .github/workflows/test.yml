@@ -43,6 +43,8 @@ jobs:
         run: |
           # For now, symlink rather than altering `meson.build` to pass
           # `dirs : ['/opt/homebrew/lib']` to the relevant find_library()` calls.
+          # This keeps all the CI-related setup in one place, and trivially
+          # ensures that non-CI library searching is unaffected.
           sudo mkdir -p /usr/local/lib
           sudo ln -s /opt/homebrew/lib/{libcrypto,libssl}.dylib /usr/local/lib/
 
