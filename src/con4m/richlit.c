@@ -69,30 +69,80 @@ typedef struct {
 //
 // also: 'default' or 'current' as a color.
 
-#include "static/richlit.c"
-
 static c4m_dict_t *style_keywords = NULL;
+
+#if 0
+#include "static/richlit.c"
 
 static inline void
 init_style_keywords()
 {
+
     if (style_keywords == NULL) {
-        c4m_buf_t    *b = c4m_new(c4m_tspec_buffer(),
+        c4m_buf_t    *b = c4m_new(c4m_type_buffer(),
                                c4m_kw("raw",
                                       c4m_ka(_marshaled_style_keywords),
                                       "length",
                                       c4m_ka(1426)));
-        c4m_stream_t *s = c4m_new(c4m_tspec_stream(),
+        c4m_stream_t *s = c4m_new(c4m_type_stream(),
                                   c4m_kw("buffer", c4m_ka(b)));
 
         c4m_gc_register_root(&style_keywords, 1);
         style_keywords = c4m_unmarshal(s);
     }
 }
+#else
+static inline void
+init_style_keywords()
+{
+    if (style_keywords == NULL) {
+        c4m_gc_register_root(&style_keywords, 1);
+        c4m_dict_t *d  = c4m_dict(c4m_type_utf8(), c4m_type_int());
+        style_keywords = d;
+
+        hatrack_dict_add(d, c4m_new_utf8("no"), (void *)1LLU);
+        hatrack_dict_add(d, c4m_new_utf8("b"), (void *)2LLU);
+        hatrack_dict_add(d, c4m_new_utf8("bold"), (void *)2LLU);
+        hatrack_dict_add(d, c4m_new_utf8("i"), (void *)3LLU);
+        hatrack_dict_add(d, c4m_new_utf8("italic"), (void *)3LLU);
+        hatrack_dict_add(d, c4m_new_utf8("italics"), (void *)3LLU);
+        hatrack_dict_add(d, c4m_new_utf8("st"), (void *)4LLU);
+        hatrack_dict_add(d, c4m_new_utf8("strike"), (void *)4LLU);
+        hatrack_dict_add(d, c4m_new_utf8("strikethru"), (void *)4LLU);
+        hatrack_dict_add(d, c4m_new_utf8("strikethrough"), (void *)4LLU);
+        hatrack_dict_add(d, c4m_new_utf8("u"), (void *)5LLU);
+        hatrack_dict_add(d, c4m_new_utf8("underline"), (void *)5LLU);
+        hatrack_dict_add(d, c4m_new_utf8("uu"), (void *)6LLU);
+        hatrack_dict_add(d, c4m_new_utf8("2u"), (void *)6LLU);
+        hatrack_dict_add(d, c4m_new_utf8("r"), (void *)7LLU);
+        hatrack_dict_add(d, c4m_new_utf8("reverse"), (void *)7LLU);
+        hatrack_dict_add(d, c4m_new_utf8("inverse"), (void *)7LLU);
+        hatrack_dict_add(d, c4m_new_utf8("invert"), (void *)7LLU);
+        hatrack_dict_add(d, c4m_new_utf8("inv"), (void *)7LLU);
+        hatrack_dict_add(d, c4m_new_utf8("t"), (void *)8LLU);
+        hatrack_dict_add(d, c4m_new_utf8("title"), (void *)8LLU);
+        hatrack_dict_add(d, c4m_new_utf8("l"), (void *)9LLU);
+        hatrack_dict_add(d, c4m_new_utf8("lower"), (void *)9LLU);
+        hatrack_dict_add(d, c4m_new_utf8("up"), (void *)10LLU);
+        hatrack_dict_add(d, c4m_new_utf8("upper"), (void *)10LLU);
+        hatrack_dict_add(d, c4m_new_utf8("on"), (void *)11LLU);
+        hatrack_dict_add(d, c4m_new_utf8("fg"), (void *)12LLU);
+        hatrack_dict_add(d, c4m_new_utf8("foreground"), (void *)12LLU);
+        hatrack_dict_add(d, c4m_new_utf8("bg"), (void *)13LLU);
+        hatrack_dict_add(d, c4m_new_utf8("background"), (void *)13LLU);
+        hatrack_dict_add(d, c4m_new_utf8("color"), (void *)14LLU);
+        /*
+          c4m_dump_c_static_instance_code(d,
+          "style_keywords",
+          new_utf8("/tmp/style_keys.c"));
+        */
+    }
+}
+#endif
 
 #define rich_tok_emit()                       \
     if (p != start) {                         \
-        slice = c4m_new(c4m_tspec_utf8(),     \
+        slice = c4m_new(c4m_type_utf8(),     \
                         c4m_kw("cstring",     \
                                c4m_ka(start), \
                                "length",      \
@@ -104,7 +154,7 @@ init_style_keywords()
 static c4m_xlist_t *
 tokenize_rich_tag(c4m_utf8_t *s)
 {
-    c4m_xlist_t *ret   = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+    c4m_xlist_t *ret   = c4m_new(c4m_type_xlist(c4m_type_utf8()));
     char        *p     = s->data;
     char        *end   = s->data + c4m_str_byte_len(s);
     char        *start = p;
@@ -462,11 +512,12 @@ c4m_extract_style_blocks(style_ctx *ctx, char *original_input)
         }
     }
     if (in_tag) {
-        C4M_CRAISE("EOF in style marker");
+        C4M_RAISE(c4m_cstr_format("EOF in style marker in string: {}",
+                                  original_input));
     }
     unstyled_string[unstyled_ix] = 0;
     ctx->style_text              = c4m_new_utf8(unstyled_string);
-    ctx->style_directions        = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    ctx->style_directions        = c4m_new(c4m_type_xlist(c4m_type_ref()));
     ctx->start_frame             = style_first;
     ctx->cur_frame               = style_first;
 }
@@ -580,7 +631,7 @@ convert_parse_to_style(style_ctx *ctx)
                 continue;
             }
 
-            c4m_xlist_t *we_popped = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+            c4m_xlist_t *we_popped = c4m_new(c4m_type_xlist(c4m_type_ref()));
 
             while (true) {
                 if (!ctx->stack_ix) {
@@ -633,7 +684,7 @@ c4m_rich_lit(char *instr)
 
     // If style blobs, parse them. (otherwise, return the whole string).
     if (ctx.start_frame == NULL) {
-        return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(instr)));
+        return c4m_new(c4m_type_utf8(), c4m_kw("cstring", c4m_ka(instr)));
     }
 
     int num_styles = 0;

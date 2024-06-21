@@ -15,16 +15,14 @@ static void
 err_basic_usage(c4m_utf8_t *fname)
 {
     c4m_printf(
-        "[red]error:[/][em]{}[/]: Bad test case format. The second doc  "
+        "[red]error:[/][em]{}[/]: Bad test case format. The second doc "
         "string may have 0 or 1 [em]$output[/] sections and 0 or 1 "
         "[em]$errors[/] sections ONLY. If neither are provided, "
-        "then the harness expects no errors and ignores output.\n"
+        "then the harness expects no errors and ignores output. "
         "There may be nothing else in the doc string except whitespace.\n"
-        "\[i]nNote: If you want to explicitly test for no output, then "
+        "\n[i]Note: If you want to explicitly test for no output, then "
         "provide `$output:` with nothing following.",
         fname);
-
-    exit(0);
 }
 
 static void
@@ -38,7 +36,7 @@ static void
 extract_errors(c4m_test_kat *kat, c4m_utf32_t *s, int64_t start, int64_t end)
 {
     s                    = c4m_str_slice(s, start, end);
-    kat->expected_errors = c4m_xlist(c4m_tspec_utf8());
+    kat->expected_errors = c4m_xlist(c4m_type_utf8());
     c4m_xlist_t *split   = c4m_str_xsplit(s, c4m_new_utf8("\n"));
     int          l       = c4m_xlist_len(split);
 
@@ -143,37 +141,6 @@ c4m_extract_kat(c4m_utf8_t *path)
 }
 
 static void
-collect_and_print_stats()
-{
-    uint64_t used, available, total, live;
-    uint64_t allocs_pre = 0, allocs_post = 0;
-
-    c4m_gc_heap_stats(&used, &available, &total);
-    allocs_pre = get_alloc_counter();
-    c4m_gc_thread_collect();
-    c4m_gc_heap_stats(&live, NULL, NULL);
-    allocs_post = get_alloc_counter();
-
-    c4m_print(
-        c4m_cstr_format(
-            "[b]Heap Usage:[/] [em]{:,} kb[/] of [i]{:,} kb[/] ({:,} kb free)",
-            c4m_box_u64(used / 1024),
-            c4m_box_u64(total / 1024),
-            c4m_box_u64(available / 1024)));
-    c4m_print(
-        c4m_cstr_format(
-            "[b][i] Copied [em]{:,}[/] allocation records. "
-            "Trashed [em]{:,}[/] records.",
-            c4m_box_u64(allocs_post),
-            c4m_box_u64(allocs_pre - allocs_post)));
-    c4m_print(
-        c4m_cstr_format(
-            "[b]New Usage:[/] [em]{:,} kb[/] ([i]{} kb[/] collected)",
-            c4m_box_u64(live / 1024),
-            c4m_box_u64((used - live) / 1024)));
-}
-
-static void
 show_dev_compile_info(c4m_compile_ctx *ctx)
 {
     if (!dev_mode) {
@@ -240,8 +207,8 @@ build_file_list()
 {
     bool          fatal      = false;
     c4m_xlist_t  *argv       = c4m_get_program_arguments();
-    c4m_xlist_t  *to_recurse = c4m_xlist(c4m_tspec_utf8());
-    c4m_dict_t   *result     = c4m_dict(c4m_tspec_utf8(), c4m_tspec_ref());
+    c4m_xlist_t  *to_recurse = c4m_xlist(c4m_type_utf8());
+    c4m_dict_t   *result     = c4m_dict(c4m_type_utf8(), c4m_type_ref());
     c4m_utf8_t   *test_dir   = c4m_get_env(c4m_new_utf8("CON4M_TEST_DIR"));
     c4m_utf8_t   *ext        = c4m_new_utf8(".c4m");
     c4m_test_kat *kat;
@@ -256,7 +223,7 @@ build_file_list()
 
     if (!n) {
         n    = 1;
-        argv = c4m_xlist(c4m_tspec_utf8());
+        argv = c4m_xlist(c4m_type_utf8());
         c4m_xlist_append(argv, test_dir);
     }
 
@@ -376,7 +343,7 @@ compare_results(c4m_utf8_t      *fname,
     }
 
     if (kat->expected_output) {
-        if (c4m_buffer_len(outbuf) == 0) {
+        if (!outbuf || c4m_buffer_len(outbuf) == 0) {
             if (!c4m_str_codepoint_len(kat->expected_output)) {
                 goto next_comparison;
             }
@@ -491,8 +458,8 @@ test_compiler(c4m_utf8_t *fname, c4m_test_kat *kat)
 
     // c4m_clean_environment();
     // c4m_print(c4m_format_global_type_environment());
-
-    return compare_results(fname, kat, ctx, vm->print_buf);
+    bool result = compare_results(fname, kat, ctx, vm->print_buf);
+    return result;
 }
 
 void
@@ -504,9 +471,9 @@ add_static_symbols()
 int
 main(int argc, char **argv, char **envp)
 {
+    c4m_init(argc, argv, envp);
     add_static_symbols();
 
-    c4m_init(argc, argv, envp);
     int num_errs     = 0;
     int num_tests    = 0;
     int no_exception = 1;
@@ -549,11 +516,18 @@ main(int argc, char **argv, char **envp)
                c4m_box_u64(num_tests - num_errs),
                c4m_box_u64(num_tests));
 
-    collect_and_print_stats();
+    c4m_gc_show_heap_stats_on();
+    c4m_gc_thread_collect();
 
     if (!num_errs && !no_exception) {
         exit(-127);
     }
 
-    exit(num_errs * no_exception);
+    if (num_errs && no_exception) {
+        exit(-1);
+    }
+    if (num_errs) {
+        exit(-2);
+    }
+    exit(0);
 }

@@ -109,9 +109,9 @@ c4m_unmarshal_u16(c4m_stream_t *s)
 static inline c4m_buf_t *
 c4m_marshal_to_buf(c4m_obj_t obj)
 {
-    c4m_buf_t    *b = c4m_new(c4m_tspec_buffer(),
+    c4m_buf_t    *b = c4m_new(c4m_type_buffer(),
                            c4m_kw("length", c4m_ka(16)));
-    c4m_stream_t *s = c4m_new(c4m_tspec_stream(),
+    c4m_stream_t *s = c4m_new(c4m_type_stream(),
                               c4m_kw("buffer",
                                      c4m_ka(b),
                                      "write",
@@ -128,12 +128,12 @@ c4m_marshal_to_buf(c4m_obj_t obj)
 static inline c4m_obj_t
 c4m_mem_unmarshal(char *mem, int64_t len)
 {
-    c4m_buf_t    *b = c4m_new(c4m_tspec_buffer(),
+    c4m_buf_t    *b = c4m_new(c4m_type_buffer(),
                            c4m_kw("length",
                                   c4m_ka(len),
                                   "ptr",
                                   mem));
-    c4m_stream_t *s = c4m_new(c4m_tspec_stream(), c4m_kw("buffer", c4m_ka(b)));
+    c4m_stream_t *s = c4m_new(c4m_type_stream(), c4m_kw("buffer", c4m_ka(b)));
 
     c4m_obj_t result = c4m_unmarshal(s);
 
@@ -144,11 +144,11 @@ c4m_mem_unmarshal(char *mem, int64_t len)
 static inline c4m_dict_t *
 c4m_alloc_marshal_memos()
 {
-    return c4m_new(c4m_tspec_dict(c4m_tspec_ref(), c4m_tspec_u64()));
+    return c4m_new(c4m_type_dict(c4m_type_ref(), c4m_type_u64()));
 }
 
 static inline c4m_dict_t *
 c4m_alloc_unmarshal_memos()
 {
-    return c4m_new(c4m_tspec_dict(c4m_tspec_u64(), c4m_tspec_ref()));
+    return c4m_new(c4m_type_dict(c4m_type_u64(), c4m_type_ref()));
 }

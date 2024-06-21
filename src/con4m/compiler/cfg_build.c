@@ -38,9 +38,9 @@ c4m_cfg_enter_block(c4m_cfg_node_t  *parent,
     result->contents.block_entrance.exit_node = exit;
 
     result->contents.block_entrance.inbound_links = c4m_new(
-        c4m_tspec_xlist(c4m_tspec_ref()));
+        c4m_type_xlist(c4m_type_ref()));
     exit->contents.block_exit.inbound_links = c4m_new(
-        c4m_tspec_xlist(c4m_tspec_ref()));
+        c4m_type_xlist(c4m_type_ref()));
     exit->contents.block_exit.entry_node = result;
 
     exit->parent = result;
@@ -333,7 +333,7 @@ du_format_node(c4m_cfg_node_t *n)
     uint64_t             num_syms;
     hatrack_dict_item_t *info  = hatrack_dict_items_sort(liveness_info,
                                                         &num_syms);
-    c4m_xlist_t         *cells = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+    c4m_xlist_t         *cells = c4m_new(c4m_type_xlist(c4m_type_utf8()));
 
     for (unsigned int i = 0; i < num_syms; i++) {
         c4m_scope_entry_t *sym    = info[i].key;
@@ -366,7 +366,7 @@ du_format_node(c4m_cfg_node_t *n)
         return result;
     }
 
-    c4m_xlist_t *l2 = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+    c4m_xlist_t *l2 = c4m_new(c4m_type_xlist(c4m_type_utf8()));
 
     for (int i = 0; i < num_sometimes; i++) {
         c4m_scope_entry_t *sym = c4m_xlist_get(sometimes_live, i, NULL);
@@ -405,9 +405,9 @@ c4m_cfg_repr_internal(c4m_cfg_node_t  *node,
         if (label == NULL) {
             label = c4m_new_utf8("block");
         }
-        result                = c4m_new(c4m_tspec_tree(c4m_tspec_utf8()),
+        result                = c4m_new(c4m_type_tree(c4m_type_utf8()),
                          c4m_kw("contents", label));
-        c4m_tree_node_t *sub1 = c4m_new(c4m_tspec_tree(c4m_tspec_utf8()),
+        c4m_tree_node_t *sub1 = c4m_new(c4m_type_tree(c4m_type_utf8()),
                                         c4m_kw("contents", c4m_ka(str)));
 
         c4m_tree_adopt_node(tree_parent, result);
@@ -431,13 +431,13 @@ c4m_cfg_repr_internal(c4m_cfg_node_t  *node,
                                   c4m_box_i64(node_addr));
         }
 
-        result = c4m_new(c4m_tspec_tree(c4m_tspec_utf8()),
+        result = c4m_new(c4m_type_tree(c4m_type_utf8()),
                          c4m_kw("contents", str));
         c4m_tree_adopt_node(tree_parent, result);
 
         for (int i = 0; i < node->contents.branches.num_branches; i++) {
             c4m_utf8_t      *label = c4m_cstr_format("b{}", c4m_box_i64(i));
-            c4m_tree_node_t *sub   = c4m_new(c4m_tspec_tree(c4m_tspec_utf8()),
+            c4m_tree_node_t *sub   = c4m_new(c4m_type_tree(c4m_type_utf8()),
                                            c4m_kw("contents", c4m_ka(label)));
             c4m_cfg_node_t  *kid   = node->contents.branches.branch_targets[i];
 
@@ -497,7 +497,7 @@ c4m_cfg_repr_internal(c4m_cfg_node_t  *node,
     if (node->kind == c4m_cfg_block_entrance) {
     }
 
-    result = c4m_new(c4m_tspec_tree(c4m_tspec_utf8()),
+    result = c4m_new(c4m_type_tree(c4m_type_utf8()),
                      c4m_kw("contents", c4m_ka(str)));
 
     c4m_tree_adopt_node(tree_parent, result);
@@ -530,7 +530,7 @@ c4m_grid_t *
 c4m_cfg_repr(c4m_cfg_node_t *node)
 {
     c4m_tree_node_t *root = c4m_new(
-        c4m_tspec_tree(c4m_tspec_utf8()),
+        c4m_type_tree(c4m_type_utf8()),
         c4m_kw("contents", c4m_ka(c4m_new_utf8("Root"))));
 
     c4m_cfg_repr_internal(node, root, NULL, NULL);

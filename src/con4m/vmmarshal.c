@@ -42,7 +42,7 @@ unmarshal_dict_value_ref(c4m_dict_t *out, c4m_stream_t *in, c4m_dict_t *memos, u
 static c4m_xlist_t *
 unmarshal_xlist_ref(c4m_stream_t *in, c4m_dict_t *memos, unmarshalfn_t fn)
 {
-    c4m_xlist_t *x = c4m_xlist(c4m_tspec_ref());
+    c4m_xlist_t *x = c4m_xlist(c4m_type_ref());
     x->append_ix   = c4m_unmarshal_i32(in);
     x->length      = c4m_unmarshal_i32(in);
     x->data        = c4m_gc_array_alloc(int64_t *, x->length);
@@ -210,7 +210,7 @@ static void
 marshal_value(c4m_value_t *in, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
 {
     c4m_sub_marshal(in->type_info, out, memos, mid);
-    c4m_dt_info_t *tinfo = c4m_tspec_get_data_type_info(in->type_info);
+    c4m_dt_info_t *tinfo = c4m_type_get_data_type_info(in->type_info);
     if (tinfo->by_value) {
         c4m_marshal_u64((uint64_t)in->obj, out);
     }
@@ -223,7 +223,7 @@ static void
 unmarshal_value(c4m_value_t *out, c4m_stream_t *in, c4m_dict_t *memos)
 {
     out->type_info       = c4m_sub_unmarshal(in, memos);
-    c4m_dt_info_t *tinfo = c4m_tspec_get_data_type_info(out->type_info);
+    c4m_dt_info_t *tinfo = c4m_type_get_data_type_info(out->type_info);
     if (tinfo->by_value) {
         out->obj = (void *)c4m_unmarshal_u64(in);
     }
@@ -479,7 +479,7 @@ c4m_vm_marshal(c4m_vm_t *vm, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
     // XXX marshalling this seems fine, but unmarshalling it seems sketchy
     //     seems like there should also be a vm-specific type store that handles
     //     types specific to this vm so that we can have multiple vms?
-    c4m_sub_marshal(c4m_global_type_env, out, memos, mid);
+    // c4m_sub_marshal(c4m_global_type_env, out, memos, mid);
 
     marshal_module_allocations(vm, out, memos, mid);
 
@@ -497,7 +497,7 @@ c4m_vm_unmarshal(c4m_vm_t *vm, c4m_stream_t *in, c4m_dict_t *memos)
     vm->obj = unmarshal_object_file(in, memos);
 
     // XXX marshalling this seems fine, but unmarshalling it seems sketchy
-    c4m_global_type_env = c4m_sub_unmarshal(in, memos);
+    // c4m_global_type_env = c4m_sub_unmarshal(in, memos);
 
     c4m_vm_reset(vm);
     unmarshal_module_allocations(vm, in, memos);

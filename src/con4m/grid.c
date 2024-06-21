@@ -82,7 +82,7 @@ pad_lines_vertically(c4m_render_style_t *gs,
     }
     switch (gs->alignment) {
     case C4M_ALIGN_BOTTOM:
-        res = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()),
+        res = c4m_new(c4m_type_xlist(c4m_type_utf32()),
                       c4m_kw("length", c4m_ka(height)));
 
         for (int i = 0; i < diff; i++) {
@@ -92,7 +92,7 @@ pad_lines_vertically(c4m_render_style_t *gs,
         return res;
 
     case C4M_ALIGN_MIDDLE:
-        res = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()),
+        res = c4m_new(c4m_type_xlist(c4m_type_utf32()),
                       c4m_kw("length", c4m_ka(height)));
 
         for (int i = 0; i < diff / 2; i++) {
@@ -239,7 +239,7 @@ c4m_grid_add_row(c4m_grid_t *grid, c4m_obj_t container)
     case C4M_T_GRID:
     case C4M_T_UTF8:
     case C4M_T_UTF32: {
-        c4m_renderable_t *r = c4m_new(c4m_tspec_renderable(),
+        c4m_renderable_t *r = c4m_new(c4m_type_renderable(),
                                       c4m_kw("obj",
                                              c4m_ka(container),
                                              "tag",
@@ -271,7 +271,7 @@ c4m_grid_add_row(c4m_grid_t *grid, c4m_obj_t container)
         for (int i = 0; i < grid->num_cols; i++) {
             c4m_obj_t x = c4m_xlist_get((c4m_xlist_t *)container, i, NULL);
             if (x == NULL) {
-                x = (c4m_obj_t)c4m_new(c4m_tspec_utf8(),
+                x = (c4m_obj_t)c4m_new(c4m_type_utf8(),
                                        c4m_kw("cstring", c4m_ka(" ")));
             }
             c4m_grid_set_cell_contents(grid, grid->row_cursor, i, x);
@@ -356,7 +356,7 @@ grid_init(c4m_grid_t *grid, va_list args)
         td_tag = "th";
     }
 
-    c4m_renderable_t *self = c4m_new(c4m_tspec_renderable(),
+    c4m_renderable_t *self = c4m_new(c4m_type_renderable(),
                                      c4m_kw("tag",
                                             c4m_ka(container_tag),
                                             "obj",
@@ -445,7 +445,7 @@ c4m_grid_set_all_contents(c4m_grid_t *g, flexarray_t *contents)
 
         for (uint64_t j = 0; j < viewlen; j++) {
             c4m_obj_t         item = flexarray_view_next(rowviews[i], &stop);
-            c4m_renderable_t *cell = c4m_new(c4m_tspec_renderable(),
+            c4m_renderable_t *cell = c4m_new(c4m_type_renderable(),
                                              c4m_kw("obj", c4m_ka(item)));
 
             c4m_install_renderable(g, cell, i, i + 1, j, j + 1);
@@ -842,7 +842,7 @@ str_render_cell(c4m_grid_t       *grid,
     c4m_render_style_t *col_style = get_col_props(grid, cell->start_col);
     c4m_render_style_t *row_style = get_row_props(grid, cell->start_row);
     c4m_render_style_t *cs        = c4m_copy_render_style(cell->current_style);
-    c4m_xlist_t        *res       = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
+    c4m_xlist_t        *res       = c4m_new(c4m_type_xlist(c4m_type_utf32()));
 
     c4m_layer_styles(col_style, cs);
     c4m_layer_styles(row_style, cs);
@@ -950,7 +950,7 @@ grid_add_blank_cell(c4m_grid_t *grid,
                     int16_t     height)
 {
     c4m_utf32_t      *empty = c4m_to_utf32(c4m_empty_string());
-    c4m_renderable_t *cell  = c4m_new(c4m_tspec_renderable(),
+    c4m_renderable_t *cell  = c4m_new(c4m_type_renderable(),
                                      c4m_kw("obj",
                                             c4m_ka(empty)));
 
@@ -1120,7 +1120,7 @@ grid_add_top_border(c4m_grid_t *grid, c4m_xlist_t *lines, int16_t *col_widths)
         border_width += grid->num_cols - 1;
     }
 
-    s = c4m_new(c4m_tspec_utf32(), c4m_kw("length", c4m_ka(border_width)));
+    s = c4m_new(c4m_type_utf32(), c4m_kw("length", c4m_ka(border_width)));
     p = (c4m_codepoint_t *)s->data;
 
     s->codepoints = ~border_width;
@@ -1194,7 +1194,7 @@ grid_add_bottom_border(c4m_grid_t  *grid,
         border_width += grid->num_cols - 1;
     }
 
-    s = c4m_new(c4m_tspec_utf32(), c4m_kw("length", c4m_ka(border_width)));
+    s = c4m_new(c4m_type_utf32(), c4m_kw("length", c4m_ka(border_width)));
     p = (c4m_codepoint_t *)s->data;
 
     s->codepoints = ~border_width;
@@ -1269,7 +1269,7 @@ grid_add_horizontal_rule(c4m_grid_t  *grid,
         border_width += grid->num_cols - 1;
     }
 
-    s = c4m_new(c4m_tspec_utf32(), c4m_kw("length", c4m_ka(border_width)));
+    s = c4m_new(c4m_type_utf32(), c4m_kw("length", c4m_ka(border_width)));
     p = (c4m_codepoint_t *)s->data;
 
     s->codepoints = ~border_width;
@@ -1318,7 +1318,7 @@ static inline c4m_xlist_t *
 grid_add_left_pad(c4m_grid_t *grid, int height)
 {
     c4m_render_style_t *gs   = grid_style(grid);
-    c4m_xlist_t        *res  = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()),
+    c4m_xlist_t        *res  = c4m_new(c4m_type_xlist(c4m_type_utf32()),
                                c4m_kw("length", c4m_ka(height)));
     c4m_utf32_t        *lpad = c4m_empty_string();
 
@@ -1603,7 +1603,7 @@ _c4m_grid_render(c4m_grid_t *grid, ...)
     }
 
     if (width == 0) {
-        return c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()),
+        return c4m_new(c4m_type_xlist(c4m_type_utf32()),
                        c4m_kw("length", c4m_ka(0)));
     }
 
@@ -1636,7 +1636,7 @@ _c4m_grid_render(c4m_grid_t *grid, ...)
         h_alloc += row_heights[i];
     }
 
-    c4m_xlist_t *result = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()),
+    c4m_xlist_t *result = c4m_new(c4m_type_xlist(c4m_type_utf32()),
                                   c4m_kw("length", c4m_ka(h_alloc)));
 
     grid_add_top_pad(grid, result, width);
@@ -1699,7 +1699,7 @@ _c4m_ordered_list(flexarray_t *items, ...)
     flex_view_t *view = flexarray_view(items);
     int64_t      n    = flexarray_view_len(view);
     c4m_utf32_t *dot  = c4m_utf32_repeat('.', 1);
-    c4m_grid_t  *res  = c4m_new(c4m_tspec_grid(),
+    c4m_grid_t  *res  = c4m_new(c4m_type_grid(),
                               c4m_kw("start_rows",
                                      c4m_ka(n),
                                      "start_cols",
@@ -1725,7 +1725,7 @@ _c4m_ordered_list(flexarray_t *items, ...)
                                         dot);
         c4m_utf32_t      *list_item = c4m_to_utf32(flexarray_view_next(view,
                                                                   NULL));
-        c4m_renderable_t *li        = c4m_new(c4m_tspec_renderable(),
+        c4m_renderable_t *li        = c4m_new(c4m_type_renderable(),
                                        c4m_kw("obj",
                                               c4m_ka(list_item),
                                               "tag",
@@ -1753,7 +1753,7 @@ _c4m_unordered_list(flexarray_t *items, ...)
 
     flex_view_t *view     = flexarray_view(items);
     int64_t      n        = flexarray_view_len(view);
-    c4m_grid_t  *res      = c4m_new(c4m_tspec_grid(),
+    c4m_grid_t  *res      = c4m_new(c4m_type_grid(),
                               c4m_kw("start_rows",
                                      c4m_ka(n),
                                      "start_cols",
@@ -1771,7 +1771,7 @@ _c4m_unordered_list(flexarray_t *items, ...)
     for (int i = 0; i < n; i++) {
         c4m_utf32_t      *list_item = c4m_to_utf32(flexarray_view_next(view,
                                                                   NULL));
-        c4m_renderable_t *li        = c4m_new(c4m_tspec_renderable(),
+        c4m_renderable_t *li        = c4m_new(c4m_type_renderable(),
                                        c4m_kw("obj",
                                               c4m_ka(list_item),
                                               "tag",
@@ -1793,7 +1793,7 @@ c4m_grid_flow(uint64_t items, ...)
 {
     va_list contents;
 
-    c4m_grid_t *res = c4m_new(c4m_tspec_grid(),
+    c4m_grid_t *res = c4m_new(c4m_type_grid(),
                               c4m_kw("start_rows",
                                      c4m_ka(items),
                                      "start_cols",
@@ -1832,7 +1832,7 @@ c4m_grid_horizontal_flow(c4m_xlist_t *items,
         cell_style = "td";
     }
 
-    c4m_grid_t *res = c4m_new(c4m_tspec_grid(),
+    c4m_grid_t *res = c4m_new(c4m_type_grid(),
                               c4m_kw("start_rows",
                                      c4m_ka(start_rows),
                                      "start_cols",
@@ -1961,7 +1961,7 @@ c4m_grid(int32_t start_rows,
          int     header_cols,
          int     s)
 {
-    return c4m_new(c4m_tspec_grid(),
+    return c4m_new(c4m_type_grid(),
                    c4m_kw("start_rows",
                           c4m_ka(start_rows),
                           "start_cols",
@@ -2056,7 +2056,7 @@ build_tree_output(c4m_tree_node_t *node, tree_fmt_t *info, bool last)
             info->padstr[i++] = ' ';
         }
 
-        c4m_utf32_t *pad = c4m_new(c4m_tspec_utf32(),
+        c4m_utf32_t *pad = c4m_new(c4m_type_utf32(),
                                    c4m_kw("length",
                                           c4m_ka(i),
                                           "codepoints",
@@ -2099,8 +2099,8 @@ void
 c4m_set_column_props(c4m_grid_t *grid, int col, c4m_render_style_t *s)
 {
     if (grid->col_props == NULL) {
-        grid->col_props = c4m_new(c4m_tspec_dict(c4m_tspec_int(),
-                                                 c4m_tspec_ref()));
+        grid->col_props = c4m_new(c4m_type_dict(c4m_type_int(),
+                                                 c4m_type_ref()));
     }
 
     hatrack_dict_put(grid->col_props, (void *)(int64_t)col, s);
@@ -2110,8 +2110,8 @@ void
 c4m_set_row_props(c4m_grid_t *grid, int row, c4m_render_style_t *s)
 {
     if (grid->row_props == NULL) {
-        grid->row_props = c4m_new(c4m_tspec_dict(c4m_tspec_int(),
-                                                 c4m_tspec_ref()));
+        grid->row_props = c4m_new(c4m_type_dict(c4m_type_int(),
+                                                 c4m_type_ref()));
     }
 
     hatrack_dict_put(grid->row_props, (void *)(int64_t)row, s);
@@ -2188,7 +2188,7 @@ _c4m_grid_tree(c4m_tree_node_t *tree, ...)
         ipad = 1;
     }
 
-    c4m_grid_t *result = c4m_new(c4m_tspec_grid(),
+    c4m_grid_t *result = c4m_new(c4m_type_grid(),
                                  c4m_kw("container_tag",
                                         c4m_ka("flow"),
                                         "td_tag",

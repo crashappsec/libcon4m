@@ -1,27 +1,9 @@
 #include "con4m.h"
 
-static void *
-openssl_m_proxy(size_t sz, const char *file, int line)
-{
-    return c4m_gc_raw_alloc(sz, GC_SCAN_ALL);
-}
-
-static void *
-openssl_r_proxy(void *p, size_t sz, const char *file, int line)
-{
-    return c4m_gc_resize(p, sz);
-}
-
-static void
-openssl_f_proxy(void *p, const char *file, int line)
-{
-    ; // Intentionally blank.
-}
-
 void
 c4m_gc_openssl()
 {
-    CRYPTO_set_mem_functions(openssl_m_proxy, openssl_r_proxy, openssl_f_proxy);
+    // Nothing now.
 }
 
 static const EVP_MD init_map[2][3] = {
@@ -36,6 +18,12 @@ static const EVP_MD init_map[2][3] = {
         EVP_sha3_512,
     },
 };
+
+static void
+c4m_sha_cleanup(c4m_sha_t *ctx)
+{
+    EVP_MD_CTX_free(ctx->openssl_ctx);
+}
 
 void
 c4m_sha_init(c4m_sha_t *ctx, va_list args)
@@ -56,7 +44,7 @@ c4m_sha_init(c4m_sha_t *ctx, va_list args)
         abort();
     }
 
-    ctx->digest = c4m_new(c4m_tspec_buffer(),
+    ctx->digest = c4m_new(c4m_type_buffer(),
                           c4m_kw("length", c4m_ka(bits / 8)));
 
     version -= 2;
@@ -120,12 +108,6 @@ const c4m_vtable_t c4m_sha_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_sha_init,
-        // Explicit because some compilers don't seem to always properly
-        // zero it (Was sometimes crashing both here and on a `c4m_stream_t`
-        // on my mac).
-        //
-        // The C standard claims that if we partially initialize
-        // everything else should be zero'd out, but not so.
-        [C4M_BI_FINALIZER]   = NULL,
+        [C4M_BI_FINALIZER]   = (c4m_vtable_entry)c4m_sha_cleanup,
     },
 };

@@ -136,9 +136,9 @@ void
 c4m_xlist_marshal(c4m_xlist_t *r, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(r);
-    c4m_xlist_t   *type_params = c4m_tspec_get_parameters(list_type);
+    c4m_xlist_t   *type_params = c4m_type_get_parameters(list_type);
     c4m_type_t    *item_type   = c4m_xlist_get(type_params, 0, NULL);
-    c4m_dt_info_t *item_info   = c4m_tspec_get_data_type_info(item_type);
+    c4m_dt_info_t *item_info   = c4m_type_get_data_type_info(item_type);
     bool           by_val      = item_info->by_value;
 
     c4m_marshal_i32(r->append_ix, s);
@@ -160,9 +160,9 @@ void
 c4m_xlist_unmarshal(c4m_xlist_t *r, c4m_stream_t *s, c4m_dict_t *memos)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(r);
-    c4m_xlist_t   *type_params = c4m_tspec_get_parameters(list_type);
+    c4m_xlist_t   *type_params = c4m_type_get_parameters(list_type);
     c4m_type_t    *item_type   = c4m_xlist_get(type_params, 0, NULL);
-    c4m_dt_info_t *item_info   = item_type ? c4m_tspec_get_data_type_info(item_type) : NULL;
+    c4m_dt_info_t *item_info   = item_type ? c4m_type_get_data_type_info(item_type) : NULL;
     bool           by_val      = item_info ? item_info->by_value : false;
 
     r->append_ix = c4m_unmarshal_i32(s);
@@ -193,17 +193,17 @@ c4m_xlist_len(const c4m_xlist_t *list)
 c4m_xlist_t *
 c4m_xlist(c4m_type_t *x)
 {
-    return c4m_new(c4m_tspec_xlist(x));
+    return c4m_new(c4m_type_xlist(x));
 }
 
 static c4m_str_t *
 xlist_repr(c4m_xlist_t *list)
 {
     c4m_type_t  *list_type   = c4m_get_my_type(list);
-    c4m_xlist_t *type_params = c4m_tspec_get_parameters(list_type);
+    c4m_xlist_t *type_params = c4m_type_get_parameters(list_type);
     c4m_type_t  *item_type   = c4m_xlist_get(type_params, 0, NULL);
     int64_t      len         = c4m_xlist_len(list);
-    c4m_xlist_t *items       = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
+    c4m_xlist_t *items       = c4m_new(c4m_type_xlist(c4m_type_utf32()));
 
     for (int i = 0; i < len; i++) {
         bool  err  = false;
@@ -227,9 +227,9 @@ xlist_repr(c4m_xlist_t *list)
 static c4m_obj_t
 xlist_coerce_to(c4m_xlist_t *list, c4m_type_t *dst_type)
 {
-    c4m_dt_kind_t base          = c4m_tspec_get_base(dst_type);
-    c4m_type_t   *src_item_type = c4m_tspec_get_param(c4m_get_my_type(list), 0);
-    c4m_type_t   *dst_item_type = c4m_tspec_get_param(dst_type, 0);
+    c4m_dt_kind_t base          = c4m_type_get_base(dst_type);
+    c4m_type_t   *src_item_type = c4m_type_get_param(c4m_get_my_type(list), 0);
+    c4m_type_t   *dst_item_type = c4m_type_get_param(dst_type, 0);
     int64_t       len           = c4m_xlist_len(list);
 
     if (base == (c4m_dt_kind_t)C4M_T_BOOL) {
@@ -262,7 +262,7 @@ xlist_copy(c4m_xlist_t *list)
 {
     int64_t      len       = c4m_xlist_len(list);
     c4m_type_t  *my_type   = c4m_get_my_type((c4m_obj_t)list);
-    c4m_type_t  *item_type = c4m_tspec_get_param(my_type, 0);
+    c4m_type_t  *item_type = c4m_type_get_param(my_type, 0);
     c4m_xlist_t *res       = c4m_new(my_type, c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {

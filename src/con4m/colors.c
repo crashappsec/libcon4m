@@ -3,19 +3,34 @@
 
 static c4m_dict_t *color_table = NULL;
 
+extern const c4m_color_info_t c4m_color_data[];
+
 static inline c4m_dict_t *
 get_color_table()
 {
     if (color_table == NULL) {
-        c4m_buf_t    *b = c4m_new(c4m_tspec_buffer(),
+        c4m_gc_register_root(&color_table, 1);
+        color_table = c4m_dict(c4m_type_utf8(), c4m_type_int());
+
+        c4m_color_info_t *p = (c4m_color_info_t *)c4m_color_data;
+
+        while (p->name != NULL) {
+            hatrack_dict_put(color_table,
+                             c4m_new_utf8(p->name),
+                             (void *)(int64_t)p->rgb);
+            p++;
+        }
+#if 0
+        c4m_buf_t    *b = c4m_new(c4m_type_buffer(),
                                c4m_kw("raw",
                                       c4m_ka(_marshaled_color_table),
                                       "length",
                                       c4m_ka(44237)));
-        c4m_stream_t *s = c4m_new(c4m_tspec_stream(),
+        c4m_stream_t *s = c4m_new(c4m_type_stream(),
                                   c4m_kw("buffer", c4m_ka(b)));
-        c4m_gc_register_root(&color_table, 1);
+
         color_table = c4m_unmarshal(s);
+#endif
     }
     return color_table;
 }

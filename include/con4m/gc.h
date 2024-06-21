@@ -69,12 +69,73 @@
 #define ALLOW_POINTER_MAPS
 #endif
 
+#ifdef C4M_GC_FULL_TRACE
+#define C4M_GC_STATS
+#endif
+
+#ifdef C4M_GC_ALL_ON
+#define DEFAULT_ON  1
+#define DEFAULT_OFF 1
+#elif defined(C4M_GC_ALL_OFF)
+#define DEFAULT_ON  0
+#define DEFAULT_OFF 0
+#else
+#define DEFAULT_ON  1
+#define DEFAULT_OFF 0
+#endif
+
+#ifndef C4M_GCT_INIT
+#define C4M_GCT_INIT DEFAULT_ON
+#endif
+#ifndef C4M_GCT_MMAP
+#define C4M_GCT_MMAP DEFAULT_ON
+#endif
+#ifndef C4M_GCT_MUNMAP
+#define C4M_GCT_MUNMAP DEFAULT_ON
+#endif
+#ifndef C4M_GCT_SCAN
+#define C4M_GCT_SCAN DEFAULT_ON
+#endif
+#ifndef C4M_GCT_OBJ
+#define C4M_GCT_OBJ DEFAULT_OFF
+#endif
+#ifndef C4M_GCT_SCAN_PTR
+#define C4M_GCT_SCAN_PTR DEFAULT_OFF
+#endif
+#ifndef C4M_GCT_PTR_TEST
+#define C4M_GCT_PTR_TEST DEFAULT_OFF
+#endif
+#ifndef C4M_GCT_PTR_TO_MOVE
+#define C4M_GCT_PTR_TO_MOVE DEFAULT_OFF
+#endif
+#ifndef C4M_GCT_MOVE
+#define C4M_GCT_MOVE DEFAULT_OFF
+#endif
+#ifndef C4M_GCT_ALLOC_FOUND
+#define C4M_GCT_ALLOC_FOUND DEFAULT_OFF
+#endif
+#ifndef C4M_GCT_PTR_THREAD
+#define C4M_GCT_PTR_THREAD DEFAULT_OFF
+#endif
+#ifndef C4M_GCT_MOVED
+#define C4M_GCT_MOVED DEFAULT_OFF
+#endif
+#ifndef C4M_GCT_COLLECT
+#define C4M_GCT_COLLECT DEFAULT_ON
+#endif
+#ifndef C4M_GCT_REGISTER
+#define C4M_GCT_REGISTER DEFAULT_ON
+#endif
+#ifndef C4M_GCT_ALLOC
+#define C4M_GCT_ALLOC DEFAULT_OFF
+#endif
+
 #ifndef C4M_DEFAULT_ARENA_SIZE
 // 4 Meg
-#define C4M_DEFAULT_ARENA_SIZE (1 << 24)
+#define C4M_DEFAULT_ARENA_SIZE (1 << 26)
 // Was previously using 1 << 19
-// But this needs to be much bigger than the stack size.
-// #define C4M_DEFAULT_ARENA_SIZE 64 // Was using this for extreme tests
+// But this needs to be much bigger than the stack size; 21 is probably
+// the minimum value without adjusting the stack.
 #endif
 
 // In the future, we would expect that a writer seeing the
@@ -100,31 +161,75 @@
 #define GC_FLAG_GLOBAL_STOP 0x00000020
 
 // Shouldn't be accessed by developer, but allows us to inline.
-extern uint64_t c4m_gc_guard;
-
-extern c4m_arena_t *c4m_new_arena(size_t, c4m_dict_t *);
+extern uint64_t     c4m_gc_guard;
+extern c4m_arena_t *c4m_new_arena(size_t, hatrack_zarray_t *);
 extern void         c4m_delete_arena(c4m_arena_t *);
 extern void         c4m_expand_arena(size_t, c4m_arena_t **);
 extern void         c4m_collect_arena(c4m_arena_t **);
-extern void        *c4m_gc_raw_alloc(size_t, uint64_t *);
-extern void        *c4m_gc_raw_alloc_with_finalizer(size_t, uint64_t *);
 extern void        *c4m_gc_resize(void *ptr, size_t len);
 extern void         c4m_gc_thread_collect();
-extern void         c4m_arena_register_root(c4m_arena_t *,
-                                            void *,
-                                            uint64_t);
-extern void         c4m_gc_register_root(void *ptr, uint64_t num_words);
 extern bool         c4m_is_read_only_memory(volatile void *);
-extern void        *c4m_alloc_from_arena(c4m_arena_t **, size_t, const uint64_t *, bool);
 extern void         c4m_gc_set_finalize_callback(c4m_system_finalizer_fn);
 
-// #define GC_TRACE
-#ifdef GC_TRACE
+#ifdef C4M_GC_STATS
+extern void  _c4m_arena_register_root(c4m_arena_t *,
+                                      void *,
+                                      uint64_t,
+                                      char *,
+                                      int);
+extern void *_c4m_gc_raw_alloc(size_t, uint64_t *, char *, int);
+extern void *_c4m_gc_raw_alloc_with_finalizer(size_t, uint64_t *, char *, int);
+extern void *c4m_alloc_from_arena(c4m_arena_t **,
+                                  size_t,
+                                  const uint64_t *,
+                                  bool,
+                                  char *,
+                                  int);
+extern void  _c4m_gc_register_root(void *, uint64_t, char *f, int l);
+
+#define c4m_arena_register_root(x, y, z) \
+    _c4m_arena_register_root(x, y, z, __FILE__, __LINE__)
+#define c4m_gc_raw_alloc(x, y) \
+    _c4m_gc_raw_alloc(x, y, __FILE__, __LINE__)
+#define c4m_gc_raw_alloc_with_finalizer(x, y) \
+    _c4m_gc_raw_alloc_with_finalizer(x, y, __FILE__, __LINE__)
+#define c4m_gc_register_root(x, y) \
+    _c4m_gc_register_root(x, y, __FILE__, __LINE__)
+
+#else
+extern void  _c4m_arena_register_root(c4m_arena_t *, void *, uint64_t);
+extern void  _c4m_gc_register_root(void *, uint64_t);
+extern void *_c4m_gc_raw_alloc(size_t, uint64_t *);
+extern void *_c4m_gc_raw_alloc_with_finalizer(size_t, uint64_t *);
+extern void *c4m_alloc_from_arena(c4m_arena_t **,
+                                  size_t,
+                                  const uint64_t *,
+                                  bool);
+
+#define c4m_arena_register_root(x, y, z) _c4m_arena_register_root(x, y, z)
+#define c4m_gc_raw_alloc(x, y)           _c4m_gc_raw_alloc(x, y)
+#define c4m_gc_raw_alloc_with_finalizer(x, y) \
+    _c4m_gc_raw_alloc_with_finalizer(x, y)
+#define c4m_gc_register_root(x, y) _c4m_gc_register_root(x, y)
+#endif
+
+#ifdef C4M_GC_STATS
+extern int c4m_gc_show_heap_stats_on;
+
+#define c4m_gc_show_heap_stats_on()  c4m_gc_show_heap_stats_on = 1
+#define c4m_gc_show_heap_stats_off() c4m_gc_show_heap_stats_on = 0
+#else
+#define c4m_gc_show_heap_stats_on()
+#define c4m_gc_show_heap_stats_off()
+#endif
+
+#ifdef C4M_GC_FULL_TRACE
 extern int c4m_gc_trace_on;
 
-#define c4m_gc_trace(...)                               \
+#define c4m_gc_gen_trace_implementation(X)
+#define c4m_gc_trace(X, ...)                            \
     {                                                   \
-        if (c4m_gc_trace_on) {                          \
+        if (X && c4m_gc_trace_on) {                     \
             fprintf(stderr, "gc_trace:%s: ", __func__); \
             fprintf(stderr, __VA_ARGS__);               \
             fputc('\n', stderr);                        \
@@ -133,8 +238,9 @@ extern int c4m_gc_trace_on;
 
 #define c4m_trace_on()  c4m_gc_trace_on = 1
 #define c4m_trace_off() c4m_gc_trace_on = 0
-
 #else
+#define c4m_trace_on()
+#define c4m_trace_off()
 #define c4m_gc_trace(...)
 #endif
 
@@ -158,12 +264,7 @@ c4m_round_up_to_given_power_of_2(uint64_t power, uint64_t n)
 // allocations. Anything that would be exposed to the language user
 // should be allocated via `gc_new()`, because there's an expectation
 // of an `object` header.
-static inline void *
-c4m_gc_malloc(size_t len)
-{
-    void *result = c4m_gc_raw_alloc(len, GC_SCAN_ALL);
-    return result;
-}
+#define c4m_gc_malloc(l) c4m_gc_raw_alloc(l, GC_SCAN_ALL)
 
 #define c4m_gc_flex_alloc(fixed, var, numv, map) \
     (c4m_gc_raw_alloc((size_t)(sizeof(fixed)) + (sizeof(var)) * (numv), (map)))
@@ -187,8 +288,11 @@ extern c4m_arena_t *c4m_internal_stash_heap();
 extern void         c4m_internal_unstash_heap();
 extern void         c4m_internal_set_heap(c4m_arena_t *);
 extern void         c4m_internal_lock_then_unstash_heap();
+extern void         c4m_get_heap_bounds(uint64_t *, uint64_t *, uint64_t *);
 
-#ifdef C4M_ALLOC_STATS
+extern c4m_alloc_hdr *c4m_find_alloc(void *);
+
+#ifdef C4M_GC_STATS
 uint64_t get_alloc_counter();
 #else
 #define get_alloc_counter() (0)

@@ -91,7 +91,7 @@ _c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
     c4m_str_t  *s;
     c4m_type_t *objtype = c4m_get_my_type(obj);
 
-    if (c4m_type_is_boxed_value_type(objtype)) {
+    if (c4m_type_is_box(objtype)) {
         c4m_marshal_u8(1, cctx->const_stream);
 
         c4m_marshal_u64(c4m_unbox(obj), cctx->const_stream);
@@ -156,7 +156,7 @@ layout_static(c4m_compile_ctx      *cctx,
 
         switch (sym->kind) {
         case sk_enum_val:
-            if (c4m_tspecs_are_compat(sym->type, c4m_tspec_utf8())) {
+            if (c4m_types_are_compat(sym->type, c4m_type_utf8())) {
                 c4m_layout_const_obj(cctx,
                                      sym->value,
                                      fctx,

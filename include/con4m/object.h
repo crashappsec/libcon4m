@@ -15,14 +15,6 @@ c4m_vtable(const c4m_obj_t *user_object)
     return (c4m_vtable_t *)obj->base_data_type->vtable;
 }
 
-static inline c4m_type_t *
-c4m_object_type(const c4m_obj_t *user_object)
-{
-    c4m_base_obj_t *obj = (c4m_base_obj_t *)c4m_object_header(user_object);
-
-    return obj->concrete_type;
-}
-
 static inline uint64_t
 c4m_base_type(const c4m_obj_t *user_object)
 {
@@ -40,9 +32,16 @@ c4m_base_type_name(const c4m_obj_t *user_object)
 // in object.c
 extern const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS];
 
-#define c4m_new(tid, ...) _c4m_new(tid, KFUNC(__VA_ARGS__))
+#ifdef C4M_GC_TRACE
+extern c4m_obj_t _c4m_new(char *, int, c4m_type_t *, ...);
 
-extern c4m_obj_t   _c4m_new(c4m_type_t *type, ...);
+#define c4m_new(tid, ...) _c4m_new(__FILE__, __LINE__, tid, KFUNC(__VA_ARGS__))
+#else
+extern c4m_obj_t _c4m_new(c4m_type_t *type, ...);
+
+#define c4m_new(tid, ...) _c4m_new(tid, KFUNC(__VA_ARGS__))
+#endif
+
 extern uint64_t   *c4m_gc_ptr_info(c4m_builtin_t);
 extern c4m_str_t  *c4m_repr(void *, c4m_type_t *);
 extern c4m_str_t  *c4m_to_str(void *, c4m_type_t *);
@@ -98,7 +97,6 @@ extern const c4m_vtable_t c4m_xlist_vtable;
 extern const c4m_vtable_t c4m_sha_vtable;
 extern const c4m_vtable_t c4m_render_style_vtable;
 extern const c4m_vtable_t c4m_exception_vtable;
-extern const c4m_vtable_t c4m_type_env_vtable;
 extern const c4m_vtable_t c4m_type_spec_vtable;
 extern const c4m_vtable_t c4m_tree_vtable;
 extern const c4m_vtable_t c4m_tuple_vtable;

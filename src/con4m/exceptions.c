@@ -31,7 +31,7 @@ c4m_exception_t *
 _c4m_alloc_exception(const char *msg, ...)
 {
     c4m_exception_t *ret = c4m_gc_alloc(c4m_exception_t);
-    ret->msg             = c4m_new(c4m_tspec_utf8(),
+    ret->msg             = c4m_new(c4m_type_utf8(),
                        c4m_kw("cstring", c4m_ka(msg)));
 
     return ret;

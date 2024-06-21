@@ -99,11 +99,8 @@ c4m_str_crlf()
     return c4m_str_copy(c4m_crlf_const);
 }
 
-static inline c4m_utf8_t *
-c4m_new_utf8(const char *to_copy)
-{
-    return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(to_copy)));
-}
+#define c4m_new_utf8(to_copy) \
+    c4m_new(c4m_type_utf8(), c4m_kw("cstring", c4m_ka(to_copy)))
 
 static inline char *
 c4m_to_cstring(c4m_str_t *s)

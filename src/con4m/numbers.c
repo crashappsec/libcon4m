@@ -32,7 +32,7 @@ signed_repr(int64_t item)
     }
 
     if (item == 0) {
-        return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka("0")));
+        return c4m_new(c4m_type_utf8(), c4m_kw("cstring", c4m_ka("0")));
     }
 
     int i = 20;
@@ -46,7 +46,7 @@ signed_repr(int64_t item)
         buf[--i] = '-';
     }
 
-    return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(&buf[i])));
+    return c4m_new(c4m_type_utf8(), c4m_kw("cstring", c4m_ka(&buf[i])));
 }
 
 static c4m_str_t *
@@ -58,7 +58,7 @@ unsigned_repr(int64_t item)
     };
 
     if (item == 0) {
-        return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka("0")));
+        return c4m_new(c4m_type_utf8(), c4m_kw("cstring", c4m_ka("0")));
     }
 
     int i = 20;
@@ -68,7 +68,7 @@ unsigned_repr(int64_t item)
         item /= 10;
     }
 
-    return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(&buf[i])));
+    return c4m_new(c4m_type_utf8(), c4m_kw("cstring", c4m_ka(&buf[i])));
 }
 
 __uint128_t
@@ -86,6 +86,8 @@ raw_int_parse(c4m_utf8_t *u8, c4m_compile_error_t *err, bool *neg)
     else {
         *neg = false;
     }
+
+    *err = c4m_err_no_error;
 
     char c;
     while ((c = *p++) != 0) {
@@ -118,6 +120,8 @@ raw_hex_parse(c4m_utf8_t *u8, c4m_compile_error_t *err)
     char       *s   = u8->data + 2;
     char        c;
     bool        even = true;
+
+    *err = c4m_err_no_error;
 
     while ((c = *s++) != 0) {
         if (cur & (((__uint128_t)0x0f) << 124)) {
@@ -283,6 +287,7 @@ bool_parse(c4m_utf8_t          *u8,
            c4m_compile_error_t *code)
 {
     char *s = u8->data;
+    *code   = c4m_err_no_error;
 
     switch (*s++) {
     case 't':
@@ -320,6 +325,7 @@ f64_parse(c4m_utf8_t          *s,
           c4m_utf8_t          *litmod,
           c4m_compile_error_t *code)
 {
+    *code = c4m_err_no_error;
     char  *end;
     double d = strtod(s->data, &end);
 
@@ -347,14 +353,14 @@ bool_repr(bool b)
 {
     if (b == false) {
         if (false_repr == NULL) {
-            false_repr = c4m_new(c4m_tspec_utf8(),
+            false_repr = c4m_new(c4m_type_utf8(),
                                  c4m_kw("cstring", c4m_ka("false")));
             c4m_gc_register_root(&false_repr, 1);
         }
         return false_repr;
     }
     if (true_repr == NULL) {
-        true_repr = c4m_new(c4m_tspec_utf8(),
+        true_repr = c4m_new(c4m_type_utf8(),
                             c4m_kw("cstring", c4m_ka("true")));
         c4m_gc_register_root(&true_repr, 1);
     }
@@ -365,7 +371,7 @@ bool_repr(bool b)
 static bool
 any_number_can_coerce_to(c4m_type_t *my_type, c4m_type_t *target_type)
 {
-    switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
+    switch (c4m_type_get_data_type_info(target_type)->typeid) {
     case C4M_T_BOOL:
     case C4M_T_I8:
     case C4M_T_BYTE:
@@ -387,7 +393,7 @@ any_int_coerce_to(const int64_t data, c4m_type_t *target_type)
 {
     double d;
 
-    switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
+    switch (c4m_type_get_data_type_info(target_type)->typeid) {
     case C4M_T_BOOL:
     case C4M_T_I8:
     case C4M_T_BYTE:
@@ -409,7 +415,7 @@ any_int_coerce_to(const int64_t data, c4m_type_t *target_type)
 static void *
 bool_coerce_to(const int64_t data, c4m_type_t *target_type)
 {
-    switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
+    switch (c4m_type_get_data_type_info(target_type)->typeid) {
     case C4M_T_BOOL:
     case C4M_T_I8:
     case C4M_T_BYTE:
@@ -447,7 +453,7 @@ float_repr(const double d)
     // snprintf includes null terminator in its count.
     snprintf(buf, 20, "%g", d);
 
-    return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(buf)));
+    return c4m_new(c4m_type_utf8(), c4m_kw("cstring", c4m_ka(buf)));
 }
 
 static void *
@@ -455,7 +461,7 @@ float_coerce_to(const double d, c4m_type_t *target_type)
 {
     int64_t i;
 
-    switch (c4m_tspec_get_data_type_info(target_type)->typeid) {
+    switch (c4m_type_get_data_type_info(target_type)->typeid) {
     case C4M_T_BOOL:
     case C4M_T_I8:
     case C4M_T_BYTE:
@@ -580,7 +586,7 @@ base_int_fmt(__int128_t v, c4m_fmt_spec_t *spec, c4m_codepoint_t default_type)
         C4M_CRAISE("Invalid specifier for integer.");
     }
 
-    c4m_utf8_t *s = c4m_new(c4m_tspec_utf8(),
+    c4m_utf8_t *s = c4m_new(c4m_type_utf8(),
                             c4m_kw("cstring", c4m_ka(repr + n)));
 
     // Figure out if we're going to use the sign before doing any padding.
@@ -613,13 +619,13 @@ base_int_fmt(__int128_t v, c4m_fmt_spec_t *spec, c4m_codepoint_t default_type)
     switch (prefix_option) {
     case 1:
         s = c4m_str_concat(
-            c4m_new(c4m_tspec_utf8(),
+            c4m_new(c4m_type_utf8(),
                     c4m_kw("cstring", c4m_ka("0x"))),
             s);
         break;
     case 2:
         s = c4m_str_concat(
-            c4m_new(c4m_tspec_utf8(),
+            c4m_new(c4m_type_utf8(),
                     c4m_kw("cstring", c4m_ka("U+"))),
             s);
         break;
@@ -701,29 +707,29 @@ bool_fmt(bool *repr, c4m_fmt_spec_t *spec)
     switch (spec->type) {
     case 0:
         if (*repr) {
-            return c4m_new(c4m_tspec_utf8(),
+            return c4m_new(c4m_type_utf8(),
                            c4m_kw("cstring", c4m_ka("True")));
         }
         else {
-            return c4m_new(c4m_tspec_utf8(),
+            return c4m_new(c4m_type_utf8(),
                            c4m_kw("cstring", c4m_ka("False")));
         }
     case 'b': // Boolean
         if (*repr) {
-            return c4m_new(c4m_tspec_utf8(),
+            return c4m_new(c4m_type_utf8(),
                            c4m_kw("cstring", c4m_ka("true")));
         }
         else {
-            return c4m_new(c4m_tspec_utf8(),
+            return c4m_new(c4m_type_utf8(),
                            c4m_kw("cstring", c4m_ka("false")));
         }
     case 'B':
         if (*repr) {
-            return c4m_new(c4m_tspec_utf8(),
+            return c4m_new(c4m_type_utf8(),
                            c4m_kw("cstring", c4m_ka("TRUE")));
         }
         else {
-            return c4m_new(c4m_tspec_utf8(),
+            return c4m_new(c4m_type_utf8(),
                            c4m_kw("cstring", c4m_ka("FALSE")));
         }
     case 't':
@@ -742,20 +748,20 @@ bool_fmt(bool *repr, c4m_fmt_spec_t *spec)
         }
     case 'Q': // Question
         if (*repr) {
-            return c4m_new(c4m_tspec_utf8(),
+            return c4m_new(c4m_type_utf8(),
                            c4m_kw("cstring", c4m_ka("YES")));
         }
         else {
-            return c4m_new(c4m_tspec_utf8(),
+            return c4m_new(c4m_type_utf8(),
                            c4m_kw("cstring", c4m_ka("NO")));
         }
     case 'q':
         if (*repr) {
-            return c4m_new(c4m_tspec_utf8(),
+            return c4m_new(c4m_type_utf8(),
                            c4m_kw("cstring", c4m_ka("yes")));
         }
         else {
-            return c4m_new(c4m_tspec_utf8(),
+            return c4m_new(c4m_type_utf8(),
                            c4m_kw("cstring", c4m_ka("no")));
         }
     case 'Y':
@@ -834,7 +840,7 @@ float_fmt(double *repr, c4m_fmt_spec_t *spec)
                 sign = c4m_utf8_repeat(fprepr[n++], 1);
             }
 
-            rest = c4m_new(c4m_tspec_utf8(),
+            rest = c4m_new(c4m_type_utf8(),
                            c4m_kw("cstring", c4m_ka(fprepr + n)));
 
             if (using_sign) {
@@ -848,7 +854,7 @@ float_fmt(double *repr, c4m_fmt_spec_t *spec)
         }
     }
 
-    return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(fprepr + n)));
+    return c4m_new(c4m_type_utf8(), c4m_kw("cstring", c4m_ka(fprepr + n)));
 }
 
 const c4m_vtable_t c4m_u8_type = {
