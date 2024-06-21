@@ -60,4 +60,6 @@ jobs:
         run: ./dev build
 
       - name: Run
+        env:
+          CON4M_DEV: 1
         run: ./dev run
