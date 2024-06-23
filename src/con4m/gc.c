@@ -461,7 +461,6 @@ c4m_delete_arena(c4m_arena_t *arena)
 
     c4m_gc_trace(C4M_GCT_MUNMAP, "arena:delete:%p:%p", start, end);
 
-#define C4M_MADV_ZERO
 #if defined(C4M_MADV_ZERO)
     madvise(start, end - start, MADV_ZERO);
     mprotect((void *)start, end - start, PROT_NONE);
