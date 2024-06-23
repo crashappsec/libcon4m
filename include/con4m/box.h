@@ -5,7 +5,7 @@
 static inline c4m_obj_t
 c4m_box_obj(c4m_box_t value, c4m_type_t *type)
 {
-    return c4m_new(c4m_tspec_box(type), value);
+    return c4m_new(c4m_type_box(type), value);
 }
 
 // Safely dereference a boxed item, thus removing the box.
@@ -53,7 +53,7 @@ c4m_box_bool(bool val)
     c4m_box_t v = {
         .b = val,
     };
-    return c4m_box_obj(v, c4m_tspec_bool());
+    return c4m_box_obj(v, c4m_type_bool());
 }
 
 static inline int8_t *
@@ -62,7 +62,7 @@ c4m_box_i8(int8_t val)
     c4m_box_t v = {
         .i8 = val,
     };
-    return c4m_box_obj(v, c4m_tspec_i8());
+    return c4m_box_obj(v, c4m_type_i8());
 }
 
 static inline uint8_t *
@@ -71,7 +71,7 @@ c4m_box_u8(uint8_t val)
     c4m_box_t v = {
         .u8 = val,
     };
-    return c4m_box_obj(v, c4m_tspec_u8());
+    return c4m_box_obj(v, c4m_type_u8());
 }
 
 static inline int32_t *
@@ -80,7 +80,7 @@ c4m_box_i32(int32_t val)
     c4m_box_t v = {
         .i32 = val,
     };
-    return c4m_box_obj(v, c4m_tspec_i32());
+    return c4m_box_obj(v, c4m_type_i32());
 }
 
 static inline uint32_t *
@@ -89,7 +89,7 @@ c4m_box_u32(uint32_t val)
     c4m_box_t v = {
         .u32 = val,
     };
-    return c4m_box_obj(v, c4m_tspec_u32());
+    return c4m_box_obj(v, c4m_type_u32());
 }
 
 static inline int64_t *
@@ -98,7 +98,7 @@ c4m_box_i64(int64_t val)
     c4m_box_t v = {
         .i64 = val,
     };
-    return c4m_box_obj(v, c4m_tspec_i64());
+    return c4m_box_obj(v, c4m_type_i64());
 }
 
 static inline uint64_t *
@@ -107,7 +107,7 @@ c4m_box_u64(uint64_t val)
     c4m_box_t v = {
         .u64 = val,
     };
-    return c4m_box_obj(v, c4m_tspec_u64());
+    return c4m_box_obj(v, c4m_type_u64());
 }
 
 static inline double *
@@ -116,5 +116,5 @@ c4m_box_double(double val)
     c4m_box_t v = {
         .dbl = val,
     };
-    return c4m_box_obj(v, c4m_tspec_f64());
+    return c4m_box_obj(v, c4m_type_f64());
 }

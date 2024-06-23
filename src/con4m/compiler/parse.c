@@ -481,7 +481,7 @@ _consume(parse_ctx *ctx)
             comment->sibling_id  = pn->total_kids++;
 
             if (pn->comments == NULL) {
-                pn->comments = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+                pn->comments = c4m_new(c4m_type_xlist(c4m_type_ref()));
             }
 
             c4m_xlist_append(pn->comments, comment);
@@ -632,7 +632,7 @@ static inline c4m_tree_node_t *
 _start_node(parse_ctx *ctx, c4m_node_kind_t kind, bool consume_token)
 #endif
 {
-    c4m_pnode_t     *child  = c4m_new(c4m_tspec_parse_node(), ctx, kind);
+    c4m_pnode_t     *child  = c4m_new(c4m_type_parse_node(), ctx, kind);
     c4m_tree_node_t *parent = ctx->cur;
 
     if (consume_token) {
@@ -667,8 +667,8 @@ static inline c4m_tree_node_t *
 temporary_tree(parse_ctx *ctx, c4m_node_kind_t nt)
 {
     hatstack_push(ctx->root_stack, ctx->cur);
-    c4m_pnode_t     *tmproot = c4m_new(c4m_tspec_parse_node(), ctx, nt);
-    c4m_tree_node_t *result  = c4m_new(c4m_tspec_tree(c4m_tspec_parse_node()),
+    c4m_pnode_t     *tmproot = c4m_new(c4m_type_parse_node(), ctx, nt);
+    c4m_tree_node_t *result  = c4m_new(c4m_type_tree(c4m_type_parse_node()),
                                       c4m_kw("contents", c4m_ka(tmproot)));
 
     ctx->cur = result;
@@ -3964,10 +3964,10 @@ static c4m_tree_node_t *
 module(parse_ctx *ctx)
 {
     c4m_tree_node_t *expr;
-    c4m_pnode_t     *root   = c4m_new(c4m_tspec_parse_node(),
+    c4m_pnode_t     *root   = c4m_new(c4m_type_parse_node(),
                                 ctx,
                                 c4m_nt_module);
-    c4m_tree_node_t *result = c4m_new(c4m_tspec_tree(c4m_tspec_parse_node()),
+    c4m_tree_node_t *result = c4m_new(c4m_type_tree(c4m_type_parse_node()),
                                       c4m_kw("contents", c4m_ka(root)));
 
     ctx->cur = result;
@@ -4187,9 +4187,13 @@ repr_one_node(c4m_pnode_t *one)
     c4m_utf8_t *result = c4m_cstr_format(fmt, name, xtra, doc);
 
     if (one->type != NULL) {
-        c4m_type_t *t = c4m_resolve_and_unbox(one->type);
-        result        = c4m_str_concat(result,
-                                c4m_cstr_format("[h6]{}", t));
+        c4m_type_t *t = c4m_type_resolve(one->type);
+
+        if (c4m_type_is_box(t)) {
+            t = c4m_type_unbox(t);
+        }
+
+        result = c4m_str_concat(result, c4m_cstr_format("[h6]{}", t));
     }
 
     return result;
@@ -4250,7 +4254,7 @@ c4m_parse(c4m_file_compile_ctx *file_ctx)
         .cached_token = NULL,
         .token_ix     = 0,
         .cache_ix     = -1,
-        .root_stack   = c4m_new(c4m_tspec_stack(c4m_tspec_parse_node())),
+        .root_stack   = c4m_new(c4m_type_stack(c4m_type_parse_node())),
     };
 
     prime_tokens(&ctx);
@@ -4279,13 +4283,13 @@ c4m_parse_type(c4m_file_compile_ctx *file_ctx)
         .cached_token = NULL,
         .token_ix     = 0,
         .cache_ix     = -1,
-        .root_stack   = c4m_new(c4m_tspec_stack(c4m_tspec_parse_node())),
+        .root_stack   = c4m_new(c4m_type_stack(c4m_type_parse_node())),
     };
 
     prime_tokens(&ctx);
 
-    c4m_pnode_t     *root = c4m_new(c4m_tspec_parse_node(), ctx, c4m_nt_lit_tspec);
-    c4m_tree_node_t *t    = c4m_new(c4m_tspec_tree(c4m_tspec_parse_node()),
+    c4m_pnode_t     *root = c4m_new(c4m_type_parse_node(), ctx, c4m_nt_lit_tspec);
+    c4m_tree_node_t *t    = c4m_new(c4m_type_tree(c4m_type_parse_node()),
                                  c4m_kw("contents", c4m_ka(root)));
 
     ctx.cur              = t;

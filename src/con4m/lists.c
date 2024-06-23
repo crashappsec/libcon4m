@@ -66,9 +66,9 @@ c4m_list_marshal(flexarray_t  *r,
                  int64_t      *mid)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(r);
-    c4m_xlist_t   *type_params = c4m_tspec_get_parameters(list_type);
+    c4m_xlist_t   *type_params = c4m_type_get_parameters(list_type);
     c4m_type_t    *item_type   = c4m_xlist_get(type_params, 0, NULL);
-    c4m_dt_info_t *item_info   = c4m_tspec_get_data_type_info(item_type);
+    c4m_dt_info_t *item_info   = c4m_type_get_data_type_info(item_type);
     bool           by_val      = item_info->by_value;
     flex_view_t   *view        = flexarray_view(r);
     uint64_t       len         = flexarray_view_len(view);
@@ -92,9 +92,9 @@ static void
 c4m_list_unmarshal(flexarray_t *r, c4m_stream_t *s, c4m_dict_t *memos)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(r);
-    c4m_xlist_t   *type_params = c4m_tspec_get_parameters(list_type);
+    c4m_xlist_t   *type_params = c4m_type_get_parameters(list_type);
     c4m_type_t    *item_type   = c4m_xlist_get(type_params, 0, NULL);
-    c4m_dt_info_t *item_info   = c4m_tspec_get_data_type_info(item_type);
+    c4m_dt_info_t *item_info   = c4m_type_get_data_type_info(item_type);
     bool           by_val      = item_info->by_value;
     uint64_t       len         = c4m_unmarshal_u64(s);
 
@@ -116,15 +116,15 @@ c4m_list_unmarshal(flexarray_t *r, c4m_stream_t *s, c4m_dict_t *memos)
 bool
 list_can_coerce_to(c4m_type_t *my_type, c4m_type_t *dst_type)
 {
-    c4m_dt_kind_t base = c4m_tspec_get_base(dst_type);
+    c4m_dt_kind_t base = c4m_type_get_base(dst_type);
 
     if (base == (c4m_dt_kind_t)C4M_T_BOOL) {
         return true;
     }
 
     if (base == (c4m_dt_kind_t)C4M_T_LIST || base == (c4m_dt_kind_t)C4M_T_XLIST) {
-        c4m_type_t *my_item  = c4m_tspec_get_param(my_type, 0);
-        c4m_type_t *dst_item = c4m_tspec_get_param(dst_type, 0);
+        c4m_type_t *my_item  = c4m_type_get_param(my_type, 0);
+        c4m_type_t *dst_item = c4m_type_get_param(dst_type, 0);
 
         return c4m_can_coerce(my_item, dst_item);
     }
@@ -135,11 +135,11 @@ list_can_coerce_to(c4m_type_t *my_type, c4m_type_t *dst_type)
 static c4m_obj_t
 list_coerce_to(flexarray_t *list, c4m_type_t *dst_type)
 {
-    c4m_dt_kind_t base          = c4m_tspec_get_base(dst_type);
+    c4m_dt_kind_t base          = c4m_type_get_base(dst_type);
     flex_view_t  *view          = flexarray_view(list);
     int64_t       len           = flexarray_view_len(view);
-    c4m_type_t   *src_item_type = c4m_tspec_get_param(c4m_get_my_type(list), 0);
-    c4m_type_t   *dst_item_type = c4m_tspec_get_param(dst_type, 0);
+    c4m_type_t   *src_item_type = c4m_type_get_param(c4m_get_my_type(list), 0);
+    c4m_type_t   *dst_item_type = c4m_type_get_param(dst_type, 0);
 
     if (base == (c4m_dt_kind_t)C4M_T_BOOL) {
         return (c4m_obj_t)(int64_t)(flexarray_view_len(view) != 0);
@@ -174,9 +174,9 @@ list_copy(flexarray_t *list)
     c4m_type_t  *myty = c4m_get_my_type(list);
 
     flexarray_t *res    = c4m_new(myty, c4m_kw("length", c4m_ka(len)));
-    c4m_type_t  *itemty = c4m_tspec_get_param(myty, 0);
+    c4m_type_t  *itemty = c4m_type_get_param(myty, 0);
 
-    itemty = c4m_global_resolve_type(itemty);
+    // itemty = c4m_resolve_type(itemty);
 
     for (int i = 0; i < len; i++) {
         c4m_obj_t item = flexarray_view_next(view, NULL);
@@ -329,11 +329,11 @@ static c4m_str_t *
 list_repr(flexarray_t *list)
 {
     c4m_type_t  *list_type   = c4m_get_my_type(list);
-    c4m_xlist_t *type_params = c4m_tspec_get_parameters(list_type);
+    c4m_xlist_t *type_params = c4m_type_get_parameters(list_type);
     c4m_type_t  *item_type   = c4m_xlist_get(type_params, 0, NULL);
     flex_view_t *view        = flexarray_view(list);
     int64_t      len         = flexarray_view_len(view);
-    c4m_xlist_t *items       = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
+    c4m_xlist_t *items       = c4m_new(c4m_type_xlist(c4m_type_utf32()));
 
     for (int i = 0; i < len; i++) {
         int   err  = 0;

@@ -168,7 +168,11 @@ gen_apply_waiting_patches(gen_ctx *ctx, c4m_control_info_t *ci)
 static inline void
 gen_tcall(gen_ctx *ctx, c4m_builtin_type_fn fn, c4m_type_t *t)
 {
-    t = c4m_resolve_and_unbox(t);
+    t = c4m_type_resolve(t);
+    if (c4m_type_is_box(t)) {
+        t = c4m_type_unbox(t);
+    }
+
     emit(ctx, C4M_ZTCall, c4m_kw("arg", c4m_ka(fn), "type", c4m_ka(t)));
 }
 
@@ -227,13 +231,8 @@ gen_load_immediate(gen_ctx *ctx, int64_t value)
 static inline bool
 unbox_const_value(gen_ctx *ctx, c4m_obj_t obj, c4m_type_t *type)
 {
-    if (c4m_tspec_is_box(type) || c4m_type_is_value_type(type)) {
+    if (c4m_type_is_box(type) || c4m_type_is_value_type(type)) {
         gen_load_immediate(ctx, c4m_unbox(obj));
-        return true;
-    }
-
-    if (c4m_type_is_boxed_value_type(type)) {
-        gen_load_immediate(ctx, (uint64_t)obj);
         return true;
     }
 
@@ -407,7 +406,7 @@ gen_sym_store(gen_ctx *ctx, c4m_scope_entry_t *sym, bool pop_and_lock)
         // Byte offset into the const object arena where the attribute
         // name can be found.
         arg = c4m_layout_string_const(ctx->cctx, sym->name);
-        gen_load_const_by_offset(ctx, arg, c4m_tspec_utf8());
+        gen_load_const_by_offset(ctx, arg, c4m_type_utf8());
 
         emit(ctx, C4M_ZAssignAttr, c4m_kw("arg", c4m_ka(pop_and_lock)));
         return;
@@ -536,10 +535,10 @@ gen_run_callback(gen_ctx *ctx, c4m_callback_t *cb)
 {
     uint32_t    offset   = c4m_layout_const_obj(ctx->cctx, cb);
     c4m_type_t *t        = cb->target_type;
-    int         nargs    = c4m_tspec_get_num_params(t) - 1;
-    c4m_type_t *ret_type = c4m_tspec_get_param(t, nargs);
-    bool        useret   = !(c4m_tspecs_are_compat(ret_type,
-                                          c4m_tspec_void()));
+    int         nargs    = c4m_type_get_num_params(t) - 1;
+    c4m_type_t *ret_type = c4m_type_get_param(t, nargs);
+    bool        useret   = !(c4m_types_are_compat(ret_type,
+                                          c4m_type_void()));
     int         imm      = useret ? 1 : 0;
 
     gen_load_const_by_offset(ctx, offset, c4m_get_my_type(cb));
@@ -563,11 +562,16 @@ gen_box_if_needed(gen_ctx           *ctx,
                   int                ix)
 {
     c4m_pnode_t *pn          = get_pnode(n);
-    c4m_type_t  *actual_type = c4m_resolve_and_unbox(pn->type);
-    c4m_type_t  *param_type  = c4m_tspec_get_param(sym->type, ix);
+    c4m_type_t  *actual_type = c4m_type_resolve(pn->type);
+    c4m_type_t  *param_type  = c4m_type_get_param(sym->type, ix);
 
-    if (!c4m_type_is_value_type(actual_type)) {
-        return;
+    if (c4m_type_is_box(actual_type)) {
+        actual_type = c4m_type_unbox(actual_type);
+    }
+    else {
+        if (!c4m_type_is_value_type(actual_type)) {
+            return;
+        }
     }
 
     // We've already type checked, so we can play fast and loose
@@ -582,12 +586,17 @@ gen_unbox_if_needed(gen_ctx           *ctx,
                     c4m_scope_entry_t *sym)
 {
     c4m_pnode_t *pn          = get_pnode(n);
-    c4m_type_t  *actual_type = c4m_resolve_and_unbox(pn->type);
-    int          ix          = c4m_tspec_get_num_params(sym->type) - 1;
-    c4m_type_t  *param_type  = c4m_tspec_get_param(sym->type, ix);
+    c4m_type_t  *actual_type = c4m_type_resolve(pn->type);
+    int          ix          = c4m_type_get_num_params(sym->type) - 1;
+    c4m_type_t  *param_type  = c4m_type_get_param(sym->type, ix);
 
-    if (!c4m_type_is_value_type(actual_type)) {
-        return;
+    if (c4m_type_is_box(actual_type)) {
+        actual_type = c4m_type_unbox(actual_type);
+    }
+    else {
+        if (!c4m_type_is_value_type(actual_type)) {
+            return;
+        }
     }
 
     // We've already type checked, so we can play fast and loose
@@ -1414,31 +1423,51 @@ gen_float_binary_op(gen_ctx *ctx, c4m_operator_t op)
 {
 }
 
+static inline bool
+skip_poly_call(c4m_type_t *t)
+{
+    if (c4m_type_is_box(t)) {
+        return true;
+    }
+
+    if (c4m_type_get_base(t) == C4M_DT_KIND_primitive) {
+        return true;
+    }
+
+    return false;
+}
+
 static inline void
 gen_binary_op(gen_ctx *ctx)
 {
     c4m_operator_t op = (c4m_operator_t)ctx->cur_pnode->extra_info;
-    c4m_type_t    *t  = c4m_global_resolve_type(ctx->cur_pnode->type);
+    c4m_type_t    *t  = c4m_type_resolve(ctx->cur_pnode->type);
 
     gen_kids(ctx);
 
-    if (c4m_tspec_get_base(t) == C4M_DT_KIND_primitive) {
-        if (c4m_tspec_is_int_type(t)) {
-            gen_int_binary_op(ctx, op, c4m_tspec_is_signed(t));
-            return;
-        }
-
-        if (c4m_tspec_is_bool(t)) {
-            gen_int_binary_op(ctx, op, false);
-            return;
-        }
-
-        if (t->typeid == C4M_T_F64) {
-            gen_float_binary_op(ctx, op);
-            return;
-        }
+    if (!skip_poly_call(t)) {
+        gen_polymorphic_binary_op(ctx, op);
+        return;
     }
-    gen_polymorphic_binary_op(ctx, op);
+
+    if (c4m_type_is_box(t)) {
+        t = c4m_type_unbox(t);
+    }
+
+    if (c4m_type_is_int_type(t)) {
+        gen_int_binary_op(ctx, op, c4m_type_is_signed(t));
+        return;
+    }
+
+    if (c4m_type_is_bool(t)) {
+        gen_int_binary_op(ctx, op, false);
+        return;
+    }
+
+    if (t->typeid == C4M_T_F64) {
+        gen_float_binary_op(ctx, op);
+        return;
+    }
 }
 
 static inline void
@@ -1452,12 +1481,18 @@ static inline void
 gen_box_if_value_type(gen_ctx *ctx, int pos)
 {
     c4m_pnode_t *pnode = get_pnode(ctx->cur_node->children[pos]);
+    c4m_type_t  *t     = pnode->type;
 
-    if (c4m_type_is_value_type(pnode->type)) {
-        c4m_type_t *t = c4m_resolve_and_unbox(pnode->type);
-
-        emit(ctx, C4M_ZBox, c4m_kw("type", c4m_ka(t)));
+    if (c4m_type_is_box(t)) {
+        t = c4m_type_unbox(t);
     }
+    else {
+        if (!c4m_type_is_value_type(t)) {
+            return;
+        }
+    }
+
+    emit(ctx, C4M_ZBox, c4m_kw("type", c4m_ka(t)));
 }
 
 static inline void
@@ -1524,7 +1559,7 @@ gen_literal(gen_ctx *ctx)
     }
 
     // We need to convert each set of items into a tuple object.
-    c4m_type_t *ttype = c4m_tspec_tuple_from_xlist(li->type->details->items);
+    c4m_type_t *ttype = c4m_type_tuple_from_xlist(li->type->details->items);
 
     for (int i = 0; i < n->num_kids;) {
         for (int j = 0; j < li->num_items; j++) {
@@ -1567,13 +1602,13 @@ gen_assign(gen_ctx *ctx)
 }
 
 #define BINOP_ASSIGN_GEN(ctx, op, t)                            \
-    if (c4m_tspec_get_base(t) == C4M_DT_KIND_primitive) {       \
-        if (c4m_tspec_is_int_type(t)) {                         \
-            gen_int_binary_op(ctx, op, c4m_tspec_is_signed(t)); \
+    if (c4m_type_get_base(t) == C4M_DT_KIND_primitive) {       \
+        if (c4m_type_is_int_type(t)) {                         \
+            gen_int_binary_op(ctx, op, c4m_type_is_signed(t)); \
         }                                                       \
                                                                 \
         else {                                                  \
-            if (c4m_tspec_is_bool(t)) {                         \
+            if (c4m_type_is_bool(t)) {                         \
                 gen_int_binary_op(ctx, op, false);              \
             }                                                   \
             else {                                              \
@@ -1591,7 +1626,7 @@ static inline void
 gen_binary_assign(gen_ctx *ctx)
 {
     c4m_operator_t op = (c4m_operator_t)ctx->cur_pnode->extra_info;
-    c4m_type_t    *t  = c4m_global_resolve_type(ctx->cur_pnode->type);
+    c4m_type_t    *t  = c4m_type_resolve(ctx->cur_pnode->type);
 
     ctx->assign_method = assign_to_mem_slot;
     ctx->lvalue        = true;
@@ -1702,7 +1737,7 @@ gen_unary_op(gen_ctx *ctx)
 
     if (n->extra_info != NULL) {
         gen_kids(ctx);
-        emit(ctx, C4M_ZNot, c4m_kw("type", c4m_ka(c4m_tspec_bool())));
+        emit(ctx, C4M_ZNot, c4m_kw("type", c4m_ka(c4m_type_bool())));
     }
     else {
         gen_load_immediate(ctx, -1);
@@ -2020,7 +2055,7 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
     ctx->cur_module          = module;
     ctx->fctx->module_object = module;
     ctx->cur_node            = ctx->fctx->parse_tree;
-    module->instructions     = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    module->instructions     = c4m_new(c4m_type_xlist(c4m_type_ref()));
     ctx->instructions        = module->instructions;
     module->module_id        = ctx->fctx->local_module_id;
     module->module_hash      = ctx->fctx->module_id;
@@ -2098,7 +2133,7 @@ c4m_internal_codegen(c4m_compile_ctx *cctx, c4m_vm_t *c4m_new_vm)
 {
     gen_ctx ctx = {
         .cctx             = cctx,
-        .call_backpatches = c4m_new(c4m_tspec_xlist(c4m_tspec_ref())),
+        .call_backpatches = c4m_new(c4m_type_xlist(c4m_type_ref())),
         0,
     };
 

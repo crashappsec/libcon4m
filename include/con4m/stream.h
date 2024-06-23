@@ -80,20 +80,20 @@ c4m_stream_puti(c4m_stream_t *s, int64_t n)
 static inline c4m_stream_t *
 c4m_string_instream(c4m_str_t *instring)
 {
-    return c4m_new(c4m_tspec_stream(), c4m_kw("instring", c4m_ka(instring)));
+    return c4m_new(c4m_type_stream(), c4m_kw("instring", c4m_ka(instring)));
 }
 
 static inline c4m_stream_t *
 c4m_buffer_instream(c4m_buf_t *inbuf)
 {
-    return c4m_new(c4m_tspec_stream(),
+    return c4m_new(c4m_type_stream(),
                    c4m_kw("buffer", c4m_ka(inbuf), "read", c4m_ka(true)));
 }
 
 static inline c4m_stream_t *
 c4m_buffer_outstream(c4m_buf_t *outbuf, bool append)
 {
-    return c4m_new(c4m_tspec_stream(),
+    return c4m_new(c4m_type_stream(),
                    c4m_kw("buffer",
                           c4m_ka(outbuf),
                           "read",
@@ -107,7 +107,7 @@ c4m_buffer_outstream(c4m_buf_t *outbuf, bool append)
 static inline c4m_stream_t *
 buffer_iostream(c4m_buf_t *buf)
 {
-    return c4m_new(c4m_tspec_stream(),
+    return c4m_new(c4m_type_stream(),
                    c4m_kw("buffer",
                           c4m_ka(buf),
                           "read",
@@ -119,7 +119,7 @@ buffer_iostream(c4m_buf_t *buf)
 static inline c4m_stream_t *
 c4m_file_instream(c4m_str_t *filename, c4m_builtin_t output_type)
 {
-    return c4m_new(c4m_tspec_stream(),
+    return c4m_new(c4m_type_stream(),
                    c4m_kw("filename",
                           c4m_ka(filename),
                           "out_type",
@@ -129,7 +129,7 @@ c4m_file_instream(c4m_str_t *filename, c4m_builtin_t output_type)
 static inline c4m_stream_t *
 c4m_file_outstream(c4m_str_t *filename, bool no_create, bool append)
 {
-    return c4m_new(c4m_tspec_stream(),
+    return c4m_new(c4m_type_stream(),
                    c4m_kw("filename",
                           c4m_ka(filename),
                           "read",
@@ -145,7 +145,7 @@ c4m_file_outstream(c4m_str_t *filename, bool no_create, bool append)
 static inline c4m_stream_t *
 c4m_file_iostream(c4m_str_t *filename, bool no_create)
 {
-    return c4m_new(c4m_tspec_stream(),
+    return c4m_new(c4m_type_stream(),
                    c4m_kw("filename",
                           c4m_ka(filename),
                           "read",

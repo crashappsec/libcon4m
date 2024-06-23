@@ -122,8 +122,10 @@ typedef struct {
 // - a lit modifier at the end; if there is, it copies it into the token.
 // - LEX_ERROR adds an error to the broader context object, and longjumps.
 #define TOK(kind) output_token(state, kind)
-#define LITERAL_TOK(kind)      \
-    output_token(state, kind); \
+#define LITERAL_TOK(kind, amt)           \
+    output_token(state, kind);           \
+    state->last_token->adjustment = amt; \
+    capture_lit_text(state->last_token); \
     handle_lit_mod(state)
 #define LEX_ERROR(code)          \
     fill_lex_error(state, code); \
@@ -243,12 +245,25 @@ handle_lit_mod(lex_state_t *state)
 
     c4m_token_t *tok      = state->last_token;
     tok->literal_modifier = c4m_to_utf8(
-        c4m_new(c4m_tspec_utf32(),
+        c4m_new(c4m_type_utf32(),
                 c4m_kw("length",
                        c4m_ka(n),
                        "codepoints",
                        c4m_ka(lm_start))));
     state->start = state->pos;
+}
+
+static inline void
+capture_lit_text(c4m_token_t *tok)
+{
+    int64_t      diff = tok->end_ptr - tok->start_ptr - 2 * tok->adjustment;
+    c4m_utf32_t *u32  = c4m_new(c4m_type_utf32(),
+                               c4m_kw("length",
+                                      c4m_ka(diff),
+                                      "codepoints",
+                                      tok->start_ptr + tok->adjustment));
+
+    tok->text = c4m_to_utf8(u32);
 }
 
 static inline void
@@ -283,7 +298,7 @@ scan_unquoted_literal(lex_state_t *state)
             at_new_line(state);
             // fallthrough.
         case 0:
-            LITERAL_TOK(c4m_tt_unquoted_lit);
+            LITERAL_TOK(c4m_tt_unquoted_lit, 0);
             return;
         }
     }
@@ -363,7 +378,7 @@ scan_int_or_float_literal(lex_state_t *state)
         break;
     }
 
-    c4m_utf32_t *u32 = c4m_new(c4m_tspec_utf32(),
+    c4m_utf32_t *u32 = c4m_new(c4m_type_utf32(),
                                c4m_kw("length",
                                       c4m_ka(ix),
                                       "codepoints",
@@ -389,7 +404,7 @@ scan_int_or_float_literal(lex_state_t *state)
         int float_strlen = (int)(endp - u8->data);
         if (float_strlen > float_ix) {
             state->pos = state->start + float_strlen;
-            LITERAL_TOK(c4m_tt_float_lit);
+            LITERAL_TOK(c4m_tt_float_lit, 0);
             state->last_token->literal_value = (void *)*(uint64_t *)&value;
             return;
         }
@@ -430,7 +445,7 @@ scan_int_or_float_literal(lex_state_t *state)
 finished_int:;
     uint64_t n = (uint64_t)val;
     state->pos = state->start + i;
-    LITERAL_TOK(c4m_tt_int_lit);
+    LITERAL_TOK(c4m_tt_int_lit, 0);
     state->last_token->literal_value = (void *)n;
     return;
 }
@@ -465,7 +480,7 @@ scan_hex_literal(lex_state_t *state)
             advance(state);
             continue;
         default:
-            LITERAL_TOK(c4m_tt_hex_lit);
+            LITERAL_TOK(c4m_tt_hex_lit, 0);
             return;
         }
     }
@@ -514,8 +529,7 @@ scan_tristring(lex_state_t *state)
             break;
         case '"':
             if (++quote_count == 3) {
-                LITERAL_TOK(c4m_tt_string_lit);
-                state->last_token->adjustment = 3;
+                LITERAL_TOK(c4m_tt_string_lit, 3);
                 return;
             }
             continue; // breaking would reset quote count.
@@ -569,8 +583,7 @@ scan_string_literal(lex_state_t *state)
             continue;
         case '"':
 finish_single_quote:
-            LITERAL_TOK(c4m_tt_string_lit);
-            state->last_token->adjustment = 1;
+            LITERAL_TOK(c4m_tt_string_lit, 1);
             return;
         default:
             continue;
@@ -634,8 +647,7 @@ scan_char_literal(lex_state_t *state)
     }
 
 finish_up:
-    LITERAL_TOK(c4m_tt_char_lit);
-    state->last_token->adjustment = 1;
+    LITERAL_TOK(c4m_tt_char_lit, 1);
     return;
 }
 
@@ -644,7 +656,7 @@ static c4m_dict_t *keywords = NULL;
 static inline void
 add_keyword(char *keyword, c4m_token_kind_t kind)
 {
-    c4m_utf8_t *s = c4m_new(c4m_tspec_utf8(),
+    c4m_utf8_t *s = c4m_new(c4m_type_utf8(),
                             c4m_kw("cstring", c4m_ka(keyword)));
     hatrack_dict_add(keywords, s, (void *)(int64_t)kind);
 }
@@ -656,7 +668,7 @@ init_keywords()
         return;
     }
 
-    keywords = c4m_new(c4m_tspec_dict(c4m_tspec_utf32(), c4m_tspec_i64()));
+    keywords = c4m_new(c4m_type_dict(c4m_type_utf32(), c4m_type_i64()));
 
     add_keyword("True", c4m_tt_true);
     add_keyword("true", c4m_tt_true);
@@ -724,7 +736,7 @@ scan_id_or_keyword(lex_state_t *state)
     }
 
     c4m_utf32_t *as_u32 = c4m_new(
-        c4m_tspec_utf32(),
+        c4m_type_utf32(),
         c4m_kw("codepoints",
                c4m_ka(state->start),
                "length",
@@ -743,11 +755,11 @@ scan_id_or_keyword(lex_state_t *state)
     switch (r) {
     case c4m_tt_true:
     case c4m_tt_false:
-        LITERAL_TOK(r);
+        LITERAL_TOK(r, 0);
         return;
     case c4m_tt_float_lit: {
         c4m_utf32_t *u32 = c4m_new(
-            c4m_tspec_utf32(),
+            c4m_type_utf32(),
             c4m_kw("length",
                    c4m_ka((int64_t)(state->pos - state->start)),
                    "codepoints",
@@ -756,7 +768,7 @@ scan_id_or_keyword(lex_state_t *state)
         c4m_utf8_t *u8    = c4m_to_utf8(u32);
         double      value = strtod((char *)u8->data, NULL);
 
-        LITERAL_TOK(r);
+        LITERAL_TOK(r, 0);
         state->last_token->literal_value = *(void **)&value;
         return;
     }
@@ -1015,21 +1027,21 @@ line_comment:
             skip_optional_newline(state);
             continue;
         case '}':
-            LITERAL_TOK(c4m_tt_rbrace);
+            LITERAL_TOK(c4m_tt_rbrace, 0);
             continue;
         case '[':
             TOK(c4m_tt_lbracket);
             skip_optional_newline(state);
             continue;
         case ']':
-            LITERAL_TOK(c4m_tt_rbracket);
+            LITERAL_TOK(c4m_tt_rbracket, 0);
             continue;
         case '(':
             TOK(c4m_tt_lparen);
             skip_optional_newline(state);
             continue;
         case ')':
-            LITERAL_TOK(c4m_tt_rparen);
+            LITERAL_TOK(c4m_tt_rparen, 0);
             continue;
         case '&':
             if (peek(state) == '=') {
@@ -1140,7 +1152,7 @@ c4m_lex(c4m_file_compile_ctx *ctx, c4m_stream_t *stream)
 
     int len             = c4m_str_codepoint_len(utf32);
     ctx->raw            = utf32;
-    ctx->tokens         = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    ctx->tokens         = c4m_new(c4m_type_xlist(c4m_type_ref()));
     lex_info.start      = (c4m_codepoint_t *)utf32->data;
     lex_info.pos        = (c4m_codepoint_t *)utf32->data;
     lex_info.line_start = (c4m_codepoint_t *)utf32->data;
@@ -1174,7 +1186,7 @@ c4m_format_one_token(c4m_token_t *tok, c4m_str_t *prefix)
     int32_t     *offset  = c4m_box_i32(tok->line_offset);
     c4m_utf32_t *val;
 
-    val = c4m_new(c4m_tspec_utf32(),
+    val = c4m_new(c4m_type_utf32(),
                   c4m_kw("length",
                          c4m_ka((int64_t)(tok->end_ptr - tok->start_ptr)),
                          "codepoints",
@@ -1195,7 +1207,7 @@ c4m_format_one_token(c4m_token_t *tok, c4m_str_t *prefix)
 c4m_grid_t *
 c4m_format_tokens(c4m_file_compile_ctx *ctx)
 {
-    c4m_grid_t *grid = c4m_new(c4m_tspec_grid(),
+    c4m_grid_t *grid = c4m_new(c4m_type_grid(),
                                c4m_kw("start_cols",
                                       c4m_ka(5),
                                       "header_rows",
@@ -1226,7 +1238,7 @@ c4m_format_tokens(c4m_file_compile_ctx *ctx)
         if (tt_info[info_ix].show_contents) {
             c4m_xlist_append(
                 row,
-                c4m_new(c4m_tspec_utf32(),
+                c4m_new(c4m_type_utf32(),
                         c4m_kw("length",
                                c4m_ka((int64_t)(tok->end_ptr - tok->start_ptr)),
                                "codepoints",
@@ -1244,4 +1256,18 @@ c4m_format_tokens(c4m_file_compile_ctx *ctx)
     c4m_set_column_style(grid, 2, "snap");
     c4m_set_column_style(grid, 3, "snap");
     return grid;
+}
+
+c4m_utf8_t *
+c4m_token_raw_content(c4m_token_t *tok)
+{
+    if (!tok) {
+        return NULL;
+    }
+
+    if (!tok->text) {
+        capture_lit_text(tok);
+    }
+
+    return tok->text;
 }

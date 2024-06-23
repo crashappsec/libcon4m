@@ -89,23 +89,34 @@ static hatrack_free_t    hatrack_free_fn    = hatrack_default_free;
 static void             *hatrack_malloc_arg = NULL;
 
 void
-hatrack_setmallocfns(hatrack_malloc_t  mallocfn,
-                     hatrack_malloc_t  zallocfn,
-                     hatrack_realloc_t reallocfn,
-                     hatrack_free_t    freefn,
-                     void             *arg)
+hatrack_setmallocfns(hatrack_mem_manager_t *info)
 {
-    hatrack_malloc_fn  = mallocfn != NULL ? mallocfn : hatrack_default_malloc;
-    hatrack_zalloc_fn  = zallocfn != NULL ? zallocfn : hatrack_default_zalloc;
-    hatrack_realloc_fn = reallocfn != NULL ? reallocfn : hatrack_default_realloc;
-    hatrack_free_fn    = freefn != NULL ? freefn : hatrack_default_free;
-    hatrack_malloc_arg = arg;
+    hatrack_malloc_fn  = info->mallocfn;
+    hatrack_zalloc_fn  = info->zallocfn;
+    hatrack_realloc_fn = info->reallocfn;
+    hatrack_free_fn    = info->freefn;
+    hatrack_malloc_arg = info->arg;
+
+    if (hatrack_malloc_fn == NULL) {
+        hatrack_malloc_fn = hatrack_default_malloc;
+    }
+    if (hatrack_zalloc_fn == NULL) {
+        hatrack_zalloc_fn = hatrack_default_zalloc;
+    }
+    if (hatrack_realloc_fn == NULL) {
+        hatrack_realloc_fn = hatrack_default_realloc;
+    }
+    if (hatrack_free_fn == NULL) {
+        hatrack_free_fn = hatrack_default_free;
+    }
 }
 
 void *
 hatrack_malloc(size_t size)
 {
-    return hatrack_malloc_fn(size, hatrack_malloc_arg);
+    void *res = hatrack_malloc_fn(size, hatrack_malloc_arg);
+
+    return res;
 }
 
 void *

@@ -37,6 +37,7 @@ initialize_container_bitfields()
         c4m_gc_register_root(&set_types, 1);
         c4m_gc_register_root(&tuple_types, 1);
         c4m_gc_register_root(&all_container_types, 1);
+        c4m_gc_register_root(&mod_map, ST_MAX);
     }
 }
 
@@ -127,7 +128,7 @@ void
 c4m_init_literal_handling()
 {
     if (mod_map[0] == NULL) {
-        c4m_type_t *ts = c4m_tspec_dict(c4m_tspec_utf8(), c4m_tspec_int());
+        c4m_type_t *ts = c4m_type_dict(c4m_type_utf8(), c4m_type_int());
 
         for (int i = 0; i < ST_MAX; i++) {
             mod_map[i] = c4m_new(ts);
@@ -245,7 +246,7 @@ c4m_parse_simple_lit(c4m_token_t *tok, c4m_lit_syntax_t *kptr, c4m_utf8_t **lm)
         break;
     case c4m_tt_nil:
         // TODO-- one shared null value.
-        tok->literal_value = c4m_new(c4m_tspec_void());
+        tok->literal_value = c4m_new(c4m_type_void());
         return err;
     default:
         C4M_CRAISE("Token is not a simple literal");

@@ -51,6 +51,7 @@
 #include "hatrack/stack.h"
 #include "hatrack/hatring.h"
 #include "hatrack/logring.h"
+#include "hatrack/zeroarray.h"
 
 // These aren't fully finished.
 #ifdef HATRACK_UNFINISHED_ALGORITHMS

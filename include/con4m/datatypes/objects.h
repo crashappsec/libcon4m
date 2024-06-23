@@ -13,6 +13,7 @@ typedef enum {
     C4M_DT_KIND_dict,
     C4M_DT_KIND_tuple,
     C4M_DT_KIND_func,
+    C4M_DT_KIND_box,
     C4M_DT_KIND_maybe,
     C4M_DT_KIND_object,
     C4M_DT_KIND_oneof,
@@ -176,7 +177,6 @@ typedef enum : int64_t {
     C4M_T_RENDER_STYLE,
     C4M_T_SHA,
     C4M_T_EXCEPTION,
-    C4M_T_TYPE_ENV,
     C4M_T_TREE,
     C4M_T_FUNCDEF,
     C4M_T_REF,     // A managed pointer.

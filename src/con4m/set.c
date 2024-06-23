@@ -8,8 +8,8 @@ c4m_set_init(c4m_set_t *set, va_list args)
     c4m_dt_info_t *info;
 
     if (stype != NULL) {
-        stype   = c4m_xlist_get(c4m_tspec_get_parameters(stype), 0, NULL);
-        info    = c4m_tspec_get_data_type_info(stype);
+        stype   = c4m_xlist_get(c4m_type_get_parameters(stype), 0, NULL);
+        info    = c4m_type_get_data_type_info(stype);
         hash_fn = info->hash_fn;
     }
     else {
@@ -131,8 +131,8 @@ c4m_set_to_xlist(c4m_set_t *s)
         return NULL;
     }
 
-    c4m_type_t  *item_type = c4m_tspec_get_param(c4m_get_my_type(s), 0);
-    c4m_xlist_t *result    = c4m_new(c4m_tspec_xlist(item_type));
+    c4m_type_t  *item_type = c4m_type_get_param(c4m_get_my_type(s), 0);
+    c4m_xlist_t *result    = c4m_new(c4m_type_xlist(item_type));
     uint64_t     count     = 0;
     void       **items     = (void **)hatrack_set_items_sort(s, &count);
 

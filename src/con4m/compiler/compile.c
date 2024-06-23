@@ -12,7 +12,7 @@ init_con4m_path()
     c4m_gc_register_root(&con4m_path, 1);
     c4m_gc_register_root(&con4m_extensions, 1);
 
-    con4m_extensions = c4m_new(c4m_tspec_set(c4m_tspec_utf8()));
+    con4m_extensions = c4m_new(c4m_type_set(c4m_type_utf8()));
 
     c4m_set_add(con4m_extensions, c4m_new_utf8("c4m"));
 
@@ -36,7 +36,7 @@ init_con4m_path()
 
     parts = c4m_str_xsplit(extra, c4m_new_utf8(":"));
 
-    c4m_xlist_t *new_path = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+    c4m_xlist_t *new_path = c4m_new(c4m_type_xlist(c4m_type_utf8()));
 
     for (int i = 0; i < c4m_xlist_len(parts); i++) {
         c4m_utf8_t *s = c4m_to_utf8(c4m_xlist_get(parts, i, NULL));
@@ -53,7 +53,7 @@ init_con4m_path()
 void
 _c4m_set_package_search_path(c4m_utf8_t *dir, ...)
 {
-    con4m_path = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+    con4m_path = c4m_new(c4m_type_xlist(c4m_type_utf8()));
 
     va_list args;
 
@@ -232,7 +232,7 @@ get_file_compile_ctx(c4m_compile_ctx *ctx,
     }
 
     result->package   = package;
-    result->errors    = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    result->errors    = c4m_new(c4m_type_xlist(c4m_type_ref()));
     result->module_id = key;
     result->module    = module;
 
@@ -517,7 +517,7 @@ c4m_init_from_use(c4m_compile_ctx *ctx,
     }
 
     if (path != NULL) {
-        c4m_xlist_t *parts = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+        c4m_xlist_t *parts = c4m_new(c4m_type_xlist(c4m_type_utf8()));
         provided_path      = path;
 
         c4m_xlist_append(parts, c4m_to_utf8(path));
@@ -570,20 +570,20 @@ c4m_new_compile_context(c4m_str_t *input)
 {
     c4m_compile_ctx *result = c4m_gc_alloc(c4m_compile_ctx);
 
-    result->module_cache  = c4m_new(c4m_tspec_dict(c4m_tspec_u64(),
-                                                  c4m_tspec_ref()));
+    result->module_cache  = c4m_new(c4m_type_dict(c4m_type_u64(),
+                                                  c4m_type_ref()));
     result->final_attrs   = c4m_new_scope(NULL, C4M_SCOPE_GLOBAL);
     result->final_globals = c4m_new_scope(NULL, C4M_SCOPE_ATTRIBUTES);
     result->final_spec    = c4m_new_spec();
-    result->backlog       = c4m_new(c4m_tspec_set(c4m_tspec_ref()));
-    result->processed     = c4m_new(c4m_tspec_set(c4m_tspec_ref()));
+    result->backlog       = c4m_new(c4m_type_set(c4m_type_ref()));
+    result->processed     = c4m_new(c4m_type_set(c4m_type_ref()));
     result->const_data    = c4m_buffer_empty();
     result->const_memos   = c4m_alloc_marshal_memos();
     result->const_memoid  = 1;
-    result->instance_map  = c4m_new(c4m_tspec_dict(c4m_tspec_ref(),
-                                                  c4m_tspec_i64()));
-    result->str_map       = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
-                                             c4m_tspec_i64()));
+    result->instance_map  = c4m_new(c4m_type_dict(c4m_type_ref(),
+                                                  c4m_type_i64()));
+    result->str_map       = c4m_new(c4m_type_dict(c4m_type_utf8(),
+                                             c4m_type_i64()));
     result->const_stream  = c4m_buffer_outstream(result->const_data, true);
 
     if (input != NULL) {
@@ -684,8 +684,8 @@ c4m_str_to_type(c4m_utf8_t *str)
     c4m_stream_close(stream);
 
     if (ctx.parse_tree != NULL) {
-        c4m_dict_t *type_ctx = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
-                                                      c4m_tspec_ref()));
+        c4m_dict_t *type_ctx = c4m_new(c4m_type_dict(c4m_type_utf8(),
+                                                      c4m_type_ref()));
 
         result = c4m_node_to_type(&ctx, ctx.parse_tree, type_ctx);
     }
@@ -839,11 +839,11 @@ build_topological_ordering(c4m_compile_ctx *cctx)
 
     tsearch_ctx search_state = {
         .cur      = cctx->entry_point,
-        .visiting = c4m_new(c4m_tspec_xlist(c4m_tspec_ref())),
+        .visiting = c4m_new(c4m_type_xlist(c4m_type_ref())),
         .cctx     = cctx,
     };
 
-    cctx->module_ordering = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    cctx->module_ordering = c4m_new(c4m_type_xlist(c4m_type_ref()));
 
     topological_order_process(&search_state);
 }
@@ -969,7 +969,7 @@ merge_one_confspec(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
     if (root_adds->allowed_sections != NULL) {
         if (true_root->allowed_sections == NULL) {
             true_root->allowed_sections = c4m_new(
-                c4m_tspec_set(c4m_tspec_ref()));
+                c4m_type_set(c4m_type_ref()));
         }
 
         uint64_t num_allows;
@@ -988,7 +988,7 @@ merge_one_confspec(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
     if (root_adds->required_sections != NULL) {
         if (true_root->required_sections == NULL) {
             true_root->required_sections = c4m_new(
-                c4m_tspec_set(c4m_tspec_ref()));
+                c4m_type_set(c4m_type_ref()));
         }
 
         uint64_t num_reqs;

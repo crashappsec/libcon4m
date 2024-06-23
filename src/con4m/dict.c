@@ -10,9 +10,9 @@ c4m_dict_init(c4m_dict_t *dict, va_list args)
     c4m_type_t    *c4m_dict_type = c4m_get_my_type(dict);
 
     if (c4m_dict_type != NULL) {
-        type_params = c4m_tspec_get_parameters(c4m_dict_type);
+        type_params = c4m_type_get_parameters(c4m_dict_type);
         key_type    = c4m_xlist_get(type_params, 0, NULL);
-        info        = c4m_tspec_get_data_type_info(key_type);
+        info        = c4m_type_get_data_type_info(key_type);
 
         hash_fn = info->hash_fn;
     }
@@ -50,12 +50,12 @@ c4m_dict_marshal(c4m_dict_t   *d,
         C4M_CRAISE("Cannot marshal untyped dictionaries.");
     }
 
-    c4m_xlist_t         *type_params = c4m_tspec_get_parameters(c4m_dict_type);
+    c4m_xlist_t         *type_params = c4m_type_get_parameters(c4m_dict_type);
     c4m_type_t          *key_type    = c4m_xlist_get(type_params, 0, NULL);
     c4m_type_t          *val_type    = c4m_xlist_get(type_params, 1, NULL);
     hatrack_dict_item_t *view        = hatrack_dict_items_sort(d, &length);
-    c4m_dt_info_t       *kinfo       = c4m_tspec_get_data_type_info(key_type);
-    c4m_dt_info_t       *vinfo       = c4m_tspec_get_data_type_info(val_type);
+    c4m_dt_info_t       *kinfo       = c4m_type_get_data_type_info(key_type);
+    c4m_dt_info_t       *vinfo       = c4m_type_get_data_type_info(val_type);
     bool                 key_by_val  = kinfo->by_value;
     bool                 val_by_val  = vinfo->by_value;
 
@@ -86,11 +86,11 @@ c4m_dict_unmarshal(c4m_dict_t *d, c4m_stream_t *s, c4m_dict_t *memos)
 {
     uint32_t       length        = c4m_unmarshal_u32(s);
     c4m_type_t    *c4m_dict_type = c4m_get_my_type(d);
-    c4m_xlist_t   *type_params   = c4m_tspec_get_parameters(c4m_dict_type);
+    c4m_xlist_t   *type_params   = c4m_type_get_parameters(c4m_dict_type);
     c4m_type_t    *key_type      = c4m_xlist_get(type_params, 0, NULL);
     c4m_type_t    *val_type      = c4m_xlist_get(type_params, 1, NULL);
-    c4m_dt_info_t *kinfo         = c4m_tspec_get_data_type_info(key_type);
-    c4m_dt_info_t *vinfo         = c4m_tspec_get_data_type_info(val_type);
+    c4m_dt_info_t *kinfo         = c4m_type_get_data_type_info(key_type);
+    c4m_dt_info_t *vinfo         = c4m_type_get_data_type_info(val_type);
     bool           key_by_val    = kinfo->by_value;
     bool           val_by_val    = vinfo->by_value;
 
@@ -136,14 +136,14 @@ dict_repr(c4m_dict_t *dict)
 {
     uint64_t             view_len;
     c4m_type_t          *dict_type   = c4m_get_my_type(dict);
-    c4m_xlist_t         *type_params = c4m_tspec_get_parameters(dict_type);
+    c4m_xlist_t         *type_params = c4m_type_get_parameters(dict_type);
     c4m_type_t          *key_type    = c4m_xlist_get(type_params, 0, NULL);
     c4m_type_t          *val_type    = c4m_xlist_get(type_params, 1, NULL);
     hatrack_dict_item_t *view        = hatrack_dict_items_sort(dict, &view_len);
 
-    c4m_xlist_t *items    = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()),
+    c4m_xlist_t *items    = c4m_new(c4m_type_xlist(c4m_type_utf32()),
                                  c4m_kw("length", c4m_ka(view_len)));
-    c4m_xlist_t *one_item = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
+    c4m_xlist_t *one_item = c4m_new(c4m_type_xlist(c4m_type_utf32()));
     c4m_utf8_t  *colon    = c4m_get_colon_const();
 
     for (uint64_t i = 0; i < view_len; i++) {
@@ -162,7 +162,7 @@ dict_repr(c4m_dict_t *dict)
 static bool
 dict_can_coerce_to(c4m_type_t *my_type, c4m_type_t *dst_type)
 {
-    return c4m_tspecs_are_compat(my_type, dst_type);
+    return c4m_types_are_compat(my_type, dst_type);
 }
 
 static c4m_dict_t *
@@ -172,10 +172,10 @@ dict_coerce_to(c4m_dict_t *dict, c4m_type_t *dst_type)
     hatrack_dict_item_t *view     = hatrack_dict_items_sort(dict, &len);
     c4m_dict_t          *res      = c4m_new(dst_type);
     c4m_type_t          *src_type = c4m_get_my_type(dict);
-    c4m_type_t          *kt_src   = c4m_tspec_get_param(src_type, 0);
-    c4m_type_t          *kt_dst   = c4m_tspec_get_param(dst_type, 0);
-    c4m_type_t          *vt_src   = c4m_tspec_get_param(src_type, 1);
-    c4m_type_t          *vt_dst   = c4m_tspec_get_param(dst_type, 1);
+    c4m_type_t          *kt_src   = c4m_type_get_param(src_type, 0);
+    c4m_type_t          *kt_dst   = c4m_type_get_param(dst_type, 0);
+    c4m_type_t          *vt_src   = c4m_type_get_param(src_type, 1);
+    c4m_type_t          *vt_dst   = c4m_type_get_param(dst_type, 1);
 
     for (uint64_t i = 0; i < len; i++) {
         void *key_copy = c4m_coerce(view[i].key, kt_src, kt_dst);

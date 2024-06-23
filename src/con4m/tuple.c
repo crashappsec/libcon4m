@@ -8,7 +8,7 @@ tuple_init(c4m_tuple_t *tup, va_list args)
     c4m_karg_va_init(args);
     c4m_kw_ptr("contents", ptr);
 
-    uint64_t n = c4m_xlist_len(c4m_tspec_get_parameters(c4m_get_my_type(tup)));
+    uint64_t n = c4m_xlist_len(c4m_type_get_parameters(c4m_get_my_type(tup)));
 
     tup->num_items = n;
 
@@ -38,11 +38,11 @@ tuple_marshal(c4m_tuple_t  *tup,
               c4m_dict_t   *memos,
               int64_t      *mid)
 {
-    c4m_xlist_t *tparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
+    c4m_xlist_t *tparams = c4m_type_get_parameters(c4m_get_my_type(tup));
 
     for (int i = 0; i < tup->num_items; i++) {
         c4m_type_t    *param   = c4m_xlist_get(tparams, i, NULL);
-        c4m_dt_info_t *dt_info = c4m_tspec_get_data_type_info(param);
+        c4m_dt_info_t *dt_info = c4m_type_get_data_type_info(param);
 
         if (dt_info->by_value) {
             c4m_marshal_u64((uint64_t)tup->items[i], s);
@@ -56,13 +56,13 @@ tuple_marshal(c4m_tuple_t  *tup,
 static void
 tuple_unmarshal(c4m_tuple_t *tup, c4m_stream_t *s, c4m_dict_t *memos)
 {
-    c4m_xlist_t *tparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
+    c4m_xlist_t *tparams = c4m_type_get_parameters(c4m_get_my_type(tup));
 
     tup->num_items = c4m_xlist_len(tparams);
 
     for (int i = 0; i < tup->num_items; i++) {
         c4m_type_t    *param   = c4m_xlist_get(tparams, i, NULL);
-        c4m_dt_info_t *dt_info = c4m_tspec_get_data_type_info(param);
+        c4m_dt_info_t *dt_info = c4m_type_get_data_type_info(param);
 
         if (dt_info->by_value) {
             tup->items[i] = (void *)c4m_unmarshal_u64(s);
@@ -82,9 +82,9 @@ c4m_tuple_len(c4m_tuple_t *tup)
 static c4m_str_t *
 tuple_repr(c4m_tuple_t *tup)
 {
-    c4m_xlist_t *tparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
+    c4m_xlist_t *tparams = c4m_type_get_parameters(c4m_get_my_type(tup));
     int          len     = tup->num_items;
-    c4m_xlist_t *items   = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
+    c4m_xlist_t *items   = c4m_new(c4m_type_xlist(c4m_type_utf32()));
 
     for (int i = 0; i < len; i++) {
         c4m_type_t *one_type = c4m_xlist_get(tparams, i, NULL);
@@ -104,14 +104,14 @@ tuple_repr(c4m_tuple_t *tup)
 static bool
 tuple_can_coerce(c4m_type_t *src, c4m_type_t *dst)
 {
-    return c4m_tspecs_are_compat(src, dst);
+    return c4m_types_are_compat(src, dst);
 }
 
 static c4m_tuple_t *
 tuple_coerce(c4m_tuple_t *tup, c4m_type_t *dst)
 {
-    c4m_xlist_t *srcparams = c4m_tspec_get_parameters(c4m_get_my_type(tup));
-    c4m_xlist_t *dstparams = c4m_tspec_get_parameters(dst);
+    c4m_xlist_t *srcparams = c4m_type_get_parameters(c4m_get_my_type(tup));
+    c4m_xlist_t *dstparams = c4m_type_get_parameters(dst);
     int          len       = tup->num_items;
     c4m_tuple_t *res       = c4m_new(dst);
 

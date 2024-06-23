@@ -19,8 +19,8 @@ c4m_new_scope(c4m_scope_t *parent, c4m_scope_kind kind)
 {
     c4m_scope_t *result = c4m_gc_alloc(c4m_scope_t);
     result->parent      = parent;
-    result->symbols     = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
-                                             c4m_tspec_ref()));
+    result->symbols     = c4m_new(c4m_type_dict(c4m_type_utf8(),
+                                             c4m_type_ref()));
     result->kind        = kind;
 
     return result;
@@ -126,10 +126,10 @@ c4m_declare_symbol(c4m_file_compile_ctx *ctx,
     entry->path              = c4m_to_utf8(ctx->path);
     entry->name              = name;
     entry->declaration_node  = node;
-    entry->type              = c4m_tspec_typevar();
+    entry->type              = c4m_new_typevar();
     entry->kind              = kind;
     entry->my_scope          = scope;
-    entry->sym_defs          = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    entry->sym_defs          = c4m_new(c4m_type_xlist(c4m_type_ref()));
 
     if (hatrack_dict_add(scope->symbols, name, entry)) {
         if (success != NULL) {
@@ -174,7 +174,7 @@ c4m_add_inferred_symbol(c4m_file_compile_ctx *ctx,
 {
     c4m_scope_entry_t *entry = c4m_gc_alloc(c4m_scope_entry_t);
     entry->name              = name;
-    entry->type              = c4m_tspec_typevar();
+    entry->type              = c4m_new_typevar();
     entry->kind              = sk_variable;
     entry->my_scope          = scope;
 
@@ -198,7 +198,7 @@ c4m_add_or_replace_symbol(c4m_file_compile_ctx *ctx,
 {
     c4m_scope_entry_t *entry = c4m_gc_alloc(c4m_scope_entry_t);
     entry->name              = name;
-    entry->type              = c4m_tspec_typevar();
+    entry->type              = c4m_new_typevar();
     entry->kind              = sk_variable;
     entry->my_scope          = scope;
 
@@ -316,7 +316,7 @@ c4m_merge_symbols(c4m_file_compile_ctx *ctx1,
         return false;
 
     case sk_variable:
-        if (!c4m_tspec_is_error(sym1->type)) {
+        if (!c4m_type_is_error(sym1->type)) {
             type_cmp_exact_match(ctx1, sym1, sym2);
             if (!sym2->type_declaration_node) {
                 if (c4m_type_is_declared(sym2)) {
@@ -367,7 +367,7 @@ c4m_format_scope(c4m_scope_t *scope)
 {
     uint64_t              len;
     hatrack_dict_value_t *values;
-    c4m_grid_t           *grid       = c4m_new(c4m_tspec_grid(),
+    c4m_grid_t           *grid       = c4m_new(c4m_type_grid(),
                                c4m_kw("start_cols",
                                       c4m_ka(6),
                                       "header_rows",
@@ -377,15 +377,15 @@ c4m_format_scope(c4m_scope_t *scope)
     c4m_xlist_t          *row        = c4m_new_table_row();
     c4m_utf8_t           *decl_const = c4m_new_utf8("declared");
     c4m_utf8_t           *inf_const  = c4m_new_utf8("inferred");
-    c4m_dict_t           *memos      = c4m_new(c4m_tspec_dict(c4m_tspec_ref(),
-                                               c4m_tspec_utf8()));
+    c4m_dict_t           *memos      = c4m_new(c4m_type_dict(c4m_type_ref(),
+                                               c4m_type_utf8()));
     int64_t               nexttid    = 0;
 
     values = hatrack_dict_values_sort(scope->symbols,
                                       &len);
 
     if (len == 0) {
-        grid = c4m_new(c4m_tspec_grid(), c4m_kw("start_cols", c4m_ka(1)));
+        grid = c4m_new(c4m_type_grid(), c4m_kw("start_cols", c4m_ka(1)));
         c4m_xlist_append(row, c4m_new_utf8("Scope is empty"));
         c4m_grid_add_row(grid, row);
         c4m_set_column_style(grid, 0, "full_snap");
@@ -434,13 +434,17 @@ c4m_format_scope(c4m_scope_t *scope)
         }
 
         c4m_type_t *symtype = c4m_get_sym_type(entry);
-        symtype             = c4m_resolve_and_unbox(symtype);
+        symtype             = c4m_type_resolve(symtype);
+
+        if (c4m_type_is_box(symtype)) {
+            symtype = c4m_type_unbox(symtype);
+        }
 
         c4m_xlist_append(row,
                          c4m_cstr_format("[em]{} [/][i]({})",
-                                         internal_type_repr(symtype,
-                                                            memos,
-                                                            &nexttid),
+                                         c4m_internal_type_repr(symtype,
+                                                                memos,
+                                                                &nexttid),
                                          kind));
 
         if (c4m_sym_is_declared_const(entry)) {
@@ -462,7 +466,7 @@ c4m_format_scope(c4m_scope_t *scope)
             def_text = c4m_cstr_format("[gray]none[/]");
         }
         else {
-            c4m_xlist_t *defs = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+            c4m_xlist_t *defs = c4m_new(c4m_type_xlist(c4m_type_utf8()));
             for (int i = 0; i < n; i++) {
                 c4m_tree_node_t *t = c4m_xlist_get(entry->sym_defs, i, NULL);
                 if (t == NULL) {
@@ -482,7 +486,7 @@ c4m_format_scope(c4m_scope_t *scope)
             use_text = c4m_cstr_format("[gray]none[/]");
         }
         else {
-            c4m_xlist_t *uses = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+            c4m_xlist_t *uses = c4m_new(c4m_type_xlist(c4m_type_utf8()));
             for (int i = 0; i < n; i++) {
                 c4m_tree_node_t *t = c4m_xlist_get(entry->sym_uses, i, NULL);
                 if (t == NULL) {

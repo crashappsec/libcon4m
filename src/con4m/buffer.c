@@ -143,7 +143,7 @@ buffer_to_str(c4m_buf_t *buf)
 {
     c4m_utf8_t *result;
 
-    result  = c4m_new(c4m_tspec_utf8(),
+    result  = c4m_new(c4m_type_utf8(),
                      c4m_kw("length", c4m_ka(buf->byte_len * 2)));
     char *p = result->data;
 
@@ -164,7 +164,7 @@ buffer_repr(c4m_buf_t *buf)
 {
     c4m_utf8_t *result;
 
-    result  = c4m_new(c4m_tspec_utf8(),
+    result  = c4m_new(c4m_type_utf8(),
                      c4m_kw("length", c4m_ka(buf->byte_len * 4 + 2)));
     char *p = result->data;
 
@@ -188,7 +188,7 @@ c4m_buffer_add(c4m_buf_t *b1, c4m_buf_t *b2)
     int64_t    l1     = max(c4m_buffer_len(b1), 0);
     int64_t    l2     = max(c4m_buffer_len(b2), 0);
     int64_t    lnew   = l1 + l2;
-    c4m_buf_t *result = c4m_new(c4m_tspec_buffer(),
+    c4m_buf_t *result = c4m_new(c4m_type_buffer(),
                                 c4m_kw("length", c4m_ka(lnew)));
 
     if (l1 > 0) {
@@ -221,7 +221,7 @@ c4m_buffer_join(c4m_xlist_t *list, c4m_buf_t *joiner)
         new_len += jlen * (num_items - 1);
     }
 
-    c4m_buf_t *result = c4m_new(c4m_tspec_buffer(),
+    c4m_buf_t *result = c4m_new(c4m_type_buffer(),
                                 c4m_kw("length", c4m_ka(new_len)));
     char      *p      = result->data;
     c4m_buf_t *cur    = c4m_xlist_get(list, 0, NULL);
@@ -256,7 +256,7 @@ c4m_buffer_len(c4m_buf_t *buffer)
 c4m_utf8_t *
 c4m_buf_to_utf8_string(c4m_buf_t *buffer)
 {
-    c4m_utf8_t *result = c4m_new(c4m_tspec_utf8(),
+    c4m_utf8_t *result = c4m_new(c4m_type_utf8(),
                                  c4m_kw("cstring",
                                         c4m_ka(buffer->data),
                                         "length",
@@ -294,7 +294,7 @@ c4m_buffer_unmarshal(c4m_buf_t *b, c4m_stream_t *s, c4m_dict_t *memos)
 static bool
 buffer_can_coerce_to(c4m_type_t *my_type, c4m_type_t *target_type)
 {
-    if (c4m_tspecs_are_compat(target_type, c4m_tspec_utf8()) || c4m_tspecs_are_compat(target_type, c4m_tspec_buffer()) || c4m_tspecs_are_compat(target_type, c4m_tspec_bool())) {
+    if (c4m_types_are_compat(target_type, c4m_type_utf8()) || c4m_types_are_compat(target_type, c4m_type_buffer()) || c4m_types_are_compat(target_type, c4m_type_bool())) {
         return true;
     }
 
@@ -304,11 +304,11 @@ buffer_can_coerce_to(c4m_type_t *my_type, c4m_type_t *target_type)
 static c4m_obj_t
 buffer_coerce_to(const c4m_buf_t *b, c4m_type_t *target_type)
 {
-    if (c4m_tspecs_are_compat(target_type, c4m_tspec_buffer())) {
+    if (c4m_types_are_compat(target_type, c4m_type_buffer())) {
         return (c4m_obj_t)b;
     }
 
-    if (c4m_tspecs_are_compat(target_type, c4m_tspec_bool())) {
+    if (c4m_types_are_compat(target_type, c4m_type_bool())) {
         if (!b || b->byte_len == 0) {
             return (c4m_obj_t) false;
         }
@@ -317,7 +317,7 @@ buffer_coerce_to(const c4m_buf_t *b, c4m_type_t *target_type)
         }
     }
 
-    if (c4m_tspecs_are_compat(target_type, c4m_tspec_utf8())) {
+    if (c4m_types_are_compat(target_type, c4m_type_utf8())) {
         int32_t         count = 0;
         uint8_t        *p     = (uint8_t *)b->data;
         uint8_t        *end   = p + b->byte_len;
@@ -389,7 +389,7 @@ buffer_get_slice(const c4m_buf_t *b, int64_t start, int64_t end)
     }
     else {
         if (start >= len) {
-            return c4m_new(c4m_tspec_buffer(), c4m_kw("length", c4m_ka(0)));
+            return c4m_new(c4m_type_buffer(), c4m_kw("length", c4m_ka(0)));
         }
     }
     if (end < 0) {
@@ -401,11 +401,11 @@ buffer_get_slice(const c4m_buf_t *b, int64_t start, int64_t end)
         }
     }
     if ((start | end) < 0 || start >= end) {
-        return c4m_new(c4m_tspec_buffer(), c4m_kw("length", c4m_ka(0)));
+        return c4m_new(c4m_type_buffer(), c4m_kw("length", c4m_ka(0)));
     }
 
     int64_t    slice_len = end - start;
-    c4m_buf_t *result    = c4m_new(c4m_tspec_buffer(),
+    c4m_buf_t *result    = c4m_new(c4m_type_buffer(),
                                 c4m_kw("length", c4m_ka(slice_len)));
 
     memcpy(result->data, b->data + start, slice_len);
@@ -491,17 +491,17 @@ buffer_lit(c4m_utf8_t          *su8,
             *err = c4m_err_parse_lit_odd_hex;
             return NULL;
         }
-        return c4m_new(c4m_tspec_buffer(),
+        return c4m_new(c4m_type_buffer(),
                        c4m_kw("length", c4m_ka(length), "hex", c4m_ka(s)));
     }
 
-    return c4m_new(c4m_tspec_buffer(), c4m_kw("raw", c4m_ka(s)));
+    return c4m_new(c4m_type_buffer(), c4m_kw("raw", c4m_ka(s)));
 }
 
 static c4m_buf_t *
 buffer_copy(c4m_buf_t *inbuf)
 {
-    c4m_buf_t *outbuf = c4m_new(c4m_tspec_buffer(),
+    c4m_buf_t *outbuf = c4m_new(c4m_type_buffer(),
                                 c4m_kw("length", c4m_ka(inbuf->byte_len)));
 
     memcpy(outbuf->data, inbuf->data, inbuf->byte_len);
@@ -512,7 +512,7 @@ buffer_copy(c4m_buf_t *inbuf)
 static c4m_type_t *
 buffer_item_type(c4m_obj_t x)
 {
-    return c4m_tspec_byte();
+    return c4m_type_byte();
 }
 
 static void *

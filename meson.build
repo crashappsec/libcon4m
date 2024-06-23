@@ -41,6 +41,8 @@ endif
 exe_link_args = link_args + ['-flto', '-w']
 exe_c_args    = c_args + ['-DHATRACK_REFERENCE_ALGORITHMS']
 
+c4m_c_args = c_args 
+
 fpty_code = '''
 #include <stddef.h>
 #include <pty.h>
@@ -123,11 +125,12 @@ hat_primary = ['src/hatrack/support/hatrack_common.c',
                'src/hatrack/hash/set.c',
                'src/hatrack/hash/woolhat.c',
                'src/hatrack/array/flexarray.c',
+               'src/hatrack/array/zeroarray.c',
                'src/hatrack/queue/queue.c',
                'src/hatrack/queue/hatring.c',
                'src/hatrack/queue/stack.c',
                'src/hatrack/queue/debug.c',
-               'src/hatrack/queue/logring.c'
+               'src/hatrack/queue/logring.c',
                ]
 
 hat_hashref = ['src/hatrack/hash/ballcap.c',
@@ -185,13 +188,19 @@ libc4m   = static_library('con4m',
                           lib_src,
                           include_directories : incdir,
                           dependencies : all_deps,
-                          c_args : c_args,
+                          c_args : c4m_c_args,
                           link_args: link_args)
+libhat = static_library('hatrack',
+                        lib_src,
+                        include_directories : incdir,
+                        c_args : c_args,
+                        link_args : link_args)
+
 # library('con4m-dll',
 #         lib_src,
 #         include_directories : incdir,
 #         dependencies : all_deps,
-#         c_args : c_args,
+#         c_args : c4m_c_args,
 #         link_args: link_args)
 
 executable('c4test', test_src,
@@ -201,10 +210,10 @@ executable('c4test', test_src,
                       link_args : exe_link_args,
                       link_with : libc4m)
 
-executable('hash', hash_test_src,
-           include_directories : incdir,
-           dependencies : all_deps,
-           link_args : exe_link_args,
-           link_with : libc4m,
-           c_args : exe_c_args)
+# executable('hash', hash_test_src,
+#            include_directories : incdir,
+#            dependencies : all_deps,
+#            link_args : exe_link_args,
+#            link_with : libhat,
+#            c_args : exe_c_args)
 

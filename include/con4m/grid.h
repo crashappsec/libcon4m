@@ -56,7 +56,7 @@ c4m_grid_add_col_span(c4m_grid_t       *grid,
 static inline c4m_renderable_t *
 c4m_to_str_renderable(c4m_str_t *s, char *tag)
 {
-    return c4m_new(c4m_tspec_renderable(),
+    return c4m_new(c4m_type_renderable(),
                    c4m_kw("obj", c4m_ka(s), "tag", c4m_ka(tag)));
 }
 
@@ -128,7 +128,7 @@ c4m_grid_set_cell_contents(c4m_grid_t *g, int row, int col, c4m_obj_t item)
             tag = c4m_get_td_tag(g);
         }
 
-        cell = c4m_new(c4m_tspec_renderable(),
+        cell = c4m_new(c4m_type_renderable(),
                        c4m_kw("tag",
                               c4m_ka(tag),
                               "obj",
@@ -173,6 +173,6 @@ c4m_grid_stripe_rows(c4m_grid_t *grid)
 static inline c4m_xlist_t *
 c4m_new_table_row()
 {
-    return c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
+    return c4m_new(c4m_type_xlist(c4m_type_utf32()));
 }
 #endif

@@ -5,16 +5,13 @@ box_init(c4m_box_t *box, va_list args)
 {
     c4m_box_t b = va_arg(args, c4m_box_t);
     box->u64    = b.u64;
-
     return;
 }
 
 static c4m_utf8_t *
 box_repr(c4m_box_t *box)
 {
-    c4m_type_t *t = c4m_get_my_type(box);
-
-    return c4m_repr(box->v, c4m_tspec_get_param(t, 0));
+    return c4m_repr(box->v, c4m_type_unbox(c4m_get_my_type(box)));
 }
 
 static void
@@ -35,8 +32,8 @@ box_unmarshal(c4m_box_t *box, c4m_stream_t *in, c4m_dict_t *memos)
 static c4m_utf8_t *
 box_format(c4m_box_t *box, c4m_fmt_spec_t *spec)
 {
-    c4m_type_t    *t      = c4m_resolve_and_unbox(c4m_get_my_type(box));
-    c4m_dt_info_t *info   = c4m_tspec_get_data_type_info(t);
+    c4m_type_t    *t      = c4m_type_unbox(c4m_get_my_type(box));
+    c4m_dt_info_t *info   = c4m_type_get_data_type_info(t);
     c4m_vtable_t  *vtable = (c4m_vtable_t *)info->vtable;
     c4m_format_fn  fn     = (c4m_format_fn)vtable->methods[C4M_BI_FORMAT];
 

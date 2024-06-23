@@ -8,9 +8,9 @@ c4m_setup_obj(c4m_buf_t *static_data, int32_t nc, c4m_zobject_file_t *obj)
     obj->zc_object_vers   = 0x02;
     obj->marshaled_consts = static_data;
     obj->num_const_objs   = nc;
-    obj->module_contents  = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
-    obj->func_info        = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
-    obj->ffi_info         = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+    obj->module_contents  = c4m_new(c4m_type_xlist(c4m_type_ref()));
+    obj->func_info        = c4m_new(c4m_type_xlist(c4m_type_ref()));
+    obj->ffi_info         = c4m_new(c4m_type_xlist(c4m_type_ref()));
 }
 
 void
