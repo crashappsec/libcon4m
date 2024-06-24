@@ -118,7 +118,7 @@ c4m_pat_repr(c4m_tpat_node_t   *pat,
 
     txt = c4m_str_concat(txt, contents);
 
-    c4m_tree_node_t *result = c4m_new(c4m_tspec_tree(c4m_tspec_utf8()),
+    c4m_tree_node_t *result = c4m_new(c4m_type_tree(c4m_type_utf8()),
                                       c4m_kw("contents", c4m_ka(txt)));
 
     for (int i = 0; i < pat->num_kids; i++) {
@@ -296,7 +296,7 @@ static inline void
 capture(search_ctx_t *ctx, c4m_tree_node_t *node)
 {
     if (ctx->captures == NULL) {
-        ctx->captures = c4m_new(c4m_tspec_set(c4m_tspec_ref()));
+        ctx->captures = c4m_new(c4m_type_set(c4m_type_ref()));
     }
 
     hatrack_set_add(ctx->captures, node);
@@ -317,7 +317,7 @@ count_consecutive_matches(search_ctx_t    *ctx,
     ctx->captures = NULL;
 
     if (captures != NULL) {
-        per_match_captures = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+        per_match_captures = c4m_new(c4m_type_xlist(c4m_type_ref()));
         *captures          = per_match_captures;
     }
 

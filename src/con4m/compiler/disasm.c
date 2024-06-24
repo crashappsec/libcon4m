@@ -316,6 +316,10 @@ const inst_info_t inst_info[256] = {
     [C4M_ZCallModule] = {
         .name = "ZCallModule",
     },
+    [C4M_ZUnpack] = {
+        .name    = "ZUnpack",
+        .arg_fmt = fmt_int,
+    },
 #ifdef C4M_DEV
     [C4M_ZPrint] = {
         .name = "ZPrint",
@@ -327,12 +331,14 @@ static void
 init_disasm()
 {
     if (bi_fn_names[C4M_BI_TO_STR] == NULL) {
+        c4m_gc_register_root(c4m_instr_utf8_names, 256);
+        c4m_gc_register_root(bi_fn_names, C4M_BI_NUM_FUNCS);
+
         for (int i = 0; i < 256; i++) {
             if (inst_info[i].name != NULL) {
                 c4m_instr_utf8_names[i] = c4m_new_utf8(inst_info[i].name);
             }
         }
-        c4m_gc_register_root(c4m_instr_utf8_names, 256);
 
         bi_fn_names[C4M_BI_TO_STR]        = c4m_new_utf8("__str__");
         bi_fn_names[C4M_BI_FORMAT]        = c4m_new_utf8("__format__");
@@ -378,7 +384,7 @@ static c4m_obj_t
 value_to_object(c4m_vm_t *vm, uint64_t offset, c4m_type_t *t)
 {
     if (t != NULL) {
-        t = c4m_global_resolve_type(t);
+        t = c4m_type_resolve(t);
     }
 
     if (t != NULL && c4m_type_is_value_type(t)) {
@@ -410,8 +416,7 @@ fmt_arg_or_imm_no_syms(c4m_vm_t *vm, c4m_zinstruction_t *instr, int i, bool imm)
     case fmt_const_obj:
         return c4m_cstr_format("{}\n[i]@offset: {:8x}", c4m_box_i64(value), c4m_box_i64(value));
     case fmt_const_ptr:
-        return c4m_cstr_format("offset to ptr: {:8x}",
-                               value_to_object(vm, value, instr->type_info),
+        return c4m_cstr_format("offset to ptr: {:x}",
                                c4m_box_i64(value));
     case fmt_offset:
         do {
@@ -433,7 +438,8 @@ fmt_arg_or_imm_no_syms(c4m_vm_t *vm, c4m_zinstruction_t *instr, int i, bool imm)
     case fmt_load_from_attr:
         return c4m_cstr_format("attr name @{:8x}", c4m_box_i64(value));
     case fmt_label:
-        return c4m_cstr_format("[h2]{}", value_to_object(vm, value, NULL));
+        return c4m_cstr_format("[h2]{}",
+                               value_to_object(vm, value, c4m_type_utf8()));
     case fmt_tcall:
         return c4m_cstr_format("builtin call of [em]{}[/]",
                                fmt_builtin_fn(value));
@@ -492,7 +498,7 @@ c4m_disasm(c4m_vm_t *vm, c4m_zmodule_info_t *m)
 {
     init_disasm();
 
-    c4m_grid_t *grid = c4m_new(c4m_tspec_grid(),
+    c4m_grid_t *grid = c4m_new(c4m_type_grid(),
                                c4m_kw("start_cols",
                                       c4m_ka(7),
                                       "header_rows",

@@ -339,15 +339,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    [C4M_T_TYPE_ENV] = {
-        .name      = "type_env",
-        .typeid    = C4M_T_TYPE_ENV,
-        .alloc_len = sizeof(c4m_type_env_t),
-        .ptr_info  = (uint64_t *)c4m_pmap_first_word,
-        .vtable    = &c4m_type_env_vtable,
-        .dt_kind   = C4M_DT_KIND_internal,
-        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
-    },
     [C4M_T_TREE] = {
         .name      = "tree",
         .typeid    = C4M_T_TREE,
@@ -433,21 +424,30 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .typeid  = C4M_T_BIT,
         .dt_kind = C4M_DT_KIND_internal,
     },
+    // Boxes are implemented by having their tsi field point to the
+    // primitive type they are boxing. We only support boxing of
+    // primitivate value types, because there's no need to box
+    // anything else.
     [C4M_T_BOX] = {
         .name      = "box",
         .typeid    = C4M_T_BOX,
         .alloc_len = sizeof(c4m_box_t),
-        .dt_kind   = C4M_DT_KIND_object,
+        .dt_kind   = C4M_DT_KIND_box,
         .ptr_info  = NULL,
         .vtable    = &c4m_box_vtable,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
 };
 
+#ifdef C4M_GC_TRACE
+c4m_obj_t
+_c4m_new(char *file, int line, c4m_type_t *type, ...)
+#else
 c4m_obj_t
 _c4m_new(c4m_type_t *type, ...)
+#endif
 {
-    type = c4m_global_resolve_type(type);
+    type = c4m_type_resolve(type);
 
     c4m_base_obj_t  *obj;
     c4m_obj_t        result;
@@ -456,6 +456,21 @@ _c4m_new(c4m_type_t *type, ...)
     uint64_t         alloc_len = tinfo->alloc_len + sizeof(c4m_obj_t);
     c4m_vtable_entry init_fn   = tinfo->vtable->methods[C4M_BI_CONSTRUCTOR];
 
+#ifdef C4M_GC_TRACE
+    if (tinfo->vtable->methods[C4M_BI_FINALIZER] == NULL) {
+        obj = _c4m_gc_raw_alloc(alloc_len,
+                                (uint64_t *)tinfo->ptr_info,
+                                file,
+                                line);
+    }
+    else {
+        obj = _c4m_gc_raw_alloc_with_finalizer(alloc_len,
+                                               (uint64_t *)tinfo->ptr_info,
+                                               file,
+                                               line);
+    }
+
+#else
     if (tinfo->vtable->methods[C4M_BI_FINALIZER] == NULL) {
         obj = c4m_gc_raw_alloc(alloc_len, (uint64_t *)tinfo->ptr_info);
     }
@@ -463,6 +478,10 @@ _c4m_new(c4m_type_t *type, ...)
         obj = c4m_gc_raw_alloc_with_finalizer(alloc_len,
                                               (uint64_t *)tinfo->ptr_info);
     }
+#endif
+
+    c4m_alloc_hdr *hdr = &((c4m_alloc_hdr *)obj)[-1];
+    hdr->con4m_obj     = 1;
 
     obj->base_data_type = tinfo;
     obj->concrete_type  = type;
@@ -477,6 +496,7 @@ _c4m_new(c4m_type_t *type, ...)
     case C4M_DT_KIND_dict:
     case C4M_DT_KIND_tuple:
     case C4M_DT_KIND_object:
+    case C4M_DT_KIND_box:
         if (init_fn != NULL) {
             va_start(args, type);
             (*init_fn)(result, args);
@@ -501,7 +521,7 @@ c4m_gc_ptr_info(c4m_builtin_t dtid)
 c4m_str_t *
 c4m_repr(void *item, c4m_type_t *t)
 {
-    uint64_t    x = c4m_tspec_get_data_type_info(t)->typeid;
+    uint64_t    x = c4m_type_get_data_type_info(t)->typeid;
     c4m_repr_fn p;
 
     p = (c4m_repr_fn)c4m_base_type_info[x].vtable->methods[C4M_BI_REPR];
@@ -522,10 +542,10 @@ c4m_repr(void *item, c4m_type_t *t)
 c4m_str_t *
 c4m_value_obj_repr(c4m_obj_t obj)
 {
-    c4m_type_t *t = c4m_global_resolve_type(c4m_get_my_type(obj));
+    c4m_type_t *t = c4m_type_resolve(c4m_get_my_type(obj));
 
-    if (c4m_tspec_is_box(t)) {
-        return c4m_repr(c4m_unbox_obj(obj).v, c4m_resolve_and_unbox(t));
+    if (c4m_type_is_box(t)) {
+        return c4m_repr(c4m_unbox_obj(obj).v, c4m_type_unbox(t));
     }
 
     return c4m_repr(obj, t);
@@ -542,8 +562,18 @@ c4m_value_obj_to_str(c4m_obj_t obj)
 c4m_str_t *
 c4m_to_str(void *item, c4m_type_t *t)
 {
-    uint64_t    x = c4m_tspec_get_data_type_info(t)->typeid;
-    c4m_repr_fn p;
+    c4m_dt_info_t *dt = c4m_type_get_data_type_info(t);
+    uint64_t       x  = dt->typeid;
+    c4m_repr_fn    p;
+
+    switch (x) {
+    case 0:
+        return c4m_new_utf8("error");
+    case 1:
+        return c4m_new_utf8("void");
+    default:
+        break;
+    }
 
     p = (c4m_repr_fn)c4m_base_type_info[x].vtable->methods[C4M_BI_TO_STR];
 
@@ -719,11 +749,11 @@ c4m_slice_set(c4m_obj_t container, int64_t start, int64_t end, c4m_obj_t o)
 bool
 c4m_can_coerce(c4m_type_t *t1, c4m_type_t *t2)
 {
-    if (c4m_tspecs_are_compat(t1, t2)) {
+    if (c4m_types_are_compat(t1, t2)) {
         return true;
     }
 
-    c4m_dt_info_t    *info = c4m_tspec_get_data_type_info(t1);
+    c4m_dt_info_t    *info = c4m_type_get_data_type_info(t1);
     c4m_vtable_t     *vtbl = (c4m_vtable_t *)info->vtable;
     c4m_can_coerce_fn ptr  = (c4m_can_coerce_fn)vtbl->methods[C4M_BI_COERCIBLE];
 
@@ -740,7 +770,7 @@ c4m_coerce(void *data, c4m_type_t *t1, c4m_type_t *t2)
     // TODO-- if it's not a primitive type in t1, we should
     // use data's type for extra precaution.
 
-    c4m_dt_info_t *info = c4m_tspec_get_data_type_info(t1);
+    c4m_dt_info_t *info = c4m_type_get_data_type_info(t1);
     c4m_vtable_t  *vtbl = (c4m_vtable_t *)info->vtable;
     c4m_coerce_fn  ptr  = (c4m_coerce_fn)vtbl->methods[C4M_BI_COERCE];
 
@@ -755,7 +785,7 @@ c4m_obj_t
 c4m_coerce_object(const c4m_obj_t obj, c4m_type_t *to_type)
 {
     c4m_type_t    *from_type = c4m_get_my_type(obj);
-    c4m_dt_info_t *info      = c4m_tspec_get_data_type_info(from_type);
+    c4m_dt_info_t *info      = c4m_type_get_data_type_info(from_type);
     uint64_t       value;
 
     if (!info->by_value) {
@@ -774,7 +804,7 @@ c4m_coerce_object(const c4m_obj_t obj, c4m_type_t *to_type)
     }
 
     value        = (uint64_t)c4m_coerce((void *)value, from_type, to_type);
-    info         = c4m_tspec_get_data_type_info(to_type);
+    info         = c4m_type_get_data_type_info(to_type);
     void *result = c4m_new(to_type);
 
     if (info->alloc_len == 8) {
@@ -795,7 +825,7 @@ c4m_coerce_object(const c4m_obj_t obj, c4m_type_t *to_type)
 bool
 c4m_eq(c4m_type_t *t, c4m_obj_t o1, c4m_obj_t o2)
 {
-    c4m_dt_info_t *info = c4m_tspec_get_data_type_info(t);
+    c4m_dt_info_t *info = c4m_type_get_data_type_info(t);
     c4m_vtable_t  *vtbl = (c4m_vtable_t *)info->vtable;
     c4m_cmp_fn     ptr  = (c4m_cmp_fn)vtbl->methods[C4M_BI_EQ];
 
@@ -809,7 +839,7 @@ c4m_eq(c4m_type_t *t, c4m_obj_t o1, c4m_obj_t o2)
 bool
 c4m_lt(c4m_type_t *t, c4m_obj_t o1, c4m_obj_t o2)
 {
-    c4m_dt_info_t *info = c4m_tspec_get_data_type_info(t);
+    c4m_dt_info_t *info = c4m_type_get_data_type_info(t);
     c4m_vtable_t  *vtbl = (c4m_vtable_t *)info->vtable;
     c4m_cmp_fn     ptr  = (c4m_cmp_fn)vtbl->methods[C4M_BI_LT];
 
@@ -823,7 +853,7 @@ c4m_lt(c4m_type_t *t, c4m_obj_t o1, c4m_obj_t o2)
 bool
 c4m_gt(c4m_type_t *t, c4m_obj_t o1, c4m_obj_t o2)
 {
-    c4m_dt_info_t *info = c4m_tspec_get_data_type_info(t);
+    c4m_dt_info_t *info = c4m_type_get_data_type_info(t);
     c4m_vtable_t  *vtbl = (c4m_vtable_t *)info->vtable;
     c4m_cmp_fn     ptr  = (c4m_cmp_fn)vtbl->methods[C4M_BI_GT];
 
@@ -838,7 +868,7 @@ c4m_type_t *
 c4m_get_item_type(c4m_obj_t obj)
 {
     c4m_type_t       *t    = c4m_get_my_type(obj);
-    c4m_dt_info_t    *info = c4m_tspec_get_data_type_info(t);
+    c4m_dt_info_t    *info = c4m_type_get_data_type_info(t);
     c4m_vtable_t     *vtbl = (c4m_vtable_t *)info->vtable;
     c4m_ix_item_ty_fn ptr  = (c4m_ix_item_ty_fn)vtbl->methods[C4M_BI_ITEM_TYPE];
 
@@ -853,7 +883,7 @@ void *
 c4m_get_view(c4m_obj_t obj, uint64_t *n_items)
 {
     c4m_type_t    *t    = c4m_get_my_type(obj);
-    c4m_dt_info_t *info = c4m_tspec_get_data_type_info(t);
+    c4m_dt_info_t *info = c4m_type_get_data_type_info(t);
     c4m_vtable_t  *vtbl = (c4m_vtable_t *)info->vtable;
     c4m_view_fn    ptr  = (c4m_view_fn)vtbl->methods[C4M_BI_VIEW];
     uint64_t       size_bits;
@@ -869,7 +899,7 @@ c4m_get_view(c4m_obj_t obj, uint64_t *n_items)
     }
     else {
         c4m_type_t    *item_type = c4m_get_item_type(obj);
-        c4m_dt_info_t *base      = c4m_tspec_get_data_type_info(item_type);
+        c4m_dt_info_t *base      = c4m_type_get_data_type_info(item_type);
 
         if (base->typeid == C4M_T_BIT) {
             size_bits = 0x7;
@@ -887,7 +917,7 @@ c4m_get_view(c4m_obj_t obj, uint64_t *n_items)
 c4m_obj_t
 c4m_container_literal(c4m_type_t *t, c4m_xlist_t *items, c4m_utf8_t *mod)
 {
-    c4m_dt_info_t       *info = c4m_tspec_get_data_type_info(t);
+    c4m_dt_info_t       *info = c4m_type_get_data_type_info(t);
     c4m_vtable_t        *vtbl = (c4m_vtable_t *)info->vtable;
     c4m_container_lit_fn ptr;
 
@@ -904,8 +934,11 @@ void
 c4m_finalize_allocation(c4m_base_obj_t *obj)
 {
     c4m_system_finalizer_fn fn;
+    return;
 
     fn = (void *)obj->base_data_type->vtable->methods[C4M_BI_FINALIZER];
+    if (fn == NULL) {
+    }
     assert(fn != NULL);
     (*fn)(obj->data);
 }

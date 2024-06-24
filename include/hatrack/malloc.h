@@ -50,17 +50,21 @@ typedef void *(*hatrack_realloc_t)(void  *oldptr,
 // never be NULL).
 typedef void (*hatrack_free_t)(void *ptr, size_t size, void *arg);
 
+typedef struct {
+    hatrack_malloc_t  mallocfn;
+    hatrack_malloc_t  zallocfn;
+    hatrack_realloc_t reallocfn;
+    hatrack_free_t    freefn;
+    void             *arg;
+} hatrack_mem_manager_t;
+
 // hatrack_setmallocfns sets the function pointers to use for malloc, zalloc,
 // realloc, and free operations. The zalloc function is the same as malloc,
 // except that the contents of the allocation is expected to be filled with 0
 // bytes before return. The defaults are to use the libc equivalents of malloc,
 // calloc, realloc, and free.
 extern void
-hatrack_setmallocfns(hatrack_malloc_t  mallocfn,
-                     hatrack_malloc_t  zallocfn,
-                     hatrack_realloc_t reallocfn,
-                     hatrack_free_t    freefn,
-                     void             *arg);
+hatrack_setmallocfns(hatrack_mem_manager_t *);
 
 // hatrack_malloc calls the configured memory allocation function to allocate
 // the requested amount of memory. The returned pointer may be NULL if the

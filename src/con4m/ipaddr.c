@@ -90,10 +90,10 @@ ipaddr_repr(ipaddr_t *obj)
     }
 
     if (obj->port == 0) {
-        return c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(buf)));
+        return c4m_new(c4m_type_utf8(), c4m_kw("cstring", c4m_ka(buf)));
     }
 
-    return c4m_str_concat(c4m_new(c4m_tspec_utf8(), c4m_kw("cstring", c4m_ka(buf))),
+    return c4m_str_concat(c4m_new(c4m_type_utf8(), c4m_kw("cstring", c4m_ka(buf))),
                           c4m_str_concat(c4m_get_colon_no_space_const(),
                                          c4m_str_from_int((int64_t)obj->port)));
 }

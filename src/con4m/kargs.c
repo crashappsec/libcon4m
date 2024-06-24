@@ -41,7 +41,7 @@ c4m_pass_kargs(int nargs, ...)
 
     nargs >>= 1;
 
-    c4m_karg_info_t *kargs = c4m_new(c4m_tspec_kargs(), nargs);
+    c4m_karg_info_t *kargs = c4m_new(c4m_type_kargs(), nargs);
 
     for (int i = 0; i < nargs; i++) {
         kargs->args[i].kw    = va_arg(args, char *);
@@ -64,7 +64,7 @@ c4m_get_kargs(va_list args)
     cur = va_arg(arg_copy, c4m_obj_t);
 
     while (cur != NULL) {
-        if (c4m_get_my_type(cur) == c4m_tspec_kargs()) {
+        if (c4m_get_my_type(cur) == c4m_type_kargs()) {
             va_end(arg_copy);
             return cur;
         }
@@ -89,7 +89,7 @@ c4m_get_kargs_and_count(va_list args, int *nargs)
     cur = va_arg(arg_copy, c4m_obj_t);
 
     while (cur != NULL) {
-        if (c4m_get_my_type(cur) == c4m_tspec_kargs()) {
+        if (c4m_get_my_type(cur) == c4m_type_kargs()) {
             *nargs = count;
             va_end(arg_copy);
             return cur;

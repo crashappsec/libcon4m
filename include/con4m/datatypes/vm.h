@@ -128,7 +128,7 @@ typedef enum : uint8_t {
     // respectively. The ZRunCallback instruction is used to run the callback,
     // which is run as an FFI function.
     //
-    // Currently unused.
+    // Currently unused. I think this can be removed.
     C4M_ZPushFfiPtr    = 0x0E,
     // Create a callback and push it onto the stack. The instruction's arg,
     // immediate, and type_info fields are encoded into the callback as the
@@ -153,7 +153,6 @@ typedef enum : uint8_t {
     // Unpack the elements of a tuple, storing each one into the lvalue on the
     // stack, popping each lvalue as its assigned. The number of assignments to
     // perform is encoded in the instruction's arg field.
-    // currently unused.
     C4M_ZUnpack        = 0x23,
     // Swap the two top values on the stack.
     C4M_ZSwap          = 0x24,
@@ -344,8 +343,8 @@ typedef enum : uint8_t {
 // We'll make the main VM container, c4m_vm_t an object type (C4M_T_VM) so that
 // we can have an entry point into the core marshalling functionality, but we
 // won't make other internal types object types. Only those structs that have a
-// z prefix on their name get marshalled. For lists we'll use c4m_tspec_xlist
-// with a c4m_tspec_ref base type. But this means that we have to marshal these
+// z prefix on their name get marshalled. For lists we'll use c4m_type_xlist
+// with a c4m_type_ref base type. But this means that we have to marshal these
 // lists manually. As of right now at least, all dicts used have object keys
 // and values (ints, strings, etc).
 

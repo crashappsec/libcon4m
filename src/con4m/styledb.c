@@ -680,6 +680,7 @@ c4m_style_exists(char *name)
         return 0;
     }
 
+    init_style_db();
     return hatrack_dict_get(style_dictionary, name, NULL) != NULL;
 }
 

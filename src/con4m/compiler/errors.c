@@ -1130,6 +1130,18 @@ static error_info_t error_info[] = {
         " Declaration is here: {}",
         true,
     },
+    [c4m_err_tup_ix] = {
+        c4m_err_tup_ix,
+        "up_ix",
+        "Tuple indices currently must be a literal int value.",
+        false,
+    },
+    [c4m_err_tup_ix_bounds] = {
+        c4m_err_tup_ix_bounds,
+        "tup_ix_bounds",
+        "Tuple index is out of bounds for this tuple of type [em]{}[/].",
+        true,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",
@@ -1215,6 +1227,9 @@ c4m_format_module_errors(c4m_file_compile_ctx *ctx, c4m_grid_t *table)
         error_constant = c4m_rich_lit("[red]error:[/]");
         warn_constant  = c4m_rich_lit("[yellow]warning:[/]");
         info_constant  = c4m_rich_lit("[atomic lime]info:[/]");
+        c4m_gc_register_root(&error_constant, 1);
+        c4m_gc_register_root(&warn_constant, 1);
+        c4m_gc_register_root(&info_constant, 1);
     }
 
     int64_t n = c4m_xlist_len(ctx->errors);
@@ -1225,7 +1240,7 @@ c4m_format_module_errors(c4m_file_compile_ctx *ctx, c4m_grid_t *table)
 
     for (int i = 0; i < n; i++) {
         c4m_compile_error *err = c4m_xlist_get(ctx->errors, i, NULL);
-        c4m_xlist_t       *row = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+        c4m_xlist_t       *row = c4m_new(c4m_type_xlist(c4m_type_utf8()));
 
         c4m_xlist_append(row, format_severity(err));
         c4m_xlist_append(row, format_location(ctx, err));
@@ -1238,7 +1253,7 @@ c4m_format_module_errors(c4m_file_compile_ctx *ctx, c4m_grid_t *table)
 c4m_grid_t *
 c4m_format_errors(c4m_compile_ctx *cctx)
 {
-    c4m_grid_t *table = c4m_new(c4m_tspec_grid(),
+    c4m_grid_t *table = c4m_new(c4m_type_grid(),
                                 c4m_kw("container_tag",
                                        c4m_ka("error_grid"),
                                        "td_tag",
@@ -1275,7 +1290,7 @@ c4m_format_errors(c4m_compile_ctx *cctx)
 c4m_xlist_t *
 c4m_compile_extract_all_error_codes(c4m_compile_ctx *cctx)
 {
-    c4m_xlist_t         *result      = c4m_xlist(c4m_tspec_ref());
+    c4m_xlist_t         *result      = c4m_xlist(c4m_type_ref());
     uint64_t             num_modules = 0;
     hatrack_dict_item_t *view;
 

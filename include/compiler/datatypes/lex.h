@@ -106,4 +106,5 @@ typedef struct {
     // we stash them with the node payload.
     uint16_t                     child_ix;
     uint8_t                      adjustment; // For keeping track of quoting.
+    c4m_utf8_t                  *text;
 } c4m_token_t;

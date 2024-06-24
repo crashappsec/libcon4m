@@ -348,7 +348,7 @@ apply_padding_and_alignment(c4m_utf8_t *instr, c4m_fmt_spec_t *spec)
 static inline c4m_xlist_t *
 lookup_arg_strings(c4m_fmt_info_t *specs, c4m_dict_t *args)
 {
-    c4m_xlist_t    *result = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+    c4m_xlist_t    *result = c4m_new(c4m_type_xlist(c4m_type_utf8()));
     c4m_fmt_info_t *info   = specs;
     int             i      = 0;
     c4m_utf8_t     *key;
@@ -363,7 +363,7 @@ lookup_arg_strings(c4m_fmt_info_t *specs, c4m_dict_t *args)
             key = c4m_str_from_int(info->reference.position);
             break;
         default:
-            key = c4m_new(c4m_tspec_utf8(),
+            key = c4m_new(c4m_type_utf8(),
                           c4m_kw("cstring", c4m_ka(info->reference.name)));
             break;
         }
@@ -375,7 +375,7 @@ lookup_arg_strings(c4m_fmt_info_t *specs, c4m_dict_t *args)
 
         if (!found) {
             c4m_utf8_t *err = c4m_new(
-                c4m_tspec_utf8(),
+                c4m_type_utf8(),
                 c4m_kw("cstring", c4m_ka("Format parameter not found: ")));
             C4M_RAISE(c4m_str_concat(err, key));
         }
@@ -387,7 +387,7 @@ lookup_arg_strings(c4m_fmt_info_t *specs, c4m_dict_t *args)
             s = c4m_to_utf8(fn(obj, &info->spec));
         }
         else {
-            s = c4m_to_utf8(c4m_to_str(obj, c4m_object_type(obj)));
+            s = c4m_to_utf8(c4m_to_str(obj, c4m_get_my_type(obj)));
         }
 
         s = apply_padding_and_alignment(s, &info->spec);
@@ -448,7 +448,7 @@ assemble_formatted_result(const c4m_str_t *fmt, c4m_xlist_t *arg_strings)
         to_alloc += c4m_str_codepoint_len(s);
     }
 
-    result = c4m_new(c4m_tspec_utf32(),
+    result = c4m_new(c4m_type_utf32(),
                      c4m_kw("length", c4m_ka(to_alloc)));
     outp   = (c4m_codepoint_t *)result->data;
 
@@ -533,7 +533,7 @@ c4m_str_vformat(const c4m_str_t *fmt, c4m_dict_t *args)
     // the parameters are replaced with just {}; we are going to then
     // pass this to c4m_rich_lit to do any formatting we've been asked
     // to do, before we do object substitutions.
-    c4m_xlist_t *segments = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
+    c4m_xlist_t *segments = c4m_new(c4m_type_xlist(c4m_type_utf32()));
 
     int             cur_pos = 0;
     c4m_fmt_info_t *cur_arg = info;
@@ -569,11 +569,12 @@ c4m_utf8_t *
 c4m_base_format(const c4m_str_t *fmt, int nargs, va_list args)
 {
     c4m_obj_t   one;
-    c4m_dict_t *dict = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
-                                              c4m_tspec_ref()));
+    c4m_dict_t *dict = c4m_new(c4m_type_dict(c4m_type_utf8(),
+                                              c4m_type_ref()));
 
     for (int i = 0; i < nargs; i++) {
-        one             = va_arg(args, c4m_obj_t);
+        one = va_arg(args, c4m_obj_t);
+
         c4m_utf8_t *key = c4m_str_from_int(i);
         hatrack_dict_add(dict, key, one);
     }
@@ -598,10 +599,12 @@ c4m_utf8_t *
 _c4m_cstr_format(char *fmt, int nargs, ...)
 {
     va_list     args;
+    c4m_utf8_t *utf8fmt;
     c4m_utf8_t *result;
 
     va_start(args, nargs);
-    result = c4m_base_format((const c4m_str_t *)c4m_new_utf8(fmt), nargs, args);
+    utf8fmt = c4m_new_utf8(fmt);
+    result  = c4m_base_format((const c4m_str_t *)utf8fmt, nargs, args);
     va_end(args);
 
     return result;
@@ -611,8 +614,8 @@ c4m_utf8_t *
 c4m_cstr_array_format(char *fmt, int num_args, c4m_utf8_t **params)
 {
     c4m_utf8_t *one;
-    c4m_dict_t *dict = c4m_new(c4m_tspec_dict(c4m_tspec_utf8(),
-                                              c4m_tspec_ref()));
+    c4m_dict_t *dict = c4m_new(c4m_type_dict(c4m_type_utf8(),
+                                              c4m_type_ref()));
 
     for (int i = 0; i < num_args; i++) {
         one             = params[i];

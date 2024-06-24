@@ -210,7 +210,7 @@ c4m_path_join(c4m_xlist_t *items)
         }
     }
 
-    result = c4m_new(c4m_tspec_utf8(), c4m_kw("length", c4m_ka(len)));
+    result = c4m_new(c4m_type_utf8(), c4m_kw("length", c4m_ka(len)));
     p      = (uint8_t *)result->data;
 
     for (int i = first; i < last; i++) {
@@ -461,7 +461,7 @@ _c4m_path_walk(c4m_utf8_t *dir, ...)
         .follow_links            = follow_links,
         .ignore_special          = ignore_special,
         .done_with_safety_checks = false,
-        .result                  = c4m_xlist(c4m_tspec_utf8()),
+        .result                  = c4m_xlist(c4m_type_utf8()),
         .resolved                = c4m_resolve_path(dir),
     };
 

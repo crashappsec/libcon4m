@@ -29,7 +29,7 @@ flags_init(c4m_flags_t *self, va_list args)
 c4m_flags_t *
 c4m_flags_copy(const c4m_flags_t *self)
 {
-    c4m_flags_t *result = c4m_new(c4m_tspec_flags(),
+    c4m_flags_t *result = c4m_new(c4m_type_flags(),
                                   c4m_kw("length", c4m_ka(self->num_flags)));
 
     for (int i = 0; i < result->alloc_wordlen; i++) {
@@ -99,7 +99,7 @@ flags_lit(const c4m_utf8_t    *s,
           c4m_compile_error_t *code)
 {
     int64_t      len    = c4m_str_codepoint_len(s);
-    c4m_flags_t *result = c4m_new(c4m_tspec_flags(),
+    c4m_flags_t *result = c4m_new(c4m_type_flags(),
                                   c4m_kw("length", c4m_ka(len * 4)));
 
     uint64_t cur_word = 0;
@@ -161,7 +161,7 @@ c4m_flags_t *
 c4m_flags_add(c4m_flags_t *self, c4m_flags_t *with)
 {
     uint32_t     res_flags   = max(self->num_flags, with->num_flags);
-    c4m_flags_t *result      = c4m_new(c4m_tspec_flags(),
+    c4m_flags_t *result      = c4m_new(c4m_type_flags(),
                                   c4m_kw("length", c4m_ka(res_flags)));
     int32_t      min_wordlen = min(self->alloc_wordlen, with->alloc_wordlen);
 
@@ -192,7 +192,7 @@ c4m_flags_sub(c4m_flags_t *self, c4m_flags_t *with)
     // they're valid.
 
     uint32_t     res_flags   = max(self->num_flags, with->num_flags);
-    c4m_flags_t *result      = c4m_new(c4m_tspec_flags(),
+    c4m_flags_t *result      = c4m_new(c4m_type_flags(),
                                   c4m_kw("length", c4m_ka(res_flags)));
     int32_t      min_wordlen = min(self->alloc_wordlen, with->alloc_wordlen);
     int          i;
@@ -218,7 +218,7 @@ c4m_flags_test(c4m_flags_t *self, c4m_flags_t *with)
     // they're valid.
 
     uint32_t     res_flags   = max(self->num_flags, with->num_flags);
-    c4m_flags_t *result      = c4m_new(c4m_tspec_flags(),
+    c4m_flags_t *result      = c4m_new(c4m_type_flags(),
                                   c4m_kw("length", c4m_ka(res_flags)));
     int32_t      min_wordlen = min(self->alloc_wordlen, with->alloc_wordlen);
 
@@ -233,7 +233,7 @@ c4m_flags_t *
 c4m_flags_xor(c4m_flags_t *self, c4m_flags_t *with)
 {
     uint32_t     res_flags   = max(self->num_flags, with->num_flags);
-    c4m_flags_t *result      = c4m_new(c4m_tspec_flags(),
+    c4m_flags_t *result      = c4m_new(c4m_type_flags(),
                                   c4m_kw("length", c4m_ka(res_flags)));
     int32_t      min_wordlen = min(self->alloc_wordlen, with->alloc_wordlen);
 
@@ -374,7 +374,7 @@ c4m_flags_slice(c4m_flags_t *self, int64_t start, int64_t end)
     }
     else {
         if (start >= len) {
-            return c4m_new(c4m_tspec_flags());
+            return c4m_new(c4m_type_flags());
         }
     }
     if (end < 0) {
@@ -386,7 +386,7 @@ c4m_flags_slice(c4m_flags_t *self, int64_t start, int64_t end)
         }
     }
     if ((start | end) < 0 || start >= end) {
-        return c4m_new(c4m_tspec_flags());
+        return c4m_new(c4m_type_flags());
     }
 }
 #endif
@@ -394,7 +394,7 @@ c4m_flags_slice(c4m_flags_t *self, int64_t start, int64_t end)
 static inline c4m_type_t *
 flags_item_type(c4m_obj_t ignore)
 {
-    return c4m_tspec_bit();
+    return c4m_type_bit();
 }
 
 // For iterating over other container types, we just take a pointer to

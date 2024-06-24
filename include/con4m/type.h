@@ -2,36 +2,32 @@
 
 #include "con4m.h"
 
-extern c4m_type_t     *c4m_resolve_type_aliases(c4m_type_t *, c4m_type_env_t *);
-extern bool            c4m_tspec_is_concrete(c4m_type_t *);
-extern c4m_type_t     *c4m_tspec_copy(c4m_type_t *, c4m_type_env_t *);
+extern c4m_type_t     *c4m_type_resolve(c4m_type_t *);
+extern bool            c4m_type_is_concrete(c4m_type_t *);
+extern c4m_type_t     *c4m_type_copy(c4m_type_t *);
 extern c4m_type_t     *c4m_get_builtin_type(c4m_builtin_t);
-extern c4m_type_t     *c4m_unify(c4m_type_t *, c4m_type_t *, c4m_type_env_t *);
-extern c4m_type_t     *c4m_lookup_tspec(c4m_type_hash_t, c4m_type_env_t *);
-extern c4m_type_t     *c4m_tspec_list(c4m_type_t *);
-extern c4m_type_t     *c4m_tspec_xlist(c4m_type_t *);
-extern c4m_type_t     *c4m_tspec_tree(c4m_type_t *);
-extern c4m_type_t     *c4m_tspec_queue(c4m_type_t *);
-extern c4m_type_t     *c4m_tspec_ring(c4m_type_t *);
-extern c4m_type_t     *c4m_tspec_stack(c4m_type_t *);
-extern c4m_type_t     *c4m_tspec_box(c4m_type_t *);
-extern c4m_type_t     *c4m_tspec_dict(c4m_type_t *, c4m_type_t *);
-extern c4m_type_t     *c4m_tspec_set(c4m_type_t *);
-extern c4m_type_t     *c4m_tspec_tuple(int64_t, ...);
-extern c4m_type_t     *c4m_tspec_tuple_from_xlist(c4m_xlist_t *);
-extern c4m_type_t     *c4m_tspec_fn(c4m_type_t *, c4m_xlist_t *, bool);
-extern c4m_type_t     *c4m_tspec_fn_va(c4m_type_t *, int64_t, ...);
-extern c4m_type_t     *c4m_tspec_varargs_fn(c4m_type_t *, int64_t, ...);
-extern c4m_type_t     *c4m_global_resolve_type(c4m_type_t *);
-extern c4m_type_t     *c4m_global_copy(c4m_type_t *);
-extern c4m_type_t     *c4m_global_type_check(c4m_type_t *, c4m_type_t *);
-extern c4m_type_t     *c4m_resolve_and_unbox(c4m_type_t *);
+extern c4m_type_t     *c4m_unify(c4m_type_t *, c4m_type_t *);
+extern c4m_type_t     *c4m_type_list(c4m_type_t *);
+extern c4m_type_t     *c4m_type_xlist(c4m_type_t *);
+extern c4m_type_t     *c4m_type_tree(c4m_type_t *);
+extern c4m_type_t     *c4m_type_queue(c4m_type_t *);
+extern c4m_type_t     *c4m_type_ring(c4m_type_t *);
+extern c4m_type_t     *c4m_type_stack(c4m_type_t *);
+extern c4m_type_t     *c4m_type_box(c4m_type_t *);
+extern c4m_type_t     *c4m_type_dict(c4m_type_t *, c4m_type_t *);
+extern c4m_type_t     *c4m_type_set(c4m_type_t *);
+extern c4m_type_t     *c4m_type_tuple(int64_t, ...);
+extern c4m_type_t     *c4m_type_tuple_from_xlist(c4m_xlist_t *);
+extern c4m_type_t     *c4m_type_fn(c4m_type_t *, c4m_xlist_t *, bool);
+extern c4m_type_t     *c4m_type_fn_va(c4m_type_t *, int64_t, ...);
+extern c4m_type_t     *c4m_type_varargs_fn(c4m_type_t *, int64_t, ...);
 extern void            c4m_lock_type(c4m_type_t *);
 extern c4m_type_t     *c4m_get_promotion_type(c4m_type_t *,
                                               c4m_type_t *,
                                               int *);
+extern c4m_type_t     *c4m_new_typevar();
 extern void            c4m_initialize_global_types();
-extern c4m_type_hash_t c4m_type_hash(c4m_type_t *node, c4m_type_env_t *env);
+extern c4m_type_hash_t c4m_calculate_type_hash(c4m_type_t *node);
 
 extern uint64_t *c4m_get_list_bitfield();
 extern uint64_t *c4m_get_dict_bitfield();
@@ -63,95 +59,79 @@ c4m_remove_all_container_options(c4m_type_t *t)
     c4m_remove_tuple_options(t);
 }
 
-extern c4m_type_env_t *c4m_global_type_env;
-
 extern c4m_type_exact_result_t
-c4m_type_cmp_exact_env(c4m_type_t *,
-                       c4m_type_t *,
-                       c4m_type_env_t *);
-
-static inline c4m_type_exact_result_t
-c4m_type_cmp_exact(c4m_type_t *t1, c4m_type_t *t2)
-{
-    return c4m_type_cmp_exact_env(t1, t2, c4m_global_type_env);
-}
+c4m_type_cmp_exact(c4m_type_t *, c4m_type_t *);
 
 static inline c4m_dt_kind_t
-c4m_tspec_get_base(c4m_type_t *n)
+c4m_type_get_base(c4m_type_t *n)
 {
-    return c4m_global_resolve_type(n)->details->base_type->dt_kind;
+    return c4m_type_resolve(n)->details->base_type->dt_kind;
 }
 
 static inline c4m_xlist_t *
-c4m_tspec_get_params(c4m_type_t *n)
+c4m_type_get_params(c4m_type_t *n)
 {
-    return c4m_global_resolve_type(n)->details->items;
+    return c4m_type_resolve(n)->details->items;
 }
 
 static inline int
-c4m_tspec_get_num_params(c4m_type_t *n)
+c4m_type_get_num_params(c4m_type_t *n)
 {
-    return c4m_xlist_len(c4m_global_resolve_type(n)->details->items);
+    return c4m_xlist_len(c4m_type_resolve(n)->details->items);
 }
 
 static inline bool
-c4m_tspec_is_bool(c4m_type_t *n)
+c4m_type_is_bool(c4m_type_t *n)
 {
-    return c4m_global_resolve_type(n)->typeid == C4M_T_BOOL;
+    return c4m_type_resolve(n)->typeid == C4M_T_BOOL;
 }
 
 static inline bool
-c4m_tspec_is_error(c4m_type_t *n)
+c4m_type_is_error(c4m_type_t *n)
 {
-    return c4m_global_resolve_type(n)->typeid == C4M_T_ERROR;
+    return c4m_type_resolve(n)->typeid == C4M_T_ERROR;
 }
 
 static inline bool
-c4m_tspec_is_locked(c4m_type_t *t)
+c4m_type_is_locked(c4m_type_t *t)
 {
-    return c4m_global_resolve_type(t)->details->flags & C4M_FN_TY_LOCK;
+    return c4m_type_resolve(t)->details->flags & C4M_FN_TY_LOCK;
+}
+
+static inline bool
+c4m_type_is_tuple(c4m_type_t *t)
+{
+    return c4m_type_get_base(t) == C4M_DT_KIND_tuple;
 }
 
 static inline void
-c4m_tspec_lock(c4m_type_t *t)
+c4m_type_lock(c4m_type_t *t)
 {
-    c4m_global_resolve_type(t)->details->flags |= C4M_FN_TY_LOCK;
+    c4m_type_resolve(t)->details->flags |= C4M_FN_TY_LOCK;
 }
 
 static inline void
-c4m_tspec_unlock(c4m_type_t *t)
+c4m_type_unlock(c4m_type_t *t)
 {
     t->details->flags &= ~C4M_FN_TY_LOCK;
-}
-
-static inline c4m_type_hash_t
-c4m_tenv_next_tid(c4m_type_env_t *env)
-{
-    return atomic_fetch_add(&env->next_tid, 1);
 }
 
 static inline c4m_type_t *
 c4m_merge_types(c4m_type_t *t1, c4m_type_t *t2)
 {
-    return c4m_unify(t1, t2, c4m_global_type_env);
-}
-
-static inline c4m_xlist_t *
-c4m_tspec_get_parameters(c4m_type_t *t)
-{
-    return c4m_global_resolve_type(t)->details->items;
+    return c4m_unify(t1, t2);
 }
 
 static inline c4m_type_t *
-c4m_tspec_get_param(c4m_type_t *t, int i)
+c4m_type_get_param(c4m_type_t *t, int i)
 {
     return c4m_xlist_get(t->details->items, i, NULL);
 }
 
 static inline c4m_dt_info_t *
-c4m_tspec_get_data_type_info(c4m_type_t *t)
+c4m_type_get_data_type_info(c4m_type_t *t)
 {
-    t = c4m_global_resolve_type(t);
+    t = c4m_type_resolve(t);
 
     return t->details->base_type;
 }
@@ -167,11 +147,11 @@ c4m_get_my_type(const c4m_obj_t user_object)
 static inline int64_t
 c4m_get_base_type_id(const c4m_obj_t obj)
 {
-    return c4m_tspec_get_data_type_info(c4m_get_my_type(obj))->typeid;
+    return c4m_type_get_data_type_info(c4m_get_my_type(obj))->typeid;
 }
 
 static inline c4m_builtin_t
-c4m_tspec_get_base_tid(c4m_type_t *n)
+c4m_type_get_base_tid(c4m_type_t *n)
 {
     return n->details->base_type->typeid;
 }
@@ -179,297 +159,270 @@ c4m_tspec_get_base_tid(c4m_type_t *n)
 extern c4m_type_t *c4m_bi_types[C4M_NUM_BUILTIN_DTS];
 
 static inline c4m_type_t *
-c4m_tspec_error()
+c4m_type_error()
 {
     return c4m_bi_types[C4M_T_ERROR];
 }
 
 static inline c4m_type_t *
-c4m_tspec_void()
+c4m_type_void()
 {
     return c4m_bi_types[C4M_T_VOID];
 }
 
 static inline c4m_type_t *
-c4m_tspec_bool()
+c4m_type_bool()
 {
     return c4m_bi_types[C4M_T_BOOL];
 }
 
 static inline c4m_type_t *
-c4m_tspec_i8()
+c4m_type_i8()
 {
     return c4m_bi_types[C4M_T_I8];
 }
 
 static inline c4m_type_t *
-c4m_tspec_u8()
+c4m_type_u8()
 {
     return c4m_bi_types[C4M_T_BYTE];
 }
 
 static inline c4m_type_t *
-c4m_tspec_byte()
+c4m_type_byte()
 {
     return c4m_bi_types[C4M_T_BYTE];
 }
 
 static inline c4m_type_t *
-c4m_tspec_i32()
+c4m_type_i32()
 {
     return c4m_bi_types[C4M_T_I32];
 }
 
 static inline c4m_type_t *
-c4m_tspec_u32()
+c4m_type_u32()
 {
     return c4m_bi_types[C4M_T_CHAR];
 }
 
 static inline c4m_type_t *
-c4m_tspec_char()
+c4m_type_char()
 {
     return c4m_bi_types[C4M_T_CHAR];
 }
 
 static inline c4m_type_t *
-c4m_tspec_i64()
+c4m_type_i64()
 {
     return c4m_bi_types[C4M_T_INT];
 }
 
 static inline c4m_type_t *
-c4m_tspec_int()
+c4m_type_int()
 {
     return c4m_bi_types[C4M_T_INT];
 }
 
 static inline c4m_type_t *
-c4m_tspec_u64()
+c4m_type_u64()
 {
     return c4m_bi_types[C4M_T_UINT];
 }
 
 static inline c4m_type_t *
-c4m_tspec_uint()
+c4m_type_uint()
 {
     return c4m_bi_types[C4M_T_UINT];
 }
 
 static inline c4m_type_t *
-c4m_tspec_f32()
+c4m_type_f32()
 {
     return c4m_bi_types[C4M_T_F32];
 }
 
 static inline c4m_type_t *
-c4m_tspec_f64()
+c4m_type_f64()
 {
     return c4m_bi_types[C4M_T_F64];
 }
 
 static inline c4m_type_t *
-c4m_tspec_float()
+c4m_type_float()
 {
     return c4m_bi_types[C4M_T_F64];
 }
 
 static inline c4m_type_t *
-c4m_tspec_utf8()
+c4m_type_utf8()
 {
     return c4m_bi_types[C4M_T_UTF8];
 }
 
 static inline c4m_type_t *
-c4m_tspec_buffer()
+c4m_type_buffer()
 {
     return c4m_bi_types[C4M_T_BUFFER];
 }
 
 static inline c4m_type_t *
-c4m_tspec_utf32()
+c4m_type_utf32()
 {
     return c4m_bi_types[C4M_T_UTF32];
 }
 
 static inline c4m_type_t *
-c4m_tspec_grid()
+c4m_type_grid()
 {
     return c4m_bi_types[C4M_T_GRID];
 }
 
 static inline c4m_type_t *
-c4m_tspec_typespec()
+c4m_type_typespec()
 {
     return c4m_bi_types[C4M_T_TYPESPEC];
 }
 
 static inline c4m_type_t *
-c4m_tspec_ipv4()
+c4m_type_ipv4()
 {
     return c4m_bi_types[C4M_T_IPV4];
 }
 
 static inline c4m_type_t *
-c4m_tspec_ipv6()
+c4m_type_ipv6()
 {
     return c4m_bi_types[C4M_T_IPV6];
 }
 
 static inline c4m_type_t *
-c4m_tspec_duration()
+c4m_type_duration()
 {
     return c4m_bi_types[C4M_T_DURATION];
 }
 
 static inline c4m_type_t *
-c4m_tspec_size()
+c4m_type_size()
 {
     return c4m_bi_types[C4M_T_SIZE];
 }
 
 static inline c4m_type_t *
-c4m_tspec_datetime()
+c4m_type_datetime()
 {
     return c4m_bi_types[C4M_T_DATETIME];
 }
 
 static inline c4m_type_t *
-c4m_tspec_date()
+c4m_type_date()
 {
     return c4m_bi_types[C4M_T_DATE];
 }
 
 static inline c4m_type_t *
-c4m_tspec_time()
+c4m_type_time()
 {
     return c4m_bi_types[C4M_T_TIME];
 }
 
 static inline c4m_type_t *
-c4m_tspec_url()
+c4m_type_url()
 {
     return c4m_bi_types[C4M_T_URL];
 }
 
 static inline c4m_type_t *
-c4m_tspec_flags()
+c4m_type_flags()
 {
     return c4m_bi_types[C4M_T_FLAGS];
 }
 
 static inline c4m_type_t *
-c4m_tspec_callback()
+c4m_type_callback()
 {
     return c4m_bi_types[C4M_T_CALLBACK];
 }
 
 static inline c4m_type_t *
-c4m_tspec_renderable()
+c4m_type_renderable()
 {
     return c4m_bi_types[C4M_T_RENDERABLE];
 }
 
 static inline c4m_type_t *
-c4m_tspec_render_style()
+c4m_type_render_style()
 {
     return c4m_bi_types[C4M_T_RENDER_STYLE];
 }
 
 static inline c4m_type_t *
-c4m_tspec_hash()
+c4m_type_hash()
 {
     return c4m_bi_types[C4M_T_SHA];
 }
 
 static inline c4m_type_t *
-c4m_tspec_exception()
+c4m_type_exception()
 {
     return c4m_bi_types[C4M_T_EXCEPTION];
 }
 
 static inline c4m_type_t *
-c4m_tspec_type_env()
-{
-    return c4m_bi_types[C4M_T_TYPE_ENV];
-}
-
-static inline c4m_type_t *
-c4m_tspec_logring()
+c4m_type_logring()
 {
     return c4m_bi_types[C4M_T_LOGRING];
 }
 
 static inline c4m_type_t *
-c4m_tspec_mixed()
+c4m_type_mixed()
 {
     return c4m_bi_types[C4M_T_GENERIC];
 }
 
 static inline c4m_type_t *
-c4m_tspec_ref()
+c4m_type_ref()
 {
     return c4m_bi_types[C4M_T_REF];
 }
 
 static inline c4m_type_t *
-c4m_tspec_stream()
+c4m_type_stream()
 {
     return c4m_bi_types[C4M_T_STREAM];
 }
 
 static inline c4m_type_t *
-c4m_tspec_kargs()
+c4m_type_kargs()
 {
     return c4m_bi_types[C4M_T_KEYWORD];
 }
 
 static inline c4m_type_t *
-c4m_tspec_parse_node()
+c4m_type_parse_node()
 {
     return c4m_bi_types[C4M_T_PARSE_NODE];
 }
 
 static inline c4m_type_t *
-c4m_tspec_bit()
+c4m_type_bit()
 {
     return c4m_bi_types[C4M_T_BIT];
 }
 
 static inline c4m_type_t *
-c4m_new_typevar(c4m_type_env_t *env)
+c4m_type_any_list(c4m_type_t *item_type)
 {
-    c4m_type_t   *result = c4m_new(c4m_tspec_typespec(), env, C4M_T_GENERIC);
-    tv_options_t *tsi    = c4m_gc_alloc(tv_options_t);
-
-    result->details->tsi   = tsi;
-    tsi->container_options = c4m_get_all_containers_bitfield();
-    result->details->items = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
-    result->details->flags = C4M_FN_UNKNOWN_TV_LEN;
-
-    return result;
-}
-
-static inline c4m_type_t *
-c4m_tspec_typevar()
-{
-    return c4m_new_typevar(c4m_global_type_env);
-}
-
-static inline c4m_type_t *
-c4m_tspec_any_list(c4m_type_t *item_type)
-{
-    c4m_type_t   *result = c4m_new(c4m_tspec_typespec(),
-                                 c4m_global_type_env,
+    c4m_type_t   *result = c4m_new(c4m_type_typespec(),
                                  C4M_T_GENERIC);
     tv_options_t *tsi    = c4m_gc_alloc(tv_options_t);
 
     result->details->tsi   = tsi;
     tsi->container_options = c4m_get_list_bitfield();
-    result->details->items = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+    result->details->items = c4m_new(c4m_type_xlist(c4m_type_typespec()));
 
     if (item_type == NULL) {
-        item_type = c4m_tspec_typevar();
+        item_type = c4m_new_typevar();
     }
 
     c4m_xlist_append(result->details->items, item_type);
@@ -478,23 +431,22 @@ c4m_tspec_any_list(c4m_type_t *item_type)
 }
 
 static inline c4m_type_t *
-c4m_tspec_any_dict(c4m_type_t *key, c4m_type_t *value)
+c4m_type_any_dict(c4m_type_t *key, c4m_type_t *value)
 {
-    c4m_type_t   *result = c4m_new(c4m_tspec_typespec(),
-                                 c4m_global_type_env,
+    c4m_type_t   *result = c4m_new(c4m_type_typespec(),
                                  C4M_T_GENERIC);
     tv_options_t *tsi    = c4m_gc_alloc(tv_options_t);
 
     result->details->tsi   = tsi;
     tsi->container_options = c4m_get_dict_bitfield();
-    result->details->items = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+    result->details->items = c4m_new(c4m_type_xlist(c4m_type_typespec()));
 
     if (key == NULL) {
-        key = c4m_tspec_typevar();
+        key = c4m_new_typevar();
     }
 
     if (value == NULL) {
-        value = c4m_tspec_typevar();
+        value = c4m_new_typevar();
     }
 
     c4m_xlist_append(result->details->items, key);
@@ -504,19 +456,18 @@ c4m_tspec_any_dict(c4m_type_t *key, c4m_type_t *value)
 }
 
 static inline c4m_type_t *
-c4m_tspec_any_set(c4m_type_t *item_type)
+c4m_type_any_set(c4m_type_t *item_type)
 {
-    c4m_type_t   *result = c4m_new(c4m_tspec_typespec(),
-                                 c4m_global_type_env,
+    c4m_type_t   *result = c4m_new(c4m_type_typespec(),
                                  C4M_T_GENERIC);
     tv_options_t *tsi    = c4m_gc_alloc(tv_options_t);
 
     result->details->tsi   = tsi;
     tsi->container_options = c4m_get_set_bitfield();
-    result->details->items = c4m_new(c4m_tspec_xlist(c4m_tspec_typespec()));
+    result->details->items = c4m_new(c4m_type_xlist(c4m_type_typespec()));
 
     if (item_type == NULL) {
-        item_type = c4m_tspec_typevar();
+        item_type = c4m_new_typevar();
     }
 
     c4m_xlist_append(result->details->items, item_type);
@@ -525,35 +476,45 @@ c4m_tspec_any_set(c4m_type_t *item_type)
 }
 
 static inline bool
-c4m_tspecs_are_compat(c4m_type_t *t1, c4m_type_t *t2)
+c4m_types_are_compat(c4m_type_t *t1, c4m_type_t *t2)
 {
-    t1 = c4m_global_copy(t1);
-    t2 = c4m_global_copy(t2);
+    t1 = c4m_type_copy(t1);
+    t2 = c4m_type_copy(t2);
 
-    return !c4m_tspec_is_error(c4m_global_type_check(t1, t2));
+    return !c4m_type_is_error(c4m_unify(t1, t2));
 }
 
 static inline bool
 c4m_obj_type_check(const c4m_obj_t *obj, c4m_type_t *t2)
 {
-    return c4m_tspecs_are_compat(c4m_object_type(obj), t2);
+    return c4m_types_are_compat(c4m_get_my_type((c4m_type_t *)obj), t2);
 }
 
 static inline bool
-c4m_tspec_is_box(c4m_type_t *t)
+c4m_type_is_box(c4m_type_t *t)
 {
-    t = c4m_global_resolve_type(t);
+    t = c4m_type_resolve(t);
     return t->details->base_type->typeid == C4M_T_BOX;
 }
 
+static inline c4m_type_t *
+c4m_type_unbox(c4m_type_t *t)
+{
+    assert(c4m_type_is_box(t));
+    return (c4m_type_t *)t->details->tsi;
+}
+
 static inline bool
-c4m_tspec_is_int_type(c4m_type_t *t)
+c4m_type_is_int_type(c4m_type_t *t)
 {
     if (t == NULL) {
         return false;
     }
 
-    t = c4m_resolve_and_unbox(t);
+    t = c4m_type_resolve(t);
+    if (t->typeid == C4M_T_BOX) {
+        t = (c4m_type_t *)t->details->tsi;
+    }
 
     switch (t->typeid) {
     case C4M_T_I8:
@@ -570,13 +531,13 @@ c4m_tspec_is_int_type(c4m_type_t *t)
 }
 
 static inline bool
-c4m_tspec_is_signed(c4m_type_t *t)
+c4m_type_is_signed(c4m_type_t *t)
 {
     if (t == NULL) {
         return false;
     }
 
-    t = c4m_global_resolve_type(t);
+    t = c4m_type_resolve(t);
 
     switch (t->typeid) {
     case C4M_T_I8:
@@ -590,10 +551,10 @@ c4m_tspec_is_signed(c4m_type_t *t)
 }
 
 static inline bool
-c4m_tspec_is_tvar(c4m_type_t *t)
+c4m_type_is_tvar(c4m_type_t *t)
 {
-    t = c4m_global_resolve_type(t);
-    return (c4m_tspec_get_base(t) == C4M_DT_KIND_type_var);
+    t = c4m_type_resolve(t);
+    return (c4m_type_get_base(t) == C4M_DT_KIND_type_var);
 }
 
 static inline bool
@@ -601,23 +562,17 @@ c4m_obj_is_int_type(const c4m_obj_t *obj)
 {
     c4m_base_obj_t *base = (c4m_base_obj_t *)c4m_object_header(obj);
 
-    return c4m_tspec_is_int_type(base->concrete_type);
+    return c4m_type_is_int_type(base->concrete_type);
 }
 
 static inline bool
 c4m_type_is_value_type(c4m_type_t *t)
 {
-    // This should NOT unbox; check c4m_tspec_is_box() too if needed.
-    t                 = c4m_global_resolve_type(t);
-    c4m_dt_info_t *dt = c4m_tspec_get_data_type_info(t);
+    // This should NOT unbox; check c4m_type_is_box() too if needed.
+    t                 = c4m_type_resolve(t);
+    c4m_dt_info_t *dt = c4m_type_get_data_type_info(t);
 
     return dt->by_value;
-}
-
-static inline bool
-c4m_type_is_boxed_value_type(c4m_type_t *t)
-{
-    return c4m_type_is_value_type(c4m_resolve_and_unbox(t));
 }
 
 // Once we add objects, this will be a dynamic number.
@@ -630,8 +585,10 @@ c4m_number_concrete_types()
 static inline int
 c4m_get_alloc_len(c4m_type_t *t)
 {
-    return c4m_tspec_get_data_type_info(t)->alloc_len;
+    return c4m_type_get_data_type_info(t)->alloc_len;
 }
+
+void c4m_set_next_typevar_fn(c4m_next_typevar_fn);
 
 #ifdef C4M_USE_INTERNAL_API
 extern c4m_grid_t *c4m_format_global_type_environment();

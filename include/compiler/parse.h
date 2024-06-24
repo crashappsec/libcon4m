@@ -53,7 +53,7 @@ static inline c4m_utf8_t *
 node_list_join(c4m_xlist_t *nodes, c4m_str_t *joiner, bool trailing)
 {
     int64_t      n      = c4m_xlist_len(nodes);
-    c4m_xlist_t *strarr = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+    c4m_xlist_t *strarr = c4m_new(c4m_type_xlist(c4m_type_utf8()));
 
     for (int64_t i = 0; i < n; i++) {
         c4m_tree_node_t *one = c4m_xlist_get(nodes, i, NULL);
