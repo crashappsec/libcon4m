@@ -7,7 +7,7 @@ static void
 mem_c4m_stream_setup(c4m_cookie_t *c)
 {
     if (c->object == NULL) {
-        c->object = c4m_new(c4m_tspec_buffer());
+        c->object = c4m_new(c4m_type_buffer());
         c->extra  = NULL;
         return;
     }
@@ -308,12 +308,12 @@ static c4m_obj_t
 c4m_stream_bytes_to_output(int64_t flags, char *buf, int64_t len)
 {
     if (flags & C4M_F_STREAM_UTF8_OUT) {
-        return c4m_new(c4m_tspec_utf8(),
+        return c4m_new(c4m_type_utf8(),
                        c4m_kw("cstring", c4m_ka(buf), "length", c4m_ka(len)));
     }
 
     if (flags & C4M_F_STREAM_UTF32_OUT) {
-        return c4m_new(c4m_tspec_utf32(),
+        return c4m_new(c4m_type_utf32(),
                        c4m_kw("cstring",
                               c4m_ka(buf),
                               "codepoints",
@@ -322,7 +322,7 @@ c4m_stream_bytes_to_output(int64_t flags, char *buf, int64_t len)
 
     else {
         // Else, it's going to a buffer.
-        return c4m_new(c4m_tspec_buffer(),
+        return c4m_new(c4m_type_buffer(),
                        c4m_kw("raw", c4m_ka(buf), "length", c4m_ka(len)));
     }
 }
@@ -398,14 +398,14 @@ c4m_stream_read_all(c4m_stream_t *stream)
 
     switch (outkind) {
     case C4M_F_STREAM_UTF8_OUT:
-        l = c4m_new(c4m_tspec_xlist(c4m_tspec_utf8()));
+        l = c4m_new(c4m_type_xlist(c4m_type_utf8()));
         break;
     case C4M_F_STREAM_UTF32_OUT:
-        l = c4m_new(c4m_tspec_xlist(c4m_tspec_utf32()));
+        l = c4m_new(c4m_type_xlist(c4m_type_utf32()));
         break;
     default:
         // Buffers.
-        l = c4m_new(c4m_tspec_xlist(c4m_tspec_buffer()));
+        l = c4m_new(c4m_type_xlist(c4m_type_buffer()));
         break;
     }
     while (true) {
@@ -649,7 +649,7 @@ _c4m_print(c4m_obj_t first, ...)
         return;
     }
 
-    if (c4m_get_my_type(first) == c4m_tspec_kargs()) {
+    if (c4m_get_my_type(first) == c4m_type_kargs()) {
         _c4m_karg = first;
         numargs   = 0;
     }
@@ -728,11 +728,11 @@ void
 c4m_init_std_streams()
 {
     if (c4m_stream_stdin == NULL) {
-        c4m_stream_stdin  = c4m_new(c4m_tspec_stream(),
+        c4m_stream_stdin  = c4m_new(c4m_type_stream(),
                                    c4m_kw("cstream", c4m_ka(stdin)));
-        c4m_stream_stdout = c4m_new(c4m_tspec_stream(),
+        c4m_stream_stdout = c4m_new(c4m_type_stream(),
                                     c4m_kw("cstream", c4m_ka(stdout)));
-        c4m_stream_stderr = c4m_new(c4m_tspec_stream(),
+        c4m_stream_stderr = c4m_new(c4m_type_stream(),
                                     c4m_kw("cstream", c4m_ka(stderr)));
         c4m_gc_register_root(&c4m_stream_stdin, 1);
         c4m_gc_register_root(&c4m_stream_stdout, 1);

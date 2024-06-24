@@ -344,8 +344,8 @@ typedef enum : uint8_t {
 // We'll make the main VM container, c4m_vm_t an object type (C4M_T_VM) so that
 // we can have an entry point into the core marshalling functionality, but we
 // won't make other internal types object types. Only those structs that have a
-// z prefix on their name get marshalled. For lists we'll use c4m_tspec_xlist
-// with a c4m_tspec_ref base type. But this means that we have to marshal these
+// z prefix on their name get marshalled. For lists we'll use c4m_type_xlist
+// with a c4m_type_ref base type. But this means that we have to marshal these
 // lists manually. As of right now at least, all dicts used have object keys
 // and values (ints, strings, etc).
 

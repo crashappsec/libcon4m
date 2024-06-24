@@ -9,7 +9,7 @@ extern void                c4m_install_default_styles();
 static inline c4m_render_style_t *
 c4m_copy_render_style(const c4m_render_style_t *style)
 {
-    c4m_render_style_t *result = c4m_new(c4m_tspec_render_style());
+    c4m_render_style_t *result = c4m_new(c4m_type_render_style());
 
     memcpy(result, style, sizeof(c4m_render_style_t));
 
@@ -327,7 +327,7 @@ c4m_get_border_theme(c4m_render_style_t *style)
 static inline c4m_render_style_t *
 c4m_new_render_style()
 {
-    return c4m_new(c4m_tspec_render_style());
+    return c4m_new(c4m_type_render_style());
 }
 
 extern bool c4m_style_exists(char *name);

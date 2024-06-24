@@ -10,6 +10,7 @@ extern EVP_MD_CTX EVP_MD_CTX_new();
 extern int        EVP_DigestInit_ex2(EVP_MD_CTX, const EVP_MD, void *);
 extern int        EVP_DigestUpdate(EVP_MD_CTX *, const void *, size_t);
 extern int        EVP_DigestFinal_ex(EVP_MD_CTX *, char *, unsigned int *);
+extern void       EVP_MD_CTX_free(EVP_MD_CTX *);
 
 extern EVP_MD  *EVP_sha256(void);
 extern EVP_MD  *EVP_sha384(void);

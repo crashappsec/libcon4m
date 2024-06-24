@@ -130,14 +130,30 @@ function libcon4m_run_tests {
 
     TARGET=$(cat .meson_last)
 
-    mason_build ${TARGET} --buildtype=${TARGET}
     log Running test binary for target: $(color green '[==' $TARGET '==]')
 
     cd $TARGET
     ./c4test $@
-    CODE_TESTS=$?
+    EXIT=$?
+    log "Exit status: ${EXIT}"
+    if [[ ${EXIT} -gt 0 ]] && [[ $@ == "" ]]  ; then
+        log "Test runner crashed; rerunning tests individually to isolate."
+        HERE=`pwd`
+        cd ../tests
+        for ITEM in `ls basic[0-9]*`; do
+            log Running test: $(color green '[==' $ITEM '==]')
+            ${HERE}/c4test $ITEM
+            if [[ $? -ne 0 ]] ; then
+                echo
+                echo $(color CYAN '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+                echo $(color CYAN '!! Test case ' $ITEM ' failed !!')
+                echo $(color CYAN '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+                echo
+            fi
+        done
+        exit -1
+    fi
     cd ..
-    exit "${CODE_TESTS}"
 }
 
 function libcon4m_dev_clean {
@@ -155,8 +171,6 @@ function libcon4m_dev_clean {
 
 if [[ ${#} -eq 0 ]]; then
     meson_build build
-elif [[ ${#} -ne 1 ]]; then
-    usage
 fi
 
 case $1 in

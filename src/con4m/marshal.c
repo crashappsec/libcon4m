@@ -148,8 +148,12 @@ c4m_marshal_compact_type(c4m_type_t *t, c4m_stream_t *s)
         param_count = (uint16_t)c4m_len(t->details->items);
         c4m_marshal_u16(param_count, s);
         for (int i = 0; i < param_count; i++) {
-            c4m_marshal_compact_type(c4m_xlist_get(t->details->items, i, NULL), s);
+            c4m_marshal_compact_type(c4m_xlist_get(t->details->items, i, NULL),
+                                     s);
         }
+        return;
+    case C4M_DT_KIND_box:
+        c4m_marshal_compact_type((c4m_type_t *)t->details->tsi, s);
         return;
     default:
         c4m_unreachable();
@@ -175,7 +179,7 @@ c4m_unmarshal_compact_type(c4m_stream_t *s)
         result = c4m_get_builtin_type(base);
         return result;
     case C4M_DT_KIND_type_var:
-        result = c4m_new(c4m_tspec_typespec(),
+        result = c4m_new(c4m_type_typespec(),
                          NULL,
                          NULL,
                          NULL);
@@ -192,17 +196,24 @@ c4m_unmarshal_compact_type(c4m_stream_t *s)
     case C4M_DT_KIND_tuple:
     case C4M_DT_KIND_object:
         param_count            = c4m_unmarshal_u16(s);
-        result                 = c4m_new(c4m_tspec_typespec(), NULL, NULL, 1UL);
+        result                 = c4m_new(c4m_type_typespec(), NULL, NULL, 1UL);
         result->typeid         = tid;
         result->details->flags = flags;
+        result->details->items = c4m_xlist(c4m_type_typespec());
 
         for (int i = 0; i < param_count; i++) {
             c4m_xlist_append(result->details->items, c4m_unmarshal_compact_type(s));
         }
         break;
+    case C4M_DT_KIND_box:
+        result                     = c4m_new(c4m_type_typespec(), C4M_T_BOX);
+        result->details->tsi       = c4m_unmarshal_compact_type(s);
+        result->details->base_type = (c4m_dt_info_t *)&c4m_base_type_info[base];
+        c4m_calculate_type_hash(result);
+        break;
     }
 
-    hatrack_dict_put(c4m_global_type_env->store, (void *)tid, result);
+    // hatrack_dict_put(c4m_global_type_env->store, (void *)tid, result);
     result->details->base_type = (c4m_dt_info_t *)&c4m_base_type_info[base];
     return result;
 }
@@ -387,14 +398,14 @@ c4m_dump_c_static_instance_code(c4m_obj_t   obj,
                                 char       *symbol_name,
                                 c4m_utf8_t *filename)
 {
-    c4m_buf_t    *b = c4m_new(c4m_tspec_buffer(), c4m_kw("length", c4m_ka(1)));
-    c4m_stream_t *s = c4m_new(c4m_tspec_stream(),
+    c4m_buf_t    *b = c4m_new(c4m_type_buffer(), c4m_kw("length", c4m_ka(1)));
+    c4m_stream_t *s = c4m_new(c4m_type_stream(),
                               c4m_kw("buffer", c4m_ka(b), "write", c4m_ka(1)));
 
     c4m_marshal(obj, s);
     c4m_stream_close(s);
 
-    s = c4m_new(c4m_tspec_stream(),
+    s = c4m_new(c4m_type_stream(),
                 c4m_kw("filename",
                        c4m_ka(filename),
                        "write",
@@ -417,9 +428,9 @@ c4m_dump_c_static_instance_code(c4m_obj_t   obj,
     static char *fn_part1    = "()\n{\n    if (";
     static char *fn_part2 =
         " == NULL) {\n"
-        "        c4m_stream_t *s = c4m_new(c4m_tspec_stream(), \n"
+        "        c4m_stream_t *s = c4m_new(c4m_type_stream(), \n"
         "                                c4m_kw(\"buffer\", "
-        "c4m_new(c4m_tspec_buffer(),  \"raw\", _marshaled_";
+        "c4m_new(c4m_type_buffer(),  \"raw\", _marshaled_";
     static char *fn_part3 =
         ", \n"
         "                                             \"length\", c4m_ka(";

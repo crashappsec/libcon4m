@@ -93,8 +93,8 @@ cfg_copy_du_info(cfg_ctx        *ctx,
                  c4m_dict_t    **new_dict,
                  c4m_xlist_t   **new_sometimes)
 {
-    c4m_dict_t *copy = c4m_new(c4m_tspec_dict(c4m_tspec_ref(),
-                                              c4m_tspec_ref()));
+    c4m_dict_t *copy = c4m_new(c4m_type_dict(c4m_type_ref(),
+                                              c4m_type_ref()));
     uint64_t    n;
 
     hatrack_dict_item_t *view = hatrack_dict_items_sort(node->liveness_info,
@@ -109,7 +109,7 @@ cfg_copy_du_info(cfg_ctx        *ctx,
     c4m_xlist_t *old = node->sometimes_live;
 
     if (old != NULL) {
-        *new_sometimes = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+        *new_sometimes = c4m_new(c4m_type_xlist(c4m_type_ref()));
         int l          = c4m_xlist_len(old);
         for (int i = 0; i < l; i++) {
             c4m_xlist_append(*new_sometimes, c4m_xlist_get(old, i, NULL));
@@ -284,7 +284,7 @@ cfg_merge_aux_entries_to_top(cfg_ctx *ctx, c4m_cfg_node_t *node)
         return;
     }
 
-    c4m_set_t *sometimes = c4m_new(c4m_tspec_set(c4m_tspec_ref()));
+    c4m_set_t *sometimes = c4m_new(c4m_type_set(c4m_type_ref()));
 
     if (exit->sometimes_live != NULL) {
         int n = c4m_xlist_len(exit->sometimes_live);
@@ -345,12 +345,12 @@ static void
 process_branch_exit(cfg_ctx *ctx, c4m_cfg_node_t *node)
 {
     // Merge and push forward info on partial crapola.
-    c4m_dict_t            *counters  = c4m_new(c4m_tspec_dict(c4m_tspec_ref(),
-                                                  c4m_tspec_ref()));
-    c4m_set_t             *sometimes = c4m_new(c4m_tspec_set(c4m_tspec_ref()));
+    c4m_dict_t            *counters  = c4m_new(c4m_type_dict(c4m_type_ref(),
+                                                  c4m_type_ref()));
+    c4m_set_t             *sometimes = c4m_new(c4m_type_set(c4m_type_ref()));
     c4m_cfg_branch_info_t *bi        = &node->contents.branches;
-    c4m_dict_t            *merged    = c4m_new(c4m_tspec_dict(c4m_tspec_ref(),
-                                                c4m_tspec_ref()));
+    c4m_dict_t            *merged    = c4m_new(c4m_type_dict(c4m_type_ref(),
+                                                c4m_type_ref()));
     c4m_cfg_node_t        *exit_node;
     c4m_scope_entry_t     *sym;
     hatrack_dict_item_t   *view;
@@ -625,7 +625,7 @@ cfg_process_node(cfg_ctx *ctx, c4m_cfg_node_t *node, c4m_cfg_node_t *parent)
                                           &n);
 
         if (!ta->sometimes_live) {
-            ta->sometimes_live = c4m_new(c4m_tspec_xlist(c4m_tspec_ref()));
+            ta->sometimes_live = c4m_new(c4m_type_xlist(c4m_type_ref()));
         }
 
         for (uint64_t i = 0; i < n; i++) {
@@ -657,7 +657,7 @@ void
 c4m_cfg_analyze(c4m_file_compile_ctx *file_ctx, c4m_dict_t *du_info)
 {
     if (du_info == NULL) {
-        du_info = c4m_new(c4m_tspec_dict(c4m_tspec_ref(), c4m_tspec_ref()));
+        du_info = c4m_new(c4m_type_dict(c4m_type_ref(), c4m_type_ref()));
     }
 
     cfg_ctx ctx = {

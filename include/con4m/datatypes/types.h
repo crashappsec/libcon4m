@@ -46,11 +46,6 @@ typedef struct c4m_type_info_t {
 // more testing lqter.
 #define C4M_FN_UNKNOWN_TV_LEN 4
 
-typedef struct {
-    c4m_dict_t      *store;
-    _Atomic uint64_t next_tid;
-} c4m_type_env_t;
-
 typedef enum {
     c4m_type_match_exact,
     c4m_type_match_left_more_specific,
@@ -59,6 +54,8 @@ typedef enum {
     c4m_type_cant_match,
 } c4m_type_exact_result_t;
 
+typedef uint64_t (*c4m_next_typevar_fn)(void);
+
 #ifdef C4M_USE_INTERNAL_API
-c4m_str_t *internal_type_repr(c4m_type_t *, c4m_dict_t *, int64_t *);
+c4m_str_t *c4m_internal_type_repr(c4m_type_t *, c4m_dict_t *, int64_t *);
 #endif

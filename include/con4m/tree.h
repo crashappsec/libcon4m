@@ -37,6 +37,6 @@ c4m_tree_get_parent(c4m_tree_node_t *t)
 static inline c4m_tree_node_t *
 c4m_tree(c4m_str_t *s)
 {
-    return c4m_new(c4m_tspec_tree(c4m_tspec_utf32()),
+    return c4m_new(c4m_type_tree(c4m_type_utf32()),
                    c4m_kw("contents", c4m_ka(s)));
 }
