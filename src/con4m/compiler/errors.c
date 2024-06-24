@@ -1142,6 +1142,13 @@ static error_info_t error_info[] = {
         "Tuple index is out of bounds for this tuple of type [em]{}[/].",
         true,
     },
+    [c4m_warn_may_wrap] = {
+        c4m_warn_may_wrap,
+        "may_wrap",
+        "Automatic integer conversion from unsigned to signed of the same size "
+        "can turn large positive values negative.",
+        false,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",
@@ -1302,7 +1309,7 @@ c4m_compile_extract_all_error_codes(c4m_compile_ctx *cctx)
         if (ctx->errors != NULL) {
             int n = c4m_xlist_len(ctx->errors);
             for (int j = 0; j < n; j++) {
-                c4m_compile_error *err = c4m_xlist_get(ctx->errors, i, NULL);
+                c4m_compile_error *err = c4m_xlist_get(ctx->errors, j, NULL);
 
                 c4m_xlist_append(result, (void *)(uint64_t)err->code);
             }

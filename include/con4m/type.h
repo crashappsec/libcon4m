@@ -87,12 +87,6 @@ c4m_type_is_bool(c4m_type_t *n)
 }
 
 static inline bool
-c4m_type_is_error(c4m_type_t *n)
-{
-    return c4m_type_resolve(n)->typeid == C4M_T_ERROR;
-}
-
-static inline bool
 c4m_type_is_locked(c4m_type_t *t)
 {
     return c4m_type_resolve(t)->details->flags & C4M_FN_TY_LOCK;
@@ -114,12 +108,6 @@ static inline void
 c4m_type_unlock(c4m_type_t *t)
 {
     t->details->flags &= ~C4M_FN_TY_LOCK;
-}
-
-static inline c4m_type_t *
-c4m_merge_types(c4m_type_t *t1, c4m_type_t *t2)
-{
-    return c4m_unify(t1, t2);
 }
 
 static inline c4m_type_t *
@@ -157,6 +145,12 @@ c4m_type_get_base_tid(c4m_type_t *n)
 }
 
 extern c4m_type_t *c4m_bi_types[C4M_NUM_BUILTIN_DTS];
+
+static inline bool
+c4m_type_is_error(c4m_type_t *n)
+{
+    return c4m_type_resolve(n)->typeid == C4M_T_ERROR;
+}
 
 static inline c4m_type_t *
 c4m_type_error()
@@ -411,6 +405,22 @@ c4m_type_bit()
 }
 
 static inline c4m_type_t *
+c4m_merge_types(c4m_type_t *t1, c4m_type_t *t2, int *warning)
+{
+    c4m_type_t *result = c4m_unify(t1, t2);
+
+    if (!c4m_type_is_error(result)) {
+        return result;
+    }
+
+    if (warning != NULL) {
+        return c4m_get_promotion_type(t1, t2, warning);
+    }
+
+    return c4m_type_error();
+}
+
+static inline c4m_type_t *
 c4m_type_any_list(c4m_type_t *item_type)
 {
     c4m_type_t   *result = c4m_new(c4m_type_typespec(),
@@ -476,18 +486,30 @@ c4m_type_any_set(c4m_type_t *item_type)
 }
 
 static inline bool
-c4m_types_are_compat(c4m_type_t *t1, c4m_type_t *t2)
+c4m_types_are_compat(c4m_type_t *t1, c4m_type_t *t2, int *warning)
 {
     t1 = c4m_type_copy(t1);
     t2 = c4m_type_copy(t2);
 
-    return !c4m_type_is_error(c4m_unify(t1, t2));
+    if (!c4m_type_is_error(c4m_unify(t1, t2))) {
+        return true;
+    }
+
+    if (!warning) {
+        return false;
+    }
+
+    if (!c4m_type_is_error(c4m_get_promotion_type(t1, t2, warning))) {
+        return true;
+    }
+
+    return false;
 }
 
 static inline bool
-c4m_obj_type_check(const c4m_obj_t *obj, c4m_type_t *t2)
+c4m_obj_type_check(const c4m_obj_t *obj, c4m_type_t *t2, int *warn)
 {
-    return c4m_types_are_compat(c4m_get_my_type((c4m_type_t *)obj), t2);
+    return c4m_types_are_compat(c4m_get_my_type((c4m_type_t *)obj), t2, warn);
 }
 
 static inline bool

@@ -2,19 +2,15 @@
 This is my module.
 Here is one of its two doc strings.
 """
-"""
-$output: 
-"""
-/*
 extern callecho(ptr) -> cvoid {
   "This has some docs too."
   
-  local: print(x: string) -> void
+  local: echo(x: string) -> void
   pure: false
 }
 
 extern echoanint(cint) -> cvoid {
-  local: print(x: int) -> void
+  local: echo(x: int) -> void
   pure: false
 }
 
@@ -34,5 +30,4 @@ func fib(x) {
 }
 
 x = fib(10)
-assert x == 55
-*/
+echo(x)

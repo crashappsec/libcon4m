@@ -107,7 +107,7 @@ mixed_init(c4m_mixed_t *m, va_list args)
 void
 c4m_unbox_mixed(c4m_mixed_t *m, c4m_type_t *expected_type, void **ptr)
 {
-    if (!c4m_types_are_compat(m->held_type, expected_type)) {
+    if (!c4m_types_are_compat(m->held_type, expected_type, NULL)) {
         C4M_CRAISE((char *)err2);
     }
 

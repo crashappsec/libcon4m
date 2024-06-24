@@ -162,7 +162,7 @@ dict_repr(c4m_dict_t *dict)
 static bool
 dict_can_coerce_to(c4m_type_t *my_type, c4m_type_t *dst_type)
 {
-    return c4m_types_are_compat(my_type, dst_type);
+    return c4m_types_are_compat(my_type, dst_type, NULL);
 }
 
 static c4m_dict_t *

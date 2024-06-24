@@ -384,7 +384,10 @@ c4m_stream_raw_read(c4m_stream_t *stream, int64_t len, char *buf)
         return (c4m_obj_t)(actual);
     }
     else {
-        return c4m_stream_bytes_to_output(stream->flags, buf, actual);
+        if (actual) {
+            return c4m_stream_bytes_to_output(stream->flags, buf, actual);
+        }
+        return (c4m_obj_t *)c4m_empty_string();
     }
 }
 

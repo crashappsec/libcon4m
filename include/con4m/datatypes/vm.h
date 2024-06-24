@@ -375,8 +375,7 @@ typedef struct {
 // before storing in the value, because there's otherwise no way to be able to
 // know whether the number value is boxed or not.
 typedef struct c4m_value_t {
-    c4m_obj_t   obj;
-    c4m_type_t *type_info;
+    c4m_obj_t obj;
 } c4m_value_t;
 
 // stack values have no indicator of what's actually stored, instead relying on

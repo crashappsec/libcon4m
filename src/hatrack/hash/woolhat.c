@@ -462,7 +462,7 @@ woolhat_view_epoch(woolhat_t *self, uint64_t *out_num, uint64_t epoch)
     hatrack_set_view_t *p;
     woolhat_record_t   *rec;
     woolhat_state_t     state;
-    uint64_t            sort_epoch;
+    uint64_t            sort_epoch = 0;
     uint64_t            num_items;
     uint64_t            alloc_len;
 
@@ -499,7 +499,7 @@ woolhat_view_epoch(woolhat_t *self, uint64_t *out_num, uint64_t epoch)
          * Similarly, if the top record is a delete record, then the
          * bucket was empty at the linearization point.
          */
-        if (sort_epoch > epoch || !rec || rec->deleted) {
+        if (!rec || rec->deleted || sort_epoch > epoch) {
             cur++;
             continue;
         }

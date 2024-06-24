@@ -1123,7 +1123,7 @@ grid_add_top_border(c4m_grid_t *grid, c4m_xlist_t *lines, int16_t *col_widths)
     s = c4m_new(c4m_type_utf32(), c4m_kw("length", c4m_ka(border_width)));
     p = (c4m_codepoint_t *)s->data;
 
-    s->codepoints = ~border_width;
+    s->codepoints = border_width;
 
     if (gs->borders & C4M_BORDER_LEFT) {
         *p++ = draw_chars->upper_left;
@@ -1197,7 +1197,7 @@ grid_add_bottom_border(c4m_grid_t  *grid,
     s = c4m_new(c4m_type_utf32(), c4m_kw("length", c4m_ka(border_width)));
     p = (c4m_codepoint_t *)s->data;
 
-    s->codepoints = ~border_width;
+    s->codepoints = border_width;
 
     if (gs->borders & C4M_BORDER_LEFT) {
         *p++ = draw_chars->lower_left;
@@ -1272,7 +1272,7 @@ grid_add_horizontal_rule(c4m_grid_t  *grid,
     s = c4m_new(c4m_type_utf32(), c4m_kw("length", c4m_ka(border_width)));
     p = (c4m_codepoint_t *)s->data;
 
-    s->codepoints = ~border_width;
+    s->codepoints = border_width;
 
     if (gs->borders & C4M_BORDER_LEFT) {
         *p++ = draw_chars->left_t;
@@ -1679,7 +1679,6 @@ c4m_utf32_t *
 c4m_grid_to_str(c4m_grid_t *g)
 {
     c4m_xlist_t *l = c4m_grid_render(g);
-
     // join will force utf32 on the newline.
     return c4m_str_join(l,
                         c4m_str_newline(),
@@ -2100,7 +2099,7 @@ c4m_set_column_props(c4m_grid_t *grid, int col, c4m_render_style_t *s)
 {
     if (grid->col_props == NULL) {
         grid->col_props = c4m_new(c4m_type_dict(c4m_type_int(),
-                                                 c4m_type_ref()));
+                                                c4m_type_ref()));
     }
 
     hatrack_dict_put(grid->col_props, (void *)(int64_t)col, s);
@@ -2111,7 +2110,7 @@ c4m_set_row_props(c4m_grid_t *grid, int row, c4m_render_style_t *s)
 {
     if (grid->row_props == NULL) {
         grid->row_props = c4m_new(c4m_type_dict(c4m_type_int(),
-                                                 c4m_type_ref()));
+                                                c4m_type_ref()));
     }
 
     hatrack_dict_put(grid->row_props, (void *)(int64_t)row, s);

@@ -105,7 +105,7 @@ tuple_repr(c4m_tuple_t *tup)
 static bool
 tuple_can_coerce(c4m_type_t *src, c4m_type_t *dst)
 {
-    return c4m_types_are_compat(src, dst);
+    return c4m_types_are_compat(src, dst, NULL);
 }
 
 static c4m_tuple_t *

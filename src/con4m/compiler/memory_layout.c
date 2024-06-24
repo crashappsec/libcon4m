@@ -156,7 +156,7 @@ layout_static(c4m_compile_ctx      *cctx,
 
         switch (sym->kind) {
         case sk_enum_val:
-            if (c4m_types_are_compat(sym->type, c4m_type_utf8())) {
+            if (c4m_types_are_compat(sym->type, c4m_type_utf8(), NULL)) {
                 c4m_layout_const_obj(cctx,
                                      sym->value,
                                      fctx,
@@ -275,14 +275,11 @@ c4m_layout_module_symbols(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
     // 0, but it controls where the next variable is stored.
     c4m_layout_static_obj(fctx, (pix + 7) / 8, 8);
 
-    layout_static(cctx,
-                  fctx,
-                  hatrack_dict_values_sort(fctx->global_scope->symbols, &n),
-                  n);
-    layout_static(cctx,
-                  fctx,
-                  hatrack_dict_values_sort(fctx->module_scope->symbols, &n),
-                  n);
+    view = hatrack_dict_values_sort(fctx->global_scope->symbols, &n);
+    layout_static(cctx, fctx, view, n);
+
+    view = hatrack_dict_values_sort(fctx->module_scope->symbols, &n);
+    layout_static(cctx, fctx, view, n);
 
     n = c4m_xlist_len(fctx->fn_def_syms);
 
