@@ -98,6 +98,12 @@ c4m_type_is_locked(c4m_type_t *t)
     return c4m_type_resolve(t)->details->flags & C4M_FN_TY_LOCK;
 }
 
+static inline bool
+c4m_type_is_tuple(c4m_type_t *t)
+{
+    return c4m_type_get_base(t) == C4M_DT_KIND_tuple;
+}
+
 static inline void
 c4m_type_lock(c4m_type_t *t)
 {
@@ -114,12 +120,6 @@ static inline c4m_type_t *
 c4m_merge_types(c4m_type_t *t1, c4m_type_t *t2)
 {
     return c4m_unify(t1, t2);
-}
-
-static inline c4m_xlist_t *
-c4m_type_get_parameters(c4m_type_t *t)
-{
-    return c4m_type_resolve(t)->details->items;
 }
 
 static inline c4m_type_t *

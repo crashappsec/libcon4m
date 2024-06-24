@@ -45,6 +45,7 @@ c4m_tpat_node_t *c4m_case_cond;
 c4m_tpat_node_t *c4m_case_cond_typeof;
 c4m_tpat_node_t *c4m_opt_label;
 c4m_tpat_node_t *c4m_id_node;
+c4m_tpat_node_t *c4m_tuple_assign;
 
 void
 setup_treematch_patterns()
@@ -167,6 +168,12 @@ setup_treematch_patterns()
                                   tcount_content(c4m_nt_else, 0, 1, 0));
     c4m_opt_label         = tfind(c4m_nt_label, 1);
     c4m_id_node           = tfind(c4m_nt_identifier, 1);
+    c4m_tuple_assign      = tmatch(c4m_nt_assign,
+                              0,
+                              tmatch(c4m_nt_expression,
+                                     0,
+                                     tcontent(c4m_nt_lit_tuple, 1)),
+                              tcontent(c4m_nt_expression, 0));
 
     c4m_gc_register_root(&c4m_first_kid_id, 1);
     c4m_gc_register_root(&c4m_2nd_kid_id, 1);
@@ -197,6 +204,7 @@ setup_treematch_patterns()
     c4m_gc_register_root(&c4m_case_cond_typeof, 1);
     c4m_gc_register_root(&c4m_opt_label, 1);
     c4m_gc_register_root(&c4m_id_node, 1);
+    c4m_gc_register_root(&c4m_tuple_assign, 1);
 }
 
 c4m_obj_t
@@ -258,18 +266,18 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
         // Need to do this more generically, but OK for now.
         if (!strcmp(varname->data, "list")) {
             return c4m_type_list(c4m_node_to_type(ctx,
-                                                   c4m_tree_get_child(n, 0),
-                                                   type_ctx));
+                                                  c4m_tree_get_child(n, 0),
+                                                  type_ctx));
         }
         if (!strcmp(varname->data, "queue")) {
             return c4m_type_queue(c4m_node_to_type(ctx,
-                                                    c4m_tree_get_child(n, 0),
-                                                    type_ctx));
+                                                   c4m_tree_get_child(n, 0),
+                                                   type_ctx));
         }
         if (!strcmp(varname->data, "ring")) {
             return c4m_type_queue(c4m_node_to_type(ctx,
-                                                    c4m_tree_get_child(n, 0),
-                                                    type_ctx));
+                                                   c4m_tree_get_child(n, 0),
+                                                   type_ctx));
         }
         if (!strcmp(varname->data, "logring")) {
             c4m_add_error(ctx, c4m_err_no_logring_yet, n);
@@ -277,31 +285,31 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
         }
         if (!strcmp(varname->data, "xlist")) {
             return c4m_type_xlist(c4m_node_to_type(ctx,
-                                                    c4m_tree_get_child(n, 0),
-                                                    type_ctx));
+                                                   c4m_tree_get_child(n, 0),
+                                                   type_ctx));
         }
         if (!strcmp(varname->data, "tree")) {
             return c4m_type_tree(c4m_node_to_type(ctx,
-                                                   c4m_tree_get_child(n, 0),
-                                                   type_ctx));
-        }
-        if (!strcmp(varname->data, "stack")) {
-            return c4m_type_stack(c4m_node_to_type(ctx,
-                                                    c4m_tree_get_child(n, 0),
-                                                    type_ctx));
-        }
-        if (!strcmp(varname->data, "set")) {
-            return c4m_type_set(c4m_node_to_type(ctx,
                                                   c4m_tree_get_child(n, 0),
                                                   type_ctx));
         }
+        if (!strcmp(varname->data, "stack")) {
+            return c4m_type_stack(c4m_node_to_type(ctx,
+                                                   c4m_tree_get_child(n, 0),
+                                                   type_ctx));
+        }
+        if (!strcmp(varname->data, "set")) {
+            return c4m_type_set(c4m_node_to_type(ctx,
+                                                 c4m_tree_get_child(n, 0),
+                                                 type_ctx));
+        }
         if (!strcmp(varname->data, "dict")) {
             return c4m_type_dict(c4m_node_to_type(ctx,
-                                                   c4m_tree_get_child(n, 0),
-                                                   type_ctx),
-                                  c4m_node_to_type(ctx,
-                                                   c4m_tree_get_child(n, 1),
-                                                   type_ctx));
+                                                  c4m_tree_get_child(n, 0),
+                                                  type_ctx),
+                                 c4m_node_to_type(ctx,
+                                                  c4m_tree_get_child(n, 1),
+                                                  type_ctx));
         }
         if (!strcmp(varname->data, "tuple")) {
             c4m_xlist_t *subitems;

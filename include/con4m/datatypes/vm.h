@@ -128,7 +128,7 @@ typedef enum : uint8_t {
     // respectively. The ZRunCallback instruction is used to run the callback,
     // which is run as an FFI function.
     //
-    // Currently unused.
+    // Currently unused. I think this can be removed.
     C4M_ZPushFfiPtr    = 0x0E,
     // Create a callback and push it onto the stack. The instruction's arg,
     // immediate, and type_info fields are encoded into the callback as the
@@ -153,7 +153,6 @@ typedef enum : uint8_t {
     // Unpack the elements of a tuple, storing each one into the lvalue on the
     // stack, popping each lvalue as its assigned. The number of assignments to
     // perform is encoded in the instruction's arg field.
-    // currently unused.
     C4M_ZUnpack        = 0x23,
     // Swap the two top values on the stack.
     C4M_ZSwap          = 0x24,

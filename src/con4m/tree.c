@@ -35,7 +35,7 @@ c4m_tree_node_t *
 c4m_tree_add_node(c4m_tree_node_t *t, void *item)
 {
     c4m_type_t      *tree_type   = c4m_get_my_type(t);
-    c4m_xlist_t     *type_params = c4m_type_get_parameters(tree_type);
+    c4m_xlist_t     *type_params = c4m_type_get_params(tree_type);
     c4m_type_t      *item_type   = c4m_xlist_get(type_params, 0, NULL);
     c4m_tree_node_t *kid         = c4m_new(c4m_type_tree(item_type),
                                    c4m_kw("contents", c4m_ka(item)));
@@ -76,7 +76,7 @@ c4m_tree_node_t *
 c4m_tree_prepend_node(c4m_tree_node_t *t, void *item)
 {
     c4m_type_t      *tree_type   = c4m_get_my_type(t);
-    c4m_xlist_t     *type_params = c4m_type_get_parameters(tree_type);
+    c4m_xlist_t     *type_params = c4m_type_get_params(tree_type);
     c4m_type_t      *item_type   = c4m_xlist_get(type_params, 0, NULL);
     c4m_tree_node_t *kid         = c4m_new(c4m_type_tree(item_type),
                                    c4m_kw("contents", c4m_ka(item)));
@@ -100,7 +100,7 @@ c4m_xlist_t *
 c4m_tree_children(c4m_tree_node_t *t)
 {
     c4m_type_t  *tree_type   = c4m_get_my_type(t);
-    c4m_xlist_t *type_params = c4m_type_get_parameters(tree_type);
+    c4m_xlist_t *type_params = c4m_type_get_params(tree_type);
     c4m_type_t  *item_type   = c4m_xlist_get(type_params, 0, NULL);
     c4m_xlist_t *result;
 
@@ -121,7 +121,7 @@ tree_node_marshal(c4m_tree_node_t *t,
                   int64_t         *mid)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(t);
-    c4m_xlist_t   *type_params = c4m_type_get_parameters(list_type);
+    c4m_xlist_t   *type_params = c4m_type_get_params(list_type);
     c4m_type_t    *item_type   = c4m_xlist_get(type_params, 0, NULL);
     c4m_dt_info_t *item_info   = c4m_type_get_data_type_info(item_type);
     bool           by_val      = item_info->by_value;
@@ -146,7 +146,7 @@ static void
 tree_node_unmarshal(c4m_tree_node_t *t, c4m_stream_t *s, c4m_dict_t *memos)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(t);
-    c4m_xlist_t   *type_params = c4m_type_get_parameters(list_type);
+    c4m_xlist_t   *type_params = c4m_type_get_params(list_type);
     c4m_type_t    *item_type   = c4m_xlist_get(type_params, 0, NULL);
     c4m_dt_info_t *item_info   = c4m_type_get_data_type_info(item_type);
     bool           by_val      = item_info->by_value;
