@@ -525,14 +525,16 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 
             ++tstate->sp;
 
-            xl = c4m_new(ct, c4m_kw("length", c4m_ka(n)));
+            xl = c4m_new(c4m_type_xlist(c4m_type_ref()),
+                         c4m_kw("length", c4m_ka(n)));
 
             while (n--) {
-                c4m_xlist_set(xl, n, tstate->sp[0].rvalue.obj);
+                c4m_xlist_set(xl, n, tstate->sp[0].vptr);
                 ++tstate->sp;
             }
 
             --tstate->sp;
+
             tstate->sp[0].rvalue.obj = c4m_container_literal(ct, xl, NULL);
         } while (0);
         return;
@@ -1413,15 +1415,12 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 tstate->sp->uint = c4m_unbox_obj(tstate->sp->rvalue.obj).u64;
                 break;
             case C4M_ZUnpack:
-                STACK_REQUIRE_VALUES(i->arg);
-                do {
-                    for (int32_t x = 0; x < i->arg; ++x) {
-                        *tstate->sp[0].lvalue = (c4m_value_t){
-                            .obj = c4m_tuple_get(tstate->r1.obj, x),
-                        };
-                        ++tstate->sp;
-                    }
-                } while (0);
+                for (int32_t x = 1; x <= i->arg; ++x) {
+                    *tstate->sp[0].lvalue = (c4m_value_t){
+                        .obj = c4m_tuple_get(tstate->r1.obj, i->arg - x),
+                    };
+                    ++tstate->sp;
+                }
                 break;
             case C4M_ZBail:
                 STACK_REQUIRE_VALUES(1);
@@ -1582,10 +1581,10 @@ c4m_vm_reset(c4m_vm_t *vm)
     }
 
     vm->attrs        = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                       c4m_type_ref()));
+                                      c4m_type_ref()));
     vm->all_sections = c4m_new(c4m_type_set(c4m_type_utf8()));
     vm->section_docs = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                              c4m_type_ref()));
+                                             c4m_type_ref()));
     vm->using_attrs  = false;
 }
 

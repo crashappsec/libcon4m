@@ -120,5 +120,6 @@ extern c4m_tpat_node_t *c4m_case_cond;
 extern c4m_tpat_node_t *c4m_case_cond_typeof;
 extern c4m_tpat_node_t *c4m_opt_label;
 extern c4m_tpat_node_t *c4m_id_node;
+extern c4m_tpat_node_t *c4m_tuple_assign;
 
 #endif

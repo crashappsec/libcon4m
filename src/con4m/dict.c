@@ -10,7 +10,7 @@ c4m_dict_init(c4m_dict_t *dict, va_list args)
     c4m_type_t    *c4m_dict_type = c4m_get_my_type(dict);
 
     if (c4m_dict_type != NULL) {
-        type_params = c4m_type_get_parameters(c4m_dict_type);
+        type_params = c4m_type_get_params(c4m_dict_type);
         key_type    = c4m_xlist_get(type_params, 0, NULL);
         info        = c4m_type_get_data_type_info(key_type);
 
@@ -50,7 +50,7 @@ c4m_dict_marshal(c4m_dict_t   *d,
         C4M_CRAISE("Cannot marshal untyped dictionaries.");
     }
 
-    c4m_xlist_t         *type_params = c4m_type_get_parameters(c4m_dict_type);
+    c4m_xlist_t         *type_params = c4m_type_get_params(c4m_dict_type);
     c4m_type_t          *key_type    = c4m_xlist_get(type_params, 0, NULL);
     c4m_type_t          *val_type    = c4m_xlist_get(type_params, 1, NULL);
     hatrack_dict_item_t *view        = hatrack_dict_items_sort(d, &length);
@@ -86,7 +86,7 @@ c4m_dict_unmarshal(c4m_dict_t *d, c4m_stream_t *s, c4m_dict_t *memos)
 {
     uint32_t       length        = c4m_unmarshal_u32(s);
     c4m_type_t    *c4m_dict_type = c4m_get_my_type(d);
-    c4m_xlist_t   *type_params   = c4m_type_get_parameters(c4m_dict_type);
+    c4m_xlist_t   *type_params   = c4m_type_get_params(c4m_dict_type);
     c4m_type_t    *key_type      = c4m_xlist_get(type_params, 0, NULL);
     c4m_type_t    *val_type      = c4m_xlist_get(type_params, 1, NULL);
     c4m_dt_info_t *kinfo         = c4m_type_get_data_type_info(key_type);
@@ -136,7 +136,7 @@ dict_repr(c4m_dict_t *dict)
 {
     uint64_t             view_len;
     c4m_type_t          *dict_type   = c4m_get_my_type(dict);
-    c4m_xlist_t         *type_params = c4m_type_get_parameters(dict_type);
+    c4m_xlist_t         *type_params = c4m_type_get_params(dict_type);
     c4m_type_t          *key_type    = c4m_xlist_get(type_params, 0, NULL);
     c4m_type_t          *val_type    = c4m_xlist_get(type_params, 1, NULL);
     hatrack_dict_item_t *view        = hatrack_dict_items_sort(dict, &view_len);

@@ -8,7 +8,7 @@ c4m_set_init(c4m_set_t *set, va_list args)
     c4m_dt_info_t *info;
 
     if (stype != NULL) {
-        stype   = c4m_xlist_get(c4m_type_get_parameters(stype), 0, NULL);
+        stype   = c4m_xlist_get(c4m_type_get_params(stype), 0, NULL);
         info    = c4m_type_get_data_type_info(stype);
         hash_fn = info->hash_fn;
     }

@@ -544,7 +544,6 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - Checkpointing
 - Hot loading
 - Finish data types (date, ip, and extra hatrack stuff)
-- Test harness
 - Final mile: specs
 - Final mile: params
 - Auto-import standard library.
