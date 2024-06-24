@@ -316,6 +316,10 @@ const inst_info_t inst_info[256] = {
     [C4M_ZCallModule] = {
         .name = "ZCallModule",
     },
+    [C4M_ZUnpack] = {
+        .name    = "ZUnpack",
+        .arg_fmt = fmt_int,
+    },
 #ifdef C4M_DEV
     [C4M_ZPrint] = {
         .name = "ZPrint",

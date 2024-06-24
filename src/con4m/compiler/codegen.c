@@ -538,7 +538,7 @@ gen_run_callback(gen_ctx *ctx, c4m_callback_t *cb)
     int         nargs    = c4m_type_get_num_params(t) - 1;
     c4m_type_t *ret_type = c4m_type_get_param(t, nargs);
     bool        useret   = !(c4m_types_are_compat(ret_type,
-                                          c4m_type_void()));
+                                         c4m_type_void()));
     int         imm      = useret ? 1 : 0;
 
     gen_load_const_by_offset(ctx, offset, c4m_get_my_type(cb));
@@ -1535,7 +1535,7 @@ gen_literal(gen_ctx *ctx)
         c4m_obj_t   obj = ctx->cur_pnode->value;
         c4m_type_t *t   = c4m_get_my_type(obj);
 
-        if (c4m_type_is_value_type(t) || c4m_type_is_value_type(t)) {
+        if (c4m_type_is_value_type(t) || c4m_type_is_box(t)) {
             gen_load_immediate(ctx, c4m_unbox(obj));
         }
         else {
@@ -1563,23 +1563,40 @@ gen_literal(gen_ctx *ctx)
 
     for (int i = 0; i < n->num_kids;) {
         for (int j = 0; j < li->num_items; j++) {
-            ctx->cur_node = n->children[i];
+            ctx->cur_node = n->children[i++];
             gen_one_node(ctx);
         }
 
-        gen_load_immediate(ctx, li->num_items);
-        gen_tcall(ctx, C4M_BI_CONTAINER_LIT, ttype);
+        if (!ctx->lvalue) {
+            gen_load_immediate(ctx, li->num_items);
+            gen_tcall(ctx, C4M_BI_CONTAINER_LIT, ttype);
+        }
     }
 
-    gen_load_immediate(ctx, n->num_kids / li->num_items);
-    gen_tcall(ctx, C4M_BI_CONTAINER_LIT, li->type);
+    if (!c4m_type_is_tuple(li->type)) {
+        gen_load_immediate(ctx, n->num_kids / li->num_items);
+        gen_tcall(ctx, C4M_BI_CONTAINER_LIT, li->type);
+    }
 
     ctx->cur_node = n;
+}
+
+static inline bool
+is_tuple_assignment(gen_ctx *ctx)
+{
+    c4m_tree_node_t *n = get_match_on_node(ctx->cur_node, c4m_tuple_assign);
+
+    if (n != NULL) {
+        return true;
+    }
+
+    return false;
 }
 
 static inline void
 gen_assign(gen_ctx *ctx)
 {
+    c4m_type_t *t      = c4m_type_resolve(ctx->cur_pnode->type);
     ctx->assign_method = assign_to_mem_slot;
     ctx->lvalue        = true;
     gen_one_kid(ctx, 0);
@@ -1588,8 +1605,17 @@ gen_assign(gen_ctx *ctx)
 
     switch (ctx->assign_method) {
     case assign_to_mem_slot:
-        emit(ctx, C4M_ZSwap);
-        emit(ctx, C4M_ZAssignToLoc);
+
+        if (is_tuple_assignment(ctx)) {
+            emit(ctx, C4M_ZPopToR1);
+            emit(ctx,
+                 C4M_ZUnpack,
+                 c4m_kw("arg", c4m_ka(c4m_type_get_num_params(t))));
+        }
+        else {
+            emit(ctx, C4M_ZSwap);
+            emit(ctx, C4M_ZAssignToLoc);
+        }
         break;
     case assign_via_slice_set_call:
         gen_tcall(ctx, C4M_BI_SLICE_SET, ctx->cur_pnode->type);
@@ -1601,25 +1627,25 @@ gen_assign(gen_ctx *ctx)
     }
 }
 
-#define BINOP_ASSIGN_GEN(ctx, op, t)                            \
+#define BINOP_ASSIGN_GEN(ctx, op, t)                           \
     if (c4m_type_get_base(t) == C4M_DT_KIND_primitive) {       \
         if (c4m_type_is_int_type(t)) {                         \
             gen_int_binary_op(ctx, op, c4m_type_is_signed(t)); \
-        }                                                       \
-                                                                \
-        else {                                                  \
+        }                                                      \
+                                                               \
+        else {                                                 \
             if (c4m_type_is_bool(t)) {                         \
-                gen_int_binary_op(ctx, op, false);              \
-            }                                                   \
-            else {                                              \
-                if (t->typeid == C4M_T_F64) {                   \
-                    gen_float_binary_op(ctx, op);               \
-                }                                               \
-                else {                                          \
-                    gen_polymorphic_binary_op(ctx, op);         \
-                }                                               \
-            }                                                   \
-        }                                                       \
+                gen_int_binary_op(ctx, op, false);             \
+            }                                                  \
+            else {                                             \
+                if (t->typeid == C4M_T_F64) {                  \
+                    gen_float_binary_op(ctx, op);              \
+                }                                              \
+                else {                                         \
+                    gen_polymorphic_binary_op(ctx, op);        \
+                }                                              \
+            }                                                  \
+        }                                                      \
     }
 
 static inline void
@@ -1661,8 +1687,8 @@ gen_binary_assign(gen_ctx *ctx)
 
         gen_tcall(ctx, C4M_BI_INDEX_SET, ctx->cur_pnode->type);
         break;
-    case assign_via_slice_set_call:
-        // TODO: disallow this.
+    default:
+        // TODO: disallow slice assignments and tuple assignments here..
         c4m_unreachable();
     }
 }

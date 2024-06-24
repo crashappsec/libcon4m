@@ -3,18 +3,19 @@
 static void
 tuple_init(c4m_tuple_t *tup, va_list args)
 {
-    void **ptr = NULL;
+    c4m_xlist_t *contents = NULL;
 
     c4m_karg_va_init(args);
-    c4m_kw_ptr("contents", ptr);
+    c4m_kw_ptr("contents", contents);
 
-    uint64_t n = c4m_xlist_len(c4m_type_get_parameters(c4m_get_my_type(tup)));
+    uint64_t n = c4m_xlist_len(c4m_type_get_params(c4m_get_my_type(tup)));
 
+    tup->items     = c4m_gc_array_alloc(uint64_t, n);
     tup->num_items = n;
 
-    if (ptr != NULL) {
-        for (int i = 0; i < tup->num_items; i++) {
-            tup->items[i] = ptr[i];
+    if (contents != NULL) {
+        for (unsigned int i = 0; i < n; i++) {
+            tup->items[i] = c4m_xlist_get(contents, i, NULL);
         }
     }
 }
@@ -38,7 +39,7 @@ tuple_marshal(c4m_tuple_t  *tup,
               c4m_dict_t   *memos,
               int64_t      *mid)
 {
-    c4m_xlist_t *tparams = c4m_type_get_parameters(c4m_get_my_type(tup));
+    c4m_xlist_t *tparams = c4m_type_get_params(c4m_get_my_type(tup));
 
     for (int i = 0; i < tup->num_items; i++) {
         c4m_type_t    *param   = c4m_xlist_get(tparams, i, NULL);
@@ -56,9 +57,10 @@ tuple_marshal(c4m_tuple_t  *tup,
 static void
 tuple_unmarshal(c4m_tuple_t *tup, c4m_stream_t *s, c4m_dict_t *memos)
 {
-    c4m_xlist_t *tparams = c4m_type_get_parameters(c4m_get_my_type(tup));
+    c4m_xlist_t *tparams = c4m_type_get_params(c4m_get_my_type(tup));
 
     tup->num_items = c4m_xlist_len(tparams);
+    tup->items     = c4m_gc_array_alloc(uint64_t, tup->num_items);
 
     for (int i = 0; i < tup->num_items; i++) {
         c4m_type_t    *param   = c4m_xlist_get(tparams, i, NULL);
@@ -82,13 +84,12 @@ c4m_tuple_len(c4m_tuple_t *tup)
 static c4m_str_t *
 tuple_repr(c4m_tuple_t *tup)
 {
-    c4m_xlist_t *tparams = c4m_type_get_parameters(c4m_get_my_type(tup));
+    c4m_xlist_t *tparams = c4m_type_get_params(c4m_get_my_type(tup));
     int          len     = tup->num_items;
     c4m_xlist_t *items   = c4m_new(c4m_type_xlist(c4m_type_utf32()));
 
     for (int i = 0; i < len; i++) {
         c4m_type_t *one_type = c4m_xlist_get(tparams, i, NULL);
-
         c4m_xlist_append(items, c4m_repr(tup->items[i], one_type));
     }
 
@@ -110,8 +111,8 @@ tuple_can_coerce(c4m_type_t *src, c4m_type_t *dst)
 static c4m_tuple_t *
 tuple_coerce(c4m_tuple_t *tup, c4m_type_t *dst)
 {
-    c4m_xlist_t *srcparams = c4m_type_get_parameters(c4m_get_my_type(tup));
-    c4m_xlist_t *dstparams = c4m_type_get_parameters(dst);
+    c4m_xlist_t *srcparams = c4m_type_get_params(c4m_get_my_type(tup));
+    c4m_xlist_t *dstparams = c4m_type_get_params(dst);
     int          len       = tup->num_items;
     c4m_tuple_t *res       = c4m_new(dst);
 
@@ -134,8 +135,12 @@ tuple_copy(c4m_tuple_t *tup)
 static c4m_obj_t
 tuple_from_lit(c4m_type_t *objtype, c4m_xlist_t *items, c4m_utf8_t *litmod)
 {
-    assert(c4m_xlist_len(items) == 1);
-    return c4m_xlist_get(items, 0, NULL);
+    int l = c4m_xlist_len(items);
+
+    if (l == 1) {
+        return c4m_xlist_get(items, 0, NULL);
+    }
+    return c4m_new(objtype, c4m_kw("contents", c4m_ka(items)));
 }
 
 const c4m_vtable_t c4m_tuple_vtable = {

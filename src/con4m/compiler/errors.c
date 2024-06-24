@@ -1130,6 +1130,18 @@ static error_info_t error_info[] = {
         " Declaration is here: {}",
         true,
     },
+    [c4m_err_tup_ix] = {
+        c4m_err_tup_ix,
+        "up_ix",
+        "Tuple indices currently must be a literal int value.",
+        false,
+    },
+    [c4m_err_tup_ix_bounds] = {
+        c4m_err_tup_ix_bounds,
+        "tup_ix_bounds",
+        "Tuple index is out of bounds for this tuple of type [em]{}[/].",
+        true,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",

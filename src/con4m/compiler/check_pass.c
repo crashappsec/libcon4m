@@ -174,7 +174,6 @@ type_check_node_against_sym(pass2_ctx         *ctx,
                       pnode->type,
                       sym->name,
                       sym->type);
-
         // Maybe make this an option; supress further type errors for
         // this symbol.
         sym->type = c4m_type_error();
@@ -242,7 +241,7 @@ c4m_fold_container(c4m_tree_node_t *n, c4m_lit_info_t *li)
 
             c4m_tuple_set(t, i % li->num_items, obj);
 
-            if ((i + 1) % li->num_items) {
+            if (!((i + 1) % li->num_items)) {
                 c4m_xlist_append(items, t);
                 t = c4m_new(c4m_type_tuple_from_xlist(item_types));
             }
@@ -373,26 +372,22 @@ setup_polymorphic_fns()
     polymorphic_fns = c4m_new(c4m_type_dict(c4m_type_utf8(),
                                             c4m_type_ref()));
 
-    hatrack_dict_put(polymorphic_fns, c4m_new_utf8("__slice__"), (void *)~3);
-    hatrack_dict_put(polymorphic_fns, c4m_new_utf8("__index__"), (void *)~2);
-    hatrack_dict_put(polymorphic_fns, c4m_new_utf8("__plus__"), (void *)2);
-    hatrack_dict_put(polymorphic_fns, c4m_new_utf8("__minus__"), (void *)2);
-    hatrack_dict_put(polymorphic_fns, c4m_new_utf8("__mul__"), (void *)2);
-    hatrack_dict_put(polymorphic_fns, c4m_new_utf8("__mod__"), (void *)2);
-    hatrack_dict_put(polymorphic_fns, c4m_new_utf8("__div__"), (void *)2);
-    hatrack_dict_put(polymorphic_fns, c4m_new_utf8("__fdiv__"), (void *)2);
-    hatrack_dict_put(polymorphic_fns, c4m_new_utf8("__shl__"), (void *)2);
-    hatrack_dict_put(polymorphic_fns, c4m_new_utf8("__shr__"), (void *)2);
-    hatrack_dict_put(polymorphic_fns, c4m_new_utf8("__bitand__"), (void *)2);
-    hatrack_dict_put(polymorphic_fns, c4m_new_utf8("__bitor__"), (void *)2);
-    hatrack_dict_put(polymorphic_fns, c4m_new_utf8("__bitxor__"), (void *)2);
-    hatrack_dict_put(polymorphic_fns, c4m_new_utf8("__cmp__"), (void *)2);
-    hatrack_dict_put(polymorphic_fns,
-                     c4m_new_utf8("__set_slice__"),
-                     (void *)~4);
-    hatrack_dict_put(polymorphic_fns,
-                     c4m_new_utf8("__set_index__"),
-                     (void *)~3);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_SLICE_FN), (void *)~3);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_INDEX_FN), (void *)~2);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_PLUS_FN), (void *)2);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_MINUS_FN), (void *)2);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_MUL_FN), (void *)2);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_MOD_FN), (void *)2);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_DIV_FN), (void *)2);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_FDIV_FN), (void *)2);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_SHL_FN), (void *)2);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_SHR_FN), (void *)2);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_BAND_FN), (void *)2);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_BOR_FN), (void *)2);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_BXOR_FN), (void *)2);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_CMP_FN), (void *)2);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_SET_SLICE), (void *)~4);
+    hatrack_dict_put(polymorphic_fns, c4m_new_utf8(C4M_SET_INDEX), (void *)~3);
 
     c4m_gc_register_root(&polymorphic_fns, 1);
 }
@@ -770,7 +765,7 @@ handle_index(pass2_ctx *ctx)
 
         info = initial_function_resolution(
             ctx,
-            c4m_new_utf8("__slice__"),
+            c4m_new_utf8(C4M_SLICE_FN),
             c4m_type_varargs_fn(node_type,
                                 3,
                                 container_type,
@@ -783,7 +778,7 @@ handle_index(pass2_ctx *ctx)
     else {
         info = initial_function_resolution(
             ctx,
-            c4m_new_utf8("__index__"),
+            c4m_new_utf8(C4M_INDEX_FN),
             c4m_type_varargs_fn(node_type,
                                 2,
                                 container_type,
@@ -805,9 +800,31 @@ handle_index(pass2_ctx *ctx)
 
     else {
         int         nparams = c4m_type_get_num_params(container_type);
-        c4m_type_t *tmp     = c4m_type_get_param(container_type, nparams - 1);
+        c4m_type_t *tmp;
 
         if (!is_slice) {
+            if (c4m_type_is_tuple(container_type)) {
+                c4m_pnode_t *pn = get_pnode(ctx->node->children[1]);
+                if (pn->value == NULL) {
+                    c4m_add_error(ctx->file_ctx, c4m_err_tup_ix, ctx->node);
+                    return;
+                }
+
+                int64_t v = (int64_t)c4m_unbox(pn->value);
+
+                if (v >= c4m_type_get_num_params(container_type)) {
+                    c4m_add_error(ctx->file_ctx,
+                                  c4m_err_tup_ix_bounds,
+                                  ctx->node,
+                                  container_type);
+                    return;
+                }
+
+                tmp = c4m_type_get_param(container_type, v);
+            }
+            else {
+                tmp = c4m_type_get_param(container_type, nparams - 1);
+            }
             merge_or_err(ctx, node_type, tmp);
         }
     }
