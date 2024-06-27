@@ -180,11 +180,6 @@ type_end_log()
 #endif
 
 typedef struct {
-    c4m_dict_t      *store;
-    _Atomic uint64_t next_typeid;
-} c4m_type_universe_t;
-
-typedef struct {
     c4m_sha_t  *sha;
     int         tv_count;
     c4m_dict_t *memos;
@@ -1652,6 +1647,8 @@ c4m_initialize_global_types()
         envstore                 = c4m_gc_alloc(c4m_dict_t);
         c4m_dict_t *store        = (c4m_dict_t *)envstore->data;
         c4m_type_universe->store = store;
+
+        printf("address of the universe: %p\n", &c4m_type_universe);
 
         // We don't set the heading info up fully, so this dict
         // won't be directly marshalable unless / until we do.

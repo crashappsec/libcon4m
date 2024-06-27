@@ -419,7 +419,7 @@ bool
 test_compiler(c4m_utf8_t *fname, c4m_test_kat *kat)
 {
     c4m_compile_ctx *ctx;
-
+    c4m_gc_show_heap_stats_on();
     c4m_printf("[atomic lime]info:[/] Compiling: {}", fname);
 
     ctx = c4m_compile_from_entry_point(fname);
@@ -518,7 +518,6 @@ main(int argc, char **argv, char **envp)
                c4m_box_u64(num_tests - num_errs),
                c4m_box_u64(num_tests));
 
-    c4m_gc_show_heap_stats_on();
     c4m_gc_thread_collect();
 
     if (!num_errs && !no_exception) {

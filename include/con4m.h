@@ -5,16 +5,14 @@
 // Useful options (mainly for dev) are commented out here.
 // The logic below (and into the relevent header files) sets up defaults.
 //
-#define C4M_GC_STATS
-
+// #define C4M_DEBUG
 // #define C4M_TRACE_GC
-// #define C4M_GC_FULL_TRACE
 // #define C4M_GC_ALL_OFF
-// #define C4M_GCT_SCAN 1
+// #define C4M_GC_ALL_ON
+// #define C4M_VM_DEBUG
+// #define C4M_TYPE_LOG
 
-//  #define C4M_GC_ALL_ON
-//  #define C4M_VM_DEBUG
-//  #define C4M_TYPE_LOG
+// #define C4M_GC_STATS
 
 #ifndef C4M_NO_DEV_MODE
 #define C4M_DEV
@@ -134,3 +132,4 @@
 #include "con4m/set.h"
 
 #include "con4m/ffi.h"
+#include "con4m/watch.h"

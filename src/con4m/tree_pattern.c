@@ -121,7 +121,7 @@ c4m_pat_repr(c4m_tpat_node_t   *pat,
     c4m_tree_node_t *result = c4m_new(c4m_type_tree(c4m_type_utf8()),
                                       c4m_kw("contents", c4m_ka(txt)));
 
-    for (int i = 0; i < pat->num_kids; i++) {
+    for (unsigned int i = 0; i < pat->num_kids; i++) {
         c4m_tree_node_t *kid = c4m_pat_repr(pat->children[i],
                                             content_formatter);
         c4m_tree_adopt_node(result, kid);
@@ -389,7 +389,7 @@ kid_match_from(search_ctx_t    *ctx,
     // all possible child nodes. If it does, then we successfully matched,
     // and if there are leftover child nodes, we did not match.
 
-    if (next_pattern + 1 >= parent_pattern->num_kids) {
+    if (next_pattern + 1 >= (int)parent_pattern->num_kids) {
         if (next_child + num_matches < parent->num_kids) {
             return false;
         }
