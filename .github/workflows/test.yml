@@ -1,0 +1,63 @@
+name: test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            runs-on: ubuntu-24.04
+            arch: x86_64
+
+          - os: macOS
+            runs-on: macos-14
+            arch: aarch64
+
+    name: "${{ matrix.os }}-${{ matrix.arch }}"
+    runs-on: ${{ matrix.runs-on }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # 4.1.7
+
+      - name: On Linux, switch to GCC 14
+        if: runner.os == 'Linux'
+        run: |
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
+          gcc --version
+
+      - name: On macOS, allow Meson to find libcrypto and libssl
+        if: runner.os == 'macOS'
+        run: |
+          # For now, symlink rather than altering `meson.build` to pass
+          # `dirs : ['/opt/homebrew/lib']` to the relevant find_library()` calls.
+          # This keeps all the CI-related setup in one place, and trivially
+          # ensures that non-CI library searching is unaffected.
+          sudo mkdir -p /usr/local/lib
+          sudo ln -s /opt/homebrew/lib/{libcrypto,libssl}.dylib /usr/local/lib/
+
+      - name: Install Meson and Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt install meson ninja-build
+
+      - name: Install Meson and Ninja (macOS)
+        if: runner.os == 'macOS'
+        run: brew install meson ninja
+
+      - name: Build
+        run: ./dev build
+
+      - name: Run
+        run: ./dev run
