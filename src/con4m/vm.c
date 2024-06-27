@@ -25,48 +25,81 @@
 #define C4M_STATIC_ASCII_STR(var, contents) \
     c4m_utf8_t *var = c4m_new_utf8(contents)
 
+static c4m_utf8_t *c4m_err_prefix = NULL;
+static c4m_utf8_t *c4m_err_trace;
+static c4m_utf8_t *c4m_fmt_mod;
+static c4m_utf8_t *c4m_fmt_fn;
+
+static inline void
+c4m_init_strings()
+{
+    if (c4m_err_prefix == NULL) {
+        c4m_err_prefix = c4m_rich_lit("[h1]Runtime Error: ");
+        c4m_err_trace  = c4m_rich_lit("\n[h2]Stack Trace:\n");
+        c4m_fmt_mod    = c4m_new_utf8("  [b]{}:[/] in module: [em]{}:{}[/]\n");
+        c4m_fmt_fn     = c4m_new_utf8(
+            "  [b]{}:[/] in func: [em]{}[/], "
+                "module: [em]{}:{}[/]\n");
+
+        c4m_gc_register_root(&c4m_err_prefix, 1);
+        c4m_gc_register_root(&c4m_err_trace, 1);
+        c4m_gc_register_root(&c4m_fmt_mod, 1);
+        c4m_gc_register_root(&c4m_fmt_fn, 1);
+    }
+}
+
+#define FORMAT_NOT_IN_FN()                     \
+    s = c4m_str_format(c4m_fmt_mod,            \
+                       c4m_box_u64(frameno++), \
+                       modname,                \
+                       c4m_box_u64(lineno))
+#define FORMAT_IN_FN()                                             \
+    fnname = tstate->frame_stack[num_frames].targetfunc->funcname; \
+    s      = c4m_str_format(c4m_fmt_fn,                            \
+                       c4m_box_u64(frameno++),                \
+                       fnname,                                \
+                       modname,                               \
+                       c4m_box_u64(lineno))
+#define OUTPUT_FRAME() \
+    c4m_ansi_render(s, f);
+
 static void
 c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
 {
+    c4m_init_strings();
     // This is currently just a stub that prints an rudimentary error
     // message and a stack trace. The caller handles how to
     // proceed. This will need to be changed later when a better error
     // handling framework is in place.
 
     c4m_stream_t *f = c4m_get_stderr();
-
-    C4M_STATIC_ASCII_STR(error_prefix, "Runtime Error: ");
-    c4m_stream_write_object(f, (c4m_obj_t)error_prefix, false);
-    c4m_stream_write_object(f, c4m_exception_get_message(exc), false);
-
-    C4M_STATIC_ASCII_STR(stack_trace, "\nStack Trace:\n");
-    c4m_stream_write_object(f, (c4m_obj_t)stack_trace, false);
-
-    C4M_STATIC_ASCII_STR(indent, "    ");
-    c4m_stream_write_object(f, (c4m_obj_t)indent, false);
-
-    if (tstate->frame_stack[tstate->num_frames - 1].targetfunc != NULL) {
-        c4m_stream_write_object(f, tstate->frame_stack[tstate->num_frames - 1].targetfunc->funcname, false);
-        c4m_stream_putc(f, ' ');
-    }
-
-    C4M_STATIC_ASCII_STR(module_prefix, "module ");
-    C4M_STATIC_ASCII_STR(line_prefix, ":");
-
-    c4m_stream_write_object(f, (c4m_obj_t)module_prefix, false);
-    c4m_stream_write_object(f, tstate->current_module->modname, false);
+    c4m_utf8_t   *s;
+    c4m_utf8_t   *fnname;
+    c4m_utf8_t   *modname;
+    uint64_t      frameno    = 0;
+    int           num_frames = tstate->num_frames - 1;
+    uint64_t      lineno;
 
     // instruction that triggered the error:
     c4m_zinstruction_t *i = c4m_xlist_get(tstate->current_module->instructions,
                                           tstate->pc,
                                           NULL);
-    if (i->line_no > 0) {
-        c4m_stream_write_object(f, (c4m_obj_t)line_prefix, false);
-        c4m_str_t *lineno = c4m_str_from_int(i->line_no);
-        c4m_stream_write_object(f, lineno, false);
-    }
-    c4m_stream_write_object(f, (c4m_obj_t)c4m_new_utf8("\n"), false);
 
+    lineno  = i->line_no;
+    modname = tstate->current_module->modname;
+
+    if (tstate->frame_stack[num_frames].targetfunc == NULL) {
+        FORMAT_NOT_IN_FN();
+    }
+    else {
+        FORMAT_IN_FN();
+    }
+
+    c4m_ansi_render(c4m_err_prefix, f);
+    c4m_ansi_render(c4m_exception_get_message(exc), f);
+    c4m_ansi_render(c4m_err_trace, f);
+
+    OUTPUT_FRAME();
     // When a frame pushes for a call, the calling module and line number are
     // recorded, but the calling function is not. The called module, function,
     // and line are also recorded. To print the frame information that we want
@@ -74,24 +107,22 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
     // use two frames. We start with num_frames - 2, because we've already
     // reported the error location, which would be the first frame and handled
     // differently because line number comes from the current instruction.
-    for (int32_t n = tstate->num_frames - 2; n > 0; --n) {
+    for (int32_t n = num_frames - 1; n > 0; --n) {
         // get function and module from current frame
         c4m_vmframe_t *frame        = &tstate->frame_stack[n];
         // get lineno from called frame
         c4m_vmframe_t *called_frame = &tstate->frame_stack[n + 1];
 
-        c4m_stream_write_object(f, (c4m_obj_t)indent, false);
-        if (frame->targetfunc != NULL) {
-            c4m_stream_write_object(f, frame->targetfunc->funcname, false);
-            c4m_stream_putc(f, ' ');
+        modname = frame->targetmodule->modname;
+        lineno  = called_frame->calllineno;
+
+        if (frame->targetfunc == NULL) {
+            FORMAT_NOT_IN_FN();
         }
-        c4m_stream_write_object(f, (c4m_obj_t)module_prefix, false);
-        c4m_stream_write_object(f, frame->targetmodule->modname, false);
-        if (called_frame->calllineno > 0) {
-            c4m_stream_write_object(f, (c4m_obj_t)line_prefix, false);
-            c4m_str_t *lineno = c4m_str_from_int(called_frame->calllineno);
-            c4m_stream_write_object(f, lineno, false);
+        else {
+            FORMAT_IN_FN();
         }
+        OUTPUT_FRAME();
     }
 
     // Nim calls quit() in its error handling, but we're a library intended to
@@ -160,9 +191,9 @@ get_param_name(c4m_zparam_info_t *p, c4m_zmodule_info_t *m)
 static c4m_value_t *
 get_param_value(c4m_vmthread_t *tstate, c4m_zparam_info_t *p)
 {
-    if (p->userparam.type_info != NULL) {
-        return &p->userparam;
-    }
+    // if (p->userparam.type_info != NULL) {
+    // return &p->userparam;
+    //}
     if (p->have_default) {
         return &p->default_value;
     }
@@ -290,7 +321,6 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         ++tstate->sp;
         tstate->sp->rvalue = (c4m_value_t){
             .obj       = obj,
-            .type_info = t,
         };
 #endif
         return;
@@ -1182,7 +1212,10 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     c4m_type_t *t1 = tstate->sp->rvalue.obj;
                     ++tstate->sp;
                     c4m_type_t *t2   = tstate->sp->rvalue.obj;
-                    tstate->sp->uint = (uint64_t)c4m_types_are_compat(t1, t2);
+                    // Does NOT check for coercible.
+                    tstate->sp->uint = (uint64_t)c4m_types_are_compat(t1,
+                                                                      t2,
+                                                                      NULL);
                 } while (0);
                 break;
             case C4M_ZCmp:
@@ -1356,7 +1389,6 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 c4m_stream_write_object(tstate->vm->print_stream,
                                         tstate->sp->rvalue.obj);
                 c4m_stream_putc(tstate->vm->print_stream, '\n');
-
                 ++tstate->sp;
                 break;
 #endif
@@ -1474,7 +1506,6 @@ c4m_vm_load_const_data(c4m_vm_t *vm)
 
     c4m_stream_t *s = c4m_buffer_instream(inbuf);
 
-    c4m_internal_stash_heap();
     c4m_buf_t *outbuf = c4m_buffer_empty();
 
     typedef union {
@@ -1496,13 +1527,6 @@ c4m_vm_load_const_data(c4m_vm_t *vm)
     }
 
     vm->const_pool = (void *)ptr;
-
-    // Now freeze and restore the old heap.
-    uint64_t start, cur, end;
-
-    c4m_get_heap_bounds(&start, &cur, &end);
-    c4m_internal_lock_then_unstash_heap();
-    c4m_gc_register_root((void *)start, cur - start);
 }
 
 static inline void

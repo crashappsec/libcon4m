@@ -6,9 +6,11 @@ $output:
 4
 """
 
-extern c4m_clz(i64) -> i64 {
-  local: clz(x: int) -> int
+extern c4m_clz(u64) -> i32 {
+  local: clz(x: uint) -> int
 }
 
-print(clz(0x0fffffffffffffff))
+var x: uint = 0x0fffffffffffffff
+
+print(clz(x))
 

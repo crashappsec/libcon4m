@@ -10,9 +10,15 @@
 //
 
 typedef enum {
-    C4M_FFI_FIRST_ABI = 0,
-    C4M_FFI_DEFAULT_ABI,
+    C4M_FFI_FIRST_ABI   = 0,
+    C4M_FFI_NON_GNU_ABI = 1,
+    C4M_FFI_GNU_ABI     = 2,
     C4M_FFI_LAST_ABI,
+#ifdef __GNUC__
+    C4M_FFI_DEFAULT_ABI = C4M_FFI_GNU_ABI
+#else
+    C4M_FFI_DEFAULT_ABI = C4M_NON_GNU_ABI
+#endif
 } c4m_ffi_abi;
 
 // This is libffi's `ffi_type`.

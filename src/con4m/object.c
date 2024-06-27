@@ -528,7 +528,6 @@ c4m_repr(void *item, c4m_type_t *t)
 
     if (!p) {
         p = (c4m_repr_fn)c4m_base_type_info[x].vtable->methods[C4M_BI_TO_STR];
-
         if (!p) {
             return c4m_cstr_format("{}@{:x}",
                                    c4m_new_utf8(c4m_base_type_info[x].name),
@@ -749,7 +748,7 @@ c4m_slice_set(c4m_obj_t container, int64_t start, int64_t end, c4m_obj_t o)
 bool
 c4m_can_coerce(c4m_type_t *t1, c4m_type_t *t2)
 {
-    if (c4m_types_are_compat(t1, t2)) {
+    if (c4m_types_are_compat(t1, t2, NULL)) {
         return true;
     }
 

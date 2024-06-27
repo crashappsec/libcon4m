@@ -1,3 +1,40 @@
+"""
+Was a syntax test, primarily for decls, but useful for initial
+CFG-based error reporting. Will need to be redone when we extend to
+do a dependency graph.
+"""
+"""
+$errors:
+unused_decl
+def_without_use
+use_no_def
+def_without_use
+def_without_use
+use_no_def
+def_without_use
+use_no_def
+use_no_def
+def_without_use
+use_no_def
+use_no_def
+use_no_def
+def_without_use
+use_no_def
+def_without_use
+use_no_def
+use_no_def
+use_no_def
+use_no_def
+use_no_def
+use_no_def
+use_no_def
+use_no_def
+use_no_def
+use_no_def
+use_no_def
+const_not_provided
+"""
+
 func testfn(f: int, g: int) {
   return f + g
 }

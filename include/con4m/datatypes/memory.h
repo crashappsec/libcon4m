@@ -37,7 +37,7 @@ typedef struct c4m_alloc_hdr {
     _Atomic uint32_t      flags;
     //
     // This stores the allocated length of the data object measured in
-    // 64-bit blocks.
+    // *words*!!
     uint32_t              alloc_len;
     //
     // Set to 'true' if this object requires finalization. This is
@@ -60,7 +60,7 @@ typedef struct c4m_alloc_hdr {
     // needs to be long enough to capture all pointers to track in it.
     uint64_t             *ptr_map;
 
-#ifdef C4M_GC_STATS
+#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
     char *alloc_file;
     int   alloc_line;
 #endif
@@ -97,7 +97,9 @@ typedef struct c4m_arena_t {
     uint32_t              arena_id;
     bool                  grow_next;
 #ifdef C4M_GC_STATS
-    uint64_t alloc_counter;
+    uint64_t legacy_count;
+    uint64_t starting_counter;
+    uint64_t start_size;
 #endif
 
     // This must be 16-byte aligned!

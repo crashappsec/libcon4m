@@ -20,7 +20,7 @@ c4m_new_scope(c4m_scope_t *parent, c4m_scope_kind kind)
     c4m_scope_t *result = c4m_gc_alloc(c4m_scope_t);
     result->parent      = parent;
     result->symbols     = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                             c4m_type_ref()));
+                                            c4m_type_ref()));
     result->kind        = kind;
 
     return result;
@@ -231,7 +231,7 @@ type_cmp_exact_match(c4m_file_compile_ctx *new_ctx,
     switch (c4m_type_cmp_exact(t1, t2)) {
     case c4m_type_match_exact:
         // Link any type variables together now.
-        old_sym->type = c4m_merge_types(t1, t2);
+        old_sym->type = c4m_merge_types(t1, t2, NULL);
         return;
     case c4m_type_match_left_more_specific:
         // Even if the authoritative symbol did not have a declared
@@ -378,7 +378,7 @@ c4m_format_scope(c4m_scope_t *scope)
     c4m_utf8_t           *decl_const = c4m_new_utf8("declared");
     c4m_utf8_t           *inf_const  = c4m_new_utf8("inferred");
     c4m_dict_t           *memos      = c4m_new(c4m_type_dict(c4m_type_ref(),
-                                               c4m_type_utf8()));
+                                              c4m_type_utf8()));
     int64_t               nexttid    = 0;
 
     values = hatrack_dict_values_sort(scope->symbols,
@@ -395,7 +395,7 @@ c4m_format_scope(c4m_scope_t *scope)
     c4m_xlist_append(row, c4m_new_utf8("Name"));
     c4m_xlist_append(row, c4m_new_utf8("Kind"));
     c4m_xlist_append(row, c4m_new_utf8("Type"));
-    c4m_xlist_append(row, c4m_new_utf8("Constant Value"));
+    c4m_xlist_append(row, c4m_new_utf8("Offset"));
     c4m_xlist_append(row, c4m_new_utf8("Defs"));
     c4m_xlist_append(row, c4m_new_utf8("Uses"));
     c4m_grid_add_row(grid, row);
@@ -447,6 +447,7 @@ c4m_format_scope(c4m_scope_t *scope)
                                                                 &nexttid),
                                          kind));
 
+#if 0
         if (c4m_sym_is_declared_const(entry)) {
             if (entry->value == NULL) {
                 c4m_xlist_append(row, c4m_cstr_format("[red]not set[/]"));
@@ -458,6 +459,11 @@ c4m_format_scope(c4m_scope_t *scope)
         else {
             c4m_xlist_append(row, c4m_cstr_format("[gray]n/a[/]"));
         }
+#else
+        c4m_xlist_append(row,
+                         c4m_cstr_format("{:x}",
+                                         c4m_box_u64(entry->static_offset)));
+#endif
 
         int         n = c4m_xlist_len(entry->sym_defs);
         c4m_utf8_t *def_text;

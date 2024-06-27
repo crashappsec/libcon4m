@@ -9,8 +9,9 @@
 typedef struct c4m_str_t {
     // clang-format off
     alignas(8)
-    int32_t           codepoints;
     int32_t           byte_len;
+    int32_t           codepoints : 31;
+    unsigned int      utf32 : 1;
     c4m_style_info_t *styling;
     char             *data;
     // clang-format on

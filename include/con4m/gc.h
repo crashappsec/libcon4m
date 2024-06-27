@@ -132,7 +132,7 @@
 
 #ifndef C4M_DEFAULT_ARENA_SIZE
 // 4 Meg
-#define C4M_DEFAULT_ARENA_SIZE (1 << 26)
+#define C4M_DEFAULT_ARENA_SIZE (1 << 27)
 // Was previously using 1 << 19
 // But this needs to be much bigger than the stack size; 21 is probably
 // the minimum value without adjusting the stack.
@@ -172,45 +172,53 @@ extern bool         c4m_is_read_only_memory(volatile void *);
 extern void         c4m_gc_set_finalize_callback(c4m_system_finalizer_fn);
 
 #ifdef C4M_GC_STATS
-extern void  _c4m_arena_register_root(c4m_arena_t *,
-                                      void *,
-                                      uint64_t,
-                                      char *,
-                                      int);
+extern void _c4m_arena_register_root(c4m_arena_t *,
+                                     void *,
+                                     uint64_t,
+                                     char *,
+                                     int);
+extern void _c4m_gc_register_root(void *, uint64_t, char *f, int l);
+
+#define c4m_arena_register_root(x, y, z) \
+    _c4m_arena_register_root(x, y, z, __FILE__, __LINE__)
+#define c4m_gc_register_root(x, y) \
+    _c4m_gc_register_root(x, y, __FILE__, __LINE__)
+
+#else
+extern void _c4m_arena_register_root(c4m_arena_t *, void *, uint64_t);
+extern void _c4m_gc_register_root(void *, uint64_t);
+
+#define c4m_arena_register_root(x, y, z) _c4m_arena_register_root(x, y, z)
+#define c4m_gc_register_root(x, y)       _c4m_gc_register_root(x, y)
+#endif
+
+#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
 extern void *_c4m_gc_raw_alloc(size_t, uint64_t *, char *, int);
 extern void *_c4m_gc_raw_alloc_with_finalizer(size_t, uint64_t *, char *, int);
+
+#define c4m_gc_raw_alloc(x, y) \
+    _c4m_gc_raw_alloc(x, y, __FILE__, __LINE__)
+#define c4m_gc_raw_alloc_with_finalizer(x, y) \
+    _c4m_gc_raw_alloc_with_finalizer(x, y, __FILE__, __LINE__)
+
 extern void *c4m_alloc_from_arena(c4m_arena_t **,
                                   size_t,
                                   const uint64_t *,
                                   bool,
                                   char *,
                                   int);
-extern void  _c4m_gc_register_root(void *, uint64_t, char *f, int l);
-
-#define c4m_arena_register_root(x, y, z) \
-    _c4m_arena_register_root(x, y, z, __FILE__, __LINE__)
-#define c4m_gc_raw_alloc(x, y) \
-    _c4m_gc_raw_alloc(x, y, __FILE__, __LINE__)
-#define c4m_gc_raw_alloc_with_finalizer(x, y) \
-    _c4m_gc_raw_alloc_with_finalizer(x, y, __FILE__, __LINE__)
-#define c4m_gc_register_root(x, y) \
-    _c4m_gc_register_root(x, y, __FILE__, __LINE__)
 
 #else
-extern void  _c4m_arena_register_root(c4m_arena_t *, void *, uint64_t);
-extern void  _c4m_gc_register_root(void *, uint64_t);
 extern void *_c4m_gc_raw_alloc(size_t, uint64_t *);
 extern void *_c4m_gc_raw_alloc_with_finalizer(size_t, uint64_t *);
+
+#define c4m_gc_raw_alloc_with_finalizer(x, y) \
+    _c4m_gc_raw_alloc_with_finalizer(x, y)
+#define c4m_gc_raw_alloc(x, y) _c4m_gc_raw_alloc(x, y)
 extern void *c4m_alloc_from_arena(c4m_arena_t **,
                                   size_t,
                                   const uint64_t *,
                                   bool);
-
-#define c4m_arena_register_root(x, y, z) _c4m_arena_register_root(x, y, z)
-#define c4m_gc_raw_alloc(x, y)           _c4m_gc_raw_alloc(x, y)
-#define c4m_gc_raw_alloc_with_finalizer(x, y) \
-    _c4m_gc_raw_alloc_with_finalizer(x, y)
-#define c4m_gc_register_root(x, y) _c4m_gc_register_root(x, y)
 #endif
 
 #ifdef C4M_GC_STATS
@@ -279,17 +287,20 @@ c4m_round_up_to_given_power_of_2(uint64_t power, uint64_t n)
 #define c4m_gc_array_alloc(typename, n) \
     c4m_gc_raw_alloc((sizeof(typename) * n), GC_SCAN_ALL)
 
-extern void         c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom);
-extern void         c4m_initialize_gc();
-extern void         c4m_gc_heap_stats(uint64_t *, uint64_t *, uint64_t *);
-extern void         c4m_gc_add_hold(c4m_obj_t);
-extern void         c4m_gc_remove_hold(c4m_obj_t);
-extern c4m_arena_t *c4m_internal_stash_heap();
-extern void         c4m_internal_unstash_heap();
-extern void         c4m_internal_set_heap(c4m_arena_t *);
-extern void         c4m_internal_lock_then_unstash_heap();
-extern void         c4m_get_heap_bounds(uint64_t *, uint64_t *, uint64_t *);
+typedef void (*c4m_gc_hook)();
 
+extern void           c4m_get_stack_scan_region(uint64_t *top,
+                                                uint64_t *bottom);
+extern void           c4m_initialize_gc();
+extern void           c4m_gc_heap_stats(uint64_t *, uint64_t *, uint64_t *);
+extern void           c4m_gc_add_hold(c4m_obj_t);
+extern void           c4m_gc_remove_hold(c4m_obj_t);
+extern c4m_arena_t   *c4m_internal_stash_heap();
+extern void           c4m_internal_unstash_heap();
+extern void           c4m_internal_set_heap(c4m_arena_t *);
+extern void           c4m_internal_lock_then_unstash_heap();
+extern void           c4m_get_heap_bounds(uint64_t *, uint64_t *, uint64_t *);
+extern void           c4m_gc_register_collect_fns(c4m_gc_hook, c4m_gc_hook);
 extern c4m_alloc_hdr *c4m_find_alloc(void *);
 
 #ifdef C4M_GC_STATS

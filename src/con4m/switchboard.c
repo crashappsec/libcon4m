@@ -652,8 +652,8 @@ c4m_sb_route(c4m_switchboard_t *ctx,
         c4m_party_fd_t *r_fd_obj = get_fd_obj(read_from);
 
         c4m_subscription_t *subscription;
-        subscription = (c4m_subscription_t *)calloc(sizeof(c4m_subscription_t),
-                                                    1);
+
+        subscription = c4m_gc_alloc(c4m_subscription_t);
 
         if (write_to->c4m_party_type == C4M_PT_FD) {
 #if defined(C4M_SB_DEBUG) || defined(C4M_SB_TEST)
@@ -1520,7 +1520,7 @@ c4m_sb_get_results(c4m_switchboard_t *ctx, c4m_capture_result_t *result)
     }
 
     result->num_captures = capcount;
-    result->captures     = calloc(sizeof(c4m_one_capture_t), capcount + 1);
+    result->captures     = c4m_gc_array_alloc(c4m_one_capture_t, capcount + 1);
 
     party = ctx->party_loners;
 

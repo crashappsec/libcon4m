@@ -538,7 +538,8 @@ gen_run_callback(gen_ctx *ctx, c4m_callback_t *cb)
     int         nargs    = c4m_type_get_num_params(t) - 1;
     c4m_type_t *ret_type = c4m_type_get_param(t, nargs);
     bool        useret   = !(c4m_types_are_compat(ret_type,
-                                         c4m_type_void()));
+                                         c4m_type_void(),
+                                         NULL));
     int         imm      = useret ? 1 : 0;
 
     gen_load_const_by_offset(ctx, offset, c4m_get_my_type(cb));
@@ -1737,6 +1738,9 @@ gen_sym_decl(gen_ctx *ctx)
 
     if (kid->kind == c4m_nt_assign) {
         psym = get_pnode(ctx->cur_node->children[last - 1]);
+        if (psym->kind == c4m_nt_lit_tspec) {
+            psym = get_pnode(ctx->cur_node->children[last - 2]);
+        }
 
         sym = (c4m_scope_entry_t *)psym->value;
 

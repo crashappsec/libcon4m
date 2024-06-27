@@ -195,7 +195,8 @@ show_dev_compile_info(c4m_compile_ctx *ctx)
 static void
 show_dev_disasm(c4m_vm_t *vm, c4m_zmodule_info_t *m)
 {
-    c4m_print(c4m_disasm(vm, m));
+    c4m_grid_t *g = c4m_disasm(vm, m);
+    c4m_print(g);
     c4m_print(c4m_cstr_format("Module [em]{}[/] disassembly done.",
                               m->path));
     c4m_print(c4m_rich_lit("[h2]Module Source Code"));
@@ -309,7 +310,7 @@ show_err_diffs(c4m_utf8_t *fname, c4m_xlist_t *expected, c4m_xlist_t *actual)
 
         for (int i = 0; i < n; i++) {
             errstr = c4m_xlist_get(expected, i, NULL);
-            c4m_printf("[em]{}", errstr);
+            c4m_printf("[b]{}:[/] [em]{}", c4m_box_u64(i + 1), errstr);
         }
     }
 
@@ -325,7 +326,7 @@ show_err_diffs(c4m_utf8_t *fname, c4m_xlist_t *expected, c4m_xlist_t *actual)
             uint64_t u64     = (uint64_t)c4m_xlist_get(actual, i, NULL);
             err              = (c4m_compile_error_t)u64;
             c4m_utf8_t *code = c4m_err_code_to_str(err);
-            c4m_printf("[em]{}", code);
+            c4m_printf("[b]{}:[/] [em]{}", c4m_box_u64(i + 1), code);
         }
     }
 }
@@ -418,7 +419,7 @@ bool
 test_compiler(c4m_utf8_t *fname, c4m_test_kat *kat)
 {
     c4m_compile_ctx *ctx;
-
+    c4m_gc_show_heap_stats_on();
     c4m_printf("[atomic lime]info:[/] Compiling: {}", fname);
 
     ctx = c4m_compile_from_entry_point(fname);
@@ -459,6 +460,7 @@ test_compiler(c4m_utf8_t *fname, c4m_test_kat *kat)
     // c4m_clean_environment();
     // c4m_print(c4m_format_global_type_environment());
     bool result = compare_results(fname, kat, ctx, vm->print_buf);
+    vm          = NULL;
     return result;
 }
 
@@ -466,6 +468,16 @@ void
 add_static_symbols()
 {
     c4m_add_static_function(c4m_new_utf8("strndup"), strndup);
+}
+
+static int
+fname_sort(const hatrack_dict_item_t *o1,
+           const hatrack_dict_item_t *o2)
+{
+    c4m_utf8_t *fname1 = o1->key;
+    c4m_utf8_t *fname2 = o2->key;
+
+    return strcmp(fname1->data, fname2->data);
 }
 
 int
@@ -482,13 +494,15 @@ main(int argc, char **argv, char **envp)
         dev_mode = true;
     }
 
-    C4M_TRY
+    //    C4M_TRY
     {
         c4m_install_default_styles();
         c4m_terminal_dimensions(&term_width, NULL);
         c4m_dict_t          *targets = build_file_list();
         uint64_t             n;
-        hatrack_dict_item_t *items = hatrack_dict_items_sort(targets, &n);
+        hatrack_dict_item_t *items = hatrack_dict_items(targets, &n);
+
+        qsort(items, n, sizeof(hatrack_dict_item_t), (void *)fname_sort);
 
         for (uint64_t i = 0; i < n; i++) {
             c4m_utf8_t   *fname = items[i].key;
@@ -503,20 +517,19 @@ main(int argc, char **argv, char **envp)
             }
         }
     }
-    C4M_EXCEPT
-    {
-        no_exception = -1;
-        printf("An exception was raised before exit:\n");
-        c4m_print(c4m_repr_exception_stack_no_vm(c4m_new_utf8("Error: ")));
-        C4M_JUMP_TO_TRY_END();
-    }
-    C4M_TRY_END;
+    //    C4M_EXCEPT
+    //    {
+    //        no_exception = -1;
+    //        printf("An exception was raised before exit:\n");
+    //        c4m_print(c4m_repr_exception_stack_no_vm(c4m_new_utf8("Error: ")));
+    //        C4M_JUMP_TO_TRY_END();
+    //    }
+    //    C4M_TRY_END;
 
     c4m_printf("Passed [em]{}[/] out of [em]{}[/] run tests.",
                c4m_box_u64(num_tests - num_errs),
                c4m_box_u64(num_tests));
 
-    c4m_gc_show_heap_stats_on();
     c4m_gc_thread_collect();
 
     if (!num_errs && !no_exception) {

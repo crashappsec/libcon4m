@@ -341,6 +341,7 @@ list_repr(flexarray_t *list)
         if (err) {
             continue;
         }
+
         c4m_str_t *s = c4m_repr(item, item_type);
         c4m_xlist_append(items, s);
     }

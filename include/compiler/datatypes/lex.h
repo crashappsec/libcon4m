@@ -104,7 +104,7 @@ typedef struct {
     // Original index relative to all added tokens under a parse node.
     // We do this because we don't keep the comments in the main tree,
     // we stash them with the node payload.
-    uint16_t                     child_ix;
+    uint32_t                     child_ix;
     uint8_t                      adjustment; // For keeping track of quoting.
     c4m_utf8_t                  *text;
 } c4m_token_t;

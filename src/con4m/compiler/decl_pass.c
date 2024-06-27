@@ -30,6 +30,15 @@ process_children(pass1_ctx *ctx)
     }
 }
 
+static bool
+obj_type_check(pass1_ctx *ctx, const c4m_obj_t *obj, c4m_type_t *t2)
+{
+    int  warn;
+    bool res = c4m_obj_type_check(obj, t2, &warn);
+
+    return res;
+}
+
 static inline c4m_scope_entry_t *
 declare_sym(pass1_ctx       *ctx,
             c4m_scope_t     *scope,
@@ -253,7 +262,7 @@ handle_enum_decl(pass1_ctx *ctx)
             pnode->value = node_simp_literal(c4m_tree_get_child(item, 0));
 
             if (!c4m_obj_is_int_type(pnode->value)) {
-                if (!c4m_obj_type_check(pnode->value, c4m_type_utf8())) {
+                if (!obj_type_check(ctx, pnode->value, c4m_type_utf8())) {
                     c4m_add_error(ctx->file_ctx,
                                   c4m_err_invalid_enum_lit_type,
                                   item);
@@ -310,12 +319,19 @@ handle_enum_decl(pass1_ctx *ctx)
 
     if (is_str) {
         validate_str_enum_vals(ctx, items);
-        c4m_merge_types(inferred_type, c4m_type_utf8());
+        c4m_merge_types(inferred_type, c4m_type_utf8(), NULL);
     }
     else {
-        /*c4m_type_t *ty = */ validate_int_enum_vals(ctx, items);
-        // TODO: fix this to cooerce properly.
-        c4m_merge_types(inferred_type, c4m_type_i64());
+        c4m_type_t *ty = validate_int_enum_vals(ctx, items);
+        int         warn;
+
+        if (c4m_type_is_error(c4m_merge_types(inferred_type, ty, &warn))) {
+            c4m_add_error(ctx->file_ctx,
+                          c4m_err_inconsistent_type,
+                          cur_node(ctx),
+                          inferred_type,
+                          ty);
+        }
     }
 
 #ifdef C4M_PASS1_UNIT_TESTS
@@ -388,6 +404,9 @@ handle_var_decl(pass1_ctx *ctx)
         if (type_node != NULL) {
             type = c4m_node_to_type(ctx->file_ctx, type_node, NULL);
         }
+        else {
+            type = c4m_new_typevar();
+        }
 
         for (int j = 0; j < c4m_xlist_len(var_names); j++) {
             c4m_tree_node_t   *name_node = c4m_xlist_get(var_names, j, NULL);
@@ -399,6 +418,7 @@ handle_var_decl(pass1_ctx *ctx)
                                                  sk_variable,
                                                  NULL,
                                                  true);
+            sym->type                    = type;
 
             if (sym != NULL) {
                 if (ctx->in_func && !is_global) {
@@ -432,23 +452,21 @@ handle_var_decl(pass1_ctx *ctx)
                     c4m_type_t *inf_type = c4m_get_my_type(initpn->value);
 
                     sym->value = initpn->value;
-                    sym->type  = inf_type;
 
-                    if (type) {
-                        sym->flags |= C4M_F_TYPE_IS_DECLARED;
-                        if (!c4m_types_are_compat(inf_type, type)) {
-                            c4m_add_error(ctx->file_ctx,
-                                          c4m_err_inconsistent_type,
-                                          name_node,
-                                          inf_type,
-                                          type,
-                                          c4m_node_get_loc_str(type_node));
-                        }
+                    sym->flags |= C4M_F_TYPE_IS_DECLARED;
+                    int warning = 0;
+
+                    if (!c4m_types_are_compat(inf_type, type, &warning)) {
+                        c4m_add_error(ctx->file_ctx,
+                                      c4m_err_inconsistent_type,
+                                      name_node,
+                                      inf_type,
+                                      type,
+                                      c4m_node_get_loc_str(type_node));
                     }
                 }
                 else {
                     if (type) {
-                        sym->type = type;
                         sym->flags |= C4M_F_TYPE_IS_DECLARED;
                     }
                 }
@@ -588,7 +606,7 @@ one_section_prop(pass1_ctx          *ctx,
     case 'u': // user_def_ok
         value = node_simp_literal(c4m_tree_get_child(n, 0));
 
-        if (!value || !c4m_obj_type_check((c4m_obj_t)value, c4m_type_bool())) {
+        if (!value || !obj_type_check(ctx, (c4m_obj_t)value, c4m_type_bool())) {
             c4m_add_error(ctx->file_ctx,
                           c4m_err_spec_bool_required,
                           c4m_tree_get_child(n, 0));
@@ -601,7 +619,7 @@ one_section_prop(pass1_ctx          *ctx,
         break;
     case 'h': // hidden
         value = node_simp_literal(c4m_tree_get_child(n, 0));
-        if (!value || !c4m_obj_type_check((c4m_obj_t)value, c4m_type_bool())) {
+        if (!value || !obj_type_check(ctx, (c4m_obj_t)value, c4m_type_bool())) {
             c4m_add_error(ctx->file_ctx,
                           c4m_err_spec_bool_required,
                           c4m_tree_get_child(n, 0));
@@ -700,10 +718,13 @@ one_field(pass1_ctx          *ctx,
 
         case 'h': // hidden
             value = node_simp_literal(c4m_tree_get_child(kid, 0));
-            if (!value || !c4m_obj_type_check((c4m_obj_t)value, c4m_type_bool())) {
+            // clang-format off
+            if (!value ||
+		!obj_type_check(ctx, (c4m_obj_t)value, c4m_type_bool())) {
                 c4m_add_error(ctx->file_ctx,
                               c4m_err_spec_bool_required,
                               c4m_tree_get_child(kid, 0));
+                // clang-format on
             }
             else {
                 if (*value) {
@@ -714,7 +735,10 @@ one_field(pass1_ctx          *ctx,
 
         case 'l': // lock
             value = node_simp_literal(c4m_tree_get_child(kid, 0));
-            if (!value || !c4m_obj_type_check((c4m_obj_t)value, c4m_type_bool())) {
+            // clang-format off
+            if (!value ||
+		!obj_type_check(ctx, (c4m_obj_t)value, c4m_type_bool())) {
+                // clang-format on
                 c4m_add_error(ctx->file_ctx,
                               c4m_err_spec_bool_required,
                               c4m_tree_get_child(kid, 0));
@@ -770,10 +794,13 @@ one_field(pass1_ctx          *ctx,
             else {
                 // required.
                 value = node_simp_literal(c4m_tree_get_child(kid, 0));
-                if (!value || !c4m_obj_type_check((c4m_obj_t)value, c4m_type_bool())) {
+                // clang-format off
+                if (!value ||
+		    !obj_type_check(ctx, (c4m_obj_t)value, c4m_type_bool())) {
                     c4m_add_error(ctx->file_ctx,
                                   c4m_err_spec_bool_required,
                                   c4m_tree_get_child(kid, 0));
+                    // clang-format on
                 }
                 else {
                     if (*value) {
@@ -801,7 +828,7 @@ handle_section_spec(pass1_ctx *ctx)
     int                 num_kids = c4m_tree_get_number_children(tnode);
 
     section->fields            = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                             c4m_type_ref()));
+                                            c4m_type_ref()));
     section->allowed_sections  = c4m_new(c4m_type_set(c4m_type_utf8()));
     section->required_sections = c4m_new(c4m_type_set(c4m_type_utf8()));
     section->declaration_node  = tnode;
@@ -1457,7 +1484,7 @@ c4m_file_decl_pass(c4m_compile_ctx *cctx, c4m_file_compile_ctx *file_ctx)
     file_ctx->attribute_scope   = c4m_new_scope(NULL, C4M_SCOPE_ATTRIBUTES);
     file_ctx->imports           = c4m_new_scope(NULL, C4M_SCOPE_IMPORTS);
     file_ctx->parameters        = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                                  c4m_type_ref()));
+                                                 c4m_type_ref()));
     file_ctx->fn_def_syms       = c4m_new(c4m_type_xlist(c4m_type_ref()));
     file_ctx->callback_literals = c4m_new(c4m_type_xlist(c4m_type_ref()));
     file_ctx->extern_decls      = c4m_new(c4m_type_xlist(c4m_type_ref()));

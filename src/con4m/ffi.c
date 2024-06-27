@@ -111,7 +111,7 @@ ffi_init()
 {
     if (c4m_symbol_cache == NULL) {
         c4m_symbol_cache = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                                  c4m_type_ref()));
+                                                 c4m_type_ref()));
         c4m_gc_register_root(&c4m_symbol_cache, 1);
     }
 }

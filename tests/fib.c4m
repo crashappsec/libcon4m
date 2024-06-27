@@ -1,3 +1,11 @@
+"""
+Dumb recursion test.
+"""
+"""
+$output:
+4181
+"""
+
 func n(m: int) -> int {
 
 if m == 1 {
@@ -18,4 +26,4 @@ func foo(x) {
   x + x
 }
 
-assert n(18) == 4181
+print(n(18))

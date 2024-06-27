@@ -294,9 +294,13 @@ c4m_buffer_unmarshal(c4m_buf_t *b, c4m_stream_t *s, c4m_dict_t *memos)
 static bool
 buffer_can_coerce_to(c4m_type_t *my_type, c4m_type_t *target_type)
 {
-    if (c4m_types_are_compat(target_type, c4m_type_utf8()) || c4m_types_are_compat(target_type, c4m_type_buffer()) || c4m_types_are_compat(target_type, c4m_type_bool())) {
+    // clang-format off
+    if (c4m_types_are_compat(target_type, c4m_type_utf8(), NULL) ||
+	c4m_types_are_compat(target_type, c4m_type_buffer(), NULL) ||
+	c4m_types_are_compat(target_type, c4m_type_bool(), NULL)) {
         return true;
     }
+    // clang-format on
 
     return false;
 }
@@ -304,11 +308,11 @@ buffer_can_coerce_to(c4m_type_t *my_type, c4m_type_t *target_type)
 static c4m_obj_t
 buffer_coerce_to(const c4m_buf_t *b, c4m_type_t *target_type)
 {
-    if (c4m_types_are_compat(target_type, c4m_type_buffer())) {
+    if (c4m_types_are_compat(target_type, c4m_type_buffer(), NULL)) {
         return (c4m_obj_t)b;
     }
 
-    if (c4m_types_are_compat(target_type, c4m_type_bool())) {
+    if (c4m_types_are_compat(target_type, c4m_type_bool(), NULL)) {
         if (!b || b->byte_len == 0) {
             return (c4m_obj_t) false;
         }
@@ -317,7 +321,7 @@ buffer_coerce_to(const c4m_buf_t *b, c4m_type_t *target_type)
         }
     }
 
-    if (c4m_types_are_compat(target_type, c4m_type_utf8())) {
+    if (c4m_types_are_compat(target_type, c4m_type_utf8(), NULL)) {
         int32_t         count = 0;
         uint8_t        *p     = (uint8_t *)b->data;
         uint8_t        *end   = p + b->byte_len;

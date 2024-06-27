@@ -209,27 +209,11 @@ unmarshal_fn_info(c4m_stream_t *in, c4m_dict_t *memos)
 static void
 marshal_value(c4m_value_t *in, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
 {
-    c4m_sub_marshal(in->type_info, out, memos, mid);
-    c4m_dt_info_t *tinfo = c4m_type_get_data_type_info(in->type_info);
-    if (tinfo->by_value) {
-        c4m_marshal_u64((uint64_t)in->obj, out);
-    }
-    else {
-        c4m_sub_marshal(in->obj, out, memos, mid);
-    }
 }
 
 static void
 unmarshal_value(c4m_value_t *out, c4m_stream_t *in, c4m_dict_t *memos)
 {
-    out->type_info       = c4m_sub_unmarshal(in, memos);
-    c4m_dt_info_t *tinfo = c4m_type_get_data_type_info(out->type_info);
-    if (tinfo->by_value) {
-        out->obj = (void *)c4m_unmarshal_u64(in);
-    }
-    else {
-        out->obj = c4m_sub_unmarshal(in, memos);
-    }
 }
 
 static void
@@ -400,7 +384,6 @@ marshal_attr_contents(void         *ref,
         c4m_marshal_bool(in->override, out);
     }
     else {
-        c4m_sub_marshal(in->contents.type_info, out, memos, mid);
     }
 }
 
@@ -417,7 +400,6 @@ unmarshal_attr_contents(c4m_stream_t *in, c4m_dict_t *memos)
         out->override = c4m_unmarshal_bool(in);
     }
     else {
-        out->contents.type_info = c4m_sub_unmarshal(in, memos);
     }
 
     return out;

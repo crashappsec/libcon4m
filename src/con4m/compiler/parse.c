@@ -90,11 +90,12 @@ c4m_exit_to_checkpoint(parse_ctx  *ctx,
 #define CHECKPOINT_STATUS() (checkpoint_error)
 
 #define END_CHECKPOINT() c4m_end_checkpoint(ctx)
-#define THROW(code)      c4m_exit_to_checkpoint(ctx, \
-                                           code,     \
-                                           __FILE__, \
-                                           __LINE__, \
-                                           __func__)
+#define THROW(code)                  \
+    c4m_exit_to_checkpoint(ctx,      \
+                           code,     \
+                           __FILE__, \
+                           __LINE__, \
+                           __func__)
 
 #ifdef PARSE_DEBUG
 static inline void _consume(parse_ctx *, int);
@@ -1246,6 +1247,7 @@ static void
 extern_block(parse_ctx *ctx)
 {
     char *txt;
+    int   safety_check = 0;
 
     start_node(ctx, c4m_nt_extern_block, true);
     identifier(ctx);
@@ -1258,6 +1260,10 @@ extern_block(parse_ctx *ctx)
 
     while (true) {
         ENTER_CHECKPOINT();
+        if (safety_check) {
+            THROW('!');
+        }
+
         switch (CHECKPOINT_STATUS()) {
         case 0:
             switch (match(ctx, c4m_tt_rbrace, c4m_tt_identifier)) {
@@ -1296,6 +1302,7 @@ extern_block(parse_ctx *ctx)
         case '!':
             THROW('!');
         default:
+            safety_check = 1;
             continue;
         }
     }
@@ -1674,12 +1681,16 @@ static void
 case_body(parse_ctx *ctx)
 {
     c4m_tree_node_t *expr;
+    int              safety_check = 0;
 
     start_node(ctx, c4m_nt_body, true);
 
     DECLARE_CHECKPOINT();
     while (true) {
         ENTER_CHECKPOINT();
+        if (safety_check) {
+            THROW('!');
+        }
 
         switch (CHECKPOINT_STATUS()) {
         case 0:
@@ -1837,6 +1848,7 @@ case_body(parse_ctx *ctx)
         case '!':
             THROW('!');
         default:
+            safety_check = 1;
             continue;
         }
     }
@@ -2729,6 +2741,8 @@ field_property(parse_ctx *ctx)
 static void
 field_spec(parse_ctx *ctx)
 {
+    int safety_check = 0;
+
     start_node(ctx, c4m_nt_field_spec, true);
     identifier(ctx);
     opt_one_newline(ctx);
@@ -2741,6 +2755,9 @@ field_spec(parse_ctx *ctx)
     DECLARE_CHECKPOINT();
     while (true) {
         ENTER_CHECKPOINT();
+        if (safety_check) {
+            THROW('!');
+        }
         switch (CHECKPOINT_STATUS()) {
         case 0:
             switch (tok_kind(ctx)) {
@@ -2767,6 +2784,7 @@ field_spec(parse_ctx *ctx)
         case '!':
             THROW('!');
         default:
+            safety_check = 1;
             continue;
         }
     }
@@ -2849,6 +2867,8 @@ invalid_sec_part:
 static void
 object_spec(parse_ctx *ctx, c4m_utf8_t *txt)
 {
+    int safety_check = 0;
+
     start_node(ctx, c4m_nt_section_spec, false);
     // if this isn't the root section, we read a name.
     if (strcmp(txt->data, "root")) {
@@ -2868,6 +2888,11 @@ object_spec(parse_ctx *ctx, c4m_utf8_t *txt)
     DECLARE_CHECKPOINT();
     while (true) {
         ENTER_CHECKPOINT();
+
+        if (safety_check) {
+            THROW('!');
+        }
+
         switch (CHECKPOINT_STATUS()) {
         case 0:
             switch (tok_kind(ctx)) {
@@ -2899,6 +2924,7 @@ object_spec(parse_ctx *ctx, c4m_utf8_t *txt)
         case '!':
             THROW('!');
         default:
+            safety_check = 1;
             THROW('.');
         }
     }
@@ -3764,7 +3790,7 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
 {
     // TODO: should 100% have docstrings be a constexpr instead
     // of just a string literal as the only option.
-
+    int              safety_check = 0;
     c4m_tree_node_t *expr;
 
     opt_one_newline(ctx);
@@ -3953,6 +3979,10 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
             if (tok_kind(ctx) == c4m_tt_eof) {
                 return;
             }
+            if (safety_check) {
+                return;
+            }
+            safety_check = 1;
             THROW('!');
         default:
             continue;
