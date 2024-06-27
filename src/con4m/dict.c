@@ -35,6 +35,8 @@ c4m_dict_init(c4m_dict_t *dict, va_list args)
     default:
         // nada.
     }
+
+    dict->slow_views = false;
 }
 
 static void

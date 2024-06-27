@@ -569,6 +569,7 @@ update_internal_allocation_pointers(c4m_alloc_hdr *hdr,
     if (hdr->ptr_map == NULL) {
         return;
     }
+
     if (hdr->ptr_map == GC_SCAN_ALL) {
         for (unsigned int i = 0; i < hdr->alloc_len; i++) {
             uint64_t item = hdr->data[i];
@@ -1008,7 +1009,7 @@ raw_trace(c4m_arena_t **ptr_loc)
     scan_arena(cur, new, stack_top, stack_bottom);
 
     if (system_finalizer != NULL) {
-        // migrate_finalizers(cur, new);
+        migrate_finalizers(cur, new);
     }
     c4m_arena_t *to_delete = *ptr_loc;
     *ptr_loc               = new;

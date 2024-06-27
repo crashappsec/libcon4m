@@ -12,7 +12,7 @@
 // #define C4M_VM_DEBUG
 // #define C4M_TYPE_LOG
 
-// #define C4M_GC_STATS
+#define C4M_GC_STATS
 
 #ifndef C4M_NO_DEV_MODE
 #define C4M_DEV

@@ -470,6 +470,16 @@ add_static_symbols()
     c4m_add_static_function(c4m_new_utf8("strndup"), strndup);
 }
 
+static int
+fname_sort(const hatrack_dict_item_t *o1,
+           const hatrack_dict_item_t *o2)
+{
+    c4m_utf8_t *fname1 = o1->key;
+    c4m_utf8_t *fname2 = o2->key;
+
+    return strcmp(fname1->data, fname2->data);
+}
+
 int
 main(int argc, char **argv, char **envp)
 {
@@ -490,7 +500,9 @@ main(int argc, char **argv, char **envp)
         c4m_terminal_dimensions(&term_width, NULL);
         c4m_dict_t          *targets = build_file_list();
         uint64_t             n;
-        hatrack_dict_item_t *items = hatrack_dict_items_sort(targets, &n);
+        hatrack_dict_item_t *items = hatrack_dict_items(targets, &n);
+
+        qsort(items, n, sizeof(hatrack_dict_item_t), (void *)fname_sort);
 
         for (uint64_t i = 0; i < n; i++) {
             c4m_utf8_t   *fname = items[i].key;
