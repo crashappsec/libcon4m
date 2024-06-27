@@ -89,9 +89,9 @@ typedef struct c4m_scope_entry_t {
     // module's arena we're using, using an index that is equal to
     // the module's index into the `module_ordering` field in the
     // compilation context.
-    uint16_t local_module_id;
+    uint32_t local_module_id;
 
-    uint16_t flags;
+    uint32_t flags;
 } c4m_scope_entry_t;
 
 typedef struct {

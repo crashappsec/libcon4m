@@ -1,3 +1,38 @@
+"""
+Very similar nodes to decl1.
+"""
+"""
+$errors:
+range_type
+cannot_cmp
+unary_minus_type
+inconsistent_type
+unused_decl
+def_without_use
+use_no_def
+def_without_use
+def_without_use
+use_no_def
+def_without_use
+use_no_def
+use_no_def
+def_without_use
+use_no_def
+use_no_def
+use_no_def
+def_without_use
+use_no_def
+use_no_def
+use_no_def
+use_no_def
+use_no_def
+use_no_def
+use_no_def
+use_no_def
+use_no_def
+const_not_provided
+"""
+
 func testfn(f: int, g: int) {
   return f + g
 }

@@ -510,7 +510,7 @@ assemble_formatted_result(const c4m_str_t *fmt, c4m_xlist_t *arg_strings)
         }
     }
 
-    result->codepoints = ~out_ix;
+    result->codepoints = out_ix;
     return c4m_to_utf8(result);
 }
 
@@ -569,8 +569,7 @@ c4m_utf8_t *
 c4m_base_format(const c4m_str_t *fmt, int nargs, va_list args)
 {
     c4m_obj_t   one;
-    c4m_dict_t *dict = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                              c4m_type_ref()));
+    c4m_dict_t *dict = c4m_dict(c4m_type_utf8(), c4m_type_ref());
 
     for (int i = 0; i < nargs; i++) {
         one = va_arg(args, c4m_obj_t);
@@ -615,7 +614,7 @@ c4m_cstr_array_format(char *fmt, int num_args, c4m_utf8_t **params)
 {
     c4m_utf8_t *one;
     c4m_dict_t *dict = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                              c4m_type_ref()));
+                                             c4m_type_ref()));
 
     for (int i = 0; i < num_args; i++) {
         one             = params[i];

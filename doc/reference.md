@@ -534,7 +534,7 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 ```
 
 # Builtin methods used by the language
-- __repr__
+- $repr
 
 # Features to re-add from old con4m
 - VM save restore
@@ -548,7 +548,6 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - Final mile: params
 - Auto-import standard library.
 - Callbacks
-- Tuple unpacking
 - Len, etc.
 
 # Items for afterward

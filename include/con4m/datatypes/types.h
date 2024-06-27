@@ -56,6 +56,11 @@ typedef enum {
 
 typedef uint64_t (*c4m_next_typevar_fn)(void);
 
+typedef struct {
+    c4m_dict_t      *store;
+    _Atomic uint64_t next_typeid;
+} c4m_type_universe_t;
+
 #ifdef C4M_USE_INTERNAL_API
 c4m_str_t *c4m_internal_type_repr(c4m_type_t *, c4m_dict_t *, int64_t *);
 #endif

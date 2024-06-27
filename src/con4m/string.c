@@ -23,10 +23,13 @@ c4m_internal_utf8_set_codepoint_count(c4m_utf8_t *instr)
     c4m_codepoint_t cp;
 
     instr->codepoints = 0;
-
     while (p < end) {
         instr->codepoints += 1;
-        p += utf8proc_iterate(p, 4, &cp);
+        int n = utf8proc_iterate(p, 4, &cp);
+        if (n < 1) {
+            abort();
+        }
+        p += n;
     }
 }
 
@@ -58,8 +61,8 @@ c4m_utf8_validate(const c4m_utf8_t *instr)
 c4m_utf32_t *
 c4m_str_slice(const c4m_str_t *instr, int64_t start, int64_t end)
 {
-    if (!instr) {
-        return c4m_to_utf32(instr);
+    if (!instr || c4m_str_codepoint_len(instr) == 0) {
+        return c4m_to_utf32(c4m_empty_string());
     }
     c4m_utf32_t *s   = c4m_to_utf32(instr);
     int64_t      len = c4m_str_codepoint_len(s);
@@ -87,7 +90,7 @@ c4m_str_slice(const c4m_str_t *instr, int64_t start, int64_t end)
     int64_t      slice_len = end - start;
     c4m_utf32_t *res       = c4m_new(c4m_type_utf32(),
                                c4m_kw("length", c4m_ka(slice_len)));
-    res->codepoints        = ~(slice_len);
+    res->codepoints        = slice_len;
 
     c4m_codepoint_t *src = (c4m_codepoint_t *)s->data;
     c4m_codepoint_t *dst = (c4m_codepoint_t *)res->data;
@@ -182,7 +185,11 @@ c4m_utf8_index(const c4m_utf8_t *s, int64_t n)
     c4m_codepoint_t cp;
 
     for (int i = 0; i <= n; i++) {
-        p += utf8proc_iterate((uint8_t *)p, 4, &cp);
+        int val = utf8proc_iterate((uint8_t *)p, 4, &cp);
+        if (val < 0) {
+            abort();
+        }
+        p += val;
     }
 
     return cp;
@@ -245,7 +252,7 @@ _c4m_str_strip(const c4m_str_t *s, ...)
             start++;
     }
 
-    if (back) {
+    if (back && (end > start)) {
         while (--end != start) {
             if (!c4m_codepoint_is_space(p[end])) {
                 break;
@@ -268,7 +275,7 @@ c4m_str_copy(const c4m_str_t *s)
         return NULL;
     }
     bool       u8  = c4m_str_is_u8(s);
-    uint64_t   l   = u8 ? s->byte_len : ~s->codepoints;
+    uint64_t   l   = u8 ? s->byte_len : s->codepoints;
     c4m_str_t *res = c4m_new(u8 ? c4m_type_utf8() : c4m_type_utf32(),
                              c4m_kw("length", c4m_ka(l)));
 
@@ -338,7 +345,7 @@ c4m_str_concat(const c4m_str_t *p1, const c4m_str_t *p2)
     memcpy(r->data, s1->data, s1_len * 4);
     memcpy(ptr + s1_len, s2->data, s2_len * 4);
 
-    r->codepoints = ~n;
+    r->codepoints = n;
 
     return r;
 }
@@ -358,9 +365,9 @@ _c4m_str_join(const c4m_xlist_t *l, const c4m_str_t *joiner, ...)
     int64_t len      = joinlen * n_parts; // An overestimate when !add_trailing
 
     for (int i = 0; i < n_parts; i++) {
-        c4m_str_t *line = (c4m_str_t *)c4m_xlist_get(l, i, NULL);
-        len += c4m_str_codepoint_len(line);
-        n_styles += c4m_style_num_entries(line);
+        c4m_str_t *part = (c4m_str_t *)c4m_xlist_get(l, i, NULL);
+        len += c4m_str_codepoint_len(part);
+        n_styles += c4m_style_num_entries(part);
     }
 
     c4m_utf32_t     *result   = c4m_new(c4m_type_utf32(),
@@ -370,7 +377,7 @@ _c4m_str_join(const c4m_xlist_t *l, const c4m_str_t *joiner, ...)
     int              style_ix = 0;
     c4m_utf32_t     *j        = joinlen ? c4m_to_utf32(joiner) : NULL;
 
-    result->codepoints = ~len;
+    result->codepoints = len;
     c4m_alloc_styles(result, n_styles);
 
     if (!add_trailing) {
@@ -378,14 +385,16 @@ _c4m_str_join(const c4m_xlist_t *l, const c4m_str_t *joiner, ...)
     }
 
     for (int i = 0; i < n_parts; i++) {
-        c4m_utf32_t *line = c4m_to_utf32((c4m_str_t *)c4m_xlist_get(l,
-                                                                    i,
-                                                                    NULL));
-        int64_t      n_cp = c4m_str_codepoint_len(line);
+        c4m_str_t   *v    = (c4m_str_t *)c4m_xlist_get(l, i, NULL);
+        c4m_utf32_t *part = c4m_to_utf32(v);
+        int64_t      n_cp = c4m_str_codepoint_len(part);
 
-        memcpy(p, line->data, n_cp * 4);
+        if (!n_cp) {
+            continue;
+        }
+        memcpy(p, part->data, n_cp * 4);
         p += n_cp;
-        style_ix = c4m_copy_and_offset_styles(line, result, style_ix, txt_ix);
+        style_ix = c4m_copy_and_offset_styles(part, result, style_ix, txt_ix);
         txt_ix += n_cp;
 
         if (joinlen != 0) {
@@ -397,8 +406,8 @@ _c4m_str_join(const c4m_xlist_t *l, const c4m_str_t *joiner, ...)
     }
 
     if (!add_trailing) {
-        uint64_t wrong_cp  = ~result->codepoints;
-        result->codepoints = ~(wrong_cp - joinlen);
+        uint64_t wrong_cp  = result->codepoints;
+        result->codepoints = wrong_cp - joinlen;
 
         c4m_utf32_t *line = c4m_to_utf32((c4m_str_t *)c4m_xlist_get(l,
                                                                     n_parts,
@@ -414,7 +423,7 @@ _c4m_str_join(const c4m_xlist_t *l, const c4m_str_t *joiner, ...)
 c4m_utf8_t *
 c4m_to_utf8(const c4m_utf32_t *inp)
 {
-    if (inp == NULL) {
+    if (inp == NULL || c4m_str_codepoint_len(inp) == 0) {
         return c4m_empty_string();
     }
 
@@ -463,17 +472,26 @@ c4m_to_utf32(const c4m_utf8_t *instr)
         return (c4m_utf32_t *)instr;
     }
 
-    int64_t          len    = (int64_t)c4m_str_codepoint_len(instr);
+    int64_t len = (int64_t)c4m_str_codepoint_len(instr);
+
+    if (!len) {
+        return (c4m_utf32_t *)instr;
+    }
+
     c4m_utf32_t     *outstr = c4m_new(c4m_type_utf32(),
                                   c4m_kw("length", c4m_ka(len)));
     uint8_t         *inp    = (uint8_t *)(instr->data);
     c4m_codepoint_t *outp   = (c4m_codepoint_t *)(outstr->data);
 
     for (int i = 0; i < len; i++) {
-        inp += utf8proc_iterate(inp, 4, outp + i);
+        int val = utf8proc_iterate(inp, 4, outp + i);
+        if (val < 0) {
+            abort();
+        }
+        inp += val;
     }
 
-    outstr->codepoints = ~len;
+    outstr->codepoints = len;
 
     c4m_copy_style_info(instr, outstr);
 
@@ -483,7 +501,7 @@ c4m_to_utf32(const c4m_utf8_t *instr)
 static void
 utf8_init(c4m_utf8_t *s, va_list args)
 {
-    int64_t     length        = -1; // BYTE length.
+    int64_t     length        = 0; // BYTE length.
     int64_t     start         = 0;
     char       *cstring       = NULL;
     c4m_style_t style         = C4M_STY_BAD;
@@ -499,8 +517,12 @@ utf8_init(c4m_utf8_t *s, va_list args)
     c4m_kw_bool("replace_style", replace_style);
     c4m_kw_ptr("tag", tag);
 
+    if (length == 0 && cstring == NULL) {
+        return;
+    }
+
     if (cstring != NULL) {
-        if (length < 0) {
+        if (length <= 0) {
             length = strlen(cstring);
         }
 
@@ -517,12 +539,12 @@ utf8_init(c4m_utf8_t *s, va_list args)
             s->data = c4m_gc_raw_alloc(length + 1, NULL);
         }
         s->byte_len = length;
-
         memcpy(s->data, cstring, length);
+        s->data[length] = 0;
         c4m_internal_utf8_set_codepoint_count(s);
     }
     else {
-        if (length < 0) {
+        if (length <= 0) {
             s->data = 0;
             C4M_CRAISE("length cannot be < 0 for string initialization");
         }
@@ -544,7 +566,7 @@ utf8_init(c4m_utf8_t *s, va_list args)
 static void
 utf32_init(c4m_utf32_t *s, va_list args)
 {
-    int64_t          length        = -1; // NUMBER OF CODEPOINTS.
+    int64_t          length        = 0; // NUMBER OF CODEPOINTS.
     int64_t          start         = 0;
     char            *cstring       = NULL;
     c4m_codepoint_t *codepoints    = NULL;
@@ -561,18 +583,18 @@ utf32_init(c4m_utf32_t *s, va_list args)
     c4m_kw_bool("replace_style", replace_style);
     c4m_kw_ptr("tag", tag);
 
+    s->utf32 = 1;
+
+    if (length == 0 && cstring == NULL) {
+        return;
+    }
+
     if (codepoints != NULL && cstring != NULL) {
         C4M_CRAISE("Cannot specify both 'codepoints' and 'cstring' keywords.");
     }
-    if (codepoints != NULL) {
-        if (length == 0) {
-            s->byte_len   = 4;
-            s->data       = c4m_gc_raw_alloc(s->byte_len, NULL);
-            s->codepoints = ~0;
-            return;
-        }
 
-        if (length < 0) {
+    if (codepoints != NULL) {
+        if (length <= 0) {
             C4M_CRAISE(
                 "When specifying 'codepoints', must provide a valid "
                 "'length' containing the number of codepoints.");
@@ -586,11 +608,11 @@ utf32_init(c4m_utf32_t *s, va_list args)
             local[i] = codepoints[i];
         }
 
-        s->codepoints = ~length;
+        s->codepoints = length;
     }
     else {
         if (cstring != NULL) {
-            if (length == -1) {
+            if (length <= 0) {
                 length = strlen(cstring);
             }
 
@@ -605,10 +627,10 @@ utf32_init(c4m_utf32_t *s, va_list args)
             for (int64_t i = 0; i < length; i++) {
                 ((uint32_t *)s->data)[i] = (uint32_t)(cstring[i]);
             }
-            s->codepoints = ~length;
+            s->codepoints = length;
         }
         else {
-            if (length < 0) {
+            if (length <= 0) {
                 C4M_CRAISE(
                     "Must specify a valid length if not initializing "
                     "with a null-terminated cstring.");
@@ -692,7 +714,7 @@ c4m_utf32_repeat(c4m_codepoint_t cp, int64_t num)
                                c4m_kw("length", c4m_ka(num)));
     c4m_codepoint_t *p   = (c4m_codepoint_t *)res->data;
 
-    res->codepoints = ~num;
+    res->codepoints = num;
 
     for (int i = 0; i < num; i++) {
         *p++ = cp;
@@ -719,7 +741,14 @@ c4m_str_render_len(const c4m_str_t *s)
         c4m_codepoint_t cp;
 
         for (int i = 0; i < n; i++) {
-            p += utf8proc_iterate(p, 4, &cp);
+            int val = utf8proc_iterate(p, 4, &cp);
+
+            if (val < 0) {
+                abort();
+            }
+
+            p += val;
+
             result += c4m_codepoint_width(cp);
         }
     }
@@ -763,7 +792,11 @@ _c4m_str_truncate(const c4m_str_t *s, int64_t len, ...)
 
         if (use_render_width) {
             for (int i = 0; i < n; i++) {
-                next  = p + utf8proc_iterate(p, 4, &cp);
+                int val = utf8proc_iterate(p, 4, &cp);
+                if (val < 0) {
+                    abort();
+                }
+                next  = p + val;
                 int w = c4m_codepoint_width(cp);
                 if (c + w > len) {
                     goto u8_slice;
@@ -808,7 +841,11 @@ u8_slice:
                         return res;
                     }
                 }
-                p += utf8proc_iterate(p, 4, &cp);
+                int val = utf8proc_iterate(p, 4, &cp);
+                if (val < 0) {
+                    abort();
+                }
+                p += val;
             }
             return (c4m_str_t *)s;
         }
@@ -840,6 +877,10 @@ u32_starts_with(const c4m_utf32_t *s1, const c4m_utf32_t *s2)
 
     if (len > c4m_str_codepoint_len(s1)) {
         return false;
+    }
+
+    if (len == 0) {
+        return true;
     }
 
     c4m_codepoint_t *cp1 = (c4m_codepoint_t *)s1->data;
@@ -886,6 +927,10 @@ c4m_utf8_t *
 c4m_from_file(const c4m_str_t *name, int *err)
 {
     c4m_utf32_t *n = c4m_to_utf32(name);
+
+    if (!c4m_str_codepoint_len(n)) {
+        C4M_CRAISE("Cannot accept an empty string for a file name.");
+    }
 
     // Assumes file is UTF-8.
     //
@@ -1193,6 +1238,7 @@ c4m_str_repr(c4m_str_t *str)
     // TODO: actually implement string quoting.
     c4m_utf32_t *q = c4m_new(c4m_type_utf32(),
                              c4m_kw("cstring", c4m_ka("\"")));
+
     return c4m_str_concat(c4m_str_concat(q, str), q);
 }
 
@@ -1205,9 +1251,14 @@ c4m_str_to_str(c4m_str_t *str)
 bool
 c4m_str_can_coerce_to(c4m_type_t *my_type, c4m_type_t *target_type)
 {
-    if (c4m_types_are_compat(target_type, c4m_type_utf8()) || c4m_types_are_compat(target_type, c4m_type_utf32()) || c4m_types_are_compat(target_type, c4m_type_buffer()) || c4m_types_are_compat(target_type, c4m_type_bool())) {
+    // clang-format off
+    if (c4m_types_are_compat(target_type, c4m_type_utf8(), NULL) ||
+	c4m_types_are_compat(target_type, c4m_type_utf32(), NULL) ||
+	c4m_types_are_compat(target_type, c4m_type_buffer(), NULL) ||
+	c4m_types_are_compat(target_type, c4m_type_bool(), NULL)) {
         return true;
     }
+    // clang-format on
 
     return false;
 }
@@ -1215,13 +1266,13 @@ c4m_str_can_coerce_to(c4m_type_t *my_type, c4m_type_t *target_type)
 c4m_obj_t
 c4m_str_coerce_to(const c4m_str_t *s, c4m_type_t *target_type)
 {
-    if (c4m_types_are_compat(target_type, c4m_type_utf8())) {
+    if (c4m_types_are_compat(target_type, c4m_type_utf8(), NULL)) {
         return c4m_to_utf8(s);
     }
-    if (c4m_types_are_compat(target_type, c4m_type_utf32())) {
+    if (c4m_types_are_compat(target_type, c4m_type_utf32(), NULL)) {
         return c4m_to_utf32(s);
     }
-    if (c4m_types_are_compat(target_type, c4m_type_buffer())) {
+    if (c4m_types_are_compat(target_type, c4m_type_buffer(), NULL)) {
         // We can't just point into the UTF8 string, since buffers
         // are mutable but strings are not.
 
@@ -1231,7 +1282,7 @@ c4m_str_coerce_to(const c4m_str_t *s, c4m_type_t *target_type)
 
         return res;
     }
-    if (c4m_types_are_compat(target_type, c4m_type_bool())) {
+    if (c4m_types_are_compat(target_type, c4m_type_bool(), NULL)) {
         if (!s || !c4m_str_codepoint_len(s)) {
             return (c4m_obj_t) false;
         }

@@ -14,6 +14,12 @@ box_repr(c4m_box_t *box)
     return c4m_repr(box->v, c4m_type_unbox(c4m_get_my_type(box)));
 }
 
+static c4m_utf8_t *
+box_to_str(c4m_box_t *box)
+{
+    return c4m_to_str(box->v, c4m_type_unbox(c4m_get_my_type(box)));
+}
+
 static void
 box_marshal(c4m_box_t    *box,
             c4m_stream_t *out,
@@ -51,7 +57,7 @@ const c4m_vtable_t c4m_box_vtable = {
     .methods     = {
         [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)box_init,
         [C4M_BI_TO_STR]       = (c4m_vtable_entry)box_repr,
-        [C4M_BI_REPR]         = (c4m_vtable_entry)box_repr,
+        [C4M_BI_REPR]         = (c4m_vtable_entry)box_to_str,
         [C4M_BI_MARSHAL]      = (c4m_vtable_entry)box_marshal,
         [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)box_unmarshal,
         [C4M_BI_FORMAT]       = (c4m_vtable_entry)box_format,

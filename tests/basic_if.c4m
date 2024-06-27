@@ -1,3 +1,11 @@
+"""
+Test basic functionality for varations of if statements.
+"""
+"""
+$output:
+12
+"""
+
 noidea = 11
 x = 100
 foo = 4
@@ -21,7 +29,8 @@ if (2 < foo) {
 
 
 if (2 < foo) {
-   x = - 18
+   x -= - 18
 }
 
 foo = noidea + x
+print(foo)

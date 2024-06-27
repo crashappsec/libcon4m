@@ -159,7 +159,7 @@ static bool log_types = true;
     if (log_types) {                                 \
         c4m_printf("[h2]{}:[/] [h1]{}[/] (line {})", \
                    c4m_new_utf8(x),                  \
-                   c4m_resolve_type(y),              \
+                   c4m_type_resolve(y),              \
                    c4m_box_i64(__LINE__));           \
     }
 
@@ -178,11 +178,6 @@ type_end_log()
 #else
 #define type_log(x, y)
 #endif
-
-typedef struct {
-    c4m_dict_t      *store;
-    _Atomic uint64_t next_typeid;
-} c4m_type_universe_t;
 
 typedef struct {
     c4m_sha_t  *sha;
@@ -271,10 +266,10 @@ c4m_type_resolve(c4m_type_t *node)
         next = hatrack_dict_get(c4m_type_universe->store,
                                 (void *)(int64_t)node->typeid,
                                 NULL);
-
         if (!next) {
             return node;
         }
+
         if (next == node || node->typeid == next->typeid) {
             return next;
         }
@@ -393,6 +388,7 @@ type_hash_and_dedupe(c4m_type_t **nodeptr)
                          node);
         return node->typeid;
     default:
+        node->typeid = 0;
         ctx.sha      = c4m_new(c4m_type_hash());
         ctx.tv_count = 0;
         ctx.memos    = hatrack_dict_new(HATRACK_DICT_KEY_TYPE_PTR);
@@ -415,10 +411,17 @@ type_hash_and_dedupe(c4m_type_t **nodeptr)
         if (!hatrack_dict_add(c4m_type_universe->store,
                               (void *)result,
                               node)) {
-            *nodeptr = hatrack_dict_get(c4m_type_universe->store,
-                                        (void *)result,
-                                        NULL);
-            *nodeptr = c4m_type_resolve(*nodeptr);
+            c4m_type_t *old = hatrack_dict_get(c4m_type_universe->store,
+                                               (void *)result,
+                                               NULL);
+            if (old->typeid == 0) {
+                hatrack_dict_put(c4m_type_universe->store,
+                                 (void *)result,
+                                 node);
+            }
+            else {
+                *nodeptr = c4m_type_resolve(old);
+            }
         }
     }
     return result;
@@ -1456,7 +1459,7 @@ first_loop_start:
 
     c4m_xlist_append(to_join, c4m_get_rbrak_const());
 
-    return c4m_str_join(to_join, NULL);
+    return c4m_str_join(to_join, c4m_empty_string());
 }
 
 // This will get more complicated when we add keyword parameter sypport.
@@ -1506,7 +1509,7 @@ first_loop_start:
 
     c4m_xlist_append(to_join, substr);
 
-    return c4m_str_join(to_join, NULL);
+    return c4m_str_join(to_join, c4m_empty_string());
 }
 
 static c4m_str_t *c4m_type_repr(c4m_type_t *);
@@ -1546,8 +1549,7 @@ c4m_internal_type_repr(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
 static c4m_str_t *
 c4m_type_repr(c4m_type_t *t)
 {
-    c4m_dict_t *memos = c4m_new(c4m_type_dict(c4m_type_ref(),
-                                              c4m_type_utf8()));
+    c4m_dict_t *memos = c4m_dict(c4m_type_ref(), c4m_type_utf8());
     int64_t     n     = 0;
 
     return c4m_internal_type_repr(c4m_type_resolve(t), memos, &n);
@@ -1646,6 +1648,8 @@ c4m_initialize_global_types()
         c4m_dict_t *store        = (c4m_dict_t *)envstore->data;
         c4m_type_universe->store = store;
 
+        printf("address of the universe: %p\n", &c4m_type_universe);
+
         // We don't set the heading info up fully, so this dict
         // won't be directly marshalable unless / until we do.
         hatrack_dict_init(store, HATRACK_DICT_KEY_TYPE_INT);
@@ -1733,8 +1737,6 @@ c4m_type_box(c4m_type_t *sub)
     c4m_type_t *result = c4m_new(c4m_type_typespec(), C4M_T_BOX);
 
     result->details->tsi = sub;
-
-    type_hash_and_dedupe(&result);
 
     return result;
 }
@@ -1876,10 +1878,20 @@ c4m_get_promotion_type(c4m_type_t *t1, c4m_type_t *t2, int *warning)
     t1 = c4m_type_resolve(t1);
     t2 = c4m_type_resolve(t2);
 
+    if (c4m_type_is_box(t1)) {
+        t1 = c4m_type_unbox(t1);
+    }
+    if (c4m_type_is_box(t2)) {
+        t2 = c4m_type_unbox(t2);
+    }
+
     c4m_type_hash_t id1 = c4m_type_get_data_type_info(t1)->typeid;
     c4m_type_hash_t id2 = c4m_type_get_data_type_info(t2)->typeid;
 
-    if (id1 < C4M_T_I8 || id1 > C4M_T_UINT || id2 < C4M_T_I8 || id2 > C4M_T_UINT) {
+    // clang-format off
+    if (id1 < C4M_T_I8 || id1 > C4M_T_UINT ||
+	id2 < C4M_T_I8 || id2 > C4M_T_UINT) {
+        // clang-format on
         *warning = -1;
         return type_error();
     }

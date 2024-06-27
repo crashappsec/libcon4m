@@ -46,27 +46,19 @@ extern const c4m_utf8_t *c4m_crlf_const;
 static inline bool
 c4m_str_is_u32(const c4m_str_t *s)
 {
-    return (bool)(s->codepoints < 0);
+    return (bool)(s->utf32);
 }
 
 static inline bool
 c4m_str_is_u8(const c4m_str_t *s)
 {
-    return (bool)(s->codepoints >= 0);
+    return !s->utf32;
 }
 
 static inline int64_t
 c4m_str_codepoint_len(const c4m_str_t *s)
 {
-    if (!s) {
-        return 0;
-    }
-    if (s->codepoints < 0) {
-        return ~(s->codepoints);
-    }
-    else {
-        return s->codepoints;
-    }
+    return s->codepoints;
 }
 
 static inline int64_t

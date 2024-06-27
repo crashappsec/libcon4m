@@ -89,7 +89,7 @@ raw_int_parse(c4m_utf8_t *u8, c4m_compile_error_t *err, bool *neg)
 
     *err = c4m_err_no_error;
 
-    char c;
+    int32_t c;
     while ((c = *p++) != 0) {
         c -= '0';
         last = cur;
@@ -175,7 +175,7 @@ raw_hex_parse(c4m_utf8_t *u8, c4m_compile_error_t *err)
 }
 
 #define BASE_INT_PARSE()                                      \
-    bool        neg;                                          \
+    bool        neg = false;                                  \
     __uint128_t val;                                          \
                                                               \
     switch (st) {                                             \

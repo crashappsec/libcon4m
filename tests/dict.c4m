@@ -1,3 +1,13 @@
+"""
+Basic dictionary test. Should print the first two, and throw a runtime
+error on the third.
+"""
+"""
+$output:
+Foo
+Bar
+"""
+
 x = { "foo" : "Bar" }
 x["bar"] = "Foo"
 print(x["bar"])

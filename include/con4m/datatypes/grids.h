@@ -163,21 +163,21 @@ typedef struct {
     c4m_obj_t           raw_item; // Currently, must be a c4m_grid_t * or c4m_str_t *.
     char               *container_tag;
     c4m_render_style_t *current_style;
-    uint16_t            start_col;
-    uint16_t            start_row;
-    uint16_t            end_col;
-    uint16_t            end_row;
+    int64_t             start_col;
+    int64_t             start_row;
+    int64_t             end_col;
+    int64_t             end_row;
     c4m_xlist_t        *render_cache;
-    uint16_t            render_width;
-    uint16_t            render_height;
+    uint64_t            render_width;
+    uint64_t            render_height;
 } c4m_renderable_t;
 
 struct c4m_grid_t {
     c4m_renderable_t  *self;
     c4m_renderable_t **cells; // A 2d array of renderable_objects, by ref
-    uint16_t           num_cols;
-    uint16_t           num_rows;
-    uint16_t           spare_rows;
+    int64_t            num_cols;
+    int64_t            num_rows;
+    uint64_t           spare_rows;
     c4m_dict_t        *col_props; // dict of int:c4m_render_style_t **
     c4m_dict_t        *row_props;
 
@@ -200,6 +200,6 @@ struct c4m_grid_t {
     int8_t stripe;
 };
 
-#define C4M_GRID_TERMINAL_DIM  ((int16_t) - 1)
-#define C4M_GRID_UNBOUNDED_DIM ((int16_t) - 2)
-#define C4M_GRID_USE_STORED    ((int16_t) - 3)
+#define C4M_GRID_TERMINAL_DIM  ((int64_t) - 1)
+#define C4M_GRID_UNBOUNDED_DIM ((int64_t) - 2)
+#define C4M_GRID_USE_STORED    ((int64_t) - 3)

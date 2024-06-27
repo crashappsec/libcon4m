@@ -78,7 +78,9 @@ c4m_vm_attr_set(c4m_vmthread_t *tstate,
                                   != tstate->current_module->module_id));
         if (locked) {
             if (!override) {
-                if (!c4m_eq(value->type_info, value->obj, &old_info->contents)) {
+                if (!c4m_eq(c4m_get_my_type(value->obj),
+                            value->obj,
+                            &old_info->contents)) {
                     // Nim version uses Con4mError stuff that doesn't exist in
                     // libcon4m (yet?)
                     C4M_STATIC_ASCII_STR(errstr, "attribute is locked: ");

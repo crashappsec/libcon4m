@@ -351,7 +351,7 @@ typedef enum : uint8_t {
 typedef struct {
     c4m_zop_t   op;
     uint8_t     pad;
-    int16_t     module_id;
+    int32_t     module_id;
     int32_t     line_no;
     int32_t     arg;
     int64_t     immediate;
@@ -364,7 +364,7 @@ typedef struct {
     int64_t     impl;
     int64_t     nameoffset;
     c4m_type_t *tid;
-    int16_t     mid;
+    int32_t     mid;
     bool        ffi;
 } c4m_zcallback_t;
 
@@ -375,8 +375,7 @@ typedef struct {
 // before storing in the value, because there's otherwise no way to be able to
 // know whether the number value is boxed or not.
 typedef struct c4m_value_t {
-    c4m_obj_t   obj;
-    c4m_type_t *type_info;
+    c4m_obj_t obj;
 } c4m_value_t;
 
 // stack values have no indicator of what's actually stored, instead relying on
@@ -469,7 +468,7 @@ typedef struct {
 
 typedef struct {
     uint64_t     zero_magic;
-    uint16_t     zc_object_vers;
+    uint32_t     zc_object_vers;
     c4m_buf_t   *static_data;
     c4m_buf_t   *marshaled_consts;
     int32_t      num_const_objs;
