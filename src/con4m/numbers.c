@@ -175,7 +175,7 @@ raw_hex_parse(c4m_utf8_t *u8, c4m_compile_error_t *err)
 }
 
 #define BASE_INT_PARSE()                                      \
-    bool        neg;                                          \
+    bool        neg = false;                                  \
     __uint128_t val;                                          \
                                                               \
     switch (st) {                                             \
