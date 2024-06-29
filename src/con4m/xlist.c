@@ -208,6 +208,7 @@ c4m_xlist_marshal(c4m_xlist_t *r, c4m_stream_t *s, c4m_dict_t *memos, int64_t *m
     c4m_marshal_i32(r->append_ix, s);
     c4m_marshal_i32(r->length, s);
 
+    c4m_printf("My item type: {}", item_type);
     if (by_val) {
         for (int i = 0; i < r->append_ix; i++) {
             c4m_marshal_u64((uint64_t)r->data[i], s);
@@ -335,7 +336,7 @@ xlist_coerce_to(c4m_xlist_t *list, c4m_type_t *dst_type)
 }
 
 c4m_xlist_t *
-xlist_copy(c4m_xlist_t *list)
+c4m_xlist_copy(c4m_xlist_t *list)
 {
     read_start(list);
 
@@ -551,7 +552,7 @@ const c4m_vtable_t c4m_xlist_vtable = {
         [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_xlist_unmarshal,
         [C4M_BI_COERCIBLE]     = (c4m_vtable_entry)list_can_coerce_to,
         [C4M_BI_COERCE]        = (c4m_vtable_entry)xlist_coerce_to,
-        [C4M_BI_COPY]          = (c4m_vtable_entry)xlist_copy,
+        [C4M_BI_COPY]          = (c4m_vtable_entry)c4m_xlist_copy,
         [C4M_BI_ADD]           = (c4m_vtable_entry)c4m_xlist_plus,
         [C4M_BI_LEN]           = (c4m_vtable_entry)c4m_xlist_len,
         [C4M_BI_INDEX_GET]     = (c4m_vtable_entry)c4m_xlist_safe_get,

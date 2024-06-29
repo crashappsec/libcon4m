@@ -153,7 +153,7 @@ typedef enum : int64_t {
     C4M_T_BUFFER,
     C4M_T_UTF32,
     C4M_T_GRID,
-    C4M_T_LIST,
+    C4M_T_XLIST,
     C4M_T_TUPLE,
     C4M_T_DICT,
     C4M_T_SET,
@@ -173,7 +173,7 @@ typedef enum : int64_t {
     C4M_T_LOGRING,
     C4M_T_STACK,
     C4M_T_RENDERABLE,
-    C4M_T_XLIST, // single-threaded list.
+    C4M_T_FLIST, // single-threaded list.
     C4M_T_RENDER_STYLE,
     C4M_T_SHA,
     C4M_T_EXCEPTION,
@@ -187,5 +187,7 @@ typedef enum : int64_t {
     C4M_T_PARSE_NODE,
     C4M_T_BIT,
     C4M_T_BOX,
-    C4M_NUM_BUILTIN_DTS
+    C4M_NUM_BUILTIN_DTS,
 } c4m_builtin_t;
+
+#define C4M_T_LIST C4M_T_XLIST

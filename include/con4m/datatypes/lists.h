@@ -14,5 +14,10 @@ typedef struct {
     bool             dont_acquire;
 } c4m_xlist_t;
 
+typedef struct {
+    int64_t len;
+    void  **items;
+} c4m_view_t;
+
 typedef struct hatstack_t  c4m_stack_t;
 typedef struct flexarray_t flexarray_t;

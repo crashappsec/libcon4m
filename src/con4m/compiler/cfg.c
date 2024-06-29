@@ -84,7 +84,7 @@ cfg_propogate_use(cfg_ctx           *ctx,
     view          = hatrack_dict_items(du_info, &x);
     new->last_def = NULL;
 
-    for (int i = 0; i < x; i++) {
+    for (unsigned int i = 0; i < x; i++) {
         c4m_scope_entry_t *s   = view[i].key;
         c4m_cfg_node_t    *cfg = view[i].value;
 
