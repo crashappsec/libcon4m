@@ -200,7 +200,13 @@ list_get(flexarray_t *list, int64_t index)
         index += len;
 
         if (index < 0) {
-            C4M_CRAISE("Array index out of bounds.");
+            c4m_utf8_t *err = c4m_cstr_format(
+                "Array index out of bounds "
+                "(ix = {}; size = {})",
+                c4m_box_i64(index),
+                c4m_box_i64(len));
+
+            C4M_RAISE(err);
         }
 
         result = flexarray_view_get(view, index, &status);
@@ -217,7 +223,16 @@ list_get(flexarray_t *list, int64_t index)
         C4M_CRAISE("Array access is for uninitialized value.");
     }
     else {
-        C4M_CRAISE("Array index out of bounds.");
+        flex_view_t *view = flexarray_view(list);
+        int64_t      len  = flexarray_view_len(view);
+
+        c4m_utf8_t *err = c4m_cstr_format(
+            "Array index out of bounds "
+            "(ix = {}; size = {})",
+            c4m_box_i64(index),
+            c4m_box_i64(len));
+
+        C4M_RAISE(err);
     }
 }
 
@@ -225,7 +240,14 @@ static void
 list_set(flexarray_t *list, int64_t ix, void *item)
 {
     if (!flexarray_set(list, ix, item)) {
-        C4M_CRAISE("Array index out of bounds.");
+        flex_view_t *view = flexarray_view(list);
+        int64_t      len  = flexarray_view_len(view);
+
+        c4m_utf8_t *err = c4m_cstr_format(
+            "Array index out of bounds (ix = {})",
+            c4m_box_i64(ix),
+            c4m_box_i64(len));
+        C4M_RAISE(err);
     }
 }
 

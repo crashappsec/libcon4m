@@ -66,7 +66,7 @@ extern void        c4m_slice_set(c4m_obj_t, int64_t, int64_t, c4m_obj_t);
 extern c4m_str_t  *c4m_value_obj_repr(c4m_obj_t);
 extern c4m_str_t  *c4m_value_obj_to_str(c4m_obj_t);
 extern c4m_type_t *c4m_get_item_type(c4m_obj_t);
-extern void       *c4m_get_view(c4m_obj_t, uint64_t *);
+extern void       *c4m_get_view(c4m_obj_t, int64_t *);
 extern c4m_obj_t   c4m_container_literal(c4m_type_t *,
                                          c4m_xlist_t *,
                                          c4m_utf8_t *);

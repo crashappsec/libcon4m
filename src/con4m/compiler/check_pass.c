@@ -26,6 +26,7 @@ typedef struct {
     // you can 'break' out of them.
     c4m_xlist_t          *loop_stack;
     c4m_xlist_t          *deferred_calls;
+    c4m_xlist_t          *index_rechecks;
     bool                  augmented_assignment;
 } pass2_ctx;
 
@@ -63,7 +64,13 @@ merge_or_err(pass2_ctx *ctx, c4m_type_t *new_t, c4m_type_t *old_t)
 {
     int warn;
 
+    if (!new_t || !old_t) {
+        c4m_add_error(ctx->file_ctx, c4m_internal_type_error, ctx->node);
+        return c4m_type_error();
+    }
+
     c4m_type_t *result = c4m_merge_types(new_t, old_t, &warn);
+
     if (c4m_type_is_error(result)) {
         if (!c4m_type_is_error(new_t) && !c4m_type_is_error(old_t)) {
             c4m_add_error(ctx->file_ctx,
@@ -482,6 +489,7 @@ initial_function_resolution(pass2_ctx       *ctx,
     switch (sym->kind) {
     case sk_func:
     case sk_extern_func:
+
         info->resolution = sym;
 
         ctx->cfg = c4m_cfg_add_call(ctx->cfg,
@@ -502,14 +510,13 @@ initial_function_resolution(pass2_ctx       *ctx,
             return NULL;
         }
 
-        if (!(sym->flags & C4M_F_FN_PASS_DONE)) {
+        if (sym->kind == sk_func && !(sym->flags & C4M_F_FN_PASS_DONE)) {
             info->deferred = 1;
             c4m_xlist_append(ctx->deferred_calls, info);
             return info;
         }
 
         merge_or_err(ctx, c4m_type_copy(sym->type), info->sig);
-
         set_node_type(ctx,
                       call_loc,
                       c4m_type_get_param(info->sig, sig_params - 1));
@@ -749,23 +756,28 @@ handle_index(pass2_ctx *ctx)
 
     use_context_enter(ctx);
     process_child(ctx, 1);
-    ix1_type    = get_pnode_type(ctx->node->children[1]);
+    ix1_type    = c4m_type_resolve(get_pnode_type(ctx->node->children[1]));
     pnode->type = node_type;
 
     if (c4m_type_is_box(ix1_type)) {
         ix1_type = c4m_type_unbox(ix1_type);
     }
 
-    if (!c4m_type_is_int_type(ix1_type)) {
-        if (is_slice) {
-            c4m_add_error(ctx->file_ctx,
-                          c4m_err_slice_on_dict,
-                          ctx->node);
-            return;
-        }
+    if (c4m_type_is_concrete(ix1_type)) {
+        if (!c4m_type_is_int_type(ix1_type)) {
+            if (is_slice) {
+                c4m_add_error(ctx->file_ctx,
+                              c4m_err_slice_on_dict,
+                              ctx->node);
+                return;
+            }
 
-        c4m_type_t *tmp = c4m_type_any_dict(ix1_type, NULL);
-        container_type  = merge_or_err(ctx, tmp, container_type);
+            c4m_type_t *tmp = c4m_type_any_dict(ix1_type, NULL);
+            container_type  = merge_or_err(ctx, container_type, tmp);
+        }
+    }
+    else {
+        c4m_xlist_append(ctx->index_rechecks, ctx->node);
     }
 
     call_resolution_info_t *info = NULL;
@@ -1044,6 +1056,9 @@ loop_pop_ix_var(pass2_ctx *ctx, c4m_loop_info_t *li)
                          ix_var_name,
                          li->shadowed_ix);
     }
+    else {
+        hatrack_dict_remove(ctx->local_scope->symbols, ix_var_name);
+    }
 }
 
 // Currently looks like the merging in tree capture isn't consistent,
@@ -1159,6 +1174,22 @@ handle_if(pass2_ctx *ctx)
     ctx->cfg = c4m_cfg_exit_block(ctx->cfg, enter, saved);
 }
 
+static bool
+range_runs_check(c4m_tree_node_t *n)
+{
+    c4m_pnode_t *pnode1 = get_pnode(n->children[0]);
+    c4m_pnode_t *pnode2 = get_pnode(n->children[1]);
+
+    if (!pnode1->value || !pnode2->value) {
+        return false;
+    }
+
+    uint64_t v1 = c4m_unbox_obj((c4m_obj_t)pnode1->value).u64;
+    uint64_t v2 = c4m_unbox_obj((c4m_obj_t)pnode2->value).u64;
+
+    return v1 != v2;
+}
+
 static void
 handle_for(pass2_ctx *ctx)
 {
@@ -1167,6 +1198,7 @@ handle_for(pass2_ctx *ctx)
     c4m_tree_node_t *n     = ctx->node;
     c4m_xlist_t     *vars  = use_pattern(ctx, c4m_loop_vars);
     c4m_cfg_node_t  *entrance;
+    c4m_cfg_node_t  *exit;
     c4m_cfg_node_t  *branch;
     int              expr_ix = 0;
 
@@ -1184,12 +1216,16 @@ handle_for(pass2_ctx *ctx)
     // this isn't already a literal, we only want to do it once before
     // we loop.
 
-    ctx->node                    = n->children[expr_ix + 1];
-    c4m_pnode_t *container_pnode = get_pnode(ctx->node);
+    ctx->node                        = n->children[expr_ix + 1];
+    c4m_tree_node_t *container_node  = ctx->node;
+    c4m_pnode_t     *container_pnode = get_pnode(ctx->node);
     base_check_pass_dispatch(ctx);
 
     if (container_pnode->kind == c4m_nt_range) {
         li->ranged = true;
+    }
+    else {
+        li->ranged = false;
     }
 
     // Now we start the loop's CFG block. The flow graph will evaluate
@@ -1200,6 +1236,7 @@ handle_for(pass2_ctx *ctx)
     // but before we branch.
 
     entrance = c4m_cfg_enter_block(ctx->cfg, n);
+    exit     = c4m_cfg_exit_node(entrance);
     ctx->cfg = entrance;
 
     // At this point, set up the iteration variables...  `push_ix_var`
@@ -1245,7 +1282,8 @@ handle_for(pass2_ctx *ctx)
                                               ctx->local_scope,
                                               last_var_name);
     li->loop_last->flags |= C4M_F_USER_IMMUTIBLE | C4M_F_DECLARED_CONST;
-    li->loop_last->type = c4m_type_i64();
+    li->loop_last->type          = c4m_type_i64();
+    li->loop_last->cfg_kill_node = exit;
 
     add_def(ctx, li->loop_last, true);
 
@@ -1258,6 +1296,7 @@ handle_for(pass2_ctx *ctx)
                                                       li->label_last);
         li->named_loop_last->type = c4m_type_i64();
         li->named_loop_last->flags |= C4M_F_USER_IMMUTIBLE;
+        li->named_loop_last->cfg_kill_node = exit;
 
         add_def(ctx, li->named_loop_last, false);
     }
@@ -1285,15 +1324,19 @@ handle_for(pass2_ctx *ctx)
         }
     }
 
-    li->shadowed_lvar_1          = c4m_symbol_lookup(ctx->local_scope,
+    li->shadowed_lvar_1 = c4m_symbol_lookup(ctx->local_scope,
                                             NULL,
                                             NULL,
                                             NULL,
                                             var1_name);
-    li->lvar_1                   = c4m_add_or_replace_symbol(ctx->file_ctx,
+    li->lvar_1          = c4m_add_or_replace_symbol(ctx->file_ctx,
                                            ctx->local_scope,
                                            var1_name);
+
+    li->lvar_1->cfg_kill_node    = exit;
     li->lvar_1->declaration_node = var_node1;
+    c4m_pnode_t *v1pn            = get_pnode(var_node1);
+    v1pn->type                   = li->lvar_1->type;
     li->lvar_1->flags |= C4M_F_USER_IMMUTIBLE;
 
     if (li->shadowed_lvar_1 != NULL) {
@@ -1315,6 +1358,10 @@ handle_for(pass2_ctx *ctx)
                                                ctx->local_scope,
                                                var2_name);
         li->lvar_2->declaration_node = var_node2;
+        li->lvar_2->cfg_kill_node    = exit;
+        c4m_pnode_t *v2pn            = get_pnode(var_node2);
+        v2pn->type                   = li->lvar_2->type;
+
         li->lvar_2->flags |= C4M_F_USER_IMMUTIBLE;
 
         if (li->shadowed_lvar_2 != NULL) {
@@ -1325,14 +1372,13 @@ handle_for(pass2_ctx *ctx)
                             c4m_sym_kind_name(li->shadowed_lvar_2),
                             c4m_sym_get_best_ref_loc(li->lvar_2));
         }
+    }
 
-        add_def(ctx, li->lvar_1, false);
+    add_def(ctx, li->lvar_1, true);
+
+    if (var2_name) {
         add_def(ctx, li->lvar_2, true);
     }
-    else {
-        add_def(ctx, li->lvar_1, true);
-    }
-
     // Okay, now we need to add the branch node to the CFG.
 
     branch   = c4m_cfg_block_new_branch_node(ctx->cfg,
@@ -1356,9 +1402,18 @@ handle_for(pass2_ctx *ctx)
     ctx->cfg = branch;
 
     // This sets up an empty block for the code that runs when the
-    // loop condition is false.
-    bstart   = c4m_cfg_enter_block(ctx->cfg, n);
-    ctx->cfg = c4m_cfg_exit_block(bstart, bstart, n);
+    // loop condition is false, but only if we can't tell that the
+    // loop isn't going to run. Specifically, for a ranged loop, if
+    // the items are constant integers and not the same, we will
+    // always run the loop.
+
+    if (!li->ranged || !range_runs_check(container_node)) {
+        bstart   = c4m_cfg_enter_block(ctx->cfg, n);
+        ctx->cfg = c4m_cfg_exit_block(bstart, bstart, n);
+    }
+    else {
+        branch->contents.branches.num_branches--;
+    }
 
     // Here, it's time to clean up. We need to reset the tree and the
     // loop stack, and remove our iteration variable(s) from the
@@ -1376,6 +1431,10 @@ handle_for(pass2_ctx *ctx)
         hatrack_dict_remove(ctx->local_scope->symbols, li->label_last);
     }
 
+    hatrack_dict_remove(ctx->local_scope->symbols, var1_name);
+    if (var2_name != NULL) {
+        hatrack_dict_remove(ctx->local_scope->symbols, var2_name);
+    }
     if (li->shadowed_last != NULL) {
         hatrack_dict_put(ctx->local_scope->symbols,
                          last_var_name,
@@ -1396,8 +1455,6 @@ handle_for(pass2_ctx *ctx)
     // will always be contained in the second non-label subtree of the
     // loop node. We stashed that above as `container_pnode`.
 
-    //
-    //
     if (li->ranged) {
         // Ranged fors are easy enough. The assigned variable is
         // always based on the range type.
@@ -1411,29 +1468,28 @@ handle_for(pass2_ctx *ctx)
         //
         // We never allow loops over tuples.
 
-        c4m_type_t *cinfo = NULL;
-
-        if (container_pnode->type == NULL) {
-            container_pnode->type = c4m_new_typevar();
-        }
-
-        cinfo = c4m_new_typevar();
+        c4m_type_t *cinfo = c4m_new_typevar();
 
         if (li->lvar_2 != NULL) {
             c4m_remove_list_options(cinfo);
             c4m_remove_set_options(cinfo);
             c4m_remove_tuple_options(cinfo);
-            merge_or_err(ctx, cinfo, container_pnode->type);
+
+            c4m_xlist_append(cinfo->details->items, li->lvar_1->type);
+            c4m_xlist_append(cinfo->details->items, li->lvar_2->type);
         }
         else {
-            cinfo = c4m_new_typevar();
             c4m_remove_tuple_options(cinfo);
             c4m_remove_dict_options(cinfo);
-            merge_or_err(ctx, container_pnode->type, cinfo);
+            c4m_xlist_append(cinfo->details->items, li->lvar_1->type);
         }
+
+        merge_or_err(ctx, cinfo, container_pnode->type);
+
+        pnode->type = container_pnode->type;
     }
 
-    ctx->cfg = c4m_cfg_exit_node(entrance);
+    ctx->cfg = exit;
 }
 
 static void
@@ -1456,8 +1512,11 @@ handle_while(pass2_ctx *ctx)
 
     loop_push_ix_var(ctx, li);
 
-    entrance  = c4m_cfg_enter_block(ctx->cfg, n);
-    ctx->cfg  = entrance;
+    entrance = c4m_cfg_enter_block(ctx->cfg, n);
+    ctx->cfg = entrance;
+
+    li->loop_ix->cfg_kill_node = c4m_cfg_exit_node(entrance);
+
     ctx->node = n->children[expr_ix++];
     base_check_pass_dispatch(ctx);
     branch    = c4m_cfg_block_new_branch_node(ctx->cfg,
@@ -1929,7 +1988,10 @@ handle_identifier(pass2_ctx *ctx)
     }
 
     c4m_scope_entry_t *sym = (void *)lookup_or_add(ctx, id);
-    pnode->extra_info      = (void *)sym;
+    printf("At symbol %p ", sym);
+    c4m_printf("in 'identifier': Sym {} has type {}", sym->name, sym->type);
+    printf("# defs: %d\n", c4m_xlist_len(sym->sym_defs));
+    pnode->extra_info = (void *)sym;
     set_node_type(ctx, ctx->node, sym->type);
 }
 
@@ -2768,6 +2830,49 @@ validate_module_variables(c4m_file_compile_ctx *ctx)
     }
 }
 
+static void
+perform_index_rechecks(pass2_ctx *ctx)
+{
+    int n = c4m_xlist_len(ctx->index_rechecks);
+
+    for (int i = 0; i < n; i++) {
+        c4m_tree_node_t *node  = c4m_xlist_get(ctx->index_rechecks, i, NULL);
+        c4m_type_t      *ctype = get_pnode_type(node->children[0]);
+        c4m_type_t      *t     = get_pnode_type(node->children[1]);
+
+        if (c4m_type_is_box(t)) {
+            t = c4m_type_unbox(t);
+        }
+
+        if (!c4m_type_is_concrete(t)) {
+            if (c4m_types_are_compat(ctype,
+                                     c4m_type_dict(c4m_new_typevar(),
+                                                   c4m_new_typevar()),
+                                     NULL)) {
+                c4m_add_error(ctx->file_ctx,
+                              c4m_err_concrete_index,
+                              node);
+            }
+            else {
+                // If it's not a dict, the index must be an int.
+                merge_or_err(ctx, t, c4m_type_int());
+            }
+            return;
+        }
+
+        if (!c4m_type_is_int_type(t)) {
+            if (c4m_types_are_compat(ctype,
+                                     c4m_type_dict(c4m_new_typevar(),
+                                                   c4m_new_typevar()),
+                                     NULL)) {
+                c4m_add_error(ctx->file_ctx,
+                              c4m_err_non_dict_index_type,
+                              node);
+            }
+        }
+    }
+}
+
 static c4m_xlist_t *
 module_check_pass(c4m_compile_ctx *cctx, c4m_file_compile_ctx *file_ctx)
 {
@@ -2784,12 +2889,14 @@ module_check_pass(c4m_compile_ctx *cctx, c4m_file_compile_ctx *file_ctx)
         .file_ctx       = file_ctx,
         .du_stack       = 0,
         .du_stack_ix    = 0,
-        .loop_stack     = c4m_new(c4m_type_xlist(c4m_type_ref())),
-        .deferred_calls = c4m_new(c4m_type_xlist(c4m_type_ref())),
+        .loop_stack     = c4m_xlist(c4m_type_ref()),
+        .deferred_calls = c4m_xlist(c4m_type_ref()),
+        .index_rechecks = c4m_xlist(c4m_type_ref()),
     };
 
     check_module_toplevel(&ctx);
     process_function_definitions(&ctx);
+    perform_index_rechecks(&ctx);
     validate_module_variables(file_ctx);
 
     return ctx.deferred_calls;

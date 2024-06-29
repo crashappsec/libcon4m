@@ -116,6 +116,12 @@ c4m_type_get_param(c4m_type_t *t, int i)
     return c4m_xlist_get(t->details->items, i, NULL);
 }
 
+static inline c4m_type_t *
+c4m_type_get_last_param(c4m_type_t *n)
+{
+    return c4m_type_get_param(n, c4m_type_get_num_params(n) - 1);
+}
+
 static inline c4m_dt_info_t *
 c4m_type_get_data_type_info(c4m_type_t *t)
 {

@@ -90,7 +90,7 @@ typedef struct c4m_scope_entry_t {
     // the module's index into the `module_ordering` field in the
     // compilation context.
     uint32_t local_module_id;
-
+    void    *cfg_kill_node;
     uint32_t flags;
 } c4m_scope_entry_t;
 

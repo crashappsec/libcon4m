@@ -931,6 +931,7 @@ extract_fn_sig_info(pass1_ctx       *ctx,
 {
     c4m_xlist_t    *decls     = apply_pattern_on_node(tree,
                                                c4m_param_extraction);
+    c4m_dict_t     *type_ctx  = c4m_dict(c4m_type_utf8(), c4m_type_ref());
     int             ndecls    = c4m_xlist_len(decls);
     int             nparams   = 0;
     int             cur_param = 0;
@@ -978,7 +979,7 @@ extract_fn_sig_info(pass1_ctx       *ctx,
             c4m_pnode_t     *pnode = get_pnode(kid);
 
             if (pnode->kind != c4m_nt_identifier) {
-                type = c4m_node_to_type(ctx->file_ctx, kid, NULL);
+                type = c4m_node_to_type(ctx->file_ctx, kid, type_ctx);
                 kidct--;
                 got_type = true;
             }
@@ -1061,7 +1062,7 @@ extract_fn_sig_info(pass1_ctx       *ctx,
     if (retnode) {
         info->return_info.type = c4m_node_to_type(ctx->file_ctx,
                                                   retnode,
-                                                  NULL);
+                                                  type_ctx);
         formal->type           = info->return_info.type;
         formal->flags |= C4M_F_TYPE_IS_DECLARED | C4M_F_REGISTER_STORAGE;
     }

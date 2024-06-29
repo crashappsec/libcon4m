@@ -321,6 +321,7 @@ internal_type_hash(c4m_type_t *node, type_hash_ctx *ctx)
         }
 
         c4m_sha_int_update(ctx->sha, num_tvars);
+        c4m_sha_int_update(ctx->sha, node->typeid);
         break;
     default:; // Do nothing.
     }
@@ -528,7 +529,7 @@ tspec_copy_internal(c4m_type_t *node, c4m_dict_t *dupes)
         return dupe;
     }
 
-    if (c4m_type_is_concrete(node)) {
+    if (c4m_type_is_concrete(node) || c4m_type_is_box(node)) {
         return node;
     }
 
@@ -958,6 +959,10 @@ c4m_unify(c4m_type_t *t1, c4m_type_t *t2)
     c4m_xlist_t *new_subs;
     int          num_params;
 
+    if (!t1 || !t2) {
+        return c4m_type_error();
+    }
+
     t1 = c4m_type_resolve(t1);
     t2 = c4m_type_resolve(t2);
 
@@ -1209,7 +1214,7 @@ unify_sub_nodes:
 }
 
 // 'exact' match is mainly used for comparing declarations to
-// other types.
+// other types. It needs to ignore boxes though.
 //
 // TODO: Need to revisit this with the new generics.
 //
@@ -1218,6 +1223,14 @@ c4m_type_cmp_exact(c4m_type_t *t1, c4m_type_t *t2)
 {
     t1 = c4m_type_resolve(t1);
     t2 = c4m_type_resolve(t2);
+
+    if (c4m_type_is_box(t1)) {
+        t1 = c4m_type_unbox(t1);
+    }
+
+    if (c4m_type_is_box(t2)) {
+        t2 = c4m_type_unbox(t2);
+    }
 
     if (t1->typeid == t2->typeid) {
         return c4m_type_match_exact;
@@ -1648,8 +1661,6 @@ c4m_initialize_global_types()
         c4m_dict_t *store        = (c4m_dict_t *)envstore->data;
         c4m_type_universe->store = store;
 
-        printf("address of the universe: %p\n", &c4m_type_universe);
-
         // We don't set the heading info up fully, so this dict
         // won't be directly marshalable unless / until we do.
         hatrack_dict_init(store, HATRACK_DICT_KEY_TYPE_INT);
@@ -1691,8 +1702,7 @@ c4m_initialize_global_types()
         ts->details->items = list;
 
         c4m_gc_register_root(&c4m_bi_types, sizeof(c4m_bi_types));
-        // global_type_env->store = c4m_dict(c4m_type_u64(),
-        // c4m_type_typespec());
+
         atomic_store(&c4m_type_universe->next_typeid, 1LLU << 63);
 
         for (int i = 0; i < C4M_NUM_BUILTIN_DTS; i++) {

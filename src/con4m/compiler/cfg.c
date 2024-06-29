@@ -23,6 +23,12 @@ follow_sym_links(c4m_scope_entry_t *sym)
 }
 
 static bool
+sym_cmp(c4m_scope_entry_t *sym1, c4m_scope_entry_t *sym2)
+{
+    return (!strcmp(sym1->name->data, sym2->name->data));
+}
+
+static bool
 cfg_propogate_def(cfg_ctx           *ctx,
                   c4m_scope_entry_t *sym,
                   c4m_cfg_node_t    *n,
@@ -71,12 +77,24 @@ cfg_propogate_use(cfg_ctx           *ctx,
     sym = follow_sym_links(sym);
 
     c4m_cfg_status_t *new = c4m_gc_alloc(c4m_cfg_status_t);
-    c4m_cfg_status_t *old = hatrack_dict_get(du_info, sym, NULL);
 
-    if (old) {
-        new->last_def = old->last_def;
+    hatrack_dict_item_t *view;
+    uint64_t             x;
+
+    view          = hatrack_dict_items(du_info, &x);
+    new->last_def = NULL;
+
+    for (int i = 0; i < x; i++) {
+        c4m_scope_entry_t *s   = view[i].key;
+        c4m_cfg_node_t    *cfg = view[i].value;
+
+        if (!strcmp(s->name->data, sym->name->data)) {
+            new->last_def = cfg;
+            break;
+        }
     }
-    else {
+
+    if (!new->last_def) {
         n->use_without_def = 1;
     }
 
@@ -84,7 +102,7 @@ cfg_propogate_use(cfg_ctx           *ctx,
 
     hatrack_dict_put(du_info, sym, new);
 
-    return old != NULL;
+    return new->last_def != NULL;
 }
 
 static void
@@ -93,15 +111,23 @@ cfg_copy_du_info(cfg_ctx        *ctx,
                  c4m_dict_t    **new_dict,
                  c4m_xlist_t   **new_sometimes)
 {
-    c4m_dict_t *copy = c4m_new(c4m_type_dict(c4m_type_ref(),
-                                              c4m_type_ref()));
+    c4m_dict_t *copy = c4m_dict(c4m_type_ref(), c4m_type_ref());
     uint64_t    n;
 
     hatrack_dict_item_t *view = hatrack_dict_items_sort(node->liveness_info,
                                                         &n);
+    c4m_set_t           *s    = c4m_set(c4m_type_utf8());
 
     for (uint64_t i = 0; i < n; i++) {
-        hatrack_dict_put(copy, view[i].key, view[i].value);
+        c4m_scope_entry_t *sym = view[i].key;
+
+        if (sym->cfg_kill_node && sym->cfg_kill_node == node) {
+            continue;
+        }
+
+        if (hatrack_set_add(s, sym->name)) {
+            hatrack_dict_put(copy, view[i].key, view[i].value);
+        }
     }
 
     *new_dict = copy;
@@ -112,7 +138,9 @@ cfg_copy_du_info(cfg_ctx        *ctx,
         *new_sometimes = c4m_new(c4m_type_xlist(c4m_type_ref()));
         int l          = c4m_xlist_len(old);
         for (int i = 0; i < l; i++) {
-            c4m_xlist_append(*new_sometimes, c4m_xlist_get(old, i, NULL));
+            c4m_xlist_add_if_unique(*new_sometimes,
+                                    c4m_xlist_get(old, i, NULL),
+                                    (bool (*)(void *, void *))sym_cmp);
         }
     }
 }
@@ -338,7 +366,16 @@ cfg_merge_aux_entries_to_top(cfg_ctx *ctx, c4m_cfg_node_t *node)
         }
     }
 
-    exit->sometimes_live = c4m_set_to_xlist(sometimes);
+    exit->sometimes_live = c4m_xlist(c4m_type_ref());
+
+    c4m_xlist_t *not_unique = c4m_set_to_xlist(sometimes);
+
+    for (int i = 0; i < c4m_xlist_len(not_unique); i++) {
+        void *item = c4m_xlist_get(not_unique, i, NULL);
+        c4m_xlist_add_if_unique(exit->sometimes_live,
+                                item,
+                                (bool (*)(void *, void *))sym_cmp);
+    }
 }
 
 static void
@@ -346,11 +383,11 @@ process_branch_exit(cfg_ctx *ctx, c4m_cfg_node_t *node)
 {
     // Merge and push forward info on partial crapola.
     c4m_dict_t            *counters  = c4m_new(c4m_type_dict(c4m_type_ref(),
-                                                  c4m_type_ref()));
+                                                 c4m_type_ref()));
     c4m_set_t             *sometimes = c4m_new(c4m_type_set(c4m_type_ref()));
     c4m_cfg_branch_info_t *bi        = &node->contents.branches;
     c4m_dict_t            *merged    = c4m_new(c4m_type_dict(c4m_type_ref(),
-                                                c4m_type_ref()));
+                                               c4m_type_ref()));
     c4m_cfg_node_t        *exit_node;
     c4m_scope_entry_t     *sym;
     hatrack_dict_item_t   *view;
@@ -443,7 +480,16 @@ process_branch_exit(cfg_ctx *ctx, c4m_cfg_node_t *node)
     // Okay, we've done all the merging, now we have to propogate the
     // results to the exit node for the whole branching structure.
     node->liveness_info  = merged;
-    node->sometimes_live = c4m_set_to_xlist(sometimes);
+    node->sometimes_live = c4m_xlist(c4m_type_ref());
+
+    c4m_xlist_t *not_unique = c4m_set_to_xlist(sometimes);
+
+    for (int i = 0; i < c4m_xlist_len(not_unique); i++) {
+        void *item = c4m_xlist_get(not_unique, i, NULL);
+        c4m_xlist_add_if_unique(node->sometimes_live,
+                                item,
+                                (bool (*)(void *, void *))sym_cmp);
+    }
 }
 
 static void
@@ -591,7 +637,6 @@ cfg_process_node(cfg_ctx *ctx, c4m_cfg_node_t *node, c4m_cfg_node_t *parent)
                          node->parent,
                          &node->liveness_info,
                          &node->sometimes_live);
-
         cfg_propogate_def(ctx,
                           node->contents.flow.dst_symbol,
                           node,
@@ -629,12 +674,16 @@ cfg_process_node(cfg_ctx *ctx, c4m_cfg_node_t *node, c4m_cfg_node_t *parent)
         }
 
         for (uint64_t i = 0; i < n; i++) {
-            c4m_xlist_append(ta->sometimes_live, v[i]);
+            c4m_xlist_add_if_unique(ta->sometimes_live,
+                                    v[i],
+                                    (bool (*)(void *, void *))sym_cmp);
         }
 
         c4m_xlist_t *old = node->sometimes_live;
         for (int64_t i = 0; i < c4m_xlist_len(old); i++) {
-            c4m_xlist_append(ta->sometimes_live, c4m_xlist_get(old, i, NULL));
+            c4m_xlist_add_if_unique(ta->sometimes_live,
+                                    c4m_xlist_get(old, i, NULL),
+                                    (bool (*)(void *, void *))sym_cmp);
         }
 
         return NULL;
@@ -697,5 +746,15 @@ c4m_cfg_analyze(c4m_file_compile_ctx *file_ctx, c4m_dict_t *du_info)
         cfg_process_node(&ctx, decl->cfg, NULL);
         check_block_for_errors(&ctx, decl->cfg);
         check_for_fn_exit_errors(file_ctx, decl);
+
+        c4m_xlist_t *cleanup = c4m_xlist(c4m_type_ref());
+
+        for (int i = 0; i < c4m_xlist_len(stdefs); i++) {
+            void *item = c4m_xlist_get(stdefs, i, NULL);
+            c4m_xlist_add_if_unique(cleanup,
+                                    item,
+                                    (bool (*)(void *, void *))sym_cmp);
+        }
+        modexit->sometimes_live = stdefs;
     }
 }

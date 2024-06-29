@@ -179,6 +179,9 @@ typedef enum {
     c4m_err_tup_ix,
     c4m_err_tup_ix_bounds,
     c4m_warn_may_wrap,
+    c4m_internal_type_error,
+    c4m_err_concrete_index,
+    c4m_err_non_dict_index_type,
     c4m_err_last,
 } c4m_compile_error_t;
 

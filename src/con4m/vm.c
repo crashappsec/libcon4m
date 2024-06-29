@@ -335,7 +335,8 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         STACK_REQUIRE_SLOTS(1);
         do {
             uint64_t n;
-            tstate->sp->rvalue.obj = c4m_get_view(tstate->sp->rvalue.obj, &n);
+            tstate->sp->rvalue.obj = c4m_get_view(tstate->sp->rvalue.obj,
+                                                  (int64_t *)&n);
             --tstate->sp;
             tstate->sp[0].uint = n;
         } while (0);
@@ -1005,8 +1006,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZShlI:
                 STACK_REQUIRE_VALUES(1);
                 rhs.uint = tstate->sp[0].uint;
-                ++tstate->sp;
-                tstate->sp[0].uint <<= i->immediate;
+                tstate->sp[0].uint <<= i->arg;
                 break;
             case C4M_ZShr:
                 STACK_REQUIRE_VALUES(2);
@@ -1269,6 +1269,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     .static_ptr = tstate->sp->static_ptr & 0x07,
                 };
                 tstate->sp->static_ptr &= ~(0x07ULL);
+                --tstate->sp;
                 break;
             case C4M_ZTCall:
                 c4m_vm_tcall(tstate, i);

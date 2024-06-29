@@ -872,31 +872,37 @@ c4m_get_item_type(c4m_obj_t obj)
     c4m_ix_item_ty_fn ptr  = (c4m_ix_item_ty_fn)vtbl->methods[C4M_BI_ITEM_TYPE];
 
     if (!ptr) {
-        C4M_CRAISE("Type is not a container and cannot be indexed.");
+        if (c4m_type_get_num_params(t) == 1) {
+            return c4m_type_get_param(t, 0);
+        }
+
+        c4m_utf8_t *err = c4m_cstr_format(
+            "Type {} is not an indexible container type.",
+            t);
+        C4M_RAISE(err);
     }
 
     return (*ptr)(c4m_get_my_type(t));
 }
 
 void *
-c4m_get_view(c4m_obj_t obj, uint64_t *n_items)
+c4m_get_view(c4m_obj_t obj, int64_t *n_items)
 {
-    c4m_type_t    *t    = c4m_get_my_type(obj);
-    c4m_dt_info_t *info = c4m_type_get_data_type_info(t);
-    c4m_vtable_t  *vtbl = (c4m_vtable_t *)info->vtable;
-    c4m_view_fn    ptr  = (c4m_view_fn)vtbl->methods[C4M_BI_VIEW];
-    uint64_t       size_bits;
+    c4m_type_t    *t         = c4m_get_my_type(obj);
+    c4m_dt_info_t *info      = c4m_type_get_data_type_info(t);
+    c4m_vtable_t  *vtbl      = (c4m_vtable_t *)info->vtable;
+    void          *itf       = vtbl->methods[C4M_BI_ITEM_TYPE];
+    c4m_view_fn    ptr       = (c4m_view_fn)vtbl->methods[C4M_BI_VIEW];
+    uint64_t       size_bits = 0x3;
 
-    // If no callback is provided, we just assume 8 bytes are produced.
-    // In fact, I currently am not providing callbacks for list types
-    // or dicts, since their views are always 64 bits; probably should
-    // change the builtin to use an interface that gives back bits, not
-    // types (and delete the internal one-bit type).
+    // If no item type callback is provided, we just assume 8 bytes
+    // are produced.  In fact, I currently am not providing callbacks
+    // for list types or dicts, since their views are always 64 bits;
+    // probably should change the builtin to use an interface that
+    // gives back bits, not types (and delete the internal one-bit
+    // type).
 
-    if (!ptr) {
-        size_bits = 0x3;
-    }
-    else {
+    if (itf) {
         c4m_type_t    *item_type = c4m_get_item_type(obj);
         c4m_dt_info_t *base      = c4m_type_get_data_type_info(item_type);
 
@@ -908,9 +914,10 @@ c4m_get_view(c4m_obj_t obj, uint64_t *n_items)
         }
     }
 
-    uint64_t obj_as_int = (uint64_t)obj;
+    uint64_t ret_as_int = (uint64_t)(*ptr)(obj, (uint64_t *)n_items);
 
-    return (*ptr)((void *)(size_bits | obj_as_int), n_items);
+    ret_as_int |= size_bits;
+    return (void *)ret_as_int;
 }
 
 c4m_obj_t

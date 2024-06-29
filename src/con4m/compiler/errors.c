@@ -1149,6 +1149,27 @@ static error_info_t error_info[] = {
         "can turn large positive values negative.",
         false,
     },
+    [c4m_internal_type_error] = {
+        c4m_internal_type_error,
+        "internal_type_error",
+        "Could not type check due to an internal error.",
+        false,
+    },
+    [c4m_err_concrete_index] = {
+        c4m_err_concrete_index,
+        "concrete_index",
+        "Currently, con4m does not generate polymorphic code for indexing "
+        "operations; it must be able to figure out the type of the index "
+        "statically.",
+        false,
+    },
+    [c4m_err_non_dict_index_type] = {
+        c4m_err_non_dict_index_type,
+        "non_dict_index_type",
+        "Only dictionaries can currently use the index operator with non-"
+        "integer types.",
+        false,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",

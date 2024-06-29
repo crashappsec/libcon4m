@@ -168,9 +168,11 @@ gen_apply_waiting_patches(gen_ctx *ctx, c4m_control_info_t *ci)
 static inline void
 gen_tcall(gen_ctx *ctx, c4m_builtin_type_fn fn, c4m_type_t *t)
 {
-    t = c4m_type_resolve(t);
-    if (c4m_type_is_box(t)) {
-        t = c4m_type_unbox(t);
+    if (t != NULL) {
+        t = c4m_type_resolve(t);
+        if (c4m_type_is_box(t)) {
+            t = c4m_type_unbox(t);
+        }
     }
 
     emit(ctx, C4M_ZTCall, c4m_kw("arg", c4m_ka(fn), "type", c4m_ka(t)));
@@ -1005,9 +1007,10 @@ gen_len_var_init(gen_ctx *ctx, c4m_loop_info_t *li)
             sym = li->named_loop_last;
         }
     }
-
-    set_stack_offset(ctx, sym);
-    gen_sym_store(ctx, sym, false);
+    if (sym) {
+        set_stack_offset(ctx, sym);
+        gen_sym_store(ctx, sym, false);
+    }
 }
 
 static inline bool
@@ -1228,7 +1231,7 @@ gen_container_for(gen_ctx *ctx, c4m_loop_info_t *li)
     emit(ctx, C4M_ZUnsteal);
     // The bit length is actually encoded by taking log base 2; here
     // were expand it back out before going into the loop.
-    emit(ctx, C4M_ZShlI, c4m_kw("immediate", c4m_ka(0x1)));
+    emit(ctx, C4M_ZShlI, c4m_kw("arg", c4m_ka(0x1)));
     // On top of this, put the iteration count, which at the start of
     // each turn through the loop, will be the second item.
     bool have_index_var = gen_index_var_init(ctx, li);

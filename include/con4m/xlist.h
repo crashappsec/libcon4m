@@ -37,6 +37,9 @@ c4m_xlist_get(const c4m_xlist_t *list, int64_t ix, bool *err)
 }
 
 extern void         c4m_xlist_append(c4m_xlist_t *list, void *item);
+extern void         c4m_xlist_add_if_unique(c4m_xlist_t *list,
+                                            void        *item,
+                                            bool (*fn)(void *, void *));
 extern void        *c4m_xlist_pop(c4m_xlist_t *list);
 extern void         c4m_xlist_plus_eq(c4m_xlist_t *, c4m_xlist_t *);
 extern c4m_xlist_t *c4m_xlist_plus(c4m_xlist_t *, c4m_xlist_t *);
