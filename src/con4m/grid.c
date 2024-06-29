@@ -253,7 +253,7 @@ c4m_grid_add_row(c4m_grid_t *grid, c4m_obj_t container)
         grid->row_cursor++;
         return;
     }
-    case C4M_T_LIST: {
+    case C4M_T_FLIST:;
         flex_view_t *items = flexarray_view((flexarray_t *)container);
 
         for (int i = 0; i < grid->num_cols; i++) {
@@ -262,11 +262,9 @@ c4m_grid_add_row(c4m_grid_t *grid, c4m_obj_t container)
             if (err || x == NULL) {
                 x = (c4m_obj_t)c4m_to_utf32(c4m_empty_string());
             }
-            c4m_grid_set_cell_contents(grid, grid->row_cursor, i++, x);
+            c4m_grid_set_cell_contents(grid, grid->row_cursor, i, x);
         }
-        grid->row_cursor++;
         return;
-    }
     case C4M_T_XLIST:
         for (int i = 0; i < grid->num_cols; i++) {
             c4m_obj_t x = c4m_xlist_get((c4m_xlist_t *)container, i, NULL);
@@ -289,7 +287,7 @@ grid_init(c4m_grid_t *grid, va_list args)
     int32_t      start_rows    = 1;
     int32_t      start_cols    = 1;
     int32_t      spare_rows    = 16;
-    flexarray_t *contents      = NULL;
+    c4m_xlist_t *contents      = NULL;
     char        *container_tag = "table";
     char        *th_tag        = NULL;
     char        *td_tag        = NULL;
@@ -415,20 +413,18 @@ get_col_props(c4m_grid_t *grid, int col)
 // properties separately; if you want something that spans you should
 // instead
 void
-c4m_grid_set_all_contents(c4m_grid_t *g, flexarray_t *contents)
+c4m_grid_set_all_contents(c4m_grid_t *g, c4m_xlist_t *contents)
 {
-    flex_view_t  *rows     = flexarray_view(contents);
-    uint64_t      nrows    = flexarray_view_len(rows);
-    flex_view_t **rowviews = (flex_view_t **)c4m_gc_array_alloc(flex_view_t *,
-                                                                nrows);
-    uint64_t      ncols    = 0;
-    int           stop     = false;
+    c4m_xlist_t *rows     = c4m_xlist_copy(contents);
+    int64_t      nrows    = rows->length;
+    c4m_xlist_t *rowviews = c4m_xlist(c4m_type_ref());
+    uint64_t     ncols    = 0;
 
-    for (uint64_t i = 0; i < nrows; i++) {
-        flex_view_t *row  = (flex_view_t *)flexarray_view_next(rowviews[i],
-                                                              &stop);
-        uint64_t     rlen = flexarray_view_len(row);
-        rowviews[i]       = row;
+    for (int64_t i = 0; i < nrows; i++) {
+        c4m_xlist_t *row = (c4m_xlist_t *)(c4m_xlist_get(rowviews, i, NULL));
+
+        uint64_t rlen = row->length;
+        c4m_xlist_append(rowviews, row);
 
         if (rlen > ncols) {
             ncols = rlen;
@@ -440,11 +436,12 @@ c4m_grid_set_all_contents(c4m_grid_t *g, flexarray_t *contents)
     g->num_rows      = nrows;
     g->num_cols      = ncols;
 
-    for (uint64_t i = 0; i < nrows; i++) {
-        uint64_t viewlen = flexarray_view_len(rowviews[i]);
+    for (int64_t i = 0; i < nrows; i++) {
+        c4m_xlist_t *view    = c4m_xlist_get(rowviews, i, NULL);
+        uint64_t     viewlen = c4m_xlist_len(view);
 
         for (uint64_t j = 0; j < viewlen; j++) {
-            c4m_obj_t         item = flexarray_view_next(rowviews[i], &stop);
+            c4m_obj_t         item = c4m_xlist_get(view, j, NULL);
             c4m_renderable_t *cell = c4m_new(c4m_type_renderable(),
                                              c4m_kw("obj", c4m_ka(item)));
 
@@ -538,14 +535,11 @@ column_text_width(c4m_grid_t *grid, int col)
         case C4M_T_UTF32:
             s = (c4m_str_t *)cell->raw_item;
 
-            flexarray_t *f   = c4m_str_split(s, c4m_str_newline());
-            flex_view_t *v   = flexarray_view(f);
-            int          len = flexarray_view_len(v);
+            c4m_xlist_t *arr = c4m_str_xsplit(s, c4m_str_newline());
+            int          len = c4m_xlist_len(arr);
 
             for (int j = 0; j < len; j++) {
-                c4m_utf32_t *item = c4m_to_utf32(flexarray_view_get(v,
-                                                                    j,
-                                                                    NULL));
+                c4m_utf32_t *item = c4m_to_utf32(c4m_xlist_get(arr, j, NULL));
                 if (item == NULL) {
                     break;
                 }
@@ -863,11 +857,11 @@ str_render_cell(c4m_grid_t       *grid,
     }
 
     if (cs->disable_wrap) {
-        flexarray_t *f = c4m_str_split(s, c4m_str_newline());
-        int          err;
+        c4m_xlist_t *arr = c4m_str_xsplit(s, c4m_str_newline());
+        bool         err;
 
-        for (i = 0; i < (int)flexarray_len(f); i++) {
-            c4m_utf32_t *one = c4m_to_utf32(flexarray_get(f, i, &err));
+        for (i = 0; i < c4m_xlist_len(arr); i++) {
+            c4m_utf32_t *one = c4m_to_utf32(c4m_xlist_get(arr, i, &err));
             if (one == NULL) {
                 break;
             }
@@ -1686,7 +1680,7 @@ c4m_grid_to_str(c4m_grid_t *g)
 }
 
 c4m_grid_t *
-_c4m_ordered_list(flexarray_t *items, ...)
+_c4m_ordered_list(c4m_xlist_t *items, ...)
 {
     char *bullet_style = "bullet";
     char *item_style   = "li";
@@ -1695,10 +1689,11 @@ _c4m_ordered_list(flexarray_t *items, ...)
     c4m_kw_ptr("bullet_style", bullet_style);
     c4m_kw_ptr("item_style", item_style);
 
-    flex_view_t *view = flexarray_view(items);
-    int64_t      n    = flexarray_view_len(view);
-    c4m_utf32_t *dot  = c4m_utf32_repeat('.', 1);
-    c4m_grid_t  *res  = c4m_new(c4m_type_grid(),
+    items = c4m_xlist_copy(items);
+
+    int64_t      n   = c4m_xlist_len(items);
+    c4m_utf32_t *dot = c4m_utf32_repeat('.', 1);
+    c4m_grid_t  *res = c4m_new(c4m_type_grid(),
                               c4m_kw("start_rows",
                                      c4m_ka(n),
                                      "start_cols",
@@ -1722,8 +1717,9 @@ _c4m_ordered_list(flexarray_t *items, ...)
     for (int i = 0; i < n; i++) {
         c4m_utf32_t      *s         = c4m_str_concat(c4m_str_from_int(i + 1),
                                         dot);
-        c4m_utf32_t      *list_item = c4m_to_utf32(flexarray_view_next(view,
-                                                                  NULL));
+        c4m_utf32_t      *list_item = c4m_to_utf32(c4m_xlist_get(items,
+                                                            i,
+                                                            NULL));
         c4m_renderable_t *li        = c4m_new(c4m_type_renderable(),
                                        c4m_kw("obj",
                                               c4m_ka(list_item),
@@ -1739,7 +1735,7 @@ _c4m_ordered_list(flexarray_t *items, ...)
 }
 
 c4m_grid_t *
-_c4m_unordered_list(flexarray_t *items, ...)
+_c4m_unordered_list(c4m_xlist_t *items, ...)
 {
     char           *bullet_style = "bullet";
     char           *item_style   = "li";
@@ -1750,8 +1746,9 @@ _c4m_unordered_list(flexarray_t *items, ...)
     c4m_kw_ptr("item_style", item_style);
     c4m_kw_codepoint("bullet", bullet);
 
-    flex_view_t *view     = flexarray_view(items);
-    int64_t      n        = flexarray_view_len(view);
+    items = c4m_xlist_copy(items);
+
+    int64_t      n        = c4m_xlist_len(items);
     c4m_grid_t  *res      = c4m_new(c4m_type_grid(),
                               c4m_kw("start_rows",
                                      c4m_ka(n),
@@ -1768,8 +1765,9 @@ _c4m_unordered_list(flexarray_t *items, ...)
     c4m_set_column_style(res, 1, item_style);
 
     for (int i = 0; i < n; i++) {
-        c4m_utf32_t      *list_item = c4m_to_utf32(flexarray_view_next(view,
-                                                                  NULL));
+        c4m_utf32_t      *list_item = c4m_to_utf32(c4m_xlist_get(items,
+                                                            i,
+                                                            NULL));
         c4m_renderable_t *li        = c4m_new(c4m_type_renderable(),
                                        c4m_kw("obj",
                                               c4m_ka(list_item),

@@ -10,7 +10,6 @@ $output:
 three
 
 $errors:
-def_without_use
 """
 m = 0
 

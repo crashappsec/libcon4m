@@ -32,7 +32,7 @@ c4m_base_type_name(const c4m_obj_t *user_object)
 // in object.c
 extern const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS];
 
-#ifdef C4M_GC_TRACE
+#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
 extern c4m_obj_t _c4m_new(char *, int, c4m_type_t *, ...);
 
 #define c4m_new(tid, ...) _c4m_new(__FILE__, __LINE__, tid, KFUNC(__VA_ARGS__))

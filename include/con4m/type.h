@@ -2,20 +2,39 @@
 
 #include "con4m.h"
 
-extern c4m_type_t     *c4m_type_resolve(c4m_type_t *);
-extern bool            c4m_type_is_concrete(c4m_type_t *);
-extern c4m_type_t     *c4m_type_copy(c4m_type_t *);
-extern c4m_type_t     *c4m_get_builtin_type(c4m_builtin_t);
-extern c4m_type_t     *c4m_unify(c4m_type_t *, c4m_type_t *);
-extern c4m_type_t     *c4m_type_list(c4m_type_t *);
-extern c4m_type_t     *c4m_type_xlist(c4m_type_t *);
-extern c4m_type_t     *c4m_type_tree(c4m_type_t *);
-extern c4m_type_t     *c4m_type_queue(c4m_type_t *);
-extern c4m_type_t     *c4m_type_ring(c4m_type_t *);
-extern c4m_type_t     *c4m_type_stack(c4m_type_t *);
-extern c4m_type_t     *c4m_type_box(c4m_type_t *);
-extern c4m_type_t     *c4m_type_dict(c4m_type_t *, c4m_type_t *);
-extern c4m_type_t     *c4m_type_set(c4m_type_t *);
+extern c4m_type_t *c4m_type_resolve(c4m_type_t *);
+extern bool        c4m_type_is_concrete(c4m_type_t *);
+extern c4m_type_t *c4m_type_copy(c4m_type_t *);
+extern c4m_type_t *c4m_get_builtin_type(c4m_builtin_t);
+extern c4m_type_t *c4m_unify(c4m_type_t *, c4m_type_t *);
+
+#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+extern c4m_type_t *_c4m_type_flist(c4m_type_t *, char *, int);
+extern c4m_type_t *_c4m_type_xlist(c4m_type_t *, char *, int);
+extern c4m_type_t *_c4m_type_tree(c4m_type_t *, char *, int);
+extern c4m_type_t *_c4m_type_queue(c4m_type_t *, char *, int);
+extern c4m_type_t *_c4m_type_ring(c4m_type_t *, char *, int);
+extern c4m_type_t *_c4m_type_stack(c4m_type_t *, char *, int);
+extern c4m_type_t *_c4m_type_set(c4m_type_t *, char *, int);
+#define c4m_type_flist(x) _c4m_type_flist(x, __FILE__, __LINE__)
+#define c4m_type_xlist(x) _c4m_type_xlist(x, __FILE__, __LINE__)
+#define c4m_type_tree(x)  _c4m_type_tree(x, __FILE__, __LINE__)
+#define c4m_type_queue(x) _c4m_type_queue(x, __FILE__, __LINE__)
+#define c4m_type_ring(x)  _c4m_type_ring(x, __FILE__, __LINE__)
+#define c4m_type_stack(x) _c4m_type_stack(x, __FILE__, __LINE__)
+#define c4m_type_set(x)   _c4m_type_set(x, __FILE__, __LINE__)
+#else
+extern c4m_type_t *c4m_type_flist(c4m_type_t *);
+extern c4m_type_t *c4m_type_xlist(c4m_type_t *);
+extern c4m_type_t *c4m_type_tree(c4m_type_t *);
+extern c4m_type_t *c4m_type_queue(c4m_type_t *);
+extern c4m_type_t *c4m_type_ring(c4m_type_t *);
+extern c4m_type_t *c4m_type_stack(c4m_type_t *);
+extern c4m_type_t *c4m_type_set(c4m_type_t *);
+#endif
+extern c4m_type_t *c4m_type_box(c4m_type_t *);
+extern c4m_type_t *c4m_type_dict(c4m_type_t *, c4m_type_t *);
+
 extern c4m_type_t     *c4m_type_tuple(int64_t, ...);
 extern c4m_type_t     *c4m_type_tuple_from_xlist(c4m_xlist_t *);
 extern c4m_type_t     *c4m_type_fn(c4m_type_t *, c4m_xlist_t *, bool);
@@ -49,6 +68,8 @@ extern bool      c4m_type_has_list_syntax(c4m_type_t *);
 extern bool      c4m_type_has_dict_syntax(c4m_type_t *);
 extern bool      c4m_type_has_set_syntax(c4m_type_t *);
 extern bool      c4m_type_has_tuple_syntax(c4m_type_t *);
+
+#define c4m_type_list c4m_type_xlist
 
 static inline void
 c4m_remove_all_container_options(c4m_type_t *t)

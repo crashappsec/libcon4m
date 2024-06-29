@@ -1988,10 +1988,7 @@ handle_identifier(pass2_ctx *ctx)
     }
 
     c4m_scope_entry_t *sym = (void *)lookup_or_add(ctx, id);
-    printf("At symbol %p ", sym);
-    c4m_printf("in 'identifier': Sym {} has type {}", sym->name, sym->type);
-    printf("# defs: %lld\n", c4m_xlist_len(sym->sym_defs));
-    pnode->extra_info = (void *)sym;
+    pnode->extra_info      = (void *)sym;
     set_node_type(ctx, ctx->node, sym->type);
 }
 

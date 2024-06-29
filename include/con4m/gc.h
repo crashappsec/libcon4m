@@ -208,6 +208,7 @@ extern void *c4m_alloc_from_arena(c4m_arena_t **,
                                   char *,
                                   int);
 
+extern c4m_utf8_t *c4m_gc_alloc_info(void *, int *);
 #else
 extern void *_c4m_gc_raw_alloc(size_t, uint64_t *);
 extern void *_c4m_gc_raw_alloc_with_finalizer(size_t, uint64_t *);

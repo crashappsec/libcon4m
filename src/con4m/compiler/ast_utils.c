@@ -264,11 +264,6 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
     case c4m_nt_lit_tspec_parameterized_type:
         varname = node_text(n);
         // Need to do this more generically, but OK for now.
-        if (!strcmp(varname->data, "list")) {
-            return c4m_type_list(c4m_node_to_type(ctx,
-                                                  c4m_tree_get_child(n, 0),
-                                                  type_ctx));
-        }
         if (!strcmp(varname->data, "queue")) {
             return c4m_type_queue(c4m_node_to_type(ctx,
                                                    c4m_tree_get_child(n, 0),
@@ -283,7 +278,17 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
             c4m_add_error(ctx, c4m_err_no_logring_yet, n);
             return c4m_new_typevar();
         }
+        if (!strcmp(varname->data, "list")) {
+            return c4m_type_xlist(c4m_node_to_type(ctx,
+                                                   c4m_tree_get_child(n, 0),
+                                                   type_ctx));
+        }
         if (!strcmp(varname->data, "xlist")) {
+            return c4m_type_xlist(c4m_node_to_type(ctx,
+                                                   c4m_tree_get_child(n, 0),
+                                                   type_ctx));
+        }
+        if (!strcmp(varname->data, "flist")) {
             return c4m_type_xlist(c4m_node_to_type(ctx,
                                                    c4m_tree_get_child(n, 0),
                                                    type_ctx));

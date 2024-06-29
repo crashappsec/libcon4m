@@ -1539,7 +1539,8 @@ gen_literal(gen_ctx *ctx)
         c4m_obj_t   obj = ctx->cur_pnode->value;
         c4m_type_t *t   = c4m_type_resolve(c4m_get_my_type(obj));
 
-        c4m_printf("About to gen a literal for an object of type: {}", t);
+        int         line;
+        c4m_utf8_t *fname = c4m_gc_alloc_info(t, &line);
 
         if (c4m_type_is_value_type(t) || c4m_type_is_box(t)) {
             gen_load_immediate(ctx, c4m_unbox(obj));

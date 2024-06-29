@@ -673,7 +673,6 @@ header_scan(uint64_t *ptr, uint64_t *stop_location, uint64_t *offset)
         p -= 1;
     }
 
-    return NULL;
     fprintf(stderr,
             "Corrupted con4m heap; could not find an allocation record for "
             "the memory address: %p\n",
@@ -688,6 +687,26 @@ c4m_find_alloc(void *ptr)
 
     return header_scan((uint64_t *)ptr, 0, &offset);
 }
+
+#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+c4m_utf8_t *
+c4m_gc_alloc_info(void *addr, int *line)
+{
+    if (!c4m_in_heap(addr)) {
+        if (line != NULL) {
+            *line = 0;
+        }
+        return NULL;
+    }
+
+    c4m_alloc_hdr *h = c4m_find_alloc(addr);
+    if (line != NULL) {
+        *line = h->alloc_line;
+    }
+
+    return c4m_new_utf8(h->alloc_file);
+}
+#endif
 
 static c4m_alloc_hdr *
 prep_allocation(c4m_alloc_hdr *old, c4m_arena_t *new_arena)

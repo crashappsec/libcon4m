@@ -1094,7 +1094,7 @@ next_start:
 }
 
 flexarray_t *
-c4m_str_split(c4m_str_t *str, c4m_str_t *sub)
+c4m_str_fsplit(c4m_str_t *str, c4m_str_t *sub)
 {
     str            = c4m_to_utf32(str);
     sub            = c4m_to_utf32(sub);

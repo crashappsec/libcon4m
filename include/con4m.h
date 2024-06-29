@@ -5,7 +5,7 @@
 // Useful options (mainly for dev) are commented out here.
 // The logic below (and into the relevent header files) sets up defaults.
 //
-// #define C4M_DEBUG
+#define C4M_DEBUG
 // #define C4M_TRACE_GC
 // #define C4M_GC_ALL_OFF
 // #define C4M_GC_ALL_ON

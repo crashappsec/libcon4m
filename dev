@@ -136,7 +136,7 @@ function libcon4m_run_tests {
     ./c4test $@
     EXIT=$?
     log "Exit status: ${EXIT}"
-    if [[ ${EXIT} -gt 0 ]] && [[${EXIT} -lt 128 ]] && [[ $@ == "" ]]  ; then
+    if [[ ${EXIT} -gt 0 ]] && [[ ${EXIT} -lt 128 ]] && [[ $@ == "" ]]  ; then
         log "Test runner crashed; rerunning tests individually to isolate."
         HERE=`pwd`
         cd ../tests

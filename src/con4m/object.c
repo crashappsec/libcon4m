@@ -143,7 +143,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     },
     [C4M_T_XLIST] = {
         .name      = "list",
-        .typeid    = C4M_T_LIST,
+        .typeid    = C4M_T_XLIST,
         .alloc_len = sizeof(c4m_xlist_t),
         .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_xlist_vtable,
@@ -304,7 +304,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_FLIST] = {
-        .name      = "xlist",
+        .name      = "flist",
         .typeid    = C4M_T_FLIST,
         .alloc_len = sizeof(flexarray_t),
         .ptr_info  = GC_SCAN_ALL,
@@ -439,7 +439,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     },
 };
 
-#ifdef C4M_GC_TRACE
+#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
 c4m_obj_t
 _c4m_new(char *file, int line, c4m_type_t *type, ...)
 #else
@@ -456,7 +456,7 @@ _c4m_new(c4m_type_t *type, ...)
     uint64_t         alloc_len = tinfo->alloc_len + sizeof(c4m_obj_t);
     c4m_vtable_entry init_fn   = tinfo->vtable->methods[C4M_BI_CONSTRUCTOR];
 
-#ifdef C4M_GC_TRACE
+#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
     if (tinfo->vtable->methods[C4M_BI_FINALIZER] == NULL) {
         obj = _c4m_gc_raw_alloc(alloc_len,
                                 (uint64_t *)tinfo->ptr_info,
@@ -469,7 +469,6 @@ _c4m_new(c4m_type_t *type, ...)
                                                file,
                                                line);
     }
-
 #else
     if (tinfo->vtable->methods[C4M_BI_FINALIZER] == NULL) {
         obj = c4m_gc_raw_alloc(alloc_len, (uint64_t *)tinfo->ptr_info);

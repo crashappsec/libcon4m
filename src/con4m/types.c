@@ -1719,6 +1719,24 @@ c4m_initialize_global_types()
     }
 }
 
+#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+#define DECLARE_ONE_PARAM_FN(tname, idnumber)                    \
+    c4m_type_t *                                                 \
+        _c4m_type_##tname(c4m_type_t *sub, char *file, int line) \
+    {                                                            \
+        c4m_type_t  *result = _c4m_new(file,                     \
+                                      line,                     \
+                                      c4m_type_typespec(),      \
+                                      idnumber);                \
+        c4m_xlist_t *items  = result->details->items;            \
+        c4m_xlist_append(items, sub);                            \
+                                                                 \
+        type_hash_and_dedupe(&result);                           \
+                                                                 \
+        return result;                                           \
+    }
+
+#else
 #define DECLARE_ONE_PARAM_FN(tname, idnumber)              \
     c4m_type_t *                                           \
         c4m_type_##tname(c4m_type_t *sub)                  \
@@ -1732,8 +1750,10 @@ c4m_initialize_global_types()
                                                            \
         return result;                                     \
     }
+#endif
 
-DECLARE_ONE_PARAM_FN(list, C4M_T_LIST);
+DECLARE_ONE_PARAM_FN(flist, C4M_T_FLIST);
+DECLARE_ONE_PARAM_FN(list, C4M_T_XLIST);
 DECLARE_ONE_PARAM_FN(xlist, C4M_T_XLIST);
 DECLARE_ONE_PARAM_FN(tree, C4M_T_TREE);
 DECLARE_ONE_PARAM_FN(queue, C4M_T_QUEUE);

@@ -122,7 +122,10 @@ list_can_coerce_to(c4m_type_t *my_type, c4m_type_t *dst_type)
         return true;
     }
 
-    if (base == (c4m_dt_kind_t)C4M_T_LIST || base == (c4m_dt_kind_t)C4M_T_XLIST) {
+    // clang-format off
+    if (base == (c4m_dt_kind_t)C4M_T_FLIST ||
+	base == (c4m_dt_kind_t)C4M_T_XLIST) {
+        // clang-format on
         c4m_type_t *my_item  = c4m_type_get_param(my_type, 0);
         c4m_type_t *dst_item = c4m_type_get_param(dst_type, 0);
 
@@ -145,12 +148,14 @@ list_coerce_to(flexarray_t *list, c4m_type_t *dst_type)
         return (c4m_obj_t)(int64_t)(flexarray_view_len(view) != 0);
     }
 
-    if (base == (c4m_dt_kind_t)C4M_T_LIST) {
+    if (base == (c4m_dt_kind_t)C4M_T_FLIST) {
         flexarray_t *res = c4m_new(dst_type, c4m_kw("length", c4m_ka(len)));
 
         for (int i = 0; i < len; i++) {
             void *item = flexarray_view_next(view, NULL);
-            flexarray_set(res, i, c4m_coerce(item, src_item_type, dst_item_type));
+            flexarray_set(res,
+                          i,
+                          c4m_coerce(item, src_item_type, dst_item_type));
         }
 
         return (c4m_obj_t)res;

@@ -24,12 +24,12 @@ c4m_get_td_tag(c4m_grid_t *g)
     }
     return "td";
 }
-void c4m_grid_set_all_contents(c4m_grid_t *, flexarray_t *);
+void c4m_grid_set_all_contents(c4m_grid_t *, c4m_xlist_t *);
 
 extern c4m_grid_t  *c4m_grid_flow(uint64_t items, ...);
 extern c4m_utf32_t *c4m_grid_to_str(c4m_grid_t *);
-extern c4m_grid_t  *_c4m_ordered_list(flexarray_t *, ...);
-extern c4m_grid_t  *_c4m_unordered_list(flexarray_t *, ...);
+extern c4m_grid_t  *_c4m_ordered_list(c4m_xlist_t *, ...);
+extern c4m_grid_t  *_c4m_unordered_list(c4m_xlist_t *, ...);
 extern c4m_grid_t  *_c4m_grid_tree(c4m_tree_node_t *, ...);
 extern c4m_xlist_t *_c4m_grid_render(c4m_grid_t *, ...);
 extern void         c4m_set_column_props(c4m_grid_t *,

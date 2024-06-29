@@ -25,13 +25,15 @@ extern c4m_codepoint_t     c4m_index(const c4m_str_t *, int64_t);
 extern bool                c4m_str_can_coerce_to(c4m_type_t *, c4m_type_t *);
 extern c4m_obj_t           c4m_str_coerce_to(const c4m_str_t *, c4m_type_t *);
 extern c4m_xlist_t        *c4m_str_xsplit(c4m_str_t *, c4m_str_t *);
-extern struct flexarray_t *c4m_str_split(c4m_str_t *, c4m_str_t *);
+extern struct flexarray_t *c4m_str_fsplit(c4m_str_t *, c4m_str_t *);
 extern bool                c4m_str_starts_with(const c4m_str_t *,
                                                const c4m_str_t *);
 extern bool                c4m_str_ends_with(const c4m_str_t *,
                                              const c4m_str_t *);
+
+#define c4m_str_split(x, y) c4m_str_xsplit(x, y)
 // This is in richlit.c
-extern c4m_utf8_t         *c4m_rich_lit(char *);
+extern c4m_utf8_t *c4m_rich_lit(char *);
 
 #define c4m_str_strip(s, ...)       _c4m_str_strip(s, KFUNC(__VA_ARGS__))
 #define c4m_str_truncate(s, n, ...) _c4m_str_truncate(s, n, KFUNC(__VA_ARGS__))
