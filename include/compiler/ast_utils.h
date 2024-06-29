@@ -1,34 +1,34 @@
 #pragma once
 #include "con4m.h"
 
+
 #ifdef C4M_USE_INTERNAL_API
 
 // More consise aliases internally only.
-#define tfind(x, y, ...) _c4m_tpat_find((void *)(int64_t)x, \
+#define c4m_tfind(x, y, ...) _c4m_tpat_find((void *)(int64_t)x, \
                                         y,                  \
-                                        KFUNC(__VA_ARGS__))
-#define tfind_content(x, y) c4m_tpat_content_find((void *)(int64_t)x, y)
-#define tmatch(x, y, ...)   _c4m_tpat_match((void *)(int64_t)x, \
+                                        C4M_VA(__VA_ARGS__))
+#define c4m_tfind_content(x, y) c4m_tpat_content_find((void *)(int64_t)x, y)
+#define c4m_tmatch(x, y, ...)   _c4m_tpat_match((void *)(int64_t)x, \
                                           y,                    \
-                                          KFUNC(__VA_ARGS__))
-#define tcontent(x, y) c4m_tpat_content_match((void *)(int64_t)x, y)
-#define toptional(x, y, ...) \
-    _c4m_tpat_opt_match((void *)(int64_t)x, y, KFUNC(__VA_ARGS__))
-#define tcount(a, b, c, d, ...) \
-    _c4m_tpat_n_m_match((void *)(int64_t)a, b, c, d, KFUNC(__VA_ARGS__))
-#define tcount_content(a, b, c, d, ...) \
+                                          C4M_VA(__VA_ARGS__))
+#define c4m_tcontent(x, y) c4m_tpat_content_match((void *)(int64_t)x, y)
+#define c4m_toptional(x, y, ...) \
+    _c4m_tpat_opt_match((void *)(int64_t)x, y, C4M_VA(__VA_ARGS__))
+#define c4m_tcount(a, b, c, d, ...) \
+    _c4m_tpat_n_m_match((void *)(int64_t)a, b, c, d, C4M_VA(__VA_ARGS__))
+#define c4m_tcount_content(a, b, c, d, ...) \
     c4m_tpat_n_m_content_match((void *)(int64_t)a, b, c, d)
 
-#define get_pnode(x) ((x) ? c4m_tree_get_contents(x) : NULL)
+#define c4m_get_pnode(x) ((x) ? c4m_tree_get_contents(x) : NULL)
 
 // We use the null value (error) in patterns to match any type node.
-#define nt_any    (c4m_nt_error)
-#define max_nodes 0x7fff
+#define c4m_nt_any    (c4m_nt_error)
+#define c4m_max_nodes 0x7fff
 
-#undef DEBUG_PATTERNS
-#ifdef DEBUG_PATTERNS
+#ifdef C4M_DEBUG_PATTERNS
 static inline void
-print_type(c4m_obj_t o)
+c4m_print_type(c4m_obj_t o)
 {
     if (o == NULL) {
         printf("<null>\n");
@@ -37,13 +37,15 @@ print_type(c4m_obj_t o)
     c4m_print(c4m_get_my_type(o));
 }
 
+extern c4m_utf8_t *c4m_node_type_name(c4m_node_kind_t);
+
 static inline c4m_utf8_t *
-content_formatter(void *contents)
+c4m_content_formatter(void *contents)
 {
     c4m_node_kind_t kind = (c4m_node_kind_t)(uint64_t)contents;
 
-    if (kind == nt_any) {
-        return c4m_rich_lit("[h2]nt_any[/]");
+    if (kind == c4m_nt_any) {
+        return c4m_rich_lit("[h2]c4m_nt_any[/]");
     }
 
     return c4m_cstr_format("[h2]{}[/]", c4m_node_type_name(kind));
@@ -52,7 +54,7 @@ content_formatter(void *contents)
 static inline void
 show_pattern(c4m_tpat_node_t *pat)
 {
-    c4m_tree_node_t *t = c4m_pat_repr(pat, content_formatter);
+    c4m_tree_node_t *t = c4m_pat_repr(pat, c4m_content_formatter);
     c4m_grid_t      *g = c4m_grid_tree(t);
 
     c4m_print(g);
@@ -60,23 +62,23 @@ show_pattern(c4m_tpat_node_t *pat)
 
 #endif
 
-extern bool        tcmp(int64_t, c4m_tree_node_t *);
-extern void        setup_treematch_patterns();
+extern bool        c4m_tcmp(int64_t, c4m_tree_node_t *);
+extern void        c4m_setup_treematch_patterns();
 extern c4m_type_t *c4m_node_to_type(c4m_file_compile_ctx *,
                                     c4m_tree_node_t *,
                                     c4m_dict_t *);
 extern c4m_obj_t
-node_to_callback(c4m_file_compile_ctx *ctx, c4m_tree_node_t *n);
+c4m_node_to_callback(c4m_file_compile_ctx *ctx, c4m_tree_node_t *n);
 
 static inline bool
-node_has_type(c4m_tree_node_t *node, c4m_node_kind_t expect)
+c4m_node_has_type(c4m_tree_node_t *node, c4m_node_kind_t expect)
 {
-    c4m_pnode_t *pnode = get_pnode(node);
+    c4m_pnode_t *pnode = (c4m_pnode_t *)c4m_get_pnode(node);
     return expect == pnode->kind;
 }
 
 static inline c4m_utf8_t *
-get_litmod(c4m_pnode_t *p)
+c4m_get_litmod(c4m_pnode_t *p)
 {
     if (!p->extra_info) {
         return NULL;
@@ -86,10 +88,12 @@ get_litmod(c4m_pnode_t *p)
 }
 
 // Return the first capture if there's a match, and NULL if not.
-extern c4m_tree_node_t *get_match_on_node(c4m_tree_node_t *, c4m_tpat_node_t *);
+extern c4m_tree_node_t *c4m_get_match_on_node(c4m_tree_node_t *, 
+                                              c4m_tpat_node_t *);
 
 // Return every capture on match.
-extern c4m_xlist_t *apply_pattern_on_node(c4m_tree_node_t *, c4m_tpat_node_t *);
+extern c4m_list_t *c4m_apply_pattern_on_node(c4m_tree_node_t *, 
+                                             c4m_tpat_node_t *);
 
 extern c4m_tpat_node_t *c4m_first_kid_id;
 extern c4m_tpat_node_t *c4m_2nd_kid_id;

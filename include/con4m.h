@@ -1,5 +1,7 @@
 #pragma once
 
+#define C4M_INTERNAL_API
+
 #undef C4M_TYPE_LOG
 
 // Useful options (mainly for dev) are commented out here.

@@ -345,10 +345,10 @@ apply_padding_and_alignment(c4m_utf8_t *instr, c4m_fmt_spec_t *spec)
     }
 }
 
-static inline c4m_xlist_t *
+static inline c4m_list_t *
 lookup_arg_strings(c4m_fmt_info_t *specs, c4m_dict_t *args)
 {
-    c4m_xlist_t    *result = c4m_new(c4m_type_xlist(c4m_type_utf8()));
+    c4m_list_t    *result = c4m_new(c4m_type_list(c4m_type_utf8()));
     c4m_fmt_info_t *info   = specs;
     int             i      = 0;
     c4m_utf8_t     *key;
@@ -392,7 +392,7 @@ lookup_arg_strings(c4m_fmt_info_t *specs, c4m_dict_t *args)
 
         s = apply_padding_and_alignment(s, &info->spec);
 
-        c4m_xlist_append(result, s);
+        c4m_list_append(result, s);
 
         info = info->next;
     }
@@ -423,7 +423,7 @@ style_adjustment(c4m_utf32_t *s, int64_t start, int64_t offset)
 }
 
 static inline c4m_utf8_t *
-assemble_formatted_result(const c4m_str_t *fmt, c4m_xlist_t *arg_strings)
+assemble_formatted_result(const c4m_str_t *fmt, c4m_list_t *arg_strings)
 {
     // We need to re-parse the {}'s, and also copy stuff (including
     // style info) into the final string.
@@ -431,7 +431,7 @@ assemble_formatted_result(const c4m_str_t *fmt, c4m_xlist_t *arg_strings)
     fmt = c4m_to_utf32(fmt);
 
     int64_t          to_alloc = c4m_str_codepoint_len(fmt);
-    int64_t          list_len = c4m_xlist_len(arg_strings);
+    int64_t          list_len = c4m_list_len(arg_strings);
     int64_t          arg_ix   = 0;
     int64_t          out_ix   = 0;
     int64_t          alen; // length of one argument being substituted in.
@@ -444,7 +444,7 @@ assemble_formatted_result(const c4m_str_t *fmt, c4m_xlist_t *arg_strings)
     c4m_utf8_t      *arg;
 
     for (int64_t i = 0; i < list_len; i++) {
-        c4m_str_t *s = (c4m_str_t *)c4m_xlist_get(arg_strings, i, NULL);
+        c4m_str_t *s = (c4m_str_t *)c4m_list_get(arg_strings, i, NULL);
         to_alloc += c4m_str_codepoint_len(s);
     }
 
@@ -483,7 +483,7 @@ assemble_formatted_result(const c4m_str_t *fmt, c4m_xlist_t *arg_strings)
         case '{':
             // For now, we will not copy over styles from the format call.
             // Might do that later.
-            arg  = c4m_xlist_get(arg_strings, arg_ix++, NULL);
+            arg  = c4m_list_get(arg_strings, arg_ix++, NULL);
             alen = c4m_str_codepoint_len(arg);
             arg  = c4m_to_utf32(arg);
             argp = (c4m_codepoint_t *)arg->data;
@@ -533,14 +533,14 @@ c4m_str_vformat(const c4m_str_t *fmt, c4m_dict_t *args)
     // the parameters are replaced with just {}; we are going to then
     // pass this to c4m_rich_lit to do any formatting we've been asked
     // to do, before we do object substitutions.
-    c4m_xlist_t *segments = c4m_new(c4m_type_xlist(c4m_type_utf32()));
+    c4m_list_t *segments = c4m_new(c4m_type_list(c4m_type_utf32()));
 
     int             cur_pos = 0;
     c4m_fmt_info_t *cur_arg = info;
 
     while (cur_arg != NULL) {
         c4m_utf32_t *s = c4m_str_slice(fmt, cur_pos, cur_arg->start);
-        c4m_xlist_append(segments, s);
+        c4m_list_append(segments, s);
         cur_pos = cur_arg->end;
         cur_arg = cur_arg->next;
     }
@@ -550,7 +550,7 @@ c4m_str_vformat(const c4m_str_t *fmt, c4m_dict_t *args)
 
         if (cur_pos != l) {
             c4m_utf32_t *s = c4m_str_slice(fmt, cur_pos, l);
-            c4m_xlist_append(segments, s);
+            c4m_list_append(segments, s);
         }
 
         fmt = c4m_str_join(segments, c4m_empty_string());
@@ -560,7 +560,7 @@ c4m_str_vformat(const c4m_str_t *fmt, c4m_dict_t *args)
     // so the locations for the {} may not be where we might compute
     // them to be, so we will just reparse them.
     fmt                      = c4m_rich_lit(c4m_to_utf8(fmt)->data);
-    c4m_xlist_t *arg_strings = lookup_arg_strings(info, args);
+    c4m_list_t *arg_strings = lookup_arg_strings(info, args);
 
     return assemble_formatted_result(fmt, arg_strings);
 }

@@ -131,16 +131,14 @@
 #define C4M_FINALLY           C4M_LFINALLY(default_label)
 #define C4M_TRY_END           C4M_LTRY_END(default_label)
 
-#define C4M_CRAISE(s, ...) c4m_exception_raise(                          \
-    c4m_alloc_exception(s,                                               \
-                        IF(ISEMPTY(__VA_ARGS__))(EMPTY(), __VA_ARGS__)), \
-    __FILE__,                                                            \
+#define C4M_CRAISE(s, ...) c4m_exception_raise(         \
+    c4m_alloc_exception(s, __VA_OPT__(, ) __VA_ARGS__), \
+    __FILE__,                                           \
     __LINE__)
 
-#define C4M_RAISE(s, ...) c4m_exception_raise(                               \
-    c4m_alloc_str_exception(s,                                               \
-                            IF(ISEMPTY(__VA_ARGS__))(EMPTY(), __VA_ARGS__)), \
-    __FILE__,                                                                \
+#define C4M_RAISE(s, ...) c4m_exception_raise(             \
+    c4m_alloc_str_exception(s __VA_OPT__(, ) __VA_ARGS__), \
+    __FILE__,                                              \
     __LINE__)
 
 #define C4M_RERAISE()                                 \
@@ -150,11 +148,11 @@
 #define C4M_X_CUR() _c4x_current_exception
 
 c4m_exception_t *_c4m_alloc_exception(const char *s, ...);
-#define c4m_alloc_exception(s, ...) _c4m_alloc_exception(s, KFUNC(__VA_ARGS__))
+#define c4m_alloc_exception(s, ...) _c4m_alloc_exception(s, C4M_VA(__VA_ARGS__))
 
 c4m_exception_t *_c4m_alloc_str_exception(c4m_utf8_t *s, ...);
 #define c4m_alloc_str_exception(s, ...) \
-    _c4m_alloc_str_exception(s, KFUNC(__VA_ARGS__))
+    _c4m_alloc_str_exception(s, C4M_VA(__VA_ARGS__))
 
 enum : int64_t {
     C4M_EXCEPTION_OK,
@@ -191,12 +189,12 @@ c4m_exception_get_message(c4m_exception_t *exception)
 
 void c4m_exception_register_uncaught_handler(void (*)(c4m_exception_t *));
 
-#define C4M_RAISE_SYS()                                                      \
-    {                                                                        \
-        char buf[BUFSIZ];                                                    \
-        strerror_r(errno, buf, BUFSIZ);                                      \
+#define C4M_RAISE_SYS()                                                     \
+    {                                                                       \
+        char buf[BUFSIZ];                                                   \
+        strerror_r(errno, buf, BUFSIZ);                                     \
         C4M_RAISE(c4m_new(c4m_type_utf8(), c4m_kw("cstring", c4m_ka(buf))), \
-                  c4m_kw("error_code", c4m_ka(errno)));                      \
+                  c4m_kw("error_code", c4m_ka(errno)));                     \
     }
 
 extern __thread c4m_exception_stack_t __exception_stack;

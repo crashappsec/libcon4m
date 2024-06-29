@@ -10,14 +10,14 @@ extern c4m_type_t *c4m_unify(c4m_type_t *, c4m_type_t *);
 
 #if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
 extern c4m_type_t *_c4m_type_flist(c4m_type_t *, char *, int);
-extern c4m_type_t *_c4m_type_xlist(c4m_type_t *, char *, int);
+extern c4m_type_t *_c4m_type_list(c4m_type_t *, char *, int);
 extern c4m_type_t *_c4m_type_tree(c4m_type_t *, char *, int);
 extern c4m_type_t *_c4m_type_queue(c4m_type_t *, char *, int);
 extern c4m_type_t *_c4m_type_ring(c4m_type_t *, char *, int);
 extern c4m_type_t *_c4m_type_stack(c4m_type_t *, char *, int);
 extern c4m_type_t *_c4m_type_set(c4m_type_t *, char *, int);
 #define c4m_type_flist(x) _c4m_type_flist(x, __FILE__, __LINE__)
-#define c4m_type_xlist(x) _c4m_type_xlist(x, __FILE__, __LINE__)
+#define c4m_type_list(x) _c4m_type_list(x, __FILE__, __LINE__)
 #define c4m_type_tree(x)  _c4m_type_tree(x, __FILE__, __LINE__)
 #define c4m_type_queue(x) _c4m_type_queue(x, __FILE__, __LINE__)
 #define c4m_type_ring(x)  _c4m_type_ring(x, __FILE__, __LINE__)
@@ -25,7 +25,7 @@ extern c4m_type_t *_c4m_type_set(c4m_type_t *, char *, int);
 #define c4m_type_set(x)   _c4m_type_set(x, __FILE__, __LINE__)
 #else
 extern c4m_type_t *c4m_type_flist(c4m_type_t *);
-extern c4m_type_t *c4m_type_xlist(c4m_type_t *);
+extern c4m_type_t *c4m_type_list(c4m_type_t *);
 extern c4m_type_t *c4m_type_tree(c4m_type_t *);
 extern c4m_type_t *c4m_type_queue(c4m_type_t *);
 extern c4m_type_t *c4m_type_ring(c4m_type_t *);
@@ -36,8 +36,8 @@ extern c4m_type_t *c4m_type_box(c4m_type_t *);
 extern c4m_type_t *c4m_type_dict(c4m_type_t *, c4m_type_t *);
 
 extern c4m_type_t     *c4m_type_tuple(int64_t, ...);
-extern c4m_type_t     *c4m_type_tuple_from_xlist(c4m_xlist_t *);
-extern c4m_type_t     *c4m_type_fn(c4m_type_t *, c4m_xlist_t *, bool);
+extern c4m_type_t     *c4m_type_tuple_from_xlist(c4m_list_t *);
+extern c4m_type_t     *c4m_type_fn(c4m_type_t *, c4m_list_t *, bool);
 extern c4m_type_t     *c4m_type_fn_va(c4m_type_t *, int64_t, ...);
 extern c4m_type_t     *c4m_type_varargs_fn(c4m_type_t *, int64_t, ...);
 extern void            c4m_lock_type(c4m_type_t *);
@@ -69,8 +69,6 @@ extern bool      c4m_type_has_dict_syntax(c4m_type_t *);
 extern bool      c4m_type_has_set_syntax(c4m_type_t *);
 extern bool      c4m_type_has_tuple_syntax(c4m_type_t *);
 
-#define c4m_type_list c4m_type_xlist
-
 static inline void
 c4m_remove_all_container_options(c4m_type_t *t)
 {
@@ -89,7 +87,7 @@ c4m_type_get_base(c4m_type_t *n)
     return c4m_type_resolve(n)->details->base_type->dt_kind;
 }
 
-static inline c4m_xlist_t *
+static inline c4m_list_t *
 c4m_type_get_params(c4m_type_t *n)
 {
     return c4m_type_resolve(n)->details->items;
@@ -98,7 +96,7 @@ c4m_type_get_params(c4m_type_t *n)
 static inline int
 c4m_type_get_num_params(c4m_type_t *n)
 {
-    return c4m_xlist_len(c4m_type_resolve(n)->details->items);
+    return c4m_list_len(c4m_type_resolve(n)->details->items);
 }
 
 static inline bool
@@ -134,7 +132,7 @@ c4m_type_unlock(c4m_type_t *t)
 static inline c4m_type_t *
 c4m_type_get_param(c4m_type_t *t, int i)
 {
-    return c4m_xlist_get(t->details->items, i, NULL);
+    return c4m_list_get(t->details->items, i, NULL);
 }
 
 static inline c4m_type_t *
@@ -456,13 +454,13 @@ c4m_type_any_list(c4m_type_t *item_type)
 
     result->details->tsi   = tsi;
     tsi->container_options = c4m_get_list_bitfield();
-    result->details->items = c4m_new(c4m_type_xlist(c4m_type_typespec()));
+    result->details->items = c4m_new(c4m_type_list(c4m_type_typespec()));
 
     if (item_type == NULL) {
         item_type = c4m_new_typevar();
     }
 
-    c4m_xlist_append(result->details->items, item_type);
+    c4m_list_append(result->details->items, item_type);
 
     return result;
 }
@@ -476,7 +474,7 @@ c4m_type_any_dict(c4m_type_t *key, c4m_type_t *value)
 
     result->details->tsi   = tsi;
     tsi->container_options = c4m_get_dict_bitfield();
-    result->details->items = c4m_new(c4m_type_xlist(c4m_type_typespec()));
+    result->details->items = c4m_new(c4m_type_list(c4m_type_typespec()));
 
     if (key == NULL) {
         key = c4m_new_typevar();
@@ -486,8 +484,8 @@ c4m_type_any_dict(c4m_type_t *key, c4m_type_t *value)
         value = c4m_new_typevar();
     }
 
-    c4m_xlist_append(result->details->items, key);
-    c4m_xlist_append(result->details->items, value);
+    c4m_list_append(result->details->items, key);
+    c4m_list_append(result->details->items, value);
 
     return result;
 }
@@ -501,13 +499,13 @@ c4m_type_any_set(c4m_type_t *item_type)
 
     result->details->tsi   = tsi;
     tsi->container_options = c4m_get_set_bitfield();
-    result->details->items = c4m_new(c4m_type_xlist(c4m_type_typespec()));
+    result->details->items = c4m_new(c4m_type_list(c4m_type_typespec()));
 
     if (item_type == NULL) {
         item_type = c4m_new_typevar();
     }
 
-    c4m_xlist_append(result->details->items, item_type);
+    c4m_list_append(result->details->items, item_type);
 
     return result;
 }

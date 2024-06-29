@@ -35,11 +35,11 @@ extern const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS];
 #if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
 extern c4m_obj_t _c4m_new(char *, int, c4m_type_t *, ...);
 
-#define c4m_new(tid, ...) _c4m_new(__FILE__, __LINE__, tid, KFUNC(__VA_ARGS__))
+#define c4m_new(tid, ...) _c4m_new(__FILE__, __LINE__, tid, C4M_VA(__VA_ARGS__))
 #else
 extern c4m_obj_t _c4m_new(c4m_type_t *type, ...);
 
-#define c4m_new(tid, ...) _c4m_new(tid, KFUNC(__VA_ARGS__))
+#define c4m_new(tid, ...) _c4m_new(tid, C4M_VA(__VA_ARGS__))
 #endif
 
 extern uint64_t   *c4m_gc_ptr_info(c4m_builtin_t);
@@ -68,7 +68,7 @@ extern c4m_str_t  *c4m_value_obj_to_str(c4m_obj_t);
 extern c4m_type_t *c4m_get_item_type(c4m_obj_t);
 extern void       *c4m_get_view(c4m_obj_t, int64_t *);
 extern c4m_obj_t   c4m_container_literal(c4m_type_t *,
-                                         c4m_xlist_t *,
+                                         c4m_list_t *,
                                          c4m_utf8_t *);
 extern void        c4m_finalize_allocation(c4m_base_obj_t *);
 
@@ -86,14 +86,14 @@ extern const c4m_vtable_t c4m_u32str_vtable;
 extern const c4m_vtable_t c4m_buffer_vtable;
 extern const c4m_vtable_t c4m_grid_vtable;
 extern const c4m_vtable_t c4m_renderable_vtable;
-extern const c4m_vtable_t c4m_list_vtable;
+extern const c4m_vtable_t c4m_flexarray_vtable;
 extern const c4m_vtable_t c4m_queue_vtable;
 extern const c4m_vtable_t c4m_ring_vtable;
 extern const c4m_vtable_t c4m_logring_vtable;
 extern const c4m_vtable_t c4m_stack_vtable;
 extern const c4m_vtable_t c4m_dict_vtable;
 extern const c4m_vtable_t c4m_set_vtable;
-extern const c4m_vtable_t c4m_xlist_vtable;
+extern const c4m_vtable_t c4m_list_vtable;
 extern const c4m_vtable_t c4m_sha_vtable;
 extern const c4m_vtable_t c4m_render_style_vtable;
 extern const c4m_vtable_t c4m_exception_vtable;

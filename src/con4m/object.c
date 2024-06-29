@@ -144,9 +144,9 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     [C4M_T_XLIST] = {
         .name      = "list",
         .typeid    = C4M_T_XLIST,
-        .alloc_len = sizeof(c4m_xlist_t),
+        .alloc_len = sizeof(c4m_list_t),
         .ptr_info  = GC_SCAN_ALL,
-        .vtable    = &c4m_xlist_vtable,
+        .vtable    = &c4m_list_vtable,
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
@@ -308,7 +308,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .typeid    = C4M_T_FLIST,
         .alloc_len = sizeof(flexarray_t),
         .ptr_info  = GC_SCAN_ALL,
-        .vtable    = &c4m_list_vtable,
+        .vtable    = &c4m_flexarray_vtable,
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
@@ -920,7 +920,7 @@ c4m_get_view(c4m_obj_t obj, int64_t *n_items)
 }
 
 c4m_obj_t
-c4m_container_literal(c4m_type_t *t, c4m_xlist_t *items, c4m_utf8_t *mod)
+c4m_container_literal(c4m_type_t *t, c4m_list_t *items, c4m_utf8_t *mod)
 {
     c4m_dt_info_t       *info = c4m_type_get_data_type_info(t);
     c4m_vtable_t        *vtbl = (c4m_vtable_t *)info->vtable;

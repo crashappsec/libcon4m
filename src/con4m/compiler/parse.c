@@ -245,7 +245,7 @@ _tok_cur(parse_ctx *ctx)
 #endif
 {
     if (!ctx->cached_token || ctx->token_ix != ctx->cache_ix) {
-        ctx->cached_token = c4m_xlist_get(ctx->file_ctx->tokens,
+        ctx->cached_token = c4m_list_get(ctx->file_ctx->tokens,
                                           ctx->token_ix,
                                           NULL);
         ctx->cache_ix     = ctx->token_ix;
@@ -290,7 +290,7 @@ _add_parse_error(parse_ctx *ctx, c4m_compile_error_t code, ...)
 }
 
 #define add_parse_error(ctx, code, ...) \
-    _add_parse_error(ctx, code, KFUNC(__VA_ARGS__))
+    _add_parse_error(ctx, code, C4M_VA(__VA_ARGS__))
 
 static void __attribute__((noreturn))
 _raise_err_at_node(parse_ctx          *ctx,
@@ -304,7 +304,7 @@ _raise_err_at_node(parse_ctx          *ctx,
     c4m_compile_error *err = c4m_gc_alloc(c4m_compile_error);
     err->code              = code;
     err->current_token     = n->token;
-    c4m_xlist_append(ctx->file_ctx->errors, err);
+    c4m_list_append(ctx->file_ctx->errors, err);
 
     if (bail) {
         c4m_exit_to_checkpoint(ctx, '!', f, line, fn);
@@ -397,7 +397,7 @@ previous_token(parse_ctx *ctx)
     c4m_token_t *tok = NULL;
 
     while (i--) {
-        tok = c4m_xlist_get(ctx->file_ctx->tokens, i, NULL);
+        tok = c4m_list_get(ctx->file_ctx->tokens, i, NULL);
         if (tok->kind != c4m_tt_space) {
             break;
         }
@@ -482,10 +482,10 @@ _consume(parse_ctx *ctx)
             comment->sibling_id  = pn->total_kids++;
 
             if (pn->comments == NULL) {
-                pn->comments = c4m_new(c4m_type_xlist(c4m_type_ref()));
+                pn->comments = c4m_new(c4m_type_list(c4m_type_ref()));
             }
 
-            c4m_xlist_append(pn->comments, comment);
+            c4m_list_append(pn->comments, comment);
             continue;
         default:
             return;
@@ -559,7 +559,7 @@ _match(parse_ctx *ctx, ...)
     return current_tt;
 }
 
-#define match(ctx, ...) _match(ctx, KFUNC(__VA_ARGS__))
+#define match(ctx, ...) _match(ctx, C4M_VA(__VA_ARGS__))
 
 static inline bool
 expect(parse_ctx *ctx, c4m_token_kind_t tk)
@@ -570,7 +570,7 @@ expect(parse_ctx *ctx, c4m_token_kind_t tk)
     }
     add_parse_error(ctx,
                     c4m_err_parse_expected_token,
-                    token_type_to_string(tk));
+                    c4m_token_type_to_string(tk));
     line_skip_recover(ctx);
     return false;
 }
@@ -578,7 +578,7 @@ expect(parse_ctx *ctx, c4m_token_kind_t tk)
 static inline bool
 identifier_is_builtin_type(parse_ctx *ctx)
 {
-    char *txt = identifier_text(tok_cur(ctx))->data;
+    char *txt = c4m_identifier_text(tok_cur(ctx))->data;
 
     for (int i = 0; i < C4M_NUM_BUILTIN_DTS; i++) {
         c4m_dt_info_t *tinfo = (c4m_dt_info_t *)&c4m_base_type_info[i];
@@ -605,7 +605,7 @@ text_matches(parse_ctx *ctx, char *cstring)
 {
     // Will only be called for identifiers.
 
-    c4m_utf8_t *text = identifier_text(tok_cur(ctx));
+    c4m_utf8_t *text = c4m_identifier_text(tok_cur(ctx));
 
     return !strcmp(text->data, cstring);
 }
@@ -690,7 +690,7 @@ restore_tree(parse_ctx *ctx)
 #define binop_restore_and_return(ctx, op)            \
     {                                                \
         c4m_tree_node_t *result = restore_tree(ctx); \
-        c4m_pnode_t     *pnode  = get_pnode(result); \
+        c4m_pnode_t     *pnode  = c4m_get_pnode(result); \
         pnode->extra_info       = (void *)op;        \
         return result;                               \
     }
@@ -698,7 +698,7 @@ restore_tree(parse_ctx *ctx)
 #define binop_assign(ctx, expr, op)                                        \
     {                                                                      \
         c4m_tree_node_t *tmp = assign(ctx, expr, c4m_nt_binary_assign_op); \
-        c4m_pnode_t     *pn  = get_pnode(tmp);                             \
+        c4m_pnode_t     *pn  = c4m_get_pnode(tmp);                             \
                                                                            \
         pn->extra_info = (void *)(op);                                     \
         adopt_kid(ctx, tmp);                                               \
@@ -997,7 +997,7 @@ param_items(parse_ctx *ctx)
             continue;
         }
 
-        char *txt = identifier_text(tok_cur(ctx))->data;
+        char *txt = c4m_identifier_text(tok_cur(ctx))->data;
         if (!strcmp(txt, "callback")) {
             if (got_default) {
                 add_parse_error(ctx, c4m_err_parse_param_def_and_callback);
@@ -1191,7 +1191,7 @@ extern_allocs(parse_ctx *ctx)
 static void
 extern_sig_item(parse_ctx *ctx, c4m_node_kind_t kind)
 {
-    char   *txt      = identifier_text(tok_cur(ctx))->data;
+    char   *txt      = c4m_identifier_text(tok_cur(ctx))->data;
     int64_t ctype_id = (int64_t)c4m_lookup_ctype_id(txt);
     if (ctype_id == -1) {
         add_parse_error(ctx, c4m_err_parse_bad_ctype_id);
@@ -1273,7 +1273,7 @@ extern_block(parse_ctx *ctx)
                 END_CHECKPOINT();
                 return;
             case c4m_tt_identifier:
-                txt = identifier_text(tok_cur(ctx))->data;
+                txt = c4m_identifier_text(tok_cur(ctx))->data;
                 if (!strcmp(txt, "local")) {
                     extern_local(ctx);
                     continue;
@@ -2659,7 +2659,7 @@ invalid_field_part(parse_ctx *ctx)
 static void
 field_property(parse_ctx *ctx)
 {
-    char *txt = identifier_text(tok_cur(ctx))->data;
+    char *txt = c4m_identifier_text(tok_cur(ctx))->data;
 
     switch (txt[0]) {
     case 'c':
@@ -2793,7 +2793,7 @@ field_spec(parse_ctx *ctx)
 static void
 section_property(parse_ctx *ctx)
 {
-    char *txt = identifier_text(tok_cur(ctx))->data;
+    char *txt = c4m_identifier_text(tok_cur(ctx))->data;
 
     switch (txt[0]) {
     case 'u':
@@ -2907,7 +2907,7 @@ object_spec(parse_ctx *ctx, c4m_utf8_t *txt)
                 consume(ctx);
                 continue;
             case c4m_tt_identifier:
-                if (!strcmp(identifier_text(tok_cur(ctx))->data, "field")) {
+                if (!strcmp(c4m_identifier_text(tok_cur(ctx))->data, "field")) {
                     field_spec(ctx);
                     continue;
                 }
@@ -2958,7 +2958,7 @@ confspec_block(parse_ctx *ctx)
             consume(ctx);
             continue;
         case c4m_tt_identifier:
-            txt = identifier_text(tok_cur(ctx));
+            txt = c4m_identifier_text(tok_cur(ctx));
             if (!strcmp(txt->data, "named")
                 || !strcmp(txt->data, "singleton")
                 || !strcmp(txt->data, "root")) {

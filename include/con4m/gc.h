@@ -305,7 +305,7 @@ extern void           c4m_gc_register_collect_fns(c4m_gc_hook, c4m_gc_hook);
 extern c4m_alloc_hdr *c4m_find_alloc(void *);
 
 #ifdef C4M_GC_STATS
-uint64_t get_alloc_counter();
+uint64_t c4m_get_alloc_counter();
 #else
-#define get_alloc_counter() (0)
+#define c4m_get_alloc_counter() (0)
 #endif

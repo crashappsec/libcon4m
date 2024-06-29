@@ -2,12 +2,12 @@
 #include "con4m.h"
 
 bool
-tcmp(int64_t kind_as_64, c4m_tree_node_t *node)
+c4m_tcmp(int64_t kind_as_64, c4m_tree_node_t *node)
 {
     c4m_node_kind_t kind  = (c4m_node_kind_t)(unsigned int)kind_as_64;
-    c4m_pnode_t    *pnode = get_pnode(node);
+    c4m_pnode_t    *pnode = c4m_get_pnode(node);
 
-    if (kind == nt_any) {
+    if (kind == c4m_nt_any) {
         return true;
     }
 
@@ -48,132 +48,132 @@ c4m_tpat_node_t *c4m_id_node;
 c4m_tpat_node_t *c4m_tuple_assign;
 
 void
-setup_treematch_patterns()
+c4m_setup_treematch_patterns()
 {
     if (c4m_first_kid_id != NULL) {
         return;
     }
     // Returns first child if it's an identifier, null otherwise.
-    c4m_first_kid_id  = tmatch(nt_any,
+    c4m_first_kid_id  = c4m_tmatch(c4m_nt_any,
                               0,
-                              tmatch(c4m_nt_identifier, 1),
-                              tcount_content(nt_any, 0, max_nodes, 0));
-    c4m_2nd_kid_id    = tmatch(nt_any,
+                              c4m_tmatch(c4m_nt_identifier, 1),
+                              c4m_tcount_content(c4m_nt_any, 0, c4m_max_nodes, 0));
+    c4m_2nd_kid_id    = c4m_tmatch(c4m_nt_any,
                             0,
-                            tcontent(nt_any, 0),
-                            tmatch(c4m_nt_identifier, 1),
-                            tcount_content(nt_any, 0, max_nodes, 0));
+                            c4m_tcontent(c4m_nt_any, 0),
+                            c4m_tmatch(c4m_nt_identifier, 1),
+                            c4m_tcount_content(c4m_nt_any, 0, c4m_max_nodes, 0));
     // Skips the identifier if there, and returns all the enum items,
     // regardless of the subtree shape.
-    c4m_enum_items    = tmatch(nt_any,
+    c4m_enum_items    = c4m_tmatch(c4m_nt_any,
                             0,
-                            toptional(c4m_nt_identifier, 0),
-                            tcount_content(c4m_nt_enum_item,
+                            c4m_toptional(c4m_nt_identifier, 0),
+                            c4m_tcount_content(c4m_nt_enum_item,
                                            0,
-                                           max_nodes,
+                                           c4m_max_nodes,
                                            1));
-    c4m_member_last   = tfind(c4m_nt_member,
+    c4m_member_last   = c4m_tfind(c4m_nt_member,
                             0,
-                            tcount(c4m_nt_identifier, 0, max_nodes, 0),
-                            tmatch(c4m_nt_identifier, 1));
-    c4m_member_prefix = tfind(c4m_nt_member,
+                            c4m_tcount(c4m_nt_identifier, 0, c4m_max_nodes, 0),
+                            c4m_tmatch(c4m_nt_identifier, 1));
+    c4m_member_prefix = c4m_tfind(c4m_nt_member,
                               0,
-                              tcount(c4m_nt_identifier, 0, max_nodes, 1),
-                              tmatch(c4m_nt_identifier, 0));
-    c4m_func_mods     = tfind(c4m_nt_func_mods,
+                              c4m_tcount(c4m_nt_identifier, 0, c4m_max_nodes, 1),
+                              c4m_tmatch(c4m_nt_identifier, 0));
+    c4m_func_mods     = c4m_tfind(c4m_nt_func_mods,
                           0,
-                          tcount(c4m_nt_func_mod, 0, max_nodes, 1));
-    c4m_extern_params = tfind(c4m_nt_extern_sig,
+                          c4m_tcount(c4m_nt_func_mod, 0, c4m_max_nodes, 1));
+    c4m_extern_params = c4m_tfind(c4m_nt_extern_sig,
                               0,
-                              tcount_content(c4m_nt_extern_param, 0, max_nodes, 1),
-                              tcount_content(c4m_nt_lit_tspec_return_type,
+                              c4m_tcount_content(c4m_nt_extern_param, 0, c4m_max_nodes, 1),
+                              c4m_tcount_content(c4m_nt_lit_tspec_return_type,
                                              0,
                                              1,
                                              0));
-    c4m_extern_return = tfind(
+    c4m_extern_return = c4m_tfind(
         c4m_nt_extern_sig,
         0,
-        tcount_content(c4m_nt_extern_param, 0, max_nodes, 0),
-        tcount_content(c4m_nt_lit_tspec_return_type,
+        c4m_tcount_content(c4m_nt_extern_param, 0, c4m_max_nodes, 0),
+        c4m_tcount_content(c4m_nt_lit_tspec_return_type,
                        0,
                        1,
                        1));
-    c4m_return_extract   = tfind(c4m_nt_lit_tspec_return_type,
+    c4m_return_extract   = c4m_tfind(c4m_nt_lit_tspec_return_type,
                                0,
-                               tmatch(nt_any, 1));
-    c4m_use_uri          = tfind(c4m_nt_simple_lit, 1);
-    c4m_param_extraction = tfind(
+                               c4m_tmatch(c4m_nt_any, 1));
+    c4m_use_uri          = c4m_tfind(c4m_nt_simple_lit, 1);
+    c4m_param_extraction = c4m_tfind(
         c4m_nt_formals,
         0,
-        tcount_content(c4m_nt_sym_decl, 0, max_nodes, 1));
+        c4m_tcount_content(c4m_nt_sym_decl, 0, c4m_max_nodes, 1));
 
-    c4m_find_pure         = tfind_content(c4m_nt_extern_pure, 1);
-    c4m_find_holds        = tfind_content(c4m_nt_extern_holds, 1);
-    c4m_find_allocs       = tfind_content(c4m_nt_extern_allocs, 1);
-    c4m_find_extern_local = tfind_content(c4m_nt_extern_local, 1);
-    c4m_qualifier_extract = tfind(c4m_nt_decl_qualifiers,
+    c4m_find_pure         = c4m_tfind_content(c4m_nt_extern_pure, 1);
+    c4m_find_holds        = c4m_tfind_content(c4m_nt_extern_holds, 1);
+    c4m_find_allocs       = c4m_tfind_content(c4m_nt_extern_allocs, 1);
+    c4m_find_extern_local = c4m_tfind_content(c4m_nt_extern_local, 1);
+    c4m_qualifier_extract = c4m_tfind(c4m_nt_decl_qualifiers,
                                   0,
-                                  tcount(c4m_nt_identifier, 0, max_nodes, 1));
-    c4m_sym_decls         = tmatch(c4m_nt_variable_decls,
+                                  c4m_tcount(c4m_nt_identifier, 0, c4m_max_nodes, 1));
+    c4m_sym_decls         = c4m_tmatch(c4m_nt_variable_decls,
                            0,
-                           tcount_content(c4m_nt_decl_qualifiers, 1, 1, 0),
-                           tcount_content(c4m_nt_sym_decl, 1, max_nodes, 1));
-    c4m_sym_names         = tfind(c4m_nt_sym_decl,
+                           c4m_tcount_content(c4m_nt_decl_qualifiers, 1, 1, 0),
+                           c4m_tcount_content(c4m_nt_sym_decl, 1, c4m_max_nodes, 1));
+    c4m_sym_names         = c4m_tfind(c4m_nt_sym_decl,
                           0,
-                          tcount_content(c4m_nt_identifier, 1, max_nodes, 1),
-                          tcount_content(c4m_nt_lit_tspec, 0, 1, 0),
-                          tcount_content(c4m_nt_assign, 0, 1, 0));
-    c4m_sym_type          = tfind(c4m_nt_sym_decl,
+                          c4m_tcount_content(c4m_nt_identifier, 1, c4m_max_nodes, 1),
+                          c4m_tcount_content(c4m_nt_lit_tspec, 0, 1, 0),
+                          c4m_tcount_content(c4m_nt_assign, 0, 1, 0));
+    c4m_sym_type          = c4m_tfind(c4m_nt_sym_decl,
                          0,
-                         tcount_content(c4m_nt_identifier, 1, max_nodes, 0),
-                         tcount_content(c4m_nt_lit_tspec, 0, 1, 1),
-                         tcount_content(c4m_nt_assign, 0, 1, 0));
-    c4m_sym_init          = tfind(c4m_nt_sym_decl,
+                         c4m_tcount_content(c4m_nt_identifier, 1, c4m_max_nodes, 0),
+                         c4m_tcount_content(c4m_nt_lit_tspec, 0, 1, 1),
+                         c4m_tcount_content(c4m_nt_assign, 0, 1, 0));
+    c4m_sym_init          = c4m_tfind(c4m_nt_sym_decl,
                          0,
-                         tcount_content(c4m_nt_identifier, 1, max_nodes, 0),
-                         tcount_content(c4m_nt_lit_tspec, 0, 1, 0),
-                         tcount_content(c4m_nt_assign, 0, 1, 1));
-    c4m_loop_vars         = tfind(c4m_nt_variable_decls,
+                         c4m_tcount_content(c4m_nt_identifier, 1, c4m_max_nodes, 0),
+                         c4m_tcount_content(c4m_nt_lit_tspec, 0, 1, 0),
+                         c4m_tcount_content(c4m_nt_assign, 0, 1, 1));
+    c4m_loop_vars         = c4m_tfind(c4m_nt_variable_decls,
                           0,
-                          tcount_content(c4m_nt_identifier, 1, 2, 1));
-    c4m_case_branches     = tmatch(nt_any,
+                          c4m_tcount_content(c4m_nt_identifier, 1, 2, 1));
+    c4m_case_branches     = c4m_tmatch(c4m_nt_any,
                                0,
-                               tcount_content(nt_any, 0, 2, 0),
-                               tcount_content(c4m_nt_case, 1, max_nodes, 1),
-                               tcount_content(c4m_nt_else, 0, 1, 0));
-    c4m_case_else         = tmatch(nt_any,
+                               c4m_tcount_content(c4m_nt_any, 0, 2, 0),
+                               c4m_tcount_content(c4m_nt_case, 1, c4m_max_nodes, 1),
+                               c4m_tcount_content(c4m_nt_else, 0, 1, 0));
+    c4m_case_else         = c4m_tmatch(c4m_nt_any,
                            0,
-                           tcount_content(nt_any, 0, 2, 0),
-                           tcontent(nt_any, 0),
-                           tcount_content(c4m_nt_case, 1, max_nodes, 0),
-                           tcount_content(c4m_nt_else, 0, 1, 1));
-    c4m_elif_branches     = tmatch(nt_any,
+                           c4m_tcount_content(c4m_nt_any, 0, 2, 0),
+                           c4m_tcontent(c4m_nt_any, 0),
+                           c4m_tcount_content(c4m_nt_case, 1, c4m_max_nodes, 0),
+                           c4m_tcount_content(c4m_nt_else, 0, 1, 1));
+    c4m_elif_branches     = c4m_tmatch(c4m_nt_any,
                                0,
-                               tcontent(c4m_nt_cmp, 0),
-                               tcontent(c4m_nt_body, 0),
-                               tcount_content(c4m_nt_elif, 0, max_nodes, 1),
-                               tcount_content(c4m_nt_else, 0, 1, 0));
-    c4m_else_condition    = tfind_content(c4m_nt_else, 1);
-    c4m_case_cond         = tmatch(nt_any,
+                               c4m_tcontent(c4m_nt_cmp, 0),
+                               c4m_tcontent(c4m_nt_body, 0),
+                               c4m_tcount_content(c4m_nt_elif, 0, c4m_max_nodes, 1),
+                               c4m_tcount_content(c4m_nt_else, 0, 1, 0));
+    c4m_else_condition    = c4m_tfind_content(c4m_nt_else, 1);
+    c4m_case_cond         = c4m_tmatch(c4m_nt_any,
                            0,
-                           toptional(c4m_nt_label, 0),
-                           tcontent(c4m_nt_expression, 1),
-                           tcount_content(c4m_nt_case, 1, max_nodes, 0),
-                           tcount_content(c4m_nt_else, 0, 1, 0));
-    c4m_case_cond_typeof  = tmatch(nt_any,
+                           c4m_toptional(c4m_nt_label, 0),
+                           c4m_tcontent(c4m_nt_expression, 1),
+                           c4m_tcount_content(c4m_nt_case, 1, c4m_max_nodes, 0),
+                           c4m_tcount_content(c4m_nt_else, 0, 1, 0));
+    c4m_case_cond_typeof  = c4m_tmatch(c4m_nt_any,
                                   0,
-                                  toptional(c4m_nt_label, 0),
-                                  tcontent(c4m_nt_member, 1),
-                                  tcount_content(c4m_nt_case, 1, max_nodes, 0),
-                                  tcount_content(c4m_nt_else, 0, 1, 0));
-    c4m_opt_label         = tfind(c4m_nt_label, 1);
-    c4m_id_node           = tfind(c4m_nt_identifier, 1);
-    c4m_tuple_assign      = tmatch(c4m_nt_assign,
+                                  c4m_toptional(c4m_nt_label, 0),
+                                  c4m_tcontent(c4m_nt_member, 1),
+                                  c4m_tcount_content(c4m_nt_case, 1, c4m_max_nodes, 0),
+                                  c4m_tcount_content(c4m_nt_else, 0, 1, 0));
+    c4m_opt_label         = c4m_tfind(c4m_nt_label, 1);
+    c4m_id_node           = c4m_tfind(c4m_nt_identifier, 1);
+    c4m_tuple_assign      = c4m_tmatch(c4m_nt_assign,
                               0,
-                              tmatch(c4m_nt_expression,
+                              c4m_tmatch(c4m_nt_expression,
                                      0,
-                                     tcontent(c4m_nt_lit_tuple, 1)),
-                              tcontent(c4m_nt_expression, 0));
+                                     c4m_tcontent(c4m_nt_lit_tuple, 1)),
+                              c4m_tcontent(c4m_nt_expression, 0));
 
     c4m_gc_register_root(&c4m_first_kid_id, 1);
     c4m_gc_register_root(&c4m_2nd_kid_id, 1);
@@ -208,13 +208,13 @@ setup_treematch_patterns()
 }
 
 c4m_obj_t
-node_to_callback(c4m_file_compile_ctx *ctx, c4m_tree_node_t *n)
+c4m_node_to_callback(c4m_file_compile_ctx *ctx, c4m_tree_node_t *n)
 {
-    if (!node_has_type(n, c4m_nt_lit_callback)) {
+    if (!c4m_node_has_type(n, c4m_nt_lit_callback)) {
         return NULL;
     }
 
-    c4m_utf8_t *name = node_text(c4m_tree_get_child(n, 0));
+    c4m_utf8_t *name = c4m_node_text(c4m_tree_get_child(n, 0));
     c4m_type_t *type = c4m_node_to_type(ctx, c4m_tree_get_child(n, 1), NULL);
 
     c4m_callback_t *result = c4m_new(c4m_type_callback(), name, type);
@@ -232,7 +232,7 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
         type_ctx = c4m_new(c4m_type_dict(c4m_type_utf8(), c4m_type_ref()));
     }
 
-    c4m_pnode_t *pnode = get_pnode(n);
+    c4m_pnode_t *pnode = c4m_get_pnode(n);
     c4m_utf8_t  *varname;
     c4m_type_t  *t;
     bool         found;
@@ -242,7 +242,7 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
     case c4m_nt_lit_tspec:
         return c4m_node_to_type(ctx, c4m_tree_get_child(n, 0), type_ctx);
     case c4m_nt_lit_tspec_tvar:
-        varname = node_text(c4m_tree_get_child(n, 0));
+        varname = c4m_node_text(c4m_tree_get_child(n, 0));
         t       = hatrack_dict_get(type_ctx, varname, &found);
         if (!found) {
             t                = c4m_new_typevar();
@@ -251,7 +251,7 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
         }
         return t;
     case c4m_nt_lit_tspec_named_type:
-        varname = node_text(n);
+        varname = c4m_node_text(n);
         for (int i = 0; i < C4M_NUM_BUILTIN_DTS; i++) {
             if (!strcmp(varname->data, c4m_base_type_info[i].name)) {
                 return c4m_bi_types[i];
@@ -262,7 +262,7 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
         return c4m_new_typevar();
 
     case c4m_nt_lit_tspec_parameterized_type:
-        varname = node_text(n);
+        varname = c4m_node_text(n);
         // Need to do this more generically, but OK for now.
         if (!strcmp(varname->data, "queue")) {
             return c4m_type_queue(c4m_node_to_type(ctx,
@@ -279,17 +279,17 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
             return c4m_new_typevar();
         }
         if (!strcmp(varname->data, "list")) {
-            return c4m_type_xlist(c4m_node_to_type(ctx,
+            return c4m_type_list(c4m_node_to_type(ctx,
                                                    c4m_tree_get_child(n, 0),
                                                    type_ctx));
         }
         if (!strcmp(varname->data, "xlist")) {
-            return c4m_type_xlist(c4m_node_to_type(ctx,
+            return c4m_type_list(c4m_node_to_type(ctx,
                                                    c4m_tree_get_child(n, 0),
                                                    type_ctx));
         }
         if (!strcmp(varname->data, "flist")) {
-            return c4m_type_xlist(c4m_node_to_type(ctx,
+            return c4m_type_list(c4m_node_to_type(ctx,
                                                    c4m_tree_get_child(n, 0),
                                                    type_ctx));
         }
@@ -317,12 +317,12 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
                                                   type_ctx));
         }
         if (!strcmp(varname->data, "tuple")) {
-            c4m_xlist_t *subitems;
+            c4m_list_t *subitems;
 
-            subitems = c4m_new(c4m_type_xlist(c4m_type_typespec()));
+            subitems = c4m_new(c4m_type_list(c4m_type_typespec()));
 
             for (int i = 0; i < c4m_tree_get_number_children(n); i++) {
-                c4m_xlist_append(subitems,
+                c4m_list_append(subitems,
                                  c4m_node_to_type(ctx,
                                                   c4m_tree_get_child(n, i),
                                                   type_ctx));
@@ -338,11 +338,11 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
             return c4m_type_varargs_fn(c4m_new_typevar(), 0);
         }
 
-        c4m_xlist_t     *args = c4m_new(c4m_type_xlist(c4m_type_typespec()));
+        c4m_list_t     *args = c4m_new(c4m_type_list(c4m_type_typespec()));
         c4m_tree_node_t *kid  = c4m_tree_get_child(n, numkids - 1);
         bool             va   = false;
 
-        pnode = get_pnode(kid);
+        pnode = c4m_get_pnode(kid);
 
         if (pnode->kind == c4m_nt_lit_tspec_return_type) {
             t = c4m_node_to_type(ctx, c4m_tree_get_child(kid, 0), type_ctx);
@@ -356,7 +356,7 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
             kid = c4m_tree_get_child(n, i);
 
             if (i + 1 == numkids) {
-                pnode = get_pnode(kid);
+                pnode = c4m_get_pnode(kid);
 
                 if (pnode->kind == c4m_nt_lit_tspec_varargs) {
                     va  = true;
@@ -364,7 +364,7 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
                 }
             }
 
-            c4m_xlist_append(args, c4m_node_to_type(ctx, kid, type_ctx));
+            c4m_list_append(args, c4m_node_to_type(ctx, kid, type_ctx));
         }
 
         return c4m_type_fn(t, args, va);
@@ -374,32 +374,32 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
     }
 }
 
-c4m_xlist_t *
-apply_pattern_on_node(c4m_tree_node_t *node, c4m_tpat_node_t *pattern)
+c4m_list_t *
+c4m_apply_pattern_on_node(c4m_tree_node_t *node, c4m_tpat_node_t *pattern)
 {
-    c4m_xlist_t *cap = NULL;
+    c4m_list_t *cap = NULL;
     bool         ok  = c4m_tree_match(node,
                              pattern,
-                             (c4m_cmp_fn)tcmp,
+                             (c4m_cmp_fn)c4m_tcmp,
                              &cap);
     if (!ok) {
         return NULL;
     }
 
-    for (int i = 0; i < c4m_xlist_len(cap); i++) {
-        assert(c4m_xlist_get(cap, i, NULL) != NULL);
+    for (int i = 0; i < c4m_list_len(cap); i++) {
+        assert(c4m_list_get(cap, i, NULL) != NULL);
     }
     return cap;
 }
 
 // Return the first capture if there's a match, and NULL if not.
 c4m_tree_node_t *
-get_match_on_node(c4m_tree_node_t *node, c4m_tpat_node_t *pattern)
+c4m_get_match_on_node(c4m_tree_node_t *node, c4m_tpat_node_t *pattern)
 {
-    c4m_xlist_t *cap = apply_pattern_on_node(node, pattern);
+    c4m_list_t *cap = c4m_apply_pattern_on_node(node, pattern);
 
     if (cap != NULL) {
-        return c4m_xlist_get(cap, 0, NULL);
+        return c4m_list_get(cap, 0, NULL);
     }
 
     return NULL;

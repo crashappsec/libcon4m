@@ -160,10 +160,10 @@ flags_lit(const c4m_utf8_t    *s,
 c4m_flags_t *
 c4m_flags_add(c4m_flags_t *self, c4m_flags_t *with)
 {
-    uint32_t     res_flags   = max(self->num_flags, with->num_flags);
+    uint32_t     res_flags   = c4m_max(self->num_flags, with->num_flags);
     c4m_flags_t *result      = c4m_new(c4m_type_flags(),
                                   c4m_kw("length", c4m_ka(res_flags)));
-    int32_t      min_wordlen = min(self->alloc_wordlen, with->alloc_wordlen);
+    int32_t      min_wordlen = c4m_min(self->alloc_wordlen, with->alloc_wordlen);
 
     for (int i = 0; i < min_wordlen; i++) {
         result->contents[i] = self->contents[i] | with->contents[i];
@@ -191,10 +191,10 @@ c4m_flags_sub(c4m_flags_t *self, c4m_flags_t *with)
     // it's the rhs, as it implies the lhs has unset flags, but
     // they're valid.
 
-    uint32_t     res_flags   = max(self->num_flags, with->num_flags);
+    uint32_t     res_flags   = c4m_max(self->num_flags, with->num_flags);
     c4m_flags_t *result      = c4m_new(c4m_type_flags(),
                                   c4m_kw("length", c4m_ka(res_flags)));
-    int32_t      min_wordlen = min(self->alloc_wordlen, with->alloc_wordlen);
+    int32_t      min_wordlen = c4m_min(self->alloc_wordlen, with->alloc_wordlen);
     int          i;
 
     for (i = 0; i < min_wordlen; i++) {
@@ -217,10 +217,10 @@ c4m_flags_test(c4m_flags_t *self, c4m_flags_t *with)
     // it's the rhs, as it implies the lhs has unset flags, but
     // they're valid.
 
-    uint32_t     res_flags   = max(self->num_flags, with->num_flags);
+    uint32_t     res_flags   = c4m_max(self->num_flags, with->num_flags);
     c4m_flags_t *result      = c4m_new(c4m_type_flags(),
                                   c4m_kw("length", c4m_ka(res_flags)));
-    int32_t      min_wordlen = min(self->alloc_wordlen, with->alloc_wordlen);
+    int32_t      min_wordlen = c4m_min(self->alloc_wordlen, with->alloc_wordlen);
 
     for (int i = 0; i < min_wordlen; i++) {
         result->contents[i] = self->contents[i] & with->contents[i];
@@ -232,10 +232,10 @@ c4m_flags_test(c4m_flags_t *self, c4m_flags_t *with)
 c4m_flags_t *
 c4m_flags_xor(c4m_flags_t *self, c4m_flags_t *with)
 {
-    uint32_t     res_flags   = max(self->num_flags, with->num_flags);
+    uint32_t     res_flags   = c4m_max(self->num_flags, with->num_flags);
     c4m_flags_t *result      = c4m_new(c4m_type_flags(),
                                   c4m_kw("length", c4m_ka(res_flags)));
-    int32_t      min_wordlen = min(self->alloc_wordlen, with->alloc_wordlen);
+    int32_t      min_wordlen = c4m_min(self->alloc_wordlen, with->alloc_wordlen);
 
     for (int i = 0; i < min_wordlen; i++) {
         result->contents[i] = self->contents[i] ^ with->contents[i];
@@ -263,8 +263,8 @@ c4m_flags_eq(c4m_flags_t *self, c4m_flags_t *other)
 
     uint64_t     sum = 0;
     int          i;
-    int32_t      nlow  = min(self->alloc_wordlen, other->alloc_wordlen);
-    int32_t      nhigh = max(self->alloc_wordlen, other->alloc_wordlen);
+    int32_t      nlow  = c4m_min(self->alloc_wordlen, other->alloc_wordlen);
+    int32_t      nhigh = c4m_max(self->alloc_wordlen, other->alloc_wordlen);
     c4m_flags_t *high_ptr;
 
     if (self->alloc_wordlen == nhigh) {

@@ -148,7 +148,7 @@ c4m_marshal_compact_type(c4m_type_t *t, c4m_stream_t *s)
         param_count = (uint16_t)c4m_len(t->details->items);
         c4m_marshal_u16(param_count, s);
         for (int i = 0; i < param_count; i++) {
-            c4m_marshal_compact_type(c4m_xlist_get(t->details->items, i, NULL),
+            c4m_marshal_compact_type(c4m_list_get(t->details->items, i, NULL),
                                      s);
         }
         return;
@@ -199,10 +199,10 @@ c4m_unmarshal_compact_type(c4m_stream_t *s)
         result                 = c4m_new(c4m_type_typespec(), NULL, NULL, 1UL);
         result->typeid         = tid;
         result->details->flags = flags;
-        result->details->items = c4m_xlist(c4m_type_typespec());
+        result->details->items = c4m_list(c4m_type_typespec());
 
         for (int i = 0; i < param_count; i++) {
-            c4m_xlist_append(result->details->items, c4m_unmarshal_compact_type(s));
+            c4m_list_append(result->details->items, c4m_unmarshal_compact_type(s));
         }
         break;
     case C4M_DT_KIND_box:
@@ -484,7 +484,7 @@ skip_first_comma:
     c4m_stream_raw_write(s, strlen(fn_part2), fn_part2);
     c4m_stream_raw_write(s, strlen(symbol_name), symbol_name);
     c4m_stream_raw_write(s, strlen(fn_part3), fn_part3);
-    c4m_stream_write_object(s, c4m_str_from_int(b->byte_len));
+    c4m_stream_write_object(s, c4m_str_from_int(b->byte_len), false);
     c4m_stream_raw_write(s, strlen(fn_part4), fn_part4);
     c4m_stream_raw_write(s, strlen(symbol_name), symbol_name);
     c4m_stream_raw_write(s, strlen(fn_part5), fn_part5);

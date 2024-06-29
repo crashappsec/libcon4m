@@ -16,7 +16,7 @@ typedef struct {
     int          exit_ip;
     c4m_utf8_t  *label;
     bool         non_loop;
-    c4m_xlist_t *awaiting_patches;
+    c4m_list_t *awaiting_patches;
 } c4m_control_info_t;
 
 typedef struct {
@@ -30,16 +30,16 @@ typedef struct {
     c4m_tree_node_t   *prelude;
     c4m_tree_node_t   *test;
     c4m_tree_node_t   *body;
-    c4m_scope_entry_t *shadowed_ix;
-    c4m_scope_entry_t *loop_ix;
-    c4m_scope_entry_t *named_loop_ix;
-    c4m_scope_entry_t *shadowed_last;
-    c4m_scope_entry_t *loop_last;
-    c4m_scope_entry_t *named_loop_last;
-    c4m_scope_entry_t *lvar_1;
-    c4m_scope_entry_t *lvar_2;
-    c4m_scope_entry_t *shadowed_lvar_1;
-    c4m_scope_entry_t *shadowed_lvar_2;
+    c4m_symbol_t *shadowed_ix;
+    c4m_symbol_t *loop_ix;
+    c4m_symbol_t *named_loop_ix;
+    c4m_symbol_t *shadowed_last;
+    c4m_symbol_t *loop_last;
+    c4m_symbol_t *named_loop_last;
+    c4m_symbol_t *lvar_1;
+    c4m_symbol_t *lvar_2;
+    c4m_symbol_t *shadowed_lvar_1;
+    c4m_symbol_t *shadowed_lvar_2;
     bool               ranged;
     unsigned int       gen_ix       : 1;
     unsigned int       gen_named_ix : 1;
@@ -56,8 +56,8 @@ typedef struct {
     c4m_utf8_t        *name;
     c4m_type_t        *sig;
     c4m_tree_node_t   *loc;
-    c4m_scope_entry_t *resolution;
+    c4m_symbol_t *resolution;
     unsigned int       polymorphic : 1;
     unsigned int       deferred    : 1;
-} call_resolution_info_t;
+} c4m_call_resolution_info_t;
 #endif

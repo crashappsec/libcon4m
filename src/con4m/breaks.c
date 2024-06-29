@@ -194,7 +194,7 @@ c4m_break_info_t *
 c4m_wrap_text(const c4m_str_t *s, int32_t width, int32_t hang)
 {
     if (width <= 0) {
-        width = max(20, c4m_terminal_width());
+        width = c4m_max(20, c4m_terminal_width());
     }
 
     c4m_break_info_t *line_breaks  = c4m_get_line_breaks(s);

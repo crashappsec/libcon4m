@@ -9,11 +9,11 @@ typedef struct {
 typedef struct {
     c4m_file_compile_ctx *file_ctx;
     c4m_dict_t           *du_info;
-    c4m_xlist_t          *sometimes_info;
+    c4m_list_t          *sometimes_info;
 } cfg_ctx;
 
-static c4m_scope_entry_t *
-follow_sym_links(c4m_scope_entry_t *sym)
+static c4m_symbol_t *
+follow_sym_links(c4m_symbol_t *sym)
 {
     while (sym->linked_symbol != NULL) {
         sym = sym->linked_symbol;
@@ -23,16 +23,16 @@ follow_sym_links(c4m_scope_entry_t *sym)
 }
 
 static bool
-sym_cmp(c4m_scope_entry_t *sym1, c4m_scope_entry_t *sym2)
+sym_cmp(c4m_symbol_t *sym1, c4m_symbol_t *sym2)
 {
     return (!strcmp(sym1->name->data, sym2->name->data));
 }
 
 static bool
 cfg_propogate_def(cfg_ctx           *ctx,
-                  c4m_scope_entry_t *sym,
+                  c4m_symbol_t *sym,
                   c4m_cfg_node_t    *n,
-                  c4m_xlist_t       *deps)
+                  c4m_list_t       *deps)
 {
     c4m_dict_t *du_info;
 
@@ -62,7 +62,7 @@ cfg_propogate_def(cfg_ctx           *ctx,
 
 static bool
 cfg_propogate_use(cfg_ctx           *ctx,
-                  c4m_scope_entry_t *sym,
+                  c4m_symbol_t *sym,
                   c4m_cfg_node_t    *n)
 {
     c4m_dict_t *du_info;
@@ -85,7 +85,7 @@ cfg_propogate_use(cfg_ctx           *ctx,
     new->last_def = NULL;
 
     for (unsigned int i = 0; i < x; i++) {
-        c4m_scope_entry_t *s   = view[i].key;
+        c4m_symbol_t *s   = view[i].key;
         c4m_cfg_node_t    *cfg = view[i].value;
 
         if (!strcmp(s->name->data, sym->name->data)) {
@@ -109,7 +109,7 @@ static void
 cfg_copy_du_info(cfg_ctx        *ctx,
                  c4m_cfg_node_t *node,
                  c4m_dict_t    **new_dict,
-                 c4m_xlist_t   **new_sometimes)
+                 c4m_list_t   **new_sometimes)
 {
     c4m_dict_t *copy = c4m_dict(c4m_type_ref(), c4m_type_ref());
     uint64_t    n;
@@ -119,7 +119,7 @@ cfg_copy_du_info(cfg_ctx        *ctx,
     c4m_set_t           *s    = c4m_set(c4m_type_utf8());
 
     for (uint64_t i = 0; i < n; i++) {
-        c4m_scope_entry_t *sym = view[i].key;
+        c4m_symbol_t *sym = view[i].key;
 
         if (sym->cfg_kill_node && sym->cfg_kill_node == node) {
             continue;
@@ -132,14 +132,14 @@ cfg_copy_du_info(cfg_ctx        *ctx,
 
     *new_dict = copy;
 
-    c4m_xlist_t *old = node->sometimes_live;
+    c4m_list_t *old = node->sometimes_live;
 
     if (old != NULL) {
-        *new_sometimes = c4m_new(c4m_type_xlist(c4m_type_ref()));
-        int l          = c4m_xlist_len(old);
+        *new_sometimes = c4m_new(c4m_type_list(c4m_type_ref()));
+        int l          = c4m_list_len(old);
         for (int i = 0; i < l; i++) {
-            c4m_xlist_add_if_unique(*new_sometimes,
-                                    c4m_xlist_get(old, i, NULL),
+            c4m_list_add_if_unique(*new_sometimes,
+                                    c4m_list_get(old, i, NULL),
                                     (bool (*)(void *, void *))sym_cmp);
         }
     }
@@ -160,7 +160,7 @@ check_for_fn_exit_errors(c4m_file_compile_ctx *file, c4m_fn_decl_t *fn_decl)
     }
 
     c4m_scope_t       *fn_scope  = fn_decl->signature_info->fn_scope;
-    c4m_scope_entry_t *ressym    = c4m_symbol_lookup(fn_scope,
+    c4m_symbol_t *ressym    = c4m_symbol_lookup(fn_scope,
                                                   NULL,
                                                   NULL,
                                                   NULL,
@@ -180,7 +180,7 @@ check_for_fn_exit_errors(c4m_file_compile_ctx *file, c4m_fn_decl_t *fn_decl)
     // If nothing is returned at all ever, we already handled that.
     // Only look for when we didn't see it in all paths.
 #if 0
-    if (c4m_xlist_len(ressym->sym_defs) > 0) {
+    if (c4m_list_len(ressym->sym_defs) > 0) {
         c4m_add_error(file,
                       c4m_cfg_return_coverage,
                       fn_decl->cfg->reference_location);
@@ -235,17 +235,17 @@ check_block_for_errors(cfg_ctx *ctx, c4m_cfg_node_t *node)
     case c4m_cfg_use:
 
         if (node->use_without_def) {
-            c4m_scope_entry_t  *sym;
+            c4m_symbol_t  *sym;
             bool                sometimes = false;
-            c4m_scope_entry_t  *check;
+            c4m_symbol_t  *check;
             c4m_compile_error_t err;
 
             sym = node->contents.flow.dst_symbol;
 
             if (!(sym->flags & C4M_F_USE_ERROR)) {
-                int n = c4m_xlist_len(node->sometimes_live);
+                int n = c4m_list_len(node->sometimes_live);
                 for (int i = 0; i < n; i++) {
-                    check = c4m_xlist_get(node->sometimes_live, i, NULL);
+                    check = c4m_list_get(node->sometimes_live, i, NULL);
                     if (check == sym) {
                         sometimes = true;
                         break;
@@ -298,15 +298,15 @@ typedef union {
 static void
 cfg_merge_aux_entries_to_top(cfg_ctx *ctx, c4m_cfg_node_t *node)
 {
-    c4m_xlist_t       *inbounds = node->contents.block_entrance.inbound_links;
+    c4m_list_t       *inbounds = node->contents.block_entrance.inbound_links;
     c4m_cfg_node_t    *exit     = node->contents.block_entrance.exit_node;
     c4m_dict_t        *exit_du  = exit->liveness_info;
-    c4m_scope_entry_t *sym;
+    c4m_symbol_t *sym;
 
     if (inbounds == NULL) {
         return;
     }
-    int num_inbounds = c4m_xlist_len(inbounds);
+    int num_inbounds = c4m_list_len(inbounds);
 
     if (num_inbounds == 0) {
         return;
@@ -315,12 +315,12 @@ cfg_merge_aux_entries_to_top(cfg_ctx *ctx, c4m_cfg_node_t *node)
     c4m_set_t *sometimes = c4m_new(c4m_type_set(c4m_type_ref()));
 
     if (exit->sometimes_live != NULL) {
-        int n = c4m_xlist_len(exit->sometimes_live);
+        int n = c4m_list_len(exit->sometimes_live);
 
         // Any existing sometimes items are always outbound sometimes
         // items.
         for (int i = 0; i < n; i++) {
-            sym = c4m_xlist_get(exit->sometimes_live, i, NULL);
+            sym = c4m_list_get(exit->sometimes_live, i, NULL);
 
             if (hatrack_dict_get(exit_du, sym, NULL) == NULL) {
                 c4m_set_add(sometimes, sym);
@@ -330,7 +330,7 @@ cfg_merge_aux_entries_to_top(cfg_ctx *ctx, c4m_cfg_node_t *node)
 
     for (int i = 0; i < num_inbounds; i++) {
         uint64_t        nitems;
-        c4m_cfg_node_t *one = c4m_xlist_get(inbounds, i, NULL);
+        c4m_cfg_node_t *one = c4m_list_get(inbounds, i, NULL);
 
         if (one->liveness_info == NULL) {
             continue;
@@ -352,10 +352,10 @@ cfg_merge_aux_entries_to_top(cfg_ctx *ctx, c4m_cfg_node_t *node)
         }
 
         if (one->sometimes_live != NULL) {
-            int n = c4m_xlist_len(one->sometimes_live);
+            int n = c4m_list_len(one->sometimes_live);
 
             for (int j = 0; j < n; j++) {
-                sym = c4m_xlist_get(one->sometimes_live, i, NULL);
+                sym = c4m_list_get(one->sometimes_live, i, NULL);
 
                 // If it's in the exit set, it's not a 'sometimes'
                 // for the block.
@@ -366,13 +366,13 @@ cfg_merge_aux_entries_to_top(cfg_ctx *ctx, c4m_cfg_node_t *node)
         }
     }
 
-    exit->sometimes_live = c4m_xlist(c4m_type_ref());
+    exit->sometimes_live = c4m_list(c4m_type_ref());
 
-    c4m_xlist_t *not_unique = c4m_set_to_xlist(sometimes);
+    c4m_list_t *not_unique = c4m_set_to_xlist(sometimes);
 
-    for (int i = 0; i < c4m_xlist_len(not_unique); i++) {
-        void *item = c4m_xlist_get(not_unique, i, NULL);
-        c4m_xlist_add_if_unique(exit->sometimes_live,
+    for (int i = 0; i < c4m_list_len(not_unique); i++) {
+        void *item = c4m_list_get(not_unique, i, NULL);
+        c4m_list_add_if_unique(exit->sometimes_live,
                                 item,
                                 (bool (*)(void *, void *))sym_cmp);
     }
@@ -389,7 +389,7 @@ process_branch_exit(cfg_ctx *ctx, c4m_cfg_node_t *node)
     c4m_dict_t            *merged    = c4m_new(c4m_type_dict(c4m_type_ref(),
                                                c4m_type_ref()));
     c4m_cfg_node_t        *exit_node;
-    c4m_scope_entry_t     *sym;
+    c4m_symbol_t     *sym;
     hatrack_dict_item_t   *view;
     c4m_cfg_status_t      *status;
     c4m_cfg_status_t      *old_status;
@@ -400,7 +400,7 @@ process_branch_exit(cfg_ctx *ctx, c4m_cfg_node_t *node)
         exit_node = bi->branch_targets[i]->contents.block_entrance.exit_node;
 
         c4m_dict_t  *duinfo = exit_node->liveness_info;
-        c4m_xlist_t *stinfo = exit_node->sometimes_live;
+        c4m_list_t *stinfo = exit_node->sometimes_live;
 
         // TODO: fix this.
         if (duinfo == NULL) {
@@ -439,10 +439,10 @@ process_branch_exit(cfg_ctx *ctx, c4m_cfg_node_t *node)
         // If it's not always live in a subblock, it's not always live
         // in the full block.
         if (stinfo != NULL) {
-            len = c4m_xlist_len(stinfo);
+            len = c4m_list_len(stinfo);
 
             for (unsigned int j = 0; j < len; j++) {
-                sym = c4m_xlist_get(stinfo, j, NULL);
+                sym = c4m_list_get(stinfo, j, NULL);
                 c4m_set_add(sometimes, sym);
             }
         }
@@ -480,13 +480,13 @@ process_branch_exit(cfg_ctx *ctx, c4m_cfg_node_t *node)
     // Okay, we've done all the merging, now we have to propogate the
     // results to the exit node for the whole branching structure.
     node->liveness_info  = merged;
-    node->sometimes_live = c4m_xlist(c4m_type_ref());
+    node->sometimes_live = c4m_list(c4m_type_ref());
 
-    c4m_xlist_t *not_unique = c4m_set_to_xlist(sometimes);
+    c4m_list_t *not_unique = c4m_set_to_xlist(sometimes);
 
-    for (int i = 0; i < c4m_xlist_len(not_unique); i++) {
-        void *item = c4m_xlist_get(not_unique, i, NULL);
-        c4m_xlist_add_if_unique(node->sometimes_live,
+    for (int i = 0; i < c4m_list_len(not_unique); i++) {
+        void *item = c4m_list_get(not_unique, i, NULL);
+        c4m_list_add_if_unique(node->sometimes_live,
                                 item,
                                 (bool (*)(void *, void *))sym_cmp);
     }
@@ -614,7 +614,7 @@ cfg_process_node(cfg_ctx *ctx, c4m_cfg_node_t *node, c4m_cfg_node_t *parent)
 
             if (one && one->kind == c4m_cfg_block_exit) {
                 c4m_cfg_node_t *exit = branch_info.branches->exit_node;
-                c4m_xlist_append(exit->contents.block_exit.inbound_links, one);
+                c4m_list_append(exit->contents.block_exit.inbound_links, one);
             }
         }
 
@@ -650,8 +650,8 @@ cfg_process_node(cfg_ctx *ctx, c4m_cfg_node_t *node, c4m_cfg_node_t *parent)
                          &node->liveness_info,
                          &node->sometimes_live);
 
-        for (int i = 0; i < c4m_xlist_len(node->contents.flow.deps); i++) {
-            c4m_scope_entry_t *sym = c4m_xlist_get(node->contents.flow.deps,
+        for (int i = 0; i < c4m_list_len(node->contents.flow.deps); i++) {
+            c4m_symbol_t *sym = c4m_list_get(node->contents.flow.deps,
                                                    i,
                                                    NULL);
             cfg_propogate_use(ctx, sym, node);
@@ -670,19 +670,19 @@ cfg_process_node(cfg_ctx *ctx, c4m_cfg_node_t *node, c4m_cfg_node_t *parent)
                                           &n);
 
         if (!ta->sometimes_live) {
-            ta->sometimes_live = c4m_new(c4m_type_xlist(c4m_type_ref()));
+            ta->sometimes_live = c4m_new(c4m_type_list(c4m_type_ref()));
         }
 
         for (uint64_t i = 0; i < n; i++) {
-            c4m_xlist_add_if_unique(ta->sometimes_live,
+            c4m_list_add_if_unique(ta->sometimes_live,
                                     v[i],
                                     (bool (*)(void *, void *))sym_cmp);
         }
 
-        c4m_xlist_t *old = node->sometimes_live;
-        for (int64_t i = 0; i < c4m_xlist_len(old); i++) {
-            c4m_xlist_add_if_unique(ta->sometimes_live,
-                                    c4m_xlist_get(old, i, NULL),
+        c4m_list_t *old = node->sometimes_live;
+        for (int64_t i = 0; i < c4m_list_len(old); i++) {
+            c4m_list_add_if_unique(ta->sometimes_live,
+                                    c4m_list_get(old, i, NULL),
                                     (bool (*)(void *, void *))sym_cmp);
         }
 
@@ -720,7 +720,7 @@ c4m_cfg_analyze(c4m_file_compile_ctx *file_ctx, c4m_dict_t *du_info)
 
     for (uint64_t i = 0; i < nparams; i++) {
         c4m_module_param_info_t *param = view[i];
-        c4m_scope_entry_t       *sym   = param->linked_symbol;
+        c4m_symbol_t       *sym   = param->linked_symbol;
 
         cfg_propogate_def(&ctx, sym, NULL, NULL);
     }
@@ -731,27 +731,27 @@ c4m_cfg_analyze(c4m_file_compile_ctx *file_ctx, c4m_dict_t *du_info)
     check_block_for_errors(&ctx, file_ctx->cfg);
     check_for_module_exit_errors(&ctx, file_ctx->cfg);
 
-    int n = c4m_xlist_len(file_ctx->fn_def_syms);
+    int n = c4m_list_len(file_ctx->fn_def_syms);
 
     c4m_cfg_node_t *modexit = file_ctx->cfg->contents.block_entrance.exit_node;
     c4m_dict_t     *moddefs = modexit->liveness_info;
-    c4m_xlist_t    *stdefs  = modexit->sometimes_live;
+    c4m_list_t    *stdefs  = modexit->sometimes_live;
 
     for (int i = 0; i < n; i++) {
         ctx.du_info             = moddefs;
         ctx.sometimes_info      = stdefs;
-        c4m_scope_entry_t *sym  = c4m_xlist_get(file_ctx->fn_def_syms, i, NULL);
+        c4m_symbol_t *sym  = c4m_list_get(file_ctx->fn_def_syms, i, NULL);
         c4m_fn_decl_t     *decl = sym->value;
 
         cfg_process_node(&ctx, decl->cfg, NULL);
         check_block_for_errors(&ctx, decl->cfg);
         check_for_fn_exit_errors(file_ctx, decl);
 
-        c4m_xlist_t *cleanup = c4m_xlist(c4m_type_ref());
+        c4m_list_t *cleanup = c4m_list(c4m_type_ref());
 
-        for (int i = 0; i < c4m_xlist_len(stdefs); i++) {
-            void *item = c4m_xlist_get(stdefs, i, NULL);
-            c4m_xlist_add_if_unique(cleanup,
+        for (int i = 0; i < c4m_list_len(stdefs); i++) {
+            void *item = c4m_list_get(stdefs, i, NULL);
+            c4m_list_add_if_unique(cleanup,
                                     item,
                                     (bool (*)(void *, void *))sym_cmp);
         }

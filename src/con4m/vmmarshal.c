@@ -16,7 +16,7 @@ marshal_dict_value_ref(c4m_dict_t *in, c4m_stream_t *out, c4m_dict_t *memos, int
 }
 
 static void
-marshal_xlist_ref(c4m_xlist_t *in, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid, marshalfn_t fn)
+marshal_xlist_ref(c4m_list_t *in, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid, marshalfn_t fn)
 {
     c4m_marshal_i32(in->append_ix, out);
     c4m_marshal_i32(in->length, out);
@@ -39,10 +39,10 @@ unmarshal_dict_value_ref(c4m_dict_t *out, c4m_stream_t *in, c4m_dict_t *memos, u
     }
 }
 
-static c4m_xlist_t *
+static c4m_list_t *
 unmarshal_xlist_ref(c4m_stream_t *in, c4m_dict_t *memos, unmarshalfn_t fn)
 {
-    c4m_xlist_t *x = c4m_xlist(c4m_type_ref());
+    c4m_list_t *x = c4m_list(c4m_type_ref());
     x->append_ix   = c4m_unmarshal_i32(in);
     x->length      = c4m_unmarshal_i32(in);
     x->data        = c4m_gc_array_alloc(int64_t *, x->length);
@@ -428,9 +428,9 @@ unmarshal_docs_container(c4m_stream_t *in, c4m_dict_t *memos)
 static void
 marshal_module_allocations(c4m_vm_t *vm, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
 {
-    const int64_t nmodules = c4m_xlist_len(vm->obj->module_contents);
+    const int64_t nmodules = c4m_list_len(vm->obj->module_contents);
     for (int64_t n = 0; n < nmodules; ++n) {
-        c4m_zmodule_info_t *module = c4m_xlist_get(vm->obj->module_contents,
+        c4m_zmodule_info_t *module = c4m_list_get(vm->obj->module_contents,
                                                    n,
                                                    NULL);
         for (int64_t i = 0; i < module->module_var_size; ++i) {
@@ -442,9 +442,9 @@ marshal_module_allocations(c4m_vm_t *vm, c4m_stream_t *out, c4m_dict_t *memos, i
 static void
 unmarshal_module_allocations(c4m_vm_t *vm, c4m_stream_t *in, c4m_dict_t *memos)
 {
-    const int64_t nmodules = c4m_xlist_len(vm->obj->module_contents);
+    const int64_t nmodules = c4m_list_len(vm->obj->module_contents);
     for (int64_t n = 0; n < nmodules; ++n) {
-        c4m_zmodule_info_t *module = c4m_xlist_get(vm->obj->module_contents,
+        c4m_zmodule_info_t *module = c4m_list_get(vm->obj->module_contents,
                                                    n,
                                                    NULL);
         for (int64_t i = 0; i < module->module_var_size; ++i) {

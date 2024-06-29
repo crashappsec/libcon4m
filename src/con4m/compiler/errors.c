@@ -1260,19 +1260,19 @@ c4m_format_module_errors(c4m_file_compile_ctx *ctx, c4m_grid_t *table)
         c4m_gc_register_root(&info_constant, 1);
     }
 
-    int64_t n = c4m_xlist_len(ctx->errors);
+    int64_t n = c4m_list_len(ctx->errors);
 
     if (n == 0) {
         return;
     }
 
     for (int i = 0; i < n; i++) {
-        c4m_compile_error *err = c4m_xlist_get(ctx->errors, i, NULL);
-        c4m_xlist_t       *row = c4m_new(c4m_type_xlist(c4m_type_utf8()));
+        c4m_compile_error *err = c4m_list_get(ctx->errors, i, NULL);
+        c4m_list_t       *row = c4m_new(c4m_type_list(c4m_type_utf8()));
 
-        c4m_xlist_append(row, format_severity(err));
-        c4m_xlist_append(row, format_location(ctx, err));
-        c4m_xlist_append(row, c4m_format_error_message(err, true));
+        c4m_list_append(row, format_severity(err));
+        c4m_list_append(row, format_location(ctx, err));
+        c4m_list_append(row, c4m_format_error_message(err, true));
 
         c4m_grid_add_row(table, row);
     }
@@ -1300,7 +1300,7 @@ c4m_format_errors(c4m_compile_ctx *cctx)
     for (unsigned int i = 0; i < num_modules; i++) {
         c4m_file_compile_ctx *ctx = view[i].value;
         if (ctx->errors != NULL) {
-            n += c4m_xlist_len(ctx->errors);
+            n += c4m_list_len(ctx->errors);
             c4m_format_module_errors(ctx, table);
         }
     }
@@ -1315,10 +1315,10 @@ c4m_format_errors(c4m_compile_ctx *cctx)
     return table;
 }
 
-c4m_xlist_t *
+c4m_list_t *
 c4m_compile_extract_all_error_codes(c4m_compile_ctx *cctx)
 {
-    c4m_xlist_t         *result      = c4m_xlist(c4m_type_ref());
+    c4m_list_t         *result      = c4m_list(c4m_type_ref());
     uint64_t             num_modules = 0;
     hatrack_dict_item_t *view;
 
@@ -1328,11 +1328,11 @@ c4m_compile_extract_all_error_codes(c4m_compile_ctx *cctx)
         c4m_file_compile_ctx *ctx = view[i].value;
 
         if (ctx->errors != NULL) {
-            int n = c4m_xlist_len(ctx->errors);
+            int n = c4m_list_len(ctx->errors);
             for (int j = 0; j < n; j++) {
-                c4m_compile_error *err = c4m_xlist_get(ctx->errors, j, NULL);
+                c4m_compile_error *err = c4m_list_get(ctx->errors, j, NULL);
 
-                c4m_xlist_append(result, (void *)(uint64_t)err->code);
+                c4m_list_append(result, (void *)(uint64_t)err->code);
             }
         }
     }
@@ -1341,7 +1341,7 @@ c4m_compile_extract_all_error_codes(c4m_compile_ctx *cctx)
 }
 
 c4m_compile_error *
-c4m_base_add_error(c4m_xlist_t        *err_list,
+c4m_base_add_error(c4m_list_t        *err_list,
                    c4m_compile_error_t code,
                    c4m_token_t        *tok,
                    c4m_err_severity_t  severity,
@@ -1372,7 +1372,7 @@ c4m_base_add_error(c4m_xlist_t        *err_list,
         err->num_args = num_args;
     }
 
-    c4m_xlist_append(err_list, err);
+    c4m_list_append(err_list, err);
 
     return err;
 }

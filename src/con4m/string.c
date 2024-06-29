@@ -142,8 +142,8 @@ c4m_str_slice(const c4m_str_t *instr, int64_t start, int64_t end)
         for (i = 0; i < sliced_style_count; i++) {
             int64_t     sold = s->styling->styles[i + first].start;
             c4m_style_t info = s->styling->styles[i + first].info;
-            int64_t     snew = max(sold - start, 0);
-            int64_t     enew = min(s->styling->styles[i + first].end,
+            int64_t     snew = c4m_max(sold - start, 0);
+            int64_t     enew = c4m_min(s->styling->styles[i + first].end,
                                end)
                          - start;
 
@@ -351,7 +351,7 @@ c4m_str_concat(const c4m_str_t *p1, const c4m_str_t *p2)
 }
 
 c4m_utf32_t *
-_c4m_str_join(const c4m_xlist_t *l, const c4m_str_t *joiner, ...)
+_c4m_str_join(const c4m_list_t *l, const c4m_str_t *joiner, ...)
 {
     c4m_karg_only_init(joiner);
 
@@ -359,13 +359,13 @@ _c4m_str_join(const c4m_xlist_t *l, const c4m_str_t *joiner, ...)
 
     c4m_kw_bool("add_trailing", add_trailing);
 
-    int64_t n_parts  = c4m_xlist_len(l);
+    int64_t n_parts  = c4m_list_len(l);
     int64_t n_styles = 0;
     int64_t joinlen  = c4m_str_codepoint_len(joiner);
     int64_t len      = joinlen * n_parts; // An overestimate when !add_trailing
 
     for (int i = 0; i < n_parts; i++) {
-        c4m_str_t *part = (c4m_str_t *)c4m_xlist_get(l, i, NULL);
+        c4m_str_t *part = (c4m_str_t *)c4m_list_get(l, i, NULL);
         len += c4m_str_codepoint_len(part);
         n_styles += c4m_style_num_entries(part);
     }
@@ -385,7 +385,7 @@ _c4m_str_join(const c4m_xlist_t *l, const c4m_str_t *joiner, ...)
     }
 
     for (int i = 0; i < n_parts; i++) {
-        c4m_str_t   *v    = (c4m_str_t *)c4m_xlist_get(l, i, NULL);
+        c4m_str_t   *v    = (c4m_str_t *)c4m_list_get(l, i, NULL);
         c4m_utf32_t *part = c4m_to_utf32(v);
         int64_t      n_cp = c4m_str_codepoint_len(part);
 
@@ -409,7 +409,7 @@ _c4m_str_join(const c4m_xlist_t *l, const c4m_str_t *joiner, ...)
         uint64_t wrong_cp  = result->codepoints;
         result->codepoints = wrong_cp - joinlen;
 
-        c4m_utf32_t *line = c4m_to_utf32((c4m_str_t *)c4m_xlist_get(l,
+        c4m_utf32_t *line = c4m_to_utf32((c4m_str_t *)c4m_list_get(l,
                                                                     n_parts,
                                                                     NULL));
         int64_t      n_cp = c4m_str_codepoint_len(line);
@@ -1130,7 +1130,7 @@ c4m_str_fsplit(c4m_str_t *str, c4m_str_t *sub)
     return result;
 }
 
-c4m_xlist_t *
+c4m_list_t *
 c4m_str_xsplit(c4m_str_t *str, c4m_str_t *sub)
 {
     str            = c4m_to_utf32(str);
@@ -1138,11 +1138,11 @@ c4m_str_xsplit(c4m_str_t *str, c4m_str_t *sub)
     uint64_t strcp = c4m_str_codepoint_len(str);
     uint64_t subcp = c4m_str_codepoint_len(sub);
 
-    c4m_xlist_t *result = c4m_new(c4m_type_xlist(c4m_type_utf32()));
+    c4m_list_t *result = c4m_new(c4m_type_list(c4m_type_utf32()));
 
     if (!subcp) {
         for (uint64_t i = 0; i < strcp; i++) {
-            c4m_xlist_append(result, c4m_str_slice(str, i, i + 1));
+            c4m_list_append(result, c4m_str_slice(str, i, i + 1));
         }
         return result;
     }
@@ -1151,13 +1151,13 @@ c4m_str_xsplit(c4m_str_t *str, c4m_str_t *sub)
     int64_t ix    = c4m_str_find(str, sub, c4m_kw("start", c4m_ka(start)));
 
     while (ix != -1) {
-        c4m_xlist_append(result, c4m_str_slice(str, start, ix));
+        c4m_list_append(result, c4m_str_slice(str, start, ix));
         start = ix + subcp;
         ix    = c4m_str_find(str, sub, c4m_kw("start", c4m_ka(start)));
     }
 
     if ((uint64_t)start != strcp) {
-        c4m_xlist_append(result, c4m_str_slice(str, start, strcp));
+        c4m_list_append(result, c4m_str_slice(str, start, strcp));
     }
 
     return result;
@@ -1362,15 +1362,15 @@ c4m_string_format(c4m_str_t *obj, c4m_fmt_spec_t *spec)
     return obj;
 }
 
-c4m_xlist_t *
-c4m_u8_map(const c4m_xlist_t *inlist)
+c4m_list_t *
+c4m_u8_map(const c4m_list_t *inlist)
 {
-    int len = c4m_xlist_len(inlist);
+    int len = c4m_list_len(inlist);
 
-    c4m_xlist_t *result = c4m_new(c4m_type_xlist(c4m_type_utf8()));
+    c4m_list_t *result = c4m_new(c4m_type_list(c4m_type_utf8()));
 
     for (int i = 0; i < len; i++) {
-        c4m_xlist_append(result, c4m_to_utf8(c4m_xlist_get(inlist, i, NULL)));
+        c4m_list_append(result, c4m_to_utf8(c4m_list_get(inlist, i, NULL)));
     }
 
     return result;

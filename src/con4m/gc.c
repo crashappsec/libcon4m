@@ -70,7 +70,7 @@ thread_local uint64_t c4m_total_words           = 0;
 thread_local uint64_t c4m_words_requested       = 0;
 
 uint64_t
-get_alloc_counter()
+c4m_get_alloc_counter()
 {
     return c4m_total_allocs - current_heap->starting_counter;
 }
@@ -456,7 +456,7 @@ c4m_gc_resize(void *ptr, size_t len)
 #endif
     if (len > 0) {
         size_t bytes = ((size_t)(hdr->next_addr - hdr->data)) * 8;
-        memcpy(result, ptr, min(len, bytes));
+        memcpy(result, ptr, c4m_min(len, bytes));
     }
 
     if (hdr->finalize == 1) {

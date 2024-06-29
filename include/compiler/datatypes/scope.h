@@ -2,15 +2,15 @@
 #include "con4m.h"
 
 typedef enum : int8_t {
-    sk_module,
-    sk_func,
-    sk_extern_func,
-    sk_enum_type,
-    sk_enum_val,
-    sk_attr,
-    sk_variable,
-    sk_formal,
-    sk_num_sym_kinds
+    C4M_SK_MODULE,
+    C4M_SK_FUNC,
+    C4M_SK_EXTERN_FUNC,
+    C4M_SK_ENUM_TYPE,
+    C4M_SK_ENUM_VAL,
+    C4M_SK_ATTR,
+    C4M_SK_VARIABLE,
+    C4M_SK_FORMAL,
+    C4M_SK_NUM_SYM_KINDS
 } c4m_symbol_kind;
 
 enum {
@@ -51,15 +51,15 @@ typedef struct {
     c4m_utf8_t *specified_uri;
 } c4m_module_info_t;
 
-typedef struct c4m_scope_entry_t {
+typedef struct c4m_symbol_t {
     // The `value` field gets the proper value for vars and enums, but
     // for other types, it gets a pointer to one of the specific data
     // structures in this file.
     c4m_tree_node_t          *type_declaration_node;
     void                     *other_info;
-    c4m_xlist_t              *sym_defs;
-    c4m_xlist_t              *sym_uses;
-    struct c4m_scope_entry_t *linked_symbol;
+    c4m_list_t              *sym_defs;
+    c4m_list_t              *sym_uses;
+    struct c4m_symbol_t *linked_symbol;
     c4m_utf8_t               *name;
     c4m_tree_node_t          *declaration_node;
     c4m_tree_node_t          *value_node;
@@ -92,7 +92,7 @@ typedef struct c4m_scope_entry_t {
     uint32_t local_module_id;
     void    *cfg_kill_node;
     uint32_t flags;
-} c4m_scope_entry_t;
+} c4m_symbol_t;
 
 typedef struct {
     c4m_utf8_t        *short_doc;
@@ -100,7 +100,7 @@ typedef struct {
     c4m_obj_t          callback;
     c4m_obj_t          validator;
     c4m_obj_t          default_value;
-    c4m_scope_entry_t *linked_symbol;
+    c4m_symbol_t *linked_symbol;
     unsigned int       param_index;
     unsigned int       have_default : 1;
 } c4m_module_param_info_t;

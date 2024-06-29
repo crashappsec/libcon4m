@@ -51,7 +51,7 @@ mem_c4m_stream_read(c4m_cookie_t *c, char *dst, int64_t request)
         request += c->eof;
     }
 
-    int64_t read_len = min((int64_t)request, c->eof - c->position);
+    int64_t read_len = c4m_min((int64_t)request, c->eof - c->position);
 
     if (read_len <= 0) {
         return 0;
@@ -394,21 +394,21 @@ c4m_stream_raw_read(c4m_stream_t *stream, int64_t len, char *buf)
 c4m_obj_t *
 c4m_stream_read_all(c4m_stream_t *stream)
 {
-    c4m_xlist_t *l;
-    int          outkind;
+    c4m_list_t *l;
+    int         outkind;
 
     outkind = stream->flags & (C4M_F_STREAM_UTF8_OUT | C4M_F_STREAM_UTF32_OUT);
 
     switch (outkind) {
     case C4M_F_STREAM_UTF8_OUT:
-        l = c4m_new(c4m_type_xlist(c4m_type_utf8()));
+        l = c4m_new(c4m_type_list(c4m_type_utf8()));
         break;
     case C4M_F_STREAM_UTF32_OUT:
-        l = c4m_new(c4m_type_xlist(c4m_type_utf32()));
+        l = c4m_new(c4m_type_list(c4m_type_utf32()));
         break;
     default:
         // Buffers.
-        l = c4m_new(c4m_type_xlist(c4m_type_buffer()));
+        l = c4m_new(c4m_type_list(c4m_type_buffer()));
         break;
     }
     while (true) {
@@ -423,7 +423,7 @@ c4m_stream_read_all(c4m_stream_t *stream)
                 break;
             }
         }
-        c4m_xlist_append(l, one);
+        c4m_list_append(l, one);
     }
     if (outkind) {
         c4m_str_t *s = c4m_str_join(l, c4m_empty_string());
@@ -487,7 +487,7 @@ c4m_stream_raw_write(c4m_stream_t *stream, int64_t len, char *buf)
 }
 
 void
-_c4m_stream_write_object(c4m_stream_t *stream, c4m_obj_t obj, bool ansi)
+c4m_stream_write_object(c4m_stream_t *stream, c4m_obj_t obj, bool ansi)
 {
     if (stream->flags & C4M_F_STREAM_CLOSED) {
         C4M_CRAISE("Stream is already closed.");

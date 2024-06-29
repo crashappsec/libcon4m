@@ -117,7 +117,7 @@ typedef struct {
     c4m_token_t    *token;
     c4m_token_t    *short_doc;
     c4m_token_t    *long_doc;
-    c4m_xlist_t    *comments;
+    c4m_list_t    *comments;
     int             total_kids;
     int             sibling_id;
     c4m_obj_t      *value;

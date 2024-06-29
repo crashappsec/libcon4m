@@ -96,7 +96,7 @@ static internal_tt_info_t tt_info[] = {
 };
 
 c4m_utf8_t *
-token_type_to_string(c4m_token_kind_t tk)
+c4m_token_type_to_string(c4m_token_kind_t tk)
 {
     return c4m_new_utf8(tt_info[tk].tt_name);
 }
@@ -185,7 +185,7 @@ output_token(lex_state_t *state, c4m_token_kind_t kind)
     tok->line_offset  = state->cur_tok_offset;
     state->last_token = tok;
 
-    c4m_xlist_append(state->ctx->tokens, tok);
+    c4m_list_append(state->ctx->tokens, tok);
 }
 
 static inline void
@@ -281,7 +281,7 @@ fill_lex_error(lex_state_t *state, c4m_compile_error_t code)
     err->code              = code;
     err->current_token     = tok;
 
-    c4m_xlist_append(state->ctx->errors, err);
+    c4m_list_append(state->ctx->errors, err);
 }
 
 #if 0
@@ -1152,7 +1152,7 @@ c4m_lex(c4m_file_compile_ctx *ctx, c4m_stream_t *stream)
 
     int len             = c4m_str_codepoint_len(utf32);
     ctx->raw            = utf32;
-    ctx->tokens         = c4m_new(c4m_type_xlist(c4m_type_ref()));
+    ctx->tokens         = c4m_new(c4m_type_list(c4m_type_ref()));
     lex_info.start      = (c4m_codepoint_t *)utf32->data;
     lex_info.pos        = (c4m_codepoint_t *)utf32->data;
     lex_info.line_start = (c4m_codepoint_t *)utf32->data;
@@ -1215,28 +1215,28 @@ c4m_format_tokens(c4m_file_compile_ctx *ctx)
                                       "stripe",
                                       c4m_ka(true)));
 
-    c4m_xlist_t *row = c4m_new_table_row();
-    int64_t      len = c4m_xlist_len(ctx->tokens);
+    c4m_list_t *row = c4m_new_table_row();
+    int64_t      len = c4m_list_len(ctx->tokens);
 
-    c4m_xlist_append(row, c4m_new_utf8("Seq #"));
-    c4m_xlist_append(row, c4m_new_utf8("Type"));
-    c4m_xlist_append(row, c4m_new_utf8("Line #"));
-    c4m_xlist_append(row, c4m_new_utf8("Column #"));
-    c4m_xlist_append(row, c4m_new_utf8("Value"));
+    c4m_list_append(row, c4m_new_utf8("Seq #"));
+    c4m_list_append(row, c4m_new_utf8("Type"));
+    c4m_list_append(row, c4m_new_utf8("Line #"));
+    c4m_list_append(row, c4m_new_utf8("Column #"));
+    c4m_list_append(row, c4m_new_utf8("Value"));
     c4m_grid_add_row(grid, row);
 
     for (int64_t i = 0; i < len; i++) {
-        c4m_token_t *tok     = c4m_xlist_get(ctx->tokens, i, NULL);
+        c4m_token_t *tok     = c4m_list_get(ctx->tokens, i, NULL);
         int          info_ix = (int)tok->kind;
 
         row = c4m_new_table_row();
-        c4m_xlist_append(row, c4m_str_from_int(i + 1));
-        c4m_xlist_append(row, c4m_new_utf8(tt_info[info_ix].tt_name));
-        c4m_xlist_append(row, c4m_str_from_int(tok->line_no));
-        c4m_xlist_append(row, c4m_str_from_int(tok->line_offset));
+        c4m_list_append(row, c4m_str_from_int(i + 1));
+        c4m_list_append(row, c4m_new_utf8(tt_info[info_ix].tt_name));
+        c4m_list_append(row, c4m_str_from_int(tok->line_no));
+        c4m_list_append(row, c4m_str_from_int(tok->line_offset));
 
         if (tt_info[info_ix].show_contents) {
-            c4m_xlist_append(
+            c4m_list_append(
                 row,
                 c4m_new(c4m_type_utf32(),
                         c4m_kw("length",
@@ -1245,7 +1245,7 @@ c4m_format_tokens(c4m_file_compile_ctx *ctx)
                                c4m_ka(tok->start_ptr))));
         }
         else {
-            c4m_xlist_append(row, c4m_rich_lit(" "));
+            c4m_list_append(row, c4m_rich_lit(" "));
         }
 
         c4m_grid_add_row(grid, row);

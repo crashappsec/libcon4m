@@ -12,7 +12,7 @@ c4m_new_spec()
 }
 
 c4m_attr_info_t *
-c4m_get_attr_info(c4m_spec_t *spec, c4m_xlist_t *fqn)
+c4m_get_attr_info(c4m_spec_t *spec, c4m_list_t *fqn)
 {
     c4m_attr_info_t *result = c4m_gc_alloc(c4m_attr_info_t);
 
@@ -23,10 +23,10 @@ c4m_get_attr_info(c4m_spec_t *spec, c4m_xlist_t *fqn)
 
     c4m_spec_section_t *cur_sec = spec->root_section;
     int                 i       = 0;
-    int                 n       = c4m_xlist_len(fqn) - 1;
+    int                 n       = c4m_list_len(fqn) - 1;
 
     while (true) {
-        c4m_utf8_t       *cur_name = c4m_to_utf8(c4m_xlist_get(fqn, i, NULL));
+        c4m_utf8_t       *cur_name = c4m_to_utf8(c4m_list_get(fqn, i, NULL));
         c4m_spec_field_t *field    = hatrack_dict_get(cur_sec->fields,
                                                    cur_name,
                                                    NULL);

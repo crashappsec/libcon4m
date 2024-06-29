@@ -398,12 +398,12 @@ c4m_utf32_ansi_render(const c4m_utf32_t *s,
         }
 
         if (ss > cur) {
-            ansi_render_u32_region(s, cur, min(ss, end_ix), style0, outstream);
+            ansi_render_u32_region(s, cur, c4m_min(ss, end_ix), style0, outstream);
             cur = ss;
         }
 
         if (ss <= cur && se >= cur) {
-            int32_t stopat = min(se, end_ix);
+            int32_t stopat = c4m_min(se, end_ix);
             ansi_render_u32_region(s, cur, stopat, s->styling->styles[i].info, outstream);
             cur = stopat;
         }

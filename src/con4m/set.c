@@ -8,7 +8,7 @@ c4m_set_init(c4m_set_t *set, va_list args)
     c4m_dt_info_t *info;
 
     if (stype != NULL) {
-        stype   = c4m_xlist_get(c4m_type_get_params(stype), 0, NULL);
+        stype   = c4m_list_get(c4m_type_get_params(stype), 0, NULL);
         info    = c4m_type_get_data_type_info(stype);
         hash_fn = info->hash_fn;
     }
@@ -124,7 +124,7 @@ c4m_set_shallow_copy(c4m_set_t *s)
     return result;
 }
 
-c4m_xlist_t *
+c4m_list_t *
 c4m_set_to_xlist(c4m_set_t *s)
 {
     if (s == NULL) {
@@ -132,26 +132,26 @@ c4m_set_to_xlist(c4m_set_t *s)
     }
 
     c4m_type_t  *item_type = c4m_type_get_param(c4m_get_my_type(s), 0);
-    c4m_xlist_t *result    = c4m_new(c4m_type_xlist(item_type));
+    c4m_list_t *result    = c4m_new(c4m_type_list(item_type));
     uint64_t     count     = 0;
     void       **items     = (void **)hatrack_set_items_sort(s, &count);
 
     for (uint64_t i = 0; i < count; i++) {
         assert(items[i] != NULL);
-        c4m_xlist_append(result, items[i]);
+        c4m_list_append(result, items[i]);
     }
 
     return result;
 }
 
 static c4m_set_t *
-to_set_lit(c4m_type_t *objtype, c4m_xlist_t *items, c4m_utf8_t *litmod)
+to_set_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *litmod)
 {
     c4m_set_t *result = c4m_new(objtype);
-    int        n      = c4m_xlist_len(items);
+    int        n      = c4m_list_len(items);
 
     for (int i = 0; i < n; i++) {
-        void *item = c4m_xlist_get(items, i, NULL);
+        void *item = c4m_list_get(items, i, NULL);
 
         assert(item != NULL);
         hatrack_set_add(result, item);

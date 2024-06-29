@@ -3,7 +3,7 @@
 #include "con4m.h"
 
 extern c4m_set_t   *c4m_set_shallow_copy(c4m_set_t *);
-extern c4m_xlist_t *c4m_set_to_xlist(c4m_set_t *);
+extern c4m_list_t *c4m_set_to_xlist(c4m_set_t *);
 
 #define c4m_set_contains    hatrack_set_contains
 #define c4m_set_put         hatrack_set_put

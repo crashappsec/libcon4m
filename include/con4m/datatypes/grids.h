@@ -167,7 +167,7 @@ typedef struct {
     int64_t             start_row;
     int64_t             end_col;
     int64_t             end_row;
-    c4m_xlist_t        *render_cache;
+    c4m_list_t        *render_cache;
     uint64_t            render_width;
     uint64_t            render_height;
 } c4m_renderable_t;

@@ -4,14 +4,14 @@ static void
 c4m_dict_init(c4m_dict_t *dict, va_list args)
 {
     size_t         hash_fn;
-    c4m_xlist_t   *type_params;
+    c4m_list_t   *type_params;
     c4m_type_t    *key_type;
     c4m_dt_info_t *info;
     c4m_type_t    *c4m_dict_type = c4m_get_my_type(dict);
 
     if (c4m_dict_type != NULL) {
         type_params = c4m_type_get_params(c4m_dict_type);
-        key_type    = c4m_xlist_get(type_params, 0, NULL);
+        key_type    = c4m_list_get(type_params, 0, NULL);
         info        = c4m_type_get_data_type_info(key_type);
 
         hash_fn = info->hash_fn;
@@ -52,9 +52,9 @@ c4m_dict_marshal(c4m_dict_t   *d,
         C4M_CRAISE("Cannot marshal untyped dictionaries.");
     }
 
-    c4m_xlist_t         *type_params = c4m_type_get_params(c4m_dict_type);
-    c4m_type_t          *key_type    = c4m_xlist_get(type_params, 0, NULL);
-    c4m_type_t          *val_type    = c4m_xlist_get(type_params, 1, NULL);
+    c4m_list_t         *type_params = c4m_type_get_params(c4m_dict_type);
+    c4m_type_t          *key_type    = c4m_list_get(type_params, 0, NULL);
+    c4m_type_t          *val_type    = c4m_list_get(type_params, 1, NULL);
     hatrack_dict_item_t *view        = hatrack_dict_items_sort(d, &length);
     c4m_dt_info_t       *kinfo       = c4m_type_get_data_type_info(key_type);
     c4m_dt_info_t       *vinfo       = c4m_type_get_data_type_info(val_type);
@@ -88,9 +88,9 @@ c4m_dict_unmarshal(c4m_dict_t *d, c4m_stream_t *s, c4m_dict_t *memos)
 {
     uint32_t       length        = c4m_unmarshal_u32(s);
     c4m_type_t    *c4m_dict_type = c4m_get_my_type(d);
-    c4m_xlist_t   *type_params   = c4m_type_get_params(c4m_dict_type);
-    c4m_type_t    *key_type      = c4m_xlist_get(type_params, 0, NULL);
-    c4m_type_t    *val_type      = c4m_xlist_get(type_params, 1, NULL);
+    c4m_list_t   *type_params   = c4m_type_get_params(c4m_dict_type);
+    c4m_type_t    *key_type      = c4m_list_get(type_params, 0, NULL);
+    c4m_type_t    *val_type      = c4m_list_get(type_params, 1, NULL);
     c4m_dt_info_t *kinfo         = c4m_type_get_data_type_info(key_type);
     c4m_dt_info_t *vinfo         = c4m_type_get_data_type_info(val_type);
     bool           key_by_val    = kinfo->by_value;
@@ -138,25 +138,25 @@ dict_repr(c4m_dict_t *dict)
 {
     uint64_t             view_len;
     c4m_type_t          *dict_type   = c4m_get_my_type(dict);
-    c4m_xlist_t         *type_params = c4m_type_get_params(dict_type);
-    c4m_type_t          *key_type    = c4m_xlist_get(type_params, 0, NULL);
-    c4m_type_t          *val_type    = c4m_xlist_get(type_params, 1, NULL);
+    c4m_list_t         *type_params = c4m_type_get_params(dict_type);
+    c4m_type_t          *key_type    = c4m_list_get(type_params, 0, NULL);
+    c4m_type_t          *val_type    = c4m_list_get(type_params, 1, NULL);
     hatrack_dict_item_t *view        = hatrack_dict_items_sort(dict, &view_len);
 
-    c4m_xlist_t *items    = c4m_new(c4m_type_xlist(c4m_type_utf32()),
+    c4m_list_t *items    = c4m_new(c4m_type_list(c4m_type_utf32()),
                                  c4m_kw("length", c4m_ka(view_len)));
-    c4m_xlist_t *one_item = c4m_new(c4m_type_xlist(c4m_type_utf32()));
+    c4m_list_t *one_item = c4m_new(c4m_type_list(c4m_type_utf32()));
     c4m_utf8_t  *colon    = c4m_get_colon_const();
 
     for (uint64_t i = 0; i < view_len; i++) {
-        c4m_xlist_set(one_item, 0, c4m_repr(view[i].key, key_type));
-        c4m_xlist_set(one_item, 1, c4m_repr(view[i].value, val_type));
-        c4m_xlist_append(items, c4m_str_join(one_item, colon));
+        c4m_list_set(one_item, 0, c4m_repr(view[i].key, key_type));
+        c4m_list_set(one_item, 1, c4m_repr(view[i].value, val_type));
+        c4m_list_append(items, c4m_str_join(one_item, colon));
     }
 
-    c4m_xlist_set(one_item, 0, c4m_get_lbrace_const());
-    c4m_xlist_set(one_item, 1, c4m_str_join(items, c4m_get_comma_const()));
-    c4m_xlist_append(one_item, c4m_get_rbrace_const());
+    c4m_list_set(one_item, 0, c4m_get_lbrace_const());
+    c4m_list_set(one_item, 1, c4m_str_join(items, c4m_get_comma_const()));
+    c4m_list_append(one_item, c4m_get_rbrace_const());
 
     return c4m_str_join(one_item, c4m_get_comma_const());
 }
@@ -240,13 +240,13 @@ dict_get(c4m_dict_t *d, void *k)
 }
 
 static c4m_dict_t *
-to_dict_lit(c4m_type_t *objtype, c4m_xlist_t *items, c4m_utf8_t *lm)
+to_dict_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *lm)
 {
-    uint64_t    n      = c4m_xlist_len(items);
+    uint64_t    n      = c4m_list_len(items);
     c4m_dict_t *result = c4m_new(objtype);
 
     for (unsigned int i = 0; i < n; i++) {
-        c4m_tuple_t *tup = c4m_xlist_get(items, i, NULL);
+        c4m_tuple_t *tup = c4m_list_get(items, i, NULL);
         hatrack_dict_put(result, c4m_tuple_get(tup, 0), c4m_tuple_get(tup, 1));
     }
 

@@ -522,22 +522,22 @@ c4m_disasm(c4m_vm_t *vm, c4m_zmodule_info_t *m)
                                       "stripe",
                                       c4m_ka(true)));
 
-    c4m_xlist_t *row = c4m_new_table_row();
-    int64_t      len = c4m_xlist_len(m->instructions);
-    c4m_xlist_append(row, c4m_new_utf8("Address"));
-    c4m_xlist_append(row, c4m_new_utf8("Instruction"));
-    c4m_xlist_append(row, c4m_new_utf8("Arg"));
-    c4m_xlist_append(row, c4m_new_utf8("Immediate"));
-    c4m_xlist_append(row, c4m_new_utf8("Type"));
-    c4m_xlist_append(row, c4m_new_utf8("Module"));
-    c4m_xlist_append(row, c4m_new_utf8("Line"));
+    c4m_list_t *row = c4m_new_table_row();
+    int64_t      len = c4m_list_len(m->instructions);
+    c4m_list_append(row, c4m_new_utf8("Address"));
+    c4m_list_append(row, c4m_new_utf8("Instruction"));
+    c4m_list_append(row, c4m_new_utf8("Arg"));
+    c4m_list_append(row, c4m_new_utf8("Immediate"));
+    c4m_list_append(row, c4m_new_utf8("Type"));
+    c4m_list_append(row, c4m_new_utf8("Module"));
+    c4m_list_append(row, c4m_new_utf8("Line"));
 
     c4m_grid_add_row(grid, row);
 
     for (int64_t i = 0; i < len; i++) {
         row = c4m_new_table_row();
 
-        c4m_zinstruction_t *ins  = c4m_xlist_get(m->instructions, i, NULL);
+        c4m_zinstruction_t *ins  = c4m_list_get(m->instructions, i, NULL);
         c4m_utf8_t         *addr = fmt_addr(i);
         c4m_utf8_t         *name = c4m_fmt_instr_name(ins);
         c4m_utf8_t         *arg  = fmt_arg_or_imm_no_syms(vm, ins, i, false);
@@ -553,13 +553,13 @@ c4m_disasm(c4m_vm_t *vm, c4m_zmodule_info_t *m)
             continue;
         }
 
-        c4m_xlist_append(row, addr);
-        c4m_xlist_append(row, name);
-        c4m_xlist_append(row, arg);
-        c4m_xlist_append(row, imm);
-        c4m_xlist_append(row, type);
-        c4m_xlist_append(row, mod);
-        c4m_xlist_append(row, line);
+        c4m_list_append(row, addr);
+        c4m_list_append(row, name);
+        c4m_list_append(row, arg);
+        c4m_list_append(row, imm);
+        c4m_list_append(row, type);
+        c4m_list_append(row, mod);
+        c4m_list_append(row, line);
         c4m_grid_add_row(grid, row);
     }
 

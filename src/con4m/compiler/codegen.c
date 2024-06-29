@@ -21,19 +21,19 @@ typedef struct {
 typedef struct {
     c4m_compile_ctx      *cctx;
     c4m_file_compile_ctx *fctx;
-    c4m_xlist_t          *instructions;
-    c4m_xlist_t          *module_functions;
+    c4m_list_t          *instructions;
+    c4m_list_t          *module_functions;
     c4m_tree_node_t      *cur_node;
     c4m_pnode_t          *cur_pnode;
     c4m_zmodule_info_t   *cur_module;
-    c4m_xlist_t          *call_backpatches;
+    c4m_list_t          *call_backpatches;
     target_info_t        *target_info;
     int                   instruction_counter;
     int                   current_stack_offset;
     int                   max_stack_size;
     bool                  lvalue;
     assign_type_t         assign_method;
-    c4m_scope_entry_t    *retsym;
+    c4m_symbol_t    *retsym;
 } gen_ctx;
 
 static void gen_one_node(gen_ctx *);
@@ -68,12 +68,12 @@ _emit(gen_ctx *ctx, int32_t op32, ...)
         *instrptr = instr;
     }
 
-    c4m_xlist_append(ctx->instructions, instr);
+    c4m_list_append(ctx->instructions, instr);
 
     ctx->instruction_counter++;
 }
 
-#define emit(ctx, op, ...) _emit(ctx, (int32_t)op, KFUNC(__VA_ARGS__))
+#define emit(ctx, op, ...) _emit(ctx, (int32_t)op, C4M_VA(__VA_ARGS__))
 
 // Returns true if the jump is fully emitted, false if a patch is required,
 // in which case the caller is responsible for tracking the patch.
@@ -116,7 +116,7 @@ gen_jump_raw(gen_ctx         *ctx,
         c4m_control_info_t *ci = jmp_info->linked_control_structure;
 
         if (ci != NULL) {
-            c4m_xlist_append(ci->awaiting_patches, jmp_info);
+            c4m_list_append(ci->awaiting_patches, jmp_info);
         }
     }
 
@@ -155,11 +155,11 @@ gen_finish_jump(gen_ctx *ctx, c4m_jump_info_t *jmp_info)
 static inline void
 gen_apply_waiting_patches(gen_ctx *ctx, c4m_control_info_t *ci)
 {
-    int n       = c4m_xlist_len(ci->awaiting_patches);
+    int n       = c4m_list_len(ci->awaiting_patches);
     ci->exit_ip = ctx->instruction_counter;
 
     for (int i = 0; i < n; i++) {
-        c4m_jump_info_t *one = c4m_xlist_get(ci->awaiting_patches, i, NULL);
+        c4m_jump_info_t *one = c4m_list_get(ci->awaiting_patches, i, NULL);
         assert(one->to_patch);
         one->to_patch->arg = ci->exit_ip;
     }
@@ -211,7 +211,7 @@ gen_equality_test(gen_ctx *ctx, c4m_type_t *operand_type)
 #define GEN_JNZ_NOPOP(user_code) JMP_TEMPLATE(gen_jnz, user_code, false)
 
 static inline void
-set_stack_offset(gen_ctx *ctx, c4m_scope_entry_t *sym)
+set_stack_offset(gen_ctx *ctx, c4m_symbol_t *sym)
 {
     sym->static_offset = ctx->current_stack_offset++;
     if (ctx->current_stack_offset > ctx->max_stack_size) {
@@ -267,7 +267,7 @@ gen_load_const_by_offset(gen_ctx *ctx, uint32_t offset, c4m_type_t *type)
 }
 
 static inline void
-gen_sym_load_const(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
+gen_sym_load_const(gen_ctx *ctx, c4m_symbol_t *sym, bool addressof)
 {
     c4m_type_t *type = sym->type;
 
@@ -280,7 +280,7 @@ gen_sym_load_const(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
 }
 
 static inline void
-gen_sym_load_attr(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
+gen_sym_load_attr(gen_ctx *ctx, c4m_symbol_t *sym, bool addressof)
 {
     int64_t offset = c4m_layout_string_const(ctx->cctx, sym->name);
 
@@ -295,7 +295,7 @@ gen_sym_load_attr(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
 // Right now we only ever generate the version that returns the rhs
 // not the attr storage address.
 static inline void
-gen_sym_load_attr_and_found(gen_ctx *ctx, c4m_scope_entry_t *sym, bool skipload)
+gen_sym_load_attr_and_found(gen_ctx *ctx, c4m_symbol_t *sym, bool skipload)
 {
     int64_t flag   = skipload ? C4M_F_ATTR_SKIP_LOAD : C4M_F_ATTR_PUSH_FOUND;
     int64_t offset = c4m_layout_string_const(ctx->cctx, sym->name);
@@ -307,7 +307,7 @@ gen_sym_load_attr_and_found(gen_ctx *ctx, c4m_scope_entry_t *sym, bool skipload)
 }
 
 static inline void
-gen_sym_load_stack(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
+gen_sym_load_stack(gen_ctx *ctx, c4m_symbol_t *sym, bool addressof)
 {
     // This is measured in stack value slots.
     if (addressof) {
@@ -319,7 +319,7 @@ gen_sym_load_stack(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
 }
 
 static inline void
-gen_sym_load_static(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
+gen_sym_load_static(gen_ctx *ctx, c4m_symbol_t *sym, bool addressof)
 {
     // This is measured in 64-bit value slots.
     if (addressof) {
@@ -345,16 +345,16 @@ gen_sym_load_static(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
 //
 // Or, optionally, push the address of the symbol.
 static void
-gen_sym_load(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
+gen_sym_load(gen_ctx *ctx, c4m_symbol_t *sym, bool addressof)
 {
     switch (sym->kind) {
-    case sk_enum_val:
+    case C4M_SK_ENUM_VAL:
         gen_sym_load_const(ctx, sym, addressof);
         return;
-    case sk_attr:
+    case C4M_SK_ATTR:
         gen_sym_load_attr(ctx, sym, addressof);
         return;
-    case sk_variable:
+    case C4M_SK_VARIABLE:
         // clang-format off
         switch (sym->flags & (C4M_F_DECLARED_CONST |
 			      C4M_F_USER_IMMUTIBLE |
@@ -387,7 +387,7 @@ gen_sym_load(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
             return;
         }
 
-    case sk_formal:
+    case C4M_SK_FORMAL:
         gen_sym_load_stack(ctx, sym, addressof);
         return;
     default:
@@ -400,11 +400,11 @@ gen_sym_load(gen_ctx *ctx, c4m_scope_entry_t *sym, bool addressof)
 // and for attributes, the boolean locks the attribute.
 
 static void
-gen_sym_store(gen_ctx *ctx, c4m_scope_entry_t *sym, bool pop_and_lock)
+gen_sym_store(gen_ctx *ctx, c4m_symbol_t *sym, bool pop_and_lock)
 {
     int64_t arg;
     switch (sym->kind) {
-    case sk_attr:
+    case C4M_SK_ATTR:
         // Byte offset into the const object arena where the attribute
         // name can be found.
         arg = c4m_layout_string_const(ctx->cctx, sym->name);
@@ -412,8 +412,8 @@ gen_sym_store(gen_ctx *ctx, c4m_scope_entry_t *sym, bool pop_and_lock)
 
         emit(ctx, C4M_ZAssignAttr, c4m_kw("arg", c4m_ka(pop_and_lock)));
         return;
-    case sk_variable:
-    case sk_formal:
+    case C4M_SK_VARIABLE:
+    case C4M_SK_FORMAL:
         if (!pop_and_lock) {
             emit(ctx, C4M_ZDupTop);
         }
@@ -500,7 +500,7 @@ possible_restore_from_r3(gen_ctx *ctx, bool restore)
 static inline void
 gen_test_param_flag(gen_ctx                 *ctx,
                     c4m_module_param_info_t *param,
-                    c4m_scope_entry_t       *sym)
+                    c4m_symbol_t       *sym)
 {
     uint64_t index = param->param_index / 64;
     uint64_t flag  = 1 << (param->param_index % 64);
@@ -513,7 +513,7 @@ gen_test_param_flag(gen_ctx                 *ctx,
 static inline void
 gen_param_via_default_value_type(gen_ctx                 *ctx,
                                  c4m_module_param_info_t *param,
-                                 c4m_scope_entry_t       *sym)
+                                 c4m_symbol_t       *sym)
 {
     GEN_JNZ(gen_load_const_obj(ctx, param->default_value);
             gen_sym_store(ctx, sym, true));
@@ -522,7 +522,7 @@ gen_param_via_default_value_type(gen_ctx                 *ctx,
 static inline void
 gen_param_via_default_ref_type(gen_ctx                 *ctx,
                                c4m_module_param_info_t *param,
-                               c4m_scope_entry_t       *sym)
+                               c4m_symbol_t       *sym)
 {
     uint32_t    offset = c4m_layout_const_obj(ctx->cctx, param->default_value);
     c4m_type_t *t      = c4m_get_my_type(param->default_value);
@@ -561,10 +561,10 @@ gen_run_callback(gen_ctx *ctx, c4m_callback_t *cb)
 static inline void
 gen_box_if_needed(gen_ctx           *ctx,
                   c4m_tree_node_t   *n,
-                  c4m_scope_entry_t *sym,
+                  c4m_symbol_t *sym,
                   int                ix)
 {
-    c4m_pnode_t *pn          = get_pnode(n);
+    c4m_pnode_t *pn          = c4m_get_pnode(n);
     c4m_type_t  *actual_type = c4m_type_resolve(pn->type);
     c4m_type_t  *param_type  = c4m_type_get_param(sym->type, ix);
 
@@ -586,9 +586,9 @@ gen_box_if_needed(gen_ctx           *ctx,
 static inline void
 gen_unbox_if_needed(gen_ctx           *ctx,
                     c4m_tree_node_t   *n,
-                    c4m_scope_entry_t *sym)
+                    c4m_symbol_t *sym)
 {
-    c4m_pnode_t *pn          = get_pnode(n);
+    c4m_pnode_t *pn          = c4m_get_pnode(n);
     c4m_type_t  *actual_type = c4m_type_resolve(pn->type);
     int          ix          = c4m_type_get_num_params(sym->type) - 1;
     c4m_type_t  *param_type  = c4m_type_get_param(sym->type, ix);
@@ -610,7 +610,7 @@ gen_unbox_if_needed(gen_ctx           *ctx,
 }
 
 static void
-gen_native_call(gen_ctx *ctx, c4m_scope_entry_t *fsym)
+gen_native_call(gen_ctx *ctx, c4m_symbol_t *fsym)
 {
     // Needed to calculate the loc of module variables.
     // Currently that's done at runtime, tho could be done in
@@ -640,9 +640,9 @@ gen_native_call(gen_ctx *ctx, c4m_scope_entry_t *fsym)
 
         bp       = c4m_gc_alloc(call_backpatch_info_t);
         bp->decl = decl;
-        bp->i    = c4m_xlist_get(ctx->instructions, loc, NULL);
+        bp->i    = c4m_list_get(ctx->instructions, loc, NULL);
 
-        c4m_xlist_append(ctx->call_backpatches, bp);
+        c4m_list_append(ctx->call_backpatches, bp);
     }
 
     int n = decl->signature_info->num_params;
@@ -658,7 +658,7 @@ gen_native_call(gen_ctx *ctx, c4m_scope_entry_t *fsym)
 }
 
 static void
-gen_extern_call(gen_ctx *ctx, c4m_scope_entry_t *fsym)
+gen_extern_call(gen_ctx *ctx, c4m_symbol_t *fsym)
 {
     c4m_ffi_decl_t *decl = (c4m_ffi_decl_t *)fsym->value;
 
@@ -677,8 +677,8 @@ gen_extern_call(gen_ctx *ctx, c4m_scope_entry_t *fsym)
 static void
 gen_call(gen_ctx *ctx)
 {
-    call_resolution_info_t *info = ctx->cur_pnode->extra_info;
-    c4m_scope_entry_t      *fsym = info->resolution;
+    c4m_call_resolution_info_t *info = ctx->cur_pnode->extra_info;
+    c4m_symbol_t      *fsym = info->resolution;
 
     int n = ctx->cur_node->num_kids;
 
@@ -688,7 +688,7 @@ gen_call(gen_ctx *ctx)
         gen_box_if_needed(ctx, ctx->cur_node->children[i], fsym, i - 1);
     }
 
-    if (fsym->kind != sk_func) {
+    if (fsym->kind != C4M_SK_FUNC) {
         gen_extern_call(ctx, fsym);
     }
     else {
@@ -710,19 +710,19 @@ gen_ret(gen_ctx *ctx)
 static inline void
 gen_param_via_callback(gen_ctx                 *ctx,
                        c4m_module_param_info_t *param,
-                       c4m_scope_entry_t       *sym)
+                       c4m_symbol_t       *sym)
 {
     gen_run_callback(ctx, param->callback);
     // The third parameter gives 'false' for attrs (where the
     // parameter would cause the attribute to lock) and 'true' for
     // variables, which leads to the value being popped after stored
     // (which happens automatically w/ the attr).
-    gen_sym_store(ctx, sym, sym->kind != sk_attr);
+    gen_sym_store(ctx, sym, sym->kind != C4M_SK_ATTR);
     // TODO: call the validator too.
 }
 
 static inline void
-gen_param_bail_if_missing(gen_ctx *ctx, c4m_scope_entry_t *sym)
+gen_param_bail_if_missing(gen_ctx *ctx, c4m_symbol_t *sym)
 {
     C4M_STATIC_ASCII_STR(fmt, "Parameter {} wasn't set on entering module {}");
     // TODO; do the format at runtime.
@@ -738,9 +738,9 @@ gen_parameter_checks(gen_ctx *ctx)
 
     for (unsigned int i = 0; i < n; i++) {
         c4m_module_param_info_t *param = view[i];
-        c4m_scope_entry_t       *sym   = param->linked_symbol;
+        c4m_symbol_t       *sym   = param->linked_symbol;
 
-        if (sym->kind == sk_attr) {
+        if (sym->kind == C4M_SK_ATTR) {
             gen_sym_load_attr_and_found(ctx, sym, true);
         }
         else {
@@ -829,9 +829,9 @@ gen_typeof(gen_ctx *ctx)
 {
     c4m_tree_node_t    *id_node;
     c4m_pnode_t        *id_pn;
-    c4m_scope_entry_t  *sym;
+    c4m_symbol_t  *sym;
     c4m_tree_node_t    *n         = ctx->cur_node;
-    c4m_pnode_t        *pnode     = get_pnode(n);
+    c4m_pnode_t        *pnode     = c4m_get_pnode(n);
     c4m_control_info_t *ci        = pnode->extra_info;
     int                 target_ix = 0;
     int                 expr_ix   = 0;
@@ -846,8 +846,8 @@ gen_typeof(gen_ctx *ctx)
         expr_ix++;
     }
 
-    id_node = get_match_on_node(n->children[expr_ix], c4m_id_node);
-    id_pn   = get_pnode(id_node);
+    id_node = c4m_get_match_on_node(n->children[expr_ix], c4m_id_node);
+    id_pn   = c4m_get_pnode(id_node);
     sym     = id_pn->extra_info;
 
     gen_sym_load(ctx, sym, false);
@@ -860,7 +860,7 @@ gen_typeof(gen_ctx *ctx)
     // now, let's keep it simple.
     for (int i = expr_ix + 1; i < n->num_kids; i++) {
         c4m_tree_node_t *kid = n->children[i];
-        pnode                = get_pnode(kid);
+        pnode                = c4m_get_pnode(kid);
 
         // If it's the 'else' branch
         if (i + 1 == n->num_kids) {
@@ -897,7 +897,7 @@ gen_switch(gen_ctx *ctx)
 {
     int                 expr_ix = 0;
     c4m_tree_node_t    *n       = ctx->cur_node;
-    c4m_pnode_t        *pnode   = get_pnode(n);
+    c4m_pnode_t        *pnode   = c4m_get_pnode(n);
     c4m_control_info_t *ci      = pnode->extra_info;
     c4m_jump_info_t    *ji      = c4m_gc_array_alloc(c4m_jump_info_t,
                                              n->num_kids);
@@ -913,12 +913,12 @@ gen_switch(gen_ctx *ctx)
 
     // Get the value to test to the top of the stack.
     gen_one_kid(ctx, expr_ix);
-    pnode     = get_pnode(n->children[expr_ix]);
+    pnode     = c4m_get_pnode(n->children[expr_ix]);
     expr_type = pnode->type;
 
     for (int i = expr_ix + 1; i < n->num_kids; i++) {
         c4m_tree_node_t *kid = n->children[i];
-        pnode                = get_pnode(kid);
+        pnode                = c4m_get_pnode(kid);
 
         ctx->cur_node = kid;
 
@@ -966,11 +966,11 @@ gen_switch(gen_ctx *ctx)
 static inline bool
 gen_index_var_init(gen_ctx *ctx, c4m_loop_info_t *li)
 {
-    if (li->loop_ix && c4m_xlist_len(li->loop_ix->sym_uses) > 0) {
+    if (li->loop_ix && c4m_list_len(li->loop_ix->sym_uses) > 0) {
         li->gen_ix = 1;
         set_stack_offset(ctx, li->loop_ix);
     }
-    if (li->named_loop_ix && c4m_xlist_len(li->named_loop_ix->sym_uses) > 0) {
+    if (li->named_loop_ix && c4m_list_len(li->named_loop_ix->sym_uses) > 0) {
         li->gen_named_ix = 1;
         if (!li->gen_ix) {
             set_stack_offset(ctx, li->named_loop_ix);
@@ -994,12 +994,12 @@ gen_index_var_init(gen_ctx *ctx, c4m_loop_info_t *li)
 static inline void
 gen_len_var_init(gen_ctx *ctx, c4m_loop_info_t *li)
 {
-    c4m_scope_entry_t *sym = NULL;
+    c4m_symbol_t *sym = NULL;
 
-    if (li->loop_last && c4m_xlist_len(li->loop_last->sym_uses) > 0) {
+    if (li->loop_last && c4m_list_len(li->loop_last->sym_uses) > 0) {
         sym = li->loop_last;
     }
-    if (li->named_loop_last && c4m_xlist_len(li->named_loop_last->sym_uses) > 0) {
+    if (li->named_loop_last && c4m_list_len(li->named_loop_last->sym_uses) > 0) {
         if (sym != NULL) {
             assert(sym == li->named_loop_last);
         }
@@ -1090,10 +1090,10 @@ gen_ranged_for(gen_ctx *ctx, c4m_loop_info_t *li)
     bool calc_last       = false;
     bool calc_named_last = false;
 
-    if (li->loop_last && c4m_xlist_len(li->loop_last->sym_uses) > 0) {
+    if (li->loop_last && c4m_list_len(li->loop_last->sym_uses) > 0) {
         calc_last = true;
     }
-    if (li->named_loop_last && c4m_xlist_len(li->named_loop_last->sym_uses) > 0) {
+    if (li->named_loop_last && c4m_list_len(li->named_loop_last->sym_uses) > 0) {
         calc_named_last = true;
     }
     if (calc_last || calc_named_last) {
@@ -1314,7 +1314,7 @@ gen_while(gen_ctx *ctx)
     int              saved_stack = ctx->current_stack_offset;
     int              expr_ix     = 0;
     c4m_tree_node_t *n           = ctx->cur_node;
-    c4m_pnode_t     *pnode       = get_pnode(n);
+    c4m_pnode_t     *pnode       = c4m_get_pnode(n);
     c4m_loop_info_t *li          = pnode->extra_info;
     c4m_jump_info_t  ji_top      = {
               .linked_control_structure = &li->branch_info,
@@ -1329,7 +1329,7 @@ gen_while(gen_ctx *ctx)
     }
 
     gen_one_kid(ctx, expr_ix);
-    pnode = get_pnode(n->children[expr_ix]);
+    pnode = c4m_get_pnode(n->children[expr_ix]);
 
     // Condition for a loop is always a boolean. So top of the stack
     // after the condition is evaluated will be 0 when it's time to
@@ -1484,7 +1484,7 @@ gen_assert(gen_ctx *ctx)
 static inline void
 gen_box_if_value_type(gen_ctx *ctx, int pos)
 {
-    c4m_pnode_t *pnode = get_pnode(ctx->cur_node->children[pos]);
+    c4m_pnode_t *pnode = c4m_get_pnode(ctx->cur_node->children[pos]);
     c4m_type_t  *t     = pnode->type;
 
     if (c4m_type_is_box(t)) {
@@ -1539,9 +1539,6 @@ gen_literal(gen_ctx *ctx)
         c4m_obj_t   obj = ctx->cur_pnode->value;
         c4m_type_t *t   = c4m_type_resolve(c4m_get_my_type(obj));
 
-        int         line;
-        c4m_utf8_t *fname = c4m_gc_alloc_info(t, &line);
-
         if (c4m_type_is_value_type(t) || c4m_type_is_box(t)) {
             gen_load_immediate(ctx, c4m_unbox(obj));
         }
@@ -1591,7 +1588,7 @@ gen_literal(gen_ctx *ctx)
 static inline bool
 is_tuple_assignment(gen_ctx *ctx)
 {
-    c4m_tree_node_t *n = get_match_on_node(ctx->cur_node, c4m_tuple_assign);
+    c4m_tree_node_t *n = c4m_get_match_on_node(ctx->cur_node, c4m_tuple_assign);
 
     if (n != NULL) {
         return true;
@@ -1707,7 +1704,7 @@ gen_index_or_slice(gen_ctx *ctx)
     // directly into the object's memory and don't want to generate a
     // settable ref.
     bool         lvalue = ctx->lvalue;
-    c4m_pnode_t *pnode  = get_pnode(ctx->cur_node->children[1]);
+    c4m_pnode_t *pnode  = c4m_get_pnode(ctx->cur_node->children[1]);
     bool         slice  = pnode->kind == c4m_nt_range;
 
     ctx->lvalue = false;
@@ -1737,18 +1734,18 @@ static inline void
 gen_sym_decl(gen_ctx *ctx)
 {
     int                last = ctx->cur_node->num_kids - 1;
-    c4m_pnode_t       *kid  = get_pnode(ctx->cur_node->children[last]);
+    c4m_pnode_t       *kid  = c4m_get_pnode(ctx->cur_node->children[last]);
     c4m_pnode_t       *psym;
     c4m_tree_node_t   *cur = ctx->cur_node;
-    c4m_scope_entry_t *sym;
+    c4m_symbol_t *sym;
 
     if (kid->kind == c4m_nt_assign) {
-        psym = get_pnode(ctx->cur_node->children[last - 1]);
+        psym = c4m_get_pnode(ctx->cur_node->children[last - 1]);
         if (psym->kind == c4m_nt_lit_tspec) {
-            psym = get_pnode(ctx->cur_node->children[last - 2]);
+            psym = c4m_get_pnode(ctx->cur_node->children[last - 2]);
         }
 
-        sym = (c4m_scope_entry_t *)psym->value;
+        sym = (c4m_symbol_t *)psym->value;
 
         if (sym->flags & C4M_F_DECLARED_CONST) {
             return;
@@ -1767,7 +1764,7 @@ gen_unary_op(gen_ctx *ctx)
 {
     // Right now, the pnode extra_info will be NULL when it's a unary
     // minus and non-null when it's a not operation.
-    c4m_pnode_t *n = get_pnode(ctx->cur_node);
+    c4m_pnode_t *n = c4m_get_pnode(ctx->cur_node);
 
     gen_kids(ctx);
 
@@ -1804,7 +1801,7 @@ gen_use(gen_ctx *ctx)
 static void
 gen_one_node(gen_ctx *ctx)
 {
-    ctx->cur_pnode = get_pnode(ctx->cur_node);
+    ctx->cur_pnode = c4m_get_pnode(ctx->cur_node);
 
     switch (ctx->cur_pnode->kind) {
     case c4m_nt_module:
@@ -1857,7 +1854,7 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_member:
     case c4m_nt_identifier:
         do {
-            c4m_scope_entry_t *sym = ctx->cur_pnode->extra_info;
+            c4m_symbol_t *sym = ctx->cur_pnode->extra_info;
             if (sym != NULL) {
                 gen_sym_load(ctx, sym, ctx->lvalue);
             }
@@ -1987,7 +1984,7 @@ gen_return_once_memo(gen_ctx *ctx, c4m_fn_decl_t *decl)
 
 static void
 gen_function(gen_ctx            *ctx,
-             c4m_scope_entry_t  *sym,
+             c4m_symbol_t  *sym,
              c4m_zmodule_info_t *module,
              c4m_vm_t           *vm)
 {
@@ -2068,18 +2065,18 @@ gen_function(gen_ctx            *ctx,
     emit(ctx, C4M_ZRet);
 
     // The actual backpatching of the needed frame size.
-    c4m_zinstruction_t *ins = c4m_xlist_get(module->instructions, sp_loc, NULL);
+    c4m_zinstruction_t *ins = c4m_list_get(module->instructions, sp_loc, NULL);
     ins->arg                = ctx->current_stack_offset;
     fn_info_for_obj->size   = ctx->current_stack_offset;
 
-    c4m_xlist_append(vm->obj->func_info, fn_info_for_obj);
+    c4m_list_append(vm->obj->func_info, fn_info_for_obj);
 
     // TODO: Local id is set to 1 more than its natural index because
     // 0 was taken to mean the module entry point back when I was
     // going to cache fn info per module. But since we don't handle
     // the same way, should probably make this more sane, but
     // that's why this is below the append.
-    decl->local_id = c4m_xlist_len(vm->obj->func_info);
+    decl->local_id = c4m_list_len(vm->obj->func_info);
 }
 
 static void
@@ -2091,7 +2088,7 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
     ctx->cur_module          = module;
     ctx->fctx->module_object = module;
     ctx->cur_node            = ctx->fctx->parse_tree;
-    module->instructions     = c4m_new(c4m_type_xlist(c4m_type_ref()));
+    module->instructions     = c4m_new(c4m_type_list(c4m_type_ref()));
     ctx->instructions        = module->instructions;
     module->module_id        = ctx->fctx->local_module_id;
     module->module_hash      = ctx->fctx->module_id;
@@ -2100,7 +2097,7 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
     module->path             = ctx->fctx->path;
     module->package          = ctx->fctx->package;
     module->source           = c4m_to_utf8(ctx->fctx->raw);
-    root                     = get_pnode(ctx->cur_node);
+    root                     = c4m_get_pnode(ctx->cur_node);
     module->shortdoc         = c4m_token_raw_content(root->short_doc);
     module->longdoc          = c4m_token_raw_content(root->long_doc);
 
@@ -2119,27 +2116,27 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
     module->module_var_size = ctx->max_stack_size;
     module->init_size       = ctx->instruction_counter * sizeof(c4m_zinstruction_t);
 
-    c4m_xlist_t *symlist = ctx->fctx->fn_def_syms;
-    int          n       = c4m_xlist_len(symlist);
+    c4m_list_t *symlist = ctx->fctx->fn_def_syms;
+    int          n       = c4m_list_len(symlist);
 
     if (n) {
         gen_label(ctx, c4m_new_utf8("Functions: "));
     }
 
     for (int i = 0; i < n; i++) {
-        c4m_scope_entry_t *sym = c4m_xlist_get(symlist, i, NULL);
+        c4m_symbol_t *sym = c4m_list_get(symlist, i, NULL);
         gen_function(ctx, sym, module, vm);
     }
 
-    int l = c4m_xlist_len(ctx->fctx->extern_decls);
+    int l = c4m_list_len(ctx->fctx->extern_decls);
     if (l != 0) {
         for (int j = 0; j < l; j++) {
-            c4m_scope_entry_t *d    = c4m_xlist_get(ctx->fctx->extern_decls,
+            c4m_symbol_t *d    = c4m_list_get(ctx->fctx->extern_decls,
                                                  j,
                                                  NULL);
             c4m_ffi_decl_t    *decl = d->value;
 
-            c4m_xlist_append(vm->obj->ffi_info, decl);
+            c4m_list_append(vm->obj->ffi_info, decl);
         }
     }
 
@@ -2152,11 +2149,11 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
 static inline void
 backpatch_calls(gen_ctx *ctx)
 {
-    int                    n = c4m_xlist_len(ctx->call_backpatches);
+    int                    n = c4m_list_len(ctx->call_backpatches);
     call_backpatch_info_t *info;
 
     for (int i = 0; i < n; i++) {
-        info               = c4m_xlist_get(ctx->call_backpatches, i, NULL);
+        info               = c4m_list_get(ctx->call_backpatches, i, NULL);
         info->i->arg       = info->decl->local_id;
         info->i->module_id = info->decl->module_id;
 
@@ -2169,15 +2166,15 @@ c4m_internal_codegen(c4m_compile_ctx *cctx, c4m_vm_t *c4m_new_vm)
 {
     gen_ctx ctx = {
         .cctx             = cctx,
-        .call_backpatches = c4m_new(c4m_type_xlist(c4m_type_ref())),
+        .call_backpatches = c4m_new(c4m_type_list(c4m_type_ref())),
         0,
     };
 
-    int n        = c4m_xlist_len(cctx->module_ordering);
-    int existing = c4m_xlist_len(c4m_new_vm->obj->module_contents);
+    int n        = c4m_list_len(cctx->module_ordering);
+    int existing = c4m_list_len(c4m_new_vm->obj->module_contents);
 
     for (int i = existing; i < n; i++) {
-        ctx.fctx = c4m_xlist_get(cctx->module_ordering, i, NULL);
+        ctx.fctx = c4m_list_get(cctx->module_ordering, i, NULL);
 
         if (ctx.fctx->status < c4m_compile_status_tree_typed) {
             C4M_CRAISE("Cannot call c4m_codegen with untyped modules.");

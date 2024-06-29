@@ -14,5 +14,5 @@ extern void        c4m_internal_codegen(c4m_compile_ctx *, c4m_vm_t *);
 extern c4m_utf8_t *c4m_fmt_instr_name(c4m_zinstruction_t *);
 
 #define c4m_layout_const_obj(c, f, ...) \
-    _c4m_layout_const_obj(c, f, KFUNC(__VA_ARGS__))
+    _c4m_layout_const_obj(c, f, C4M_VA(__VA_ARGS__))
 #endif
