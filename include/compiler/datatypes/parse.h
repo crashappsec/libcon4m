@@ -78,6 +78,7 @@ typedef enum {
     c4m_nt_field_spec,
     c4m_nt_field_prop,
     c4m_nt_expression,
+    c4m_nt_extern_box,
 #ifdef C4M_DEV
     c4m_nt_print,
 #endif
@@ -117,7 +118,7 @@ typedef struct {
     c4m_token_t    *token;
     c4m_token_t    *short_doc;
     c4m_token_t    *long_doc;
-    c4m_list_t    *comments;
+    c4m_list_t     *comments;
     int             total_kids;
     int             sibling_id;
     c4m_obj_t      *value;

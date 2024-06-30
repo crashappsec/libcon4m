@@ -64,7 +64,7 @@
 // its value.
 
 #ifndef C4M_STACK_SIZE
-#define STACK_SIZE (1 << 18)
+#define STACK_SIZE (1 << 17)
 #else
 #define STACK_SIZE C4M_STACK_SIZE
 #endif
@@ -448,33 +448,33 @@ typedef struct {
 } c4m_zparam_info_t;
 
 typedef struct {
-    int32_t      module_id; // Internal array index.
-    uint64_t     module_hash;
-    c4m_str_t   *modname;
-    c4m_str_t   *authority;
-    c4m_str_t   *path;
-    c4m_str_t   *package;
-    c4m_str_t   *source;
-    c4m_str_t   *version;
-    c4m_str_t   *shortdoc;
-    c4m_str_t   *longdoc;
+    int32_t     module_id; // Internal array index.
+    uint64_t    module_hash;
+    c4m_str_t  *modname;
+    c4m_str_t  *authority;
+    c4m_str_t  *path;
+    c4m_str_t  *package;
+    c4m_str_t  *source;
+    c4m_str_t  *version;
+    c4m_str_t  *shortdoc;
+    c4m_str_t  *longdoc;
     // TODO: symbol information.
-    int32_t      module_var_size;
-    int32_t      init_size;    // size of init code before functions begin
-    c4m_dict_t  *datasyms;
+    int32_t     module_var_size;
+    int32_t     init_size;    // size of init code before functions begin
+    c4m_dict_t *datasyms;
     c4m_list_t *parameters;   // tspec_ref: c4m_zparam_info_t
     c4m_list_t *instructions; // tspec_ref: c4m_zinstruction_t
 } c4m_zmodule_info_t;
 
 typedef struct {
-    uint64_t     zero_magic;
-    uint32_t     zc_object_vers;
-    c4m_buf_t   *static_data;
-    c4m_buf_t   *marshaled_consts;
-    int32_t      num_const_objs;
+    uint64_t    zero_magic;
+    uint32_t    zc_object_vers;
+    c4m_buf_t  *static_data;
+    c4m_buf_t  *marshaled_consts;
+    int32_t     num_const_objs;
     c4m_list_t *module_contents; // tspec_ref: c4m_zmodule_info_t
-    int32_t      entrypoint;
-    int32_t      next_entrypoint;
+    int32_t     entrypoint;
+    int32_t     next_entrypoint;
     c4m_list_t *func_info; // tspec_ref: c4m_zfn_info_t
     c4m_list_t *ffi_info;  // tspec_ref: c4m_zffi_info_t
     // TODO c4m_validation_spec_t *spec;
@@ -517,7 +517,7 @@ typedef struct {
     c4m_dict_t   *attrs;        // string, c4m_attr_contents_t (tspec_ref)
     c4m_set_t    *all_sections; // string
     c4m_dict_t   *section_docs; // string, c4m_docs_container_t (tspec_ref)
-    c4m_list_t  *ffi_info;
+    c4m_list_t   *ffi_info;
     int           ffi_info_entries;
     bool          using_attrs;
 #ifdef C4M_DEV

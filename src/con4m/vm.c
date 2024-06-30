@@ -809,6 +809,8 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             i = c4m_list_get(tstate->current_module->instructions,
                              tstate->pc,
                              NULL);
+
+// #define C4M_VM_DEBUG
 #ifdef C4M_VM_DEBUG
             c4m_print(
                 c4m_cstr_format(
@@ -819,6 +821,8 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     c4m_box_u64((uint64_t)(void *)tstate->fp),
                     c4m_box_i64((int64_t)i->arg),
                     c4m_box_u64((uint64_t)tstate->current_module->module_id)));
+            printf("stack has %ld items on it.\n",
+                   &tstate->stack[STACK_SIZE] - tstate->sp);
 #endif
 
             switch (i->op) {

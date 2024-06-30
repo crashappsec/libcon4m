@@ -21,19 +21,19 @@ typedef struct {
 typedef struct {
     c4m_compile_ctx      *cctx;
     c4m_file_compile_ctx *fctx;
-    c4m_list_t          *instructions;
-    c4m_list_t          *module_functions;
+    c4m_list_t           *instructions;
+    c4m_list_t           *module_functions;
     c4m_tree_node_t      *cur_node;
     c4m_pnode_t          *cur_pnode;
     c4m_zmodule_info_t   *cur_module;
-    c4m_list_t          *call_backpatches;
+    c4m_list_t           *call_backpatches;
     target_info_t        *target_info;
     int                   instruction_counter;
     int                   current_stack_offset;
     int                   max_stack_size;
     bool                  lvalue;
     assign_type_t         assign_method;
-    c4m_symbol_t    *retsym;
+    c4m_symbol_t         *retsym;
 } gen_ctx;
 
 static void gen_one_node(gen_ctx *);
@@ -500,7 +500,7 @@ possible_restore_from_r3(gen_ctx *ctx, bool restore)
 static inline void
 gen_test_param_flag(gen_ctx                 *ctx,
                     c4m_module_param_info_t *param,
-                    c4m_symbol_t       *sym)
+                    c4m_symbol_t            *sym)
 {
     uint64_t index = param->param_index / 64;
     uint64_t flag  = 1 << (param->param_index % 64);
@@ -513,7 +513,7 @@ gen_test_param_flag(gen_ctx                 *ctx,
 static inline void
 gen_param_via_default_value_type(gen_ctx                 *ctx,
                                  c4m_module_param_info_t *param,
-                                 c4m_symbol_t       *sym)
+                                 c4m_symbol_t            *sym)
 {
     GEN_JNZ(gen_load_const_obj(ctx, param->default_value);
             gen_sym_store(ctx, sym, true));
@@ -522,7 +522,7 @@ gen_param_via_default_value_type(gen_ctx                 *ctx,
 static inline void
 gen_param_via_default_ref_type(gen_ctx                 *ctx,
                                c4m_module_param_info_t *param,
-                               c4m_symbol_t       *sym)
+                               c4m_symbol_t            *sym)
 {
     uint32_t    offset = c4m_layout_const_obj(ctx->cctx, param->default_value);
     c4m_type_t *t      = c4m_get_my_type(param->default_value);
@@ -559,10 +559,10 @@ gen_run_callback(gen_ctx *ctx, c4m_callback_t *cb)
 }
 
 static inline void
-gen_box_if_needed(gen_ctx           *ctx,
-                  c4m_tree_node_t   *n,
-                  c4m_symbol_t *sym,
-                  int                ix)
+gen_box_if_needed(gen_ctx         *ctx,
+                  c4m_tree_node_t *n,
+                  c4m_symbol_t    *sym,
+                  int              ix)
 {
     c4m_pnode_t *pn          = c4m_get_pnode(n);
     c4m_type_t  *actual_type = c4m_type_resolve(pn->type);
@@ -584,9 +584,9 @@ gen_box_if_needed(gen_ctx           *ctx,
     }
 }
 static inline void
-gen_unbox_if_needed(gen_ctx           *ctx,
-                    c4m_tree_node_t   *n,
-                    c4m_symbol_t *sym)
+gen_unbox_if_needed(gen_ctx         *ctx,
+                    c4m_tree_node_t *n,
+                    c4m_symbol_t    *sym)
 {
     c4m_pnode_t *pn          = c4m_get_pnode(n);
     c4m_type_t  *actual_type = c4m_type_resolve(pn->type);
@@ -612,6 +612,13 @@ gen_unbox_if_needed(gen_ctx           *ctx,
 static void
 gen_native_call(gen_ctx *ctx, c4m_symbol_t *fsym)
 {
+    int n = ctx->cur_node->num_kids;
+
+    for (int i = 1; i < n; i++) {
+        gen_one_kid(ctx, i);
+        gen_box_if_needed(ctx, ctx->cur_node->children[i], fsym, i - 1);
+    }
+
     // Needed to calculate the loc of module variables.
     // Currently that's done at runtime, tho could be done in
     // a proper link pass in the future.
@@ -645,7 +652,7 @@ gen_native_call(gen_ctx *ctx, c4m_symbol_t *fsym)
         c4m_list_append(ctx->call_backpatches, bp);
     }
 
-    int n = decl->signature_info->num_params;
+    n = decl->signature_info->num_params;
 
     if (n != 0) {
         emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-n)));
@@ -661,6 +668,14 @@ static void
 gen_extern_call(gen_ctx *ctx, c4m_symbol_t *fsym)
 {
     c4m_ffi_decl_t *decl = (c4m_ffi_decl_t *)fsym->value;
+    int             n    = ctx->cur_node->num_kids;
+
+    for (int i = 1; i < n; i++) {
+        gen_one_kid(ctx, i);
+        if (!decl->skip_boxes) {
+            gen_box_if_needed(ctx, ctx->cur_node->children[i], fsym, i - 1);
+        }
+    }
 
     emit(ctx, C4M_ZFFICall, c4m_kw("arg", c4m_ka(decl->global_ffi_call_ix)));
 
@@ -670,7 +685,9 @@ gen_extern_call(gen_ctx *ctx, c4m_symbol_t *fsym)
 
     if (!decl->local_params->void_return) {
         emit(ctx, C4M_ZPushFromR0);
-        gen_unbox_if_needed(ctx, ctx->cur_node, fsym);
+        if (!decl->skip_boxes) {
+            gen_unbox_if_needed(ctx, ctx->cur_node, fsym);
+        }
     }
 }
 
@@ -678,16 +695,9 @@ static void
 gen_call(gen_ctx *ctx)
 {
     c4m_call_resolution_info_t *info = ctx->cur_pnode->extra_info;
-    c4m_symbol_t      *fsym = info->resolution;
-
-    int n = ctx->cur_node->num_kids;
+    c4m_symbol_t               *fsym = info->resolution;
 
     // Pushes arguments onto the stack.
-    for (int i = 1; i < n; i++) {
-        gen_one_kid(ctx, i);
-        gen_box_if_needed(ctx, ctx->cur_node->children[i], fsym, i - 1);
-    }
-
     if (fsym->kind != C4M_SK_FUNC) {
         gen_extern_call(ctx, fsym);
     }
@@ -710,7 +720,7 @@ gen_ret(gen_ctx *ctx)
 static inline void
 gen_param_via_callback(gen_ctx                 *ctx,
                        c4m_module_param_info_t *param,
-                       c4m_symbol_t       *sym)
+                       c4m_symbol_t            *sym)
 {
     gen_run_callback(ctx, param->callback);
     // The third parameter gives 'false' for attrs (where the
@@ -738,7 +748,7 @@ gen_parameter_checks(gen_ctx *ctx)
 
     for (unsigned int i = 0; i < n; i++) {
         c4m_module_param_info_t *param = view[i];
-        c4m_symbol_t       *sym   = param->linked_symbol;
+        c4m_symbol_t            *sym   = param->linked_symbol;
 
         if (sym->kind == C4M_SK_ATTR) {
             gen_sym_load_attr_and_found(ctx, sym, true);
@@ -829,7 +839,7 @@ gen_typeof(gen_ctx *ctx)
 {
     c4m_tree_node_t    *id_node;
     c4m_pnode_t        *id_pn;
-    c4m_symbol_t  *sym;
+    c4m_symbol_t       *sym;
     c4m_tree_node_t    *n         = ctx->cur_node;
     c4m_pnode_t        *pnode     = c4m_get_pnode(n);
     c4m_control_info_t *ci        = pnode->extra_info;
@@ -1336,9 +1346,9 @@ gen_while(gen_ctx *ctx)
     // exit.
     gen_load_immediate(ctx, 0);
     emit(ctx, C4M_ZCmp);
-    GEN_JZ(gen_one_kid(ctx, expr_ix + 1);
-           gen_index_var_increment(ctx, li);
-           gen_j(ctx, &ji_top));
+    GEN_JNZ(gen_one_kid(ctx, expr_ix + 1);
+            gen_index_var_increment(ctx, li);
+            gen_j(ctx, &ji_top));
     gen_apply_waiting_patches(ctx, &li->branch_info);
     gen_index_var_cleanup(ctx, li);
     ctx->current_stack_offset = saved_stack;
@@ -1733,11 +1743,11 @@ gen_index_or_slice(gen_ctx *ctx)
 static inline void
 gen_sym_decl(gen_ctx *ctx)
 {
-    int                last = ctx->cur_node->num_kids - 1;
-    c4m_pnode_t       *kid  = c4m_get_pnode(ctx->cur_node->children[last]);
-    c4m_pnode_t       *psym;
-    c4m_tree_node_t   *cur = ctx->cur_node;
-    c4m_symbol_t *sym;
+    int              last = ctx->cur_node->num_kids - 1;
+    c4m_pnode_t     *kid  = c4m_get_pnode(ctx->cur_node->children[last]);
+    c4m_pnode_t     *psym;
+    c4m_tree_node_t *cur = ctx->cur_node;
+    c4m_symbol_t    *sym;
 
     if (kid->kind == c4m_nt_assign) {
         psym = c4m_get_pnode(ctx->cur_node->children[last - 1]);
@@ -1943,6 +1953,7 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_extern_local:
     case c4m_nt_extern_dll:
     case c4m_nt_extern_pure:
+    case c4m_nt_extern_box:
     case c4m_nt_extern_holds:
     case c4m_nt_extern_allocs:
     case c4m_nt_extern_return:
@@ -1984,7 +1995,7 @@ gen_return_once_memo(gen_ctx *ctx, c4m_fn_decl_t *decl)
 
 static void
 gen_function(gen_ctx            *ctx,
-             c4m_symbol_t  *sym,
+             c4m_symbol_t       *sym,
              c4m_zmodule_info_t *module,
              c4m_vm_t           *vm)
 {
@@ -2117,7 +2128,7 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
     module->init_size       = ctx->instruction_counter * sizeof(c4m_zinstruction_t);
 
     c4m_list_t *symlist = ctx->fctx->fn_def_syms;
-    int          n       = c4m_list_len(symlist);
+    int         n       = c4m_list_len(symlist);
 
     if (n) {
         gen_label(ctx, c4m_new_utf8("Functions: "));
@@ -2131,10 +2142,10 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
     int l = c4m_list_len(ctx->fctx->extern_decls);
     if (l != 0) {
         for (int j = 0; j < l; j++) {
-            c4m_symbol_t *d    = c4m_list_get(ctx->fctx->extern_decls,
-                                                 j,
-                                                 NULL);
-            c4m_ffi_decl_t    *decl = d->value;
+            c4m_symbol_t   *d    = c4m_list_get(ctx->fctx->extern_decls,
+                                           j,
+                                           NULL);
+            c4m_ffi_decl_t *decl = d->value;
 
             c4m_list_append(vm->obj->ffi_info, decl);
         }

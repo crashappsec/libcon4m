@@ -281,6 +281,10 @@ fill_lex_error(lex_state_t *state, c4m_compile_error_t code)
     err->code              = code;
     err->current_token     = tok;
 
+    if (!state->ctx->errors) {
+        state->ctx->errors = c4m_list(c4m_type_ref());
+    }
+
     c4m_list_append(state->ctx->errors, err);
 }
 
@@ -1216,7 +1220,7 @@ c4m_format_tokens(c4m_file_compile_ctx *ctx)
                                       c4m_ka(true)));
 
     c4m_list_t *row = c4m_new_table_row();
-    int64_t      len = c4m_list_len(ctx->tokens);
+    int64_t     len = c4m_list_len(ctx->tokens);
 
     c4m_list_append(row, c4m_new_utf8("Seq #"));
     c4m_list_append(row, c4m_new_utf8("Type"));

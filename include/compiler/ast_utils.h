@@ -1,17 +1,16 @@
 #pragma once
 #include "con4m.h"
 
-
 #ifdef C4M_USE_INTERNAL_API
 
 // More consise aliases internally only.
 #define c4m_tfind(x, y, ...) _c4m_tpat_find((void *)(int64_t)x, \
-                                        y,                  \
-                                        C4M_VA(__VA_ARGS__))
+                                            y,                  \
+                                            C4M_VA(__VA_ARGS__))
 #define c4m_tfind_content(x, y) c4m_tpat_content_find((void *)(int64_t)x, y)
 #define c4m_tmatch(x, y, ...)   _c4m_tpat_match((void *)(int64_t)x, \
-                                          y,                    \
-                                          C4M_VA(__VA_ARGS__))
+                                              y,                    \
+                                              C4M_VA(__VA_ARGS__))
 #define c4m_tcontent(x, y) c4m_tpat_content_match((void *)(int64_t)x, y)
 #define c4m_toptional(x, y, ...) \
     _c4m_tpat_opt_match((void *)(int64_t)x, y, C4M_VA(__VA_ARGS__))
@@ -88,11 +87,11 @@ c4m_get_litmod(c4m_pnode_t *p)
 }
 
 // Return the first capture if there's a match, and NULL if not.
-extern c4m_tree_node_t *c4m_get_match_on_node(c4m_tree_node_t *, 
+extern c4m_tree_node_t *c4m_get_match_on_node(c4m_tree_node_t *,
                                               c4m_tpat_node_t *);
 
 // Return every capture on match.
-extern c4m_list_t *c4m_apply_pattern_on_node(c4m_tree_node_t *, 
+extern c4m_list_t *c4m_apply_pattern_on_node(c4m_tree_node_t *,
                                              c4m_tpat_node_t *);
 
 extern c4m_tpat_node_t *c4m_first_kid_id;
@@ -109,6 +108,7 @@ extern c4m_tpat_node_t *c4m_find_pure;
 extern c4m_tpat_node_t *c4m_find_holds;
 extern c4m_tpat_node_t *c4m_find_allocs;
 extern c4m_tpat_node_t *c4m_find_extern_local;
+extern c4m_tpat_node_t *c4m_find_extern_box;
 extern c4m_tpat_node_t *c4m_param_extraction;
 extern c4m_tpat_node_t *c4m_qualifier_extract;
 extern c4m_tpat_node_t *c4m_sym_decls;
@@ -125,5 +125,4 @@ extern c4m_tpat_node_t *c4m_case_cond_typeof;
 extern c4m_tpat_node_t *c4m_opt_label;
 extern c4m_tpat_node_t *c4m_id_node;
 extern c4m_tpat_node_t *c4m_tuple_assign;
-
 #endif

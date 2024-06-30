@@ -6,9 +6,9 @@ size_t term_width;
 static bool dev_mode = false;
 
 typedef struct {
-    c4m_utf8_t  *expected_output;
+    c4m_utf8_t *expected_output;
     c4m_list_t *expected_errors;
-    bool         ignore_output;
+    bool        ignore_output;
 } c4m_test_kat;
 
 static void
@@ -29,7 +29,12 @@ static void
 extract_output(c4m_test_kat *kat, c4m_utf32_t *s, int64_t start, int64_t end)
 {
     s                    = c4m_str_slice(s, start, end);
-    kat->expected_output = c4m_to_utf8(c4m_str_strip(s));
+    s                    = c4m_str_strip(s);
+    s                    = c4m_to_utf8(s);
+    kat->expected_output = s;
+    if (!strcmp(s->data, "4181")) {
+        c4m_watch_set(&s->byte_len, 0, c4m_wa_print, c4m_wa_abort, true);
+    }
 }
 
 static void
@@ -37,8 +42,8 @@ extract_errors(c4m_test_kat *kat, c4m_utf32_t *s, int64_t start, int64_t end)
 {
     s                    = c4m_str_slice(s, start, end);
     kat->expected_errors = c4m_list(c4m_type_utf8());
-    c4m_list_t *split   = c4m_str_xsplit(s, c4m_new_utf8("\n"));
-    int          l       = c4m_list_len(split);
+    c4m_list_t *split    = c4m_str_xsplit(s, c4m_new_utf8("\n"));
+    int         l        = c4m_list_len(split);
 
     for (int i = 0; i < l; i++) {
         s = c4m_str_strip(c4m_list_get(split, i, NULL));
@@ -151,8 +156,8 @@ show_dev_compile_info(c4m_compile_ctx *ctx)
 
     for (int i = 0; i < c4m_list_len(ctx->module_ordering); i++) {
         c4m_file_compile_ctx *f = c4m_list_get(ctx->module_ordering,
-                                                i,
-                                                NULL);
+                                               i,
+                                               NULL);
 
         c4m_print(c4m_cstr_format("[h1]Processing module {}", f->path));
         if (ctx->entry_point->parse_tree) {
@@ -171,10 +176,10 @@ show_dev_compile_info(c4m_compile_ctx *ctx)
         }
 
         for (int j = 0; j < c4m_list_len(f->fn_def_syms); j++) {
-            c4m_symbol_t *sym  = c4m_list_get(f->fn_def_syms,
-                                                   j,
-                                                   NULL);
-            c4m_fn_decl_t     *decl = sym->value;
+            c4m_symbol_t  *sym  = c4m_list_get(f->fn_def_syms,
+                                             j,
+                                             NULL);
+            c4m_fn_decl_t *decl = sym->value;
             c4m_print(c4m_cstr_format("[h1]CFG for Function {}{}",
                                       sym->name,
                                       sym->type));
@@ -207,8 +212,8 @@ c4m_dict_t *
 build_file_list()
 {
     bool          fatal      = false;
-    c4m_list_t  *argv       = c4m_get_program_arguments();
-    c4m_list_t  *to_recurse = c4m_list(c4m_type_utf8());
+    c4m_list_t   *argv       = c4m_get_program_arguments();
+    c4m_list_t   *to_recurse = c4m_list(c4m_type_utf8());
     c4m_dict_t   *result     = c4m_dict(c4m_type_utf8(), c4m_type_ref());
     c4m_utf8_t   *test_dir   = c4m_get_env(c4m_new_utf8("CON4M_TEST_DIR"));
     c4m_utf8_t   *ext        = c4m_new_utf8(".c4m");
@@ -260,11 +265,11 @@ build_file_list()
 
     n = c4m_list_len(to_recurse);
     for (int i = 0; i < n; i++) {
-        int          num_hits = 0;
-        c4m_utf8_t  *path     = c4m_list_get(to_recurse, i, NULL);
+        int         num_hits = 0;
+        c4m_utf8_t *path     = c4m_list_get(to_recurse, i, NULL);
         c4m_list_t *files    = c4m_path_walk(path,
-                                           c4m_kw("follow_links",
-                                                  c4m_ka(true)));
+                                          c4m_kw("follow_links",
+                                                 c4m_ka(true)));
 
         int walk_len = c4m_list_len(files);
         for (int j = 0; j < walk_len; j++) {
@@ -366,6 +371,7 @@ empty_err:
             if (!c4m_str_eq(output, kat->expected_output)) {
                 ret = false;
 
+                printf("byte len: %d\n", c4m_str_byte_len(kat->expected_output));
                 c4m_printf(
                     "[red]FAIL[/]: test [i]{}[/]: output mismatch.",
                     fname);
@@ -373,19 +379,21 @@ empty_err:
                     "[h1]Expected output[/]\n{}\n[h1]Actual[/]\n{}\n",
                     kat->expected_output,
                     output);
+#if 0
                 c4m_printf(
                     "[h2]Expected (Hex)[/]\n{}\n[h2]Actual (Hex)[/]\n{}\n",
                     c4m_hex_dump(kat->expected_output->data,
                                  c4m_str_byte_len(kat->expected_output)),
                     c4m_hex_dump(output->data, c4m_str_byte_len(output)));
+#endif
             }
         }
     }
 
 next_comparison:;
     c4m_list_t *actual_errs  = c4m_compile_extract_all_error_codes(ctx);
-    int          num_expected = 0;
-    int          num_actual   = c4m_list_len(actual_errs);
+    int         num_expected = 0;
+    int         num_actual   = c4m_list_len(actual_errs);
 
     if (kat->expected_errors != NULL) {
         num_expected = c4m_list_len(kat->expected_errors);
@@ -501,7 +509,6 @@ main(int argc, char **argv, char **envp)
         c4m_dict_t          *targets = build_file_list();
         uint64_t             n;
         hatrack_dict_item_t *items = hatrack_dict_items(targets, &n);
-
         qsort(items, n, sizeof(hatrack_dict_item_t), (void *)fname_sort);
 
         for (uint64_t i = 0; i < n; i++) {

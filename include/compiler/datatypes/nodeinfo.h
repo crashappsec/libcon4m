@@ -12,10 +12,10 @@
 // statements always look for an enclosing loop.
 
 typedef struct {
-    int          entry_ip;
-    int          exit_ip;
-    c4m_utf8_t  *label;
-    bool         non_loop;
+    int         entry_ip;
+    int         exit_ip;
+    c4m_utf8_t *label;
+    bool        non_loop;
     c4m_list_t *awaiting_patches;
 } c4m_control_info_t;
 
@@ -30,16 +30,16 @@ typedef struct {
     c4m_tree_node_t   *prelude;
     c4m_tree_node_t   *test;
     c4m_tree_node_t   *body;
-    c4m_symbol_t *shadowed_ix;
-    c4m_symbol_t *loop_ix;
-    c4m_symbol_t *named_loop_ix;
-    c4m_symbol_t *shadowed_last;
-    c4m_symbol_t *loop_last;
-    c4m_symbol_t *named_loop_last;
-    c4m_symbol_t *lvar_1;
-    c4m_symbol_t *lvar_2;
-    c4m_symbol_t *shadowed_lvar_1;
-    c4m_symbol_t *shadowed_lvar_2;
+    c4m_symbol_t      *shadowed_ix;
+    c4m_symbol_t      *loop_ix;
+    c4m_symbol_t      *named_loop_ix;
+    c4m_symbol_t      *shadowed_last;
+    c4m_symbol_t      *loop_last;
+    c4m_symbol_t      *named_loop_last;
+    c4m_symbol_t      *lvar_1;
+    c4m_symbol_t      *lvar_2;
+    c4m_symbol_t      *shadowed_lvar_1;
+    c4m_symbol_t      *shadowed_lvar_2;
     bool               ranged;
     unsigned int       gen_ix       : 1;
     unsigned int       gen_named_ix : 1;
@@ -53,11 +53,11 @@ typedef struct c4m_jump_info_t {
 
 #ifdef C4M_USE_INTERNAL_API
 typedef struct {
-    c4m_utf8_t        *name;
-    c4m_type_t        *sig;
-    c4m_tree_node_t   *loc;
-    c4m_symbol_t *resolution;
-    unsigned int       polymorphic : 1;
-    unsigned int       deferred    : 1;
+    c4m_utf8_t      *name;
+    c4m_type_t      *sig;
+    c4m_tree_node_t *loc;
+    c4m_symbol_t    *resolution;
+    unsigned int     polymorphic : 1;
+    unsigned int     deferred    : 1;
 } c4m_call_resolution_info_t;
 #endif

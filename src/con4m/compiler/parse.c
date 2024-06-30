@@ -230,6 +230,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_field_spec", 0, 0, 0, 1, 0, },
     { "nt_field_prop", 1, 0, 0, 0, 0, },
     { "nt_expression", 0, 0, 0, 0, 0, },
+    { "nt_extern_box", 0, 0, 0, 0, 0, },
 #ifdef C4M_DEV
     { "nt_print", 0, 0, 0, 0, 0, },
 #endif
@@ -246,8 +247,8 @@ _tok_cur(parse_ctx *ctx)
 {
     if (!ctx->cached_token || ctx->token_ix != ctx->cache_ix) {
         ctx->cached_token = c4m_list_get(ctx->file_ctx->tokens,
-                                          ctx->token_ix,
-                                          NULL);
+                                         ctx->token_ix,
+                                         NULL);
         ctx->cache_ix     = ctx->token_ix;
     }
 
@@ -687,18 +688,18 @@ restore_tree(parse_ctx *ctx)
     return result;
 }
 
-#define binop_restore_and_return(ctx, op)            \
-    {                                                \
-        c4m_tree_node_t *result = restore_tree(ctx); \
+#define binop_restore_and_return(ctx, op)                \
+    {                                                    \
+        c4m_tree_node_t *result = restore_tree(ctx);     \
         c4m_pnode_t     *pnode  = c4m_get_pnode(result); \
-        pnode->extra_info       = (void *)op;        \
-        return result;                               \
+        pnode->extra_info       = (void *)op;            \
+        return result;                                   \
     }
 
 #define binop_assign(ctx, expr, op)                                        \
     {                                                                      \
         c4m_tree_node_t *tmp = assign(ctx, expr, c4m_nt_binary_assign_op); \
-        c4m_pnode_t     *pn  = c4m_get_pnode(tmp);                             \
+        c4m_pnode_t     *pn  = c4m_get_pnode(tmp);                         \
                                                                            \
         pn->extra_info = (void *)(op);                                     \
         adopt_kid(ctx, tmp);                                               \
@@ -917,6 +918,9 @@ simple_lit(parse_ctx *ctx)
                 c4m_unreachable();
             }
 
+            if (!c4m_str_codepoint_len(li->litmod)) {
+                li->litmod = c4m_new_utf8("<none>");
+            }
             c4m_error_from_token(ctx->file_ctx, err, tok, li->litmod, syntax_str);
             break;
         case c4m_err_no_error:
@@ -998,6 +1002,7 @@ param_items(parse_ctx *ctx)
         }
 
         char *txt = c4m_identifier_text(tok_cur(ctx))->data;
+
         if (!strcmp(txt, "callback")) {
             if (got_default) {
                 add_parse_error(ctx, c4m_err_parse_param_def_and_callback);
@@ -1113,6 +1118,19 @@ extern_dll(parse_ctx *ctx)
         return;
     }
     string_lit(ctx);
+    end_of_statement(ctx);
+    end_node(ctx);
+}
+
+static void
+extern_box_values(parse_ctx *ctx)
+{
+    start_node(ctx, c4m_nt_extern_box, true);
+    if (!expect(ctx, c4m_tt_colon)) {
+        end_node(ctx);
+        return;
+    }
+    bool_lit(ctx);
     end_of_statement(ctx);
     end_node(ctx);
 }
@@ -1248,6 +1266,11 @@ extern_block(parse_ctx *ctx)
 {
     char *txt;
     int   safety_check = 0;
+    bool  got_local    = false;
+    bool  got_box      = false;
+    bool  got_pure     = false;
+    bool  got_holds    = false;
+    bool  got_allocs   = false;
 
     start_node(ctx, c4m_nt_extern_block, true);
     identifier(ctx);
@@ -1269,12 +1292,23 @@ extern_block(parse_ctx *ctx)
             switch (match(ctx, c4m_tt_rbrace, c4m_tt_identifier)) {
             case c4m_tt_rbrace:
                 consume(ctx);
+
+                if (!got_local) {
+                    add_parse_error(ctx, c4m_err_parse_extern_need_local);
+                }
                 end_node(ctx);
+
                 END_CHECKPOINT();
                 return;
             case c4m_tt_identifier:
                 txt = c4m_identifier_text(tok_cur(ctx))->data;
                 if (!strcmp(txt, "local")) {
+                    if (got_local) {
+                        add_parse_error(ctx,
+                                        c4m_err_parse_extern_dup,
+                                        c4m_new_utf8("local"));
+                    }
+                    got_local = true;
                     extern_local(ctx);
                     continue;
                 }
@@ -1282,15 +1316,48 @@ extern_block(parse_ctx *ctx)
                     extern_dll(ctx);
                     continue;
                 }
+                if (!strcmp(txt, "box_values")) {
+                    if (got_box) {
+                        add_parse_error(ctx,
+                                        c4m_err_parse_extern_dup,
+                                        c4m_new_utf8("box_values"));
+                    }
+                    got_box = true;
+
+                    extern_box_values(ctx);
+                    continue;
+                }
+
                 if (!strcmp(txt, "pure")) {
+                    if (got_pure) {
+                        add_parse_error(ctx,
+                                        c4m_err_parse_extern_dup,
+                                        c4m_new_utf8("pure"));
+                    }
+                    got_pure = true;
+
                     extern_pure(ctx);
                     continue;
                 }
                 if (!strcmp(txt, "holds")) {
+                    if (got_holds) {
+                        add_parse_error(ctx,
+                                        c4m_err_parse_extern_dup,
+                                        c4m_new_utf8("holds"));
+                    }
+                    got_holds = true;
+
                     extern_holds(ctx);
                     continue;
                 }
                 if (!strcmp(txt, "allocs")) {
+                    if (got_allocs) {
+                        add_parse_error(ctx,
+                                        c4m_err_parse_extern_dup,
+                                        c4m_new_utf8("allocs"));
+                    }
+                    got_allocs = true;
+
                     extern_allocs(ctx);
                     continue;
                 }

@@ -1,5 +1,7 @@
 #include "con4m.h"
 
+extern hatrack_hash_t c4m_custom_string_hash(c4m_str_t *s);
+
 static void
 c4m_set_init(c4m_set_t *set, va_list args)
 {
@@ -19,13 +21,18 @@ c4m_set_init(c4m_set_t *set, va_list args)
     hatrack_set_init(set, hash_fn);
 
     switch (hash_fn) {
+    case HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM:
+        // clang-format off
+        hatrack_set_set_custom_hash(set,
+                                (hatrack_hash_func_t)c4m_custom_string_hash);
+        break;
     case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
-        hatrack_set_set_hash_offset(set, 2 * (int32_t)sizeof(uint64_t));
+        hatrack_set_set_hash_offset(set, C4M_STR_HASH_KEY_POINTER_OFFSET);
         /* fallthrough */
     case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
     case HATRACK_DICT_KEY_TYPE_OBJ_INT:
     case HATRACK_DICT_KEY_TYPE_OBJ_REAL:
-        hatrack_set_set_cache_offset(set, -2 * (int32_t)sizeof(uint64_t));
+        hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_OFFSET);
         break;
     default:
         // nada.
@@ -49,6 +56,7 @@ c4m_set_marshal(c4m_set_t *d, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
 
     for (uint64_t i = 0; i < length; i++) {
         switch (kt) {
+        case HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM:
         case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
         case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
             c4m_sub_marshal(view[i], s, memos, mid);
@@ -75,6 +83,10 @@ c4m_set_unmarshal(c4m_set_t *d, c4m_stream_t *s, c4m_dict_t *memos)
     hatrack_set_init(d, (uint32_t)kt);
 
     switch (kt) {
+    case HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM:
+        hatrack_set_set_custom_hash(d,
+                                (hatrack_hash_func_t)c4m_custom_string_hash);
+	break;
     case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
         hatrack_set_set_hash_offset(d, sizeof(uint64_t) * 2);
         /* fallthrough */

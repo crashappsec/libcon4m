@@ -17,7 +17,7 @@ extern c4m_type_t *_c4m_type_ring(c4m_type_t *, char *, int);
 extern c4m_type_t *_c4m_type_stack(c4m_type_t *, char *, int);
 extern c4m_type_t *_c4m_type_set(c4m_type_t *, char *, int);
 #define c4m_type_flist(x) _c4m_type_flist(x, __FILE__, __LINE__)
-#define c4m_type_list(x) _c4m_type_list(x, __FILE__, __LINE__)
+#define c4m_type_list(x)  _c4m_type_list(x, __FILE__, __LINE__)
 #define c4m_type_tree(x)  _c4m_type_tree(x, __FILE__, __LINE__)
 #define c4m_type_queue(x) _c4m_type_queue(x, __FILE__, __LINE__)
 #define c4m_type_ring(x)  _c4m_type_ring(x, __FILE__, __LINE__)
@@ -602,6 +602,13 @@ c4m_type_is_tvar(c4m_type_t *t)
 {
     t = c4m_type_resolve(t);
     return (c4m_type_get_base(t) == C4M_DT_KIND_type_var);
+}
+
+static inline bool
+c4m_type_is_void(c4m_type_t *t)
+{
+    t = c4m_type_resolve(t);
+    return t->typeid == C4M_T_VOID;
 }
 
 static inline bool

@@ -63,6 +63,8 @@ typedef enum {
     c4m_err_parse_extern_bad_hold_param,
     c4m_err_parse_extern_bad_alloc_param,
     c4m_err_parse_extern_bad_prop,
+    c4m_err_parse_extern_dup,
+    c4m_err_parse_extern_need_local,
     c4m_err_parse_enum_value_type,
     c4m_err_parse_csig_id,
     c4m_err_parse_bad_ctype_id,
@@ -182,6 +184,9 @@ typedef enum {
     c4m_internal_type_error,
     c4m_err_concrete_index,
     c4m_err_non_dict_index_type,
+#ifdef C4M_DEV
+    c4m_err_void_print,
+#endif
     c4m_err_last,
 } c4m_compile_error_t;
 

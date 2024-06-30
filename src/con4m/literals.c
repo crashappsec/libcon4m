@@ -12,6 +12,8 @@ static uint64_t *set_types;
 static uint64_t *tuple_types;
 static uint64_t *all_container_types;
 
+int DEBUG_ON = 0;
+
 static inline void
 no_more_containers()
 {
@@ -73,8 +75,10 @@ c4m_register_container_type(c4m_builtin_t    bi,
 void
 c4m_register_literal(c4m_lit_syntax_t st, char *mod, c4m_builtin_t bi)
 {
+    DEBUG_ON          = 1;
+    c4m_utf8_t *u8mod = c4m_new_utf8(mod);
     if (!hatrack_dict_add(mod_map[st],
-                          c4m_new_utf8(mod),
+                          u8mod,
                           (void *)(int64_t)bi)) {
         C4M_CRAISE("Duplicate literal modifier for this syntax type.");
     }
@@ -106,16 +110,18 @@ c4m_base_type_from_litmod(c4m_lit_syntax_t st, c4m_utf8_t *mod)
     if (mod == NULL) {
         mod = c4m_new_utf8("");
     }
+    mod = c4m_to_utf8(mod);
 
-    bi = (c4m_builtin_t)(int64_t)hatrack_dict_get(mod_map[st], mod, &found);
+    DEBUG_ON = 1;
+    bi       = (c4m_builtin_t)(int64_t)hatrack_dict_get(mod_map[st], mod, &found);
 
     if (found) {
         return bi;
     }
-
-    bi = (c4m_builtin_t)(int64_t)hatrack_dict_get(mod_map[st],
+    bi       = (c4m_builtin_t)(int64_t)hatrack_dict_get(mod_map[st],
                                                   c4m_new_utf8("*"),
                                                   &found);
+    DEBUG_ON = 0;
 
     if (found) {
         return bi;
@@ -128,10 +134,8 @@ void
 c4m_init_literal_handling()
 {
     if (mod_map[0] == NULL) {
-        c4m_type_t *ts = c4m_type_dict(c4m_type_utf8(), c4m_type_int());
-
         for (int i = 0; i < ST_MAX; i++) {
-            mod_map[i] = c4m_new(ts);
+            mod_map[i] = c4m_dict(c4m_type_utf8(), c4m_type_int());
         }
 
         c4m_gc_register_root(&mod_map[0], ST_MAX);
@@ -224,6 +228,10 @@ c4m_parse_simple_lit(c4m_token_t *tok, c4m_lit_syntax_t *kptr, c4m_utf8_t **lm)
     c4m_lit_syntax_t    kind;
     c4m_compile_error_t err = c4m_err_no_error;
 
+    if (lm != NULL) {
+        *lm = mod;
+    }
+
     switch (tok->kind) {
     case c4m_tt_int_lit:
         kind = ST_Base10;
@@ -269,7 +277,6 @@ c4m_parse_simple_lit(c4m_token_t *tok, c4m_lit_syntax_t *kptr, c4m_utf8_t **lm)
 
     if (kptr != NULL) {
         *kptr = kind;
-        *lm   = mod;
     }
 
     return err;

@@ -331,8 +331,7 @@ static inline void
 init_style_db()
 {
     if (style_dictionary == NULL) {
-        style_dictionary = c4m_gc_alloc(c4m_dict_t);
-        hatrack_dict_init(style_dictionary, HATRACK_DICT_KEY_TYPE_CSTR);
+        style_dictionary = c4m_dict(c4m_type_utf8(), c4m_type_ref());
         c4m_gc_register_root(&style_dictionary, 1);
     }
 }
@@ -341,7 +340,7 @@ void
 c4m_set_style(char *name, c4m_render_style_t *style)
 {
     init_style_db();
-    hatrack_dict_put(style_dictionary, name, style);
+    hatrack_dict_put(style_dictionary, c4m_new_utf8(name), style);
 }
 
 // Returns a COPY of the style so that it doesn't get accidentially
@@ -351,7 +350,9 @@ c4m_lookup_cell_style(char *name)
 {
     init_style_db();
 
-    c4m_render_style_t *entry = hatrack_dict_get(style_dictionary, name, NULL);
+    c4m_render_style_t *entry = hatrack_dict_get(style_dictionary,
+                                                 c4m_new_utf8(name),
+                                                 NULL);
 
     if (!entry) {
         return NULL;
@@ -429,8 +430,7 @@ c4m_style_init(c4m_render_style_t *style, va_list args)
     }
 
     if (wrap_hang != -1 && disable_wrap) {
-        printf("Cannot set 'wrap_hang' and 'disable_wrap' at once.\n");
-        abort();
+        C4M_CRAISE("Cannot set 'wrap_hang' and 'disable_wrap' at once.\n");
     }
 
     if (fg_color != -1) {
@@ -680,8 +680,10 @@ c4m_style_exists(char *name)
         return 0;
     }
 
+    c4m_utf8_t *s = c4m_new_utf8(name);
+
     init_style_db();
-    return hatrack_dict_get(style_dictionary, name, NULL) != NULL;
+    return hatrack_dict_get(style_dictionary, s, NULL) != NULL;
 }
 
 void

@@ -348,7 +348,7 @@ apply_padding_and_alignment(c4m_utf8_t *instr, c4m_fmt_spec_t *spec)
 static inline c4m_list_t *
 lookup_arg_strings(c4m_fmt_info_t *specs, c4m_dict_t *args)
 {
-    c4m_list_t    *result = c4m_new(c4m_type_list(c4m_type_utf8()));
+    c4m_list_t     *result = c4m_list(c4m_type_utf8());
     c4m_fmt_info_t *info   = specs;
     int             i      = 0;
     c4m_utf8_t     *key;
@@ -371,13 +371,17 @@ lookup_arg_strings(c4m_fmt_info_t *specs, c4m_dict_t *args)
         i++;
 
         bool found = false;
-        obj        = hatrack_dict_get(args, key, &found);
+
+        obj = hatrack_dict_get(args, key, &found);
 
         if (!found) {
             c4m_utf8_t *err = c4m_new(
                 c4m_type_utf8(),
                 c4m_kw("cstring", c4m_ka("Format parameter not found: ")));
-            C4M_RAISE(c4m_str_concat(err, key));
+
+            err = c4m_to_utf8(c4m_str_concat(err, key));
+
+            C4M_RAISE(err);
         }
         c4m_vtable_t *vtable = c4m_vtable(obj);
         c4m_format_fn fn     = (c4m_format_fn)vtable->methods[C4M_BI_FORMAT];
@@ -559,7 +563,7 @@ c4m_str_vformat(const c4m_str_t *fmt, c4m_dict_t *args)
     // After this point, we will potentially have a formatted string,
     // so the locations for the {} may not be where we might compute
     // them to be, so we will just reparse them.
-    fmt                      = c4m_rich_lit(c4m_to_utf8(fmt)->data);
+    fmt                     = c4m_rich_lit(c4m_to_utf8(fmt)->data);
     c4m_list_t *arg_strings = lookup_arg_strings(info, args);
 
     return assemble_formatted_result(fmt, arg_strings);
