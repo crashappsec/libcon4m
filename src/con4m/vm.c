@@ -159,12 +159,12 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
         C4M_CRAISE("stack overflow");        \
     }
 
-#define SIMPLE_COMPARE(op)                       \
-    do {                                         \
-        uint64_t v1 = tstate->sp->uint;          \
-        ++tstate->sp;                            \
-        uint64_t v2      = tstate->sp->uint;     \
-        tstate->sp->uint = (uint64_t)(v2 op v1); \
+#define SIMPLE_COMPARE(op)                           \
+    do {                                             \
+        uint64_t v1 = tstate->sp->uint;              \
+        ++tstate->sp;                                \
+        uint64_t v2      = tstate->sp->uint;         \
+        tstate->sp->uint = !!((uint64_t)(v2 op v1)); \
     } while (0)
 
 static c4m_value_t *
@@ -1624,12 +1624,15 @@ c4m_vm_reset(c4m_vm_t *vm)
 c4m_vmthread_t *
 c4m_vmthread_new(c4m_vm_t *vm)
 {
-    // c4m_internal_stash_heap();
+    c4m_arena_t    *arena  = c4m_internal_stash_heap();
     c4m_vmthread_t *tstate = c4m_gc_alloc(c4m_vmthread_t);
     tstate->vm             = vm;
 
     c4m_vmthread_reset(tstate);
-    // c4m_internal_unstash_heap();
+
+    tstate->thread_arena = arena;
+
+    c4m_internal_unstash_heap();
     return tstate;
 }
 

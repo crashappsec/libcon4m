@@ -571,6 +571,9 @@ typedef struct {
 
     c4m_list_t *module_lock_stack;
 
+    // The arena this allocation is from.
+    c4m_arena_t *thread_arena;
+
     // frame_stack is the base address of the call stack
     c4m_vmframe_t frame_stack[MAX_CALL_DEPTH];
 

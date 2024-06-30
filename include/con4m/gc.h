@@ -192,6 +192,9 @@ extern void _c4m_gc_register_root(void *, uint64_t);
 #define c4m_gc_register_root(x, y)       _c4m_gc_register_root(x, y)
 #endif
 
+void c4m_arena_remove_root(c4m_arena_t *arena, void *ptr);
+void c4m_gc_remove_root(void *ptr);
+
 #if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
 extern void *_c4m_gc_raw_alloc(size_t, uint64_t *, char *, int);
 extern void *_c4m_gc_raw_alloc_with_finalizer(size_t, uint64_t *, char *, int);

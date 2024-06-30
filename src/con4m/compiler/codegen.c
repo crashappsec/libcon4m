@@ -1344,11 +1344,11 @@ gen_while(gen_ctx *ctx)
     // Condition for a loop is always a boolean. So top of the stack
     // after the condition is evaluated will be 0 when it's time to
     // exit.
-    gen_load_immediate(ctx, 0);
+    gen_load_immediate(ctx, 1);
     emit(ctx, C4M_ZCmp);
-    GEN_JNZ(gen_one_kid(ctx, expr_ix + 1);
-            gen_index_var_increment(ctx, li);
-            gen_j(ctx, &ji_top));
+    GEN_JZ(gen_one_kid(ctx, expr_ix + 1);
+           gen_index_var_increment(ctx, li);
+           gen_j(ctx, &ji_top));
     gen_apply_waiting_patches(ctx, &li->branch_info);
     gen_index_var_cleanup(ctx, li);
     ctx->current_stack_offset = saved_stack;

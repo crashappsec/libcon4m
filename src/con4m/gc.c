@@ -278,14 +278,18 @@ static thread_local c4m_arena_t *stashed_heap;
 c4m_arena_t *
 c4m_internal_stash_heap()
 {
+    // This assumes the stashed heap isn't going to be used for allocations
+    // until it's returneed.
+    printf("Stashing %p\n", current_heap);
     stashed_heap = current_heap;
-    current_heap = c4m_new_arena(C4M_DEFAULT_ARENA_SIZE,
-                                 hatrack_zarray_unsafe_copy(current_heap->roots));
-    int32_t   l  = hatrack_zarray_len(stashed_heap->roots);
-    uint64_t *s  = hatrack_zarray_cell_address(stashed_heap->roots, 0);
-    uint64_t *e  = hatrack_zarray_cell_address(stashed_heap->roots, l);
+    current_heap = c4m_new_arena(
+        C4M_DEFAULT_ARENA_SIZE,
+        hatrack_zarray_unsafe_copy(current_heap->roots));
 
-    c4m_arena_register_root(current_heap, s, e - s);
+    uint64_t *s = (uint64_t *)stashed_heap;
+    uint64_t *e = (uint64_t *)stashed_heap->next_alloc;
+
+    c4m_arena_register_root(current_heap, stashed_heap, e - s);
 
     return stashed_heap;
 }
@@ -300,7 +304,19 @@ c4m_internal_lock_then_unstash_heap()
 void
 c4m_internal_unstash_heap()
 {
+    c4m_arena_t *popping = current_heap;
+
+    printf("popping %p\n", current_heap);
+
+    c4m_arena_remove_root(popping, stashed_heap);
     current_heap = stashed_heap;
+
+    printf("Restored: %p\n", current_heap);
+
+    uint64_t *s = (uint64_t *)popping;
+    uint64_t *e = (uint64_t *)popping->next_alloc;
+
+    c4m_arena_register_root(current_heap, popping, e - s);
 }
 
 void
@@ -529,6 +545,20 @@ _c4m_arena_register_root(c4m_arena_t *arena, void *ptr, uint64_t len)
     ri->file = file;
     ri->line = line;
 #endif
+}
+
+void
+c4m_arena_remove_root(c4m_arena_t *arena, void *ptr)
+{
+    int32_t max = atomic_load(&arena->roots->length);
+
+    for (int i = 0; i < max; i++) {
+        c4m_gc_root_info_t *ri = hatrack_zarray_cell_address(arena->roots, i);
+        if (ri->ptr == ptr) {
+            ri->num_items = 0;
+            ri->ptr       = NULL;
+        }
+    }
 }
 
 static inline void
@@ -915,6 +945,10 @@ scan_arena(c4m_arena_t *old,
         uint64_t            root = (uint64_t)ri->ptr;
         uint64_t            size = ri->num_items;
 
+        if (!root) {
+            continue;
+        }
+
         c4m_gc_trace(C4M_GCT_SCAN,
                      "root_scan_start:%lld item(s)@%llx (%s:%d)",
                      size,
@@ -1168,10 +1202,16 @@ _c4m_gc_register_root(void *ptr, uint64_t num_words)
 }
 #endif
 
+void
+c4m_gcm_remove_root(void *ptr)
+{
+    c4m_arena_remove_root(current_heap, ptr);
+}
+
 #if 0 // not used anymore.
 
-__thread int  ro_test_pipe_fds[2] = {0, 0};
-__thread bool ro_test_pipe_inited = false;
+thread_local int  ro_test_pipe_fds[2] = {0, 0};
+thread_local bool ro_test_pipe_inited = false;
 
 bool
 c4m_is_read_only_memory(volatile void *address)
@@ -1239,6 +1279,8 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
 #ifdef C4M_DEBUG
     _c4m_watch_scan(file, line);
 #endif
+
+    assert(arena_ptr != current_heap);
 
     c4m_arena_t *arena = *arena_ptr;
 
