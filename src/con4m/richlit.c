@@ -23,16 +23,17 @@ typedef struct fmt_frame_t {
 typedef struct {
     fmt_frame_t *start_frame;
     fmt_frame_t *cur_frame;
-    c4m_list_t *style_directions;
+    c4m_list_t  *style_directions;
     c4m_utf8_t  *style_text;
     c4m_style_t  cur_style;
     tag_item_t **stack;
     int          stack_ix;
+    c4m_utf8_t  *raw;
 } style_ctx;
 
 typedef struct {
     c4m_utf8_t  *raw;
-    c4m_list_t *tokens;
+    c4m_list_t  *tokens;
     fmt_frame_t *cur_frame;
     style_ctx   *style_ctx;
     c4m_utf8_t  *not_matched;
@@ -142,12 +143,12 @@ init_style_keywords()
 
 #define rich_tok_emit()                       \
     if (p != start) {                         \
-        slice = c4m_new(c4m_type_utf8(),     \
+        slice = c4m_new(c4m_type_utf8(),      \
                         c4m_kw("cstring",     \
                                c4m_ka(start), \
                                "length",      \
                                p - start));   \
-        c4m_list_append(ret, slice);         \
+        c4m_list_append(ret, slice);          \
     }
 
 // tokenize the text between '[' and ']' into useful bits.
@@ -155,10 +156,10 @@ static c4m_list_t *
 tokenize_rich_tag(c4m_utf8_t *s)
 {
     c4m_list_t *ret   = c4m_new(c4m_type_list(c4m_type_utf8()));
-    char        *p     = s->data;
-    char        *end   = s->data + c4m_str_byte_len(s);
-    char        *start = p;
-    c4m_utf8_t  *slice;
+    char       *p     = s->data;
+    char       *end   = s->data + c4m_str_byte_len(s);
+    char       *start = p;
+    c4m_utf8_t *slice;
 
     while (p < end) {
         switch (*p) {
@@ -404,7 +405,7 @@ static void
 parse_style_lit(style_ctx *ctx)
 {
     fmt_frame_t *f      = ctx->cur_frame;
-    c4m_list_t *tokens = tokenize_rich_tag(f->raw_contents);
+    c4m_list_t  *tokens = tokenize_rich_tag(f->raw_contents);
 
     tag_parse_ctx tag_ctx = {
         .tokens      = tokens,
@@ -636,9 +637,11 @@ convert_parse_to_style(style_ctx *ctx)
             while (true) {
                 if (!ctx->stack_ix) {
                     c4m_utf8_t *err = c4m_cstr_format(
-                        "There is no active element named '{}' to close; "
+                        "In the format string [i]{}[/], "
+                        "there is no active element named '{}' to close; "
                         "either it wasn't turned on, or was already turned "
                         "off by an later overriding style in this literal.",
+                        ctx->raw,
                         tag_atom->name);
                     C4M_RAISE(err);
                 }
@@ -674,7 +677,7 @@ c4m_utf8_t *
 c4m_rich_lit(char *instr)
 {
     style_ctx ctx = {
-        0,
+        .raw = c4m_new_utf8(instr),
     };
 
     // Phase 1, find all the style blocks.

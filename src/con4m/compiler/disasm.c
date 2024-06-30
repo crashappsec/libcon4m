@@ -523,7 +523,7 @@ c4m_disasm(c4m_vm_t *vm, c4m_zmodule_info_t *m)
                                       c4m_ka(true)));
 
     c4m_list_t *row = c4m_new_table_row();
-    int64_t      len = c4m_list_len(m->instructions);
+    int64_t     len = c4m_list_len(m->instructions);
     c4m_list_append(row, c4m_new_utf8("Address"));
     c4m_list_append(row, c4m_new_utf8("Instruction"));
     c4m_list_append(row, c4m_new_utf8("Arg"));

@@ -197,7 +197,7 @@ void c4m_exception_register_uncaught_handler(void (*)(c4m_exception_t *));
                   c4m_kw("error_code", c4m_ka(errno)));                     \
     }
 
-extern __thread c4m_exception_stack_t __exception_stack;
+extern thread_local c4m_exception_stack_t __exception_stack;
 
 static inline void
 c4m_raise_errcode(int code)

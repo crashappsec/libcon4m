@@ -62,14 +62,14 @@ get_styled_pad(uint32_t width, c4m_style_t style)
 
 static c4m_list_t *
 pad_lines_vertically(c4m_render_style_t *gs,
-                     c4m_list_t        *list,
+                     c4m_list_t         *list,
                      int32_t             height,
                      int32_t             width)
 {
     int32_t      len  = c4m_list_len(list);
     int32_t      diff = height - len;
     c4m_utf32_t *pad;
-    c4m_list_t *res;
+    c4m_list_t  *res;
 
     if (len == 0) {
         pad = get_styled_pad(width, c4m_get_pad_style(gs));
@@ -284,16 +284,16 @@ c4m_grid_add_row(c4m_grid_t *grid, c4m_obj_t container)
 static void
 grid_init(c4m_grid_t *grid, va_list args)
 {
-    int32_t      start_rows    = 1;
-    int32_t      start_cols    = 1;
-    int32_t      spare_rows    = 16;
+    int32_t     start_rows    = 1;
+    int32_t     start_cols    = 1;
+    int32_t     spare_rows    = 16;
     c4m_list_t *contents      = NULL;
-    char        *container_tag = "table";
-    char        *th_tag        = NULL;
-    char        *td_tag        = NULL;
-    int32_t      header_rows   = 0;
-    int32_t      header_cols   = 0;
-    bool         stripe        = false;
+    char       *container_tag = "table";
+    char       *th_tag        = NULL;
+    char       *td_tag        = NULL;
+    int32_t     header_rows   = 0;
+    int32_t     header_cols   = 0;
+    bool        stripe        = false;
 
     c4m_karg_va_init(args);
     c4m_kw_int32("start_rows", start_rows);
@@ -413,18 +413,15 @@ get_col_props(c4m_grid_t *grid, int col)
 // properties separately; if you want something that spans you should
 // instead
 void
-c4m_grid_set_all_contents(c4m_grid_t *g, c4m_list_t *contents)
+c4m_grid_set_all_contents(c4m_grid_t *g, c4m_list_t *rows)
 {
-    c4m_list_t *rows     = c4m_list_copy(contents);
-    int64_t      nrows    = rows->length;
-    c4m_list_t *rowviews = c4m_list(c4m_type_ref());
-    uint64_t     ncols    = 0;
+    int64_t  nrows = c4m_list_len(rows);
+    uint64_t ncols = 0;
 
     for (int64_t i = 0; i < nrows; i++) {
-        c4m_list_t *row = (c4m_list_t *)(c4m_list_get(rowviews, i, NULL));
+        c4m_list_t *row = (c4m_list_t *)(c4m_list_get(rows, i, NULL));
 
-        uint64_t rlen = row->length;
-        c4m_list_append(rowviews, row);
+        uint64_t rlen = c4m_list_len(row);
 
         if (rlen > ncols) {
             ncols = rlen;
@@ -437,8 +434,8 @@ c4m_grid_set_all_contents(c4m_grid_t *g, c4m_list_t *contents)
     g->num_cols      = ncols;
 
     for (int64_t i = 0; i < nrows; i++) {
-        c4m_list_t *view    = c4m_list_get(rowviews, i, NULL);
-        uint64_t     viewlen = c4m_list_len(view);
+        c4m_list_t *view    = c4m_list_get(rows, i, NULL);
+        uint64_t    viewlen = c4m_list_len(view);
 
         for (uint64_t j = 0; j < viewlen; j++) {
             c4m_obj_t         item = c4m_list_get(view, j, NULL);
@@ -536,7 +533,7 @@ column_text_width(c4m_grid_t *grid, int col)
             s = (c4m_str_t *)cell->raw_item;
 
             c4m_list_t *arr = c4m_str_xsplit(s, c4m_str_newline());
-            int          len = c4m_list_len(arr);
+            int         len = c4m_list_len(arr);
 
             for (int j = 0; j < len; j++) {
                 c4m_utf32_t *item = c4m_to_utf32(c4m_list_get(arr, j, NULL));
@@ -836,7 +833,7 @@ str_render_cell(c4m_grid_t       *grid,
     c4m_render_style_t *col_style = get_col_props(grid, cell->start_col);
     c4m_render_style_t *row_style = get_row_props(grid, cell->start_row);
     c4m_render_style_t *cs        = c4m_copy_render_style(cell->current_style);
-    c4m_list_t        *res       = c4m_new(c4m_type_list(c4m_type_utf32()));
+    c4m_list_t         *res       = c4m_new(c4m_type_list(c4m_type_utf32()));
 
     c4m_layer_styles(col_style, cs);
     c4m_layer_styles(row_style, cs);
@@ -858,7 +855,7 @@ str_render_cell(c4m_grid_t       *grid,
 
     if (cs->disable_wrap) {
         c4m_list_t *arr = c4m_str_xsplit(s, c4m_str_newline());
-        bool         err;
+        bool        err;
 
         for (i = 0; i < c4m_list_len(arr); i++) {
             c4m_utf32_t *one = c4m_to_utf32(c4m_list_get(arr, i, &err));
@@ -866,10 +863,10 @@ str_render_cell(c4m_grid_t       *grid,
                 break;
             }
             c4m_list_append(res,
-                             c4m_str_truncate(one,
-                                              width,
-                                              c4m_kw("use_render_width",
-                                                     c4m_ka(true))));
+                            c4m_str_truncate(one,
+                                             width,
+                                             c4m_kw("use_render_width",
+                                                    c4m_ka(true))));
         }
     }
     else {
@@ -1152,9 +1149,9 @@ grid_add_top_border(c4m_grid_t *grid, c4m_list_t *lines, int16_t *col_widths)
 }
 
 static inline void
-grid_add_bottom_border(c4m_grid_t  *grid,
+grid_add_bottom_border(c4m_grid_t *grid,
                        c4m_list_t *lines,
-                       int16_t     *col_widths)
+                       int16_t    *col_widths)
 {
     c4m_render_style_t *gs           = grid_style(grid);
     int32_t             border_width = 0;
@@ -1226,10 +1223,10 @@ grid_add_bottom_border(c4m_grid_t  *grid,
 }
 
 static inline void
-grid_add_horizontal_rule(c4m_grid_t  *grid,
-                         int          row,
+grid_add_horizontal_rule(c4m_grid_t *grid,
+                         int         row,
                          c4m_list_t *lines,
-                         int16_t     *col_widths)
+                         int16_t    *col_widths)
 {
     c4m_render_style_t *gs           = grid_style(grid);
     int32_t             border_width = 0;
@@ -1312,8 +1309,8 @@ static inline c4m_list_t *
 grid_add_left_pad(c4m_grid_t *grid, int height)
 {
     c4m_render_style_t *gs   = grid_style(grid);
-    c4m_list_t        *res  = c4m_new(c4m_type_list(c4m_type_utf32()),
-                               c4m_kw("length", c4m_ka(height)));
+    c4m_list_t         *res  = c4m_new(c4m_type_list(c4m_type_utf32()),
+                              c4m_kw("length", c4m_ka(height)));
     c4m_utf32_t        *lpad = c4m_empty_string();
 
     if (gs->left_pad > 0) {
@@ -1346,7 +1343,7 @@ grid_add_right_pad(c4m_grid_t *grid, c4m_list_t *lines)
 
 static inline void
 add_vertical_bar(c4m_grid_t      *grid,
-                 c4m_list_t     *lines,
+                 c4m_list_t      *lines,
                  c4m_border_set_t to_match)
 {
     c4m_render_style_t *gs = grid_style(grid);
@@ -1400,8 +1397,8 @@ crop_vertically(c4m_grid_t *grid, c4m_list_t *lines, int32_t height)
     case C4M_ALIGN_MIDDLE:
         for (int i = 0; i < height; i++) {
             c4m_list_set(lines,
-                          i,
-                          c4m_list_get(lines, i + (diff >> 1), NULL));
+                         i,
+                         c4m_list_get(lines, i + (diff >> 1), NULL));
         }
         break;
     default:
@@ -1451,10 +1448,10 @@ align_and_crop_grid_line(c4m_grid_t *grid, c4m_utf32_t *line, int32_t width)
 }
 
 static c4m_list_t *
-align_and_crop_grid(c4m_grid_t  *grid,
+align_and_crop_grid(c4m_grid_t *grid,
                     c4m_list_t *lines,
-                    int32_t      width,
-                    int32_t      height)
+                    int32_t     width,
+                    int32_t     height)
 {
     int num_lines = c4m_list_len(lines);
 
@@ -1488,12 +1485,12 @@ align_and_crop_grid(c4m_grid_t  *grid,
 }
 
 static inline bool
-grid_add_cell_contents(c4m_grid_t  *grid,
+grid_add_cell_contents(c4m_grid_t *grid,
                        c4m_list_t *lines,
-                       uint16_t     r,
-                       uint16_t     c,
-                       int16_t     *col_widths,
-                       int16_t     *row_heights)
+                       uint16_t    r,
+                       uint16_t    c,
+                       int16_t    *col_widths,
+                       int16_t    *row_heights)
 {
     // This is the one that fills a single cell.  Returns true if the
     // caller should render vertical interior borders (if wanted). The
@@ -1507,8 +1504,8 @@ grid_add_cell_contents(c4m_grid_t  *grid,
         for (i = 0; i < c4m_list_len(lines); i++) {
             c4m_utf32_t *s     = c4m_to_utf32(c4m_list_get(lines, i, NULL));
             c4m_utf32_t *piece = c4m_to_utf32(c4m_list_get(cell->render_cache,
-                                                            i,
-                                                            NULL));
+                                                           i,
+                                                           NULL));
             if (!c4m_str_codepoint_len(piece)) {
                 c4m_style_t pad_style = c4m_get_pad_style(grid_style(grid));
                 piece                 = get_styled_pad(col_widths[i],
@@ -1556,8 +1553,8 @@ grid_add_cell_contents(c4m_grid_t  *grid,
     for (i = row_offset; i < row_offset + num_rows; i++) {
         c4m_utf32_t *s     = c4m_to_utf32(c4m_list_get(lines, i, NULL));
         c4m_utf32_t *piece = c4m_to_utf32(c4m_list_get(cell->render_cache,
-                                                        i,
-                                                        NULL));
+                                                       i,
+                                                       NULL));
 
         piece             = c4m_str_slice(piece,
                               start_width,
@@ -1631,7 +1628,7 @@ _c4m_grid_render(c4m_grid_t *grid, ...)
     }
 
     c4m_list_t *result = c4m_new(c4m_type_list(c4m_type_utf32()),
-                                  c4m_kw("length", c4m_ka(h_alloc)));
+                                 c4m_kw("length", c4m_ka(h_alloc)));
 
     grid_add_top_pad(grid, result, width);
     grid_add_top_border(grid, result, col_widths);
@@ -1718,8 +1715,8 @@ _c4m_ordered_list(c4m_list_t *items, ...)
         c4m_utf32_t      *s         = c4m_str_concat(c4m_str_from_int(i + 1),
                                         dot);
         c4m_utf32_t      *list_item = c4m_to_utf32(c4m_list_get(items,
-                                                            i,
-                                                            NULL));
+                                                           i,
+                                                           NULL));
         c4m_renderable_t *li        = c4m_new(c4m_type_renderable(),
                                        c4m_kw("obj",
                                               c4m_ka(list_item),
@@ -1766,8 +1763,8 @@ _c4m_unordered_list(c4m_list_t *items, ...)
 
     for (int i = 0; i < n; i++) {
         c4m_utf32_t      *list_item = c4m_to_utf32(c4m_list_get(items,
-                                                            i,
-                                                            NULL));
+                                                           i,
+                                                           NULL));
         c4m_renderable_t *li        = c4m_new(c4m_type_renderable(),
                                        c4m_kw("obj",
                                               c4m_ka(list_item),
@@ -1812,10 +1809,10 @@ c4m_grid_flow(uint64_t items, ...)
 
 c4m_grid_t *
 c4m_grid_horizontal_flow(c4m_list_t *items,
-                         uint64_t     max_columns,
-                         uint64_t     total_width,
-                         char        *table_style,
-                         char        *cell_style)
+                         uint64_t    max_columns,
+                         uint64_t    total_width,
+                         char       *table_style,
+                         char       *cell_style)
 {
     uint64_t list_len   = c4m_list_len(items);
     uint64_t start_cols = c4m_min(list_len, max_columns);

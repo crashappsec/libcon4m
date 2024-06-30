@@ -498,7 +498,7 @@ main(int argc, char **argv, char **envp)
         dev_mode = true;
     }
 
-    //    C4M_TRY
+    C4M_TRY
     {
         c4m_install_default_styles();
         c4m_terminal_dimensions(&term_width, NULL);
@@ -520,14 +520,14 @@ main(int argc, char **argv, char **envp)
             }
         }
     }
-    //    C4M_EXCEPT
-    //    {
-    //        no_exception = -1;
-    //        printf("An exception was raised before exit:\n");
-    //        c4m_print(c4m_repr_exception_stack_no_vm(c4m_new_utf8("Error: ")));
-    //        C4M_JUMP_TO_TRY_END();
-    //    }
-    //    C4M_TRY_END;
+    C4M_EXCEPT
+    {
+        no_exception = -1;
+        printf("An exception was raised before exit:\n");
+        c4m_print(c4m_repr_exception_stack_no_vm(c4m_new_utf8("Error: ")));
+        C4M_JUMP_TO_TRY_END();
+    }
+    C4M_TRY_END;
 
     c4m_printf("Passed [em]{}[/] out of [em]{}[/] run tests.",
                c4m_box_u64(num_tests - num_errs),

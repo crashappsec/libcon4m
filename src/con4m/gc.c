@@ -312,9 +312,6 @@ c4m_internal_set_heap(c4m_arena_t *heap)
 static void *
 raw_arena_alloc(uint64_t len, void **end)
 {
-#ifdef C4M_GC_STATS
-    c4m_total_words += len;
-#endif
     // Add two guard pages to sandwich the alloc.
     size_t total_len  = (size_t)(page_bytes * 2 + len);
     char  *full_alloc = mmap(NULL,
@@ -1048,6 +1045,7 @@ c4m_collect_arena(c4m_arena_t **ptr_loc)
 
     uint64_t stashed_counter  = c4m_total_allocs;
     uint64_t stashed_words    = c4m_total_words;
+    uint64_t stashed_requests = c4m_words_requested;
     uint64_t start_counter    = current_heap->starting_counter;
     uint64_t start_records    = current_heap->legacy_count;
     uint64_t prev_new_allocs  = stashed_counter - start_counter;
@@ -1075,10 +1073,11 @@ c4m_collect_arena(c4m_arena_t **ptr_loc)
 #endif
 
 #ifdef C4M_GC_STATS
-    const int mb     = 0x100000;
-    num_migrations   = c4m_total_allocs;
-    c4m_total_allocs = stashed_counter;
-    c4m_total_words  = stashed_words;
+    const int mb        = 0x100000;
+    num_migrations      = c4m_total_allocs;
+    c4m_total_allocs    = stashed_counter;
+    c4m_total_words     = stashed_words;
+    c4m_words_requested = stashed_requests;
 
     c4m_gc_heap_stats(&live, &available, &new_total);
 
@@ -1096,7 +1095,7 @@ c4m_collect_arena(c4m_arena_t **ptr_loc)
         "[h2]Pre-collection heap[i] @{:x}:",
         c4m_box_u64((uint64_t)old_arena));
 
-    c4m_printf("[em]{:,}[/] mb used of [em]{:,}[/] mb; ([i]{:,}[/] mb free)",
+    c4m_printf("[em]{:,}[/] mb used of [em]{:,}[/] mb; ([em]{:,}[/] mb free)",
                c4m_box_u64(old_used / mb),
                c4m_box_u64(old_total / mb),
                c4m_box_u64(old_free / mb));
@@ -1126,10 +1125,10 @@ c4m_collect_arena(c4m_arena_t **ptr_loc)
                c4m_box_u64(num_migrations),
                c4m_box_u64(old_num_records - num_migrations));
 
-    c4m_printf("[h2]Totals[/h2]\n[b]Total requests:[/] [em]{:,}[/] mb ",
+    c4m_printf("[h2]Totals[/h2]\n[b]Total requests:[/][em]{:,}[/] mb ",
                c4m_box_u64((c4m_words_requested * 8) / mb));
 
-    c4m_printf("[b]Total requested:[/] [em]{:,}[/] mb",
+    c4m_printf("[b]Total alloced:[/] [em]{:,}[/] mb",
                c4m_box_u64((c4m_total_words * 8) / mb));
 
     c4m_printf("[b]Total allocs:[/] [em]{:,}[/]",
@@ -1137,6 +1136,9 @@ c4m_collect_arena(c4m_arena_t **ptr_loc)
 
     c4m_printf("[b]Total collects:[/] [em]{:,}",
                c4m_box_u64(c4m_total_collects));
+
+    c4m_printf("[b]Average allocation size:[/] [em]{:,} bytes",
+               c4m_box_u64((c4m_total_words * 8) / c4m_total_allocs));
 #endif
 }
 
@@ -1278,6 +1280,7 @@ try_again:;
 
 #ifdef C4M_GC_STATS
     c4m_words_requested += len;
+    c4m_total_words += wordlen;
 
     raw->alloc_file = file;
     raw->alloc_line = line;
