@@ -1055,7 +1055,7 @@ static error_info_t error_info[] = {
     [c4m_info_unused_global_decl] = {
         c4m_info_unused_global_decl,
         "unused_global_decl",
-        "Global variable",
+        "Global variable is unused.",
         true,
     },
     [c4m_global_def_without_use] = {

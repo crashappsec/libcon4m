@@ -2785,22 +2785,24 @@ check_used_global_variable(c4m_file_compile_ctx *ctx, c4m_symbol_t *sym)
     int num_defs = c4m_list_len(sym->sym_defs);
     int num_uses = c4m_list_len(sym->sym_uses);
 
-    if (num_defs > 0) {
-        c4m_tree_node_t *first_node = sym->linked_symbol->declaration_node;
-
-        c4m_add_error(ctx,
-                      c4m_err_global_remote_def,
-                      sym->declaration_node,
-                      sym->name,
-                      c4m_node_get_loc_str(first_node));
+    if (num_uses == 0) {
+        c4m_add_warning(ctx,
+                        c4m_warn_unused_decl,
+                        sym->declaration_node,
+                        sym->name);
         return;
     }
 
-    if (num_uses == 0) {
-        c4m_add_warning(ctx,
-                        c4m_err_global_remote_unused,
-                        sym->declaration_node,
-                        sym->name);
+    if (num_defs > 0) {
+        if (sym->linked_symbol) {
+            c4m_tree_node_t *first_node = sym->linked_symbol->declaration_node;
+
+            c4m_add_error(ctx,
+                          c4m_err_global_remote_def,
+                          sym->declaration_node,
+                          sym->name,
+                          c4m_node_get_loc_str(first_node));
+        }
         return;
     }
 }

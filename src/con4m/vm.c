@@ -951,7 +951,10 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 STACK_REQUIRE_VALUES(2);
                 rhs.sint = tstate->sp[0].sint;
                 ++tstate->sp;
-                tstate->sp[0].uint /= rhs.sint;
+                if (rhs.sint == 0) {
+                    C4M_CRAISE("Division by zero error.");
+                }
+                tstate->sp[0].sint /= rhs.sint;
                 break;
             case C4M_ZMod:
                 STACK_REQUIRE_VALUES(2);
