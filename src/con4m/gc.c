@@ -1102,8 +1102,8 @@ c4m_collect_arena(c4m_arena_t **ptr_loc)
                c4m_box_u64(old_free / mb));
 
     c4m_printf(
-        "[em]{}[/] records, [em]{}[/] "
-        "migrated ([em]{:,}[/] mb); [em]{}[/] new. ([em]{:,}[/] mb)\n",
+        "[em]{:,}[/] records, [em]{:,}[/] "
+        "migrated ([em]{:,}[/] mb); [em]{:,}[/] new. ([em]{:,}[/] mb)\n",
         c4m_box_u64(old_num_records),
         c4m_box_u64(start_records),
         c4m_box_u64(prev_start_bytes / mb),
@@ -1115,27 +1115,27 @@ c4m_collect_arena(c4m_arena_t **ptr_loc)
         c4m_box_u64((uint64_t)current_heap));
 
     c4m_printf(
-        "[em]{:,}[/] mb used of [em]{:,}[/] mb; ([i]{:,}[/] mb free)",
+        "[em]{:,}[/] mb used of [em]{:,}[/] mb; "
+        "([b i]{:,}[/] mb free, [b i]{:,}[/] mb collected)",
         c4m_box_u64(live / mb),
         c4m_box_u64(new_total / mb),
-        c4m_box_u64(available / mb));
+        c4m_box_u64(available / mb),
+        c4m_box_u64((old_used - live) / mb));
 
     c4m_printf("[b][i]Copied [em]{:,}[/] records; Trashed [em]{:,}[/]",
                c4m_box_u64(num_migrations),
                c4m_box_u64(old_num_records - num_migrations));
 
-    c4m_printf("[b]New Usage:[/] [em]{:,} mb[/] ([i]{} mb[/] collected)\n",
-               c4m_box_u64(live / mb),
-               c4m_box_u64((old_used - live) / mb));
-
-    c4m_printf("[h2]Totals[/h2]\n[b]Total requests:[/] [em]{}[/] mb ",
+    c4m_printf("[h2]Totals[/h2]\n[b]Total requests:[/] [em]{:,}[/] mb ",
                c4m_box_u64((c4m_words_requested * 8) / mb));
 
-    c4m_printf("[b]Total Requested:[/] [em]{}[/] mb",
+    c4m_printf("[b]Total requested:[/] [em]{:,}[/] mb",
                c4m_box_u64((c4m_total_words * 8) / mb));
 
-    c4m_printf("[b]Total allocs:[/] [em]{}[/]\n[b]Total collects:[/] [em]{}",
-               c4m_box_u64(c4m_total_allocs),
+    c4m_printf("[b]Total allocs:[/] [em]{:,}[/]",
+               c4m_box_u64(c4m_total_allocs));
+
+    c4m_printf("[b]Total collects:[/] [em]{:,}",
                c4m_box_u64(c4m_total_collects));
 #endif
 }

@@ -579,6 +579,7 @@ base_int_fmt(__int128_t v, c4m_fmt_spec_t *spec, c4m_codepoint_t default_type)
 
                 repr[--n] = (val % 10) + '0';
                 val /= 10;
+                processed_digits++;
             }
         }
         break;
