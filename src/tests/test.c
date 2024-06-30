@@ -32,9 +32,6 @@ extract_output(c4m_test_kat *kat, c4m_utf32_t *s, int64_t start, int64_t end)
     s                    = c4m_str_strip(s);
     s                    = c4m_to_utf8(s);
     kat->expected_output = s;
-    if (!strcmp(s->data, "4181")) {
-        c4m_watch_set(&s->byte_len, 0, c4m_wa_print, c4m_wa_abort, true);
-    }
 }
 
 static void
@@ -371,7 +368,6 @@ empty_err:
             if (!c4m_str_eq(output, kat->expected_output)) {
                 ret = false;
 
-                printf("byte len: %d\n", c4m_str_byte_len(kat->expected_output));
                 c4m_printf(
                     "[red]FAIL[/]: test [i]{}[/]: output mismatch.",
                     fname);

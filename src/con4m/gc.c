@@ -1103,7 +1103,7 @@ c4m_collect_arena(c4m_arena_t **ptr_loc)
 
     c4m_printf(
         "[em]{}[/] records, [em]{}[/] "
-        "migrated ([em]{:,}[/] mb); [em]{}[/] new. ([em]{:,} mb[/])\n",
+        "migrated ([em]{:,}[/] mb); [em]{}[/] new. ([em]{:,}[/] mb)\n",
         c4m_box_u64(old_num_records),
         c4m_box_u64(start_records),
         c4m_box_u64(prev_start_bytes / mb),
@@ -1128,11 +1128,13 @@ c4m_collect_arena(c4m_arena_t **ptr_loc)
                c4m_box_u64(live / mb),
                c4m_box_u64((old_used - live) / mb));
 
-    c4m_printf("[h2]Total requests:[/] [em]{}[/] mb  [b]allocs:[/] [em]{}[/] mb",
-               c4m_box_u64((c4m_words_requested * 8) / mb),
+    c4m_printf("[h2]Totals[/h2]\n[b]Total requests:[/] [em]{}[/] mb ",
+               c4m_box_u64((c4m_words_requested * 8) / mb));
+
+    c4m_printf("[b]Total Requested:[/] [em]{}[/] mb",
                c4m_box_u64((c4m_total_words * 8) / mb));
 
-    c4m_printf("[b]Total allocs:[/] [em]{}[/] [b]Total collects:[/] [em]{}",
+    c4m_printf("[b]Total allocs:[/] [em]{}[/]\n[b]Total collects:[/] [em]{}",
                c4m_box_u64(c4m_total_allocs),
                c4m_box_u64(c4m_total_collects));
 #endif
