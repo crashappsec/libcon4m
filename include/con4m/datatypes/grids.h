@@ -163,41 +163,38 @@ typedef struct {
     c4m_obj_t           raw_item; // Currently, must be a c4m_grid_t * or c4m_str_t *.
     char               *container_tag;
     c4m_render_style_t *current_style;
+    c4m_list_t         *render_cache;
     int64_t             start_col;
     int64_t             start_row;
     int64_t             end_col;
     int64_t             end_row;
-    c4m_list_t        *render_cache;
     uint64_t            render_width;
     uint64_t            render_height;
 } c4m_renderable_t;
 
 struct c4m_grid_t {
     c4m_renderable_t  *self;
-    c4m_renderable_t **cells; // A 2d array of renderable_objects, by ref
-    int64_t            num_cols;
-    int64_t            num_rows;
-    uint64_t           spare_rows;
+    c4m_renderable_t **cells;     // A 2d array of renderable_objects, by ref
     c4m_dict_t        *col_props; // dict of int:c4m_render_style_t **
     c4m_dict_t        *row_props;
-
     // Per-render info, which includes any adding added to perform
     // alignment of the grid within the dimensions we're given.
     // Negative widths are possible and will cause us to crop to the
     // dimensions of the drawing space.
-    char *td_tag_name;
-    char *th_tag_name;
-
-    int16_t  width;  // In chars.
-    int16_t  height; // In chars.
-    uint16_t row_cursor;
-    uint16_t col_cursor;
-
+    char              *td_tag_name;
+    char              *th_tag_name;
+    int64_t            num_cols;
+    int64_t            num_rows;
+    uint64_t           spare_rows;
+    int16_t            width;  // In chars.
+    int16_t            height; // In chars.
+    uint16_t           row_cursor;
+    uint16_t           col_cursor;
     // When we add renderables, if we have no explicit tag for them,
     // we will apply the 'th' tag to anything in these row/columns.
-    int8_t header_cols;
-    int8_t header_rows;
-    int8_t stripe;
+    int8_t             header_cols;
+    int8_t             header_rows;
+    int8_t             stripe;
 };
 
 #define C4M_GRID_TERMINAL_DIM  ((int64_t) - 1)

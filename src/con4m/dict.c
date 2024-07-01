@@ -316,6 +316,14 @@ to_dict_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *lm)
     return result;
 }
 
+static void
+c4m_dict_set_gc_bits(uint64_t *bitfield, int alloc_words)
+{
+    int ix;
+    c4m_set_object_header_bits(bitfield, &ix);
+    c4m_set_bit(bitfield, ix);
+}
+
 const c4m_vtable_t c4m_dict_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
@@ -333,6 +341,7 @@ const c4m_vtable_t c4m_dict_vtable = {
         [C4M_BI_INDEX_SET]     = (c4m_vtable_entry)hatrack_dict_put,
         [C4M_BI_VIEW]          = (c4m_vtable_entry)hatrack_dict_items_sort,
         [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)to_dict_lit,
+	[C4M_BI_GC_MAP]        = (c4m_vtable_entry)c4m_dict_set_gc_bits,
         NULL,
     },
 };

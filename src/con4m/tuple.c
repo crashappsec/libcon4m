@@ -85,7 +85,7 @@ static c4m_str_t *
 tuple_repr(c4m_tuple_t *tup)
 {
     c4m_list_t *tparams = c4m_type_get_params(c4m_get_my_type(tup));
-    int          len     = tup->num_items;
+    int         len     = tup->num_items;
     c4m_list_t *items   = c4m_new(c4m_type_list(c4m_type_utf32()));
 
     for (int i = 0; i < len; i++) {
@@ -111,8 +111,8 @@ tuple_can_coerce(c4m_type_t *src, c4m_type_t *dst)
 static c4m_tuple_t *
 tuple_coerce(c4m_tuple_t *tup, c4m_type_t *dst)
 {
-    c4m_list_t *srcparams = c4m_type_get_params(c4m_get_my_type(tup));
-    c4m_list_t *dstparams = c4m_type_get_params(dst);
+    c4m_list_t  *srcparams = c4m_type_get_params(c4m_get_my_type(tup));
+    c4m_list_t  *dstparams = c4m_type_get_params(dst);
     int          len       = tup->num_items;
     c4m_tuple_t *res       = c4m_new(dst);
 
@@ -143,12 +143,19 @@ tuple_from_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *litmod)
     return c4m_new(objtype, c4m_kw("contents", c4m_ka(items)));
 }
 
+static void
+tuple_set_gc_bits(uint64_t *bitfield, int alloc_words)
+{
+    int ix;
+    c4m_set_object_header_bits(bitfield, &ix);
+    c4m_set_bit(bitfield, ix);
+}
+
 const c4m_vtable_t c4m_tuple_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)tuple_init,
         [C4M_BI_TO_STR]        = (c4m_vtable_entry)tuple_repr,
-        [C4M_BI_MARSHAL]       = (c4m_vtable_entry)tuple_marshal,
         [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)tuple_unmarshal,
         [C4M_BI_COERCIBLE]     = (c4m_vtable_entry)tuple_can_coerce,
         [C4M_BI_COERCE]        = (c4m_vtable_entry)tuple_coerce,
@@ -157,6 +164,8 @@ const c4m_vtable_t c4m_tuple_vtable = {
         [C4M_BI_INDEX_GET]     = (c4m_vtable_entry)c4m_tuple_get,
         [C4M_BI_INDEX_SET]     = (c4m_vtable_entry)c4m_tuple_set,
         [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)tuple_from_lit,
-        NULL,
+        [C4M_BI_GC_MAP]        = (c4m_vtable_entry)tuple_set_gc_bits,
+        [C4M_BI_MARSHAL]       = (c4m_vtable_entry)tuple_marshal,
+        [C4M_BI_FINALIZER]     = NULL,
     },
 };

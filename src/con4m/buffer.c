@@ -529,6 +529,15 @@ buffer_view(c4m_buf_t *inbuf, uint64_t *outlen)
     return result->data;
 }
 
+// We conservatively scan the data pointer.
+static void
+buffer_set_gc_bits(uint64_t *bitfield, int alloc_words)
+{
+    int ix;
+    c4m_set_object_header_bits(bitfield, &ix);
+    c4m_set_bit(bitfield, ix);
+}
+
 const c4m_vtable_t c4m_buffer_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
@@ -549,6 +558,7 @@ const c4m_vtable_t c4m_buffer_vtable = {
         [C4M_BI_SLICE_SET]    = (c4m_vtable_entry)buffer_set_slice,
         [C4M_BI_ITEM_TYPE]    = (c4m_vtable_entry)buffer_item_type,
         [C4M_BI_VIEW]         = (c4m_vtable_entry)buffer_view,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)buffer_set_gc_bits,
         NULL,
     },
 };

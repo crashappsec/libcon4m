@@ -141,7 +141,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
-    [C4M_T_XLIST] = {
+    [C4M_T_LIST] = {
         .name      = "list",
         .typeid    = C4M_T_XLIST,
         .alloc_len = sizeof(c4m_list_t),
@@ -459,13 +459,13 @@ _c4m_new(c4m_type_t *type, ...)
 #if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
     if (tinfo->vtable->methods[C4M_BI_FINALIZER] == NULL) {
         obj = _c4m_gc_raw_alloc(alloc_len,
-                                (uint64_t *)tinfo->ptr_info,
+                                (c4m_mem_scan_fn)init_fn,
                                 file,
                                 line);
     }
     else {
         obj = _c4m_gc_raw_alloc_with_finalizer(alloc_len,
-                                               (uint64_t *)tinfo->ptr_info,
+                                               (c4m_mem_scan_fn)init_fn,
                                                file,
                                                line);
     }
@@ -481,12 +481,11 @@ _c4m_new(c4m_type_t *type, ...)
 
     c4m_alloc_hdr *hdr = &((c4m_alloc_hdr *)obj)[-1];
     hdr->con4m_obj     = 1;
+    hdr->scan_fn       = (c4m_mem_scan_fn)tinfo->vtable->methods[C4M_BI_GC_MAP];
 
     obj->base_data_type = tinfo;
     obj->concrete_type  = type;
     result              = obj->data;
-
-    assert(obj->concrete_type != NULL);
 
     switch (tinfo->dt_kind) {
     case C4M_DT_KIND_primitive:
@@ -946,4 +945,10 @@ c4m_finalize_allocation(c4m_base_obj_t *obj)
     }
     assert(fn != NULL);
     (*fn)(obj->data);
+}
+
+void
+c4m_scan_header_only(uint64_t *bitfield, int n)
+{
+    *bitfield = C4M_HEADER_SCAN_CONST;
 }

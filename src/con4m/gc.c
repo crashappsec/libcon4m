@@ -61,6 +61,8 @@ thread_local uint32_t c4m_total_allocs          = 0;
 thread_local uint32_t c4m_total_collects        = 0;
 thread_local uint64_t c4m_total_words           = 0;
 thread_local uint64_t c4m_words_requested       = 0;
+thread_local uint64_t c4m_total_garbage_words   = 0;
+thread_local uint64_t c4m_total_size            = 0;
 
 uint64_t
 c4m_get_alloc_counter()
@@ -379,51 +381,40 @@ c4m_new_arena(size_t num_words, hatrack_zarray_t *roots)
 #define TRACE_DEBUG_ARGS , debug_file, debug_ln
 
 void *
-_c4m_gc_raw_alloc(size_t len, uint64_t *ptr_map, char *debug_file, int debug_ln)
+_c4m_gc_raw_alloc(size_t          len,
+                  c4m_mem_scan_fn scan_fn,
+                  char           *debug_file,
+                  int             debug_ln)
 
 #else
 #define TRACE_DEBUG_ARGS
 
 void *
-_c4m_gc_raw_alloc(size_t len, uint64_t *ptr_map)
+_c4m_gc_raw_alloc(size_t len, c4m_mem_scan_fn scan_fn)
 
 #endif
 {
-#ifdef C4M_ALLOW_POINTER_MAPS
     return c4m_alloc_from_arena(&current_heap,
                                 len,
-                                ptr_map,
+                                scan_fn,
                                 false TRACE_DEBUG_ARGS);
-#else
-    return c4m_alloc_from_arena(&current_heap,
-                                len,
-                                GC_SCAN_ALL,
-                                false TRACE_DEBUG_ARGS);
-#endif
 }
 
 #if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
 void *
-_c4m_gc_raw_alloc_with_finalizer(size_t    len,
-                                 uint64_t *ptr_map,
-                                 char     *debug_file,
-                                 int       debug_ln)
+_c4m_gc_raw_alloc_with_finalizer(size_t          len,
+                                 c4m_mem_scan_fn scan_fn,
+                                 char           *debug_file,
+                                 int             debug_ln)
 #else
 void *
-_c4m_gc_raw_alloc_with_finalizer(size_t len, uint64_t *ptr_map)
+_c4m_gc_raw_alloc_with_finalizer(size_t len, c4m_mem_scan_fn scan_fn)
 #endif
 {
-#ifdef C4M_ALLOW_POINTER_MAPS
     return c4m_alloc_from_arena(&current_heap,
                                 len,
-                                ptr_map,
+                                scan_fn,
                                 true TRACE_DEBUG_ARGS);
-#else
-    return c4m_alloc_from_arena(&current_heap,
-                                len,
-                                GC_SCAN_ALL,
-                                true TRACE_DEBUG_ARGS);
-#endif
 }
 
 void *
@@ -444,17 +435,10 @@ c4m_gc_resize(void *ptr, size_t len)
     int   debug_ln   = hdr->alloc_line;
 #endif
 
-#ifdef C4M_ALLOW_POINTER_MAPS
     void *result = c4m_alloc_from_arena(&current_heap,
                                         len,
-                                        hdr->ptr_map,
+                                        hdr->scan_fn,
                                         (bool)hdr->finalize TRACE_DEBUG_ARGS);
-#else
-    void *result = c4m_alloc_from_arena(&current_heap,
-                                        len,
-                                        GC_SCAN_ALL,
-                                        (bool)hdr->finalize TRACE_DEBUG_ARGS);
-#endif
     if (len > 0) {
         size_t bytes = ((size_t)(hdr->next_addr - hdr->data)) * 8;
         memcpy(result, ptr, c4m_min(len, bytes));
@@ -619,19 +603,11 @@ prep_allocation(c4m_alloc_hdr *old, c4m_arena_t *new_arena)
     int   debug_ln   = old->alloc_line;
 #endif
 
-#ifdef C4M_ALLOW_POINTER_MAPS
     res = c4m_alloc_from_arena(&new_arena,
                                old->alloc_len,
-                               old->ptr_map,
+                               old->scan_fn,
                                (bool)old->finalize
                                    TRACE_DEBUG_ARGS);
-#else
-    res = c4m_alloc_from_arena(&new_arena,
-                               old->alloc_len,
-                               GC_SCAN_ALL,
-                               (bool)old->finalize
-                                   TRACE_DEBUG_ARGS);
-#endif
 
     res->finalize  = old->finalize;
     res->con4m_obj = old->con4m_obj;
@@ -834,36 +810,76 @@ update_pointer(c4m_alloc_hdr *oldalloc, void *oldptr, void **loc_to_update)
 static inline void
 scan_allocation(c4m_collection_ctx *ctx, c4m_alloc_hdr *hdr)
 {
-    void **p   = (void **)hdr->data;
-    void **end = (void **)hdr->next_addr;
-    void  *contents;
+    void          **p       = (void **)hdr->data;
+    void          **end     = (void **)hdr->next_addr;
+    c4m_mem_scan_fn scanner = hdr->scan_fn;
+    void           *contents;
 
-    while (p < end) {
-        contents = *p;
+    if ((void *)scanner == C4M_GC_SCAN_ALL) {
+        while (p < end) {
+            contents = *p;
 
-        // We haven't coppied anything yet.
-        //
-        // This allocation cannot copy until any pointers it contains
-        // are scanned, and have *their* initial allocations set up.
-        //
-        // So we go through looking for pointers into the old heap.
-        // If the pointers are self-referential, we can just update
-        // them.
-        //
-        // Otherwise, if the allocation add the location that the
-        // pointer lives in the old heap to the worklist.
+            // We haven't copied anything yet.
+            //
+            // This allocation cannot copy until any pointers it contains
+            // are scanned, and have *their* initial allocations set up.
+            //
+            // So we go through looking for pointers into the old heap.
+            // If the pointers are self-referential, we can just update
+            // them.
+            //
+            // Otherwise, if the allocation add the location that the
+            // pointer lives in the old heap to the worklist.
 
-        if (value_in_fromspace(ctx, contents)) {
-            if (value_in_allocation(hdr, contents)) {
-                update_pointer(hdr, contents, p);
+            if (value_in_fromspace(ctx, contents)) {
+                if (value_in_allocation(hdr, contents)) {
+                    update_pointer(hdr, contents, p);
+                }
+                else {
+                    add_forward_to_worklist(ctx, p);
+                }
             }
-            else {
-                add_forward_to_worklist(ctx, p);
-            }
+
+            p++;
         }
 
-        p++;
+        return;
     }
+
+    if ((void *)scanner == C4M_GC_SCAN_NONE) {
+        return;
+    }
+
+    uint32_t  numwords    = hdr->alloc_len;
+    uint32_t  bf_byte_len = ((numwords / 64) + 1) * 8;
+    uint64_t *map         = alloca(bf_byte_len);
+
+    memset(map, 0, bf_byte_len);
+    (*scanner)(map, numwords);
+
+    int last_cell = numwords / 64;
+
+    for (int i = 0; i <= last_cell; i++) {
+        uint64_t w = map[i];
+        while (w) {
+            int ix = 63 - __builtin_clzll(w);
+            w &= ~(1 << ix);
+            void **loc = &p[ix];
+            contents   = *loc;
+
+            if (value_in_fromspace(ctx, contents)) {
+                if (value_in_allocation(hdr, contents)) {
+                    update_pointer(hdr, contents, loc);
+                }
+                else {
+                    add_forward_to_worklist(ctx, loc);
+                }
+            }
+        }
+        p += 64;
+    }
+
+    return;
 }
 
 static void
@@ -927,6 +943,7 @@ process_worklist(c4m_collection_ctx *ctx)
         // We take the complement of the pointer if we're supposed to
         // copy. So if it's not a pointer into the fromspace, we
         // invert it and copy.
+
         if (!copy) {
             forward_one_allocation(ctx, p);
         }
@@ -1115,6 +1132,9 @@ c4m_collect_arena(c4m_arena_t *from_space)
     current_heap->starting_counter = stashed_counter;
     current_heap->start_size       = live / 8;
 
+    c4m_total_garbage_words += (new_total - available) / 8;
+    c4m_total_size += old_total;
+
     if (!c4m_gc_show_heap_stats_on) {
         return ctx.to_space;
     }
@@ -1166,6 +1186,16 @@ c4m_collect_arena(c4m_arena_t *from_space)
 
     c4m_printf("[b]Total collects:[/] [em]{:,}",
                c4m_box_u64(c4m_total_collects));
+
+    double      u = c4m_total_garbage_words * (double)100.0;
+    c4m_utf8_t *gstr;
+
+    // Precision isn't implemented on floats yet.
+    u    = u / (double)(c4m_total_size / 8);
+    gstr = c4m_cstr_format("{}", c4m_box_double(u));
+    gstr = c4m_str_slice(gstr, 0, 5);
+
+    c4m_printf("[b]Collect utilization[/] (lower is better): [em]{}[/]%", gstr);
 
     c4m_printf("[b]Average allocation size:[/] [em]{:,} bytes",
                c4m_box_u64((c4m_total_words * 8) / c4m_total_allocs));
@@ -1260,7 +1290,7 @@ c4m_is_read_only_memory(volatile void *address)
 void *
 c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
                      size_t          len,
-                     const uint64_t *ptr_map,
+                     c4m_mem_scan_fn scan_fn,
                      bool            finalize,
                      char           *file,
                      int             line)
@@ -1270,7 +1300,7 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
 void *
 c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
                      size_t          len,
-                     const uint64_t *ptr_map,
+                     c4m_mem_scan_fn scan_fn,
                      bool            finalize)
 #endif
 {
@@ -1319,7 +1349,7 @@ try_again:;
     raw->arena        = arena;
     raw->next_addr    = (uint64_t *)arena->next_alloc;
     raw->alloc_len    = wordlen;
-    raw->ptr_map      = (uint64_t *)ptr_map;
+    raw->scan_fn      = scan_fn;
 
 #ifdef C4M_GC_STATS
     c4m_words_requested += len;

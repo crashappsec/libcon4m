@@ -62,6 +62,7 @@ typedef union {
 } hatrack_hash_info_t;
 
 struct hatrack_dict_t {
+    crown_t             crown_instance;
     uint32_t            key_type;
     bool                slow_views;
     bool                sorted_views;
@@ -69,7 +70,6 @@ struct hatrack_dict_t {
     hatrack_mem_hook_t  free_handler;
     hatrack_mem_hook_t  key_return_hook;
     hatrack_mem_hook_t  val_return_hook;
-    crown_t             crown_instance;
 };
 
 // clang-format off

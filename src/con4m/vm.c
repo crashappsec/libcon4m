@@ -589,6 +589,7 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
     case C4M_BI_FROM_LITERAL:
     case C4M_BI_FINALIZER:
     case C4M_BI_NUM_FUNCS:
+    case C4M_BI_GC_MAP:
         // Not implemented yet, or not called via C4M_ZTCall.
         break;
     }

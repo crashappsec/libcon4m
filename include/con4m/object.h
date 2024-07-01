@@ -29,6 +29,27 @@ c4m_base_type_name(const c4m_obj_t *user_object)
     return obj->base_data_type->name;
 }
 
+// The first 2 words are pointers, but the first one is static.
+#define C4M_HEADER_SCAN_CONST 0x02ULL
+
+static inline void
+c4m_set_object_header_bits(uint64_t *bitfield, int *startbit)
+{
+    *bitfield = C4M_HEADER_SCAN_CONST;
+    *startbit = (sizeof(c4m_base_obj_t) / 8);
+}
+
+static inline void
+c4m_set_bit(uint64_t *bitfield, int ix)
+{
+    int word = ix / 64;
+    int bit  = ix % 64;
+
+    bitfield[word] |= (1 << bit);
+}
+
+extern void c4m_scan_header_only(uint64_t *, int);
+
 // in object.c
 extern const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS];
 

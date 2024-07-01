@@ -761,10 +761,19 @@ c4m_get_stderr()
     return c4m_stream_stderr;
 }
 
+static void
+c4m_stream_set_gc_bits(uint64_t *bitfield, int alloc_words)
+{
+    int ix;
+    c4m_set_object_header_bits(bitfield, &ix);
+    c4m_set_bit(bitfield, ix);
+}
+
 const c4m_vtable_t c4m_stream_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_stream_init,
+        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)c4m_stream_set_gc_bits,
         // This is not supposed to be necessary, but it sometimes crashes w/o.
         [C4M_BI_FINALIZER]   = (c4m_vtable_entry)c4m_stream_close,
         NULL,

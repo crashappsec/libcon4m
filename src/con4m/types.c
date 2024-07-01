@@ -442,6 +442,15 @@ type_rehash(c4m_type_t *node)
 }
 
 static void
+c4m_type_set_gc_bits(uint64_t *bitfield, int alloc_words)
+{
+    int ix;
+
+    c4m_set_object_header_bits(bitfield, &ix);
+    c4m_set_bit(bitfield, ix);
+}
+
+static void
 internal_add_items_array(c4m_type_t *n)
 {
     // Avoid infinite recursion by manually constructing the list.
@@ -1594,6 +1603,7 @@ const c4m_vtable_t c4m_type_spec_vtable = {
         [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_type_marshal,
         [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_type_unmarshal,
         [C4M_BI_COPY]        = (c4m_vtable_entry)c4m_type_copy,
+        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)c4m_type_set_gc_bits,
         [C4M_BI_FINALIZER]   = NULL,
     },
 };
@@ -1604,8 +1614,7 @@ c4m_initialize_global_types()
     if (c4m_type_universe == NULL) {
         c4m_dt_info_t   *tspec = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_TYPESPEC];
         int              tslen = tspec->alloc_len + sizeof(c4m_base_obj_t);
-        c4m_base_obj_t  *tobj  = c4m_gc_raw_alloc(tslen,
-                                                (uint64_t *)tspec->ptr_info);
+        c4m_base_obj_t  *tobj  = c4m_gc_raw_alloc(tslen, c4m_type_set_gc_bits);
         c4m_type_info_t *info  = c4m_gc_alloc(c4m_type_info_t);
         c4m_base_obj_t  *one;
         c4m_type_t      *ts;
@@ -1632,8 +1641,7 @@ c4m_initialize_global_types()
             case C4M_DT_KIND_nil:
             case C4M_DT_KIND_primitive:
             case C4M_DT_KIND_internal:
-                one         = c4m_gc_raw_alloc(tslen,
-                                       (uint64_t *)tspec->ptr_info);
+                one         = c4m_gc_raw_alloc(tslen, c4m_type_set_gc_bits);
                 ts          = (c4m_type_t *)one->data;
                 ts->typeid  = i;
                 info        = c4m_gc_alloc(c4m_type_info_t);
@@ -1669,7 +1677,7 @@ c4m_initialize_global_types()
 
         // Set up the type we need internally for containers.
 
-        tobj = c4m_gc_raw_alloc(tslen, (uint64_t *)tspec->ptr_info);
+        tobj = c4m_gc_raw_alloc(tslen, c4m_type_set_gc_bits);
 
         tobj->base_data_type = tspec;
         tobj->concrete_type  = c4m_bi_types[C4M_T_TYPESPEC];

@@ -25,6 +25,8 @@ const c4m_vtable_t c4m_callback_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)callback_init,
+        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)C4M_GC_SCAN_ALL,
+        [C4M_BI_FINALIZER]   = NULL,
         NULL,
     },
 };

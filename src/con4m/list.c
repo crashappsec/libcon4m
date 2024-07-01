@@ -96,8 +96,8 @@ c4m_list_append(c4m_list_t *list, void *item)
 
 void
 c4m_list_add_if_unique(c4m_list_t *list,
-                        void        *item,
-                        bool (*fn)(void *, void *))
+                       void       *item,
+                       bool (*fn)(void *, void *))
 {
     lock_list(list);
     // Really meant to be internal for debugging sets; use sets instead.
@@ -199,7 +199,7 @@ void
 c4m_list_marshal(c4m_list_t *r, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(r);
-    c4m_list_t   *type_params = c4m_type_get_params(list_type);
+    c4m_list_t    *type_params = c4m_type_get_params(list_type);
     c4m_type_t    *item_type   = c4m_list_get(type_params, 0, NULL);
     c4m_dt_info_t *item_info   = c4m_type_get_data_type_info(item_type);
     bool           by_val      = item_info->by_value;
@@ -225,7 +225,7 @@ void
 c4m_list_unmarshal(c4m_list_t *r, c4m_stream_t *s, c4m_dict_t *memos)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(r);
-    c4m_list_t   *type_params = c4m_type_get_params(list_type);
+    c4m_list_t    *type_params = c4m_type_get_params(list_type);
     c4m_type_t    *item_type   = c4m_list_get(type_params, 0, NULL);
     c4m_dt_info_t *item_info   = item_type ? c4m_type_get_data_type_info(item_type) : NULL;
     bool           by_val      = item_info ? item_info->by_value : false;
@@ -266,10 +266,10 @@ c4m_list_repr(c4m_list_t *list)
 {
     read_start(list);
 
-    c4m_type_t  *list_type   = c4m_get_my_type(list);
+    c4m_type_t *list_type   = c4m_get_my_type(list);
     c4m_list_t *type_params = c4m_type_get_params(list_type);
-    c4m_type_t  *item_type   = c4m_list_get(type_params, 0, NULL);
-    int64_t      len         = c4m_list_len(list);
+    c4m_type_t *item_type   = c4m_list_get(type_params, 0, NULL);
+    int64_t     len         = c4m_list_len(list);
     c4m_list_t *items       = c4m_new(c4m_type_list(c4m_type_utf32()));
 
     for (int i = 0; i < len; i++) {
@@ -318,8 +318,8 @@ c4m_list_coerce_to(c4m_list_t *list, c4m_type_t *dst_type)
         for (int i = 0; i < len; i++) {
             void *item = c4m_list_get(list, i, NULL);
             c4m_list_set(res,
-                          i,
-                          c4m_coerce(item, src_item_type, dst_item_type));
+                         i,
+                         c4m_coerce(item, src_item_type, dst_item_type));
         }
 
         read_end(list);
@@ -346,9 +346,9 @@ c4m_list_copy(c4m_list_t *list)
 {
     read_start(list);
 
-    int64_t      len       = c4m_list_len(list);
-    c4m_type_t  *my_type   = c4m_get_my_type((c4m_obj_t)list);
-    c4m_type_t  *item_type = c4m_type_get_param(my_type, 0);
+    int64_t     len       = c4m_list_len(list);
+    c4m_type_t *my_type   = c4m_get_my_type((c4m_obj_t)list);
+    c4m_type_t *item_type = c4m_type_get_param(my_type, 0);
     c4m_list_t *res       = c4m_new(my_type, c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {
@@ -366,8 +366,8 @@ c4m_list_shallow_copy(c4m_list_t *list)
 {
     read_start(list);
 
-    int64_t      len     = c4m_list_len(list);
-    c4m_type_t  *my_type = c4m_get_my_type((c4m_obj_t)list);
+    int64_t     len     = c4m_list_len(list);
+    c4m_type_t *my_type = c4m_get_my_type((c4m_obj_t)list);
     c4m_list_t *res     = c4m_new(my_type, c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {
@@ -408,7 +408,7 @@ c4m_list_get_slice(c4m_list_t *list, int64_t start, int64_t end)
 {
     read_start(list);
 
-    int64_t      len = c4m_list_len(list);
+    int64_t     len = c4m_list_len(list);
     c4m_list_t *res;
 
     if (start < 0) {
@@ -448,9 +448,9 @@ c4m_list_get_slice(c4m_list_t *list, int64_t start, int64_t end)
 
 void
 c4m_list_set_slice(c4m_list_t *list,
-                    int64_t      start,
-                    int64_t      end,
-                    c4m_list_t *new)
+                   int64_t     start,
+                   int64_t     end,
+                   c4m_list_t *new)
 {
     lock_list(list);
     read_start(new);
@@ -539,13 +539,11 @@ c4m_list_contains(c4m_list_t *list, c4m_obj_t item)
     return false;
 }
 
-
-
 static void *
 c4m_list_view(c4m_list_t *list, uint64_t *n)
 {
     c4m_list_t *copy = c4m_list_shallow_copy(list);
-    *n                = c4m_list_len(copy);
+    *n               = c4m_list_len(copy);
     return copy->data;
 }
 static c4m_list_t *
@@ -557,6 +555,14 @@ c4m_to_xlist_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *litmod)
 }
 
 extern bool c4m_flexarray_can_coerce_to(c4m_type_t *, c4m_type_t *);
+
+static void
+c4m_list_set_gc_bits(uint64_t *bitfield, int alloc_words)
+{
+    int ix;
+    c4m_set_object_header_bits(bitfield, &ix);
+    c4m_set_bit(bitfield, ix);
+}
 
 const c4m_vtable_t c4m_list_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
@@ -576,6 +582,7 @@ const c4m_vtable_t c4m_list_vtable = {
         [C4M_BI_VIEW]          = (c4m_vtable_entry)c4m_list_view,
         [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)c4m_to_xlist_lit,
         [C4M_BI_REPR]          = (c4m_vtable_entry)c4m_list_repr,
+        [C4M_BI_GC_MAP]        = (c4m_vtable_entry)c4m_list_set_gc_bits,
         // Explicit because some compilers don't seem to always properly
         // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
         [C4M_BI_FINALIZER]     = NULL,

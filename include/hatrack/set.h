@@ -30,8 +30,8 @@
 typedef struct hatrack_set_st hatrack_set_t;
 
 struct hatrack_set_st {
-    uint32_t            item_type;
     woolhat_t           woolhat_instance;
+    uint32_t            item_type;
     hatrack_hash_info_t hash_info;
     hatrack_mem_hook_t  pre_return_hook;
     hatrack_mem_hook_t  free_handler;

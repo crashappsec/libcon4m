@@ -190,6 +190,7 @@ const c4m_vtable_t c4m_exception_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)exception_init,
+        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)C4M_GC_SCAN_ALL,
         // Explicit because some compilers don't seem to always properly
         // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
         [C4M_BI_FINALIZER]   = NULL,

@@ -125,6 +125,7 @@ typedef enum {
     C4M_BI_VIEW, // Return a view on a container.
     C4M_BI_CONTAINER_LIT,
     C4M_BI_REPR,
+    C4M_BI_GC_MAP,
     C4M_BI_NUM_FUNCS,
 } c4m_builtin_type_fn;
 

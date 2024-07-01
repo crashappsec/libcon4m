@@ -144,7 +144,7 @@ c4m_str_slice(const c4m_str_t *instr, int64_t start, int64_t end)
             c4m_style_t info = s->styling->styles[i + first].info;
             int64_t     snew = c4m_max(sold - start, 0);
             int64_t     enew = c4m_min(s->styling->styles[i + first].end,
-                               end)
+                                   end)
                          - start;
 
             if (enew > slice_len) {
@@ -410,8 +410,8 @@ _c4m_str_join(const c4m_list_t *l, const c4m_str_t *joiner, ...)
         result->codepoints = wrong_cp - joinlen;
 
         c4m_utf32_t *line = c4m_to_utf32((c4m_str_t *)c4m_list_get(l,
-                                                                    n_parts,
-                                                                    NULL));
+                                                                   n_parts,
+                                                                   NULL));
         int64_t      n_cp = c4m_str_codepoint_len(line);
 
         memcpy(p, line->data, n_cp * 4);
@@ -1391,6 +1391,15 @@ c4m_str_view(c4m_str_t *s, uint64_t *n)
     return as_u32->data;
 }
 
+static void
+c4m_str_set_gc_bits(uint64_t *bitfield, int alloc_words)
+{
+    int ix;
+    c4m_set_object_header_bits(bitfield, &ix);
+    c4m_set_bit(bitfield, ix++);
+    c4m_set_bit(bitfield, ix);
+}
+
 const c4m_vtable_t c4m_u8str_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
@@ -1410,6 +1419,7 @@ const c4m_vtable_t c4m_u8str_vtable = {
         [C4M_BI_SLICE_GET]    = (c4m_vtable_entry)c4m_str_slice,
         [C4M_BI_ITEM_TYPE]    = (c4m_vtable_entry)c4m_str_item_type,
         [C4M_BI_VIEW]         = (c4m_vtable_entry)c4m_str_view,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)c4m_str_set_gc_bits,
         // Explicit because some compilers don't seem to always properly
         // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
         [C4M_BI_FINALIZER]    = NULL,
@@ -1435,6 +1445,7 @@ const c4m_vtable_t c4m_u32str_vtable = {
         [C4M_BI_SLICE_GET]    = (c4m_vtable_entry)c4m_str_slice,
         [C4M_BI_ITEM_TYPE]    = (c4m_vtable_entry)c4m_str_item_type,
         [C4M_BI_VIEW]         = (c4m_vtable_entry)c4m_str_view,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)c4m_str_set_gc_bits,
         [C4M_BI_FINALIZER]    = NULL,
     },
 };
