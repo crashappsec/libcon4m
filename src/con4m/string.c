@@ -351,7 +351,7 @@ c4m_str_concat(const c4m_str_t *p1, const c4m_str_t *p2)
 }
 
 c4m_utf32_t *
-_c4m_str_join(const c4m_list_t *l, const c4m_str_t *joiner, ...)
+_c4m_str_join(c4m_list_t *l, const c4m_str_t *joiner, ...)
 {
     c4m_karg_only_init(joiner);
 
@@ -1363,7 +1363,7 @@ c4m_string_format(c4m_str_t *obj, c4m_fmt_spec_t *spec)
 }
 
 c4m_list_t *
-c4m_u8_map(const c4m_list_t *inlist)
+c4m_u8_map(c4m_list_t *inlist)
 {
     int len = c4m_list_len(inlist);
 

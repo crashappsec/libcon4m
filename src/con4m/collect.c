@@ -671,10 +671,10 @@ c4m_collect_arena(c4m_arena_t *from_space)
     gstr = c4m_cstr_format("{}", c4m_box_double(u));
     gstr = c4m_str_slice(gstr, 0, 5);
 
-    c4m_printf("[b]Collect utilization[/]: [em]{}[/]% garbage",
+    c4m_printf("[b]Collect utilization[/]: [em]{}%[/] [i]garbage",
                gstr);
 
-    c4m_printf("[b]Average allocation size:[/] [em]{:,} bytes",
+    c4m_printf("[b]Average allocation size:[/] [em]{:,}[/] bytes",
                c4m_box_u64((c4m_total_words * 8) / c4m_total_allocs));
 
 #endif

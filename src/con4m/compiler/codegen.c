@@ -1,6 +1,16 @@
 #define C4M_USE_INTERNAL_API
 #include "con4m.h"
 
+#ifdef C4M_DEV
+#define gen_debug(debug_arg) \
+    emit(ctx, C4M_ZDebug, c4m_kw("arg", c4m_ka(debug_arg)))
+#define debug_label(cstr) \
+    gen_label(ctx, c4m_new_utf8(cstr))
+#else
+#define gen_debug(debug_arg)
+#define debug_label(cstr)
+#endif
+
 // This is used in nested if/else only.
 typedef struct {
     c4m_jump_info_t *targets;
@@ -31,6 +41,7 @@ typedef struct {
     int                   instruction_counter;
     int                   current_stack_offset;
     int                   max_stack_size;
+    int                   module_patch_loc;
     bool                  lvalue;
     assign_type_t         assign_method;
     c4m_symbol_t         *retsym;
@@ -796,6 +807,8 @@ gen_module(gen_ctx *ctx)
     int num_params = gen_parameter_checks(ctx);
 
     emit(ctx, C4M_ZModuleEnter, c4m_kw("arg", c4m_ka(num_params)));
+    ctx->module_patch_loc = ctx->instruction_counter;
+    emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(0)));
     gen_kids(ctx);
 }
 
@@ -1093,6 +1106,7 @@ gen_ranged_for(gen_ctx *ctx, c4m_loop_info_t *li)
     // value. So if it's 0 .. 10, and we call subtract to calculate the
     // length, we're going to be computing 0 - 10, not the opposite.
     // So we first swap the two numbers.
+
     emit(ctx, C4M_ZSwap);
     // Subtract the 2 numbers now, but DO NOT POP; we need these.
     emit(ctx, C4M_ZSubNoPop);
@@ -1137,6 +1151,7 @@ gen_ranged_for(gen_ctx *ctx, c4m_loop_info_t *li)
     if (using_index) {
         emit(ctx, C4M_ZPopToR3);
     }
+
     // pop the step for a second.
     emit(ctx, C4M_ZPopToR1);
     // If the two items are equal, we bail from the loop.
@@ -1147,13 +1162,14 @@ gen_ranged_for(gen_ctx *ctx, c4m_loop_info_t *li)
     // Then push the step back on,
     // And, if it's being used, the $i from R3.
 
-    GEN_JNZ(gen_sym_store(ctx, li->lvar_1, false);
-            emit(ctx, C4M_ZPushFromR1);
-            emit(ctx, C4M_ZAdd);
-            emit(ctx, C4M_ZPushFromR1);
-            possible_restore_from_r3(ctx, using_index);
-            gen_one_kid(ctx, ctx->cur_node->num_kids - 1);
-            gen_j(ctx, &ji_top));
+    GEN_JNZ(
+        gen_sym_store(ctx, li->lvar_1, false);
+        emit(ctx, C4M_ZPushFromR1);
+        emit(ctx, C4M_ZAdd);
+        emit(ctx, C4M_ZPushFromR1);
+        possible_restore_from_r3(ctx, using_index);
+        gen_one_kid(ctx, ctx->cur_node->num_kids - 1);
+        gen_j(ctx, &ji_top));
     gen_apply_waiting_patches(ctx, &li->branch_info);
     emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-3)));
 }
@@ -1204,20 +1220,15 @@ gen_container_for(gen_ctx *ctx, c4m_loop_info_t *li)
     //
     // Also, note that the VIEW builtin doesn't need to copy objects,
     // but it needs to give us a pointer to items, where we steal the
-    // lowest 2 bits in the pointer to represent the the log base 2 of
+    // lowest 3 bits in the pointer to represent the the log base 2 of
     // the bytes in the item count.  Currently, the only allowable
-    // view item sizes are therefore: 1 byte, 2 bytes, 4 bytes, 8
-    // bytes.
+    // view item sizes are 1 byte, 2 bytes, 4 bytes, 8 bytes. Anything
+    // else currently represents a bitfield (per below).
     //
-    // Currently, we don't need more than 8bytes, since anything
+    // Currently, we don't need more than 8 bytes, since anything
     // larger than 8 bytes is passed around as pointers. However, I
     // expect to eventually add 128-bit ints, which would entail a
     // double-word load.
-    //
-    // Therefore, views must be 8 byte aligned, because eventually we
-    // will steal a third bit. But that's no problem as long as view
-    // pointers start at the beginning of an allocation, since the
-    // allocator always spits out aligned objects.
     //
     // We have a bit of a special case for bitfield types (right now,
     // just c4m_flags_t). There, the value of the "number of bytes"
@@ -1229,21 +1240,25 @@ gen_container_for(gen_ctx *ctx, c4m_loop_info_t *li)
     // of first implementation, it will just always happen, even
     // though in most cases it should be no problem to bind to the
     // right approach statically.
-
     gen_tcall(ctx, C4M_BI_VIEW, NULL);
+
     // The length of the container is on top right now; the view is
     // underneath.  We want to store a copy to $len if appropriate,
     // and then pop to a register 2, to work on the pointer. We'll
     // push it back on top when we properly enter the loop.
     gen_len_var_init(ctx, li);
+
     // Move the container length out to a register for a bit.
     emit(ctx, C4M_ZPopToR2);
+
     emit(ctx, C4M_ZUnsteal);
     // The bit length is actually encoded by taking log base 2; here
     // were expand it back out before going into the loop.
     emit(ctx, C4M_ZShlI, c4m_kw("arg", c4m_ka(0x1)));
+
     // On top of this, put the iteration count, which at the start of
     // each turn through the loop, will be the second item.
+
     bool have_index_var = gen_index_var_init(ctx, li);
     bool have_kv_pair   = li->lvar_2 != NULL;
 
@@ -1276,10 +1291,9 @@ gen_container_for(gen_ctx *ctx, c4m_loop_info_t *li)
             deal_with_iteration_count(ctx, li, have_index_var);
             emit(ctx, C4M_ZPopToR1);
             emit(ctx, C4M_ZLoadFromView, c4m_kw("arg", c4m_ka(have_kv_pair)));
-            // Store the item(s) to the appropriate loop variable(s).
             store_view_item(ctx, li);
-            emit(ctx, C4M_ZPushFromR1); // Re-groom the stack; container length.
-            emit(ctx, C4M_ZPushFromR2); // Iteration count.
+            emit(ctx, C4M_ZPushFromR1); // Re-groom the stack; iter count
+            emit(ctx, C4M_ZPushFromR2); // container len
             gen_one_kid(ctx, ctx->cur_node->num_kids - 1);
             gen_j(ctx, &ji_top));
     // After the loop:
@@ -1287,7 +1301,7 @@ gen_container_for(gen_ctx *ctx, c4m_loop_info_t *li)
     // 2. Move the stack down four items, popping the count, len, item size,
     //    and container.
     gen_apply_waiting_patches(ctx, &li->branch_info);
-    emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-4)));
+    emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-5)));
 }
 
 static inline void
@@ -2122,6 +2136,12 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
     ctx->current_stack_offset = ctx->fctx->static_size;
     ctx->max_stack_size       = ctx->fctx->static_size;
     gen_one_node(ctx);
+
+    c4m_zinstruction_t *sp_move = c4m_list_get(module->instructions,
+                                               ctx->module_patch_loc,
+                                               NULL);
+    sp_move->arg                = ctx->max_stack_size;
+
     emit(ctx, C4M_ZModuleRet);
 
     module->module_var_size = ctx->max_stack_size;

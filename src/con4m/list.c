@@ -100,6 +100,48 @@ c4m_list_append(c4m_list_t *list, void *item)
     return;
 }
 
+static inline void *
+c4m_list_get_base(c4m_list_t *list, int64_t ix, bool *err)
+{
+    if (!list) {
+        if (err) {
+            *err = true;
+        }
+
+        return NULL;
+    }
+
+    if (err) {
+        if (ix < 0 || ix >= list->append_ix) {
+            if (err) {
+                *err = true;
+            }
+        }
+        else {
+            if (err) {
+                *err = false;
+            }
+        }
+    }
+
+    return (void *)list->data[ix];
+}
+
+void *
+c4m_list_get(c4m_list_t *list, int64_t ix, bool *err)
+{
+    lock_list(list);
+
+    if (ix < 0) {
+        ix += list->append_ix;
+    }
+
+    void *result = c4m_list_get_base(list, ix, err);
+    unlock_list(list);
+
+    return result;
+}
+
 void
 c4m_list_add_if_unique(c4m_list_t *list,
                        void       *item,
@@ -108,7 +150,7 @@ c4m_list_add_if_unique(c4m_list_t *list,
     lock_list(list);
     // Really meant to be internal for debugging sets; use sets instead.
     for (int i = 0; i < c4m_list_len(list); i++) {
-        void *x = c4m_list_get(list, i, NULL);
+        void *x = c4m_list_get_base(list, i, NULL);
 
         if ((*fn)(x, item)) {
             unlock_list(list);
@@ -129,11 +171,11 @@ void *
 c4m_list_pop(c4m_list_t *list)
 {
     if (list->append_ix == 0) {
-        C4M_CRAISE("Pop called on empty xlist.");
+        C4M_CRAISE("Pop called on empty list.");
     }
 
     lock_list(list);
-    return c4m_list_get(list, --list->append_ix, NULL);
+    return c4m_list_get_base(list, --list->append_ix, NULL);
     unlock_list(list);
 }
 
@@ -206,7 +248,7 @@ c4m_list_marshal(c4m_list_t *r, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid
 {
     c4m_type_t    *list_type   = c4m_get_my_type(r);
     c4m_list_t    *type_params = c4m_type_get_params(list_type);
-    c4m_type_t    *item_type   = c4m_list_get(type_params, 0, NULL);
+    c4m_type_t    *item_type   = c4m_list_get_base(type_params, 0, NULL);
     c4m_dt_info_t *item_info   = c4m_type_get_data_type_info(item_type);
     bool           by_val      = item_info->by_value;
 
@@ -232,7 +274,7 @@ c4m_list_unmarshal(c4m_list_t *r, c4m_stream_t *s, c4m_dict_t *memos)
 {
     c4m_type_t    *list_type   = c4m_get_my_type(r);
     c4m_list_t    *type_params = c4m_type_get_params(list_type);
-    c4m_type_t    *item_type   = c4m_list_get(type_params, 0, NULL);
+    c4m_type_t    *item_type   = c4m_list_get_base(type_params, 0, NULL);
     c4m_dt_info_t *item_info   = item_type ? c4m_type_get_data_type_info(item_type) : NULL;
     bool           by_val      = item_info ? item_info->by_value : false;
 
@@ -274,13 +316,13 @@ c4m_list_repr(c4m_list_t *list)
 
     c4m_type_t *list_type   = c4m_get_my_type(list);
     c4m_list_t *type_params = c4m_type_get_params(list_type);
-    c4m_type_t *item_type   = c4m_list_get(type_params, 0, NULL);
+    c4m_type_t *item_type   = c4m_list_get_base(type_params, 0, NULL);
     int64_t     len         = c4m_list_len(list);
     c4m_list_t *items       = c4m_new(c4m_type_list(c4m_type_utf32()));
 
     for (int i = 0; i < len; i++) {
         bool  err  = false;
-        void *item = c4m_list_get(list, i, &err);
+        void *item = c4m_list_get_base(list, i, &err);
         if (err) {
             continue;
         }
@@ -318,11 +360,11 @@ c4m_list_coerce_to(c4m_list_t *list, c4m_type_t *dst_type)
         return result;
     }
 
-    if (base == (c4m_dt_kind_t)C4M_T_XLIST) {
+    if (base == (c4m_dt_kind_t)C4M_T_LIST) {
         c4m_list_t *res = c4m_new(dst_type, c4m_kw("length", c4m_ka(len)));
 
         for (int i = 0; i < len; i++) {
-            void *item = c4m_list_get(list, i, NULL);
+            void *item = c4m_list_get_base(list, i, NULL);
             c4m_list_set(res,
                          i,
                          c4m_coerce(item, src_item_type, dst_item_type));
@@ -336,7 +378,7 @@ c4m_list_coerce_to(c4m_list_t *list, c4m_type_t *dst_type)
         flexarray_t *res = c4m_new(dst_type, c4m_kw("length", c4m_ka(len)));
 
         for (int i = 0; i < len; i++) {
-            void *item = c4m_list_get(list, i, NULL);
+            void *item = c4m_list_get_base(list, i, NULL);
             flexarray_set(res,
                           i,
                           c4m_coerce(item, src_item_type, dst_item_type));
@@ -358,7 +400,7 @@ c4m_list_copy(c4m_list_t *list)
     c4m_list_t *res       = c4m_new(my_type, c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {
-        c4m_obj_t item = c4m_list_get(list, i, NULL);
+        c4m_obj_t item = c4m_list_get_base(list, i, NULL);
         c4m_list_set(res, i, c4m_copy_object_of_type(item, item_type));
     }
 
@@ -377,7 +419,7 @@ c4m_list_shallow_copy(c4m_list_t *list)
     c4m_list_t *res     = c4m_new(my_type, c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {
-        c4m_list_set(res, i, c4m_list_get(list, i, NULL));
+        c4m_list_set(res, i, c4m_list_get_base(list, i, NULL));
     }
 
     read_end(list);
@@ -392,7 +434,7 @@ c4m_list_safe_get(c4m_list_t *list, int64_t ix)
 
     read_start(list);
 
-    c4m_obj_t result = c4m_list_get(list, ix, &err);
+    c4m_obj_t result = c4m_list_get_base(list, ix, &err);
 
     if (err) {
         c4m_utf8_t *msg = c4m_cstr_format(
@@ -444,7 +486,7 @@ c4m_list_get_slice(c4m_list_t *list, int64_t start, int64_t end)
     res = c4m_new(c4m_get_my_type(list), c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {
-        void *item = c4m_list_get(list, start + i, NULL);
+        void *item = c4m_list_get_base(list, start + i, NULL);
         c4m_list_set(res, i, item);
     }
 
@@ -495,18 +537,18 @@ c4m_list_set_slice(c4m_list_t *list,
 
     if (start > 0) {
         for (int i = 0; i < start; i++) {
-            void *item = c4m_list_get(list, i, NULL);
+            void *item = c4m_list_get_base(list, i, NULL);
             newdata[i] = item;
         }
     }
 
     for (int i = 0; i < len2; i++) {
-        void *item       = c4m_list_get(new, i, NULL);
+        void *item       = c4m_list_get_base(new, i, NULL);
         newdata[start++] = item;
     }
 
     for (int i = end; i < len1; i++) {
-        void *item       = c4m_list_get(list, i, NULL);
+        void *item       = c4m_list_get_base(list, i, NULL);
         newdata[start++] = item;
     }
 
@@ -532,10 +574,10 @@ c4m_list_contains(c4m_list_t *list, c4m_obj_t item)
             // Don't know why ref is giving me no item type yet,
             // so this is a tmp fix.
             read_end(list);
-            return item == c4m_list_get(list, i, NULL);
+            return item == c4m_list_get_base(list, i, NULL);
         }
 
-        if (c4m_eq(item_type, item, c4m_list_get(list, i, NULL))) {
+        if (c4m_eq(item_type, item, c4m_list_get_base(list, i, NULL))) {
             read_end(list);
             return true;
         }
@@ -548,12 +590,30 @@ c4m_list_contains(c4m_list_t *list, c4m_obj_t item)
 static void *
 c4m_list_view(c4m_list_t *list, uint64_t *n)
 {
-    c4m_list_t *copy = c4m_list_shallow_copy(list);
-    *n               = c4m_list_len(copy);
-    return copy->data;
+    read_start(list);
+
+    void **view;
+    int    len = c4m_list_len(list);
+
+    if (c4m_obj_item_type_is_value(list)) {
+        view = c4m_gc_array_value_alloc(void *, len);
+    }
+    else {
+        view = c4m_gc_array_alloc(void *, len);
+    }
+
+    for (int i = 0; i < len; i++) {
+        view[i] = c4m_list_get_base(list, i, NULL);
+    }
+
+    read_end(list);
+
+    *n = len;
+
+    return view;
 }
 static c4m_list_t *
-c4m_to_xlist_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *litmod)
+c4m_to_list_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *litmod)
 {
     c4m_base_obj_t *hdr = c4m_object_header((c4m_obj_t)items);
     hdr->concrete_type  = objtype;
@@ -586,7 +646,7 @@ const c4m_vtable_t c4m_list_vtable = {
         [C4M_BI_SLICE_GET]     = (c4m_vtable_entry)c4m_list_get_slice,
         [C4M_BI_SLICE_SET]     = (c4m_vtable_entry)c4m_list_set_slice,
         [C4M_BI_VIEW]          = (c4m_vtable_entry)c4m_list_view,
-        [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)c4m_to_xlist_lit,
+        [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)c4m_to_list_lit,
         [C4M_BI_REPR]          = (c4m_vtable_entry)c4m_list_repr,
         [C4M_BI_GC_MAP]        = (c4m_vtable_entry)c4m_list_set_gc_bits,
         // Explicit because some compilers don't seem to always properly

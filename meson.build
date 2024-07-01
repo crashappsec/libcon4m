@@ -35,7 +35,6 @@ else
   using_osx = false
   link_args = []
   c_args    = c_args + ['-D_GNU_SOURCE']
-  
 endif
 
 exe_link_args = link_args + ['-flto', '-w']
@@ -52,6 +51,10 @@ int main(void) { forkpty(NULL, NULL, NULL, NULL); return 0; }
 
 if cc.links(fpty_code, name: 'forkpty_check')
   add_project_arguments('-DHAVE_PTY_H', language: 'c')
+endif
+
+if (get_option('buildtype') == 'release')
+  add_project_arguments([ '-O2' ], language: 'c')
 endif
 
 c4m_src  = ['src/con4m/style.c',

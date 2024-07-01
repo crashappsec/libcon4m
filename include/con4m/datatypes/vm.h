@@ -337,6 +337,7 @@ typedef enum : uint8_t {
     C4M_ZNop           = 0xFF,
 #ifdef C4M_DEV
     C4M_ZPrint = 0xFD,
+    C4M_ZDebug = 0xFC,
 #endif
 } c4m_zop_t;
 

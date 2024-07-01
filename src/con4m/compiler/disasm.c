@@ -53,6 +53,8 @@ get_bool_label(c4m_zop_t op)
         return c4m_new_utf8("currently unused");
     case C4M_ZLoadFromView:
         return c4m_new_utf8("load kv pair");
+    case C4M_ZDebug:
+        return c4m_new_utf8("set debug");
     default:
         c4m_unreachable();
     }
@@ -333,6 +335,10 @@ const inst_info_t inst_info[256] = {
 #ifdef C4M_DEV
     [C4M_ZPrint] = {
         .name = "ZPrint",
+    },
+    [C4M_ZDebug] = {
+        .name    = "ZDebug",
+        .arg_fmt = fmt_bool,
     },
 #endif
 };

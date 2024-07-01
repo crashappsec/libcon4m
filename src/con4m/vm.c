@@ -811,19 +811,46 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                              tstate->pc,
                              NULL);
 
-// #define C4M_VM_DEBUG
 #ifdef C4M_VM_DEBUG
-            c4m_print(
-                c4m_cstr_format(
-                    "[i] > {} (PC@{:x}; SP@{:x}; FP@{:x}; a = {}; m = {})",
-                    c4m_fmt_instr_name(i),
-                    c4m_box_u64(tstate->pc * 16),
-                    c4m_box_u64((uint64_t)(void *)tstate->sp),
-                    c4m_box_u64((uint64_t)(void *)tstate->fp),
-                    c4m_box_i64((int64_t)i->arg),
-                    c4m_box_u64((uint64_t)tstate->current_module->module_id)));
-            printf("stack has %ld items on it.\n",
-                   &tstate->stack[STACK_SIZE] - tstate->sp);
+            static bool  debug_on = (bool)(C4M_VM_DEBUG_DEFAULT);
+            static char *debug_fmt_str =
+                "[i]> {} (PC@{:x}; SP@{:x}; "
+                "FP@{:x}; a = {}; i = {}; m = {})";
+
+            if (debug_on && i->op != C4M_ZNop) {
+                int num_stack_items = &tstate->stack[STACK_SIZE] - tstate->sp;
+                printf("stack has %d items on it: ", num_stack_items);
+                for (int i = 0; i < num_stack_items; i++) {
+                    if (&tstate->sp[i] == tstate->fp) {
+                        printf("\e[34m[%p]\e[0m ", tstate->sp[i].vptr);
+                    }
+                    else {
+                        if (&tstate->sp[i - 1] == tstate->fp) {
+                            printf("\e[32m[%p]\e[0m ", tstate->sp[i].vptr);
+                        }
+                        else {
+                            if (&tstate->sp[i] > tstate->fp) {
+                                printf("\e[31m[%p]\e[0m ", tstate->sp[i].vptr);
+                            }
+                            else {
+                                printf("\e[33m[%p]\e[0m ", tstate->sp[i].vptr);
+                            }
+                        }
+                    }
+                }
+                printf("\n");
+                c4m_print(
+                    c4m_cstr_format(
+                        debug_fmt_str,
+                        c4m_fmt_instr_name(i),
+                        c4m_box_u64(tstate->pc * 16),
+                        c4m_box_u64((uint64_t)(void *)tstate->sp),
+                        c4m_box_u64((uint64_t)(void *)tstate->fp),
+                        c4m_box_i64((int64_t)i->arg),
+                        c4m_box_i64((int64_t)i->immediate),
+                        c4m_box_u64((uint64_t)tstate->current_module->module_id)));
+            }
+
 #endif
 
             switch (i->op) {
@@ -1013,8 +1040,8 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 break;
             case C4M_ZShlI:
                 STACK_REQUIRE_VALUES(1);
-                rhs.uint = tstate->sp[0].uint;
-                tstate->sp[0].uint <<= i->arg;
+                rhs.uint           = tstate->sp[0].uint;
+                tstate->sp[0].uint = i->arg << tstate->sp[0].uint;
                 break;
             case C4M_ZShr:
                 STACK_REQUIRE_VALUES(2);
@@ -1139,59 +1166,52 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 STACK_REQUIRE_VALUES(2);
                 STACK_REQUIRE_SLOTS(2); // Usually 1, except w/ dict.
                 do {
-                    uint64_t obj_len = tstate->sp->uint;
-
-                    union {
-                        uint8_t  u8;
-                        uint16_t u16;
-                        uint32_t u32;
-                        uint64_t u64;
-                    } view_item;
-
-                    union {
-                        uint8_t  *p8;
-                        uint16_t *p16;
-                        uint32_t *p32;
-                        uint64_t *p64;
-                        c4m_obj_t obj;
-                    } view_ptr;
-
-                    view_item.u64 = 0;
-                    view_ptr.obj  = (tstate->sp + 1)->rvalue.obj;
+                    uint64_t   obj_len   = tstate->sp->uint;
+                    void     **view_slot = &(tstate->sp + 1)->rvalue.obj;
+                    char      *p         = *(char **)view_slot;
+                    c4m_box_t *box       = (c4m_box_t *)p;
 
                     --tstate->sp;
 
                     switch (obj_len) {
                     case 1:
-                        view_item.u8 = *view_ptr.p8++;
+                        tstate->sp->uint = box->u8;
+                        *view_slot       = (void *)(p + 1);
                         break;
                     case 2:
-                        view_item.u16 = *view_ptr.p16++;
+                        tstate->sp->uint = box->u16;
+                        *view_slot       = (void *)(p + 2);
                         break;
                     case 4:
-                        view_item.u32 = *view_ptr.p32++;
+                        tstate->sp->uint = box->u32;
+                        *view_slot       = (void *)(p + 4);
                         break;
                     case 8:
-                        view_item.u64 = *view_ptr.p64++;
+                        tstate->sp->uint = box->u64;
+                        *view_slot       = (void *)(p + 8);
                         // This is the only size that can be a dict.
                         // Push the value on first.
                         if (i->arg) {
-                            tstate->sp->uint = *view_ptr.p64++;
                             --tstate->sp;
+                            p += 8;
+                            box              = (c4m_box_t *)p;
+                            tstate->sp->uint = box->u64;
+                            *view_slot       = (p + 8);
                         }
                         break;
                     default:
                         do {
                             uint64_t count  = (uint64_t)(tstate->r1.obj);
                             uint64_t bit_ix = (count - 1) % 64;
-                            view_item.u64   = *view_ptr.p64 & (1 << bit_ix);
+                            uint64_t val    = **(uint64_t **)view_slot;
+
+                            tstate->sp->uint = val & (1 << bit_ix);
 
                             if (bit_ix == 63) {
-                                view_ptr.p64++;
+                                *view_slot += 1;
                             }
                         } while (0);
                     }
-                    tstate->sp->uint = view_item.u64;
                 } while (0);
                 break;
             case C4M_ZStoreImm:
@@ -1389,6 +1409,11 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 }
                 break;
 #ifdef C4M_DEV
+            case C4M_ZDebug:
+#ifdef C4M_VM_DEBUG
+                debug_on = (bool)i->arg;
+#endif
+                break;
                 // This is not threadsafe. It's just for early days.
             case C4M_ZPrint:
                 STACK_REQUIRE_VALUES(1);

@@ -9,11 +9,28 @@
 
 // #define C4M_GC_ALL_OFF
 // #define C4M_GC_ALL_ON
-// #define C4M_VM_DEBUG
 // #define C4M_TYPE_LOG
 
-#ifndef C4M_NO_DEV_MODE
+// When this is on, the `debug` instruction will run.
+// Note that the debug instruction is not even generated unless
+// C4M_DEV is on.
+
+// #define C4M_VM_DEBUG
+// #define C4M_VM_DEBUG_DEFAULT true
+
+#ifdef C4M_NO_DEV_MODE
+#undef C4M_DEV
+#else
 #define C4M_DEV
+#endif
+
+#if defined(C4M_VM_DEBUG)
+#if !defined(C4M_DEV)
+#error "Cannot debug VM when C4M_DEV_MODE is set."
+#endif
+#if !defined(C4M_VM_DEBUG_DEFAULT)
+#define C4M_VM_DEBUG_DEFAULT false
+#endif
 #endif
 
 #ifdef C4M_TRACE_GC
@@ -49,7 +66,7 @@
 #include "con4m/color.h"
 
 // Basic "exclusive" (i.e., single threaded) list.
-#include "con4m/xlist.h"
+#include "con4m/list.h"
 
 // Type system API.
 #include "con4m/type.h"
