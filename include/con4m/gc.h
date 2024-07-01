@@ -1,5 +1,4 @@
 #pragma once
-
 #include "con4m.h"
 /*
  * This is not necessarily the final algorithm, just initial notes
@@ -132,7 +131,7 @@
 
 #ifndef C4M_DEFAULT_ARENA_SIZE
 
-#define C4M_DEFAULT_ARENA_SIZE (1 << 26)
+#define C4M_DEFAULT_ARENA_SIZE (1 << 28)
 // Was previously using 1 << 19
 // But this needs to be much bigger than the stack size; 21 is probably
 // the minimum value without adjusting the stack.
@@ -165,7 +164,7 @@ extern uint64_t     c4m_gc_guard;
 extern c4m_arena_t *c4m_new_arena(size_t, hatrack_zarray_t *);
 extern void         c4m_delete_arena(c4m_arena_t *);
 extern void         c4m_expand_arena(size_t, c4m_arena_t **);
-extern void         c4m_collect_arena(c4m_arena_t **);
+extern c4m_arena_t *c4m_collect_arena(c4m_arena_t *);
 extern void        *c4m_gc_resize(void *ptr, size_t len);
 extern void         c4m_gc_thread_collect();
 extern bool         c4m_is_read_only_memory(volatile void *);

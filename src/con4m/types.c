@@ -448,7 +448,7 @@ internal_add_items_array(c4m_type_t *n)
     size_t          sz    = sizeof(c4m_base_obj_t) + sizeof(c4m_list_t);
     c4m_base_obj_t *alloc = c4m_gc_raw_alloc(sz, GC_SCAN_ALL);
 
-    c4m_list_t *items    = (c4m_list_t *)alloc->data;
+    c4m_list_t *items     = (c4m_list_t *)alloc->data;
     alloc->base_data_type = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_XLIST];
     alloc->concrete_type  = type_node_for_list_of_type_objects;
     items->data           = c4m_gc_array_alloc(uint64_t *, 16);
@@ -596,7 +596,7 @@ copy_if_needed(c4m_type_t *t)
 bool
 c4m_type_is_concrete(c4m_type_t *node)
 {
-    int          n;
+    int         n;
     c4m_list_t *param;
 
     node = c4m_type_resolve(node);
@@ -671,12 +671,12 @@ unify_type_variables(c4m_type_t *t1, c4m_type_t *t2)
     for (int i = 0; i < nparams; i++) {
         if (i >= t1_arg_ct) {
             c4m_list_append(result->details->items,
-                             c4m_type_get_param(t2, i));
+                            c4m_type_get_param(t2, i));
         }
         else {
             if (i >= t2_arg_ct) {
                 c4m_list_append(result->details->items,
-                                 c4m_type_get_param(t1, i));
+                                c4m_type_get_param(t1, i));
             }
             else {
                 c4m_type_t *sub1 = c4m_type_get_param(t1, i);
@@ -950,14 +950,14 @@ unify_tv_with_concrete_type(c4m_type_t *t1,
 c4m_type_t *
 c4m_unify(c4m_type_t *t1, c4m_type_t *t2)
 {
-    c4m_type_t  *result;
-    c4m_type_t  *sub1;
-    c4m_type_t  *sub2;
-    c4m_type_t  *sub_result;
+    c4m_type_t *result;
+    c4m_type_t *sub1;
+    c4m_type_t *sub2;
+    c4m_type_t *sub_result;
     c4m_list_t *p1;
     c4m_list_t *p2;
     c4m_list_t *new_subs;
-    int          num_params;
+    int         num_params;
 
     if (!t1 || !t2) {
         return c4m_type_error();
@@ -1278,8 +1278,8 @@ c4m_type_cmp_exact(c4m_type_t *t1, c4m_type_t *t2)
     for (int i = 0; i < n1; i++) {
         c4m_list_t *p1;
         c4m_list_t *p2;
-        c4m_type_t  *sub1;
-        c4m_type_t  *sub2;
+        c4m_type_t *sub1;
+        c4m_type_t *sub2;
 
         p1   = c4m_type_get_params(t1);
         p2   = c4m_type_get_params(t2);
@@ -1350,13 +1350,13 @@ internal_repr_tv(c4m_type_t *t, c4m_dict_t *memos, int64_t *nexttv)
     }
 
     if (c4m_partial_inference(t)) {
-        bool         list_ok  = c4m_list_syntax_possible(t);
-        bool         set_ok   = c4m_set_syntax_possible(t);
-        bool         dict_ok  = c4m_dict_syntax_possible(t);
-        bool         tuple_ok = c4m_tuple_syntax_possible(t);
-        int          num_ok   = 0;
+        bool        list_ok  = c4m_list_syntax_possible(t);
+        bool        set_ok   = c4m_set_syntax_possible(t);
+        bool        dict_ok  = c4m_dict_syntax_possible(t);
+        bool        tuple_ok = c4m_tuple_syntax_possible(t);
+        int         num_ok   = 0;
         c4m_list_t *parts    = c4m_new(c4m_type_list(c4m_type_utf8()));
-        c4m_utf8_t  *res;
+        c4m_utf8_t *res;
 
         if (list_ok) {
             num_ok++;
@@ -1446,16 +1446,16 @@ internal_repr_container(c4m_type_info_t *info,
                         c4m_dict_t      *memos,
                         int64_t         *nexttv)
 {
-    int          num_types = c4m_list_len(info->items);
+    int         num_types = c4m_list_len(info->items);
     c4m_list_t *to_join   = c4m_new(c4m_type_list(c4m_type_utf8()));
-    int          i         = 0;
-    c4m_type_t  *subnode;
-    c4m_str_t   *substr;
+    int         i         = 0;
+    c4m_type_t *subnode;
+    c4m_str_t  *substr;
 
     c4m_list_append(to_join,
-                     c4m_new(c4m_type_utf8(),
-                             c4m_kw("cstring",
-                                    c4m_ka(info->base_type->name))));
+                    c4m_new(c4m_type_utf8(),
+                            c4m_kw("cstring",
+                                   c4m_ka(info->base_type->name))));
     c4m_list_append(to_join, c4m_get_lbrak_const());
     goto first_loop_start;
 
@@ -1480,11 +1480,11 @@ first_loop_start:
 static inline c4m_str_t *
 internal_repr_func(c4m_type_info_t *info, c4m_dict_t *memos, int64_t *nexttv)
 {
-    int          num_types = c4m_list_len(info->items);
+    int         num_types = c4m_list_len(info->items);
     c4m_list_t *to_join   = c4m_new(c4m_type_list(c4m_type_utf8()));
-    int          i         = 0;
-    c4m_type_t  *subnode;
-    c4m_str_t   *substr;
+    int         i         = 0;
+    c4m_type_t *subnode;
+    c4m_str_t  *substr;
 
     c4m_list_append(to_join, c4m_get_lparen_const());
 
@@ -1653,6 +1653,8 @@ c4m_initialize_global_types()
             }
         }
 
+        c4m_gc_register_root(&c4m_type_universe, 1);
+
         c4m_base_obj_t *envstore;
         // This needs to not be c4m_new'd.
         c4m_type_universe        = c4m_gc_raw_alloc(sizeof(c4m_type_universe_t),
@@ -1664,7 +1666,6 @@ c4m_initialize_global_types()
         // We don't set the heading info up fully, so this dict
         // won't be directly marshalable unless / until we do.
         hatrack_dict_init(store, HATRACK_DICT_KEY_TYPE_INT);
-        c4m_gc_register_root(&c4m_type_universe, 1);
 
         // Set up the type we need internally for containers.
 
@@ -1694,7 +1695,7 @@ c4m_initialize_global_types()
         c4m_base_obj_t *xobj = c4m_gc_raw_alloc(sz, GC_SCAN_ALL);
         xobj->base_data_type = ts->details->base_type;
 
-        c4m_list_t *list  = (c4m_list_t *)xobj->data;
+        c4m_list_t *list   = (c4m_list_t *)xobj->data;
         list->data         = c4m_gc_alloc(int64_t *);
         list->data[0]      = (int64_t *)ts;
         list->append_ix    = 1;
@@ -1724,12 +1725,12 @@ c4m_initialize_global_types()
     c4m_type_t *                                                 \
         _c4m_type_##tname(c4m_type_t *sub, char *file, int line) \
     {                                                            \
-        c4m_type_t  *result = _c4m_new(file,                     \
-                                      line,                     \
-                                      c4m_type_typespec(),      \
-                                      idnumber);                \
-        c4m_list_t *items  = result->details->items;            \
-        c4m_list_append(items, sub);                            \
+        c4m_type_t *result = _c4m_new(file,                      \
+                                      line,                      \
+                                      c4m_type_typespec(),       \
+                                      idnumber);                 \
+        c4m_list_t *items  = result->details->items;             \
+        c4m_list_append(items, sub);                             \
                                                                  \
         type_hash_and_dedupe(&result);                           \
                                                                  \
@@ -1737,18 +1738,18 @@ c4m_initialize_global_types()
     }
 
 #else
-#define DECLARE_ONE_PARAM_FN(tname, idnumber)              \
-    c4m_type_t *                                           \
-        c4m_type_##tname(c4m_type_t *sub)                  \
-    {                                                      \
-        c4m_type_t  *result = c4m_new(c4m_type_typespec(), \
+#define DECLARE_ONE_PARAM_FN(tname, idnumber)             \
+    c4m_type_t *                                          \
+        c4m_type_##tname(c4m_type_t *sub)                 \
+    {                                                     \
+        c4m_type_t *result = c4m_new(c4m_type_typespec(), \
                                      idnumber);           \
         c4m_list_t *items  = result->details->items;      \
         c4m_list_append(items, sub);                      \
-                                                           \
-        type_hash_and_dedupe(&result);                     \
-                                                           \
-        return result;                                     \
+                                                          \
+        type_hash_and_dedupe(&result);                    \
+                                                          \
+        return result;                                    \
     }
 #endif
 
@@ -1774,7 +1775,7 @@ c4m_type_box(c4m_type_t *sub)
 c4m_type_t *
 c4m_type_dict(c4m_type_t *sub1, c4m_type_t *sub2)
 {
-    c4m_type_t  *result = c4m_new(c4m_type_typespec(),
+    c4m_type_t *result = c4m_new(c4m_type_typespec(),
                                  C4M_T_DICT);
     c4m_list_t *items  = result->details->items;
 
@@ -1789,8 +1790,8 @@ c4m_type_dict(c4m_type_t *sub1, c4m_type_t *sub2)
 c4m_type_t *
 c4m_type_tuple(int64_t nitems, ...)
 {
-    va_list      args;
-    c4m_type_t  *result = c4m_new(c4m_type_typespec(),
+    va_list     args;
+    c4m_type_t *result = c4m_new(c4m_type_typespec(),
                                  C4M_T_TUPLE);
     c4m_list_t *items  = result->details->items;
 
@@ -1826,8 +1827,8 @@ c4m_type_tuple_from_xlist(c4m_list_t *items)
 c4m_type_t *
 c4m_type_fn_va(c4m_type_t *return_type, int64_t nparams, ...)
 {
-    va_list      args;
-    c4m_type_t  *result = c4m_new(c4m_type_typespec(),
+    va_list     args;
+    c4m_type_t *result = c4m_new(c4m_type_typespec(),
                                  C4M_T_FUNCDEF);
     c4m_list_t *items  = result->details->items;
 
@@ -1849,8 +1850,8 @@ c4m_type_fn_va(c4m_type_t *return_type, int64_t nparams, ...)
 c4m_type_t *
 c4m_type_varargs_fn(c4m_type_t *return_type, int64_t nparams, ...)
 {
-    va_list      args;
-    c4m_type_t  *result = c4m_new(c4m_type_typespec(),
+    va_list     args;
+    c4m_type_t *result = c4m_new(c4m_type_typespec(),
                                  C4M_T_FUNCDEF);
     c4m_list_t *items  = result->details->items;
 
@@ -1875,10 +1876,10 @@ c4m_type_varargs_fn(c4m_type_t *return_type, int64_t nparams, ...)
 c4m_type_t *
 c4m_type_fn(c4m_type_t *ret, c4m_list_t *params, bool va)
 {
-    c4m_type_t  *result = c4m_new(c4m_type_typespec(),
+    c4m_type_t *result = c4m_new(c4m_type_typespec(),
                                  C4M_T_FUNCDEF);
     c4m_list_t *items  = result->details->items;
-    int          n      = c4m_list_len(params);
+    int         n      = c4m_list_len(params);
 
     // Copy the list to be safe.
     for (int i = 0; i < n; i++) {
@@ -2020,7 +2021,7 @@ c4m_format_global_type_environment()
                                       c4m_ka(1),
                                       "stripe",
                                       c4m_ka(true)));
-    c4m_list_t         *row   = c4m_new_table_row();
+    c4m_list_t          *row   = c4m_new_table_row();
     c4m_dict_t          *memos = c4m_new(c4m_type_dict(c4m_type_ref(),
                                               c4m_type_utf8()));
     int64_t              n     = 0;
@@ -2084,7 +2085,7 @@ c4m_format_global_type_environment()
         row = c4m_new_table_row();
         c4m_list_append(row, c4m_cstr_format("{:x}", c4m_box_i64(t->typeid)));
         c4m_list_append(row,
-                         c4m_internal_type_repr(t, memos, &n));
+                        c4m_internal_type_repr(t, memos, &n));
         c4m_list_append(row, base_name);
         c4m_grid_add_row(grid, row);
     }

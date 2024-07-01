@@ -1,18 +1,16 @@
 #pragma once
 
-#undef C4M_TYPE_LOG
-
-// Useful options (mainly for dev) are commented out here.
-// The logic below (and into the relevent header files) sets up defaults.
-//
 // #define C4M_DEBUG
+#define C4M_GC_STATS
 // #define C4M_TRACE_GC
+
+// #define C4M_GCT_MOVE        1
+// #define C4M_GCT_PTR_TO_MOVE 1
+
 // #define C4M_GC_ALL_OFF
 // #define C4M_GC_ALL_ON
 // #define C4M_VM_DEBUG
 // #define C4M_TYPE_LOG
-
-#define C4M_GC_STATS
 
 #ifndef C4M_NO_DEV_MODE
 #define C4M_DEV
@@ -21,13 +19,20 @@
 #ifdef C4M_TRACE_GC
 #ifndef C4M_GC_STATS
 #define C4M_GC_STATS
-#define C4M_GC_FULL_TRACE // pre-define GC_STATS to skip full trace
 #endif
-#else
+
+#ifndef C4M_GC_FULL_TRACE
+#define C4M_GC_FULL_TRACE
+#endif
+
+#else // C4M_TRACE_GC
 #undef C4M_GC_FULL_TRACE
 #undef C4M_TRACE_GC
 #endif
 
+// Useful options (mainly for dev) are commented out here.
+// The logic below (and into the relevent header files) sets up defaults.
+//
 // Everything includes this; the ordering here is somewhat important
 // due to interdependencies, though they can always be solved via
 // prototyping.

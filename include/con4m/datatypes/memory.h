@@ -94,7 +94,8 @@ typedef struct c4m_arena_t {
     //    queue_t            *late_mutations;
     uint64_t             *heap_end;
     c4m_finalizer_info_t *to_finalize;
-    uint32_t              arena_id;
+    uint32_t              alloc_count;
+    uint32_t              largest_alloc;
     bool                  grow_next;
 #ifdef C4M_GC_STATS
     uint64_t legacy_count;

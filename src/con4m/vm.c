@@ -1624,15 +1624,15 @@ c4m_vm_reset(c4m_vm_t *vm)
 c4m_vmthread_t *
 c4m_vmthread_new(c4m_vm_t *vm)
 {
-    c4m_arena_t    *arena  = c4m_internal_stash_heap();
+    // c4m_arena_t    *arena  = c4m_internal_stash_heap();
     c4m_vmthread_t *tstate = c4m_gc_alloc(c4m_vmthread_t);
     tstate->vm             = vm;
 
     c4m_vmthread_reset(tstate);
 
-    tstate->thread_arena = arena;
+    // tstate->thread_arena = arena;
 
-    c4m_internal_unstash_heap();
+    // c4m_internal_unstash_heap();
     return tstate;
 }
 
