@@ -63,7 +63,6 @@ extern c4m_obj_t _c4m_new(c4m_type_t *type, ...);
 #define c4m_new(tid, ...) _c4m_new(tid, C4M_VA(__VA_ARGS__))
 #endif
 
-extern uint64_t   *c4m_gc_ptr_info(c4m_builtin_t);
 extern c4m_str_t  *c4m_repr(void *, c4m_type_t *);
 extern c4m_str_t  *c4m_to_str(void *, c4m_type_t *);
 extern bool        c4m_can_coerce(c4m_type_t *, c4m_type_t *);
@@ -93,7 +92,6 @@ extern c4m_obj_t   c4m_container_literal(c4m_type_t *,
                                          c4m_utf8_t *);
 extern void        c4m_finalize_allocation(c4m_base_obj_t *);
 
-extern const uint64_t     str_ptr_info[];
 extern const c4m_vtable_t c4m_i8_type;
 extern const c4m_vtable_t c4m_u8_type;
 extern const c4m_vtable_t c4m_i32_type;

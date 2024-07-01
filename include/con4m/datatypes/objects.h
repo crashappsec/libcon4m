@@ -39,7 +39,6 @@ typedef struct {
     // everything.
     const char         *name;
     const uint64_t      typeid;
-    const uint64_t     *ptr_info;  // Shows GC u64 offsets to examine for ptrs.
     const c4m_vtable_t *vtable;
     const uint32_t      hash_fn;
     const uint32_t      alloc_len; // How much space to allocate.

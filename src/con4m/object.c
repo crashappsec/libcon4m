@@ -109,7 +109,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "string",
         .typeid    = C4M_T_UTF8,
         .alloc_len = sizeof(c4m_str_t),
-        .ptr_info  = (uint64_t *)c4m_pmap_str,
         .vtable    = &c4m_u8str_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM,
@@ -118,7 +117,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "buffer",
         .typeid    = C4M_T_BUFFER,
         .alloc_len = sizeof(c4m_buf_t),
-        .ptr_info  = (uint64_t *)c4m_pmap_first_word,
         .vtable    = &c4m_buffer_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM,
@@ -127,7 +125,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "utf32",
         .typeid    = C4M_T_UTF32,
         .alloc_len = sizeof(c4m_str_t),
-        .ptr_info  = (uint64_t *)c4m_pmap_str,
         .vtable    = &c4m_u32str_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM,
@@ -136,7 +133,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "grid",
         .typeid    = C4M_T_GRID,
         .alloc_len = sizeof(c4m_grid_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_grid_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -145,7 +141,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "list",
         .typeid    = C4M_T_XLIST,
         .alloc_len = sizeof(c4m_list_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_list_vtable,
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -154,16 +149,15 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "tuple",
         .typeid    = C4M_T_TUPLE,
         .alloc_len = sizeof(c4m_tuple_t),
-        .ptr_info  = GC_SCAN_ALL,
-        .vtable    = &c4m_tuple_vtable,
-        .dt_kind   = C4M_DT_KIND_tuple,
-        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+
+        .vtable  = &c4m_tuple_vtable,
+        .dt_kind = C4M_DT_KIND_tuple,
+        .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_DICT] = {
         .name      = "dict",
         .typeid    = C4M_T_DICT,
         .alloc_len = sizeof(c4m_dict_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_dict_vtable,
         .dt_kind   = C4M_DT_KIND_dict,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -172,7 +166,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "set",
         .typeid    = C4M_T_SET,
         .alloc_len = sizeof(c4m_set_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_set_vtable,
         .dt_kind   = C4M_DT_KIND_dict,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -181,7 +174,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "typespec",
         .typeid    = C4M_T_TYPESPEC,
         .alloc_len = sizeof(c4m_type_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_type_spec_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -189,7 +181,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     [C4M_T_IPV4] = {
         .name      = "ipaddr",
         .typeid    = C4M_T_IPV4,
-        .ptr_info  = NULL,
         .vtable    = &c4m_ipaddr_vtable,
         .alloc_len = sizeof(struct sockaddr_in6),
         .dt_kind   = C4M_DT_KIND_primitive,
@@ -198,7 +189,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     [C4M_T_IPV6] = {
         .name      = "ipv6_unused", // Going to merge w/ ipv4
         .typeid    = C4M_T_IPV6,
-        .ptr_info  = NULL,
         .vtable    = &c4m_ipaddr_vtable,
         .alloc_len = sizeof(struct sockaddr_in6),
         .dt_kind   = C4M_DT_KIND_primitive,
@@ -244,7 +234,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "flags",
         .typeid    = C4M_T_FLAGS,
         .alloc_len = sizeof(c4m_flags_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_flags_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -254,7 +243,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .typeid    = C4M_T_CALLBACK,
         .alloc_len = sizeof(c4m_callback_t),
         .vtable    = &c4m_callback_vtable,
-        .ptr_info  = GC_SCAN_ALL,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
@@ -262,7 +250,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "queue",
         .typeid    = C4M_T_QUEUE,
         .alloc_len = sizeof(queue_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_queue_vtable,
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -271,7 +258,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "ring",
         .typeid    = C4M_T_RING,
         .alloc_len = sizeof(hatring_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_ring_vtable,
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -280,7 +266,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "logring",
         .typeid    = C4M_T_LOGRING,
         .alloc_len = sizeof(logring_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_logring_vtable,
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -289,7 +274,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "stack",
         .typeid    = C4M_T_STACK,
         .alloc_len = sizeof(stack_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_stack_vtable,
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -298,7 +282,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "renderable",
         .typeid    = C4M_T_RENDERABLE,
         .alloc_len = sizeof(c4m_renderable_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_renderable_vtable,
         .dt_kind   = C4M_DT_KIND_internal,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -307,7 +290,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "flist",
         .typeid    = C4M_T_FLIST,
         .alloc_len = sizeof(flexarray_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_flexarray_vtable,
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -316,7 +298,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "render_style",
         .typeid    = C4M_T_RENDER_STYLE,
         .alloc_len = sizeof(c4m_render_style_t),
-        .ptr_info  = (uint64_t *)&c4m_rs_pmap,
         .vtable    = &c4m_render_style_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -325,7 +306,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "hash",
         .typeid    = C4M_T_SHA,
         .alloc_len = sizeof(c4m_sha_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_sha_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -334,7 +314,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "exception",
         .typeid    = C4M_T_EXCEPTION,
         .alloc_len = sizeof(c4m_exception_t),
-        .ptr_info  = (uint64_t *)&c4m_exception_pmap,
         .vtable    = &c4m_exception_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -343,7 +322,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "tree",
         .typeid    = C4M_T_TREE,
         .alloc_len = sizeof(c4m_tree_node_t),
-        .ptr_info  = GC_SCAN_ALL, // TODO: set to 6, 7, 8
         .vtable    = &c4m_tree_vtable,
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -367,7 +345,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         // out such internal references, IDK.
         .name      = "ref",
         .alloc_len = sizeof(void *),
-        .ptr_info  = GC_SCAN_ALL,
         .typeid    = C4M_T_REF,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_PTR,
@@ -380,7 +357,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "mixed",
         .typeid    = C4M_T_GENERIC,
         .alloc_len = sizeof(void *),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_mixed_vtable,
         .dt_kind   = C4M_DT_KIND_type_var,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -389,7 +365,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "stream",
         .typeid    = C4M_T_STREAM,
         .alloc_len = sizeof(c4m_stream_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_stream_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -398,7 +373,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "keyword",
         .typeid    = C4M_T_KEYWORD,
         .alloc_len = sizeof(c4m_karg_info_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_kargs_vtable,
         .dt_kind   = C4M_DT_KIND_internal,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -407,14 +381,12 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "vm",
         .typeid    = C4M_T_VM,
         .alloc_len = sizeof(c4m_vm_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_vm_vtable,
     },
     [C4M_T_PARSE_NODE] = {
         .name      = "parse_node",
         .typeid    = C4M_T_PARSE_NODE,
         .alloc_len = sizeof(c4m_pnode_t),
-        .ptr_info  = GC_SCAN_ALL,
         .vtable    = &c4m_parse_node_vtable,
         .dt_kind   = C4M_DT_KIND_internal,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
@@ -433,7 +405,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .typeid    = C4M_T_BOX,
         .alloc_len = sizeof(c4m_box_t),
         .dt_kind   = C4M_DT_KIND_box,
-        .ptr_info  = NULL,
         .vtable    = &c4m_box_vtable,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
@@ -471,11 +442,11 @@ _c4m_new(c4m_type_t *type, ...)
     }
 #else
     if (tinfo->vtable->methods[C4M_BI_FINALIZER] == NULL) {
-        obj = c4m_gc_raw_alloc(alloc_len, (uint64_t *)tinfo->ptr_info);
+        obj = c4m_gc_raw_alloc(alloc_len, (c4m_mem_scan_fn)init_fn);
     }
     else {
         obj = c4m_gc_raw_alloc_with_finalizer(alloc_len,
-                                              (uint64_t *)tinfo->ptr_info);
+                                              (c4m_mem_scan_fn)init_fn);
     }
 #endif
 
@@ -509,13 +480,6 @@ _c4m_new(c4m_type_t *type, ...)
 
     return result;
 }
-
-uint64_t *
-c4m_gc_ptr_info(c4m_builtin_t dtid)
-{
-    return (uint64_t *)c4m_base_type_info[dtid].ptr_info;
-}
-
 c4m_str_t *
 c4m_repr(void *item, c4m_type_t *t)
 {
