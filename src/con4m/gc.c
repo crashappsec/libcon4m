@@ -778,7 +778,9 @@ add_copy_to_worklist(c4m_collection_ctx *ctx, c4m_alloc_hdr *hdr)
         char *p = (char *)ctx->next_item;
         p -= page_bytes;
 
-        madvise(p, page_bytes, MADV_FREE);
+        if (ctx->worklist < (void **)p || ctx->worklist > ctx->next_item) {
+            madvise(p, page_bytes, MADV_FREE);
+        }
     }
 
     if (ctx->next_item > ctx->worklist_end) {
@@ -801,7 +803,9 @@ add_forward_to_worklist(c4m_collection_ctx *ctx, void **addr)
         char *p = (char *)ctx->next_item;
         p -= page_bytes;
 
-        madvise(p, page_bytes, MADV_FREE);
+        if (ctx->worklist < (void **)p || ctx->worklist > ctx->next_item) {
+            madvise(p, page_bytes, MADV_FREE);
+        }
     }
 
     if (ctx->next_item > ctx->worklist_end) {
