@@ -455,7 +455,7 @@ internal_add_items_array(c4m_type_t *n)
 {
     // Avoid infinite recursion by manually constructing the list.
     size_t          sz    = sizeof(c4m_base_obj_t) + sizeof(c4m_list_t);
-    c4m_base_obj_t *alloc = c4m_gc_raw_alloc(sz, GC_SCAN_ALL);
+    c4m_base_obj_t *alloc = c4m_gc_raw_alloc(sz, C4M_GC_SCAN_ALL);
 
     c4m_list_t *items     = (c4m_list_t *)alloc->data;
     alloc->base_data_type = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_XLIST];
@@ -1666,7 +1666,7 @@ c4m_initialize_global_types()
         c4m_base_obj_t *envstore;
         // This needs to not be c4m_new'd.
         c4m_type_universe        = c4m_gc_raw_alloc(sizeof(c4m_type_universe_t),
-                                             GC_SCAN_ALL);
+                                             C4M_GC_SCAN_ALL);
         envstore                 = c4m_gc_alloc(c4m_dict_t);
         c4m_dict_t *store        = (c4m_dict_t *)envstore->data;
         c4m_type_universe->store = store;
@@ -1700,7 +1700,7 @@ c4m_initialize_global_types()
 
         // Now, we have to manually set up an xlist.
         size_t          sz   = sizeof(c4m_list_t) + sizeof(c4m_base_obj_t);
-        c4m_base_obj_t *xobj = c4m_gc_raw_alloc(sz, GC_SCAN_ALL);
+        c4m_base_obj_t *xobj = c4m_gc_raw_alloc(sz, C4M_GC_SCAN_ALL);
         xobj->base_data_type = ts->details->base_type;
 
         c4m_list_t *list   = (c4m_list_t *)xobj->data;

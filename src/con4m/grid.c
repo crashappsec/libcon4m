@@ -559,7 +559,8 @@ static int16_t *
 calculate_col_widths(c4m_grid_t *grid, int16_t width, int16_t *render_width)
 {
     size_t              term_width;
-    int16_t            *result = c4m_gc_array_alloc(uint16_t, grid->num_cols);
+    int16_t            *result = c4m_gc_array_value_alloc(uint16_t,
+                                               grid->num_cols);
     int16_t             sum    = get_column_render_overhead(grid);
     c4m_render_style_t *props;
 
@@ -952,8 +953,8 @@ grid_add_blank_cell(c4m_grid_t *grid,
 static inline int16_t *
 grid_pre_render(c4m_grid_t *grid, int16_t *col_widths)
 {
-    int16_t            *row_heights = c4m_gc_array_alloc(int16_t *,
-                                              grid->num_rows);
+    int16_t            *row_heights = c4m_gc_array_value_alloc(int16_t *,
+                                                    grid->num_rows);
     c4m_render_style_t *gs          = grid_style(grid);
 
     // Run through and tell the individual items to render.
@@ -2020,7 +2021,7 @@ build_tree_output(c4m_tree_node_t *node, tree_fmt_t *info, bool last)
 
     if (!info->root) {
         info->pad_ix += info->vpad + info->ipad + 1;
-        info->padstr = c4m_gc_array_alloc(c4m_codepoint_t, info->pad_ix);
+        info->padstr = c4m_gc_array_value_alloc(c4m_codepoint_t, info->pad_ix);
         for (i = 0; i < last_len; i++) {
             if (prev_pad[i] == info->tchar || prev_pad[i] == info->vchar) {
                 info->padstr[i] = info->vchar;

@@ -268,7 +268,6 @@ c4m_round_up_to_given_power_of_2(uint64_t power, uint64_t n)
     }
 }
 
-#define GC_SCAN_ALL      ((void *)0)
 #define C4M_GC_SCAN_ALL  ((void *)0)
 #define C4M_GC_SCAN_OBJ  ((void *)c4m_scan_header_only)
 #define C4M_GC_SCAN_NONE ((void *)0xffffffffffffffff)
@@ -288,9 +287,15 @@ c4m_round_up_to_given_power_of_2(uint64_t power, uint64_t n)
 #define c4m_gc_alloc(typename) \
     (c4m_gc_raw_alloc(sizeof(typename), C4M_GC_SCAN_ALL))
 
+#define c4m_gc_value_alloc(typename) \
+    (c4m_gc_raw_alloc(sizeof(typename), C4M_GC_SCAN_NONE))
+
 // Assumes it contains pointers. Call manually if you need otherwise.
 #define c4m_gc_array_alloc(typename, n) \
     c4m_gc_raw_alloc((sizeof(typename) * n), C4M_GC_SCAN_ALL)
+
+#define c4m_gc_array_value_alloc(typename, n) \
+    c4m_gc_raw_alloc((sizeof(typename) * n), C4M_GC_SCAN_NONE)
 
 #define c4m_gc_array_alloc_mapped(typename, n, map) \
     c4m_gc_raw_alloc((sizeof(typename) * n), (void *)map)

@@ -17,8 +17,8 @@ int DEBUG_ON = 0;
 static inline void
 no_more_containers()
 {
-    all_container_types = c4m_gc_array_alloc(uint64_t,
-                                             container_bitfield_words);
+    all_container_types = c4m_gc_array_value_alloc(uint64_t,
+                                                   container_bitfield_words);
 
     for (int i = 0; i < container_bitfield_words; i++) {
         all_container_types[i] = list_types[i] | dict_types[i];
@@ -30,10 +30,14 @@ static void
 initialize_container_bitfields()
 {
     if (list_types == NULL) {
-        list_types  = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
-        dict_types  = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
-        set_types   = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
-        tuple_types = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+        list_types  = c4m_gc_array_value_alloc(uint64_t,
+                                              container_bitfield_words);
+        dict_types  = c4m_gc_array_value_alloc(uint64_t,
+                                              container_bitfield_words);
+        set_types   = c4m_gc_array_value_alloc(uint64_t,
+                                             container_bitfield_words);
+        tuple_types = c4m_gc_array_value_alloc(uint64_t,
+                                               container_bitfield_words);
         c4m_gc_register_root(&list_types, 1);
         c4m_gc_register_root(&dict_types, 1);
         c4m_gc_register_root(&set_types, 1);
@@ -336,7 +340,8 @@ c4m_get_list_bitfield()
 {
     c4m_init_literal_handling();
 
-    uint64_t *result = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+    uint64_t *result = c4m_gc_array_value_alloc(uint64_t,
+                                                container_bitfield_words);
     for (int i = 0; i < container_bitfield_words; i++) {
         result[i] = list_types[i];
     }
@@ -349,7 +354,8 @@ c4m_get_dict_bitfield()
 {
     c4m_init_literal_handling();
 
-    uint64_t *result = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+    uint64_t *result = c4m_gc_array_value_alloc(uint64_t,
+                                                container_bitfield_words);
     for (int i = 0; i < container_bitfield_words; i++) {
         result[i] = dict_types[i];
     }
@@ -362,7 +368,8 @@ c4m_get_set_bitfield()
 {
     c4m_init_literal_handling();
 
-    uint64_t *result = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+    uint64_t *result = c4m_gc_array_value_alloc(uint64_t,
+                                                container_bitfield_words);
     for (int i = 0; i < container_bitfield_words; i++) {
         result[i] = set_types[i];
     }
@@ -375,7 +382,8 @@ c4m_get_tuple_bitfield()
 {
     c4m_init_literal_handling();
 
-    uint64_t *result = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+    uint64_t *result = c4m_gc_array_value_alloc(uint64_t,
+                                                container_bitfield_words);
     for (int i = 0; i < container_bitfield_words; i++) {
         result[i] = tuple_types[i];
     }
@@ -388,7 +396,8 @@ c4m_get_all_containers_bitfield()
 {
     c4m_init_literal_handling();
 
-    uint64_t *result = c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+    uint64_t *result = c4m_gc_array_value_alloc(uint64_t,
+                                                container_bitfield_words);
     for (int i = 0; i < container_bitfield_words; i++) {
         result[i] = all_container_types[i];
     }
@@ -415,7 +424,7 @@ c4m_get_no_containers_bitfield()
 {
     c4m_init_literal_handling();
 
-    return c4m_gc_array_alloc(uint64_t, container_bitfield_words);
+    return c4m_gc_array_value_alloc(uint64_t, container_bitfield_words);
 }
 
 bool

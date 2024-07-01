@@ -93,7 +93,7 @@ c4m_gc_malloc_wrapper(size_t size, void *arg)
     // Hatrack wants a 16-byte aligned pointer. The con4m gc allocator will
     // always produce a 16-byte aligned pointer. The raw allocation header is
     // 48 bytes and its base pointer is always 16-byte aligned.
-    return c4m_gc_raw_alloc(size, GC_SCAN_ALL);
+    return c4m_gc_raw_alloc(size, C4M_GC_SCAN_ALL);
 }
 
 static void
@@ -366,7 +366,7 @@ c4m_gc_resize(void *ptr, size_t len)
     // (i.e., openssl) will call realloc(NULL, ...) to get memory
     // for whatever reason.
     if (ptr == NULL) {
-        return c4m_gc_raw_alloc(len, GC_SCAN_ALL);
+        return c4m_gc_raw_alloc(len, C4M_GC_SCAN_ALL);
     }
     c4m_alloc_hdr *hdr = &((c4m_alloc_hdr *)ptr)[-1];
 

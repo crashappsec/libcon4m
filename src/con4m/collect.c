@@ -21,6 +21,12 @@ extern uint64_t                  c4m_modulus_mask;
 
 static c4m_system_finalizer_fn system_finalizer = NULL;
 
+void
+c4m_gc_set_finalize_callback(c4m_system_finalizer_fn fn)
+{
+    system_finalizer = fn;
+}
+
 #ifdef C4M_GC_STATS
 int                          c4m_gc_show_heap_stats_on = 0;
 static thread_local uint32_t c4m_total_collects        = 0;
@@ -29,12 +35,6 @@ static thread_local uint64_t c4m_total_size            = 0;
 extern thread_local uint64_t c4m_total_words;
 extern thread_local uint64_t c4m_words_requested;
 extern thread_local uint32_t c4m_total_allocs;
-
-void
-c4m_gc_set_finalize_callback(c4m_system_finalizer_fn fn)
-{
-    system_finalizer = fn;
-}
 
 uint64_t
 c4m_get_alloc_counter()
@@ -89,6 +89,8 @@ prep_allocation(c4m_alloc_hdr *old, c4m_arena_t *new_arena)
 
     char *debug_file = old->alloc_file;
     int   debug_ln   = old->alloc_line;
+#else
+#define TRACE_DEBUG_ARGS
 #endif
 
     res = c4m_alloc_from_arena(&new_arena,
@@ -606,8 +608,8 @@ c4m_collect_arena(c4m_arena_t *from_space)
     c4m_current_heap->starting_counter = stashed_counter;
     c4m_current_heap->start_size       = live / 8;
 
-    c4m_total_garbage_words += (new_total - available) / 8;
-    c4m_total_size += old_total;
+    c4m_total_garbage_words += (old_used - live) / 8;
+    c4m_total_size += (old_total / 8);
 
     if (!c4m_gc_show_heap_stats_on) {
         return ctx.to_space;
@@ -649,7 +651,7 @@ c4m_collect_arena(c4m_arena_t *from_space)
                c4m_box_u64(num_migrations),
                c4m_box_u64(old_num_records - num_migrations));
 
-    c4m_printf("[h2]Totals[/h2]\n[b]Total requests:[/][em]{:,}[/] mb ",
+    c4m_printf("[h2]Totals[/h2]\n[b]Total requests:[/] [em]{:,}[/] mb ",
                c4m_box_u64((c4m_words_requested * 8) / mb));
 
     c4m_printf("[b]Total alloced:[/] [em]{:,}[/] mb",
@@ -665,11 +667,12 @@ c4m_collect_arena(c4m_arena_t *from_space)
     c4m_utf8_t *gstr;
 
     // Precision isn't implemented on floats yet.
-    u    = u / (double)(c4m_total_size / 8);
+    u    = u / (double)(c4m_total_size);
     gstr = c4m_cstr_format("{}", c4m_box_double(u));
     gstr = c4m_str_slice(gstr, 0, 5);
 
-    c4m_printf("[b]Collect utilization[/] (lower is better): [em]{}[/]%", gstr);
+    c4m_printf("[b]Collect utilization[/]: [em]{}[/]% garbage",
+               gstr);
 
     c4m_printf("[b]Average allocation size:[/] [em]{:,} bytes",
                c4m_box_u64((c4m_total_words * 8) / c4m_total_allocs));

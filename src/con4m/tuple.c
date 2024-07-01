@@ -10,6 +10,9 @@ tuple_init(c4m_tuple_t *tup, va_list args)
 
     uint64_t n = c4m_list_len(c4m_type_get_params(c4m_get_my_type(tup)));
 
+    // Caution: the GC might scan some non-pointers here.  Could add a
+    // hook for dealing w/ it, but would be more effort than it is
+    // worth.
     tup->items     = c4m_gc_array_alloc(uint64_t, n);
     tup->num_items = n;
 

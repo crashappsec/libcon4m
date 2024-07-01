@@ -629,6 +629,15 @@ c4m_type_is_value_type(c4m_type_t *t)
     return dt->by_value;
 }
 
+static inline bool
+c4m_obj_item_type_is_value(c4m_obj_t obj)
+{
+    c4m_type_t *t         = c4m_get_my_type(obj);
+    c4m_type_t *item_type = c4m_type_get_param(t, 0);
+
+    return c4m_type_is_value_type(item_type);
+}
+
 // Once we add objects, this will be a dynamic number.
 static inline int
 c4m_number_concrete_types()

@@ -333,7 +333,7 @@ parse_node_init(c4m_pnode_t *self, va_list args)
     int aux_size = node_type_info[self->kind].aux_alloc_size;
 
     if (aux_size) {
-        self->extra_info = c4m_gc_raw_alloc(aux_size, GC_SCAN_ALL);
+        self->extra_info = c4m_gc_raw_alloc(aux_size, C4M_GC_SCAN_ALL);
     }
 }
 

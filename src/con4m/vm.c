@@ -691,7 +691,7 @@ c4m_vm_ffi_call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
         args = NULL;
     }
     else {
-        args  = c4m_gc_array_alloc(void *, ffiinfo->cif.nargs);
+        args  = c4m_gc_array_value_alloc(void *, ffiinfo->cif.nargs);
         int n = ffiinfo->cif.nargs;
 
         for (unsigned int i = 0; i < ffiinfo->cif.nargs; i++) {
@@ -1311,8 +1311,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZPushFfiPtr:
                 STACK_REQUIRE_SLOTS(1);
                 do {
-                    c4m_zcallback_t *cb = c4m_gc_raw_alloc(sizeof(c4m_zcallback_t),
-                                                           GC_SCAN_ALL);
+                    c4m_zcallback_t *cb = c4m_gc_alloc(c4m_zcallback_t);
 
                     *cb = (c4m_zcallback_t){
                         .impl       = i->arg,
@@ -1330,8 +1329,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZPushVmPtr:
                 STACK_REQUIRE_SLOTS(1);
                 do {
-                    c4m_zcallback_t *cb = c4m_gc_raw_alloc(sizeof(c4m_zcallback_t),
-                                                           GC_SCAN_ALL);
+                    c4m_zcallback_t *cb = c4m_gc_alloc(c4m_zcallback_t);
 
                     *cb = (c4m_zcallback_t){
                         .impl       = i->arg,

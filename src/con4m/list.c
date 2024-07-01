@@ -12,9 +12,15 @@ c4m_list_init(c4m_list_t *list, va_list args)
 
     list->append_ix    = 0;
     list->length       = c4m_max(length, 16);
-    list->data         = c4m_gc_array_alloc(uint64_t *, length);
     list->dont_acquire = false;
     pthread_rwlock_init(&list->lock, NULL);
+
+    if (c4m_obj_item_type_is_value(list)) {
+        list->data = c4m_gc_array_value_alloc(uint64_t *, length);
+    }
+    else {
+        list->data = c4m_gc_array_alloc(uint64_t *, length);
+    }
 }
 
 static inline void

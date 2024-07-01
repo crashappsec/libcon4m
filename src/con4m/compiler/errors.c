@@ -1380,7 +1380,7 @@ c4m_base_add_error(c4m_list_t         *err_list,
     c4m_compile_error *err = c4m_gc_flex_alloc(c4m_compile_error,
                                                c4m_str_t *,
                                                num_args,
-                                               GC_SCAN_ALL);
+                                               C4M_GC_SCAN_ALL);
 
     err->code          = code;
     err->current_token = tok;

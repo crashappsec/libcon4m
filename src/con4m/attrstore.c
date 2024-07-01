@@ -65,7 +65,7 @@ c4m_vm_attr_set(c4m_vmthread_t *tstate,
     }
 
     c4m_attr_contents_t *new_info
-        = c4m_gc_raw_alloc(sizeof(c4m_attr_contents_t), GC_SCAN_ALL);
+        = c4m_gc_raw_alloc(sizeof(c4m_attr_contents_t), C4M_GC_SCAN_ALL);
     *new_info = (c4m_attr_contents_t){
         .contents = *value,
         .is_set   = true,
@@ -100,13 +100,13 @@ c4m_vm_attr_set(c4m_vmthread_t *tstate,
 
     if (tstate->running) {
         new_info->lastset = c4m_list_get(tstate->current_module->instructions,
-                                          tstate->pc - 1,
-                                          NULL);
+                                         tstate->pc - 1,
+                                         NULL);
         if (c4m_list_len(tstate->module_lock_stack) > 0) {
             new_info->module_lock
                 = (int32_t)(int64_t)c4m_list_get(tstate->module_lock_stack,
-                                                  -1,
-                                                  NULL);
+                                                 -1,
+                                                 NULL);
         }
     }
 
@@ -137,7 +137,7 @@ c4m_vm_attr_lock(c4m_vmthread_t *tstate, c4m_str_t *key, bool on_write)
     }
 
     c4m_attr_contents_t *new_info
-        = c4m_gc_raw_alloc(sizeof(c4m_attr_contents_t), GC_SCAN_ALL);
+        = c4m_gc_raw_alloc(sizeof(c4m_attr_contents_t), C4M_GC_SCAN_ALL);
     *new_info = (c4m_attr_contents_t){
         .lock_on_write = true,
     };

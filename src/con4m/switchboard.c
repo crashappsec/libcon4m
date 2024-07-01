@@ -387,7 +387,7 @@ c4m_sb_init_party_output_buf(c4m_switchboard_t *ctx,
     party->c4m_party_type   = C4M_PT_STRING;
 
     c4m_party_outstr_t *dobj = get_dstr_obj(party);
-    dobj->strbuf             = (char *)c4m_gc_array_alloc(PIPE_BUF, n);
+    dobj->strbuf             = (char *)c4m_gc_array_value_alloc(PIPE_BUF, n);
     dobj->len                = n * PIPE_BUF;
     dobj->step               = party->info.wstrinfo.len;
     dobj->tag                = tag;
@@ -496,7 +496,7 @@ add_heap(c4m_switchboard_t *ctx)
     int            elem_space = ctx->heap_elems * sizeof(c4m_sb_msg_t);
 
     ctx->heap           = c4m_gc_raw_alloc(elem_space + sizeof(c4m_sb_heap_t),
-                                 GC_SCAN_ALL);
+                                 C4M_GC_SCAN_ALL);
     ctx->heap->next     = old;
     ctx->heap->cur_cell = 0;
 }
