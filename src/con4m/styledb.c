@@ -321,11 +321,12 @@ static const c4m_render_style_t default_em = {
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_ITALIC | 0x0ff2f8eUL,
 };
 
-// Third word of render styles is a pointer.
-const uint64_t c4m_rs_pmap[2] = {
-    0x1,
-    0x0b00000000000000,
-};
+static void
+c4m_rs_gc_bits(uint64_t *bitfield, int alloc_words)
+{
+    c4m_set_bit(bitfield, 0);
+    c4m_set_bit(bitfield, 1);
+}
 
 static inline void
 init_style_db()
@@ -359,7 +360,7 @@ c4m_lookup_cell_style(char *name)
     }
 
     c4m_render_style_t *result = c4m_gc_alloc_mapped(c4m_render_style_t,
-                                                     &c4m_rs_pmap[0]);
+                                                     c4m_rs_gc_bits);
     memcpy(result, entry, sizeof(c4m_render_style_t));
     return result;
 }

@@ -248,6 +248,8 @@ add_forward_to_worklist(c4m_collection_ctx *ctx, void **addr)
                  addr,
                  ctx->next_item);
 
+    assert(value_in_fromspace(ctx, *addr));
+
     *ctx->next_item++ = addr;
     *ctx->next_item++ = NULL;
 
