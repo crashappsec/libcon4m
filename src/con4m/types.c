@@ -1709,7 +1709,7 @@ c4m_initialize_global_types()
         list->length       = 1;
         ts->details->items = list;
 
-        c4m_gc_register_root(&c4m_bi_types, sizeof(c4m_bi_types));
+        c4m_gc_register_root(&c4m_bi_types, sizeof(c4m_bi_types) / 8);
 
         atomic_store(&c4m_type_universe->next_typeid, 1LLU << 63);
 

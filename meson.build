@@ -25,20 +25,27 @@ endif
 c_args        = ['-Wextra',
                  '-g',
                  '-Wno-unused-parameter',
-                 '-Wno-cast-function-type']
+                 '-Wno-cast-function-type',
+                  '-fno-omit-frame-pointer',
+                  '-flto',
+                  ]
 
 if (host_machine.system() == 'darwin')
   using_osx  = true
-  link_args  = ['-target', 'arm64-apple-macos14',
-                '-framework', 'Security']
+  link_args  = ['-target',
+                'arm64-apple-macos14',
+                '-framework',
+                'Security',
+                '-flto',
+                ]
 else
   using_osx = false
   link_args = []
   c_args    = c_args + ['-D_GNU_SOURCE']
 endif
 
-exe_link_args = link_args + ['-w']
-exe_c_args    = c_args + ['-DHATRACK_REFERENCE_ALGORITHMS']
+exe_link_args = link_args + ['-flto', '-w']
+exe_c_args    = c_args + ['-flto', '-DHATRACK_REFERENCE_ALGORITHMS']
 
 c4m_c_args = c_args 
 

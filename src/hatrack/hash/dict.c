@@ -509,6 +509,12 @@ hatrack_dict_items_base(hatrack_dict_t *self, mmm_thread_t *thread, uint64_t *nu
     uint64_t             alloc_len;
     uint32_t             i;
 
+    if (!self) {
+        if (num) {
+            *num = 0;
+        }
+        return NULL;
+    }
     mmm_start_basic_op(thread);
 
     if (self->slow_views) {

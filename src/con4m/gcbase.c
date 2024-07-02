@@ -558,14 +558,14 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
     size_t wordlen = c4m_round_up_to_given_power_of_2(C4M_FORCED_ALIGNMENT,
                                                       len);
 
-// Come back here if, when we trigger the collector, the resulting
-// free space isn't enough, in which case we do a second collect.
-// There are better ways to handle this like to just grab enough extra
-// zero- mapped pages to ensure we get the allocation, but ideally
-// people won't ask for such large allocs relative to the arena size
-// without just asking for a new arena, so I'm not going to bother
-// right now; maybe someday.
-try_again:;
+    // Come back here if, when we trigger the collector, the resulting
+    // free space isn't enough, in which case we do a second collect.
+    // There are better ways to handle this like to just grab enough extra
+    // zero- mapped pages to ensure we get the allocation, but ideally
+    // people won't ask for such large allocs relative to the arena size
+    // without just asking for a new arena, so I'm not going to bother
+    // right now; maybe someday.
+    // try_again:;
     c4m_alloc_hdr *raw  = arena->next_alloc;
     c4m_alloc_hdr *next = (c4m_alloc_hdr *)&(raw->data[wordlen]);
 
@@ -575,12 +575,13 @@ try_again:;
 
         raw  = arena->next_alloc;
         next = (c4m_alloc_hdr *)&(raw->data[wordlen]);
+        /*
         if (((uint64_t *)next) > arena->heap_end) {
             arena->grow_next = true;
             arena            = c4m_collect_arena(arena);
             *arena_ptr       = arena;
             goto try_again;
-        }
+            }*/
     }
 
     if (len > arena->largest_alloc) {
