@@ -586,6 +586,16 @@ c4m_collect_arena(c4m_arena_t *from_space)
     raw_trace(&ctx);
 #endif
 
+    uint64_t start = (uint64_t)ctx.to_space;
+    uint64_t end   = (uint64_t)ctx.to_space->heap_end;
+    uint64_t where = (uint64_t)ctx.to_space->next_alloc;
+    uint64_t total = end - start;
+    uint64_t inuse = where - start;
+
+    if (((total + (total >> 1)) >> 4) < inuse) {
+        ctx.to_space->grow_next = true;
+    }
+
     run_post_collect_hooks();
 
     // Free the worklist.

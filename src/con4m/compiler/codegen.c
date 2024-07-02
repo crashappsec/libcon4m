@@ -2189,7 +2189,6 @@ backpatch_calls(gen_ctx *ctx)
         info               = c4m_list_get(ctx->call_backpatches, i, NULL);
         info->i->arg       = info->decl->local_id;
         info->i->module_id = info->decl->module_id;
-
         assert(info->i->arg != 0);
     }
 }

@@ -127,7 +127,7 @@
 
 #ifndef C4M_DEFAULT_ARENA_SIZE
 
-#define C4M_DEFAULT_ARENA_SIZE (1 << 28)
+#define C4M_DEFAULT_ARENA_SIZE (1 << 25)
 // Was previously using 1 << 19
 // But this needs to be much bigger than the stack size; 21 is probably
 // the minimum value without adjusting the stack.
