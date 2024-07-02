@@ -53,6 +53,10 @@
 #undef C4M_TRACE_GC
 #endif
 
+#ifndef C4M_MIN_RENDER_WIDTH
+#define C4M_MIN_RENDER_WIDTH 80
+#endif
+
 // Useful options (mainly for dev) are commented out here.
 // The logic below (and into the relevent header files) sets up defaults.
 //
