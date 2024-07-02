@@ -142,9 +142,9 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
 #ifdef C4M_OMIT_UNDERFLOW_CHECKS
 #define STACK_REQUIRE_VALUES(_n)
 #else
-#define STACK_REQUIRE_VALUES(_n)                               \
-    if (tstate->sp >= &tstate->stack[STACK_SIZE - (_n) + 1]) { \
-        C4M_CRAISE("stack underflow");                         \
+#define STACK_REQUIRE_VALUES(_n)                          \
+    if (tstate->sp > &tstate->stack[STACK_SIZE - (_n)]) { \
+        C4M_CRAISE("stack underflow");                    \
     }
 #endif
 

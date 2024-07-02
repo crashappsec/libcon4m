@@ -583,7 +583,7 @@ main(int argc, char **argv, char **envp)
             }
         }
 
-        c4m_printf("[h4]\n\nFinished tests.\n\n[/]");
+        c4m_print(c4m_callout(c4m_new_utf8("Finished tests.")));
     }
     C4M_EXCEPT
     {
@@ -610,10 +610,10 @@ main(int argc, char **argv, char **envp)
                    c4m_box_u64(num_tests));
 
         if (num_errs || !no_exception) {
-            c4m_printf("[h5] Con4m testing [b red]FAILED[/].");
+            c4m_printf("[h5] Con4m testing [b red]FAILED![/]");
         }
         else {
-            c4m_printf("[h5] Con4m testing [b atomic lime]PASSED[/].");
+            c4m_printf("[h5] Con4m testing [b navy blue]PASSED.[/]");
         }
     }
     c4m_gc_thread_collect();

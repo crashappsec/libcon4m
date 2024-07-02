@@ -341,7 +341,7 @@ scan_allocation(c4m_collection_ctx *ctx, c4m_alloc_hdr *hdr)
         uint64_t w = map[i];
         while (w) {
             int ix = 63 - __builtin_clzll(w);
-            w &= ~(1 << ix);
+            w &= ~(1ULL << ix);
             void **loc = &p[ix];
             contents   = *loc;
 

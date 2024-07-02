@@ -126,6 +126,10 @@ function debug_it {
     DEBUGGER=${DEBUGGER:-$(which lldb)}
     cd debug
     log "Running debugger:v${DEBUGGER}"
+    echo
+    echo $(color RED 'Recommended environment variables:')
+    echo $(color CYAN 'export ASAN_OPTIONS=halt_on_error=0')
+    echo $(color CYAN 'export UBSAN_OPTIONS=print_stacktrace=1;halt_on_error=0')
     ${DEBUGGER} ./c4test
     cd ..
 
