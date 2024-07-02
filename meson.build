@@ -1,6 +1,7 @@
 project('libcon4m', 'c',
         default_options: ['c_std=c2x',
-                          'default_library=static'
+                          'default_library=static',
+                          'b_sanitize=address',
                          ],
         version : '0.1.0',
         license: 'MIT')
