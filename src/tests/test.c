@@ -472,6 +472,7 @@ void
 add_static_symbols()
 {
     c4m_add_static_function(c4m_new_utf8("strndup"), strndup);
+    c4m_add_static_function(c4m_new_utf8("c4m_list_append"), c4m_list_append);
 }
 
 static int
