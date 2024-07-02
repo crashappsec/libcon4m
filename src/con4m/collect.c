@@ -137,7 +137,7 @@ migrate_finalizers(c4m_arena_t *old, c4m_arena_t *new)
 static inline bool
 value_in_fromspace(c4m_collection_ctx *ctx, void *ptr)
 {
-    if (ptr >= ctx->fromspc_end || ptr < ctx->fromspc_start) {
+    if (ptr >= ctx->fromspc_end || ptr <= ctx->fromspc_start) {
         return false;
     }
     c4m_gc_trace(C4M_GCT_PTR_TEST, "In fromspace (%p) == true", ptr);
