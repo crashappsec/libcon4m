@@ -37,7 +37,7 @@ else
   c_args    = c_args + ['-D_GNU_SOURCE']
 endif
 
-exe_link_args = link_args + ['-flto', '-w']
+exe_link_args = link_args + ['-w']
 exe_c_args    = c_args + ['-DHATRACK_REFERENCE_ALGORITHMS']
 
 c4m_c_args = c_args 
