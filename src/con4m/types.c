@@ -966,7 +966,7 @@ c4m_unify(c4m_type_t *t1, c4m_type_t *t2)
     c4m_list_t *p1;
     c4m_list_t *p2;
     c4m_list_t *new_subs;
-    int         num_params;
+    int         num_params = 0;
 
     if (!t1 || !t2) {
         return c4m_type_error();
@@ -1527,9 +1527,8 @@ first_loop_start:
 
     if (subnode) {
         substr = c4m_internal_type_repr(subnode, memos, nexttv);
+        c4m_list_append(to_join, substr);
     }
-
-    c4m_list_append(to_join, substr);
 
     return c4m_str_join(to_join, c4m_empty_string());
 }
@@ -2088,6 +2087,8 @@ c4m_format_global_type_environment()
         case C4M_DT_KIND_box:
             base_name = c4m_new_utf8("box");
             break;
+        default:
+            c4m_unreachable();
         }
 
         row = c4m_new_table_row();

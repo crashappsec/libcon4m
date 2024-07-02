@@ -66,18 +66,18 @@
 // You MUST NOT put the try/except block code in curly braces!
 //
 
-#define C4M_TRY                                                       \
-    jmp_buf                _c4x_jmpbuf;                               \
-    int                    _c4x_setjmp_val;                           \
-    c4m_exception_stack_t *_c4x_stack;                                \
-    c4m_exception_frame_t *_c4x_frame;                                \
-    int                    _c4x_exception_state   = C4M_EXCEPTION_OK; \
-    c4m_exception_t       *_c4x_current_exception = NULL;             \
-                                                                      \
-    _c4x_stack      = c4m_exception_push_frame(&_c4x_jmpbuf);         \
-    _c4x_frame      = _c4x_stack->top;                                \
-    _c4x_setjmp_val = setjmp(_c4x_jmpbuf);                            \
-                                                                      \
+#define C4M_TRY                                                          \
+    jmp_buf                   _c4x_jmpbuf;                               \
+    int                       _c4x_setjmp_val;                           \
+    c4m_exception_stack_t    *_c4x_stack;                                \
+    c4m_exception_frame_t    *_c4x_frame;                                \
+    volatile int              _c4x_exception_state   = C4M_EXCEPTION_OK; \
+    volatile c4m_exception_t *_c4x_current_exception = NULL;             \
+                                                                         \
+    _c4x_stack      = c4m_exception_push_frame(&_c4x_jmpbuf);            \
+    _c4x_frame      = _c4x_stack->top;                                   \
+    _c4x_setjmp_val = setjmp(_c4x_jmpbuf);                               \
+                                                                         \
     if (!_c4x_setjmp_val) {
 #define C4M_EXCEPT                                           \
     }                                                        \
@@ -86,41 +86,41 @@
         _c4x_current_exception = _c4x_stack->top->exception; \
         _c4x_setjmp_val        = setjmp(_c4x_jmpbuf);        \
         if (!_c4x_setjmp_val) {
-#define C4M_LFINALLY(user_label)                                      \
-    }                                                                 \
-    else                                                              \
-    {                                                                 \
-        _c4x_exception_state            = C4M_EXCEPTION_IN_HANDLER;   \
-        _c4x_frame->exception->previous = _c4x_current_exception;     \
-        _c4x_current_exception          = _c4x_stack->top->exception; \
-    }                                                                 \
-    }                                                                 \
-    _c4x_finally_##user_label:                                        \
-    {                                                                 \
+#define C4M_LFINALLY(user_label)                                          \
+    }                                                                     \
+    else                                                                  \
+    {                                                                     \
+        _c4x_exception_state            = C4M_EXCEPTION_IN_HANDLER;       \
+        _c4x_frame->exception->previous = (void *)_c4x_current_exception; \
+        _c4x_current_exception          = _c4x_stack->top->exception;     \
+    }                                                                     \
+    }                                                                     \
+    _c4x_finally_##user_label:                                            \
+    {                                                                     \
         if (!setjmp(_c4x_jmpbuf)) {
 // The goto here avoids strict checking for unused labels.
-#define C4M_LTRY_END(user_label)                                      \
-    goto _c4x_try_end_##user_label;                                   \
-    }                                                                 \
-    else                                                              \
-    {                                                                 \
-        _c4x_exception_state            = C4M_EXCEPTION_IN_HANDLER;   \
-        _c4x_frame->exception->previous = _c4x_current_exception;     \
-        _c4x_current_exception          = _c4x_stack->top->exception; \
-    }                                                                 \
-    }                                                                 \
-    _c4x_try_end_##user_label : _c4x_stack->top = _c4x_frame->next;   \
-    if (_c4x_exception_state == C4M_EXCEPTION_IN_HANDLER              \
-        || _c4x_exception_state == C4M_EXCEPTION_NOT_HANDLED) {       \
-        if (!_c4x_frame->next) {                                      \
-            c4m_exception_uncaught(_c4x_current_exception);           \
-        }                                                             \
-        c4m_exception_free_frame(_c4x_frame, _c4x_stack);             \
-        _c4x_stack->top->exception = _c4x_current_exception;          \
-        _c4x_frame                 = _c4x_stack->top;                 \
-        _c4x_frame->exception      = _c4x_current_exception;          \
-        longjmp(*(_c4x_frame->buf), 1);                               \
-    }                                                                 \
+#define C4M_LTRY_END(user_label)                                          \
+    goto _c4x_try_end_##user_label;                                       \
+    }                                                                     \
+    else                                                                  \
+    {                                                                     \
+        _c4x_exception_state            = C4M_EXCEPTION_IN_HANDLER;       \
+        _c4x_frame->exception->previous = (void *)_c4x_current_exception; \
+        _c4x_current_exception          = _c4x_stack->top->exception;     \
+    }                                                                     \
+    }                                                                     \
+    _c4x_try_end_##user_label : _c4x_stack->top = _c4x_frame->next;       \
+    if (_c4x_exception_state == C4M_EXCEPTION_IN_HANDLER                  \
+        || _c4x_exception_state == C4M_EXCEPTION_NOT_HANDLED) {           \
+        if (!_c4x_frame->next) {                                          \
+            c4m_exception_uncaught((void *)_c4x_current_exception);       \
+        }                                                                 \
+        c4m_exception_free_frame(_c4x_frame, _c4x_stack);                 \
+        _c4x_stack->top->exception = (void *)_c4x_current_exception;      \
+        _c4x_frame                 = _c4x_stack->top;                     \
+        _c4x_frame->exception      = (void *)_c4x_current_exception;      \
+        longjmp(*(_c4x_frame->buf), 1);                                   \
+    }                                                                     \
     c4m_exception_free_frame(_c4x_frame, _c4x_stack);
 
 #define C4M_LJUMP_TO_FINALLY(user_label) goto _c4x_finally_##user_label
@@ -145,7 +145,7 @@
     _c4x_exception_state = C4M_EXCEPTION_NOT_HANDLED; \
     longjmp(*(_c4x_current_frame->buf), 1)
 
-#define C4M_X_CUR() _c4x_current_exception
+#define C4M_X_CUR() ((void *)_c4x_current_exception)
 
 c4m_exception_t *_c4m_alloc_exception(const char *s, ...);
 #define c4m_alloc_exception(s, ...) _c4m_alloc_exception(s, C4M_VA(__VA_ARGS__))
@@ -206,7 +206,7 @@ c4m_raise_errcode(int code)
         0,
     };
 
-    strerror_r(code, msg, 2048);
+    if (strerror_r(code, msg, 2048)) {}
     C4M_RAISE(c4m_new(c4m_type_utf8(), c4m_kw("cstring", c4m_ka(msg))));
 }
 

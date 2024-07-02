@@ -1437,6 +1437,8 @@ gen_int_binary_op(gen_ctx *ctx, c4m_operator_t op, bool sign)
     case c4m_op_neq:
         zop = C4M_ZNeq;
         break;
+    default:
+        c4m_unreachable();
     }
     emit(ctx, zop);
 }

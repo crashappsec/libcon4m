@@ -211,6 +211,8 @@ c4m_unmarshal_compact_type(c4m_stream_t *s)
         result->details->base_type = (c4m_dt_info_t *)&c4m_base_type_info[base];
         c4m_calculate_type_hash(result);
         break;
+    default:
+        c4m_unreachable();
     }
 
     // hatrack_dict_put(c4m_global_type_env->store, (void *)tid, result);

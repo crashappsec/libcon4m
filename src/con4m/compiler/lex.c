@@ -409,7 +409,7 @@ scan_int_or_float_literal(lex_state_t *state)
         if (float_strlen > float_ix) {
             state->pos = state->start + float_strlen;
             LITERAL_TOK(c4m_tt_float_lit, 0);
-            state->last_token->literal_value = (void *)*(uint64_t *)&value;
+            state->last_token->literal_value = ((c4m_box_t)value).v;
             return;
         }
     }
@@ -773,7 +773,7 @@ scan_id_or_keyword(lex_state_t *state)
         double      value = strtod((char *)u8->data, NULL);
 
         LITERAL_TOK(r, 0);
-        state->last_token->literal_value = *(void **)&value;
+        state->last_token->literal_value = ((c4m_box_t)value).v;
         return;
     }
     default:

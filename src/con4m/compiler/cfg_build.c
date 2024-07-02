@@ -170,7 +170,7 @@ c4m_cfg_add_continue(c4m_cfg_node_t  *parent,
         case c4m_cfg_block_entrance:
             if (found_proper_block) {
                 c4m_list_append(cur->contents.block_entrance.inbound_links,
-                                 result);
+                                result);
                 result->contents.jump.target = cur;
                 return result;
             }
@@ -222,7 +222,7 @@ c4m_cfg_add_break(c4m_cfg_node_t  *parent,
                 c4m_cfg_node_t *target = cur->contents.block_entrance.exit_node;
 
                 c4m_list_append(target->contents.block_exit.inbound_links,
-                                 result);
+                                result);
                 result->contents.jump.target = target;
                 return result;
             }
@@ -251,10 +251,10 @@ c4m_cfg_add_break(c4m_cfg_node_t  *parent,
 }
 
 c4m_cfg_node_t *
-c4m_cfg_add_def(c4m_cfg_node_t    *parent,
-                c4m_tree_node_t   *treeloc,
-                c4m_symbol_t *symbol,
-                c4m_list_t       *dependencies)
+c4m_cfg_add_def(c4m_cfg_node_t  *parent,
+                c4m_tree_node_t *treeloc,
+                c4m_symbol_t    *symbol,
+                c4m_list_t      *dependencies)
 {
     c4m_cfg_node_t *result           = c4m_gc_alloc(c4m_cfg_node_t);
     result->kind                     = c4m_cfg_def;
@@ -269,10 +269,10 @@ c4m_cfg_add_def(c4m_cfg_node_t    *parent,
 }
 
 c4m_cfg_node_t *
-c4m_cfg_add_call(c4m_cfg_node_t    *parent,
-                 c4m_tree_node_t   *treeloc,
-                 c4m_symbol_t *symbol,
-                 c4m_list_t       *dependencies)
+c4m_cfg_add_call(c4m_cfg_node_t  *parent,
+                 c4m_tree_node_t *treeloc,
+                 c4m_symbol_t    *symbol,
+                 c4m_list_t      *dependencies)
 {
     c4m_cfg_node_t *result           = c4m_gc_alloc(c4m_cfg_node_t);
     result->kind                     = c4m_cfg_call;
@@ -287,9 +287,9 @@ c4m_cfg_add_call(c4m_cfg_node_t    *parent,
 }
 
 c4m_cfg_node_t *
-c4m_cfg_add_use(c4m_cfg_node_t    *parent,
-                c4m_tree_node_t   *treeloc,
-                c4m_symbol_t *symbol)
+c4m_cfg_add_use(c4m_cfg_node_t  *parent,
+                c4m_tree_node_t *treeloc,
+                c4m_symbol_t    *symbol)
 {
     c4m_cfg_node_t *result           = c4m_gc_alloc(c4m_cfg_node_t);
     result->kind                     = c4m_cfg_use;
@@ -307,7 +307,7 @@ du_format_node(c4m_cfg_node_t *n)
 {
     c4m_utf8_t *result;
 
-    c4m_dict_t  *liveness_info;
+    c4m_dict_t *liveness_info;
     c4m_list_t *sometimes_live;
 
     switch (n->kind) {
@@ -333,19 +333,19 @@ du_format_node(c4m_cfg_node_t *n)
     uint64_t             num_syms;
     hatrack_dict_item_t *info  = hatrack_dict_items_sort(liveness_info,
                                                         &num_syms);
-    c4m_list_t         *cells = c4m_new(c4m_type_list(c4m_type_utf8()));
+    c4m_list_t          *cells = c4m_new(c4m_type_list(c4m_type_utf8()));
 
     for (unsigned int i = 0; i < num_syms; i++) {
-        c4m_symbol_t *sym    = info[i].key;
-        c4m_cfg_status_t  *status = info[i].value;
+        c4m_symbol_t     *sym    = info[i].key;
+        c4m_cfg_status_t *status = info[i].value;
 
         if (status->last_def) {
             c4m_list_append(cells, sym->name);
         }
         else {
             c4m_list_append(cells,
-                             c4m_str_concat(sym->name,
-                                            c4m_new_utf8(" (err)")));
+                            c4m_str_concat(sym->name,
+                                           c4m_new_utf8(" (err)")));
         }
     }
 
@@ -385,7 +385,7 @@ c4m_cfg_repr_internal(c4m_cfg_node_t  *node,
                       c4m_cfg_node_t  *cfg_parent,
                       c4m_utf8_t      *label)
 {
-    c4m_utf8_t      *str;
+    c4m_utf8_t      *str = NULL;
     c4m_tree_node_t *result;
     c4m_cfg_node_t  *link;
     uint64_t         node_addr = (uint64_t)(void *)node;
@@ -492,6 +492,9 @@ c4m_cfg_repr_internal(c4m_cfg_node_t  *node,
         str       = c4m_cstr_format("@{:x}: [em]jmp[/] {:x}",
                               c4m_box_i64(node_addr),
                               c4m_box_i64(link_addr));
+        break;
+    default:
+        c4m_unreachable();
     }
 
     if (node->kind == c4m_cfg_block_entrance) {

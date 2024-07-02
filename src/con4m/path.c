@@ -7,9 +7,7 @@ c4m_get_current_directory(c4m_utf8_t *s)
 {
     char buf[MAXPATHLEN + 1];
 
-    getcwd(buf, MAXPATHLEN);
-
-    return c4m_new_utf8(buf);
+    return c4m_new_utf8(getcwd(buf, MAXPATHLEN));
 }
 
 // This is private; it mutates the string, which we don't normally
@@ -127,20 +125,20 @@ raw_path_tilde_expand(c4m_utf8_t *in)
     }
 
     c4m_list_t *parts = c4m_str_xsplit(in, c4m_get_slash_const());
-    c4m_utf8_t  *home  = c4m_to_utf8(c4m_list_get(parts, 0, NULL));
+    c4m_utf8_t *home  = c4m_to_utf8(c4m_list_get(parts, 0, NULL));
 
     if (c4m_str_codepoint_len(home) == 1) {
         c4m_list_set(parts, 0, c4m_empty_string());
         parts = c4m_list_plus(c4m_str_xsplit(c4m_get_user_dir(NULL),
-                                              c4m_get_slash_const()),
-                               parts);
+                                             c4m_get_slash_const()),
+                              parts);
     }
     else {
         home->data++;
         c4m_list_set(parts, 0, c4m_empty_string());
         parts = c4m_list_plus(c4m_str_xsplit(c4m_get_user_dir(home),
-                                              c4m_get_slash_const()),
-                               parts);
+                                             c4m_get_slash_const()),
+                              parts);
         home->data--;
     }
 
@@ -275,18 +273,18 @@ c4m_get_file_kind(c4m_utf8_t *p)
 }
 
 typedef struct {
-    bool         recurse;
-    bool         yield_links;
-    bool         yield_dirs;
-    bool         follow_links;
-    bool         ignore_special;
-    bool         done_with_safety_checks;
-    c4m_utf8_t  *sc_proc;
-    c4m_utf8_t  *sc_dev;
-    c4m_utf8_t  *sc_cwd;
-    c4m_utf8_t  *sc_up;
+    bool        recurse;
+    bool        yield_links;
+    bool        yield_dirs;
+    bool        follow_links;
+    bool        ignore_special;
+    bool        done_with_safety_checks;
+    c4m_utf8_t *sc_proc;
+    c4m_utf8_t *sc_dev;
+    c4m_utf8_t *sc_cwd;
+    c4m_utf8_t *sc_up;
     c4m_list_t *result;
-    c4m_utf8_t  *resolved;
+    c4m_utf8_t *resolved;
 } c4m_walk_ctx;
 
 static void
@@ -384,9 +382,17 @@ actual_directory:
                 char buf[PATH_MAX + 1] = {
                     0,
                 };
-                readlink(ctx->resolved->data, buf, PATH_MAX);
+
+                int n = readlink(ctx->resolved->data, buf, PATH_MAX);
+
+                if (n == -1) {
+                    C4M_CRAISE("readlink() failed.");
+                }
+
+                ctx->resolved->data[n] = 0;
+
                 c4m_list_append(ctx->result,
-                                 c4m_resolve_path(c4m_new_utf8(buf)));
+                                c4m_resolve_path(c4m_new_utf8(buf)));
             }
             else {
                 if (ctx->yield_links) {
@@ -408,7 +414,14 @@ actual_directory:
             char buf[PATH_MAX + 1] = {
                 0,
             };
-            readlink(ctx->resolved->data, buf, PATH_MAX);
+            int n = readlink(ctx->resolved->data, buf, PATH_MAX);
+
+            if (n == -1) {
+                C4M_CRAISE("readlink() failed.");
+            }
+
+            ctx->resolved->data[n] = 0;
+
             ctx->resolved = c4m_resolve_path(c4m_new_utf8(buf));
             if (ctx->yield_dirs && !ctx->yield_links) {
                 c4m_list_append(ctx->result, ctx->resolved);

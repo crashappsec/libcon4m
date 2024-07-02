@@ -144,7 +144,7 @@ c4m_install_renderable(c4m_grid_t       *grid,
                        int               start_col,
                        int               end_col)
 {
-    int i, j;
+    int i, j = 0;
 
     cell->start_col = start_col;
     cell->end_col   = end_col;
@@ -962,7 +962,7 @@ grid_pre_render(c4m_grid_t *grid, int16_t *col_widths)
     for (int16_t i = 0; i < grid->num_rows; i++) {
         int16_t row_height = 1;
         int16_t width;
-        int16_t cell_height;
+        int16_t cell_height = 0;
 
         for (int16_t j = 0; j < grid->num_cols; j++) {
             c4m_renderable_t *cell = *c4m_cell_address(grid, i, j);

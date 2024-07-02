@@ -1264,13 +1264,13 @@ extern_signature(parse_ctx *ctx)
 static void
 extern_block(parse_ctx *ctx)
 {
-    char *txt;
-    int   safety_check = 0;
-    bool  got_local    = false;
-    bool  got_box      = false;
-    bool  got_pure     = false;
-    bool  got_holds    = false;
-    bool  got_allocs   = false;
+    char        *txt;
+    volatile int safety_check = 0;
+    bool         got_local    = false;
+    bool         got_box      = false;
+    bool         got_pure     = false;
+    bool         got_holds    = false;
+    bool         got_allocs   = false;
 
     start_node(ctx, c4m_nt_extern_block, true);
     identifier(ctx);
@@ -1748,7 +1748,7 @@ static void
 case_body(parse_ctx *ctx)
 {
     c4m_tree_node_t *expr;
-    int              safety_check = 0;
+    volatile int     safety_check = 0;
 
     start_node(ctx, c4m_nt_body, true);
 
@@ -2808,7 +2808,7 @@ field_property(parse_ctx *ctx)
 static void
 field_spec(parse_ctx *ctx)
 {
-    int safety_check = 0;
+    volatile int safety_check = 0;
 
     start_node(ctx, c4m_nt_field_spec, true);
     identifier(ctx);
@@ -2934,7 +2934,7 @@ invalid_sec_part:
 static void
 object_spec(parse_ctx *ctx, c4m_utf8_t *txt)
 {
-    int safety_check = 0;
+    volatile int safety_check = 0;
 
     start_node(ctx, c4m_nt_section_spec, false);
     // if this isn't the root section, we read a name.
@@ -3857,7 +3857,7 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
 {
     // TODO: should 100% have docstrings be a constexpr instead
     // of just a string literal as the only option.
-    int              safety_check = 0;
+    volatile int     safety_check = 0;
     c4m_tree_node_t *expr;
 
     opt_one_newline(ctx);

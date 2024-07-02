@@ -2268,8 +2268,8 @@ base_check_pass_dispatch(pass2_ctx *ctx)
 #ifdef C4M_DEV
     case c4m_nt_print:
         c4m_list_append(ctx->file_ctx->print_nodes, ctx->node);
-
         process_children(ctx);
+        break;
 #endif
 
     default:
