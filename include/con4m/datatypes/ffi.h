@@ -53,9 +53,9 @@ typedef struct {
     uint64_t       str_convert;
     uint64_t       hold_info;
     uint64_t       alloc_info;
-    c4m_ffi_cif    cif;
     c4m_ffi_type **args;
     c4m_ffi_type  *ret;
+    c4m_ffi_cif    cif;
 } c4m_zffi_cif;
 
 typedef enum {
@@ -70,14 +70,14 @@ typedef struct c4m_ffi_decl_t {
     c4m_utf8_t            *long_doc;
     c4m_utf8_t            *local_name;
     struct c4m_sig_info_t *local_params;
-    int                    num_ext_params;
-    int                    global_ffi_call_ix;
     c4m_utf8_t            *external_name;
+    c4m_list_t            *dll_list;
     uint8_t               *external_params;
     uint8_t                external_return_type;
     bool                   skip_boxes;
-    c4m_list_t            *dll_list;
     c4m_zffi_cif           cif;
+    int                    num_ext_params;
+    int                    global_ffi_call_ix;
 } c4m_ffi_decl_t;
 
 extern c4m_ffi_type ffi_type_void;

@@ -7,8 +7,6 @@ typedef struct {
     c4m_spec_t           *spec;
     c4m_compile_ctx      *compile;
     c4m_file_compile_ctx *file_ctx;
-    __uint128_t           du_stack;
-    int                   du_stack_ix;
     // The above get initialized only once when we start processing a module.
     // Everything below this comment gets updated for each function entry too.
     c4m_scope_t          *local_scope;
@@ -28,6 +26,8 @@ typedef struct {
     c4m_list_t           *deferred_calls;
     c4m_list_t           *index_rechecks;
     bool                  augmented_assignment;
+    __uint128_t           du_stack;
+    int                   du_stack_ix;
 } pass2_ctx;
 
 static void base_check_pass_dispatch(pass2_ctx *);
@@ -2271,7 +2271,6 @@ base_check_pass_dispatch(pass2_ctx *ctx)
         process_children(ctx);
         break;
 #endif
-
     default:
         process_children(ctx);
         break;

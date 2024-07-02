@@ -2,9 +2,9 @@
 
 typedef struct {
     c4m_compile_error_t errorid;
-    char               *name;
-    char               *message;
-    bool                takes_args;
+    alignas(8) char *name;
+    char *message;
+    bool  takes_args;
 } error_info_t;
 
 static error_info_t error_info[] = {
@@ -1361,6 +1361,24 @@ c4m_compile_extract_all_error_codes(c4m_compile_ctx *cctx)
     return result;
 }
 
+static void
+c4m_err_set_gc_bits(uint64_t *bitfield, int length)
+{
+    *bitfield = 0x0b;
+    for (int i = 4; i < length; i++) {
+        c4m_set_bit(bitfield, i);
+    }
+}
+
+c4m_compile_error *
+c4m_new_error(int nargs)
+{
+    return c4m_gc_flex_alloc(c4m_compile_error,
+                             void *,
+                             nargs,
+                             c4m_err_set_gc_bits);
+}
+
 c4m_compile_error *
 c4m_base_add_error(c4m_list_t         *err_list,
                    c4m_compile_error_t code,
@@ -1377,10 +1395,7 @@ c4m_base_add_error(c4m_list_t         *err_list,
     }
     va_end(arg_counter);
 
-    c4m_compile_error *err = c4m_gc_flex_alloc(c4m_compile_error,
-                                               c4m_str_t *,
-                                               num_args,
-                                               C4M_GC_SCAN_ALL);
+    c4m_compile_error *err = c4m_new_error(num_args);
 
     err->code          = code;
     err->current_token = tok;

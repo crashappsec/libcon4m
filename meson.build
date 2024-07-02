@@ -27,7 +27,6 @@ c_args        = ['-Wextra',
                  '-Wno-unused-parameter',
                  '-Wno-cast-function-type',
                   '-fno-omit-frame-pointer',
-                  '-flto',
                   ]
 
 if (host_machine.system() == 'darwin')
@@ -36,7 +35,6 @@ if (host_machine.system() == 'darwin')
                 'arm64-apple-macos14',
                 '-framework',
                 'Security',
-                '-flto',
                 ]
 else
   using_osx = false
@@ -61,7 +59,7 @@ if cc.links(fpty_code, name: 'forkpty_check')
 endif
 
 if (get_option('buildtype') == 'release')
-  add_project_arguments([ '-O2' ], language: 'c')
+  add_project_arguments([ '-O2', '-flto' ], language: 'c')
 endif
 
 c4m_src  = ['src/con4m/style.c',

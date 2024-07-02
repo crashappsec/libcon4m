@@ -16,15 +16,15 @@ typedef enum {
 typedef struct {
     c4m_cfg_node_t *next_node;
     c4m_cfg_node_t *exit_node;
-    c4m_list_t    *inbound_links;
-    c4m_list_t    *to_merge;
+    c4m_list_t     *inbound_links;
+    c4m_list_t     *to_merge;
 } c4m_cfg_block_enter_info_t;
 
 typedef struct {
     c4m_cfg_node_t *next_node;
     c4m_cfg_node_t *entry_node;
-    c4m_list_t    *inbound_links;
-    c4m_list_t    *to_merge;
+    c4m_list_t     *inbound_links;
+    c4m_list_t     *to_merge;
 } c4m_cfg_block_exit_info_t;
 
 typedef struct {
@@ -33,17 +33,17 @@ typedef struct {
 } c4m_cfg_jump_info_t;
 
 typedef struct {
-    int32_t          num_branches;
-    int32_t          next_to_process;
     c4m_cfg_node_t  *exit_node;
     c4m_cfg_node_t **branch_targets;
     c4m_utf8_t      *label; // For loops
+    int32_t          num_branches;
+    int32_t          next_to_process;
 } c4m_cfg_branch_info_t;
 
 typedef struct {
-    c4m_cfg_node_t    *next_node;
-    c4m_symbol_t *dst_symbol;
-    c4m_list_t       *deps; // all symbols influencing the def
+    c4m_cfg_node_t *next_node;
+    c4m_symbol_t   *dst_symbol;
+    c4m_list_t     *deps; // all symbols influencing the def
 } c4m_cfg_flow_info_t;
 
 typedef struct {
@@ -55,9 +55,9 @@ struct c4m_cfg_node_t {
     c4m_tree_node_t *reference_location;
     c4m_cfg_node_t  *parent;
     c4m_dict_t      *starting_liveness_info;
-    c4m_list_t     *starting_sometimes;
+    c4m_list_t      *starting_sometimes;
     c4m_dict_t      *liveness_info;
-    c4m_list_t     *sometimes_live;
+    c4m_list_t      *sometimes_live;
 
     union {
         c4m_cfg_block_enter_info_t block_entrance;

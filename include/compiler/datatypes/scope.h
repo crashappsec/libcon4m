@@ -63,11 +63,12 @@ typedef struct c4m_symbol_t {
     c4m_utf8_t          *name;
     c4m_tree_node_t     *declaration_node;
     c4m_tree_node_t     *value_node;
-    c4m_obj_t            value;
     c4m_utf8_t          *path;
-    c4m_symbol_kind      kind;
     c4m_type_t          *type;
     struct c4m_scope_t  *my_scope;
+    void                *cfg_kill_node;
+    c4m_obj_t            value;
+    c4m_symbol_kind      kind;
 
     // For constant value types, this is an absolute byte offset
     // from the start of the `const_data` buffer.
@@ -90,17 +91,16 @@ typedef struct c4m_symbol_t {
     // the module's index into the `module_ordering` field in the
     // compilation context.
     uint32_t local_module_id;
-    void    *cfg_kill_node;
     uint32_t flags;
 } c4m_symbol_t;
 
 typedef struct {
     c4m_utf8_t   *short_doc;
     c4m_utf8_t   *long_doc;
+    c4m_symbol_t *linked_symbol;
     c4m_obj_t     callback;
     c4m_obj_t     validator;
     c4m_obj_t     default_value;
-    c4m_symbol_t *linked_symbol;
     unsigned int  param_index;
     unsigned int  have_default : 1;
 } c4m_module_param_info_t;

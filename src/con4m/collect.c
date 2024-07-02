@@ -50,8 +50,8 @@ int c4m_gc_trace_on = 1;
 #endif
 
 typedef struct hook_record_t {
-    c4m_gc_hook           post_collect;
     struct hook_record_t *next;
+    c4m_gc_hook           post_collect;
 } hook_record_t;
 
 static hook_record_t *c4m_gc_hooks = NULL;
@@ -458,6 +458,23 @@ scan_range_for_allocs(c4m_collection_ctx *ctx, void **start, int num)
     process_worklist(ctx);
 }
 
+#ifdef C4M_PARANOID_STACK_SCAN
+static void
+scan_stack_for_allocs(c4m_collection_ctx *ctx, void **start, int num)
+{
+    char *p = (char *)start;
+
+    for (int i = 0; i < num; i++) {
+        if (value_in_fromspace(ctx, *start)) {
+            forward_one_allocation(ctx, start);
+        }
+        p++;
+        start = (void **)p;
+    }
+    process_worklist(ctx);
+}
+#endif
+
 static void
 scan_roots(c4m_collection_ctx *ctx)
 {
@@ -527,7 +544,12 @@ raw_trace(c4m_collection_ctx *ctx)
                  stack_bottom,
                  stack_bottom - stack_top);
 
+#ifdef C4M_PARANOID_STACK_SCAN
+    scan_stack_for_allocs(ctx, (void **)stack_top, stack_bottom - stack_top);
+#else
     scan_range_for_allocs(ctx, (void **)stack_top, stack_bottom - stack_top);
+#endif
+
     ctx->from_space = (void *)~(uint64_t)stash;
 
     c4m_gc_trace(C4M_GCT_SCAN,

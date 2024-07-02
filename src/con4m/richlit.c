@@ -25,10 +25,10 @@ typedef struct {
     fmt_frame_t *cur_frame;
     c4m_list_t  *style_directions;
     c4m_utf8_t  *style_text;
-    c4m_style_t  cur_style;
     tag_item_t **stack;
-    int          stack_ix;
     c4m_utf8_t  *raw;
+    c4m_style_t  cur_style;
+    int          stack_ix;
 } style_ctx;
 
 typedef struct {

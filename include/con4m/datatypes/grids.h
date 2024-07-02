@@ -160,10 +160,10 @@ typedef struct c4m_grid_t c4m_grid_t;
 // on subsequent lines.
 
 typedef struct {
-    c4m_obj_t           raw_item; // Currently, must be a c4m_grid_t * or c4m_str_t *.
     char               *container_tag;
     c4m_render_style_t *current_style;
     c4m_list_t         *render_cache;
+    c4m_obj_t           raw_item; // Currently, a c4m_grid_t * or c4m_str_t *.
     int64_t             start_col;
     int64_t             start_row;
     int64_t             end_col;

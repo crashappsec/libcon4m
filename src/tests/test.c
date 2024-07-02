@@ -490,10 +490,39 @@ main(int argc, char **argv, char **envp)
 {
     c4m_init(argc, argv, envp);
     add_static_symbols();
+    c4m_install_default_styles();
+    c4m_terminal_dimensions(&term_width, NULL);
 
-    int num_errs     = 0;
-    int num_tests    = 0;
-    int no_exception = 1;
+    c4m_grid_t *success_grid = c4m_new(c4m_type_grid(),
+                                       c4m_kw("start_cols",
+                                              c4m_ka(2),
+                                              "header_rows",
+                                              c4m_ka(1),
+                                              "container_tag",
+                                              c4m_ka("error_grid")));
+    c4m_grid_t *fail_grid    = c4m_new(c4m_type_grid(),
+                                    c4m_kw("start_cols",
+                                           c4m_ka(2),
+                                           "header_rows",
+                                           c4m_ka(1),
+                                           "container_tag",
+                                           c4m_ka("error_grid")));
+
+    c4m_list_t *row          = c4m_list(c4m_type_utf8());
+    int         num_errs     = 0;
+    int         num_tests    = 0;
+    int         no_exception = 1;
+
+    c4m_list_append(row, c4m_new_utf8("Test #"));
+    c4m_list_append(row, c4m_new_utf8("Test File"));
+
+    c4m_grid_add_row(success_grid, row);
+    c4m_grid_add_row(fail_grid, row);
+
+    c4m_set_column_style(success_grid, 0, "full_snap");
+    c4m_set_column_style(success_grid, 1, "snap");
+    c4m_set_column_style(fail_grid, 0, "full_snap");
+    c4m_set_column_style(fail_grid, 1, "snap");
 
     if (c4m_get_env(c4m_new_utf8("CON4M_DEV"))) {
         dev_mode = true;
@@ -501,11 +530,10 @@ main(int argc, char **argv, char **envp)
 
     C4M_TRY
     {
-        c4m_install_default_styles();
-        c4m_terminal_dimensions(&term_width, NULL);
         c4m_dict_t          *targets = build_file_list();
         uint64_t             n;
         hatrack_dict_item_t *items = hatrack_dict_items(targets, &n);
+
         qsort(items, n, sizeof(hatrack_dict_item_t), (void *)fname_sort);
 
         for (uint64_t i = 0; i < n; i++) {
@@ -514,12 +542,41 @@ main(int argc, char **argv, char **envp)
 
             if (kat != NULL) {
                 num_tests++;
+                c4m_printf("[h4]Running test {}: [i]{}",
+                           c4m_box_u64(num_tests),
+                           fname);
             }
 
             if (!test_compiler(fname, kat)) {
                 num_errs++;
+
+                row = c4m_list(c4m_type_utf8());
+                c4m_list_append(row,
+                                c4m_cstr_format("[em]{}",
+                                                c4m_box_u64(num_tests)));
+                c4m_list_append(row, fname);
+                c4m_grid_add_row(fail_grid, row);
+
+                c4m_printf("[h4]Finished test {}. [i red]FAILED.",
+                           c4m_box_u64(num_tests));
+            }
+            else {
+                if (kat != NULL) {
+                    c4m_printf("[h4]Finished test {}. [i atomic lime]PASSED.",
+                               c4m_box_u64(num_tests));
+
+                    row = c4m_list(c4m_type_utf8());
+                    c4m_list_append(row,
+                                    c4m_cstr_format("[em]{}",
+                                                    c4m_box_u64(num_tests)));
+                    c4m_list_append(row, fname);
+
+                    c4m_grid_add_row(success_grid, row);
+                }
             }
         }
+
+        c4m_printf("[h4]\n\nFinished tests.\n\n[/]");
     }
     C4M_EXCEPT
     {
@@ -530,10 +587,28 @@ main(int argc, char **argv, char **envp)
     }
     C4M_TRY_END;
 
-    c4m_printf("Passed [em]{}[/] out of [em]{}[/] run tests.",
-               c4m_box_u64(num_tests - num_errs),
-               c4m_box_u64(num_tests));
+    if (num_tests != 0) {
+        if (num_errs != 0 && num_errs != num_tests) {
+            c4m_printf("[h5]Passed Tests:[/]");
+            c4m_print(success_grid);
+        }
 
+        if (num_errs != 0) {
+            c4m_printf("[h4]Failed Tests:[/]");
+            c4m_print(fail_grid);
+        }
+
+        c4m_printf("Passed [em]{}[/] out of [em]{}[/] run tests.",
+                   c4m_box_u64(num_tests - num_errs),
+                   c4m_box_u64(num_tests));
+
+        if (num_errs || !no_exception) {
+            c4m_printf("[h5] Con4m testing [b red]FAILED[/].");
+        }
+        else {
+            c4m_printf("[h5] Con4m testing [b atomic lime]PASSED[/].");
+        }
+    }
     c4m_gc_thread_collect();
 
     if (!num_errs && !no_exception) {

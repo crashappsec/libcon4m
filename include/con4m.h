@@ -18,6 +18,9 @@
 // #define C4M_VM_DEBUG
 // #define C4M_VM_DEBUG_DEFAULT true
 
+// This won't work on systems that require aligned pointers.
+// #define C4M_PARANOID_STACK_SCAN
+
 #ifdef C4M_NO_DEV_MODE
 #undef C4M_DEV
 #else

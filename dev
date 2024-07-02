@@ -48,7 +48,7 @@ function meson_build {
         if [[ ${1} -ne "debug" ]] ; then
             SETUP_ARGS=-Dbuildtype=release
         else
-            SETUP_ARGS=-Dbuildtype=debugoptimized
+            SETUP_ARGS=-Dbuildtype=debug
         fi
         meson setup ${SETUP_ARGS} ${1}
     fi
@@ -157,7 +157,7 @@ function libcon4m_run_tests {
                 echo
             fi
         done
-        exit -1
+        exit 127
     fi
     cd ..
 }

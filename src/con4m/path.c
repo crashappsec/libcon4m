@@ -273,27 +273,27 @@ c4m_get_file_kind(c4m_utf8_t *p)
 }
 
 typedef struct {
-    bool        recurse;
-    bool        yield_links;
-    bool        yield_dirs;
-    bool        follow_links;
-    bool        ignore_special;
-    bool        done_with_safety_checks;
     c4m_utf8_t *sc_proc;
     c4m_utf8_t *sc_dev;
     c4m_utf8_t *sc_cwd;
     c4m_utf8_t *sc_up;
     c4m_list_t *result;
     c4m_utf8_t *resolved;
+    bool        recurse;
+    bool        yield_links;
+    bool        yield_dirs;
+    bool        follow_links;
+    bool        ignore_special;
+    bool        done_with_safety_checks;
 } c4m_walk_ctx;
 
 static void
 internal_path_walk(c4m_walk_ctx *ctx)
 {
-    struct stat    file_info;
     DIR           *dirobj;
     struct dirent *entry;
     c4m_utf8_t    *saved;
+    struct stat    file_info;
     bool           add_slash;
 
     if (!ctx->done_with_safety_checks) {

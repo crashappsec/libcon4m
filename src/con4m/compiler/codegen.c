@@ -38,13 +38,13 @@ typedef struct {
     c4m_zmodule_info_t   *cur_module;
     c4m_list_t           *call_backpatches;
     target_info_t        *target_info;
+    c4m_symbol_t         *retsym;
     int                   instruction_counter;
     int                   current_stack_offset;
     int                   max_stack_size;
     int                   module_patch_loc;
     bool                  lvalue;
     assign_type_t         assign_method;
-    c4m_symbol_t         *retsym;
 } gen_ctx;
 
 static void gen_one_node(gen_ctx *);
@@ -54,12 +54,12 @@ _emit(gen_ctx *ctx, int32_t op32, ...)
 {
     c4m_karg_only_init(op32);
 
+    c4m_type_t          *type      = NULL;
+    c4m_zinstruction_t **instrptr  = NULL;
     c4m_zop_t            op        = (c4m_zop_t)(op32);
     int64_t              arg       = 0;
     int64_t              immediate = 0;
     int64_t              module_id = ctx->fctx->local_module_id;
-    c4m_type_t          *type      = NULL;
-    c4m_zinstruction_t **instrptr  = NULL;
 
     c4m_kw_int64("immediate", immediate);
     c4m_kw_int64("arg", arg);

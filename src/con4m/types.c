@@ -181,8 +181,8 @@ type_end_log()
 
 typedef struct {
     c4m_sha_t  *sha;
-    int         tv_count;
     c4m_dict_t *memos;
+    int         tv_count;
 } type_hash_ctx;
 
 static uint64_t            c4m_default_next_typevar(void);

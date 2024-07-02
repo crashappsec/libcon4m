@@ -413,6 +413,7 @@ c4m_stream_read_all(c4m_stream_t *stream)
     }
     while (true) {
         c4m_obj_t *one = c4m_stream_raw_read(stream, PIPE_BUF, NULL);
+
         if (outkind) {
             if (c4m_str_codepoint_len((c4m_str_t *)one) == 0) {
                 break;
@@ -423,6 +424,7 @@ c4m_stream_read_all(c4m_stream_t *stream)
                 break;
             }
         }
+
         c4m_list_append(l, one);
     }
     if (outkind) {

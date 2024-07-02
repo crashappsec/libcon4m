@@ -2,9 +2,8 @@
 #include "con4m.h"
 
 typedef struct {
-    c4m_scope_t *final_attrs;
-    c4m_scope_t *final_globals;
-
+    c4m_scope_t          *final_attrs;
+    c4m_scope_t          *final_globals;
     c4m_spec_t           *final_spec;
     c4m_file_compile_ctx *entry_point;
     c4m_dict_t           *module_cache;
