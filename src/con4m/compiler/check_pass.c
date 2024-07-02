@@ -911,7 +911,8 @@ handle_break(pass2_ctx *ctx)
     int i    = c4m_list_len(ctx->loop_stack);
 
     while (i--) {
-        c4m_control_info_t *bi = c4m_list_get(ctx->loop_stack, i, NULL);
+        c4m_loop_info_t    *li = c4m_list_get(ctx->loop_stack, i, NULL);
+        c4m_control_info_t *bi = &li->branch_info;
 
         if (!label || (bi->label && !strcmp(label->data, bi->label->data))) {
             c4m_pnode_t     *npnode      = c4m_get_pnode(n);
@@ -967,7 +968,8 @@ handle_continue(pass2_ctx *ctx)
     int i    = c4m_list_len(ctx->loop_stack);
 
     while (i--) {
-        c4m_control_info_t *bi = c4m_list_get(ctx->loop_stack, i, NULL);
+        c4m_loop_info_t    *li = c4m_list_get(ctx->loop_stack, i, NULL);
+        c4m_control_info_t *bi = &li->branch_info;
 
         // While 'break' can be used to exit switch() and typeof()
         // cases, 'continue' cannot.

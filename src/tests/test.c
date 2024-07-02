@@ -201,8 +201,6 @@ show_dev_disasm(c4m_vm_t *vm, c4m_zmodule_info_t *m)
     c4m_print(g);
     c4m_print(c4m_cstr_format("Module [em]{}[/] disassembly done.",
                               m->path));
-    c4m_print(c4m_rich_lit("[h2]Module Source Code"));
-    c4m_print(m->source);
 }
 
 c4m_dict_t *
@@ -438,6 +436,15 @@ test_compiler(c4m_utf8_t *fname, c4m_test_kat *kat)
 
     c4m_printf("[atomic lime]info:[/] Done processing: {}", fname);
 
+    if (dev_mode) {
+        for (int i = 0; i < c4m_list_len(ctx->module_ordering); i++) {
+            c4m_file_compile_ctx *f;
+            f = c4m_list_get(ctx->module_ordering, i, NULL);
+            c4m_print(c4m_rich_lit("[h2]Module Source Code"));
+            c4m_print(f->raw);
+        }
+    }
+
     if (c4m_got_fatal_compiler_error(ctx)) {
         return compare_results(fname, kat, ctx, NULL);
     }
@@ -557,7 +564,7 @@ main(int argc, char **argv, char **envp)
                 c4m_list_append(row, fname);
                 c4m_grid_add_row(fail_grid, row);
 
-                c4m_printf("[h4]Finished test {}. [i red]FAILED.",
+                c4m_printf("[h4]Finished test {}. [i b navy blue]FAILED.",
                            c4m_box_u64(num_tests));
             }
             else {
