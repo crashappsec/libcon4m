@@ -60,7 +60,7 @@ typedef c4m_obj_t (*c4m_literal_fn)(c4m_utf8_t *,
                                     c4m_utf8_t *,
                                     c4m_compile_error_t *);
 typedef c4m_obj_t (*c4m_container_lit_fn)(c4m_type_t *,
-                                          c4m_xlist_t *,
+                                          c4m_list_t *,
                                           c4m_utf8_t *);
 typedef c4m_str_t *(*c4m_format_fn)(c4m_obj_t, c4m_fmt_spec_t *);
 typedef c4m_type_t *(*c4m_ix_item_ty_fn)(c4m_type_t *);

@@ -6,15 +6,15 @@
  ** NOT to distinguish whether strings are UTF-8 (the high bit will
  ** always be 0 with UTF-8).
  **/
+
+#define C4M_STR_HASH_KEY_POINTER_OFFSET 0
+#define C4M_HASH_CACHE_OFFSET           (-2 * (int32_t)sizeof(uint64_t))
 typedef struct c4m_str_t {
-    // clang-format off
-    alignas(8)
+    char             *data;
+    c4m_style_info_t *styling;
     int32_t           byte_len;
     int32_t           codepoints : 31;
-    unsigned int      utf32 : 1;
-    c4m_style_info_t *styling;
-    char             *data;
-    // clang-format on
+    unsigned int      utf32      : 1;
 } c4m_str_t;
 
 typedef c4m_str_t c4m_utf8_t;

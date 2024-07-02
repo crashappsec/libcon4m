@@ -39,9 +39,6 @@ $output:
 5
 
 $errors:
-shadowed_var
-shadowed_var
-shadowed_var
 """
 
 for i in 5 to 10 {

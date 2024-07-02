@@ -509,6 +509,12 @@ hatrack_dict_items_base(hatrack_dict_t *self, mmm_thread_t *thread, uint64_t *nu
     uint64_t             alloc_len;
     uint32_t             i;
 
+    if (!self) {
+        if (num) {
+            *num = 0;
+        }
+        return NULL;
+    }
     mmm_start_basic_op(thread);
 
     if (self->slow_views) {
@@ -700,7 +706,17 @@ hatrack_dict_get_hash_value(hatrack_dict_t *self, void *key)
         hv = hash_double(*(double *)loc_to_hash);
         break;
     case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
-        hv = hash_cstr(*(char **)loc_to_hash);
+        if (!loc_to_hash) {
+            abort();
+        }
+        char *val = *(char **)loc_to_hash;
+
+        if (val) {
+            hv = hash_cstr(*(char **)loc_to_hash);
+        }
+        else {
+            hv = hash_cstr("\0");
+        }
         break;
     case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
         hv = hash_pointer(loc_to_hash);

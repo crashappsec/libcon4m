@@ -105,6 +105,7 @@ const c4m_vtable_t c4m_ipaddr_vtable = {
         [C4M_BI_TO_STR]      = (c4m_vtable_entry)ipaddr_repr,
         [C4M_BI_MARSHAL]     = (c4m_vtable_entry)ipaddr_marshal,
         [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)ipaddr_unmarshal,
+        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)C4M_GC_SCAN_NONE,
         // Explicit because some compilers don't seem to always properly
         // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
         [C4M_BI_FINALIZER]   = NULL,

@@ -25,21 +25,27 @@ endif
 c_args        = ['-Wextra',
                  '-g',
                  '-Wno-unused-parameter',
-                 '-Wno-cast-function-type']
+                 '-Wno-cast-function-type',
+                  '-fno-omit-frame-pointer',
+                  '-flto',
+                  ]
 
 if (host_machine.system() == 'darwin')
   using_osx  = true
-  link_args  = ['-target', 'arm64-apple-macos14',
-                '-framework', 'Security']
+  link_args  = ['-target',
+                'arm64-apple-macos14',
+                '-framework',
+                'Security',
+                '-flto',
+                ]
 else
   using_osx = false
   link_args = []
   c_args    = c_args + ['-D_GNU_SOURCE']
-  
 endif
 
 exe_link_args = link_args + ['-flto', '-w']
-exe_c_args    = c_args + ['-DHATRACK_REFERENCE_ALGORITHMS']
+exe_c_args    = c_args + ['-flto', '-DHATRACK_REFERENCE_ALGORITHMS']
 
 c4m_c_args = c_args 
 
@@ -54,6 +60,10 @@ if cc.links(fpty_code, name: 'forkpty_check')
   add_project_arguments('-DHAVE_PTY_H', language: 'c')
 endif
 
+if (get_option('buildtype') == 'release')
+  add_project_arguments([ '-O2' ], language: 'c')
+endif
+
 c4m_src  = ['src/con4m/style.c',
             'src/con4m/colors.c',
             'src/con4m/breaks.c', 
@@ -63,14 +73,15 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/hex.c',
             'src/con4m/switchboard.c',
             'src/con4m/subproc.c',
-            'src/con4m/gc.c',
+            'src/con4m/gcbase.c',
+            'src/con4m/collect.c',            
             'src/con4m/term.c',
             'src/con4m/kargs.c',
             'src/con4m/object.c',
             'src/con4m/dict.c',
             'src/con4m/set.c',
-            'src/con4m/lists.c',
-            'src/con4m/xlist.c',
+            'src/con4m/hatlists.c',
+            'src/con4m/list.c',
             'src/con4m/grid.c',
             'src/con4m/styledb.c',
             'src/con4m/exceptions.c',

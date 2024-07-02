@@ -148,7 +148,7 @@ c4m_marshal_compact_type(c4m_type_t *t, c4m_stream_t *s)
         param_count = (uint16_t)c4m_len(t->details->items);
         c4m_marshal_u16(param_count, s);
         for (int i = 0; i < param_count; i++) {
-            c4m_marshal_compact_type(c4m_xlist_get(t->details->items, i, NULL),
+            c4m_marshal_compact_type(c4m_list_get(t->details->items, i, NULL),
                                      s);
         }
         return;
@@ -199,10 +199,10 @@ c4m_unmarshal_compact_type(c4m_stream_t *s)
         result                 = c4m_new(c4m_type_typespec(), NULL, NULL, 1UL);
         result->typeid         = tid;
         result->details->flags = flags;
-        result->details->items = c4m_xlist(c4m_type_typespec());
+        result->details->items = c4m_list(c4m_type_typespec());
 
         for (int i = 0; i < param_count; i++) {
-            c4m_xlist_append(result->details->items, c4m_unmarshal_compact_type(s));
+            c4m_list_append(result->details->items, c4m_unmarshal_compact_type(s));
         }
         break;
     case C4M_DT_KIND_box:
@@ -211,6 +211,8 @@ c4m_unmarshal_compact_type(c4m_stream_t *s)
         result->details->base_type = (c4m_dt_info_t *)&c4m_base_type_info[base];
         c4m_calculate_type_hash(result);
         break;
+    default:
+        c4m_unreachable();
     }
 
     // hatrack_dict_put(c4m_global_type_env->store, (void *)tid, result);
@@ -328,8 +330,9 @@ c4m_sub_unmarshal(c4m_stream_t *s, c4m_dict_t *memos)
     dt_entry  = (c4m_dt_info_t *)&c4m_base_type_info[base_type_id];
     alloc_len = sizeof(c4m_base_obj_t) + dt_entry->alloc_len;
 
-    obj = (c4m_base_obj_t *)c4m_gc_raw_alloc(alloc_len,
-                                             (uint64_t *)dt_entry->ptr_info);
+    c4m_mem_scan_fn gc_fn = (void *)(dt_entry->vtable->methods[C4M_BI_GC_MAP]);
+
+    obj = (c4m_base_obj_t *)c4m_gc_raw_alloc(alloc_len, gc_fn);
 
     // Now that we've allocated the object, we need to fill in the memo
     // before we unmarshal, because cycles happen.
@@ -484,7 +487,7 @@ skip_first_comma:
     c4m_stream_raw_write(s, strlen(fn_part2), fn_part2);
     c4m_stream_raw_write(s, strlen(symbol_name), symbol_name);
     c4m_stream_raw_write(s, strlen(fn_part3), fn_part3);
-    c4m_stream_write_object(s, c4m_str_from_int(b->byte_len));
+    c4m_stream_write_object(s, c4m_str_from_int(b->byte_len), false);
     c4m_stream_raw_write(s, strlen(fn_part4), fn_part4);
     c4m_stream_raw_write(s, strlen(symbol_name), symbol_name);
     c4m_stream_raw_write(s, strlen(fn_part5), fn_part5);

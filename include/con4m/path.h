@@ -18,11 +18,11 @@ c4m_utf8_t   *c4m_resolve_path(c4m_utf8_t *);
 c4m_utf8_t   *c4m_path_tilde_expand(c4m_utf8_t *);
 c4m_utf8_t   *c4m_get_user_dir(c4m_utf8_t *);
 c4m_utf8_t   *c4m_get_current_directory(c4m_utf8_t *);
-c4m_utf8_t   *c4m_path_join(c4m_xlist_t *);
+c4m_utf8_t   *c4m_path_join(c4m_list_t *);
 c4m_file_kind c4m_get_file_kind(c4m_utf8_t *);
-c4m_xlist_t  *_c4m_path_walk(c4m_utf8_t *, ...);
+c4m_list_t  *_c4m_path_walk(c4m_utf8_t *, ...);
 
-#define c4m_path_walk(x, ...) _c4m_path_walk(x, KFUNC(__VA_ARGS__))
+#define c4m_path_walk(x, ...) _c4m_path_walk(x, C4M_VA(__VA_ARGS__))
 
 static inline c4m_utf8_t *
 c4m_get_home_directory()

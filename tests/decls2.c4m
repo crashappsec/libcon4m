@@ -10,13 +10,9 @@ inconsistent_type
 unused_decl
 def_without_use
 use_no_def
-def_without_use
-def_without_use
-use_no_def
-def_without_use
 use_no_def
 use_no_def
-def_without_use
+use_no_def
 use_no_def
 use_no_def
 use_no_def

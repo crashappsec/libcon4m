@@ -185,8 +185,8 @@ buffer_repr(c4m_buf_t *buf)
 c4m_buf_t *
 c4m_buffer_add(c4m_buf_t *b1, c4m_buf_t *b2)
 {
-    int64_t    l1     = max(c4m_buffer_len(b1), 0);
-    int64_t    l2     = max(c4m_buffer_len(b2), 0);
+    int64_t    l1     = c4m_max(c4m_buffer_len(b1), 0);
+    int64_t    l2     = c4m_max(c4m_buffer_len(b2), 0);
     int64_t    lnew   = l1 + l2;
     c4m_buf_t *result = c4m_new(c4m_type_buffer(),
                                 c4m_kw("length", c4m_ka(lnew)));
@@ -204,14 +204,14 @@ c4m_buffer_add(c4m_buf_t *b1, c4m_buf_t *b2)
 }
 
 c4m_buf_t *
-c4m_buffer_join(c4m_xlist_t *list, c4m_buf_t *joiner)
+c4m_buffer_join(c4m_list_t *list, c4m_buf_t *joiner)
 {
-    int64_t num_items = c4m_xlist_len(list);
+    int64_t num_items = c4m_list_len(list);
     int64_t new_len   = 0;
     int     jlen      = 0;
 
     for (int i = 0; i < num_items; i++) {
-        c4m_buf_t *n = c4m_xlist_get(list, i, NULL);
+        c4m_buf_t *n = c4m_list_get(list, i, NULL);
 
         new_len += c4m_buffer_len(n);
     }
@@ -224,7 +224,7 @@ c4m_buffer_join(c4m_xlist_t *list, c4m_buf_t *joiner)
     c4m_buf_t *result = c4m_new(c4m_type_buffer(),
                                 c4m_kw("length", c4m_ka(new_len)));
     char      *p      = result->data;
-    c4m_buf_t *cur    = c4m_xlist_get(list, 0, NULL);
+    c4m_buf_t *cur    = c4m_list_get(list, 0, NULL);
     int        clen   = c4m_buffer_len(cur);
 
     memcpy(p, cur->data, clen);
@@ -237,7 +237,7 @@ c4m_buffer_join(c4m_xlist_t *list, c4m_buf_t *joiner)
             p += jlen;
         }
 
-        cur  = c4m_xlist_get(list, i, NULL);
+        cur  = c4m_list_get(list, i, NULL);
         clen = c4m_buffer_len(cur);
         memcpy(p, cur->data, clen);
     }
@@ -529,6 +529,15 @@ buffer_view(c4m_buf_t *inbuf, uint64_t *outlen)
     return result->data;
 }
 
+// We conservatively scan the data pointer.
+static void
+buffer_set_gc_bits(uint64_t *bitfield, int alloc_words)
+{
+    int ix;
+    c4m_set_object_header_bits(bitfield, &ix);
+    c4m_set_bit(bitfield, ix);
+}
+
 const c4m_vtable_t c4m_buffer_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
@@ -549,6 +558,7 @@ const c4m_vtable_t c4m_buffer_vtable = {
         [C4M_BI_SLICE_SET]    = (c4m_vtable_entry)buffer_set_slice,
         [C4M_BI_ITEM_TYPE]    = (c4m_vtable_entry)buffer_item_type,
         [C4M_BI_VIEW]         = (c4m_vtable_entry)buffer_view,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)buffer_set_gc_bits,
         NULL,
     },
 };

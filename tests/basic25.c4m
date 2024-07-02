@@ -1,0 +1,12 @@
+"""
+Division by 0 test.
+Right now, this is implemented by an internal exception, but when I
+get around to a default signal handler, I expect to remove the test.
+"""
+"""
+$output:
+5
+"""
+x = 10
+print(x/2)
+print(x/0)

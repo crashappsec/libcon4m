@@ -142,8 +142,8 @@ layout_static(c4m_compile_ctx      *cctx,
               uint64_t              n)
 {
     for (unsigned int i = 0; i < n; i++) {
-        c4m_scope_entry_t *my_sym_copy = view[i];
-        c4m_scope_entry_t *sym         = my_sym_copy;
+        c4m_symbol_t *my_sym_copy = view[i];
+        c4m_symbol_t *sym         = my_sym_copy;
 
         if (sym->linked_symbol != NULL) {
             // Only allocate space for globals in the module where
@@ -155,7 +155,7 @@ layout_static(c4m_compile_ctx      *cctx,
         sym->local_module_id = fctx->local_module_id;
 
         switch (sym->kind) {
-        case sk_enum_val:
+        case C4M_SK_ENUM_VAL:
             if (c4m_types_are_compat(sym->type, c4m_type_utf8(), NULL)) {
                 c4m_layout_const_obj(cctx,
                                      sym->value,
@@ -164,7 +164,7 @@ layout_static(c4m_compile_ctx      *cctx,
                                      sym->name);
             }
             break;
-        case sk_variable:
+        case C4M_SK_VARIABLE:
             // We might someday allow references to const vars, so go
             // ahead and stick them in static data always.
             if (c4m_sym_is_declared_const(sym)) {
@@ -195,7 +195,7 @@ layout_stack(void **view, uint64_t n)
     int32_t next_local  = 1;
 
     while (n--) {
-        c4m_scope_entry_t *sym = view[n];
+        c4m_symbol_t *sym = view[n];
 
         // Will already be zero-allocated.
         if (!strcmp(sym->name->data, "$result")) {
@@ -203,11 +203,11 @@ layout_stack(void **view, uint64_t n)
         }
 
         switch (sym->kind) {
-        case sk_variable:
+        case C4M_SK_VARIABLE:
             sym->static_offset = next_local;
             next_local += 1;
             continue;
-        case sk_formal:
+        case C4M_SK_FORMAL:
             sym->static_offset = next_formal;
             next_formal -= 1;
             continue;
@@ -221,7 +221,7 @@ layout_stack(void **view, uint64_t n)
 
 static void
 layout_func(c4m_file_compile_ctx *ctx,
-            c4m_scope_entry_t    *sym,
+            c4m_symbol_t    *sym,
             int                   i)
 
 {
@@ -258,11 +258,11 @@ c4m_layout_module_symbols(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
 
     for (unsigned int i = 0; i < n; i++) {
         c4m_module_param_info_t *param = view[i];
-        c4m_scope_entry_t       *sym   = param->linked_symbol;
+        c4m_symbol_t       *sym   = param->linked_symbol;
 
         // These don't need an index; we test for the default by
         // asking the attr store.
-        if (sym->kind == sk_attr) {
+        if (sym->kind == C4M_SK_ATTR) {
             continue;
         }
 
@@ -281,10 +281,10 @@ c4m_layout_module_symbols(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
     view = hatrack_dict_values_sort(fctx->module_scope->symbols, &n);
     layout_static(cctx, fctx, view, n);
 
-    n = c4m_xlist_len(fctx->fn_def_syms);
+    n = c4m_list_len(fctx->fn_def_syms);
 
     for (unsigned int i = 0; i < n; i++) {
-        c4m_scope_entry_t *sym = c4m_xlist_get(fctx->fn_def_syms, i, NULL);
+        c4m_symbol_t *sym = c4m_list_get(fctx->fn_def_syms, i, NULL);
         layout_func(fctx, sym, i);
     }
 }

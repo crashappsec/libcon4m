@@ -256,9 +256,10 @@ c4m_hexl(void    *ptr,
         for (uint64_t i = remainder; i < chars_per_line; i++) {
             *outptr++ = ' ';
         }
-        *outptr = '\n';
+        *outptr++ = '\n';
     }
 
+    *outptr = 0;
     return ret;
 }
 

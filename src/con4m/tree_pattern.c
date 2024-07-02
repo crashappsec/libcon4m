@@ -7,8 +7,8 @@ typedef struct {
     c4m_cmp_fn       cmp;
 } search_ctx_t;
 
-#undef C4M_DEBUG_PATTERNS
-#ifdef C4M_DEBUG_PATTERNS
+#undef C4M_C4M_DEBUG_PATTERNS
+#ifdef C4M_C4M_DEBUG_PATTERNS
 #define tpat_debug(ctx, txt) c4m_print(c4m_cstr_format( \
     "{:x} : [em]{}[/]",                                 \
     c4m_box_u64((uint64_t)ctx->pattern_cur),            \
@@ -256,7 +256,7 @@ bool
 c4m_tree_match(c4m_tree_node_t *tree,
                c4m_tpat_node_t *pat,
                c4m_cmp_fn       cmp,
-               c4m_xlist_t    **match_loc)
+               c4m_list_t    **match_loc)
 {
     search_ctx_t search_state = {
         .tree_cur    = tree,
@@ -308,16 +308,16 @@ count_consecutive_matches(search_ctx_t    *ctx,
                           int              next_child,
                           void            *contents,
                           int              max,
-                          c4m_xlist_t    **captures)
+                          c4m_list_t    **captures)
 {
     c4m_set_t   *saved_captures     = ctx->captures;
-    c4m_xlist_t *per_match_captures = NULL;
+    c4m_list_t *per_match_captures = NULL;
     int          result             = 0;
 
     ctx->captures = NULL;
 
     if (captures != NULL) {
-        per_match_captures = c4m_new(c4m_type_xlist(c4m_type_ref()));
+        per_match_captures = c4m_new(c4m_type_list(c4m_type_ref()));
         *captures          = per_match_captures;
     }
 
@@ -333,13 +333,13 @@ count_consecutive_matches(search_ctx_t    *ctx,
         }
 
         if (captures != NULL) {
-            c4m_xlist_append(per_match_captures, ctx->captures);
+            c4m_list_append(per_match_captures, ctx->captures);
         }
         ctx->captures = NULL;
     }
 
     if (captures != NULL) {
-        c4m_xlist_append(per_match_captures, ctx->captures);
+        c4m_list_append(per_match_captures, ctx->captures);
     }
 
     ctx->captures = saved_captures;
@@ -356,7 +356,7 @@ kid_match_from(search_ctx_t    *ctx,
                void            *contents)
 {
     c4m_tpat_node_t *subpattern   = parent_pattern->children[next_pattern];
-    c4m_xlist_t     *kid_captures = NULL;
+    c4m_list_t     *kid_captures = NULL;
     int              num_matches;
 
     ctx->pattern_cur = subpattern;
@@ -378,7 +378,7 @@ kid_match_from(search_ctx_t    *ctx,
 
     // Capture any nodes that are definitely part of this match.
     for (int i = next_child; i < subpattern->min; i++) {
-        c4m_set_t *one_set = c4m_xlist_get(kid_captures,
+        c4m_set_t *one_set = c4m_list_get(kid_captures,
                                            kid_capture_ix++,
                                            NULL);
         ctx->captures      = merge_captures(ctx->captures, one_set);
@@ -394,8 +394,8 @@ kid_match_from(search_ctx_t    *ctx,
             return false;
         }
 
-        for (int i = kid_capture_ix; i < c4m_xlist_len(kid_captures); i++) {
-            c4m_set_t *one_set = c4m_xlist_get(kid_captures,
+        for (int i = kid_capture_ix; i < c4m_list_len(kid_captures); i++) {
+            c4m_set_t *one_set = c4m_list_get(kid_captures,
                                                i,
                                                NULL);
 
@@ -442,8 +442,8 @@ kid_match_from(search_ctx_t    *ctx,
                            next_pattern,
                            next_contents)) {
             ctx->captures = merge_captures(ctx->captures, copy);
-            if (kid_capture_ix < c4m_xlist_len(kid_captures)) {
-                c4m_set_t *one_set = c4m_xlist_get(kid_captures,
+            if (kid_capture_ix < c4m_list_len(kid_captures)) {
+                c4m_set_t *one_set = c4m_list_get(kid_captures,
                                                    kid_capture_ix,
                                                    NULL);
                 ctx->captures      = merge_captures(ctx->captures, one_set);
@@ -456,7 +456,7 @@ kid_match_from(search_ctx_t    *ctx,
             // Since the next rule didn't work w/ this
             // node that DOES work for us, if there's a capture
             // it's time to stash it.
-            c4m_set_t *one_set = c4m_xlist_get(kid_captures,
+            c4m_set_t *one_set = c4m_list_get(kid_captures,
                                                kid_capture_ix++,
                                                NULL);
             ctx->captures      = merge_captures(ctx->captures, one_set);

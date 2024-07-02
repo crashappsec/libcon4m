@@ -12,7 +12,7 @@ extern c4m_type_t           *c4m_str_to_type(c4m_utf8_t *);
 extern c4m_vm_t             *c4m_generate_code(c4m_compile_ctx *);
 
 #define c4m_set_package_search_path(x, ...) \
-    _c4m_set_package_search_path(x, KFUNC(__VA_ARGS__))
+    _c4m_set_package_search_path(x, C4M_VA(__VA_ARGS__))
 
 static inline bool
 c4m_got_fatal_compiler_error(c4m_compile_ctx *ctx)

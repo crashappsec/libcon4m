@@ -44,7 +44,13 @@ function meson_build {
             rm -rf ${1}
         fi
         log Creating meson target ${1}
-        meson setup ${1}
+
+        if [[ ${1} -ne "debug" ]] ; then
+            SETUP_ARGS=-Dbuildtype=release
+        else
+            SETUP_ARGS=-Dbuildtype=debugoptimized
+        fi
+        meson setup ${SETUP_ARGS} ${1}
     fi
     cd ${1}
 
@@ -136,7 +142,7 @@ function libcon4m_run_tests {
     ./c4test $@
     EXIT=$?
     log "Exit status: ${EXIT}"
-    if [[ ${EXIT} -gt 0 ]] && [[${EXIT} -lt 128 ]] && [[ $@ == "" ]]  ; then
+    if [[ ${EXIT} -gt 0 ]] && [[ ${EXIT} -lt 128 ]] && [[ $@ == "" ]]  ; then
         log "Test runner crashed; rerunning tests individually to isolate."
         HERE=`pwd`
         cd ../tests

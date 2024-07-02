@@ -373,6 +373,19 @@ static error_info_t error_info[] = {
         "Invalid property",
         false,
     },
+    [c4m_err_parse_extern_dup] = {
+        c4m_err_parse_extern_dup,
+        "extern_dup",
+        "The field [em]{}[/] cannot appear twice in one [i]extern[/] block.",
+        true,
+    },
+    [c4m_err_parse_extern_need_local] = {
+        c4m_err_parse_extern_need_local,
+        "extern_need_local",
+        "Extern blocks currently define foreign functions only, and require a "
+        "[em]local[/] property to define the con4m signature.",
+        false,
+    },
     [c4m_err_parse_enum_value_type] = {
         c4m_err_parse_enum_value_type,
         "enum_value_type",
@@ -1042,7 +1055,7 @@ static error_info_t error_info[] = {
     [c4m_info_unused_global_decl] = {
         c4m_info_unused_global_decl,
         "unused_global_decl",
-        "Global variable",
+        "Global variable is unused.",
         true,
     },
     [c4m_global_def_without_use] = {
@@ -1149,12 +1162,41 @@ static error_info_t error_info[] = {
         "can turn large positive values negative.",
         false,
     },
+    [c4m_internal_type_error] = {
+        c4m_internal_type_error,
+        "internal_type_error",
+        "Could not type check due to an internal error.",
+        false,
+    },
+    [c4m_err_concrete_index] = {
+        c4m_err_concrete_index,
+        "concrete_index",
+        "Currently, con4m does not generate polymorphic code for indexing "
+        "operations; it must be able to figure out the type of the index "
+        "statically.",
+        false,
+    },
+    [c4m_err_non_dict_index_type] = {
+        c4m_err_non_dict_index_type,
+        "non_dict_index_type",
+        "Only dictionaries can currently use the index operator with non-"
+        "integer types.",
+        false,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",
         "If you see this error, the compiler writer messed up bad",
         false,
     },
+#ifdef C4M_DEV
+    [c4m_err_void_print] = {
+        c4m_err_void_print,
+        "void_print",
+        "Development [em]print[/] statement must not take a void value.",
+        false,
+    },
+#endif
 };
 
 c4m_utf8_t *
@@ -1239,19 +1281,19 @@ c4m_format_module_errors(c4m_file_compile_ctx *ctx, c4m_grid_t *table)
         c4m_gc_register_root(&info_constant, 1);
     }
 
-    int64_t n = c4m_xlist_len(ctx->errors);
+    int64_t n = c4m_list_len(ctx->errors);
 
     if (n == 0) {
         return;
     }
 
     for (int i = 0; i < n; i++) {
-        c4m_compile_error *err = c4m_xlist_get(ctx->errors, i, NULL);
-        c4m_xlist_t       *row = c4m_new(c4m_type_xlist(c4m_type_utf8()));
+        c4m_compile_error *err = c4m_list_get(ctx->errors, i, NULL);
+        c4m_list_t        *row = c4m_new(c4m_type_list(c4m_type_utf8()));
 
-        c4m_xlist_append(row, format_severity(err));
-        c4m_xlist_append(row, format_location(ctx, err));
-        c4m_xlist_append(row, c4m_format_error_message(err, true));
+        c4m_list_append(row, format_severity(err));
+        c4m_list_append(row, format_location(ctx, err));
+        c4m_list_append(row, c4m_format_error_message(err, true));
 
         c4m_grid_add_row(table, row);
     }
@@ -1279,7 +1321,7 @@ c4m_format_errors(c4m_compile_ctx *cctx)
     for (unsigned int i = 0; i < num_modules; i++) {
         c4m_file_compile_ctx *ctx = view[i].value;
         if (ctx->errors != NULL) {
-            n += c4m_xlist_len(ctx->errors);
+            n += c4m_list_len(ctx->errors);
             c4m_format_module_errors(ctx, table);
         }
     }
@@ -1294,10 +1336,10 @@ c4m_format_errors(c4m_compile_ctx *cctx)
     return table;
 }
 
-c4m_xlist_t *
+c4m_list_t *
 c4m_compile_extract_all_error_codes(c4m_compile_ctx *cctx)
 {
-    c4m_xlist_t         *result      = c4m_xlist(c4m_type_ref());
+    c4m_list_t          *result      = c4m_list(c4m_type_ref());
     uint64_t             num_modules = 0;
     hatrack_dict_item_t *view;
 
@@ -1307,11 +1349,11 @@ c4m_compile_extract_all_error_codes(c4m_compile_ctx *cctx)
         c4m_file_compile_ctx *ctx = view[i].value;
 
         if (ctx->errors != NULL) {
-            int n = c4m_xlist_len(ctx->errors);
+            int n = c4m_list_len(ctx->errors);
             for (int j = 0; j < n; j++) {
-                c4m_compile_error *err = c4m_xlist_get(ctx->errors, j, NULL);
+                c4m_compile_error *err = c4m_list_get(ctx->errors, j, NULL);
 
-                c4m_xlist_append(result, (void *)(uint64_t)err->code);
+                c4m_list_append(result, (void *)(uint64_t)err->code);
             }
         }
     }
@@ -1320,7 +1362,7 @@ c4m_compile_extract_all_error_codes(c4m_compile_ctx *cctx)
 }
 
 c4m_compile_error *
-c4m_base_add_error(c4m_xlist_t        *err_list,
+c4m_base_add_error(c4m_list_t         *err_list,
                    c4m_compile_error_t code,
                    c4m_token_t        *tok,
                    c4m_err_severity_t  severity,
@@ -1338,7 +1380,7 @@ c4m_base_add_error(c4m_xlist_t        *err_list,
     c4m_compile_error *err = c4m_gc_flex_alloc(c4m_compile_error,
                                                c4m_str_t *,
                                                num_args,
-                                               GC_SCAN_ALL);
+                                               C4M_GC_SCAN_ALL);
 
     err->code          = code;
     err->current_token = tok;
@@ -1351,7 +1393,7 @@ c4m_base_add_error(c4m_xlist_t        *err_list,
         err->num_args = num_args;
     }
 
-    c4m_xlist_append(err_list, err);
+    c4m_list_append(err_list, err);
 
     return err;
 }

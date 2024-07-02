@@ -17,7 +17,7 @@ static inline c4m_break_info_t *
 c4m_alloc_break_structure(const c4m_str_t *s, int shift)
 {
     c4m_break_info_t *result;
-    int32_t           alloc_slots = max(c4m_str_codepoint_len(s) >> shift,
+    int32_t           alloc_slots = c4m_max(c4m_str_codepoint_len(s) >> shift,
                               c4m_minimum_break_slots);
 
     result = c4m_gc_flex_alloc(c4m_break_info_t, int32_t, alloc_slots, NULL);

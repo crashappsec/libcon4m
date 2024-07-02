@@ -1,0 +1,31 @@
+"""
+Test extern list functions like append() that don't want a box when
+the type is concrete.
+"""
+"""
+$output:
+190
+"""
+extern c4m_list_append(ptr, ptr) -> void {
+  local: append(l: list[`x], item: `x) -> void
+  box_values: false
+}
+
+func f(n) {
+  total = 0
+  l = []
+  i = 0
+  
+  while (i < n) {
+    append(l, i)
+    i += 1
+  }
+
+  for x in 0 to n {
+    total += l[x]
+  }
+  
+  return total
+}
+
+print(f(20))

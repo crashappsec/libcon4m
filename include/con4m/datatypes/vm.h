@@ -64,7 +64,7 @@
 // its value.
 
 #ifndef C4M_STACK_SIZE
-#define STACK_SIZE (1 << 18)
+#define STACK_SIZE (1 << 17)
 #else
 #define STACK_SIZE C4M_STACK_SIZE
 #endif
@@ -337,13 +337,14 @@ typedef enum : uint8_t {
     C4M_ZNop           = 0xFF,
 #ifdef C4M_DEV
     C4M_ZPrint = 0xFD,
+    C4M_ZDebug = 0xFC,
 #endif
 } c4m_zop_t;
 
 // We'll make the main VM container, c4m_vm_t an object type (C4M_T_VM) so that
 // we can have an entry point into the core marshalling functionality, but we
 // won't make other internal types object types. Only those structs that have a
-// z prefix on their name get marshalled. For lists we'll use c4m_type_xlist
+// z prefix on their name get marshalled. For lists we'll use c4m_type_list
 // with a c4m_type_ref base type. But this means that we have to marshal these
 // lists manually. As of right now at least, all dicts used have object keys
 // and values (ints, strings, etc).
@@ -418,7 +419,7 @@ typedef struct {
     // later.
     //
     // At run-time, the type will always need to be concrete.
-    c4m_xlist_t *sym_types; // tspec_ref: c4m_zsymbol_t
+    c4m_list_t *sym_types; // tspec_ref: c4m_zsymbol_t
 
     c4m_type_t *tid;
     int32_t     mid;    // module_id
@@ -448,35 +449,35 @@ typedef struct {
 } c4m_zparam_info_t;
 
 typedef struct {
-    int32_t      module_id; // Internal array index.
-    uint64_t     module_hash;
-    c4m_str_t   *modname;
-    c4m_str_t   *authority;
-    c4m_str_t   *path;
-    c4m_str_t   *package;
-    c4m_str_t   *source;
-    c4m_str_t   *version;
-    c4m_str_t   *shortdoc;
-    c4m_str_t   *longdoc;
+    int32_t     module_id; // Internal array index.
+    uint64_t    module_hash;
+    c4m_str_t  *modname;
+    c4m_str_t  *authority;
+    c4m_str_t  *path;
+    c4m_str_t  *package;
+    c4m_str_t  *source;
+    c4m_str_t  *version;
+    c4m_str_t  *shortdoc;
+    c4m_str_t  *longdoc;
     // TODO: symbol information.
-    int32_t      module_var_size;
-    int32_t      init_size;    // size of init code before functions begin
-    c4m_dict_t  *datasyms;
-    c4m_xlist_t *parameters;   // tspec_ref: c4m_zparam_info_t
-    c4m_xlist_t *instructions; // tspec_ref: c4m_zinstruction_t
+    int32_t     module_var_size;
+    int32_t     init_size;    // size of init code before functions begin
+    c4m_dict_t *datasyms;
+    c4m_list_t *parameters;   // tspec_ref: c4m_zparam_info_t
+    c4m_list_t *instructions; // tspec_ref: c4m_zinstruction_t
 } c4m_zmodule_info_t;
 
 typedef struct {
-    uint64_t     zero_magic;
-    uint32_t     zc_object_vers;
-    c4m_buf_t   *static_data;
-    c4m_buf_t   *marshaled_consts;
-    int32_t      num_const_objs;
-    c4m_xlist_t *module_contents; // tspec_ref: c4m_zmodule_info_t
-    int32_t      entrypoint;
-    int32_t      next_entrypoint;
-    c4m_xlist_t *func_info; // tspec_ref: c4m_zfn_info_t
-    c4m_xlist_t *ffi_info;  // tspec_ref: c4m_zffi_info_t
+    uint64_t    zero_magic;
+    uint32_t    zc_object_vers;
+    c4m_buf_t  *static_data;
+    c4m_buf_t  *marshaled_consts;
+    int32_t     num_const_objs;
+    c4m_list_t *module_contents; // tspec_ref: c4m_zmodule_info_t
+    int32_t     entrypoint;
+    int32_t     next_entrypoint;
+    c4m_list_t *func_info; // tspec_ref: c4m_zfn_info_t
+    c4m_list_t *ffi_info;  // tspec_ref: c4m_zffi_info_t
     // TODO c4m_validation_spec_t *spec;
 } c4m_zobject_file_t;
 
@@ -517,7 +518,7 @@ typedef struct {
     c4m_dict_t   *attrs;        // string, c4m_attr_contents_t (tspec_ref)
     c4m_set_t    *all_sections; // string
     c4m_dict_t   *section_docs; // string, c4m_docs_container_t (tspec_ref)
-    c4m_xlist_t  *ffi_info;
+    c4m_list_t   *ffi_info;
     int           ffi_info_entries;
     bool          using_attrs;
 #ifdef C4M_DEV
@@ -569,7 +570,10 @@ typedef struct {
     // error is true if this thread state raised an error during evaluation.
     bool error;
 
-    c4m_xlist_t *module_lock_stack;
+    c4m_list_t *module_lock_stack;
+
+    // The arena this allocation is from.
+    c4m_arena_t *thread_arena;
 
     // frame_stack is the base address of the call stack
     c4m_vmframe_t frame_stack[MAX_CALL_DEPTH];

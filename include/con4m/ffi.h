@@ -2,7 +2,7 @@
 #include "con4m.h"
 
 extern void           c4m_add_static_function(c4m_utf8_t *, void *);
-extern void          *c4m_ffi_find_symbol(c4m_utf8_t *, c4m_xlist_t *);
+extern void          *c4m_ffi_find_symbol(c4m_utf8_t *, c4m_list_t *);
 extern int64_t        c4m_lookup_ctype_id(char *);
 extern c4m_ffi_type  *c4m_ffi_arg_type_map(uint8_t);
 extern void          *c4m_ref_via_ffi_type(c4m_box_t *, c4m_ffi_type *);

@@ -242,6 +242,13 @@ hatrack_set_items_base(hatrack_set_t *self, mmm_thread_t *thread, uint64_t *num,
     uint64_t            i;
     uint64_t            epoch;
 
+    if (!self) {
+        if (num) {
+            *num = 0;
+        }
+        return NULL;
+    }
+
     epoch = mmm_start_linearized_op(thread);
 
     view = woolhat_view_epoch(&self->woolhat_instance, num, epoch);

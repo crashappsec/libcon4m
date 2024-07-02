@@ -67,9 +67,9 @@ watch_print_log(int logid, int watchix)
 
     if (entry.logid != logid) {
         c4m_printf(
-            "[yellow]watch:{}:Warning: [/] log was dropped before it "
+            "[yellow]watch:{}:Warning:[/] log was dropped before it "
             "was reported; watch log size is too small.",
-            c4m_box_u64(logid));
+            logid);
         return;
     }
 
@@ -84,7 +84,7 @@ watch_print_log(int logid, int watchix)
     }
 
     // If you get a crash inside the GC, comment out the printf instead.
-    // printf("%p vs %p\n", entry.start_value, entry.seen_value);
+    // printf("%p vs %p\n", (void *)entry.start_value, (void *)entry.seen_value);
     c4m_printf("[red]{}:@{:x}: Changed @{}:{} from [em]{:x}[/] to [em]{:x}",
                c4m_box_u64(logid),
                c4m_box_u64((uint64_t)t.address),
