@@ -1,0 +1,11 @@
+"""
+Test negation.
+"""
+"""
+$output:
+100
+"""
+x = 100
+x *= -2
+x /= -2
+print(x)

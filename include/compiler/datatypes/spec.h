@@ -79,10 +79,10 @@ typedef enum {
 
 typedef struct {
     c4m_attr_status_t kind;
+    c4m_utf8_t       *err_arg;
     union {
         c4m_spec_section_t *sec_info;
         c4m_spec_field_t   *field_info;
     } info;
     c4m_attr_error_t err;
-    c4m_utf8_t      *err_arg;
 } c4m_attr_info_t;

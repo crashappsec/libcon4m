@@ -6,6 +6,6 @@ typedef void *EVP_MD;
 typedef void *OSSL_PARAM;
 
 typedef struct {
-    EVP_MD_CTX openssl_ctx;
     c4m_buf_t *digest;
+    EVP_MD_CTX openssl_ctx;
 } c4m_sha_t;

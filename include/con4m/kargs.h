@@ -124,8 +124,7 @@ _c4m_kw_bool(c4m_karg_info_t *provided, char *name, bool *ptr)
 
     for (int64_t i = 0; i < n; i++) {
         if (!strcmp(name, provided->args[i].kw)) {
-            tmp = (int64_t)provided->args[i].value;
-
+            tmp  = (int64_t)provided->args[i].value;
             *ptr = (bool)tmp;
             return true;
         }
@@ -176,13 +175,13 @@ _c4m_kw_float(c4m_karg_info_t *provided, char *name, double *ptr)
 #define c4m_ka(x) ((int64_t)x)
 
 #ifdef C4M_DEBUG_KARGS
-#define c4m_kw(...) c4m_pass_kargs(PP_NARG(__VA_ARGS__), \
-                                   (char *)__FILE__,     \
-                                   (int)__LINE__,        \
-                                   __VA_ARGS__),         \
+#define c4m_kw(...) c4m_pass_kargs(C4M_PP_NARG(__VA_ARGS__), \
+                                   (char *)__FILE__,         \
+                                   (int)__LINE__,            \
+                                   __VA_ARGS__),             \
                     NULL
 #else
-#define c4m_kw(...) c4m_pass_kargs(PP_NARG(__VA_ARGS__), __VA_ARGS__), NULL
+#define c4m_kw(...) c4m_pass_kargs(C4M_PP_NARG(__VA_ARGS__), __VA_ARGS__), NULL
 #endif
 #define c4m_karg_only_init(last)                           \
     va_list _args;                                         \

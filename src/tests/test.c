@@ -6,9 +6,9 @@ size_t term_width;
 static bool dev_mode = false;
 
 typedef struct {
-    c4m_utf8_t  *expected_output;
-    c4m_xlist_t *expected_errors;
-    bool         ignore_output;
+    c4m_utf8_t *expected_output;
+    c4m_list_t *expected_errors;
+    bool        ignore_output;
 } c4m_test_kat;
 
 static void
@@ -29,25 +29,27 @@ static void
 extract_output(c4m_test_kat *kat, c4m_utf32_t *s, int64_t start, int64_t end)
 {
     s                    = c4m_str_slice(s, start, end);
-    kat->expected_output = c4m_to_utf8(c4m_str_strip(s));
+    s                    = c4m_str_strip(s);
+    s                    = c4m_to_utf8(s);
+    kat->expected_output = s;
 }
 
 static void
 extract_errors(c4m_test_kat *kat, c4m_utf32_t *s, int64_t start, int64_t end)
 {
     s                    = c4m_str_slice(s, start, end);
-    kat->expected_errors = c4m_xlist(c4m_type_utf8());
-    c4m_xlist_t *split   = c4m_str_xsplit(s, c4m_new_utf8("\n"));
-    int          l       = c4m_xlist_len(split);
+    kat->expected_errors = c4m_list(c4m_type_utf8());
+    c4m_list_t *split    = c4m_str_xsplit(s, c4m_new_utf8("\n"));
+    int         l        = c4m_list_len(split);
 
     for (int i = 0; i < l; i++) {
-        s = c4m_str_strip(c4m_xlist_get(split, i, NULL));
+        s = c4m_str_strip(c4m_list_get(split, i, NULL));
 
         if (!c4m_str_codepoint_len(s)) {
             continue;
         }
 
-        c4m_xlist_append(kat->expected_errors, c4m_to_utf8(s));
+        c4m_list_append(kat->expected_errors, c4m_to_utf8(s));
     }
 }
 
@@ -115,10 +117,10 @@ c4m_extract_kat(c4m_utf8_t *path)
     c4m_lex(ctx, s);
 
     bool have_doc1 = false;
-    int  l         = c4m_xlist_len(ctx->tokens);
+    int  l         = c4m_list_len(ctx->tokens);
 
     for (int i = 0; i < l; i++) {
-        c4m_token_t *t = c4m_xlist_get(ctx->tokens, i, NULL);
+        c4m_token_t *t = c4m_list_get(ctx->tokens, i, NULL);
 
         switch (t->kind) {
         case c4m_tt_space:
@@ -149,10 +151,10 @@ show_dev_compile_info(c4m_compile_ctx *ctx)
 
     c4m_print(c4m_format_tokens(ctx->entry_point));
 
-    for (int i = 0; i < c4m_xlist_len(ctx->module_ordering); i++) {
-        c4m_file_compile_ctx *f = c4m_xlist_get(ctx->module_ordering,
-                                                i,
-                                                NULL);
+    for (int i = 0; i < c4m_list_len(ctx->module_ordering); i++) {
+        c4m_file_compile_ctx *f = c4m_list_get(ctx->module_ordering,
+                                               i,
+                                               NULL);
 
         c4m_print(c4m_cstr_format("[h1]Processing module {}", f->path));
         if (ctx->entry_point->parse_tree) {
@@ -170,11 +172,11 @@ show_dev_compile_info(c4m_compile_ctx *ctx)
             continue;
         }
 
-        for (int j = 0; j < c4m_xlist_len(f->fn_def_syms); j++) {
-            c4m_scope_entry_t *sym  = c4m_xlist_get(f->fn_def_syms,
-                                                   j,
-                                                   NULL);
-            c4m_fn_decl_t     *decl = sym->value;
+        for (int j = 0; j < c4m_list_len(f->fn_def_syms); j++) {
+            c4m_symbol_t  *sym  = c4m_list_get(f->fn_def_syms,
+                                             j,
+                                             NULL);
+            c4m_fn_decl_t *decl = sym->value;
             c4m_print(c4m_cstr_format("[h1]CFG for Function {}{}",
                                       sym->name,
                                       sym->type));
@@ -199,22 +201,20 @@ show_dev_disasm(c4m_vm_t *vm, c4m_zmodule_info_t *m)
     c4m_print(g);
     c4m_print(c4m_cstr_format("Module [em]{}[/] disassembly done.",
                               m->path));
-    c4m_print(c4m_rich_lit("[h2]Module Source Code"));
-    c4m_print(m->source);
 }
 
 c4m_dict_t *
 build_file_list()
 {
     bool          fatal      = false;
-    c4m_xlist_t  *argv       = c4m_get_program_arguments();
-    c4m_xlist_t  *to_recurse = c4m_xlist(c4m_type_utf8());
+    c4m_list_t   *argv       = c4m_get_program_arguments();
+    c4m_list_t   *to_recurse = c4m_list(c4m_type_utf8());
     c4m_dict_t   *result     = c4m_dict(c4m_type_utf8(), c4m_type_ref());
     c4m_utf8_t   *test_dir   = c4m_get_env(c4m_new_utf8("CON4M_TEST_DIR"));
     c4m_utf8_t   *ext        = c4m_new_utf8(".c4m");
     c4m_test_kat *kat;
 
-    int n = c4m_xlist_len(argv);
+    int n = c4m_list_len(argv);
 
     if (test_dir == NULL) {
         test_dir = c4m_new_utf8("../tests/");
@@ -224,12 +224,12 @@ build_file_list()
 
     if (!n) {
         n    = 1;
-        argv = c4m_xlist(c4m_type_utf8());
-        c4m_xlist_append(argv, test_dir);
+        argv = c4m_list(c4m_type_utf8());
+        c4m_list_append(argv, test_dir);
     }
 
     for (int i = 0; i < n; i++) {
-        c4m_utf8_t *s = c4m_to_utf8(c4m_xlist_get(argv, i, NULL));
+        c4m_utf8_t *s = c4m_to_utf8(c4m_list_get(argv, i, NULL));
         s             = c4m_resolve_path(s);
         switch (c4m_get_file_kind(s)) {
         case C4M_FK_IS_REG_FILE:
@@ -241,7 +241,7 @@ build_file_list()
             continue;
         case C4M_FK_IS_DIR:
         case C4M_FK_IS_DLINK:
-            c4m_xlist_append(to_recurse, s);
+            c4m_list_append(to_recurse, s);
             continue;
         case C4M_FK_NOT_FOUND:
             c4m_printf("[red]error:[/] No such file or directory: {}", s);
@@ -258,17 +258,17 @@ build_file_list()
         exit(-1);
     }
 
-    n = c4m_xlist_len(to_recurse);
+    n = c4m_list_len(to_recurse);
     for (int i = 0; i < n; i++) {
-        int          num_hits = 0;
-        c4m_utf8_t  *path     = c4m_xlist_get(to_recurse, i, NULL);
-        c4m_xlist_t *files    = c4m_path_walk(path,
-                                           c4m_kw("follow_links",
-                                                  c4m_ka(true)));
+        int         num_hits = 0;
+        c4m_utf8_t *path     = c4m_list_get(to_recurse, i, NULL);
+        c4m_list_t *files    = c4m_path_walk(path,
+                                          c4m_kw("follow_links",
+                                                 c4m_ka(true)));
 
-        int walk_len = c4m_xlist_len(files);
+        int walk_len = c4m_list_len(files);
         for (int j = 0; j < walk_len; j++) {
-            c4m_utf8_t *one = c4m_xlist_get(files, j, NULL);
+            c4m_utf8_t *one = c4m_list_get(files, j, NULL);
             if (c4m_str_ends_with(one, ext)) {
                 kat = c4m_extract_kat(one);
                 // When scanning dirs, if we have test cases that span
@@ -293,37 +293,37 @@ build_file_list()
 }
 
 static void
-show_err_diffs(c4m_utf8_t *fname, c4m_xlist_t *expected, c4m_xlist_t *actual)
+show_err_diffs(c4m_utf8_t *fname, c4m_list_t *expected, c4m_list_t *actual)
 {
     c4m_compile_error_t err;
     c4m_utf8_t         *errstr;
 
     c4m_printf("[red]FAIL[/]: test [i]{}[/]: error mismatch.", fname);
 
-    if (!expected || c4m_xlist_len(expected) == 0) {
+    if (!expected || c4m_list_len(expected) == 0) {
         c4m_printf("[h1]Expected no errors.");
     }
     else {
         c4m_printf("[h1]Expected errors:");
 
-        int n = c4m_xlist_len(expected);
+        int n = c4m_list_len(expected);
 
         for (int i = 0; i < n; i++) {
-            errstr = c4m_xlist_get(expected, i, NULL);
+            errstr = c4m_list_get(expected, i, NULL);
             c4m_printf("[b]{}:[/] [em]{}", c4m_box_u64(i + 1), errstr);
         }
     }
 
-    if (!actual || c4m_xlist_len(actual) == 0) {
+    if (!actual || c4m_list_len(actual) == 0) {
         c4m_printf("[h2]Got no errors.");
     }
     else {
         c4m_printf("[h2]Actual errors:");
 
-        int n = c4m_xlist_len(actual);
+        int n = c4m_list_len(actual);
 
         for (int i = 0; i < n; i++) {
-            uint64_t u64     = (uint64_t)c4m_xlist_get(actual, i, NULL);
+            uint64_t u64     = (uint64_t)c4m_list_get(actual, i, NULL);
             err              = (c4m_compile_error_t)u64;
             c4m_utf8_t *code = c4m_err_code_to_str(err);
             c4m_printf("[b]{}:[/] [em]{}", c4m_box_u64(i + 1), code);
@@ -373,22 +373,24 @@ empty_err:
                     "[h1]Expected output[/]\n{}\n[h1]Actual[/]\n{}\n",
                     kat->expected_output,
                     output);
+#if 0
                 c4m_printf(
                     "[h2]Expected (Hex)[/]\n{}\n[h2]Actual (Hex)[/]\n{}\n",
                     c4m_hex_dump(kat->expected_output->data,
                                  c4m_str_byte_len(kat->expected_output)),
                     c4m_hex_dump(output->data, c4m_str_byte_len(output)));
+#endif
             }
         }
     }
 
 next_comparison:;
-    c4m_xlist_t *actual_errs  = c4m_compile_extract_all_error_codes(ctx);
-    int          num_expected = 0;
-    int          num_actual   = c4m_xlist_len(actual_errs);
+    c4m_list_t *actual_errs  = c4m_compile_extract_all_error_codes(ctx);
+    int         num_expected = 0;
+    int         num_actual   = c4m_list_len(actual_errs);
 
     if (kat->expected_errors != NULL) {
-        num_expected = c4m_xlist_len(kat->expected_errors);
+        num_expected = c4m_list_len(kat->expected_errors);
     }
 
     if (num_expected != num_actual) {
@@ -400,8 +402,8 @@ next_comparison:;
             c4m_compile_error_t c1;
             c4m_utf8_t         *c2;
 
-            c1 = (uint64_t)c4m_xlist_get(actual_errs, i, NULL);
-            c2 = c4m_xlist_get(kat->expected_errors, i, NULL);
+            c1 = (uint64_t)c4m_list_get(actual_errs, i, NULL);
+            c2 = c4m_list_get(kat->expected_errors, i, NULL);
             c2 = c4m_to_utf8(c4m_str_strip(c2));
 
             if (!c4m_str_eq(c4m_err_code_to_str(c1), c2)) {
@@ -434,6 +436,15 @@ test_compiler(c4m_utf8_t *fname, c4m_test_kat *kat)
 
     c4m_printf("[atomic lime]info:[/] Done processing: {}", fname);
 
+    if (dev_mode) {
+        for (int i = 0; i < c4m_list_len(ctx->module_ordering); i++) {
+            c4m_file_compile_ctx *f;
+            f = c4m_list_get(ctx->module_ordering, i, NULL);
+            c4m_print(c4m_rich_lit("[h2]Module Source Code"));
+            c4m_print(f->raw);
+        }
+    }
+
     if (c4m_got_fatal_compiler_error(ctx)) {
         return compare_results(fname, kat, ctx, NULL);
     }
@@ -441,9 +452,9 @@ test_compiler(c4m_utf8_t *fname, c4m_test_kat *kat)
     c4m_vm_t *vm = c4m_generate_code(ctx);
 
     if (dev_mode) {
-        for (int i = 0; i < c4m_xlist_len(ctx->module_ordering); i++) {
+        for (int i = 0; i < c4m_list_len(ctx->module_ordering); i++) {
             c4m_zmodule_info_t *m;
-            m = c4m_xlist_get(vm->obj->module_contents, i, NULL);
+            m = c4m_list_get(vm->obj->module_contents, i, NULL);
             show_dev_disasm(vm, m);
         }
     }
@@ -468,6 +479,7 @@ void
 add_static_symbols()
 {
     c4m_add_static_function(c4m_new_utf8("strndup"), strndup);
+    c4m_add_static_function(c4m_new_utf8("c4m_list_append"), c4m_list_append);
 }
 
 static int
@@ -485,19 +497,46 @@ main(int argc, char **argv, char **envp)
 {
     c4m_init(argc, argv, envp);
     add_static_symbols();
+    c4m_install_default_styles();
+    c4m_terminal_dimensions(&term_width, NULL);
 
-    int num_errs     = 0;
-    int num_tests    = 0;
-    int no_exception = 1;
+    c4m_grid_t *success_grid = c4m_new(c4m_type_grid(),
+                                       c4m_kw("start_cols",
+                                              c4m_ka(2),
+                                              "header_rows",
+                                              c4m_ka(1),
+                                              "container_tag",
+                                              c4m_ka("error_grid")));
+    c4m_grid_t *fail_grid    = c4m_new(c4m_type_grid(),
+                                    c4m_kw("start_cols",
+                                           c4m_ka(2),
+                                           "header_rows",
+                                           c4m_ka(1),
+                                           "container_tag",
+                                           c4m_ka("error_grid")));
+
+    c4m_list_t *row          = c4m_list(c4m_type_utf8());
+    int         num_errs     = 0;
+    int         num_tests    = 0;
+    int         no_exception = 1;
+
+    c4m_list_append(row, c4m_new_utf8("Test #"));
+    c4m_list_append(row, c4m_new_utf8("Test File"));
+
+    c4m_grid_add_row(success_grid, row);
+    c4m_grid_add_row(fail_grid, row);
+
+    c4m_set_column_style(success_grid, 0, "full_snap");
+    c4m_set_column_style(success_grid, 1, "snap");
+    c4m_set_column_style(fail_grid, 0, "full_snap");
+    c4m_set_column_style(fail_grid, 1, "snap");
 
     if (c4m_get_env(c4m_new_utf8("CON4M_DEV"))) {
         dev_mode = true;
     }
 
-    //    C4M_TRY
+    C4M_TRY
     {
-        c4m_install_default_styles();
-        c4m_terminal_dimensions(&term_width, NULL);
         c4m_dict_t          *targets = build_file_list();
         uint64_t             n;
         hatrack_dict_item_t *items = hatrack_dict_items(targets, &n);
@@ -510,26 +549,73 @@ main(int argc, char **argv, char **envp)
 
             if (kat != NULL) {
                 num_tests++;
+                c4m_printf("[h4]Running test {}: [i]{}",
+                           c4m_box_u64(num_tests),
+                           fname);
             }
 
             if (!test_compiler(fname, kat)) {
                 num_errs++;
+
+                row = c4m_list(c4m_type_utf8());
+                c4m_list_append(row,
+                                c4m_cstr_format("[em]{}",
+                                                c4m_box_u64(num_tests)));
+                c4m_list_append(row, fname);
+                c4m_grid_add_row(fail_grid, row);
+
+                c4m_printf("[h4]Finished test {}. [i b navy blue]FAILED.",
+                           c4m_box_u64(num_tests));
+            }
+            else {
+                if (kat != NULL) {
+                    c4m_printf("[h4]Finished test {}. [i atomic lime]PASSED.",
+                               c4m_box_u64(num_tests));
+
+                    row = c4m_list(c4m_type_utf8());
+                    c4m_list_append(row,
+                                    c4m_cstr_format("[em]{}",
+                                                    c4m_box_u64(num_tests)));
+                    c4m_list_append(row, fname);
+
+                    c4m_grid_add_row(success_grid, row);
+                }
             }
         }
+
+        c4m_print(c4m_callout(c4m_new_utf8("Finished tests.")));
     }
-    //    C4M_EXCEPT
-    //    {
-    //        no_exception = -1;
-    //        printf("An exception was raised before exit:\n");
-    //        c4m_print(c4m_repr_exception_stack_no_vm(c4m_new_utf8("Error: ")));
-    //        C4M_JUMP_TO_TRY_END();
-    //    }
-    //    C4M_TRY_END;
+    C4M_EXCEPT
+    {
+        no_exception = -1;
+        printf("An exception was raised before exit:\n");
+        c4m_print(c4m_repr_exception_stack_no_vm(c4m_new_utf8("Error: ")));
+        C4M_JUMP_TO_TRY_END();
+    }
+    C4M_TRY_END;
 
-    c4m_printf("Passed [em]{}[/] out of [em]{}[/] run tests.",
-               c4m_box_u64(num_tests - num_errs),
-               c4m_box_u64(num_tests));
+    if (num_tests != 0) {
+        if (num_errs != 0 && num_errs != num_tests) {
+            c4m_printf("[h5]Passed Tests:[/]");
+            c4m_print(success_grid);
+        }
 
+        if (num_errs != 0) {
+            c4m_printf("[h4]Failed Tests:[/]");
+            c4m_print(fail_grid);
+        }
+
+        c4m_printf("Passed [em]{}[/] out of [em]{}[/] run tests.",
+                   c4m_box_u64(num_tests - num_errs),
+                   c4m_box_u64(num_tests));
+
+        if (num_errs || !no_exception) {
+            c4m_printf("[h5] Con4m testing [b red]FAILED![/]");
+        }
+        else {
+            c4m_printf("[h5] Con4m testing [b navy blue]PASSED.[/]");
+        }
+    }
     c4m_gc_thread_collect();
 
     if (!num_errs && !no_exception) {

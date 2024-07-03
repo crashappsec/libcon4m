@@ -1,33 +1,65 @@
 #pragma once
 
-#undef C4M_TYPE_LOG
-
-// Useful options (mainly for dev) are commented out here.
-// The logic below (and into the relevent header files) sets up defaults.
-//
 // #define C4M_DEBUG
+#define C4M_GC_STATS
 // #define C4M_TRACE_GC
+
+// #define C4M_GCT_MOVE        1
+// #define C4M_GCT_PTR_TO_MOVE 1
+
 // #define C4M_GC_ALL_OFF
 // #define C4M_GC_ALL_ON
-// #define C4M_VM_DEBUG
 // #define C4M_TYPE_LOG
 
-#define C4M_GC_STATS
+// When this is on, the `debug` instruction will run.
+// Note that the debug instruction is not even generated unless
+// C4M_DEV is on.
 
-#ifndef C4M_NO_DEV_MODE
+// #define C4M_VM_DEBUG
+// #define C4M_VM_DEBUG_DEFAULT true
+
+// This won't work on systems that require aligned pointers.
+// #define C4M_PARANOID_STACK_SCAN
+
+// UBSan hates our underflow check.
+#define C4M_OMIT_UNDERFLOW_CHECKS
+
+#ifdef C4M_NO_DEV_MODE
+#undef C4M_DEV
+#else
 #define C4M_DEV
+#endif
+
+#if defined(C4M_VM_DEBUG)
+#if !defined(C4M_DEV)
+#error "Cannot debug VM when C4M_DEV_MODE is set."
+#endif
+#if !defined(C4M_VM_DEBUG_DEFAULT)
+#define C4M_VM_DEBUG_DEFAULT false
+#endif
 #endif
 
 #ifdef C4M_TRACE_GC
 #ifndef C4M_GC_STATS
 #define C4M_GC_STATS
-#define C4M_GC_FULL_TRACE // pre-define GC_STATS to skip full trace
 #endif
-#else
+
+#ifndef C4M_GC_FULL_TRACE
+#define C4M_GC_FULL_TRACE
+#endif
+
+#else // C4M_TRACE_GC
 #undef C4M_GC_FULL_TRACE
 #undef C4M_TRACE_GC
 #endif
 
+#ifndef C4M_MIN_RENDER_WIDTH
+#define C4M_MIN_RENDER_WIDTH 80
+#endif
+
+// Useful options (mainly for dev) are commented out here.
+// The logic below (and into the relevent header files) sets up defaults.
+//
 // Everything includes this; the ordering here is somewhat important
 // due to interdependencies, though they can always be solved via
 // prototyping.
@@ -44,7 +76,7 @@
 #include "con4m/color.h"
 
 // Basic "exclusive" (i.e., single threaded) list.
-#include "con4m/xlist.h"
+#include "con4m/list.h"
 
 // Type system API.
 #include "con4m/type.h"

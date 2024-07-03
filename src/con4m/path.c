@@ -7,9 +7,7 @@ c4m_get_current_directory(c4m_utf8_t *s)
 {
     char buf[MAXPATHLEN + 1];
 
-    getcwd(buf, MAXPATHLEN);
-
-    return c4m_new_utf8(buf);
+    return c4m_new_utf8(getcwd(buf, MAXPATHLEN));
 }
 
 // This is private; it mutates the string, which we don't normally
@@ -57,13 +55,13 @@ c4m_get_user_dir(c4m_utf8_t *user)
 }
 
 static c4m_utf8_t *
-internal_normalize_and_join(c4m_xlist_t *pieces)
+internal_normalize_and_join(c4m_list_t *pieces)
 {
-    int partlen = c4m_xlist_len(pieces);
+    int partlen = c4m_list_len(pieces);
     int nextout = 0;
 
     for (int i = 0; i < partlen; i++) {
-        c4m_utf8_t *s = c4m_to_utf8(c4m_xlist_get(pieces, i, NULL));
+        c4m_utf8_t *s = c4m_to_utf8(c4m_list_get(pieces, i, NULL));
 
         if (s->codepoints == 0) {
             continue;
@@ -88,7 +86,7 @@ internal_normalize_and_join(c4m_xlist_t *pieces)
             C4M_CRAISE("Invalid path; backs up past the root directory.");
         }
 
-        c4m_xlist_set(pieces, nextout++, s);
+        c4m_list_set(pieces, nextout++, s);
     }
 
     if (nextout == 0) {
@@ -98,7 +96,7 @@ internal_normalize_and_join(c4m_xlist_t *pieces)
     c4m_utf8_t *result = NULL;
 
     for (int i = 0; i < nextout; i++) {
-        c4m_utf8_t *s = c4m_xlist_get(pieces, i, NULL);
+        c4m_utf8_t *s = c4m_list_get(pieces, i, NULL);
 
         if (!s->codepoints) {
             continue;
@@ -115,7 +113,7 @@ internal_normalize_and_join(c4m_xlist_t *pieces)
     return c4m_to_utf8(result);
 }
 
-static c4m_xlist_t *
+static c4m_list_t *
 raw_path_tilde_expand(c4m_utf8_t *in)
 {
     if (!in || !in->codepoints) {
@@ -126,21 +124,21 @@ raw_path_tilde_expand(c4m_utf8_t *in)
         return c4m_str_xsplit(in, c4m_get_slash_const());
     }
 
-    c4m_xlist_t *parts = c4m_str_xsplit(in, c4m_get_slash_const());
-    c4m_utf8_t  *home  = c4m_to_utf8(c4m_xlist_get(parts, 0, NULL));
+    c4m_list_t *parts = c4m_str_xsplit(in, c4m_get_slash_const());
+    c4m_utf8_t *home  = c4m_to_utf8(c4m_list_get(parts, 0, NULL));
 
     if (c4m_str_codepoint_len(home) == 1) {
-        c4m_xlist_set(parts, 0, c4m_empty_string());
-        parts = c4m_xlist_plus(c4m_str_xsplit(c4m_get_user_dir(NULL),
-                                              c4m_get_slash_const()),
-                               parts);
+        c4m_list_set(parts, 0, c4m_empty_string());
+        parts = c4m_list_plus(c4m_str_xsplit(c4m_get_user_dir(NULL),
+                                             c4m_get_slash_const()),
+                              parts);
     }
     else {
         home->data++;
-        c4m_xlist_set(parts, 0, c4m_empty_string());
-        parts = c4m_xlist_plus(c4m_str_xsplit(c4m_get_user_dir(home),
-                                              c4m_get_slash_const()),
-                               parts);
+        c4m_list_set(parts, 0, c4m_empty_string());
+        parts = c4m_list_plus(c4m_str_xsplit(c4m_get_user_dir(home),
+                                             c4m_get_slash_const()),
+                              parts);
         home->data--;
     }
 
@@ -156,7 +154,7 @@ c4m_path_tilde_expand(c4m_utf8_t *in)
 c4m_utf8_t *
 c4m_resolve_path(c4m_utf8_t *s)
 {
-    c4m_xlist_t *parts;
+    c4m_list_t *parts;
 
     if (s == NULL || s->codepoints == 0) {
         return c4m_get_home_directory();
@@ -171,24 +169,24 @@ c4m_resolve_path(c4m_utf8_t *s)
     default:
         parts = c4m_str_xsplit(c4m_get_current_directory(NULL),
                                c4m_get_slash_const());
-        c4m_xlist_plus_eq(parts, c4m_str_xsplit(s, c4m_get_slash_const()));
+        c4m_list_plus_eq(parts, c4m_str_xsplit(s, c4m_get_slash_const()));
         return internal_normalize_and_join(parts);
     }
 }
 
 c4m_utf8_t *
-c4m_path_join(c4m_xlist_t *items)
+c4m_path_join(c4m_list_t *items)
 {
     c4m_utf8_t *result;
     c4m_utf8_t *tmp;
     uint8_t    *p;
     int         len   = 0; // Total length of output.
     int         first = 0; // First array index we'll use.
-    int         last  = c4m_xlist_len(items);
+    int         last  = c4m_list_len(items);
     int         tmplen;    // Length of individual strings.
 
     for (int i = 0; i < last; i++) {
-        tmp = c4m_xlist_get(items, i, NULL);
+        tmp = c4m_list_get(items, i, NULL);
         if (!c4m_str_is_u8(tmp)) {
             C4M_CRAISE("Strings passed to c4m_path_join must be utf8 encoded.");
         }
@@ -214,7 +212,7 @@ c4m_path_join(c4m_xlist_t *items)
     p      = (uint8_t *)result->data;
 
     for (int i = first; i < last; i++) {
-        tmp    = c4m_xlist_get(items, i, NULL);
+        tmp    = c4m_list_get(items, i, NULL);
         tmplen = c4m_str_byte_len(tmp);
 
         if (tmplen == 0) {
@@ -275,27 +273,27 @@ c4m_get_file_kind(c4m_utf8_t *p)
 }
 
 typedef struct {
-    bool         recurse;
-    bool         yield_links;
-    bool         yield_dirs;
-    bool         follow_links;
-    bool         ignore_special;
-    bool         done_with_safety_checks;
-    c4m_utf8_t  *sc_proc;
-    c4m_utf8_t  *sc_dev;
-    c4m_utf8_t  *sc_cwd;
-    c4m_utf8_t  *sc_up;
-    c4m_xlist_t *result;
-    c4m_utf8_t  *resolved;
+    c4m_utf8_t *sc_proc;
+    c4m_utf8_t *sc_dev;
+    c4m_utf8_t *sc_cwd;
+    c4m_utf8_t *sc_up;
+    c4m_list_t *result;
+    c4m_utf8_t *resolved;
+    bool        recurse;
+    bool        yield_links;
+    bool        yield_dirs;
+    bool        follow_links;
+    bool        ignore_special;
+    bool        done_with_safety_checks;
 } c4m_walk_ctx;
 
 static void
 internal_path_walk(c4m_walk_ctx *ctx)
 {
-    struct stat    file_info;
     DIR           *dirobj;
     struct dirent *entry;
     c4m_utf8_t    *saved;
+    struct stat    file_info;
     bool           add_slash;
 
     if (!ctx->done_with_safety_checks) {
@@ -316,12 +314,12 @@ internal_path_walk(c4m_walk_ctx *ctx)
 
     switch (file_info.st_mode & S_IFMT) {
     case S_IFREG:
-        c4m_xlist_append(ctx->result, ctx->resolved);
+        c4m_list_append(ctx->result, ctx->resolved);
         return;
 
     case S_IFDIR:
         if (ctx->yield_dirs) {
-            c4m_xlist_append(ctx->result, ctx->resolved);
+            c4m_list_append(ctx->result, ctx->resolved);
             return;
         }
 
@@ -384,20 +382,28 @@ actual_directory:
                 char buf[PATH_MAX + 1] = {
                     0,
                 };
-                readlink(ctx->resolved->data, buf, PATH_MAX);
-                c4m_xlist_append(ctx->result,
-                                 c4m_resolve_path(c4m_new_utf8(buf)));
+
+                int n = readlink(ctx->resolved->data, buf, PATH_MAX);
+
+                if (n == -1) {
+                    C4M_CRAISE("readlink() failed.");
+                }
+
+                ctx->resolved->data[n] = 0;
+
+                c4m_list_append(ctx->result,
+                                c4m_resolve_path(c4m_new_utf8(buf)));
             }
             else {
                 if (ctx->yield_links) {
-                    c4m_xlist_append(ctx->result, ctx->resolved);
+                    c4m_list_append(ctx->result, ctx->resolved);
                 }
             }
             return;
         case S_IFDIR:
 
             if (ctx->yield_dirs && ctx->yield_links) {
-                c4m_xlist_append(ctx->result, ctx->resolved);
+                c4m_list_append(ctx->result, ctx->resolved);
             }
 
             if (!ctx->follow_links || !ctx->recurse) {
@@ -408,17 +414,24 @@ actual_directory:
             char buf[PATH_MAX + 1] = {
                 0,
             };
-            readlink(ctx->resolved->data, buf, PATH_MAX);
+            int n = readlink(ctx->resolved->data, buf, PATH_MAX);
+
+            if (n == -1) {
+                C4M_CRAISE("readlink() failed.");
+            }
+
+            ctx->resolved->data[n] = 0;
+
             ctx->resolved = c4m_resolve_path(c4m_new_utf8(buf));
             if (ctx->yield_dirs && !ctx->yield_links) {
-                c4m_xlist_append(ctx->result, ctx->resolved);
+                c4m_list_append(ctx->result, ctx->resolved);
             }
 
             goto actual_directory;
 
         default:
             if (!ctx->ignore_special) {
-                c4m_xlist_append(ctx->result, ctx->resolved);
+                c4m_list_append(ctx->result, ctx->resolved);
             }
             return;
         }
@@ -428,13 +441,13 @@ actual_directory:
     case S_IFIFO:
     default:
         if (!ctx->ignore_special) {
-            c4m_xlist_append(ctx->result, ctx->resolved);
+            c4m_list_append(ctx->result, ctx->resolved);
         }
         return;
     }
 }
 
-c4m_xlist_t *
+c4m_list_t *
 _c4m_path_walk(c4m_utf8_t *dir, ...)
 {
     bool recurse        = true;
@@ -461,7 +474,7 @@ _c4m_path_walk(c4m_utf8_t *dir, ...)
         .follow_links            = follow_links,
         .ignore_special          = ignore_special,
         .done_with_safety_checks = false,
-        .result                  = c4m_xlist(c4m_type_utf8()),
+        .result                  = c4m_list(c4m_type_utf8()),
         .resolved                = c4m_resolve_path(dir),
     };
 

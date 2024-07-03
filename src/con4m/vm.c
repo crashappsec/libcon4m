@@ -81,9 +81,9 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
     uint64_t      lineno;
 
     // instruction that triggered the error:
-    c4m_zinstruction_t *i = c4m_xlist_get(tstate->current_module->instructions,
-                                          tstate->pc,
-                                          NULL);
+    c4m_zinstruction_t *i = c4m_list_get(tstate->current_module->instructions,
+                                         tstate->pc,
+                                         NULL);
 
     lineno  = i->line_no;
     modname = tstate->current_module->modname;
@@ -142,9 +142,9 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
 #ifdef C4M_OMIT_UNDERFLOW_CHECKS
 #define STACK_REQUIRE_VALUES(_n)
 #else
-#define STACK_REQUIRE_VALUES(_n)                               \
-    if (tstate->sp >= &tstate->stack[STACK_SIZE - (_n) + 1]) { \
-        C4M_CRAISE("stack underflow");                         \
+#define STACK_REQUIRE_VALUES(_n)                          \
+    if (tstate->sp > &tstate->stack[STACK_SIZE - (_n)]) { \
+        C4M_CRAISE("stack underflow");                    \
     }
 #endif
 
@@ -159,12 +159,12 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
         C4M_CRAISE("stack overflow");        \
     }
 
-#define SIMPLE_COMPARE(op)                       \
-    do {                                         \
-        uint64_t v1 = tstate->sp->uint;          \
-        ++tstate->sp;                            \
-        uint64_t v2      = tstate->sp->uint;     \
-        tstate->sp->uint = (uint64_t)(v2 op v1); \
+#define SIMPLE_COMPARE(op)                           \
+    do {                                             \
+        uint64_t v1 = tstate->sp->uint;              \
+        ++tstate->sp;                                \
+        uint64_t v2      = tstate->sp->uint;         \
+        tstate->sp->uint = !!((uint64_t)(v2 op v1)); \
     } while (0)
 
 static c4m_value_t *
@@ -214,22 +214,22 @@ static void
 c4m_vm_module_enter(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 {
     if (!i->arg) {
-        if (c4m_xlist_len(tstate->module_lock_stack) > 0) {
-            c4m_xlist_append(tstate->module_lock_stack,
-                             c4m_xlist_get(tstate->module_lock_stack,
-                                           -1,
-                                           NULL));
+        if (c4m_list_len(tstate->module_lock_stack) > 0) {
+            c4m_list_append(tstate->module_lock_stack,
+                            c4m_list_get(tstate->module_lock_stack,
+                                         -1,
+                                         NULL));
         }
         else {
-            c4m_xlist_append(tstate->module_lock_stack, 0);
+            c4m_list_append(tstate->module_lock_stack, 0);
         }
         return;
     }
 
-    for (int32_t n = 0; n < c4m_xlist_len(tstate->current_module->parameters); ++n) {
-        c4m_zparam_info_t *p = c4m_xlist_get(tstate->current_module->parameters,
-                                             n,
-                                             NULL);
+    for (int32_t n = 0; n < c4m_list_len(tstate->current_module->parameters); ++n) {
+        c4m_zparam_info_t *p = c4m_list_get(tstate->current_module->parameters,
+                                            n,
+                                            NULL);
 
         // Fill in all parameter values now. If there's a validator,
         // it will get called after this loop, along w/ a call to
@@ -245,8 +245,8 @@ c4m_vm_module_enter(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         }
     }
 
-    c4m_xlist_append(tstate->module_lock_stack,
-                     (c4m_obj_t)(uint64_t)tstate->current_module->module_id);
+    c4m_list_append(tstate->module_lock_stack,
+                    (c4m_obj_t)(uint64_t)tstate->current_module->module_id);
 }
 
 static c4m_utf8_t *
@@ -335,7 +335,8 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         STACK_REQUIRE_SLOTS(1);
         do {
             uint64_t n;
-            tstate->sp->rvalue.obj = c4m_get_view(tstate->sp->rvalue.obj, &n);
+            tstate->sp->rvalue.obj = c4m_get_view(tstate->sp->rvalue.obj,
+                                                  (int64_t *)&n);
             --tstate->sp;
             tstate->sp[0].uint = n;
         } while (0);
@@ -549,17 +550,17 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         // to the actual item type if only one item.
     case C4M_BI_CONTAINER_LIT:
         do {
-            uint64_t     n  = tstate->sp[0].uint;
-            c4m_type_t  *ct = i->type_info;
-            c4m_xlist_t *xl;
+            uint64_t    n  = tstate->sp[0].uint;
+            c4m_type_t *ct = i->type_info;
+            c4m_list_t *xl;
 
             ++tstate->sp;
 
-            xl = c4m_new(c4m_type_xlist(c4m_type_ref()),
+            xl = c4m_new(c4m_type_list(c4m_type_ref()),
                          c4m_kw("length", c4m_ka(n)));
 
             while (n--) {
-                c4m_xlist_set(xl, n, tstate->sp[0].vptr);
+                c4m_list_set(xl, n, tstate->sp[0].vptr);
                 ++tstate->sp;
             }
 
@@ -588,6 +589,7 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
     case C4M_BI_FROM_LITERAL:
     case C4M_BI_FINALIZER:
     case C4M_BI_NUM_FUNCS:
+    case C4M_BI_GC_MAP:
         // Not implemented yet, or not called via C4M_ZTCall.
         break;
     }
@@ -611,18 +613,18 @@ c4m_vm_0call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
 
     c4m_zmodule_info_t *old_module = tstate->current_module;
 
-    c4m_zfn_info_t *fn = c4m_xlist_get(tstate->vm->obj->func_info,
-                                       ix - 1,
-                                       NULL);
+    c4m_zfn_info_t *fn = c4m_list_get(tstate->vm->obj->func_info,
+                                      ix - 1,
+                                      NULL);
 
     tstate->pc             = fn->offset;
-    tstate->current_module = c4m_xlist_get(tstate->vm->obj->module_contents,
-                                           fn->mid,
-                                           NULL);
+    tstate->current_module = c4m_list_get(tstate->vm->obj->module_contents,
+                                          fn->mid,
+                                          NULL);
 
-    c4m_zinstruction_t *nexti = c4m_xlist_get(tstate->current_module->instructions,
-                                              tstate->pc,
-                                              NULL);
+    c4m_zinstruction_t *nexti = c4m_list_get(tstate->current_module->instructions,
+                                             tstate->pc,
+                                             NULL);
 
     // push a frame onto the call stack
     c4m_vmframe_push(tstate,
@@ -653,13 +655,13 @@ c4m_vm_call_module(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
     c4m_zmodule_info_t *old_module = tstate->current_module;
 
     tstate->pc             = 0;
-    tstate->current_module = c4m_xlist_get(tstate->vm->obj->module_contents,
-                                           i->arg,
-                                           NULL);
+    tstate->current_module = c4m_list_get(tstate->vm->obj->module_contents,
+                                          i->arg,
+                                          NULL);
 
-    c4m_zinstruction_t *nexti = c4m_xlist_get(tstate->current_module->instructions,
-                                              tstate->pc,
-                                              NULL);
+    c4m_zinstruction_t *nexti = c4m_list_get(tstate->current_module->instructions,
+                                             tstate->pc,
+                                             NULL);
 
     // push a frame onto the call stack
     c4m_vmframe_push(tstate,
@@ -673,9 +675,9 @@ c4m_vm_call_module(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 static void
 c4m_vm_ffi_call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
 {
-    c4m_ffi_decl_t *decl = c4m_xlist_get(tstate->vm->obj->ffi_info,
-                                         i->arg,
-                                         NULL);
+    c4m_ffi_decl_t *decl = c4m_list_get(tstate->vm->obj->ffi_info,
+                                        i->arg,
+                                        NULL);
 
     if (decl == NULL) {
         fprintf(stderr, "Could not load external function.\n");
@@ -689,7 +691,7 @@ c4m_vm_ffi_call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
         args = NULL;
     }
     else {
-        args  = c4m_gc_array_alloc(void *, ffiinfo->cif.nargs);
+        args  = c4m_gc_array_value_alloc(void *, ffiinfo->cif.nargs);
         int n = ffiinfo->cif.nargs;
 
         for (unsigned int i = 0; i < ffiinfo->cif.nargs; i++) {
@@ -766,9 +768,9 @@ c4m_vm_return(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 
     uint64_t v             = tstate->sp[1].uint;
     tstate->pc             = (v >> 32u);
-    tstate->current_module = c4m_xlist_get(tstate->vm->obj->module_contents,
-                                           (v & 0xFFFFFFFF),
-                                           NULL);
+    tstate->current_module = c4m_list_get(tstate->vm->obj->module_contents,
+                                          (v & 0xFFFFFFFF),
+                                          NULL);
 
     tstate->sp += 2;
 
@@ -805,19 +807,50 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
         for (;;) {
             c4m_zinstruction_t *i;
 
-            i = c4m_xlist_get(tstate->current_module->instructions,
-                              tstate->pc,
-                              NULL);
+            i = c4m_list_get(tstate->current_module->instructions,
+                             tstate->pc,
+                             NULL);
+
 #ifdef C4M_VM_DEBUG
-            c4m_print(
-                c4m_cstr_format(
-                    "[i] > {} (PC@{:x}; SP@{:x}; FP@{:x}; a = {}; m = {})",
-                    c4m_fmt_instr_name(i),
-                    c4m_box_u64(tstate->pc * 16),
-                    c4m_box_u64((uint64_t)(void *)tstate->sp),
-                    c4m_box_u64((uint64_t)(void *)tstate->fp),
-                    c4m_box_i64((int64_t)i->arg),
-                    c4m_box_u64((uint64_t)tstate->current_module->module_id)));
+            static bool  debug_on = (bool)(C4M_VM_DEBUG_DEFAULT);
+            static char *debug_fmt_str =
+                "[i]> {} (PC@{:x}; SP@{:x}; "
+                "FP@{:x}; a = {}; i = {}; m = {})";
+
+            if (debug_on && i->op != C4M_ZNop) {
+                int num_stack_items = &tstate->stack[STACK_SIZE] - tstate->sp;
+                printf("stack has %d items on it: ", num_stack_items);
+                for (int i = 0; i < num_stack_items; i++) {
+                    if (&tstate->sp[i] == tstate->fp) {
+                        printf("\e[34m[%p]\e[0m ", tstate->sp[i].vptr);
+                    }
+                    else {
+                        if (&tstate->sp[i - 1] == tstate->fp) {
+                            printf("\e[32m[%p]\e[0m ", tstate->sp[i].vptr);
+                        }
+                        else {
+                            if (&tstate->sp[i] > tstate->fp) {
+                                printf("\e[31m[%p]\e[0m ", tstate->sp[i].vptr);
+                            }
+                            else {
+                                printf("\e[33m[%p]\e[0m ", tstate->sp[i].vptr);
+                            }
+                        }
+                    }
+                }
+                printf("\n");
+                c4m_print(
+                    c4m_cstr_format(
+                        debug_fmt_str,
+                        c4m_fmt_instr_name(i),
+                        c4m_box_u64(tstate->pc * 16),
+                        c4m_box_u64((uint64_t)(void *)tstate->sp),
+                        c4m_box_u64((uint64_t)(void *)tstate->fp),
+                        c4m_box_i64((int64_t)i->arg),
+                        c4m_box_i64((int64_t)i->immediate),
+                        c4m_box_u64((uint64_t)tstate->current_module->module_id)));
+            }
+
 #endif
 
             switch (i->op) {
@@ -946,7 +979,10 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 STACK_REQUIRE_VALUES(2);
                 rhs.sint = tstate->sp[0].sint;
                 ++tstate->sp;
-                tstate->sp[0].uint /= rhs.sint;
+                if (rhs.sint == 0) {
+                    C4M_CRAISE("Division by zero error.");
+                }
+                tstate->sp[0].sint /= rhs.sint;
                 break;
             case C4M_ZMod:
                 STACK_REQUIRE_VALUES(2);
@@ -1004,9 +1040,8 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 break;
             case C4M_ZShlI:
                 STACK_REQUIRE_VALUES(1);
-                rhs.uint = tstate->sp[0].uint;
-                ++tstate->sp;
-                tstate->sp[0].uint <<= i->immediate;
+                rhs.uint           = tstate->sp[0].uint;
+                tstate->sp[0].uint = i->arg << tstate->sp[0].uint;
                 break;
             case C4M_ZShr:
                 STACK_REQUIRE_VALUES(2);
@@ -1131,59 +1166,52 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 STACK_REQUIRE_VALUES(2);
                 STACK_REQUIRE_SLOTS(2); // Usually 1, except w/ dict.
                 do {
-                    uint64_t obj_len = tstate->sp->uint;
-
-                    union {
-                        uint8_t  u8;
-                        uint16_t u16;
-                        uint32_t u32;
-                        uint64_t u64;
-                    } view_item;
-
-                    union {
-                        uint8_t  *p8;
-                        uint16_t *p16;
-                        uint32_t *p32;
-                        uint64_t *p64;
-                        c4m_obj_t obj;
-                    } view_ptr;
-
-                    view_item.u64 = 0;
-                    view_ptr.obj  = (tstate->sp + 1)->rvalue.obj;
+                    uint64_t   obj_len   = tstate->sp->uint;
+                    void     **view_slot = &(tstate->sp + 1)->rvalue.obj;
+                    char      *p         = *(char **)view_slot;
+                    c4m_box_t *box       = (c4m_box_t *)p;
 
                     --tstate->sp;
 
                     switch (obj_len) {
                     case 1:
-                        view_item.u8 = *view_ptr.p8++;
+                        tstate->sp->uint = box->u8;
+                        *view_slot       = (void *)(p + 1);
                         break;
                     case 2:
-                        view_item.u16 = *view_ptr.p16++;
+                        tstate->sp->uint = box->u16;
+                        *view_slot       = (void *)(p + 2);
                         break;
                     case 4:
-                        view_item.u32 = *view_ptr.p32++;
+                        tstate->sp->uint = box->u32;
+                        *view_slot       = (void *)(p + 4);
                         break;
                     case 8:
-                        view_item.u64 = *view_ptr.p64++;
+                        tstate->sp->uint = box->u64;
+                        *view_slot       = (void *)(p + 8);
                         // This is the only size that can be a dict.
                         // Push the value on first.
                         if (i->arg) {
-                            tstate->sp->uint = *view_ptr.p64++;
                             --tstate->sp;
+                            p += 8;
+                            box              = (c4m_box_t *)p;
+                            tstate->sp->uint = box->u64;
+                            *view_slot       = (p + 8);
                         }
                         break;
                     default:
                         do {
                             uint64_t count  = (uint64_t)(tstate->r1.obj);
                             uint64_t bit_ix = (count - 1) % 64;
-                            view_item.u64   = *view_ptr.p64 & (1 << bit_ix);
+                            uint64_t val    = **(uint64_t **)view_slot;
+
+                            tstate->sp->uint = val & (1 << bit_ix);
 
                             if (bit_ix == 63) {
-                                view_ptr.p64++;
+                                *view_slot += 1;
                             }
                         } while (0);
                     }
-                    tstate->sp->uint = view_item.u64;
                 } while (0);
                 break;
             case C4M_ZStoreImm:
@@ -1269,6 +1297,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     .static_ptr = tstate->sp->static_ptr & 0x07,
                 };
                 tstate->sp->static_ptr &= ~(0x07ULL);
+                --tstate->sp;
                 break;
             case C4M_ZTCall:
                 c4m_vm_tcall(tstate, i);
@@ -1293,7 +1322,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     C4M_JUMP_TO_TRY_END();
                 }
                 // pop module_lock_stack
-                c4m_xlist_set_slice(tstate->module_lock_stack, -2, -1, NULL);
+                c4m_list_set_slice(tstate->module_lock_stack, -2, -1, NULL);
                 c4m_vm_return(tstate, i);
                 break;
             case C4M_ZFFICall:
@@ -1302,8 +1331,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZPushFfiPtr:
                 STACK_REQUIRE_SLOTS(1);
                 do {
-                    c4m_zcallback_t *cb = c4m_gc_raw_alloc(sizeof(c4m_zcallback_t),
-                                                           GC_SCAN_ALL);
+                    c4m_zcallback_t *cb = c4m_gc_alloc(c4m_zcallback_t);
 
                     *cb = (c4m_zcallback_t){
                         .impl       = i->arg,
@@ -1321,8 +1349,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZPushVmPtr:
                 STACK_REQUIRE_SLOTS(1);
                 do {
-                    c4m_zcallback_t *cb = c4m_gc_raw_alloc(sizeof(c4m_zcallback_t),
-                                                           GC_SCAN_ALL);
+                    c4m_zcallback_t *cb = c4m_gc_alloc(c4m_zcallback_t);
 
                     *cb = (c4m_zcallback_t){
                         .impl       = i->arg,
@@ -1382,12 +1409,18 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 }
                 break;
 #ifdef C4M_DEV
+            case C4M_ZDebug:
+#ifdef C4M_VM_DEBUG
+                debug_on = (bool)i->arg;
+#endif
+                break;
                 // This is not threadsafe. It's just for early days.
             case C4M_ZPrint:
                 STACK_REQUIRE_VALUES(1);
                 c4m_print(tstate->sp->rvalue.obj);
                 c4m_stream_write_object(tstate->vm->print_stream,
-                                        tstate->sp->rvalue.obj);
+                                        tstate->sp->rvalue.obj,
+                                        false);
                 c4m_stream_putc(tstate->vm->print_stream, '\n');
                 ++tstate->sp;
                 break;
@@ -1532,14 +1565,14 @@ c4m_vm_load_const_data(c4m_vm_t *vm)
 static inline void
 c4m_vm_setup_ffi(c4m_vm_t *vm)
 {
-    vm->ffi_info_entries = c4m_xlist_len(vm->obj->ffi_info);
+    vm->ffi_info_entries = c4m_list_len(vm->obj->ffi_info);
 
     if (vm->ffi_info_entries == 0) {
         return;
     }
 
     for (int i = 0; i < vm->ffi_info_entries; i++) {
-        c4m_ffi_decl_t *ffi_info = c4m_xlist_get(vm->obj->ffi_info, i, NULL);
+        c4m_ffi_decl_t *ffi_info = c4m_list_get(vm->obj->ffi_info, i, NULL);
         c4m_zffi_cif   *cif      = &ffi_info->cif;
 
         cif->fptr = c4m_ffi_find_symbol(ffi_info->external_name,
@@ -1592,13 +1625,13 @@ c4m_vm_setup_runtime(c4m_vm_t *vm)
 void
 c4m_vm_reset(c4m_vm_t *vm)
 {
-    int64_t nmodules       = c4m_xlist_len(vm->obj->module_contents);
+    int64_t nmodules       = c4m_list_len(vm->obj->module_contents);
     vm->module_allocations = c4m_gc_array_alloc(c4m_value_t *, nmodules);
 
     for (int64_t n = 0; n < nmodules; ++n) {
-        c4m_zmodule_info_t *m = c4m_xlist_get(vm->obj->module_contents,
-                                              n,
-                                              NULL);
+        c4m_zmodule_info_t *m = c4m_list_get(vm->obj->module_contents,
+                                             n,
+                                             NULL);
 
         vm->module_allocations[n] = c4m_gc_array_alloc(c4m_value_t,
                                                        m->module_var_size);
@@ -1615,11 +1648,14 @@ c4m_vm_reset(c4m_vm_t *vm)
 c4m_vmthread_t *
 c4m_vmthread_new(c4m_vm_t *vm)
 {
-    // c4m_internal_stash_heap();
+    // c4m_arena_t    *arena  = c4m_internal_stash_heap();
     c4m_vmthread_t *tstate = c4m_gc_alloc(c4m_vmthread_t);
     tstate->vm             = vm;
 
     c4m_vmthread_reset(tstate);
+
+    // tstate->thread_arena = arena;
+
     // c4m_internal_unstash_heap();
     return tstate;
 }
@@ -1637,11 +1673,11 @@ c4m_vmthread_reset(c4m_vmthread_t *tstate)
     tstate->r3                = (c4m_value_t){};
     tstate->running           = false;
     tstate->error             = false;
-    tstate->module_lock_stack = c4m_xlist(c4m_type_i32());
+    tstate->module_lock_stack = c4m_list(c4m_type_i32());
 
-    tstate->current_module = c4m_xlist_get(tstate->vm->obj->module_contents,
-                                           tstate->vm->obj->entrypoint - 1,
-                                           NULL);
+    tstate->current_module = c4m_list_get(tstate->vm->obj->module_contents,
+                                          tstate->vm->obj->entrypoint - 1,
+                                          NULL);
 }
 
 int
@@ -1650,9 +1686,9 @@ c4m_vmthread_run(c4m_vmthread_t *tstate)
     assert(!tstate->running);
     tstate->running = true;
 
-    c4m_zinstruction_t *i = c4m_xlist_get(tstate->current_module->instructions,
-                                          tstate->pc,
-                                          NULL);
+    c4m_zinstruction_t *i = c4m_list_get(tstate->current_module->instructions,
+                                         tstate->pc,
+                                         NULL);
 
     c4m_vmframe_push(tstate,
                      i,

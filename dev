@@ -44,7 +44,8 @@ function meson_build {
             rm -rf ${1}
         fi
         log Creating meson target ${1}
-        meson setup ${1}
+        log meson setup ${@}
+        meson setup ${@}
     fi
     cd ${1}
 
@@ -120,6 +121,10 @@ function debug_it {
     DEBUGGER=${DEBUGGER:-$(which lldb)}
     cd debug
     log "Running debugger:v${DEBUGGER}"
+    echo
+    echo $(color RED 'Recommended environment variables:')
+    echo $(color CYAN 'export ASAN_OPTIONS=halt_on_error=0')
+    echo $(color CYAN 'export UBSAN_OPTIONS=print_stacktrace=1;halt_on_error=0')
     ${DEBUGGER} ./c4test
     cd ..
 
@@ -136,7 +141,7 @@ function libcon4m_run_tests {
     ./c4test $@
     EXIT=$?
     log "Exit status: ${EXIT}"
-    if [[ ${EXIT} -gt 0 ]] && [[${EXIT} -lt 128 ]] && [[ $@ == "" ]]  ; then
+    if [[ ${EXIT} -gt 0 ]] && [[ ${EXIT} -lt 128 ]] && [[ $@ == "" ]]  ; then
         log "Test runner crashed; rerunning tests individually to isolate."
         HERE=`pwd`
         cd ../tests
@@ -151,7 +156,7 @@ function libcon4m_run_tests {
                 echo
             fi
         done
-        exit -1
+        exit 127
     fi
     cd ..
 }
@@ -176,13 +181,24 @@ fi
 case $1 in
     clean)   libcon4m_dev_clean
              ;;
-    build)   meson_build build
+    build)   meson_build build --buildtype=plain
              ;;
-    debug)   debug_it
+    debug)   meson_build debug --buildtype=debug
+             debug_it
              ;;
     release) meson_build release --buildtype=release
              ;;
-    run)     libcon4m_run_tests $@
+    run)
+             set -e
+             libcon4m_run_tests $@
+             CODE=$?
+             if [[ $CODE -eq 0 ]] ; then
+                 log "CI/CD tests passed."
+             else
+                 log "CI/CD Tests FAILED."
+                 exit $CODE
+             fi
+
              ;;
     hash)    meson_hatrack hash
              ;;

@@ -5,14 +5,16 @@
 
 typedef struct checkpoint_t {
     struct checkpoint_t *prev;
-    jmp_buf              env;
     char                *fn;
+    jmp_buf              env;
 } checkpoint_t;
 
 typedef struct {
     c4m_tree_node_t      *cur;
     c4m_file_compile_ctx *file_ctx;
     c4m_token_t          *cached_token;
+    hatstack_t           *root_stack;
+    checkpoint_t         *jump_state;
     int32_t               token_ix;
     int32_t               cache_ix;
     int32_t               loop_depth;
@@ -22,9 +24,7 @@ typedef struct {
     // allow it. If we're in a literal definition context, the newline
     // is okay, otherwise it is not.
     int32_t               lit_depth;
-    hatstack_t           *root_stack;
     bool                  in_function;
-    checkpoint_t         *jump_state;
 } parse_ctx;
 
 #undef PARSE_DEBUG
@@ -230,6 +230,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_field_spec", 0, 0, 0, 1, 0, },
     { "nt_field_prop", 1, 0, 0, 0, 0, },
     { "nt_expression", 0, 0, 0, 0, 0, },
+    { "nt_extern_box", 0, 0, 0, 0, 0, },
 #ifdef C4M_DEV
     { "nt_print", 0, 0, 0, 0, 0, },
 #endif
@@ -245,9 +246,9 @@ _tok_cur(parse_ctx *ctx)
 #endif
 {
     if (!ctx->cached_token || ctx->token_ix != ctx->cache_ix) {
-        ctx->cached_token = c4m_xlist_get(ctx->file_ctx->tokens,
-                                          ctx->token_ix,
-                                          NULL);
+        ctx->cached_token = c4m_list_get(ctx->file_ctx->tokens,
+                                         ctx->token_ix,
+                                         NULL);
         ctx->cache_ix     = ctx->token_ix;
     }
 
@@ -290,7 +291,7 @@ _add_parse_error(parse_ctx *ctx, c4m_compile_error_t code, ...)
 }
 
 #define add_parse_error(ctx, code, ...) \
-    _add_parse_error(ctx, code, KFUNC(__VA_ARGS__))
+    _add_parse_error(ctx, code, C4M_VA(__VA_ARGS__))
 
 static void __attribute__((noreturn))
 _raise_err_at_node(parse_ctx          *ctx,
@@ -301,10 +302,10 @@ _raise_err_at_node(parse_ctx          *ctx,
                    int                 line,
                    const char         *fn)
 {
-    c4m_compile_error *err = c4m_gc_alloc(c4m_compile_error);
+    c4m_compile_error *err = c4m_new_error(0);
     err->code              = code;
     err->current_token     = n->token;
-    c4m_xlist_append(ctx->file_ctx->errors, err);
+    c4m_list_append(ctx->file_ctx->errors, err);
 
     if (bail) {
         c4m_exit_to_checkpoint(ctx, '!', f, line, fn);
@@ -332,7 +333,7 @@ parse_node_init(c4m_pnode_t *self, va_list args)
     int aux_size = node_type_info[self->kind].aux_alloc_size;
 
     if (aux_size) {
-        self->extra_info = c4m_gc_raw_alloc(aux_size, GC_SCAN_ALL);
+        self->extra_info = c4m_gc_raw_alloc(aux_size, C4M_GC_SCAN_ALL);
     }
 }
 
@@ -397,7 +398,7 @@ previous_token(parse_ctx *ctx)
     c4m_token_t *tok = NULL;
 
     while (i--) {
-        tok = c4m_xlist_get(ctx->file_ctx->tokens, i, NULL);
+        tok = c4m_list_get(ctx->file_ctx->tokens, i, NULL);
         if (tok->kind != c4m_tt_space) {
             break;
         }
@@ -482,10 +483,10 @@ _consume(parse_ctx *ctx)
             comment->sibling_id  = pn->total_kids++;
 
             if (pn->comments == NULL) {
-                pn->comments = c4m_new(c4m_type_xlist(c4m_type_ref()));
+                pn->comments = c4m_new(c4m_type_list(c4m_type_ref()));
             }
 
-            c4m_xlist_append(pn->comments, comment);
+            c4m_list_append(pn->comments, comment);
             continue;
         default:
             return;
@@ -559,7 +560,7 @@ _match(parse_ctx *ctx, ...)
     return current_tt;
 }
 
-#define match(ctx, ...) _match(ctx, KFUNC(__VA_ARGS__))
+#define match(ctx, ...) _match(ctx, C4M_VA(__VA_ARGS__))
 
 static inline bool
 expect(parse_ctx *ctx, c4m_token_kind_t tk)
@@ -570,7 +571,7 @@ expect(parse_ctx *ctx, c4m_token_kind_t tk)
     }
     add_parse_error(ctx,
                     c4m_err_parse_expected_token,
-                    token_type_to_string(tk));
+                    c4m_token_type_to_string(tk));
     line_skip_recover(ctx);
     return false;
 }
@@ -578,7 +579,7 @@ expect(parse_ctx *ctx, c4m_token_kind_t tk)
 static inline bool
 identifier_is_builtin_type(parse_ctx *ctx)
 {
-    char *txt = identifier_text(tok_cur(ctx))->data;
+    char *txt = c4m_identifier_text(tok_cur(ctx))->data;
 
     for (int i = 0; i < C4M_NUM_BUILTIN_DTS; i++) {
         c4m_dt_info_t *tinfo = (c4m_dt_info_t *)&c4m_base_type_info[i];
@@ -605,7 +606,7 @@ text_matches(parse_ctx *ctx, char *cstring)
 {
     // Will only be called for identifiers.
 
-    c4m_utf8_t *text = identifier_text(tok_cur(ctx));
+    c4m_utf8_t *text = c4m_identifier_text(tok_cur(ctx));
 
     return !strcmp(text->data, cstring);
 }
@@ -687,18 +688,18 @@ restore_tree(parse_ctx *ctx)
     return result;
 }
 
-#define binop_restore_and_return(ctx, op)            \
-    {                                                \
-        c4m_tree_node_t *result = restore_tree(ctx); \
-        c4m_pnode_t     *pnode  = get_pnode(result); \
-        pnode->extra_info       = (void *)op;        \
-        return result;                               \
+#define binop_restore_and_return(ctx, op)                \
+    {                                                    \
+        c4m_tree_node_t *result = restore_tree(ctx);     \
+        c4m_pnode_t     *pnode  = c4m_get_pnode(result); \
+        pnode->extra_info       = (void *)op;            \
+        return result;                                   \
     }
 
 #define binop_assign(ctx, expr, op)                                        \
     {                                                                      \
         c4m_tree_node_t *tmp = assign(ctx, expr, c4m_nt_binary_assign_op); \
-        c4m_pnode_t     *pn  = get_pnode(tmp);                             \
+        c4m_pnode_t     *pn  = c4m_get_pnode(tmp);                         \
                                                                            \
         pn->extra_info = (void *)(op);                                     \
         adopt_kid(ctx, tmp);                                               \
@@ -917,6 +918,9 @@ simple_lit(parse_ctx *ctx)
                 c4m_unreachable();
             }
 
+            if (!c4m_str_codepoint_len(li->litmod)) {
+                li->litmod = c4m_new_utf8("<none>");
+            }
             c4m_error_from_token(ctx->file_ctx, err, tok, li->litmod, syntax_str);
             break;
         case c4m_err_no_error:
@@ -997,7 +1001,8 @@ param_items(parse_ctx *ctx)
             continue;
         }
 
-        char *txt = identifier_text(tok_cur(ctx))->data;
+        char *txt = c4m_identifier_text(tok_cur(ctx))->data;
+
         if (!strcmp(txt, "callback")) {
             if (got_default) {
                 add_parse_error(ctx, c4m_err_parse_param_def_and_callback);
@@ -1118,6 +1123,19 @@ extern_dll(parse_ctx *ctx)
 }
 
 static void
+extern_box_values(parse_ctx *ctx)
+{
+    start_node(ctx, c4m_nt_extern_box, true);
+    if (!expect(ctx, c4m_tt_colon)) {
+        end_node(ctx);
+        return;
+    }
+    bool_lit(ctx);
+    end_of_statement(ctx);
+    end_node(ctx);
+}
+
+static void
 extern_pure(parse_ctx *ctx)
 {
     start_node(ctx, c4m_nt_extern_pure, true);
@@ -1191,7 +1209,7 @@ extern_allocs(parse_ctx *ctx)
 static void
 extern_sig_item(parse_ctx *ctx, c4m_node_kind_t kind)
 {
-    char   *txt      = identifier_text(tok_cur(ctx))->data;
+    char   *txt      = c4m_identifier_text(tok_cur(ctx))->data;
     int64_t ctype_id = (int64_t)c4m_lookup_ctype_id(txt);
     if (ctype_id == -1) {
         add_parse_error(ctx, c4m_err_parse_bad_ctype_id);
@@ -1246,8 +1264,13 @@ extern_signature(parse_ctx *ctx)
 static void
 extern_block(parse_ctx *ctx)
 {
-    char *txt;
-    int   safety_check = 0;
+    char        *txt;
+    volatile int safety_check = 0;
+    bool         got_local    = false;
+    bool         got_box      = false;
+    bool         got_pure     = false;
+    bool         got_holds    = false;
+    bool         got_allocs   = false;
 
     start_node(ctx, c4m_nt_extern_block, true);
     identifier(ctx);
@@ -1269,12 +1292,23 @@ extern_block(parse_ctx *ctx)
             switch (match(ctx, c4m_tt_rbrace, c4m_tt_identifier)) {
             case c4m_tt_rbrace:
                 consume(ctx);
+
+                if (!got_local) {
+                    add_parse_error(ctx, c4m_err_parse_extern_need_local);
+                }
                 end_node(ctx);
+
                 END_CHECKPOINT();
                 return;
             case c4m_tt_identifier:
-                txt = identifier_text(tok_cur(ctx))->data;
+                txt = c4m_identifier_text(tok_cur(ctx))->data;
                 if (!strcmp(txt, "local")) {
+                    if (got_local) {
+                        add_parse_error(ctx,
+                                        c4m_err_parse_extern_dup,
+                                        c4m_new_utf8("local"));
+                    }
+                    got_local = true;
                     extern_local(ctx);
                     continue;
                 }
@@ -1282,15 +1316,48 @@ extern_block(parse_ctx *ctx)
                     extern_dll(ctx);
                     continue;
                 }
+                if (!strcmp(txt, "box_values")) {
+                    if (got_box) {
+                        add_parse_error(ctx,
+                                        c4m_err_parse_extern_dup,
+                                        c4m_new_utf8("box_values"));
+                    }
+                    got_box = true;
+
+                    extern_box_values(ctx);
+                    continue;
+                }
+
                 if (!strcmp(txt, "pure")) {
+                    if (got_pure) {
+                        add_parse_error(ctx,
+                                        c4m_err_parse_extern_dup,
+                                        c4m_new_utf8("pure"));
+                    }
+                    got_pure = true;
+
                     extern_pure(ctx);
                     continue;
                 }
                 if (!strcmp(txt, "holds")) {
+                    if (got_holds) {
+                        add_parse_error(ctx,
+                                        c4m_err_parse_extern_dup,
+                                        c4m_new_utf8("holds"));
+                    }
+                    got_holds = true;
+
                     extern_holds(ctx);
                     continue;
                 }
                 if (!strcmp(txt, "allocs")) {
+                    if (got_allocs) {
+                        add_parse_error(ctx,
+                                        c4m_err_parse_extern_dup,
+                                        c4m_new_utf8("allocs"));
+                    }
+                    got_allocs = true;
+
                     extern_allocs(ctx);
                     continue;
                 }
@@ -1681,7 +1748,7 @@ static void
 case_body(parse_ctx *ctx)
 {
     c4m_tree_node_t *expr;
-    int              safety_check = 0;
+    volatile int     safety_check = 0;
 
     start_node(ctx, c4m_nt_body, true);
 
@@ -2659,7 +2726,7 @@ invalid_field_part(parse_ctx *ctx)
 static void
 field_property(parse_ctx *ctx)
 {
-    char *txt = identifier_text(tok_cur(ctx))->data;
+    char *txt = c4m_identifier_text(tok_cur(ctx))->data;
 
     switch (txt[0]) {
     case 'c':
@@ -2741,7 +2808,7 @@ field_property(parse_ctx *ctx)
 static void
 field_spec(parse_ctx *ctx)
 {
-    int safety_check = 0;
+    volatile int safety_check = 0;
 
     start_node(ctx, c4m_nt_field_spec, true);
     identifier(ctx);
@@ -2793,7 +2860,7 @@ field_spec(parse_ctx *ctx)
 static void
 section_property(parse_ctx *ctx)
 {
-    char *txt = identifier_text(tok_cur(ctx))->data;
+    char *txt = c4m_identifier_text(tok_cur(ctx))->data;
 
     switch (txt[0]) {
     case 'u':
@@ -2867,7 +2934,7 @@ invalid_sec_part:
 static void
 object_spec(parse_ctx *ctx, c4m_utf8_t *txt)
 {
-    int safety_check = 0;
+    volatile int safety_check = 0;
 
     start_node(ctx, c4m_nt_section_spec, false);
     // if this isn't the root section, we read a name.
@@ -2907,7 +2974,7 @@ object_spec(parse_ctx *ctx, c4m_utf8_t *txt)
                 consume(ctx);
                 continue;
             case c4m_tt_identifier:
-                if (!strcmp(identifier_text(tok_cur(ctx))->data, "field")) {
+                if (!strcmp(c4m_identifier_text(tok_cur(ctx))->data, "field")) {
                     field_spec(ctx);
                     continue;
                 }
@@ -2958,7 +3025,7 @@ confspec_block(parse_ctx *ctx)
             consume(ctx);
             continue;
         case c4m_tt_identifier:
-            txt = identifier_text(tok_cur(ctx));
+            txt = c4m_identifier_text(tok_cur(ctx));
             if (!strcmp(txt->data, "named")
                 || !strcmp(txt->data, "singleton")
                 || !strcmp(txt->data, "root")) {
@@ -3790,7 +3857,7 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
 {
     // TODO: should 100% have docstrings be a constexpr instead
     // of just a string literal as the only option.
-    int              safety_check = 0;
+    volatile int     safety_check = 0;
     c4m_tree_node_t *expr;
 
     opt_one_newline(ctx);
@@ -4332,12 +4399,23 @@ c4m_parse_type(c4m_file_compile_ctx *file_ctx)
     return true;
 }
 
+static void
+c4m_pnode_set_gc_bits(uint64_t *bitfield, int alloc_words)
+{
+    int ix;
+
+    c4m_set_object_header_bits(bitfield, &ix);
+    // First 8 words of the pnode are pointers.
+    *bitfield |= (0xff << ix);
+}
+
 const c4m_vtable_t c4m_parse_node_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)parse_node_init,
         // Explicit because some compilers don't seem to always properly
         // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
+        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)c4m_pnode_set_gc_bits,
         [C4M_BI_FINALIZER]   = NULL,
         NULL,
     },

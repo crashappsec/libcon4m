@@ -579,6 +579,7 @@ base_int_fmt(__int128_t v, c4m_fmt_spec_t *spec, c4m_codepoint_t default_type)
 
                 repr[--n] = (val % 10) + '0';
                 val /= 10;
+                processed_digits++;
             }
         }
         break;
@@ -865,6 +866,7 @@ const c4m_vtable_t c4m_u8_type = {
         [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
         [C4M_BI_COERCE]       = (c4m_vtable_entry)any_int_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)u8_parse,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_OBJ,
         // Explicit because some compilers don't seem to always properly
         // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
         [C4M_BI_FINALIZER]    = NULL,
@@ -880,6 +882,7 @@ const c4m_vtable_t c4m_i8_type = {
         [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
         [C4M_BI_COERCE]       = (c4m_vtable_entry)any_int_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)i8_parse,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_OBJ,
         [C4M_BI_FINALIZER]    = NULL,
         NULL,
     },
@@ -893,6 +896,7 @@ const c4m_vtable_t c4m_u32_type = {
         [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
         [C4M_BI_COERCE]       = (c4m_vtable_entry)any_int_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)u32_parse,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_OBJ,
         [C4M_BI_FINALIZER]    = NULL,
         NULL,
     },
@@ -906,6 +910,7 @@ const c4m_vtable_t c4m_i32_type = {
         [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
         [C4M_BI_COERCE]       = (c4m_vtable_entry)any_int_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)i32_parse,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_OBJ,
         [C4M_BI_FINALIZER]    = NULL,
         NULL,
     },
@@ -919,6 +924,7 @@ const c4m_vtable_t c4m_u64_type = {
         [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
         [C4M_BI_COERCE]       = (c4m_vtable_entry)any_int_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)u64_parse,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_OBJ,
         [C4M_BI_FINALIZER]    = NULL,
         NULL,
     },
@@ -932,6 +938,7 @@ const c4m_vtable_t c4m_i64_type = {
         [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
         [C4M_BI_COERCE]       = (c4m_vtable_entry)any_int_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)i64_parse,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_OBJ,
         [C4M_BI_FINALIZER]    = NULL,
         NULL,
     },
@@ -945,6 +952,7 @@ const c4m_vtable_t c4m_bool_type = {
         [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
         [C4M_BI_COERCE]       = (c4m_vtable_entry)bool_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)bool_parse,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_OBJ,
         [C4M_BI_FINALIZER]    = NULL,
         NULL,
     },
@@ -958,6 +966,7 @@ const c4m_vtable_t c4m_float_type = {
         [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)any_number_can_coerce_to,
         [C4M_BI_COERCE]       = (c4m_vtable_entry)float_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)f64_parse,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_OBJ,
         [C4M_BI_FINALIZER]    = NULL,
         NULL,
     },

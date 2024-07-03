@@ -10,7 +10,7 @@ extern c4m_utf8_t *c4m_node_type_name(c4m_node_kind_t);
 #ifdef C4M_USE_INTERNAL_API
 
 static inline c4m_utf8_t *
-identifier_text(c4m_token_t *tok)
+c4m_identifier_text(c4m_token_t *tok)
 {
     if (tok->literal_value == NULL) {
         tok->literal_value = c4m_token_raw_content(tok);
@@ -20,7 +20,7 @@ identifier_text(c4m_token_t *tok)
 }
 
 static inline c4m_utf8_t *
-node_text(c4m_tree_node_t *n)
+c4m_node_text(c4m_tree_node_t *n)
 {
     c4m_pnode_t *p = c4m_tree_get_contents(n);
     return c4m_token_raw_content(p->token);
@@ -50,14 +50,14 @@ c4m_node_get_loc_str(c4m_tree_node_t *n)
 }
 
 static inline c4m_utf8_t *
-node_list_join(c4m_xlist_t *nodes, c4m_str_t *joiner, bool trailing)
+c4m_node_list_join(c4m_list_t *nodes, c4m_str_t *joiner, bool trailing)
 {
-    int64_t      n      = c4m_xlist_len(nodes);
-    c4m_xlist_t *strarr = c4m_new(c4m_type_xlist(c4m_type_utf8()));
+    int64_t      n      = c4m_list_len(nodes);
+    c4m_list_t *strarr = c4m_new(c4m_type_list(c4m_type_utf8()));
 
     for (int64_t i = 0; i < n; i++) {
-        c4m_tree_node_t *one = c4m_xlist_get(nodes, i, NULL);
-        c4m_xlist_append(strarr, node_text(one));
+        c4m_tree_node_t *one = c4m_list_get(nodes, i, NULL);
+        c4m_list_append(strarr, c4m_node_text(one));
     }
 
     return c4m_to_utf8(c4m_str_join(strarr,
@@ -66,13 +66,13 @@ node_list_join(c4m_xlist_t *nodes, c4m_str_t *joiner, bool trailing)
 }
 
 static inline int
-node_num_kids(c4m_tree_node_t *t)
+c4m_node_num_kids(c4m_tree_node_t *t)
 {
     return (int)t->num_kids;
 }
 
 static inline c4m_obj_t
-node_simp_literal(c4m_tree_node_t *n)
+c4m_node_simp_literal(c4m_tree_node_t *n)
 {
     c4m_pnode_t *p   = c4m_tree_get_contents(n);
     c4m_token_t *tok = p->token;
@@ -80,59 +80,38 @@ node_simp_literal(c4m_tree_node_t *n)
     return tok->literal_value;
 }
 
-// More consise aliases internally only.
-#define tfind(x, y, ...) _c4m_tpat_find((void *)(int64_t)x, \
-                                        y,                  \
-                                        KFUNC(__VA_ARGS__))
-#define tfind_content(x, y) c4m_tpat_content_find((void *)(int64_t)x, y)
-#define tmatch(x, y, ...)   _c4m_tpat_match((void *)(int64_t)x, \
-                                          y,                    \
-                                          KFUNC(__VA_ARGS__))
-#define tcontent(x, y) c4m_tpat_content_match((void *)(int64_t)x, y)
-#define toptional(x, y, ...) \
-    _c4m_tpat_opt_match((void *)(int64_t)x, y, KFUNC(__VA_ARGS__))
-#define tcount(a, b, c, d, ...) \
-    _c4m_tpat_n_m_match((void *)(int64_t)a, b, c, d, KFUNC(__VA_ARGS__))
-#define tcount_content(a, b, c, d, ...) \
-    c4m_tpat_n_m_content_match((void *)(int64_t)a, b, c, d)
 
-#define get_pnode(x) ((x) ? c4m_tree_get_contents(x) : NULL)
-
-// We use the null value (error) in patterns to match any type node.
-#define nt_any    (c4m_nt_error)
-#define max_nodes 0x7fff
-
-typedef struct pass1_ctx {
+typedef struct c4m_pass1_ctx {
     c4m_tree_node_t      *cur_tnode;
     c4m_pnode_t          *cur;
     c4m_spec_t           *spec;
     c4m_file_compile_ctx *file_ctx;
     c4m_scope_t          *static_scope;
     bool                  in_func;
-    c4m_xlist_t          *extern_decls;
-} pass1_ctx;
+    c4m_list_t          *extern_decls;
+} c4m_pass1_ctx;
 
 static inline c4m_tree_node_t *
-get_match(pass1_ctx *ctx, c4m_tpat_node_t *pattern)
+c4m_get_match(c4m_pass1_ctx *ctx, c4m_tpat_node_t *pattern)
 {
-    return get_match_on_node(ctx->cur_tnode, pattern);
+    return c4m_get_match_on_node(ctx->cur_tnode, pattern);
 }
 
-static inline c4m_xlist_t *
-apply_pattern(pass1_ctx *ctx, c4m_tpat_node_t *pattern)
+static inline c4m_list_t *
+c4m_apply_pattern(c4m_pass1_ctx *ctx, c4m_tpat_node_t *pattern)
 {
-    return apply_pattern_on_node(ctx->cur_tnode, pattern);
+    return c4m_apply_pattern_on_node(ctx->cur_tnode, pattern);
 }
 
 static inline void
-set_current_node(pass1_ctx *ctx, c4m_tree_node_t *n)
+c4m_set_current_node(c4m_pass1_ctx *ctx, c4m_tree_node_t *n)
 {
     ctx->cur_tnode = n;
     ctx->cur       = c4m_tree_get_contents(n);
 }
 
 static inline bool
-node_down(pass1_ctx *ctx, int i)
+c4m_node_down(c4m_pass1_ctx *ctx, int i)
 {
     c4m_tree_node_t *n = ctx->cur_tnode;
 
@@ -141,25 +120,25 @@ node_down(pass1_ctx *ctx, int i)
     }
 
     assert(n->children[i]->parent == n);
-    set_current_node(ctx, n->children[i]);
+    c4m_set_current_node(ctx, n->children[i]);
 
     return true;
 }
 
 static inline void
-node_up(pass1_ctx *ctx)
+c4m_node_up(c4m_pass1_ctx *ctx)
 {
-    set_current_node(ctx, ctx->cur_tnode->parent);
+    c4m_set_current_node(ctx, ctx->cur_tnode->parent);
 }
 
 static inline c4m_node_kind_t
-cur_node_type(pass1_ctx *ctx)
+c4m_cur_node_type(c4m_pass1_ctx *ctx)
 {
     return ctx->cur->kind;
 }
 
 static inline c4m_tree_node_t *
-cur_node(pass1_ctx *ctx)
+c4m_cur_node(c4m_pass1_ctx *ctx)
 {
     return ctx->cur_tnode;
 }

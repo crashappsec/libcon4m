@@ -1,13 +1,13 @@
 #define C4M_USE_INTERNAL_API
 #include "con4m.h"
 
-static c4m_xlist_t *con4m_path       = NULL;
-static c4m_set_t   *con4m_extensions = NULL;
+static c4m_list_t *con4m_path       = NULL;
+static c4m_set_t  *con4m_extensions = NULL;
 
 static void
 init_con4m_path()
 {
-    c4m_xlist_t *parts;
+    c4m_list_t *parts;
 
     c4m_gc_register_root(&con4m_path, 1);
     c4m_gc_register_root(&con4m_extensions, 1);
@@ -20,9 +20,9 @@ init_con4m_path()
 
     if (extra != NULL) {
         parts = c4m_str_xsplit(extra, c4m_new_utf8(":"));
-        for (int i = 0; i < c4m_xlist_len(parts); i++) {
+        for (int i = 0; i < c4m_list_len(parts); i++) {
             c4m_set_add(con4m_extensions,
-                        c4m_to_utf8(c4m_xlist_get(parts, i, NULL)));
+                        c4m_to_utf8(c4m_list_get(parts, i, NULL)));
         }
     }
 
@@ -36,16 +36,16 @@ init_con4m_path()
 
     parts = c4m_str_xsplit(extra, c4m_new_utf8(":"));
 
-    c4m_xlist_t *new_path = c4m_new(c4m_type_xlist(c4m_type_utf8()));
+    c4m_list_t *new_path = c4m_new(c4m_type_list(c4m_type_utf8()));
 
-    for (int i = 0; i < c4m_xlist_len(parts); i++) {
-        c4m_utf8_t *s = c4m_to_utf8(c4m_xlist_get(parts, i, NULL));
+    for (int i = 0; i < c4m_list_len(parts); i++) {
+        c4m_utf8_t *s = c4m_to_utf8(c4m_list_get(parts, i, NULL));
 
-        c4m_xlist_append(new_path, c4m_resolve_path(s));
+        c4m_list_append(new_path, c4m_resolve_path(s));
     }
 
     // Always keep cwd in the path, but put it last.
-    c4m_xlist_append(new_path, c4m_resolve_path(c4m_new_utf8(".")));
+    c4m_list_append(new_path, c4m_resolve_path(c4m_new_utf8(".")));
 
     con4m_path = new_path;
 }
@@ -53,14 +53,14 @@ init_con4m_path()
 void
 _c4m_set_package_search_path(c4m_utf8_t *dir, ...)
 {
-    con4m_path = c4m_new(c4m_type_xlist(c4m_type_utf8()));
+    con4m_path = c4m_new(c4m_type_list(c4m_type_utf8()));
 
     va_list args;
 
     va_start(args, dir);
 
     while (dir != NULL) {
-        c4m_xlist_append(con4m_path, dir);
+        c4m_list_append(con4m_path, dir);
         dir = va_arg(args, c4m_utf8_t *);
     }
 }
@@ -77,17 +77,17 @@ perform_path_search(c4m_utf8_t *package, c4m_utf8_t *module)
     c4m_utf8_t **extensions = c4m_set_items_sort(con4m_extensions, &n_items);
 
     if (package != NULL && c4m_str_codepoint_len(package) != 0) {
-        c4m_xlist_t *parts = c4m_str_xsplit(package, c4m_new_utf8("."));
+        c4m_list_t *parts = c4m_str_xsplit(package, c4m_new_utf8("."));
 
-        c4m_xlist_append(parts, module);
+        c4m_list_append(parts, module);
         munged = c4m_to_utf8(c4m_str_join(parts, c4m_new_utf8("/")));
     }
 
-    int l = (int)c4m_xlist_len(con4m_path);
+    int l = (int)c4m_list_len(con4m_path);
 
     if (munged != NULL) {
         for (int i = 0; i < l; i++) {
-            c4m_str_t *dir = c4m_xlist_get(con4m_path, i, NULL);
+            c4m_str_t *dir = c4m_list_get(con4m_path, i, NULL);
 
             for (int j = 0; j < (int)n_items; j++) {
                 c4m_utf8_t *ext = extensions[j];
@@ -104,7 +104,7 @@ perform_path_search(c4m_utf8_t *package, c4m_utf8_t *module)
     }
     else {
         for (int i = 0; i < l; i++) {
-            c4m_str_t *dir = c4m_xlist_get(con4m_path, i, NULL);
+            c4m_str_t *dir = c4m_list_get(con4m_path, i, NULL);
             for (int j = 0; j < (int)n_items; j++) {
                 c4m_utf8_t *ext = extensions[j];
                 c4m_str_t  *s   = c4m_cstr_format("{}/{}.{}", dir, module, ext);
@@ -194,14 +194,14 @@ get_file_compile_ctx(c4m_compile_ctx *ctx,
         }
     }
     else {
-        struct stat  info;
-        c4m_utf8_t  *tmp    = c4m_resolve_path(path);
-        c4m_xlist_t *pieces = c4m_str_xsplit(tmp, c4m_new_utf8("."));
-        c4m_utf8_t  *last   = c4m_xlist_get(pieces,
-                                         c4m_xlist_len(pieces) - 1,
-                                         NULL);
-        c4m_utf8_t  *tmp2;
-        uint64_t     n_items;
+        struct stat info;
+        c4m_utf8_t *tmp    = c4m_resolve_path(path);
+        c4m_list_t *pieces = c4m_str_xsplit(tmp, c4m_new_utf8("."));
+        c4m_utf8_t *last   = c4m_list_get(pieces,
+                                        c4m_list_len(pieces) - 1,
+                                        NULL);
+        c4m_utf8_t *tmp2;
+        uint64_t    n_items;
 
         last = c4m_to_utf8(last);
 
@@ -232,7 +232,7 @@ get_file_compile_ctx(c4m_compile_ctx *ctx,
     }
 
     result->package   = package;
-    result->errors    = c4m_new(c4m_type_xlist(c4m_type_ref()));
+    result->errors    = c4m_new(c4m_type_list(c4m_type_ref()));
     result->module_id = key;
     result->module    = module;
 
@@ -342,21 +342,21 @@ ctx_init_from_web_uri(c4m_compile_ctx *ctx, c4m_utf8_t *path)
         goto malformed;
     }
 
-    c4m_xlist_t *parts = c4m_str_xsplit(path, c4m_get_slash_const());
-    c4m_utf8_t  *site  = c4m_to_utf8(c4m_xlist_get(parts, 2, NULL));
-    int64_t      n     = c4m_xlist_len(parts);
+    c4m_list_t *parts = c4m_str_xsplit(path, c4m_get_slash_const());
+    c4m_utf8_t *site  = c4m_to_utf8(c4m_list_get(parts, 2, NULL));
+    int64_t     n     = c4m_list_len(parts);
 
     if (n < 4) {
         goto malformed;
     }
 
-    c4m_utf8_t *last = c4m_to_utf8(c4m_xlist_get(parts, n - 1, NULL));
+    c4m_utf8_t *last = c4m_to_utf8(c4m_list_get(parts, n - 1, NULL));
 
     if (c4m_str_codepoint_len(last) == 0) {
         if (n < 5) {
             goto malformed;
         }
-        last = c4m_to_utf8(c4m_xlist_get(parts, n - 2, NULL));
+        last = c4m_to_utf8(c4m_list_get(parts, n - 2, NULL));
     }
 
     c4m_utf8_t *dot = c4m_new_utf8(".");
@@ -369,25 +369,25 @@ ctx_init_from_web_uri(c4m_compile_ctx *ctx, c4m_utf8_t *path)
 
     parts = c4m_str_xsplit(last, dot);
 
-    n = c4m_xlist_len(parts);
+    n = c4m_list_len(parts);
 
     if (n == 2) {
         if (c4m_set_contains(con4m_extensions,
-                             c4m_to_utf8(c4m_xlist_get(parts, 1, NULL)))) {
-            module = c4m_to_utf8(c4m_xlist_get(parts, 0, NULL));
+                             c4m_to_utf8(c4m_list_get(parts, 1, NULL)))) {
+            module = c4m_to_utf8(c4m_list_get(parts, 0, NULL));
             return get_file_compile_ctx(ctx, path, module, NULL, flags, site);
         }
     }
 
-    package = c4m_to_utf8(c4m_xlist_get(parts, 0, NULL));
+    package = c4m_to_utf8(c4m_list_get(parts, 0, NULL));
     n       = n - 1;
 
-    module = c4m_to_utf8(c4m_xlist_get(parts, n, NULL));
+    module = c4m_to_utf8(c4m_list_get(parts, n, NULL));
 
     for (int i = 1; i < n; i++) {
         package = c4m_cstr_format("{}.{}",
                                   package,
-                                  c4m_to_utf8(c4m_xlist_get(parts, i, NULL)));
+                                  c4m_to_utf8(c4m_list_get(parts, i, NULL)));
     }
 
     return get_file_compile_ctx(ctx, path, module, package, flags, site);
@@ -402,17 +402,17 @@ malformed:
 static inline c4m_file_compile_ctx *
 ctx_init_from_file_uri(c4m_compile_ctx *ctx, c4m_utf8_t *path, int ix)
 {
-    int          prefix_len = 0;
-    c4m_utf8_t  *package    = NULL;
-    c4m_utf8_t  *module     = NULL;
-    int          flags      = C4F_FILE | C4F_ADD_TO_QUEUE;
-    c4m_xlist_t *path_parts;
-    int          item_len;
+    int         prefix_len = 0;
+    c4m_utf8_t *package    = NULL;
+    c4m_utf8_t *module     = NULL;
+    int         flags      = C4F_FILE | C4F_ADD_TO_QUEUE;
+    c4m_list_t *path_parts;
+    int         item_len;
 
-    item_len = c4m_xlist_len(con4m_path);
+    item_len = c4m_list_len(con4m_path);
 
     for (int i = 0; i < item_len; i++) {
-        c4m_utf8_t *one = c4m_to_utf8(c4m_xlist_get(con4m_path, i, NULL));
+        c4m_utf8_t *one = c4m_to_utf8(c4m_list_get(con4m_path, i, NULL));
         if (c4m_str_starts_with(path, one)) {
             prefix_len = c4m_str_codepoint_len(one);
             break;
@@ -426,22 +426,22 @@ ctx_init_from_file_uri(c4m_compile_ctx *ctx, c4m_utf8_t *path, int ix)
         // extension, but here we won't care what it is; we just look to
         // see if the last piece has a dot in it.
         path_parts         = c4m_str_xsplit(suffix, c4m_new_utf8("/"));
-        item_len           = c4m_xlist_len(path_parts);
+        item_len           = c4m_list_len(path_parts);
 
-        c4m_xlist_t *module_parts = c4m_str_xsplit(c4m_xlist_get(path_parts,
-                                                                 item_len - 1,
-                                                                 NULL),
-                                                   c4m_new_utf8("."));
+        c4m_list_t *module_parts = c4m_str_xsplit(c4m_list_get(path_parts,
+                                                               item_len - 1,
+                                                               NULL),
+                                                  c4m_new_utf8("."));
 
-        module = c4m_to_utf8(c4m_xlist_get(module_parts, 0, NULL));
+        module = c4m_to_utf8(c4m_list_get(module_parts, 0, NULL));
 
 fill_in_package:
         if (--item_len) {
-            package = c4m_to_utf8(c4m_xlist_get(path_parts, 0, NULL));
+            package = c4m_to_utf8(c4m_list_get(path_parts, 0, NULL));
             for (int i = 1; i < item_len; i++) {
                 package = c4m_cstr_format("{}.{}",
                                           package,
-                                          c4m_xlist_get(path_parts, i, NULL));
+                                          c4m_list_get(path_parts, i, NULL));
             }
         }
     }
@@ -458,17 +458,17 @@ fill_in_package:
         // right of the last slash is the path / module.
 
         path_parts       = c4m_str_xsplit(path, c4m_new_utf8("/"));
-        c4m_utf8_t *last = c4m_xlist_get(path_parts,
-                                         c4m_xlist_len(path_parts) - 1,
-                                         NULL);
+        c4m_utf8_t *last = c4m_list_get(path_parts,
+                                        c4m_list_len(path_parts) - 1,
+                                        NULL);
         path_parts       = c4m_str_xsplit(last, c4m_new_utf8("."));
-        item_len         = c4m_xlist_len(path_parts);
+        item_len         = c4m_list_len(path_parts);
 
         if (item_len == 1) {
             module = c4m_to_utf8(last);
         }
         else {
-            module = c4m_to_utf8(c4m_xlist_get(path_parts, item_len - 2, NULL));
+            module = c4m_to_utf8(c4m_list_get(path_parts, item_len - 2, NULL));
             goto fill_in_package;
         }
     }
@@ -502,7 +502,7 @@ c4m_init_from_use(c4m_compile_ctx *ctx,
                   c4m_str_t       *path)
 {
     c4m_file_compile_ctx *result;
-    c4m_xlist_t          *parts;
+    c4m_list_t           *parts;
     c4m_utf8_t           *provided_path = NULL;
     bool                  error         = false;
 
@@ -517,16 +517,16 @@ c4m_init_from_use(c4m_compile_ctx *ctx,
     }
 
     if (path != NULL) {
-        c4m_xlist_t *parts = c4m_new(c4m_type_xlist(c4m_type_utf8()));
-        provided_path      = path;
+        c4m_list_t *parts = c4m_new(c4m_type_list(c4m_type_utf8()));
+        provided_path     = path;
 
-        c4m_xlist_append(parts, c4m_to_utf8(path));
+        c4m_list_append(parts, c4m_to_utf8(path));
 
         if (package != NULL) {
-            c4m_xlist_append(parts, c4m_to_utf8(package));
+            c4m_list_append(parts, c4m_to_utf8(package));
         }
 
-        c4m_xlist_append(parts, c4m_to_utf8(module));
+        c4m_list_append(parts, c4m_to_utf8(module));
 
         path = c4m_to_utf8(c4m_path_join(parts));
     }
@@ -571,7 +571,7 @@ c4m_new_compile_context(c4m_str_t *input)
     c4m_compile_ctx *result = c4m_gc_alloc(c4m_compile_ctx);
 
     result->module_cache  = c4m_new(c4m_type_dict(c4m_type_u64(),
-                                                  c4m_type_ref()));
+                                                 c4m_type_ref()));
     result->final_attrs   = c4m_new_scope(NULL, C4M_SCOPE_GLOBAL);
     result->final_globals = c4m_new_scope(NULL, C4M_SCOPE_ATTRIBUTES);
     result->final_spec    = c4m_new_spec();
@@ -581,9 +581,9 @@ c4m_new_compile_context(c4m_str_t *input)
     result->const_memos   = c4m_alloc_marshal_memos();
     result->const_memoid  = 1;
     result->instance_map  = c4m_new(c4m_type_dict(c4m_type_ref(),
-                                                  c4m_type_i64()));
+                                                 c4m_type_i64()));
     result->str_map       = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                             c4m_type_i64()));
+                                            c4m_type_i64()));
     result->const_stream  = c4m_buffer_outstream(result->const_data, true);
 
     if (input != NULL) {
@@ -685,7 +685,7 @@ c4m_str_to_type(c4m_utf8_t *str)
 
     if (ctx.parse_tree != NULL) {
         c4m_dict_t *type_ctx = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                                      c4m_type_ref()));
+                                                     c4m_type_ref()));
 
         result = c4m_node_to_type(&ctx, ctx.parse_tree, type_ctx);
     }
@@ -707,9 +707,9 @@ merge_function_decls(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
     items = hatrack_dict_values(scope->symbols, &n);
 
     for (uint64_t i = 0; i < n; i++) {
-        c4m_scope_entry_t *new = items[i];
+        c4m_symbol_t *new = items[i];
 
-        if (new->kind != sk_func &&new->kind != sk_extern_func) {
+        if (new->kind != C4M_SK_FUNC &&new->kind != C4M_SK_EXTERN_FUNC) {
             continue;
         }
         c4m_fn_decl_t *decl = new->value;
@@ -769,7 +769,7 @@ test_ordering(c4m_compile_ctx *cctx)
 
 typedef struct topologic_search_ctx {
     c4m_file_compile_ctx *cur;
-    c4m_xlist_t          *visiting;
+    c4m_list_t           *visiting;
     c4m_compile_ctx      *cctx;
 } tsearch_ctx;
 
@@ -778,7 +778,7 @@ topological_order_process(tsearch_ctx *ctx)
 {
     c4m_file_compile_ctx *cur = ctx->cur;
 
-    if (c4m_xlist_contains(ctx->visiting, cur)) {
+    if (c4m_list_contains(ctx->visiting, cur)) {
         // Cycle. I intend to add an info message here, otherwise
         // could avoid popping and just get this down to one test.
         return;
@@ -786,23 +786,23 @@ topological_order_process(tsearch_ctx *ctx)
 
     // If it already got added to the partial ordering, we don't need to
     // process it when it gets re-imported somewhere else.
-    if (c4m_xlist_contains(ctx->cctx->module_ordering, cur)) {
+    if (c4m_list_contains(ctx->cctx->module_ordering, cur)) {
         return;
     }
 
     if (cur->imports == NULL || cur->imports->symbols == NULL) {
-        c4m_xlist_append(ctx->cctx->module_ordering, cur);
+        c4m_list_append(ctx->cctx->module_ordering, cur);
         return;
     }
 
-    c4m_xlist_append(ctx->visiting, cur);
+    c4m_list_append(ctx->visiting, cur);
 
     uint64_t              num_imports;
     hatrack_dict_value_t *imports = hatrack_dict_values(cur->imports->symbols,
                                                         &num_imports);
 
     for (uint64_t i = 0; i < num_imports; i++) {
-        c4m_scope_entry_t    *sym  = imports[i];
+        c4m_symbol_t         *sym  = imports[i];
         c4m_tree_node_t      *n    = sym->declaration_node;
         c4m_pnode_t          *pn   = c4m_tree_get_contents(n);
         c4m_file_compile_ctx *next = (c4m_file_compile_ctx *)pn->value;
@@ -817,11 +817,11 @@ topological_order_process(tsearch_ctx *ctx)
         }
     }
 
-    c4m_file_compile_ctx *popped = c4m_xlist_pop(ctx->visiting);
+    c4m_file_compile_ctx *popped = c4m_list_pop(ctx->visiting);
 
     assert(popped == cur);
 
-    c4m_xlist_append(ctx->cctx->module_ordering, cur);
+    c4m_list_append(ctx->cctx->module_ordering, cur);
 }
 
 static void
@@ -839,11 +839,11 @@ build_topological_ordering(c4m_compile_ctx *cctx)
 
     tsearch_ctx search_state = {
         .cur      = cctx->entry_point,
-        .visiting = c4m_new(c4m_type_xlist(c4m_type_ref())),
+        .visiting = c4m_new(c4m_type_list(c4m_type_ref())),
         .cctx     = cctx,
     };
 
-    cctx->module_ordering = c4m_new(c4m_type_xlist(c4m_type_ref()));
+    cctx->module_ordering = c4m_new(c4m_type_list(c4m_type_ref()));
 
     topological_order_process(&search_state);
 }
@@ -857,8 +857,8 @@ merge_one_plain_scope(c4m_compile_ctx      *cctx,
 {
     uint64_t              num_symbols;
     hatrack_dict_value_t *items;
-    c4m_scope_entry_t    *new_sym;
-    c4m_scope_entry_t    *old_sym;
+    c4m_symbol_t         *new_sym;
+    c4m_symbol_t         *old_sym;
 
     items = hatrack_dict_values(local->symbols, &num_symbols);
 
@@ -1021,7 +1021,7 @@ merge_one_confspec(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
 static void
 merge_global_info(c4m_compile_ctx *cctx)
 {
-    c4m_file_compile_ctx *fctx;
+    c4m_file_compile_ctx *fctx = NULL;
 
     build_topological_ordering(cctx);
 
@@ -1029,10 +1029,10 @@ merge_global_info(c4m_compile_ctx *cctx)
     test_ordering(cctx);
 #endif
 
-    uint64_t mod_len = c4m_xlist_len(cctx->module_ordering);
+    uint64_t mod_len = c4m_list_len(cctx->module_ordering);
 
     for (uint64_t i = 0; i < mod_len; i++) {
-        fctx = c4m_xlist_get(cctx->module_ordering, i, NULL);
+        fctx = c4m_list_get(cctx->module_ordering, i, NULL);
 
         assert(fctx->local_module_id == 0 || fctx->local_module_id == i);
 
@@ -1040,9 +1040,8 @@ merge_global_info(c4m_compile_ctx *cctx)
 
         merge_var_scope(cctx, fctx);
         merge_one_confspec(cctx, fctx);
+        merge_attrs(cctx, fctx);
     }
-
-    merge_attrs(cctx, fctx);
 }
 
 c4m_compile_ctx *

@@ -3,7 +3,7 @@
 
 extern c4m_obj_t *c4m_stream_raw_read(c4m_stream_t *, int64_t, char *);
 extern size_t     c4m_stream_raw_write(c4m_stream_t *, int64_t, char *);
-extern void       _c4m_stream_write_object(c4m_stream_t *, c4m_obj_t, bool);
+extern void       c4m_stream_write_object(c4m_stream_t *, c4m_obj_t, bool);
 extern bool       c4m_stream_at_eof(c4m_stream_t *);
 extern int64_t    c4m_stream_get_location(c4m_stream_t *);
 extern void       c4m_stream_set_location(c4m_stream_t *, int64_t);
@@ -12,10 +12,7 @@ extern void       c4m_stream_flush(c4m_stream_t *);
 extern void       _c4m_print(c4m_obj_t, ...);
 extern c4m_obj_t *c4m_stream_read_all(c4m_stream_t *);
 
-#define c4m_stream_write_object(s, o, ...) \
-    _c4m_stream_write_object(s, o, IF(ISEMPTY(__VA_ARGS__))(false) __VA_ARGS__)
-
-#define c4m_print(s, ...) _c4m_print(s, KFUNC(__VA_ARGS__))
+#define c4m_print(s, ...) _c4m_print(s, C4M_VA(__VA_ARGS__))
 
 static inline bool
 c4m_stream_put_binary(c4m_stream_t *s, void *p, uint64_t len)

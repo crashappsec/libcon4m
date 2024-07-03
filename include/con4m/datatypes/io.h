@@ -48,6 +48,7 @@ typedef struct c4m_sb_msg_t {
 typedef struct c4m_sb_heap_t {
     struct c4m_sb_heap_t *next;
     size_t                cur_cell;
+    uint32_t              dummy; // force alignment portably.
     c4m_sb_msg_t          cells[];
 } c4m_sb_heap_t;
 
@@ -74,10 +75,10 @@ typedef struct c4m_subscription_t {
  * If the FD is write-only, then subscribers will not be used.
  */
 typedef struct {
-    int                 fd;
     c4m_sb_msg_t       *first_msg;
     c4m_sb_msg_t       *last_msg;
     c4m_subscription_t *subscribers;
+    int                 fd;
     bool                proxy_close; // close fd when proxy input is closed
 } c4m_party_fd_t;
 
@@ -85,8 +86,8 @@ typedef struct {
  * This is used for listening sockets.
  */
 typedef struct {
-    int             fd;
     c4m_accept_decl accept_cb;
+    int             fd;
     int             saved_flags;
 } c4m_party_listener_t;
 
@@ -106,9 +107,9 @@ typedef struct {
  */
 typedef struct {
     char  *strbuf;
+    char  *tag;  // Used when returning.
     size_t len;  // Length allocated for strbuf
     size_t ix;   // Current length; next write at strbuf + ix
-    char  *tag;  // Used when returning.
     size_t step; // Step for alloc length
 } c4m_party_outstr_t;
 
@@ -190,11 +191,11 @@ typedef struct c4m_party_t {
  */
 typedef struct c4m_monitor_t {
     struct c4m_monitor_t *next;
-    int                   exit_status;
-    pid_t                 pid;
     c4m_party_t          *stdin_fd_party;
     c4m_party_t          *stdout_fd_party;
     c4m_party_t          *stderr_fd_party;
+    int                   exit_status;
+    pid_t                 pid;
     bool                  shutdown_when_closed;
     bool                  closed;
     int                   found_errno;
@@ -208,9 +209,9 @@ typedef struct {
 } c4m_one_capture_t;
 
 typedef struct {
+    c4m_one_capture_t *captures;
     bool               inited;
     int                num_captures;
-    c4m_one_capture_t *captures;
 } c4m_capture_result_t;
 
 /*
@@ -218,6 +219,13 @@ typedef struct {
  * transparent to the user; everything should be dealt with via API.
  */
 typedef struct c4m_switchboard_t {
+    c4m_party_t      *parties_for_reading;
+    c4m_party_t      *parties_for_writing;
+    c4m_party_t      *party_loners;
+    c4m_monitor_t    *pid_watch_list;
+    c4m_sb_msg_t     *freelist;
+    c4m_sb_heap_t    *heap;
+    void             *extra;
     struct timeval   *io_timeout_ptr;
     struct timeval    io_timeout;
     c4m_progress_decl progress_callback;
@@ -227,50 +235,44 @@ typedef struct c4m_switchboard_t {
     fd_set            writeset;
     int               max_fd;
     int               fds_ready;
-    c4m_party_t      *parties_for_reading;
-    c4m_party_t      *parties_for_writing;
-    c4m_party_t      *party_loners;
-    c4m_monitor_t    *pid_watch_list;
-    c4m_sb_msg_t     *freelist;
-    c4m_sb_heap_t    *heap;
     size_t            heap_elems;
-    void             *extra;
     bool              ignore_running_procs_on_shutdown;
 } c4m_switchboard_t;
 
 typedef struct {
-    c4m_switchboard_t sb;
-    bool              run;
-    int               signal_fd;
-    int               pty_fd;
-    bool              pty_stdin_pipe;
-    bool              proxy_stdin_close;
-    bool              use_pty;
-    bool              str_waiting;
-    char             *cmd;
-    char            **argv;
-    char            **envp;
-    char             *path;
-    char              passthrough;
-    bool              pt_all_to_stdout;
-    char              capture;
-    bool              combine_captures; // Combine stdout / err and termout
-    c4m_party_t       str_stdin;
-    c4m_party_t       parent_stdin;
-    c4m_party_t       parent_stdout;
-    c4m_party_t       parent_stderr;
-    c4m_party_t       subproc_stdin;
-    c4m_party_t       subproc_stdout;
-    c4m_party_t       subproc_stderr;
-    c4m_party_t       capture_stdin;
-    c4m_party_t       capture_stdout;
-    c4m_party_t       capture_stderr;
     void (*startup_callback)(void *);
-    c4m_capture_result_t result;
-    struct termios       saved_termcap;
-    struct termios      *parent_termcap;
+    char                *cmd;
+    char               **argv;
+    char               **envp;
+    char                *path;
+    c4m_switchboard_t    sb;
+    bool                 run;
     struct termios      *child_termcap;
     struct c4m_dcb_t    *deferred_cbs;
+    struct termios      *parent_termcap;
+    c4m_capture_result_t result;
+    struct termios       saved_termcap;
+    int                  signal_fd;
+    int                  pty_fd;
+    bool                 pty_stdin_pipe;
+    bool                 proxy_stdin_close;
+    bool                 use_pty;
+    bool                 str_waiting;
+    char                 passthrough;
+    bool                 pt_all_to_stdout;
+    char                 capture;
+    bool                 combine_captures; // Combine stdout / err and termout
+    c4m_party_t          str_stdin;
+    c4m_party_t          parent_stdin;
+    c4m_party_t          parent_stdout;
+    c4m_party_t          parent_stderr;
+    c4m_party_t          subproc_stdin;
+    c4m_party_t          subproc_stdout;
+    c4m_party_t          subproc_stderr;
+    c4m_party_t          capture_stdin;
+    c4m_party_t          capture_stdout;
+    c4m_party_t          capture_stderr;
+
 } c4m_subproc_t;
 
 #define C4M_SP_IO_STDIN  1

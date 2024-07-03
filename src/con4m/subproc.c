@@ -533,9 +533,9 @@ c4m_subproc_spawn_fork(c4m_subproc_t *ctx)
     int   stdout_pipe[2];
     int   stderr_pipe[2];
 
-    pipe(stdin_pipe);
-    pipe(stdout_pipe);
-    pipe(stderr_pipe);
+    if (pipe(stdin_pipe) || pipe(stdout_pipe) || pipe(stderr_pipe)) {
+        C4M_CRAISE("Could not open pipe.");
+    }
 
     pid = fork();
 
@@ -601,7 +601,9 @@ c4m_subproc_spawn_forkpty(c4m_subproc_t *ctx)
     tcgetattr(0, &ctx->saved_termcap);
 
     if (ctx->pty_stdin_pipe) {
-        pipe(stdin_pipe);
+        if (pipe(stdin_pipe)) {
+            C4M_CRAISE("pipe() failed.");
+        }
     }
 
     // We're going to use a pipe for stderr to get a separate

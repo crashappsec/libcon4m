@@ -29,20 +29,40 @@ c4m_base_type_name(const c4m_obj_t *user_object)
     return obj->base_data_type->name;
 }
 
+// The first 2 words are pointers, but the first one is static.
+#define C4M_HEADER_SCAN_CONST 0x02ULL
+
+static inline void
+c4m_set_object_header_bits(uint64_t *bitfield, int *startbit)
+{
+    *bitfield = C4M_HEADER_SCAN_CONST;
+    *startbit = (sizeof(c4m_base_obj_t) / 8);
+}
+
+static inline void
+c4m_set_bit(uint64_t *bitfield, int ix)
+{
+    int word = ix / 64;
+    int bit  = ix % 64;
+
+    bitfield[word] |= (1ULL << bit);
+}
+
+extern void c4m_scan_header_only(uint64_t *, int);
+
 // in object.c
 extern const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS];
 
-#ifdef C4M_GC_TRACE
+#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
 extern c4m_obj_t _c4m_new(char *, int, c4m_type_t *, ...);
 
-#define c4m_new(tid, ...) _c4m_new(__FILE__, __LINE__, tid, KFUNC(__VA_ARGS__))
+#define c4m_new(tid, ...) _c4m_new(__FILE__, __LINE__, tid, C4M_VA(__VA_ARGS__))
 #else
 extern c4m_obj_t _c4m_new(c4m_type_t *type, ...);
 
-#define c4m_new(tid, ...) _c4m_new(tid, KFUNC(__VA_ARGS__))
+#define c4m_new(tid, ...) _c4m_new(tid, C4M_VA(__VA_ARGS__))
 #endif
 
-extern uint64_t   *c4m_gc_ptr_info(c4m_builtin_t);
 extern c4m_str_t  *c4m_repr(void *, c4m_type_t *);
 extern c4m_str_t  *c4m_to_str(void *, c4m_type_t *);
 extern bool        c4m_can_coerce(c4m_type_t *, c4m_type_t *);
@@ -66,13 +86,12 @@ extern void        c4m_slice_set(c4m_obj_t, int64_t, int64_t, c4m_obj_t);
 extern c4m_str_t  *c4m_value_obj_repr(c4m_obj_t);
 extern c4m_str_t  *c4m_value_obj_to_str(c4m_obj_t);
 extern c4m_type_t *c4m_get_item_type(c4m_obj_t);
-extern void       *c4m_get_view(c4m_obj_t, uint64_t *);
+extern void       *c4m_get_view(c4m_obj_t, int64_t *);
 extern c4m_obj_t   c4m_container_literal(c4m_type_t *,
-                                         c4m_xlist_t *,
+                                         c4m_list_t *,
                                          c4m_utf8_t *);
 extern void        c4m_finalize_allocation(c4m_base_obj_t *);
 
-extern const uint64_t     str_ptr_info[];
 extern const c4m_vtable_t c4m_i8_type;
 extern const c4m_vtable_t c4m_u8_type;
 extern const c4m_vtable_t c4m_i32_type;
@@ -86,14 +105,14 @@ extern const c4m_vtable_t c4m_u32str_vtable;
 extern const c4m_vtable_t c4m_buffer_vtable;
 extern const c4m_vtable_t c4m_grid_vtable;
 extern const c4m_vtable_t c4m_renderable_vtable;
-extern const c4m_vtable_t c4m_list_vtable;
+extern const c4m_vtable_t c4m_flexarray_vtable;
 extern const c4m_vtable_t c4m_queue_vtable;
 extern const c4m_vtable_t c4m_ring_vtable;
 extern const c4m_vtable_t c4m_logring_vtable;
 extern const c4m_vtable_t c4m_stack_vtable;
 extern const c4m_vtable_t c4m_dict_vtable;
 extern const c4m_vtable_t c4m_set_vtable;
-extern const c4m_vtable_t c4m_xlist_vtable;
+extern const c4m_vtable_t c4m_list_vtable;
 extern const c4m_vtable_t c4m_sha_vtable;
 extern const c4m_vtable_t c4m_render_style_vtable;
 extern const c4m_vtable_t c4m_exception_vtable;

@@ -148,7 +148,7 @@ c4m_add_static_function(c4m_utf8_t *name, void *symbol)
 }
 
 void *
-c4m_ffi_find_symbol(c4m_utf8_t *name, c4m_xlist_t *opt_libs)
+c4m_ffi_find_symbol(c4m_utf8_t *name, c4m_list_t *opt_libs)
 {
     ffi_init();
 
@@ -165,10 +165,10 @@ c4m_ffi_find_symbol(c4m_utf8_t *name, c4m_xlist_t *opt_libs)
     }
 
     if (opt_libs == NULL) {
-        int n = c4m_xlist_len(opt_libs);
+        int n = c4m_list_len(opt_libs);
 
         for (int i = 0; i < n; i++) {
-            c4m_utf8_t *s = c4m_xlist_get(opt_libs, i, NULL);
+            c4m_utf8_t *s = c4m_list_get(opt_libs, i, NULL);
             if (dlopen(s->data, RTLD_NOW | RTLD_GLOBAL) != NULL) {
                 ptr = dlsym(RTLD_DEFAULT, name->data);
                 if (ptr != NULL) {

@@ -3,6 +3,8 @@
 
 #define C4M_FORCED_ALIGNMENT 16
 
+typedef void (*c4m_mem_scan_fn)(uint64_t *, int);
+
 typedef struct c4m_alloc_hdr {
     // A guard value added to every allocation so that cross-heap
     // memory accesses can scan backwards (if needed) to determine if
@@ -13,7 +15,7 @@ typedef struct c4m_alloc_hdr {
     //
     // The guard value is picked once per runtime by reading from
     // /dev/urandom, to make sure that we do not start adding
-    // references in memory to it.
+    // references  in memory to it.
     uint64_t              guard;
     //
     // When scanning memory allocations in the object's current arena,
@@ -55,10 +57,10 @@ typedef struct c4m_alloc_hdr {
     // represent the words of the data structure, in order, and whether
     // they contain a pointer to track (such pointers MUST be 64-bit
     // aligned).
-    //
-    // The map doesn't need to be as long as the data structure; it only
-    // needs to be long enough to capture all pointers to track in it.
-    uint64_t             *ptr_map;
+    // If this function exists, it's passed the # of words in the alloc
+    // and a pointer to a bitfield that contains that many bits. The
+    // bits that correspond to words with pointers should be set.
+    c4m_mem_scan_fn       scan_fn;
 
 #if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
     char *alloc_file;
@@ -75,8 +77,8 @@ typedef struct c4m_finalizer_info_t {
 } c4m_finalizer_info_t;
 
 typedef struct {
-    uint64_t num_items;
     void    *ptr;
+    uint64_t num_items;
 #ifdef C4M_GC_STATS
     char *file;
     int   line;
@@ -94,7 +96,8 @@ typedef struct c4m_arena_t {
     //    queue_t            *late_mutations;
     uint64_t             *heap_end;
     c4m_finalizer_info_t *to_finalize;
-    uint32_t              arena_id;
+    uint32_t              alloc_count;
+    uint32_t              largest_alloc;
     bool                  grow_next;
 #ifdef C4M_GC_STATS
     uint64_t legacy_count;

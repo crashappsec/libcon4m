@@ -321,18 +321,38 @@ static const c4m_render_style_t default_em = {
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_ITALIC | 0x0ff2f8eUL,
 };
 
-// Third word of render styles is a pointer.
-const uint64_t c4m_rs_pmap[2] = {
-    0x1,
-    0x0b00000000000000,
+static const c4m_render_style_t default_callout_cell = {
+    .name         = "callout_cell",
+    .top_pad      = 1,
+    .bottom_pad   = 1,
+    .left_pad     = 0,
+    .right_pad    = 0,
+    .alignment    = C4M_ALIGN_BOTTOM_CENTER,
+    .dim_kind     = C4M_DIM_PERCENT_TRUNCATE,
+    .dims.percent = 90,
 };
+
+static const c4m_render_style_t default_callout = {
+    .name       = "callout",
+    .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_BG | C4M_STY_BOLD | 0xff2f8eb3ff00UL,
+    .top_pad    = 2,
+    .bottom_pad = 2,
+    .alignment  = C4M_ALIGN_BOTTOM_CENTER,
+    .dim_kind   = C4M_DIM_FIT_TO_TEXT,
+};
+
+static void
+c4m_rs_gc_bits(uint64_t *bitfield, int alloc_words)
+{
+    c4m_set_bit(bitfield, 0);
+    c4m_set_bit(bitfield, 1);
+}
 
 static inline void
 init_style_db()
 {
     if (style_dictionary == NULL) {
-        style_dictionary = c4m_gc_alloc(c4m_dict_t);
-        hatrack_dict_init(style_dictionary, HATRACK_DICT_KEY_TYPE_CSTR);
+        style_dictionary = c4m_dict(c4m_type_utf8(), c4m_type_ref());
         c4m_gc_register_root(&style_dictionary, 1);
     }
 }
@@ -341,7 +361,7 @@ void
 c4m_set_style(char *name, c4m_render_style_t *style)
 {
     init_style_db();
-    hatrack_dict_put(style_dictionary, name, style);
+    hatrack_dict_put(style_dictionary, c4m_new_utf8(name), style);
 }
 
 // Returns a COPY of the style so that it doesn't get accidentially
@@ -351,14 +371,16 @@ c4m_lookup_cell_style(char *name)
 {
     init_style_db();
 
-    c4m_render_style_t *entry = hatrack_dict_get(style_dictionary, name, NULL);
+    c4m_render_style_t *entry = hatrack_dict_get(style_dictionary,
+                                                 c4m_new_utf8(name),
+                                                 NULL);
 
     if (!entry) {
         return NULL;
     }
 
     c4m_render_style_t *result = c4m_gc_alloc_mapped(c4m_render_style_t,
-                                                     &c4m_rs_pmap[0]);
+                                                     c4m_rs_gc_bits);
     memcpy(result, entry, sizeof(c4m_render_style_t));
     return result;
 }
@@ -429,8 +451,7 @@ c4m_style_init(c4m_render_style_t *style, va_list args)
     }
 
     if (wrap_hang != -1 && disable_wrap) {
-        printf("Cannot set 'wrap_hang' and 'disable_wrap' at once.\n");
-        abort();
+        C4M_CRAISE("Cannot set 'wrap_hang' and 'disable_wrap' at once.\n");
     }
 
     if (fg_color != -1) {
@@ -680,8 +701,10 @@ c4m_style_exists(char *name)
         return 0;
     }
 
+    c4m_utf8_t *s = c4m_new_utf8(name);
+
     init_style_db();
-    return hatrack_dict_get(style_dictionary, name, NULL) != NULL;
+    return hatrack_dict_get(style_dictionary, s, NULL) != NULL;
 }
 
 void
@@ -715,6 +738,8 @@ c4m_install_default_styles()
     c4m_set_style("flow", (c4m_render_style_t *)&default_flow);
     c4m_set_style("error_grid", (c4m_render_style_t *)&default_error_grid);
     c4m_set_style("em", (c4m_render_style_t *)&default_em);
+    c4m_set_style("callout_cell", (c4m_render_style_t *)&default_callout_cell);
+    c4m_set_style("callout", (c4m_render_style_t *)&default_callout);
 }
 
 const c4m_vtable_t c4m_render_style_vtable = {
@@ -723,6 +748,7 @@ const c4m_vtable_t c4m_render_style_vtable = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_style_init,
         [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_style_marshal,
         [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_style_unmarshal,
+        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)C4M_GC_SCAN_OBJ,
         // Explicit because some compilers don't seem to always properly
         // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
         [C4M_BI_FINALIZER]   = NULL,

@@ -21,15 +21,15 @@ extern c4m_cfg_node_t *c4m_cfg_add_break(c4m_cfg_node_t *,
                                          c4m_utf8_t *);
 extern c4m_cfg_node_t *c4m_cfg_add_def(c4m_cfg_node_t *,
                                        c4m_tree_node_t *,
-                                       c4m_scope_entry_t *,
-                                       c4m_xlist_t *);
+                                       c4m_symbol_t *,
+                                       c4m_list_t *);
 extern c4m_cfg_node_t *c4m_cfg_add_call(c4m_cfg_node_t *,
                                         c4m_tree_node_t *,
-                                        c4m_scope_entry_t *,
-                                        c4m_xlist_t *);
+                                        c4m_symbol_t *,
+                                        c4m_list_t *);
 extern c4m_cfg_node_t *c4m_cfg_add_use(c4m_cfg_node_t *,
                                        c4m_tree_node_t *,
-                                       c4m_scope_entry_t *);
+                                       c4m_symbol_t *);
 extern c4m_grid_t     *c4m_cfg_repr(c4m_cfg_node_t *);
 extern void            c4m_cfg_analyze(c4m_file_compile_ctx *, c4m_dict_t *);
 
