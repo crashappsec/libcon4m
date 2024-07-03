@@ -1,0 +1,10 @@
+"""
+Make sure stack traces do something.
+"""
+"""
+"""
+func crasher(x) {
+ return crasher(x + 1)
+}
+
+crasher(1)

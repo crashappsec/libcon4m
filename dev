@@ -188,7 +188,9 @@ case $1 in
              ;;
     release) meson_build release --buildtype=release
              ;;
-    run)     libcon4m_run_tests $@
+    run)
+             set -e
+             libcon4m_run_tests $@
              CODE=$?
              if [[ $CODE -eq 0 ]] ; then
                  log "CI/CD tests passed."
