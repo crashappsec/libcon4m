@@ -1,0 +1,25 @@
+FROM ubuntu
+
+ARG LIBCON4M_REPO=/libcon4m
+
+WORKDIR $LIBCON4M_REPO
+COPY ./ $LIBCON4M_REPO
+
+# llvm.sh needs tools to install clang-18
+RUN apt-get update && apt upgrade
+RUN apt-get install -y \
+    lsb-release \
+    wget \
+    software-properties-common \
+    gnupg
+
+RUN wget https://apt.llvm.org/llvm.sh
+RUN chmod u+x llvm.sh
+RUN ./llvm.sh 18
+
+# meson install + crypto
+RUN apt-get install -y \
+    meson \
+    libssl-dev
+
+ENTRYPOINT [ "./scripts/run_tests.sh" ]
