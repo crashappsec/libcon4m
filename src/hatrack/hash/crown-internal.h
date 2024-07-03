@@ -10,7 +10,7 @@ typedef uint32_t hop_t;
 
 #else
 
-#define CROWN_HOME_BIT 0x8000000000000000
+#define CROWN_HOME_BIT 0x8000000000000000ULL
 
 typedef uint64_t hop_t;
 
@@ -19,10 +19,10 @@ typedef uint64_t hop_t;
 #endif
 
 enum64(crown_flag_t,
-       CROWN_F_MOVING   = 0x8000000000000000,
-       CROWN_F_MOVED    = 0x4000000000000000,
-       CROWN_F_INITED   = 0x2000000000000000,
-       CROWN_EPOCH_MASK = 0x1fffffffffffffff);
+       CROWN_F_MOVING   = 0x8000000000000000ULL,
+       CROWN_F_MOVED    = 0x4000000000000000ULL,
+       CROWN_F_INITED   = 0x2000000000000000ULL,
+       CROWN_EPOCH_MASK = 0x1fffffffffffffffULL);
 
 /* These need to be non-static because tophat and hatrack_dict both
  * need them, so that they can call in without a second call to

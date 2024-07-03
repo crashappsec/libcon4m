@@ -1172,15 +1172,18 @@ handle_if(pass2_ctx *ctx)
         handle_else(ctx, else_match);
     }
     ctx->cfg = c4m_cfg_exit_block(ctx->cfg, branch_enter, NULL);
-
     ctx->cfg = c4m_cfg_exit_block(ctx->cfg, enter, saved);
 }
 
 static bool
-range_runs_check(c4m_tree_node_t *n)
+range_runs_check(pass2_ctx *ctx, c4m_tree_node_t *n)
 {
     c4m_pnode_t *pnode1 = c4m_get_pnode(n->children[0]);
     c4m_pnode_t *pnode2 = c4m_get_pnode(n->children[1]);
+
+    if (c4m_type_is_error(get_pnode_type(n))) {
+        return false;
+    }
 
     if (!pnode1->value || !pnode2->value) {
         return false;
@@ -1409,7 +1412,7 @@ handle_for(pass2_ctx *ctx)
     // the items are constant integers and not the same, we will
     // always run the loop.
 
-    if (!li->ranged || !range_runs_check(container_node)) {
+    if (!li->ranged || !range_runs_check(ctx, container_node)) {
         bstart   = c4m_cfg_enter_block(ctx->cfg, n);
         ctx->cfg = c4m_cfg_exit_block(bstart, bstart, n);
     }

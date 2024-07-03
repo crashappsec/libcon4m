@@ -57,6 +57,7 @@ styled_repeat(c4m_codepoint_t c, uint32_t width, c4m_style_t style)
 static inline c4m_utf32_t *
 get_styled_pad(uint32_t width, c4m_style_t style)
 {
+    assert(width < 200);
     return styled_repeat(' ', width, style);
 }
 
@@ -559,7 +560,7 @@ static int16_t *
 calculate_col_widths(c4m_grid_t *grid, int16_t width, int16_t *render_width)
 {
     size_t              term_width;
-    int16_t            *result = c4m_gc_array_value_alloc(uint16_t,
+    int16_t            *result = c4m_gc_array_value_alloc(uint64_t,
                                                grid->num_cols);
     int16_t             sum    = get_column_render_overhead(grid);
     c4m_render_style_t *props;
@@ -1514,7 +1515,8 @@ grid_add_cell_contents(c4m_grid_t *grid,
                                                            NULL));
             if (!c4m_str_codepoint_len(piece)) {
                 c4m_style_t pad_style = c4m_get_pad_style(grid_style(grid));
-                piece                 = get_styled_pad(col_widths[i],
+                assert(col_widths[i] < 1024);
+                piece = get_styled_pad(col_widths[i],
                                        pad_style);
             }
             c4m_list_set(lines, i, c4m_str_concat(s, piece));

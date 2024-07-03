@@ -184,6 +184,7 @@ case $1 in
     build)   meson_build build --buildtype=plain
              ;;
     debug)   meson_build debug --buildtype=debug
+             meson configure debug -Duse_ubsan=true -Duse_asan=true -Duse_memcheck=true
              debug_it
              ;;
     release) meson_build release --buildtype=release

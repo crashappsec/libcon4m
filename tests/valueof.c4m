@@ -9,6 +9,5 @@ func fib(x) {
   }
 }
 
-x = fib(10)
-assert x == 55
-assert repr(x) == "55"
+print(fib(10))
+

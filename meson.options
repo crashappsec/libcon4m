@@ -1,0 +1,7 @@
+option('use_asan', type: 'boolean', value: false)
+option('use_ubsan', type: 'boolean', value: false)
+option('build_hatrack', type: 'boolean', value: false)
+option('use_memcheck', type: 'boolean', value: false)
+option('build_con4m_dll', type: 'boolean', value: false)
+# Currently, if this isn't on, there's an issue.
+option('show_gc_stats', type: 'boolean', value: true)

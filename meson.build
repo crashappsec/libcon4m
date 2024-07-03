@@ -62,17 +62,27 @@ if (get_option('buildtype') == 'release')
    link_args = link_args + ['-flto']
 endif
 
-
-
-if (get_option('buildtype') == 'debug')
+if (get_option('use_asan') == true)
   c_args = c_args + ['-fsanitize=address',
-                     '-fsanitize=undefined',
-                     '-fsanitize-recover=all',
+                     '-fsanitize-recover=all'
                      ]
   link_args = link_args + ['-fsanitize=address',
-                           '-fsanitize=undefined',
                            '-fsanitize-recover=all'
                            ]
+endif
+
+if (get_option('use_ubsan') == true)
+  c_args = c_args + ['-fsanitize=undefined',
+                   '-fsanitize-recover=all'
+                   ]
+endif
+
+if (get_option('use_memcheck') == true)
+  c_args = c_args + ['-DC4M_FULL_MEMCHECK']
+endif
+
+if (get_option('show_gc_stats') == true)
+  c_args = c_args + ['-DC4M_GC_STATS']
 endif
 
 
@@ -226,12 +236,14 @@ libhat = static_library('hatrack',
                         c_args : c_args,
                         link_args : link_args)
 
-# library('con4m-dll',
-#         lib_src,
-#         include_directories : incdir,
-#         dependencies : all_deps,
-#         c_args : c4m_c_args,
-#         link_args: link_args)
+if get_option('build_con4m_dll') == true
+  library('con4m-dll',
+          lib_src,
+          include_directories : incdir,
+          dependencies : all_deps,
+          c_args : c4m_c_args,
+          link_args: link_args)
+endif
 
 executable('c4test', test_src,
                       include_directories : incdir,
@@ -240,9 +252,11 @@ executable('c4test', test_src,
                       link_args : exe_link_args,
                       link_with : libc4m)
 
-# executable('hash', hash_test_src,
-#            include_directories : incdir,
-#            dependencies : all_deps,
-#            link_args : exe_link_args,
-#            link_with : libhat,
-#            c_args : exe_c_args)
+if get_option('build_hatrack') == true
+  executable('hash', hash_test_src,
+             include_directories : incdir,
+             dependencies : all_deps,
+             link_args : exe_link_args,
+             link_with : libhat,
+             c_args : exe_c_args)
+endif

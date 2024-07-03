@@ -158,7 +158,7 @@ Additionally, type names are all contextual keywords.
 The following are punctuation tokens that will eat one trailing newline:
 
 ```
-+ += - -= -> * *= / /= % %= < <= << <<= > >= >> >>= ! != , . { [ ( & &= | |= ^ ^= = :
++ += - -= -> * *= / /= % %= < <= << <<= > >= >> >>= ! != , . { [ ( & &= | |= ^ ^= = 
 ```
 
 The following punctuation tokens do NOT eat a following newline:

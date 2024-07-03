@@ -32,7 +32,7 @@ c4m_custom_string_hash(c4m_str_t *s)
         c4m_gc_register_root(&c4m_null_string, 1);
     }
 
-    hatrack_hash_t *cache = (void *)(((char *)s) + C4M_HASH_CACHE_OFFSET);
+    hatrack_hash_t *cache = (void *)(((char *)s) + C4M_HASH_CACHE_OBJ_OFFSET);
 
     hv.local_hv = *cache;
 
@@ -60,18 +60,22 @@ c4m_dict_init(c4m_dict_t *dict, va_list args)
     c4m_list_t    *type_params;
     c4m_type_t    *key_type;
     c4m_dt_info_t *info;
+    bool           using_obj     = false;
     c4m_type_t    *c4m_dict_type = c4m_get_my_type(dict);
 
     if (c4m_dict_type != NULL) {
         type_params = c4m_type_get_params(c4m_dict_type);
         key_type    = c4m_list_get(type_params, 0, NULL);
         info        = c4m_type_get_data_type_info(key_type);
-
-        hash_fn = info->hash_fn;
+        hash_fn     = info->hash_fn;
     }
-
     else {
         hash_fn = va_arg(args, size_t);
+    }
+
+    if (hash_fn == HATRACK_DICT_KEY_TYPE_PTR && info->typeid != C4M_T_REF) {
+        using_obj = true;
+        hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR;
     }
 
     hatrack_dict_init(dict, hash_fn);
@@ -88,10 +92,15 @@ c4m_dict_init(c4m_dict_t *dict, va_list args)
     case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
     case HATRACK_DICT_KEY_TYPE_OBJ_INT:
     case HATRACK_DICT_KEY_TYPE_OBJ_REAL:
-        hatrack_dict_set_cache_offset(dict, C4M_HASH_CACHE_OFFSET);
+	if (using_obj) {
+	    hatrack_dict_set_cache_offset(dict, C4M_HASH_CACHE_OBJ_OFFSET);
+	}
+	else {
+	    hatrack_dict_set_cache_offset(dict, C4M_HASH_CACHE_RAW_OFFSET);
+	}
         break;
     default:
-        // nada.
+	break;
     }
 
     dict->slow_views = false;

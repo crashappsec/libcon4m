@@ -1634,7 +1634,7 @@ c4m_vm_reset(c4m_vm_t *vm)
                                              NULL);
 
         vm->module_allocations[n] = c4m_gc_array_alloc(c4m_value_t,
-                                                       m->module_var_size);
+                                                       m->module_var_size + 8);
     }
 
     vm->attrs        = c4m_new(c4m_type_dict(c4m_type_utf8(),

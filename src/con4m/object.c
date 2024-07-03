@@ -18,7 +18,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     [C4M_T_BOOL] = {
         .name      = "bool",
         .typeid    = C4M_T_BOOL,
-        .alloc_len = 4,
+        .alloc_len = 1,
         .vtable    = &c4m_bool_type,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_INT,
@@ -424,7 +424,7 @@ _c4m_new(c4m_type_t *type, ...)
     c4m_obj_t        result;
     va_list          args;
     c4m_dt_info_t   *tinfo     = type->details->base_type;
-    uint64_t         alloc_len = tinfo->alloc_len + sizeof(c4m_obj_t);
+    uint64_t         alloc_len = tinfo->alloc_len + sizeof(c4m_base_obj_t);
     c4m_vtable_entry init_fn   = tinfo->vtable->methods[C4M_BI_CONSTRUCTOR];
 
 #if defined(C4M_GC_STATS) || defined(C4M_DEBUG)

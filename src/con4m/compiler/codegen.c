@@ -1718,7 +1718,7 @@ gen_binary_assign(gen_ctx *ctx)
         gen_tcall(ctx, C4M_BI_INDEX_SET, ctx->cur_pnode->type);
         break;
     default:
-        // TODO: disallow slice assignments and tuple assignments here..
+        // TODO: disallow slice assignments and tuple assignments here.
         c4m_unreachable();
     }
 }

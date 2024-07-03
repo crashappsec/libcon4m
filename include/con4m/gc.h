@@ -127,10 +127,8 @@
 
 #ifndef C4M_DEFAULT_ARENA_SIZE
 
-#define C4M_DEFAULT_ARENA_SIZE (1 << 26)
-// Was previously using 1 << 19
-// But this needs to be much bigger than the stack size; 21 is probably
-// the minimum value without adjusting the stack.
+// This is the size any test case that prints a thing grows to awfully fast.
+#define C4M_DEFAULT_ARENA_SIZE (1 << 24)
 #endif
 
 // In the future, we would expect that a writer seeing the
@@ -302,8 +300,6 @@ c4m_round_up_to_given_power_of_2(uint64_t power, uint64_t n)
 
 typedef void (*c4m_gc_hook)();
 
-extern void           c4m_get_stack_scan_region(uint64_t *top,
-                                                uint64_t *bottom);
 extern void           c4m_initialize_gc();
 extern void           c4m_gc_heap_stats(uint64_t *, uint64_t *, uint64_t *);
 extern void           c4m_gc_add_hold(c4m_obj_t);
@@ -315,9 +311,40 @@ extern void           c4m_internal_lock_then_unstash_heap();
 extern void           c4m_get_heap_bounds(uint64_t *, uint64_t *, uint64_t *);
 extern void           c4m_gc_register_collect_fns(c4m_gc_hook, c4m_gc_hook);
 extern c4m_alloc_hdr *c4m_find_alloc(void *);
+extern bool           c4m_in_heap(void *);
 
 #ifdef C4M_GC_STATS
 uint64_t c4m_get_alloc_counter();
 #else
 #define c4m_get_alloc_counter() (0)
+#endif
+
+#ifdef C4M_FULL_MEMCHECK
+void c4m_alloc_display_front_guard_error(c4m_alloc_hdr *, void *, char *, int, bool);
+void c4m_alloc_display_rear_guard_error(c4m_alloc_hdr *, void *, int, void *, char *, int, bool);
+
+void _c4m_memcheck_raw_alloc(void *, char *, int);
+void _c4m_memcheck_object(c4m_obj_t, char *, int);
+#define c4m_memcheck_raw_alloc(x) \
+    _c4m_memcheck_raw_alloc(((void *)x), __FILE__, __LINE__);
+#define c4m_memcheck_object(x) \
+    _c4m_memcheck_object(((void *)x), __FILE__, __LINE__);
+#else
+#define c4m_memcheck_raw_alloc(x)
+#define c4m_memcheck_object(x)
+#endif
+
+#if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__)
+void __asan_poison_memory_region(void const volatile *addr, size_t size);
+void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
+
+#define ASAN_POISON_MEMORY_REGION(addr, size) \
+    __asan_poison_memory_region((addr), (size))
+#define ASAN_UNPOISON_MEMORY_REGION(addr, size) \
+    __asan_unpoison_memory_region((addr), (size))
+#else
+#define ASAN_POISON_MEMORY_REGION(addr, size) \
+    ((void)(addr), (void)(size))
+#define ASAN_UNPOISON_MEMORY_REGION(addr, size) \
+    ((void)(addr), (void)(size))
 #endif

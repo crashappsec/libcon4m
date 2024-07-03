@@ -547,7 +547,6 @@ c4m_type_is_box(c4m_type_t *t)
 static inline c4m_type_t *
 c4m_type_unbox(c4m_type_t *t)
 {
-    assert(c4m_type_is_box(t));
     return (c4m_type_t *)t->details->tsi;
 }
 

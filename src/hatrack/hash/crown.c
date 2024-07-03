@@ -546,6 +546,23 @@ crown_store_new(uint64_t size)
     return store;
 }
 
+#if defined(__clang__)
+/* UBScan can sometimes complain about the line:
+ * bit_to_set = CROWN_HOME_BIT >> i;
+ *
+ * This will happen in more full tables.  However, this is a
+ * non-issue.
+ *
+ * Yes, when we get to the end of the cache, we do shift right by
+ * 64, and they're right that it's technically undefined. But
+ * until we find a platform where that doesn't result in 0, I
+ * would much rather avoid adding the extra test; this has the
+ * desired effect of setting `map` to 0 when we're done checking
+ * all bits of the cache, at which point we fall back to full
+ * linear probes.
+ */
+__attribute__((no_sanitize("all")))
+#endif
 void *
 crown_store_get(crown_store_t *self, hatrack_hash_t hv1, bool *found)
 {
@@ -709,6 +726,10 @@ not_found:
  *  would be fine if you know your table is going to be sparsely
  *  populated.
  */
+#if defined(__clang__)
+// See the comment on crown_store_get.
+__attribute__((no_sanitize("all")))
+#endif
 void *
 crown_store_put(crown_store_t *self,
                 mmm_thread_t  *thread,
@@ -890,6 +911,10 @@ found_bucket:
     return item;
 }
 
+#if defined(__clang__)
+// See the comment on crown_store_get.
+__attribute__((no_sanitize("all")))
+#endif
 void *
 crown_store_replace(crown_store_t *self,
                     mmm_thread_t  *thread,
@@ -1012,6 +1037,10 @@ migrate_and_retry:
  * The bucket logic implementation is basically identical. Please
  * see above for exposition.
  */
+#if defined(__clang__)
+// See the comment on crown_store_get.
+__attribute__((no_sanitize("all")))
+#endif
 bool
 crown_store_add(crown_store_t *self,
                 mmm_thread_t  *thread,
@@ -1153,6 +1182,10 @@ found_bucket:
  * result, the bucket acquisition logic is the same as with replace,
  * and effectively identical to "get".  Please see above for details.
  */
+#if defined(__clang__)
+// See the comment on crown_store_get.
+__attribute__((no_sanitize("all")))
+#endif
 void *
 crown_store_remove(crown_store_t *self,
                    mmm_thread_t  *thread,
@@ -1284,6 +1317,10 @@ migrate_and_retry:
  * ALL threads that write to the new store during migration will be
  * trying to write the exact same things in the exact same order.
  */
+#if defined(__clang__)
+// See the comment on crown_store_get.
+__attribute__((no_sanitize("all")))
+#endif
 static crown_store_t *
 crown_store_migrate(crown_store_t *self, mmm_thread_t *thread, crown_t *top)
 {

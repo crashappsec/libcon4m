@@ -44,9 +44,11 @@ c4m_get_alloc_counter()
 #endif
 
 #ifdef C4M_GC_FULL_TRACE
-
 int c4m_gc_trace_on = 1;
+#endif
 
+#ifdef C4M_FULL_MEMCHECK
+extern uint64_t c4m_end_guard;
 #endif
 
 typedef struct hook_record_t {
@@ -55,6 +57,49 @@ typedef struct hook_record_t {
 } hook_record_t;
 
 static hook_record_t *c4m_gc_hooks = NULL;
+
+#if defined(__linux__)
+static inline void
+c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom)
+{
+    pthread_t self = pthread_self();
+
+    pthread_attr_t attrs;
+    uint64_t       addr;
+
+    pthread_getattr_np(self, &attrs);
+
+#ifdef C4M_USE_FRAME_INTRINSIC
+    pthread_attr_getstackaddr(&attrs, (void **)&addr);
+    *bottom = (uint64_t)__builtin_frame_address(0);
+#else
+    size_t size;
+    pthread_attr_getstack(&attrs, (void **)&addr, &size);
+    *bottom = (uint64_t)addr + size;
+#endif
+
+    *top = (uint64_t)addr;
+}
+
+#elif defined(__APPLE__) || defined(BSD)
+// Apple at least has no way to get the thread's attr struct that
+// I can find. But it does provide an API to get at the same data.
+static inline void
+c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom)
+{
+    pthread_t self = pthread_self();
+
+    *bottom = (uint64_t)pthread_get_stackaddr_np(self);
+
+#ifdef C4M_USE_FRAME_INTRINSIC
+    *top = (uint64_t)__builtin_frame_address(0);
+#else
+    *top = (uint64_t)&self;
+#endif
+}
+#else
+#error "Unsupported platform."
+#endif
 
 void
 c4m_gc_register_collect_fn(c4m_gc_hook post)
@@ -215,6 +260,8 @@ get_header(c4m_collection_ctx *ctx, void *ptr)
     return result;
 }
 
+static void process_worklist(c4m_collection_ctx *);
+
 static inline void
 add_copy_to_worklist(c4m_collection_ctx *ctx, c4m_alloc_hdr *hdr)
 {
@@ -235,8 +282,12 @@ add_copy_to_worklist(c4m_collection_ctx *ctx, c4m_alloc_hdr *hdr)
         }
     }
 
-    if (ctx->next_item > ctx->worklist_end) {
+    if (ctx->next_item >= ctx->worklist_end) {
         ctx->next_item = ctx->worklist_start;
+    }
+
+    if (ctx->next_item == ctx->worklist) {
+        process_worklist(ctx);
     }
 }
 
@@ -247,8 +298,6 @@ add_forward_to_worklist(c4m_collection_ctx *ctx, void **addr)
                  "Added pointer %p to worklist (wl item @%p).",
                  addr,
                  ctx->next_item);
-
-    assert(value_in_fromspace(ctx, *addr));
 
     *ctx->next_item++ = addr;
     *ctx->next_item++ = NULL;
@@ -262,8 +311,12 @@ add_forward_to_worklist(c4m_collection_ctx *ctx, void **addr)
         }
     }
 
-    if (ctx->next_item > ctx->worklist_end) {
+    if (ctx->next_item >= ctx->worklist_end) {
         ctx->next_item = ctx->worklist_start;
+    }
+
+    if (ctx->next_item == ctx->worklist) {
+        process_worklist(ctx);
     }
 }
 
@@ -295,6 +348,7 @@ scan_allocation(c4m_collection_ctx *ctx, c4m_alloc_hdr *hdr)
 
     if ((void *)scanner == C4M_GC_SCAN_ALL) {
         while (p < end) {
+            ASAN_UNPOISON_MEMORY_REGION(p, 8);
             contents = *p;
 
             // We haven't copied anything yet.
@@ -414,7 +468,7 @@ process_worklist(c4m_collection_ctx *ctx)
     // causing the to-space memory to be allocated, allowing us to
     // update the pointer.
 
-    while (ctx->worklist != ctx->next_item) {
+    while (ctx->worklist < ctx->next_item) {
         void **p    = (void *)*ctx->worklist++;
         void  *copy = (void *)*ctx->worklist++;
 
@@ -430,6 +484,11 @@ process_worklist(c4m_collection_ctx *ctx)
             c4m_alloc_hdr *dst = src->fw_addr;
 
             memcpy(dst->data, src->data, src->alloc_len * 8);
+
+#ifdef C4M_FULL_MEMCHECK
+            // We just wiped the back guard with the memcpy.
+            *dst->end_guard_loc = c4m_end_guard;
+#endif
             ctx->copied_allocs++;
             c4m_gc_trace(C4M_GCT_MOVED,
                          "%d words moved from %p to %p (%s:%d)\n",
@@ -440,6 +499,9 @@ process_worklist(c4m_collection_ctx *ctx)
                          dst->alloc_line);
         }
     }
+
+    ctx->worklist  = ctx->worklist_start;
+    ctx->next_item = ctx->worklist_start;
 }
 
 // This is only used for roots, not for memory allocations.
@@ -450,6 +512,12 @@ static void
 scan_range_for_allocs(c4m_collection_ctx *ctx, void **start, int num)
 {
     for (int i = 0; i < num; i++) {
+#ifdef HAS_ADDRESS_SANITIZER
+        if (__asan_addr_is_in_fake_stack(__asan_get_current_fake_stack(), start)) {
+            start++;
+            continue;
+        }
+#endif
         if (value_in_fromspace(ctx, *start)) {
             forward_one_allocation(ctx, start);
         }
@@ -514,7 +582,12 @@ raw_trace(c4m_collection_ctx *ctx)
         len <<= 1;
     }
 
-    ctx->to_space      = c4m_new_arena((size_t)len, r);
+    ctx->to_space = c4m_new_arena((size_t)len, r);
+
+    ASAN_UNPOISON_MEMORY_REGION(
+        ctx->to_space,
+        (((char *)ctx->to_space->heap_end) - (char *)ctx->to_space->data));
+
     uint64_t alloc_len = cur->largest_alloc * 32;
     if (alloc_len & c4m_page_modulus) {
         alloc_len = (alloc_len & c4m_modulus_mask) + c4m_page_bytes;
@@ -561,7 +634,226 @@ raw_trace(c4m_collection_ctx *ctx)
     if (system_finalizer != NULL) {
         migrate_finalizers(cur, ctx->to_space);
     }
+
+    ASAN_UNPOISON_MEMORY_REGION(
+        ctx->to_space->next_alloc,
+        (((char *)ctx->to_space->heap_end) - (char *)ctx->to_space->next_alloc));
 }
+
+#ifdef C4M_FULL_MEMCHECK
+
+extern uint64_t c4m_end_guard;
+
+static inline char *
+name_alloc(c4m_alloc_hdr *alloc)
+{
+    if (!alloc->con4m_obj) {
+        return "raw alloc";
+    }
+    c4m_base_obj_t *base = (c4m_base_obj_t *)alloc->data;
+    return (char *)base->base_data_type->name;
+}
+
+void
+_c4m_memcheck_raw_alloc(void *a, char *file, int line)
+{
+    // This uses info int the alloc itself that might be corrupt;
+    // It's a TODO to make the external records log n searchable,
+    // to remove that potential issue.
+
+    if (!c4m_in_heap(a)) {
+        fprintf(stderr,
+                "\n%s:%d: Heap pointer %p is corrupt; not in heap.\n",
+                file,
+                line,
+                a);
+        return;
+        abort();
+    }
+
+    c4m_alloc_hdr *h = (c4m_alloc_hdr *)(((unsigned char *)a) - sizeof(c4m_alloc_hdr));
+    if (h->guard != c4m_gc_guard) {
+        fprintf(stderr, "\n%s:%d: ", file, line);
+        c4m_alloc_display_front_guard_error(h, a, NULL, 0, true);
+    }
+
+    if (*h->end_guard_loc != c4m_end_guard) {
+        fprintf(stderr, "\n%s:%d: ", file, line);
+        c4m_alloc_display_rear_guard_error(h,
+                                           a,
+                                           h->request_len,
+                                           a,
+                                           NULL,
+                                           0,
+                                           true);
+    }
+}
+
+void
+_c4m_memcheck_object(c4m_obj_t o, char *file, int line)
+{
+    if (!c4m_in_heap(o)) {
+        fprintf(stderr,
+                "\n%s:%d: Heap pointer %p is corrupt; not in heap.\n",
+                file,
+                line,
+                o);
+        abort();
+    }
+
+    c4m_base_obj_t *b = &((c4m_base_obj_t *)o)[-1];
+    c4m_alloc_hdr  *h = &((c4m_alloc_hdr *)b)[-1];
+
+    if (h->guard != c4m_gc_guard) {
+        fprintf(stderr, "\n%s:%d: ", file, line);
+        c4m_alloc_display_front_guard_error(h, o, NULL, 0, true);
+    }
+
+    if (*h->end_guard_loc != c4m_end_guard) {
+        fprintf(stderr, "\n%s:%d: ", file, line);
+        c4m_alloc_display_rear_guard_error(h,
+                                           o,
+                                           h->request_len,
+                                           h->end_guard_loc,
+                                           NULL,
+                                           0,
+                                           true);
+    }
+}
+
+void
+c4m_alloc_display_front_guard_error(c4m_alloc_hdr *hdr,
+                                    void          *ptr,
+                                    char          *file,
+                                    int            line,
+                                    bool           bail)
+{
+    fprintf(stderr,
+            "%s @%p is corrupt; its guard has been overwritten.\n"
+            "Expected '%llx', but got '%llx'\n"
+            "Alloc location: %s:%d\n\n",
+            name_alloc(hdr),
+            ptr,
+            c4m_gc_guard,
+            hdr->guard,
+            file ? file : hdr->alloc_file,
+            file ? line : hdr->alloc_line);
+
+    if (bail) {
+        abort();
+    }
+}
+
+void
+c4m_alloc_display_rear_guard_error(c4m_alloc_hdr *hdr,
+                                   void          *ptr,
+                                   int            len,
+                                   void          *rear_guard_loc,
+                                   char          *file,
+                                   int            line,
+                                   bool           bail)
+{
+    if (hdr->con4m_obj) {
+        len -= sizeof(c4m_base_obj_t);
+    }
+
+    fprintf(stderr,
+            "%s @%p overflowed. It was allocated to %d bytes, and had its "
+            "end guard at %p.\n"
+            "End guard should have been '%llx' but was actually '%llx'\n"
+            "Alloc location: %s:%d\n\n",
+            name_alloc(hdr),
+            ptr,
+            len,
+            rear_guard_loc,
+            c4m_end_guard,
+            *(uint64_t *)rear_guard_loc,
+            file ? file : hdr->alloc_file,
+            file ? line : hdr->alloc_line);
+
+    if (bail) {
+        abort();
+    }
+}
+
+static void
+memcheck_validate_old_records(c4m_arena_t *from_space)
+{
+    uint64_t           *low  = (void *)from_space->data;
+    uint64_t           *high = (void *)from_space->heap_end;
+    c4m_shadow_alloc_t *a    = from_space->shadow_start;
+
+    while (a != NULL) {
+        c4m_shadow_alloc_t *next = a->next;
+
+        if (a->start->guard != c4m_gc_guard) {
+            c4m_alloc_display_front_guard_error(a->start,
+                                                a->start->data,
+                                                a->file,
+                                                a->line,
+                                                false);
+        }
+
+        if (*a->end != c4m_end_guard) {
+            c4m_alloc_display_rear_guard_error(a->start,
+                                               a->start->data,
+                                               a->len,
+                                               a->end,
+                                               a->file,
+                                               a->line,
+                                               false);
+        }
+
+        if (a->start->fw_addr != NULL) {
+            uint64_t **p   = (void *)a->start->data;
+            uint64_t **end = (void *)a->end;
+
+            while (p < end) {
+                uint64_t *v = *p;
+                if (v > low && v < high) {
+                    void **probe;
+                    probe = (void **)(((uint64_t)v) & ~0x0000000000000007);
+
+                    while (*(uint64_t *)probe != c4m_gc_guard) {
+                        --probe;
+                    }
+
+                    c4m_alloc_hdr *h = (c4m_alloc_hdr *)probe;
+                    if (!h->fw_addr) {
+                        fprintf(stderr,
+                                "Possible missed allocation. Found a pointer "
+                                " to %p, which was NOT copied. The pointer "
+                                " was found in a live allocation "
+                                " from %s:%d, now residing at %p.\n",
+                                *p,
+                                h->alloc_file,
+                                h->alloc_line,
+                                h->fw_addr);
+                    }
+                }
+                p++;
+            }
+        }
+        if (free) {
+            c4m_rc_free(a);
+        }
+        a = next;
+    }
+}
+
+static void
+memcheck_delete_old_records(c4m_arena_t *from_space)
+{
+    c4m_shadow_alloc_t *a = from_space->shadow_start;
+
+    while (a != NULL) {
+        c4m_shadow_alloc_t *next = a->next;
+        c4m_rc_free(a);
+        a = next;
+    }
+}
+
+#endif
 
 c4m_arena_t *
 c4m_collect_arena(c4m_arena_t *from_space)
@@ -596,6 +888,14 @@ c4m_collect_arena(c4m_arena_t *from_space)
     c4m_total_collects++;
 #endif
 
+    ASAN_UNPOISON_MEMORY_REGION(
+        from_space,
+        (((char *)ctx.from_space->heap_end) - (char *)ctx.from_space->data));
+
+#ifdef C4M_FULL_MEMCHECK
+    memcheck_validate_old_records(old_arena);
+#endif
+
 #if defined(C4M_GC_FULL_TRACE) && C4M_GCT_COLLECT != 0
     c4m_gc_trace(C4M_GCT_COLLECT,
                  "=========== COLLECT START; arena @%p",
@@ -606,6 +906,10 @@ c4m_collect_arena(c4m_arena_t *from_space)
                  c4m_current_heap);
 #else
     raw_trace(&ctx);
+#endif
+
+#ifdef C4M_FULL_MEMCHECK
+    memcheck_delete_old_records(old_arena);
 #endif
 
     uint64_t start = (uint64_t)ctx.to_space;
@@ -619,6 +923,8 @@ c4m_collect_arena(c4m_arena_t *from_space)
     }
 
     run_post_collect_hooks();
+
+    c4m_delete_arena(ctx.from_space);
 
     // Free the worklist.
     char *unmap_s = ((char *)ctx.worklist_start);
