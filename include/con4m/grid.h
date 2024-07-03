@@ -27,11 +27,12 @@ c4m_get_td_tag(c4m_grid_t *g)
 void c4m_grid_set_all_contents(c4m_grid_t *, c4m_list_t *);
 
 extern c4m_grid_t  *c4m_grid_flow(uint64_t items, ...);
+extern c4m_grid_t  *c4m_callout(c4m_str_t *s);
 extern c4m_utf32_t *c4m_grid_to_str(c4m_grid_t *);
 extern c4m_grid_t  *_c4m_ordered_list(c4m_list_t *, ...);
 extern c4m_grid_t  *_c4m_unordered_list(c4m_list_t *, ...);
 extern c4m_grid_t  *_c4m_grid_tree(c4m_tree_node_t *, ...);
-extern c4m_list_t *_c4m_grid_render(c4m_grid_t *, ...);
+extern c4m_list_t  *_c4m_grid_render(c4m_grid_t *, ...);
 extern void         c4m_set_column_props(c4m_grid_t *,
                                          int,
                                          c4m_render_style_t *);

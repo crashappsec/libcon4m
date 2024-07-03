@@ -5,14 +5,16 @@
 
 typedef struct checkpoint_t {
     struct checkpoint_t *prev;
-    jmp_buf              env;
     char                *fn;
+    jmp_buf              env;
 } checkpoint_t;
 
 typedef struct {
     c4m_tree_node_t      *cur;
     c4m_file_compile_ctx *file_ctx;
     c4m_token_t          *cached_token;
+    hatstack_t           *root_stack;
+    checkpoint_t         *jump_state;
     int32_t               token_ix;
     int32_t               cache_ix;
     int32_t               loop_depth;
@@ -22,9 +24,7 @@ typedef struct {
     // allow it. If we're in a literal definition context, the newline
     // is okay, otherwise it is not.
     int32_t               lit_depth;
-    hatstack_t           *root_stack;
     bool                  in_function;
-    checkpoint_t         *jump_state;
 } parse_ctx;
 
 #undef PARSE_DEBUG
@@ -302,7 +302,7 @@ _raise_err_at_node(parse_ctx          *ctx,
                    int                 line,
                    const char         *fn)
 {
-    c4m_compile_error *err = c4m_gc_alloc(c4m_compile_error);
+    c4m_compile_error *err = c4m_new_error(0);
     err->code              = code;
     err->current_token     = n->token;
     c4m_list_append(ctx->file_ctx->errors, err);

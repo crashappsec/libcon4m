@@ -1,7 +1,7 @@
 #pragma once
 
 // clang-format off
-#define C4M_VA(...) __VA_ARGS__ __VA_OPT__(, )(0)
+#define C4M_VA(...) __VA_ARGS__ __VA_OPT__(, )(0ULL)
 
 #define C4M_PP_NARG(...) \
     C4M_PP_NARG_(__VA_ARGS__, C4M_PP_RSEQ_N())

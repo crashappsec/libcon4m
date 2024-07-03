@@ -27,7 +27,6 @@ c_args        = ['-Wextra',
                  '-Wno-unused-parameter',
                  '-Wno-cast-function-type',
                   '-fno-omit-frame-pointer',
-                  '-flto',
                   ]
 
 if (host_machine.system() == 'darwin')
@@ -36,18 +35,12 @@ if (host_machine.system() == 'darwin')
                 'arm64-apple-macos14',
                 '-framework',
                 'Security',
-                '-flto',
                 ]
 else
   using_osx = false
   link_args = []
   c_args    = c_args + ['-D_GNU_SOURCE']
 endif
-
-exe_link_args = link_args + ['-flto', '-w']
-exe_c_args    = c_args + ['-flto', '-DHATRACK_REFERENCE_ALGORITHMS']
-
-c4m_c_args = c_args 
 
 fpty_code = '''
 #include <stddef.h>
@@ -61,12 +54,33 @@ if cc.links(fpty_code, name: 'forkpty_check')
 endif
 
 if (get_option('buildtype') == 'release')
-  add_project_arguments([ '-O2' ], language: 'c')
+   c_args = c_args + [ '-Ofast', '-flto' ]
+   link_args = link_args + ['-flto']
 endif
+
+
+
+if (get_option('buildtype') == 'debug')
+  c_args = c_args + ['-fsanitize=address',
+                     '-fsanitize=undefined',
+                     '-fsanitize-recover=all',
+                     ]
+  link_args = link_args + ['-fsanitize=address',
+                           '-fsanitize=undefined',
+                           '-fsanitize-recover=all'
+                           ]
+endif
+
+
+exe_link_args = link_args + ['-flto', '-w']
+exe_c_args    = c_args + ['-flto', '-DHATRACK_REFERENCE_ALGORITHMS']
+
+c4m_c_args = c_args
+
 
 c4m_src  = ['src/con4m/style.c',
             'src/con4m/colors.c',
-            'src/con4m/breaks.c', 
+            'src/con4m/breaks.c',
             'src/con4m/string.c',
             'src/con4m/buffer.c',
             'src/con4m/ansi.c',
@@ -74,7 +88,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/switchboard.c',
             'src/con4m/subproc.c',
             'src/con4m/gcbase.c',
-            'src/con4m/collect.c',            
+            'src/con4m/collect.c',
             'src/con4m/term.c',
             'src/con4m/kargs.c',
             'src/con4m/object.c',
@@ -88,7 +102,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/marshal.c',
             'src/con4m/types.c',
             'src/con4m/tree.c',
-            'src/con4m/tree_pattern.c',            
+            'src/con4m/tree_pattern.c',
             'src/con4m/numbers.c',
             'src/con4m/mixed.c',
             'src/con4m/conststr.c',
@@ -116,7 +130,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/compiler/errors.c',
             'src/con4m/compiler/scope.c',
             'src/con4m/compiler/specs.c',
-            'src/con4m/compiler/cfg_build.c',            
+            'src/con4m/compiler/cfg_build.c',
             'src/con4m/compiler/cfg.c',
             'src/con4m/compiler/ast_utils.c',
             'src/con4m/compiler/decl_pass.c',
@@ -152,7 +166,7 @@ hat_hashref = ['src/hatrack/hash/ballcap.c',
                'src/hatrack/hash/lohat-a.c',
                'src/hatrack/hash/lohat.c',
                'src/hatrack/hash/newshat.c',
-               'src/hatrack/hash/oldhat.c',               
+               'src/hatrack/hash/oldhat.c',
                'src/hatrack/hash/refhat.c',
                'src/hatrack/hash/swimcap.c',
                'src/hatrack/hash/tiara.c',
@@ -178,7 +192,7 @@ endif
 lib_src = c4m_src + hat_primary
 
 test_src = ['src/tests/test.c']
-            
+
 threads  = dependency('threads')
 math     = cc.find_library('m', required : false)
 ffi      = cc.find_library('ffi', required : true, dirs: meson.current_source_dir() + '/deps/local/')
@@ -228,4 +242,3 @@ executable('c4test', test_src,
 #            link_args : exe_link_args,
 #            link_with : libhat,
 #            c_args : exe_c_args)
-

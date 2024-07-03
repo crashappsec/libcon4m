@@ -360,11 +360,11 @@ typedef struct {
 } c4m_zinstruction_t;
 
 typedef struct {
+    c4m_type_t *tid;
     // Nim casts this around as a pointer, but it's always used as an integer
     // index into an array
     int64_t     impl;
     int64_t     nameoffset;
-    c4m_type_t *tid;
     int32_t     mid;
     bool        ffi;
 } c4m_zcallback_t;
@@ -382,28 +382,28 @@ typedef struct c4m_value_t {
 // stack values have no indicator of what's actually stored, instead relying on
 // instructions to assume correctly what's present.
 typedef union c4m_stack_value_t {
+    void                    *vptr;
+    c4m_zcallback_t         *callback;
     c4m_value_t             *lvalue;
+    char                    *cptr;
+    union c4m_stack_value_t *fp;         // saved fp
     c4m_value_t              rvalue;
     uint64_t                 static_ptr; // offset into static_data
-    c4m_zcallback_t         *callback;
     // saved pc / module_id, along with unsigned int values where
     // we don't care about the type field for the operation.
-    void                    *vptr;
     uint64_t                 uint;
     int64_t                  sint; // signed int values.
     c4m_box_t                box;
     double                   dbl;
     bool                     boolean;
-    char                    *cptr;
-    union c4m_stack_value_t *fp; // saved fp
 } c4m_stack_value_t;
 
 // Might want to trim a bit out of it, but for right now, an going to not.
 typedef struct c4m_ffi_decl_t c4m_zffi_info_t;
 
 typedef struct {
-    int64_t     offset;
     c4m_type_t *tid;
+    int64_t     offset;
 } c4m_zsymbol_t;
 
 typedef struct {
@@ -422,21 +422,23 @@ typedef struct {
     c4m_list_t *sym_types; // tspec_ref: c4m_zsymbol_t
 
     c4m_type_t *tid;
+    c4m_str_t  *shortdoc;
+    c4m_str_t  *longdoc;
     int32_t     mid;    // module_id
     int32_t     offset; // offset to start of instructions in module
     int32_t     size;   // Stack frame size.
     // TODO: This should go in the marshal, and needs startup initing.
     // Note, its value must always be
     int32_t     static_lock;
-    c4m_str_t  *shortdoc;
-    c4m_str_t  *longdoc;
 } c4m_zfn_info_t;
 
 typedef struct {
     c4m_str_t  *attr;
+    c4m_type_t *tid;
+    c4m_str_t  *shortdoc;
+    c4m_str_t  *longdoc;
     int64_t     offset;
     c4m_value_t default_value;
-    c4m_type_t *tid;
     bool        have_default;
     bool        is_private;
     int32_t     v_fn_ix;
@@ -444,13 +446,9 @@ typedef struct {
     int32_t     i_fn_ix;
     bool        i_native;
     c4m_value_t userparam;
-    c4m_str_t  *shortdoc;
-    c4m_str_t  *longdoc;
 } c4m_zparam_info_t;
 
 typedef struct {
-    int32_t     module_id; // Internal array index.
-    uint64_t    module_hash;
     c4m_str_t  *modname;
     c4m_str_t  *authority;
     c4m_str_t  *path;
@@ -459,44 +457,45 @@ typedef struct {
     c4m_str_t  *version;
     c4m_str_t  *shortdoc;
     c4m_str_t  *longdoc;
-    // TODO: symbol information.
-    int32_t     module_var_size;
-    int32_t     init_size;    // size of init code before functions begin
     c4m_dict_t *datasyms;
     c4m_list_t *parameters;   // tspec_ref: c4m_zparam_info_t
     c4m_list_t *instructions; // tspec_ref: c4m_zinstruction_t
+    uint64_t    module_hash;
+    int32_t     module_id;    // Internal array index.
+    int32_t     module_var_size;
+    int32_t     init_size;    // size of init code before functions begin
 } c4m_zmodule_info_t;
 
 typedef struct {
-    uint64_t    zero_magic;
-    uint32_t    zc_object_vers;
     c4m_buf_t  *static_data;
     c4m_buf_t  *marshaled_consts;
-    int32_t     num_const_objs;
     c4m_list_t *module_contents; // tspec_ref: c4m_zmodule_info_t
+    c4m_list_t *func_info;       // tspec_ref: c4m_zfn_info_t
+    c4m_list_t *ffi_info;        // tspec_ref: c4m_zffi_info_t
+    uint64_t    zero_magic;
+    uint32_t    zc_object_vers;
+    int32_t     num_const_objs;
     int32_t     entrypoint;
     int32_t     next_entrypoint;
-    c4m_list_t *func_info; // tspec_ref: c4m_zfn_info_t
-    c4m_list_t *ffi_info;  // tspec_ref: c4m_zffi_info_t
     // TODO c4m_validation_spec_t *spec;
 } c4m_zobject_file_t;
 
 typedef struct {
     c4m_zmodule_info_t *call_module;
-    int32_t             calllineno;
-    int32_t             targetline;
     c4m_zmodule_info_t *targetmodule;
     c4m_zfn_info_t     *targetfunc;
+    int32_t             calllineno;
+    int32_t             targetline;
 } c4m_vmframe_t;
 
 typedef struct {
+    c4m_zinstruction_t *lastset; // (not marshaled)
     c4m_value_t         contents;
     bool                is_set;
     bool                locked;
     bool                lock_on_write;
     int32_t             module_lock;
     bool                override;
-    c4m_zinstruction_t *lastset; // (not marshaled)
 } c4m_attr_contents_t;
 
 typedef struct {
@@ -506,6 +505,11 @@ typedef struct {
 
 // C4M_T_VM
 typedef struct {
+#ifdef C4M_DEV
+    c4m_buf_t    *print_buf;
+    c4m_stream_t *print_stream;
+#endif
+
     c4m_zobject_file_t *obj;
 
     // The following fields represent saved execution state on top of
@@ -521,10 +525,6 @@ typedef struct {
     c4m_list_t   *ffi_info;
     int           ffi_info_entries;
     bool          using_attrs;
-#ifdef C4M_DEV
-    c4m_buf_t    *print_buf;
-    c4m_stream_t *print_stream;
-#endif
 } c4m_vm_t;
 
 typedef struct {
@@ -538,21 +538,6 @@ typedef struct {
     // fp points to the start of the current frame on the stack.
     c4m_stack_value_t *fp;
 
-    // pc is the current program counter, which is an index into current_module
-    // instructions array.
-    uint32_t pc;
-
-    // num_frames is the number of active frames in the call stack. the current
-    // frame is always frame_stack[num_frames - 1]
-    int32_t num_frames;
-
-    // General purpose registers.
-    // R0 should generally only be used for passing return values.
-    c4m_value_t r0;
-    c4m_value_t r1;
-    c4m_value_t r2;
-    c4m_value_t r3;
-
     // const_base is the base address for constant storage.
     // It's indexed by byte index, thus declared char *.
     //
@@ -563,12 +548,6 @@ typedef struct {
     // current_module is the module to which currently executing instructions
     // belong.
     c4m_zmodule_info_t *current_module;
-
-    // running is true if this thread state is currently running VM code.
-    bool running;
-
-    // error is true if this thread state raised an error during evaluation.
-    bool error;
 
     c4m_list_t *module_lock_stack;
 
@@ -581,6 +560,28 @@ typedef struct {
     // stack is the base address of the stack for this thread of execution.
     // the stack grows down, so the stack bottom is &stack[STACK_SIZE]
     c4m_stack_value_t stack[STACK_SIZE];
+
+    // General purpose registers.
+    // R0 should generally only be used for passing return values.
+    c4m_value_t r0;
+    c4m_value_t r1;
+    c4m_value_t r2;
+    c4m_value_t r3;
+
+    // pc is the current program counter, which is an index into current_module
+    // instructions array.
+    uint32_t pc;
+
+    // num_frames is the number of active frames in the call stack. the current
+    // frame is always frame_stack[num_frames - 1]
+    int32_t num_frames;
+
+    // running is true if this thread state is currently running VM code.
+    bool running;
+
+    // error is true if this thread state raised an error during evaluation.
+    bool error;
+
 } c4m_vmthread_t;
 
 #define C4M_F_ATTR_PUSH_FOUND 1

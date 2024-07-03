@@ -45,7 +45,7 @@ c4m_set_bit(uint64_t *bitfield, int ix)
     int word = ix / 64;
     int bit  = ix % 64;
 
-    bitfield[word] |= (1 << bit);
+    bitfield[word] |= (1ULL << bit);
 }
 
 extern void c4m_scan_header_only(uint64_t *, int);

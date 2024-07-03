@@ -12,6 +12,11 @@ typedef enum {
 } c4m_file_compile_status;
 
 typedef struct c4m_file_compile_ctx {
+#ifdef C4M_DEV
+    // Cache all the print nodes to type check before running.
+    c4m_list_t *print_nodes;
+#endif
+
     // The module_id is calculated by combining the package name and
     // the module name, then hashing it with SHA256. This is not
     // necessarily derived from the URI path.
@@ -24,7 +29,6 @@ typedef struct c4m_file_compile_ctx {
     // is provided. The URI fields are optional (via API you can just
     // pass raw source as long as you give at least a module name).
 
-    uint64_t                module_id;       // Module hash.
     c4m_str_t              *module;          // Module name.
     c4m_str_t              *authority;       // http/s only.
     c4m_str_t              *path;            // Fully qualified path
@@ -48,6 +52,7 @@ typedef struct c4m_file_compile_ctx {
     c4m_list_t             *call_patch_locs;
     c4m_list_t             *callback_literals;
     c4m_list_t             *extern_decls;
+    uint64_t                module_id; // Module hash.
     int32_t                 static_size;
     uint32_t                num_params;
     uint32_t                local_module_id;
@@ -55,10 +60,5 @@ typedef struct c4m_file_compile_ctx {
     unsigned int            file         : 1;
     unsigned int            secure       : 1;
     c4m_file_compile_status status;
-
-#ifdef C4M_DEV
-    // Cache all the print nodes to type check before running.
-    c4m_list_t *print_nodes;
-#endif
 
 } c4m_file_compile_ctx;

@@ -95,8 +95,9 @@ typedef struct {
     c4m_codepoint_t             *start_ptr;
     c4m_codepoint_t             *end_ptr;
     c4m_utf8_t                  *literal_modifier;
-    c4m_lit_syntax_t             syntax;
     void                        *literal_value; // Once parsed.
+    c4m_utf8_t                  *text;
+    c4m_lit_syntax_t             syntax;
     c4m_token_kind_t             kind;
     int                          token_id;
     int                          line_no;
@@ -106,5 +107,5 @@ typedef struct {
     // we stash them with the node payload.
     uint32_t                     child_ix;
     uint8_t                      adjustment; // For keeping track of quoting.
-    c4m_utf8_t                  *text;
+
 } c4m_token_t;

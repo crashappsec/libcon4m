@@ -60,6 +60,7 @@ typedef enum : uint8_t {
 } c4m_dimspec_kind_t;
 
 typedef struct border_theme_t {
+    struct border_theme_t *next_style;
     char                  *name;
     int32_t                horizontal_rule;
     int32_t                vertical_rule;
@@ -72,7 +73,6 @@ typedef struct border_theme_t {
     int32_t                bottom_t;
     int32_t                left_t;
     int32_t                right_t;
-    struct border_theme_t *next_style;
 } c4m_border_theme_t;
 
 typedef uint8_t c4m_border_set_t;

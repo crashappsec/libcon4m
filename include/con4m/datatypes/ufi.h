@@ -10,13 +10,13 @@ typedef struct {
 
 typedef struct c4m_sig_info_t {
     c4m_type_t          *full_type;
-    c4m_fn_param_info_t *param_info;  // Pretty sure these are unused,
+    c4m_fn_param_info_t *param_info; // Pretty sure these are unused,
+    c4m_scope_t         *fn_scope;
+    c4m_scope_t         *formals;
     c4m_fn_param_info_t  return_info; // minus initialization.
     int                  num_params;
     unsigned int         pure        : 1;
     unsigned int         void_return : 1;
-    c4m_scope_t         *fn_scope;
-    c4m_scope_t         *formals;
 } c4m_sig_info_t;
 
 typedef struct {

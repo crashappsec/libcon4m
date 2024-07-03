@@ -18,6 +18,12 @@
 // #define C4M_VM_DEBUG
 // #define C4M_VM_DEBUG_DEFAULT true
 
+// This won't work on systems that require aligned pointers.
+// #define C4M_PARANOID_STACK_SCAN
+
+// UBSan hates our underflow check.
+#define C4M_OMIT_UNDERFLOW_CHECKS
+
 #ifdef C4M_NO_DEV_MODE
 #undef C4M_DEV
 #else
@@ -45,6 +51,10 @@
 #else // C4M_TRACE_GC
 #undef C4M_GC_FULL_TRACE
 #undef C4M_TRACE_GC
+#endif
+
+#ifndef C4M_MIN_RENDER_WIDTH
+#define C4M_MIN_RENDER_WIDTH 80
 #endif
 
 // Useful options (mainly for dev) are commented out here.

@@ -2,8 +2,8 @@
 #include "con4m.h"
 
 typedef struct c4m_tpat_node_t {
-    c4m_obj_t                contents;
     struct c4m_tpat_node_t **children;
+    c4m_obj_t                contents;
     int64_t                  min;
     int64_t                  max;
     uint64_t                 num_kids;

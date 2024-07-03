@@ -6,7 +6,7 @@ typedef struct {
     bool  show_contents;
 } internal_tt_info_t;
 
-static internal_tt_info_t tt_info[] = {
+static const internal_tt_info_t tt_info[] = {
     {"error", false},
     {"space", false},
     {";", false},
@@ -95,6 +95,12 @@ static internal_tt_info_t tt_info[] = {
     {"eof", false},
 };
 
+static void
+c4m_token_set_gc_bits(uint64_t *bitfield, int length)
+{
+    *bitfield = 0x3f;
+}
+
 c4m_utf8_t *
 c4m_token_type_to_string(c4m_token_kind_t tk)
 {
@@ -175,7 +181,7 @@ at_new_line(lex_state_t *state)
 static inline void
 output_token(lex_state_t *state, c4m_token_kind_t kind)
 {
-    c4m_token_t *tok  = c4m_gc_alloc(c4m_token_t);
+    c4m_token_t *tok  = c4m_gc_alloc_mapped(c4m_token_t, c4m_token_set_gc_bits);
     tok->kind         = kind;
     tok->module       = state->ctx;
     tok->start_ptr    = state->start;
@@ -270,14 +276,14 @@ static inline void
 fill_lex_error(lex_state_t *state, c4m_compile_error_t code)
 
 {
-    c4m_token_t *tok = c4m_gc_alloc(c4m_token_t);
+    c4m_token_t *tok = c4m_gc_alloc_mapped(c4m_token_t, c4m_token_set_gc_bits);
     tok->kind        = c4m_tt_error;
     tok->start_ptr   = state->start;
     tok->end_ptr     = state->pos;
     tok->line_no     = state->line_no;
     tok->line_offset = state->start - state->line_start;
 
-    c4m_compile_error *err = c4m_gc_alloc(c4m_compile_error);
+    c4m_compile_error *err = c4m_new_error(0);
     err->code              = code;
     err->current_token     = tok;
 

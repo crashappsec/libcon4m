@@ -413,6 +413,7 @@ c4m_stream_read_all(c4m_stream_t *stream)
     }
     while (true) {
         c4m_obj_t *one = c4m_stream_raw_read(stream, PIPE_BUF, NULL);
+
         if (outkind) {
             if (c4m_str_codepoint_len((c4m_str_t *)one) == 0) {
                 break;
@@ -423,6 +424,7 @@ c4m_stream_read_all(c4m_stream_t *stream)
                 break;
             }
         }
+
         c4m_list_append(l, one);
     }
     if (outkind) {
@@ -503,6 +505,17 @@ c4m_stream_write_object(c4m_stream_t *stream, c4m_obj_t obj, bool ansi)
         s = c4m_to_utf8(s);
         c4m_stream_raw_write(stream, s->byte_len, s->data);
     }
+}
+
+void
+c4m_stream_write_to_width(c4m_stream_t *stream, c4m_obj_t obj)
+{
+    if (stream->flags & C4M_F_STREAM_CLOSED) {
+        C4M_CRAISE("Stream is already closed.");
+    }
+
+    c4m_str_t *s = c4m_to_str(obj, c4m_get_my_type(obj));
+    c4m_ansi_render_to_width(s, c4m_terminal_width(), 0, stream);
 }
 
 bool
@@ -644,6 +657,7 @@ _c4m_print(c4m_obj_t first, ...)
     bool             nocolor   = false;
     int              numargs;
     bool             ansi;
+    bool             truncate = true;
 
     va_start(args, first);
 
@@ -668,6 +682,7 @@ _c4m_print(c4m_obj_t first, ...)
         c4m_kw_codepoint("sep", sep);
         c4m_kw_codepoint("end", end);
         c4m_kw_bool("flush", flush);
+        c4m_kw_bool("truncate", truncate);
 
         if (!c4m_kw_bool("c4m_to_color", force)) {
             c4m_kw_bool("no_color", nocolor);
@@ -708,7 +723,13 @@ _c4m_print(c4m_obj_t first, ...)
             c4m_stream_putcp(stream, sep);
         }
 
-        c4m_stream_write_object(stream, cur, ansi);
+        if (ansi && truncate) {
+            // truncate requires ansi.
+            c4m_stream_write_to_width(stream, cur);
+        }
+        else {
+            c4m_stream_write_object(stream, cur, ansi);
+        }
         cur = va_arg(args, c4m_obj_t);
     }
 

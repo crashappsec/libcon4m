@@ -433,6 +433,26 @@ c4m_ansi_render(const c4m_str_t *s, c4m_stream_t *out)
     }
 }
 
+static int32_t
+internal_truncate_to_width(c4m_utf32_t *s,
+                           int32_t      end,
+                           int32_t      width)
+{
+    int i = 0;
+
+    c4m_codepoint_t *cp = (c4m_codepoint_t *)s->data;
+
+    for (i = 0; i < end; i++) {
+        width -= c4m_codepoint_width(*cp++);
+
+        if (width < 0) {
+            return i;
+        }
+    }
+
+    return end;
+}
+
 void
 c4m_ansi_render_to_width(const c4m_str_t *s,
                          int32_t          width,
@@ -446,25 +466,25 @@ c4m_ansi_render_to_width(const c4m_str_t *s,
     c4m_utf32_t *as_u32 = c4m_to_utf32(s);
     int32_t      i;
 
+    c4m_list_t *lines = c4m_str_split(as_u32, c4m_get_newline_const());
+    int         n     = c4m_list_len(lines);
+
     if (width <= 0) {
-        width = 20;
+        width = C4M_MIN_RENDER_WIDTH;
     }
 
-    c4m_break_info_t *line_starts = c4m_wrap_text(as_u32, width, hang);
+    for (i = 0; i < n; i++) {
+        c4m_utf32_t *line = c4m_list_get(lines, i, NULL);
+        int32_t      end  = c4m_str_codepoint_len(line);
 
-    for (i = 0; i < line_starts->num_breaks - 1; i++) {
-        c4m_utf32_ansi_render(as_u32,
-                              line_starts->breaks[i],
-                              line_starts->breaks[i + 1],
-                              out);
-        c4m_stream_putc(out, '\n');
-    }
-
-    if (i == line_starts->num_breaks - 1) {
-        c4m_utf32_ansi_render(as_u32,
-                              line_starts->breaks[i],
-                              c4m_str_codepoint_len(as_u32),
-                              out);
+        if (end > width) {
+            end = internal_truncate_to_width(line, end, width);
+        }
+        c4m_utf32_ansi_render(line, 0, end, out);
+        if (i + 1 == n) {
+            break;
+        }
+        c4m_stream_putcp(out, '\n');
     }
 }
 

@@ -911,6 +911,11 @@ render_to_cache(c4m_grid_t       *grid,
     case C4M_T_UTF8:
     case C4M_T_UTF32: {
         c4m_str_t *r = (c4m_str_t *)cell->raw_item;
+
+        if (r == NULL || c4m_str_codepoint_len(r) == 0) {
+            r = c4m_utf32_repeat(' ', 1);
+        }
+
         if (cell->end_col - cell->start_col != 1) {
             return str_render_cell(grid, c4m_to_utf32(r), cell, width, height);
         }
@@ -1809,6 +1814,22 @@ c4m_grid_flow(uint64_t items, ...)
 }
 
 c4m_grid_t *
+c4m_callout(c4m_str_t *s)
+{
+    c4m_renderable_t *r   = c4m_to_str_renderable(s, "callout");
+    c4m_grid_t       *res = c4m_new(c4m_type_grid(),
+                              c4m_kw("start_rows",
+                                     c4m_ka(1),
+                                     "start_cols",
+                                     c4m_ka(1),
+                                     "container_tag",
+                                     c4m_ka("callout_cell")));
+    c4m_grid_set_cell_contents(res, 0, 0, r);
+    c4m_set_column_style(res, 0, "callout_cell");
+    return res;
+}
+
+c4m_grid_t *
 c4m_grid_horizontal_flow(c4m_list_t *items,
                          uint64_t    max_columns,
                          uint64_t    total_width,
@@ -1976,6 +1997,10 @@ c4m_grid(int32_t start_rows,
 }
 
 typedef struct {
+    char            *tag;
+    c4m_codepoint_t *padstr;
+    c4m_grid_t      *grid;
+    c4m_utf8_t      *nl;
     c4m_codepoint_t  pad;
     c4m_codepoint_t  tchar;
     c4m_codepoint_t  lchar;
@@ -1985,11 +2010,7 @@ typedef struct {
     int              ipad;
     int              no_nl;
     c4m_style_t      style;
-    char            *tag;
-    c4m_codepoint_t *padstr;
     int              pad_ix;
-    c4m_grid_t      *grid;
-    c4m_utf8_t      *nl;
     bool             root;
 } tree_fmt_t;
 

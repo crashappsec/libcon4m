@@ -7,8 +7,6 @@ typedef struct {
     c4m_spec_t           *spec;
     c4m_compile_ctx      *compile;
     c4m_file_compile_ctx *file_ctx;
-    __uint128_t           du_stack;
-    int                   du_stack_ix;
     // The above get initialized only once when we start processing a module.
     // Everything below this comment gets updated for each function entry too.
     c4m_scope_t          *local_scope;
@@ -28,6 +26,8 @@ typedef struct {
     c4m_list_t           *deferred_calls;
     c4m_list_t           *index_rechecks;
     bool                  augmented_assignment;
+    __uint128_t           du_stack;
+    int                   du_stack_ix;
 } pass2_ctx;
 
 static void base_check_pass_dispatch(pass2_ctx *);
@@ -911,7 +911,8 @@ handle_break(pass2_ctx *ctx)
     int i    = c4m_list_len(ctx->loop_stack);
 
     while (i--) {
-        c4m_control_info_t *bi = c4m_list_get(ctx->loop_stack, i, NULL);
+        c4m_loop_info_t    *li = c4m_list_get(ctx->loop_stack, i, NULL);
+        c4m_control_info_t *bi = &li->branch_info;
 
         if (!label || (bi->label && !strcmp(label->data, bi->label->data))) {
             c4m_pnode_t     *npnode      = c4m_get_pnode(n);
@@ -967,7 +968,8 @@ handle_continue(pass2_ctx *ctx)
     int i    = c4m_list_len(ctx->loop_stack);
 
     while (i--) {
-        c4m_control_info_t *bi = c4m_list_get(ctx->loop_stack, i, NULL);
+        c4m_loop_info_t    *li = c4m_list_get(ctx->loop_stack, i, NULL);
+        c4m_control_info_t *bi = &li->branch_info;
 
         // While 'break' can be used to exit switch() and typeof()
         // cases, 'continue' cannot.
@@ -2271,7 +2273,6 @@ base_check_pass_dispatch(pass2_ctx *ctx)
         process_children(ctx);
         break;
 #endif
-
     default:
         process_children(ctx);
         break;

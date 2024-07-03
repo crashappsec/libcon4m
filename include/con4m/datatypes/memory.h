@@ -77,8 +77,8 @@ typedef struct c4m_finalizer_info_t {
 } c4m_finalizer_info_t;
 
 typedef struct {
-    uint64_t num_items;
     void    *ptr;
+    uint64_t num_items;
 #ifdef C4M_GC_STATS
     char *file;
     int   line;

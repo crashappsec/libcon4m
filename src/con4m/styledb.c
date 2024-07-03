@@ -321,6 +321,26 @@ static const c4m_render_style_t default_em = {
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_ITALIC | 0x0ff2f8eUL,
 };
 
+static const c4m_render_style_t default_callout_cell = {
+    .name         = "callout_cell",
+    .top_pad      = 1,
+    .bottom_pad   = 1,
+    .left_pad     = 0,
+    .right_pad    = 0,
+    .alignment    = C4M_ALIGN_BOTTOM_CENTER,
+    .dim_kind     = C4M_DIM_PERCENT_TRUNCATE,
+    .dims.percent = 90,
+};
+
+static const c4m_render_style_t default_callout = {
+    .name       = "callout",
+    .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_BG | C4M_STY_BOLD | 0xff2f8eb3ff00UL,
+    .top_pad    = 2,
+    .bottom_pad = 2,
+    .alignment  = C4M_ALIGN_BOTTOM_CENTER,
+    .dim_kind   = C4M_DIM_FIT_TO_TEXT,
+};
+
 static void
 c4m_rs_gc_bits(uint64_t *bitfield, int alloc_words)
 {
@@ -718,6 +738,8 @@ c4m_install_default_styles()
     c4m_set_style("flow", (c4m_render_style_t *)&default_flow);
     c4m_set_style("error_grid", (c4m_render_style_t *)&default_error_grid);
     c4m_set_style("em", (c4m_render_style_t *)&default_em);
+    c4m_set_style("callout_cell", (c4m_render_style_t *)&default_callout_cell);
+    c4m_set_style("callout", (c4m_render_style_t *)&default_callout);
 }
 
 const c4m_vtable_t c4m_render_style_vtable = {
