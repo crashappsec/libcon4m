@@ -60,7 +60,7 @@ jobs:
         run: brew install meson ninja
 
       - name: Build
-        run: ./dev build
+        run: ./dev release
 
       - name: Run
         run: ./dev run

@@ -44,13 +44,8 @@ function meson_build {
             rm -rf ${1}
         fi
         log Creating meson target ${1}
-
-        if [[ ${1} -ne "debug" ]] ; then
-            SETUP_ARGS=-Dbuildtype=release
-        else
-            SETUP_ARGS=-Dbuildtype=debug
-        fi
-        meson setup ${SETUP_ARGS} ${1}
+        log meson setup ${@}
+        meson setup ${@}
     fi
     cd ${1}
 
@@ -186,13 +181,22 @@ fi
 case $1 in
     clean)   libcon4m_dev_clean
              ;;
-    build)   meson_build build
+    build)   meson_build build --buildtype=plain
              ;;
-    debug)   debug_it
+    debug)   meson_build debug --buildtype=debug
+             debug_it
              ;;
     release) meson_build release --buildtype=release
              ;;
     run)     libcon4m_run_tests $@
+             CODE=$?
+             if [[ $CODE -eq 0 ]] ; then
+                 log "CI/CD tests passed."
+             else
+                 log "CI/CD Tests FAILED."
+                 exit $CODE
+             fi
+
              ;;
     hash)    meson_hatrack hash
              ;;
