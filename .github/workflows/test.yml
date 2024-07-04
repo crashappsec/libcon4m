@@ -48,9 +48,11 @@ jobs:
           sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
           gcc --version
 
-      - name: On Linux + Clang, set CC env var
+      - name: On Linux + Clang, fix missing LLVMgold.so and set CC env var
         if: runner.os == 'Linux' && matrix.cc == 'clang'
         run: |
+          sudo apt-get update
+          sudo apt-get install llvm-18-linker-tools
           echo "CC=${{ matrix.cc }}" >> "${GITHUB_ENV}"
           clang --version
 
