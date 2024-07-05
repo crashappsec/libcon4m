@@ -334,7 +334,13 @@ void _c4m_memcheck_object(c4m_obj_t, char *, int);
 #define c4m_memcheck_object(x)
 #endif
 
-#if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__)
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define __SANITIZE_ADDRESS__
+#endif
+#endif
+
+#if defined(__SANITIZE_ADDRESS__)
 void __asan_poison_memory_region(void const volatile *addr, size_t size);
 void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 
