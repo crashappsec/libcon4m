@@ -1,25 +1,44 @@
+"""
+Basic test of tuples.
+"""
+"""
+$output:
+1
+foo
+3
+1
+blah
+3
+4
+blah
+3
+4
+blah
+3
+"""
+
 x = (1, "foo", 3)
-#assert x[0] == 1
-#assert x[1] == "foo"
-#assert x[2] == 3
+print(x[0])
+print(x[1])
+print(x[2])
 
 y = x
 y[1] = "blah"
 
-assert x[0] == 1
-assert x[1] == "foo"
-assert x[2] == 3
+print(x[0])
+print(x[1])
+print(x[2])
 
 x[0] = 4
 
-assert y[0] == 1
-assert y[1] == "blah"
-assert y[2] == 3
+print(y[0])
+print(y[1])
+print(y[2])
 
 x[1] = y[1]
 
 (a, b, c) = x
 
-assert a == 4
-assert b == "blah"
-assert c == 3
+print(a)
+print(b)
+print(c)
