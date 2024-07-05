@@ -79,6 +79,7 @@ typedef enum {
     c4m_nt_field_prop,
     c4m_nt_expression,
     c4m_nt_extern_box,
+    c4m_nt_elided,
 #ifdef C4M_DEV
     c4m_nt_print,
 #endif

@@ -21,6 +21,7 @@ typedef enum {
     assign_to_mem_slot,
     assign_via_index_set_call,
     assign_via_slice_set_call,
+    assign_via_len_then_slice_set_call,
 } assign_type_t;
 
 typedef struct {
@@ -1650,6 +1651,28 @@ gen_assign(gen_ctx *ctx)
     case assign_via_slice_set_call:
         gen_tcall(ctx, C4M_BI_SLICE_SET, ctx->cur_pnode->type);
         break;
+    case assign_via_len_then_slice_set_call:
+        // Need to call len() on the object for the 2nd slice
+        // param.  The 2nd slice parameter is supposed to get
+        // pushed on first though.
+        //
+        // Stash the value in R0.
+        emit(ctx, C4M_ZPopToR0);
+        // stash start ix
+        emit(ctx, C4M_ZPopToR1);
+        // Dupe the container.
+        emit(ctx, C4M_ZDupTop);
+        // Call len on the non-popped version.
+        gen_tcall(ctx, C4M_BI_LEN, ctx->cur_pnode->type);
+        // Push the index back.
+        emit(ctx, C4M_ZPushFromR1);
+        // Swap the two indices to be in the proper order.
+        emit(ctx, C4M_ZSwap);
+        // Push the value back.
+        emit(ctx, C4M_ZPushFromR0);
+        // Slice!
+        gen_tcall(ctx, C4M_BI_SLICE_SET, ctx->cur_pnode->type);
+        break;
     case assign_via_index_set_call:
         emit(ctx, C4M_ZSwap);
         gen_tcall(ctx, C4M_BI_INDEX_SET, ctx->cur_pnode->type);
@@ -1739,7 +1762,12 @@ gen_index_or_slice(gen_ctx *ctx)
 
     if (lvalue) {
         if (slice) {
-            ctx->assign_method = assign_via_slice_set_call;
+            if (pnode->extra_info == (void *)1) {
+                ctx->assign_method = assign_via_len_then_slice_set_call;
+            }
+            else {
+                ctx->assign_method = assign_via_slice_set_call;
+            }
         }
         else {
             ctx->assign_method = assign_via_index_set_call;
@@ -1747,13 +1775,44 @@ gen_index_or_slice(gen_ctx *ctx)
         ctx->lvalue = true;
         return;
     }
-
     if (slice) {
+        if (pnode->extra_info == (void *)1) {
+            // Need to call len() on the object for the 2nd slice
+            // param.  The 2nd slice parameter is supposed to get
+            // pushed on first though.
+            //
+            // Stash the other index.
+            emit(ctx, C4M_ZPopToR0);
+            // Dupe the copy.
+            emit(ctx, C4M_ZDupTop);
+            // Call len on the dupe.
+            gen_tcall(ctx, C4M_BI_LEN, ctx->cur_pnode->type);
+            // Push the index back.
+            emit(ctx, C4M_ZPushFromR0);
+            // Swap positions.
+            emit(ctx, C4M_ZSwap);
+        }
         gen_tcall(ctx, C4M_BI_SLICE_GET, ctx->cur_pnode->type);
     }
     else {
         gen_tcall(ctx, C4M_BI_INDEX_GET, ctx->cur_pnode->type);
     }
+}
+
+static inline void
+gen_elision(gen_ctx *ctx)
+{
+    // Right now, this is only for indexes on slices.  If were' on the
+    // LHS, life is easy; we just emit an actual 0.
+    if (ctx->cur_node->parent->children[0] == ctx->cur_node) {
+        gen_load_immediate(ctx, 0);
+        return;
+    }
+
+    // Otherwise, we cheat a little bit here, and signal to
+    // gen_index_or_slice through the range pnode.
+    c4m_pnode_t *range_pnode = c4m_get_pnode(ctx->cur_node->parent);
+    range_pnode->extra_info  = (void *)1;
 }
 
 static inline void
@@ -1931,6 +1990,9 @@ gen_one_node(gen_ctx *ctx)
         break;
     case c4m_nt_use:
         gen_use(ctx);
+        break;
+    case c4m_nt_elided:
+        gen_elision(ctx);
         break;
         // The following list is still TODO:
     case c4m_nt_varargs_param:

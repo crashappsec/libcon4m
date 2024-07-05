@@ -742,6 +742,21 @@ lookup_or_add(pass2_ctx *ctx, c4m_utf8_t *name)
 }
 
 static void
+handle_elision(pass2_ctx *ctx)
+{
+    c4m_pnode_t *cur    = c4m_get_pnode(ctx->node);
+    c4m_pnode_t *parent = c4m_get_pnode(ctx->node->parent);
+
+    switch (parent->kind) {
+    case c4m_nt_range:
+        cur->type = c4m_type_int();
+        return;
+    default:
+        c4m_unreachable();
+    }
+}
+
+static void
 handle_index(pass2_ctx *ctx)
 {
     c4m_pnode_t *pnode     = c4m_get_pnode(ctx->node);
@@ -756,6 +771,7 @@ handle_index(pass2_ctx *ctx)
 
     use_context_enter(ctx);
     process_child(ctx, 1);
+
     ix1_type    = c4m_type_resolve(get_pnode_type(ctx->node->children[1]));
     pnode->type = node_type;
 
@@ -2268,6 +2284,10 @@ base_check_pass_dispatch(pass2_ctx *ctx)
 
     case c4m_nt_return:
         handle_return(ctx);
+        break;
+
+    case c4m_nt_elided:
+        handle_elision(ctx);
         break;
 
 #ifdef C4M_DEV
