@@ -1,22 +1,50 @@
-# Tests basic functionality of lists built into the language:
-# 1. copying on assignment
-# 2. container iteration
-# 3. indexing
-# 4. assignment to an index
-# 5. slicing
-# 6. assigning slices
+"""
+Test basic functionality of lists built into the language:
+1. reference semantics
+2. container iteration
+3. indexing
+4. assignment to an index
+5. slicing
+6. assigning slices
+"""
+"""
+$output:
+[1, 2, 3, 4]
+1
+1
+2
+2
+3
+3
+4
+4
+10
+10
+20
+20
+30
+30
+40
+40
+90
+[10, 100]
+110
+"""
 
-x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+x = [1, 2, 3, 4]
 y = x
 
+print(x)
+
 for item in y {
-  assert item == ($i + 1)
-  x[$i] = 10
+  print($i + 1)
+  print(item)
+  x[$i] = ($i + 1) * 10
 }
 
 for item in x {
-  assert item == 10
-  assert y[$i] == $i + 1
+  print(item)
+  print(y[$i])
 }
 
 sum = 0
@@ -25,11 +53,15 @@ for item in x[1:-1] {
   sum += item
 }
 
-assert sum == 80
-x[1:-1] = [5]
+print(sum)
+
+x[1:-1] = [100]
+print(x)
+
 sum = 0
 
 for item in x {
   sum += item
 }
-assert sum == 25
+
+print(sum)
