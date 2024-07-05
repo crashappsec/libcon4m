@@ -137,7 +137,5 @@ typedef struct {
     //   call_resolution_t; this one is NOT pre-alloc'd for us.
     // - For breaks, continues, returns, it will hold the c4m_loop_info_t
     //   (the pnode_t not the tree node) that constitutes the jump target.
-    // -
-
-    bool have_value;
+    bool                have_value;
 } c4m_pnode_t;

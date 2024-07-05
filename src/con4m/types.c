@@ -1664,16 +1664,19 @@ c4m_initialize_global_types()
 
         c4m_base_obj_t *envstore;
         // This needs to not be c4m_new'd.
-        c4m_type_universe        = c4m_gc_raw_alloc(sizeof(c4m_type_universe_t),
-                                             C4M_GC_SCAN_ALL);
-        envstore                 = c4m_gc_alloc(c4m_dict_t);
-        c4m_dict_t *store        = (c4m_dict_t *)envstore->data;
+        // clang-format off
+        c4m_type_universe = c4m_gc_raw_alloc(sizeof(c4m_type_universe_t),
+					     C4M_GC_SCAN_ALL);
+        envstore          = c4m_gc_raw_alloc(sizeof(c4m_dict_t) +
+					     sizeof(c4m_base_obj_t),
+					     C4M_GC_SCAN_ALL);
+        // clang-format on
+        c4m_dict_t     *store    = (c4m_dict_t *)envstore->data;
         c4m_type_universe->store = store;
-
         // We don't set the heading info up fully, so this dict
         // won't be directly marshalable unless / until we do.
         hatrack_dict_init(store, HATRACK_DICT_KEY_TYPE_INT);
-
+        c4m_memcheck_object(store);
         // Set up the type we need internally for containers.
 
         tobj = c4m_gc_raw_alloc(tslen, c4m_type_set_gc_bits);

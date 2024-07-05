@@ -1,16 +1,5 @@
 #include "con4m.h"
 
-// The object header has 4 words that we don't need to scan (there is
-// a heap pointer in there, but it points to something definitely
-// always available from the roots).
-//
-// Our pointer shows in our second word. Therefore, the 6th most
-// significant bit gets set here.
-const uint64_t c4m_pmap_str[2] = {
-    0x0000000000000001,
-    0x0400000000000000,
-};
-
 C4M_STATIC_ASCII_STR(c4m_empty_string_const, "");
 C4M_STATIC_ASCII_STR(c4m_newline_const, "\n");
 C4M_STATIC_ASCII_STR(c4m_crlf_const, "\r\n");
@@ -434,8 +423,9 @@ c4m_to_utf8(const c4m_utf32_t *inp)
     // Allocates 4 bytes per codepoint; this is an overestimate in
     // cases where UTF8 codepoints are above U+00ff. But nbd.
 
-    c4m_utf8_t      *res    = c4m_new(c4m_type_utf8(),
+    c4m_utf8_t *res = c4m_new(c4m_type_utf8(),
                               c4m_kw("length", c4m_ka(inp->byte_len)));
+
     c4m_codepoint_t *p      = (c4m_codepoint_t *)inp->data;
     uint8_t         *outloc = (uint8_t *)res->data;
     int              l;
@@ -694,6 +684,7 @@ c4m_utf8_repeat(c4m_codepoint_t cp, int64_t num)
     char       *p      = res->data;
 
     res->codepoints = l;
+    res->byte_len   = blen;
 
     for (int i = 0; i < blen; i++) {
         p[i] = buf[buf_ix++];

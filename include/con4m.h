@@ -1,7 +1,8 @@
 #pragma once
 
+// #define C4M_FULL_MEMCHECK
 // #define C4M_DEBUG
-#define C4M_GC_STATS
+// #define C4M_GC_STATS
 // #define C4M_TRACE_GC
 
 // #define C4M_GCT_MOVE        1
@@ -20,13 +21,17 @@
 
 // This won't work on systems that require aligned pointers.
 // #define C4M_PARANOID_STACK_SCAN
+// #define C4M_PARSE_DEBUG
 
 // UBSan hates our underflow check.
-#define C4M_OMIT_UNDERFLOW_CHECKS
-
+// #define C4M_OMIT_UNDERFLOW_CHECKS
 #ifdef C4M_NO_DEV_MODE
 #undef C4M_DEV
+#undef C4M_PARSE_DEBUG
 #else
+#ifdef C4M_PARSE_DEBUG
+#define C4M_DEV
+#endif
 #define C4M_DEV
 #endif
 

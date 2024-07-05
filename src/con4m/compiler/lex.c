@@ -1011,8 +1011,8 @@ line_comment:
             else {
             */
             TOK(c4m_tt_colon);
-            skip_optional_newline(state);
-            //            }
+            // skip_optional_newline(state);
+            //             }
             continue;
         case '=':
             if (peek(state) == '=') {

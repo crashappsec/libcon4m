@@ -40,7 +40,6 @@ c4m_pass_kargs(int nargs, ...)
     }
 
     nargs >>= 1;
-
     c4m_karg_info_t *kargs = c4m_new(c4m_type_kargs(), nargs);
 
     for (int i = 0; i < nargs; i++) {

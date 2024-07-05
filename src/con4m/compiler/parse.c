@@ -27,9 +27,7 @@ typedef struct {
     bool                  in_function;
 } parse_ctx;
 
-#undef PARSE_DEBUG
-
-#ifdef PARSE_DEBUG
+#ifdef C4M_PARSE_DEBUG
 static inline c4m_token_t *_tok_cur(parse_ctx *, int);
 #define consume(ctx) _consume(ctx, __LINE__)
 #define tok_cur(ctx) _tok_cur(ctx, __LINE__)
@@ -64,7 +62,7 @@ c4m_exit_to_checkpoint(parse_ctx  *ctx,
                        int         line,
                        const char *fn)
 {
-#ifdef PARSE_DEBUG
+#ifdef C4M_PARSE_DEBUG
     printf("Bailed @%s:%d (func = %s)\n", f, line, fn);
     c4m_print(c4m_format_one_token(tok_cur(ctx),
                                    c4m_new_utf8("Current token: ")));
@@ -97,7 +95,7 @@ c4m_exit_to_checkpoint(parse_ctx  *ctx,
                            __LINE__, \
                            __func__)
 
-#ifdef PARSE_DEBUG
+#ifdef C4M_PARSE_DEBUG
 static inline void _consume(parse_ctx *, int);
 #else
 static inline void _consume(parse_ctx *);
@@ -237,7 +235,7 @@ static const node_type_info_t node_type_info[] = {
     // clang-format on
 };
 
-#ifdef PARSE_DEBUG
+#ifdef C4M_PARSE_DEBUG
 static inline c4m_token_t *
 _tok_cur(parse_ctx *ctx, int line)
 #else
@@ -252,7 +250,7 @@ _tok_cur(parse_ctx *ctx)
         ctx->cache_ix     = ctx->token_ix;
     }
 
-#ifdef PARSE_DEBUG
+#ifdef C4M_PARSE_DEBUG
     if (line == -1) {
         return ctx->cached_token;
     }
@@ -268,7 +266,7 @@ _tok_cur(parse_ctx *ctx)
 static inline c4m_token_kind_t
 tok_kind(parse_ctx *ctx)
 {
-#ifdef PARSE_DEBUG
+#ifdef C4M_PARSE_DEBUG
     return _tok_cur(ctx, -1)->kind;
 #else
     return _tok_cur(ctx)->kind;
@@ -419,7 +417,6 @@ end_of_statement(parse_ctx *ctx)
     }
 
     if (!cur_tok_is_end_of_stmt(ctx) && tok_kind(ctx)) {
-        DEBUG_CUR("Suck");
         err_skip_stmt(ctx, c4m_err_parse_expected_stmt_end);
         return;
     }
@@ -445,7 +442,7 @@ tok_raw_advance_once(parse_ctx *ctx)
     ctx->token_ix += 1;
 }
 
-#ifdef PARSE_DEBUG
+#ifdef C4M_PARSE_DEBUG
 static inline void
 _consume(parse_ctx *ctx, int line)
 #else
@@ -456,7 +453,7 @@ _consume(parse_ctx *ctx)
     c4m_pnode_t        *pn;
     c4m_comment_node_t *comment;
 
-#ifdef PARSE_DEBUG
+#ifdef C4M_PARSE_DEBUG
     printf("Consume on line %d\n", line);
 #endif
 
@@ -544,7 +541,7 @@ _match(parse_ctx *ctx, ...)
         possibility = va_arg(args, c4m_token_kind_t);
 
         if (possibility == c4m_tt_error) {
-#ifdef PARSE_DEBUG
+#ifdef C4M_PARSE_DEBUG
             printf("No match for tt = %d\n", current_tt);
 #endif
             current_tt = c4m_tt_error;
@@ -626,7 +623,7 @@ adopt_kid(parse_ctx *ctx, c4m_tree_node_t *node)
     c4m_tree_adopt_node(ctx->cur, node);
 }
 
-#ifdef PARSE_DEBUG
+#ifdef C4M_PARSE_DEBUG
 static inline c4m_tree_node_t *
 _start_node(parse_ctx *ctx, c4m_node_kind_t kind, bool consume_token, int line)
 #else
@@ -638,7 +635,7 @@ _start_node(parse_ctx *ctx, c4m_node_kind_t kind, bool consume_token)
     c4m_tree_node_t *parent = ctx->cur;
 
     if (consume_token) {
-#ifdef PARSE_DEBUG
+#ifdef C4M_PARSE_DEBUG
         printf("In start_node on line: %d\n", line);
 #endif
         consume(ctx);
@@ -647,7 +644,7 @@ _start_node(parse_ctx *ctx, c4m_node_kind_t kind, bool consume_token)
     c4m_tree_node_t *result = c4m_tree_add_node(parent, child);
     ctx->cur                = result;
 
-#ifdef PARSE_DEBUG
+#ifdef C4M_PARSE_DEBUG
     printf("started node: ");
     c4m_print(repr_one_node(child));
 #endif
@@ -658,7 +655,7 @@ _start_node(parse_ctx *ctx, c4m_node_kind_t kind, bool consume_token)
 static inline void
 end_node(parse_ctx *ctx)
 {
-#ifdef PARSE_DEBUG
+#ifdef C4M_PARSE_DEBUG
     printf("Leaving node: ");
     c4m_print(repr_one_node(ctx->cur->contents));
 #endif
@@ -1753,8 +1750,9 @@ case_body(parse_ctx *ctx)
     start_node(ctx, c4m_nt_body, true);
 
     DECLARE_CHECKPOINT();
+    ENTER_CHECKPOINT();
+
     while (true) {
-        ENTER_CHECKPOINT();
         if (safety_check) {
             THROW('!');
         }
@@ -2010,48 +2008,68 @@ switch_case_block(parse_ctx *ctx)
 {
     start_node(ctx, c4m_nt_case, false);
 
+    c4m_tree_node_t *expr;
+
+    // If, after the first expression, there's a colon followed by
+    // anything other then a newline, we'll try to parse a range.
+    //
+    // We can't just try to always parse the range, since doing so
+    // will eat the newline. So in the case the next token's a colon,
+    // we look ahead one token, and if we a newline, then we
+    // know not to try the range op.
+
     while (true) {
-        c4m_tree_node_t *expr = expression(ctx);
-
-        // If, after the first expression, there's a colon followed by
-        // anything other then a newline, we'll try to parse a range.
-        //
-        // We can't just try to always parse the range, since doing so
-        // will eat the newline. So in the case the next token's a colon,
-        // we look ahead one token, and if we a newline, then we
-        // know not to try the range op.
-
-        if (tok_kind(ctx) == c4m_tt_colon) {
+        expr = expression(ctx);
+        switch (tok_kind(ctx)) {
+        case c4m_tt_colon:
             if (lookahead(ctx, 1, false) == c4m_tt_newline) {
                 adopt_kid(ctx, expr);
-                break;
+                consume(ctx);
+                case_body(ctx);
+                end_node(ctx);
+                return;
             }
-        }
-        // optional_case_range is done on the main tree, and adopts
-        // expr, so only adopt the expr if the case range fails.
-        if (!optional_case_range(ctx, expr)) {
+            // fallthrough
+        case c4m_tt_to:
+            optional_case_range(ctx, expr);
+
+            if (tok_kind(ctx) == c4m_tt_comma) {
+                consume(ctx);
+                continue;
+            }
+
+            end_node(ctx);
+            return;
+
+        case c4m_tt_newline:
             adopt_kid(ctx, expr);
-        }
+            consume(ctx);
 
-        if (tok_kind(ctx) != c4m_tt_comma) {
-            break;
-        }
+            if (tok_kind(ctx) != c4m_tt_lbrace) {
+                add_parse_error(ctx, c4m_err_parse_case_body_start);
+                THROW('!');
+            }
 
-        consume(ctx);
-    }
+            body(ctx, NULL);
 
-    if (tok_kind(ctx) == c4m_tt_colon) {
-        case_body(ctx);
-    }
-    else {
-        opt_one_newline(ctx);
-        if (tok_kind(ctx) != c4m_tt_lbrace) {
+            end_node(ctx);
+            return;
+
+        case c4m_tt_comma:
+            adopt_kid(ctx, expr);
+            consume(ctx);
+            continue;
+
+        case c4m_tt_else:
+            case_else_block(ctx);
+            end_node(ctx);
+            expect(ctx, c4m_tt_rbrace);
+            return;
+        default:
             add_parse_error(ctx, c4m_err_parse_case_body_start);
             THROW('!');
         }
-        body(ctx, NULL);
     }
-    end_node(ctx);
 }
 
 static void
@@ -2071,12 +2089,13 @@ switch_stmt(parse_ctx *ctx, bool label)
 
     ctx->switch_depth++;
 
-    while (true) {
-        switch_case_block(ctx);
+    switch_case_block(ctx);
 
+    while (true) {
         switch (match(ctx, c4m_tt_case, c4m_tt_rbrace, c4m_tt_else)) {
         case c4m_tt_case:
             consume(ctx);
+            switch_case_block(ctx);
             continue;
         case c4m_tt_rbrace:
             consume(ctx);
@@ -4042,11 +4061,12 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
                 }
             }
         case '!':
-            END_CHECKPOINT();
             if (tok_kind(ctx) == c4m_tt_eof) {
+                END_CHECKPOINT();
                 return;
             }
             if (safety_check) {
+                END_CHECKPOINT();
                 return;
             }
             safety_check = 1;

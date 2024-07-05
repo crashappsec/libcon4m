@@ -555,8 +555,6 @@ c4m_list_set_slice(c4m_list_t *list,
     list->data      = (int64_t **)newdata;
     list->append_ix = start;
 
-    printf("Setting length of list to %d\n", list->length);
-
     read_end(new);
     unlock_list(list);
 }

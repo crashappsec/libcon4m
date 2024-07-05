@@ -6,7 +6,8 @@ static void
 c4m_set_init(c4m_set_t *set, va_list args)
 {
     size_t         hash_fn;
-    c4m_type_t    *stype = c4m_get_my_type(set);
+    c4m_type_t    *stype     = c4m_get_my_type(set);
+    bool           using_obj = false;
     c4m_dt_info_t *info;
 
     if (stype != NULL) {
@@ -16,6 +17,11 @@ c4m_set_init(c4m_set_t *set, va_list args)
     }
     else {
         hash_fn = (uint32_t)va_arg(args, size_t);
+    }
+
+    if (hash_fn == HATRACK_DICT_KEY_TYPE_PTR) {
+        using_obj = true;
+        hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR;
     }
 
     hatrack_set_init(set, hash_fn);
@@ -32,10 +38,17 @@ c4m_set_init(c4m_set_t *set, va_list args)
     case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
     case HATRACK_DICT_KEY_TYPE_OBJ_INT:
     case HATRACK_DICT_KEY_TYPE_OBJ_REAL:
-        hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_OFFSET);
+	if (using_obj) {
+	    hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_OBJ_OFFSET);
+	}
+	else {
+	    hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_RAW_OFFSET);
+	}
         break;
     default:
-        // nada.
+	    hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_RAW_OFFSET);
+	break;
+
     }
 }
 

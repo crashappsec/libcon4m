@@ -175,7 +175,7 @@ c4m_tree_str_transform(c4m_tree_node_t *t, c4m_str_t *(*fn)(void *))
         return NULL;
     }
 
-    c4m_str_t       *str    = fn(c4m_tree_get_contents(t));
+    c4m_str_t       *str    = c4m_to_utf8(fn(c4m_tree_get_contents(t)));
     c4m_tree_node_t *result = c4m_new(c4m_type_tree(c4m_type_utf8()),
                                       c4m_kw("contents", c4m_ka(str)));
 

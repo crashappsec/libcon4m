@@ -15,6 +15,7 @@ c4m_box_obj(c4m_box_t value, c4m_type_t *type)
 // However, the allocated item allocated the actual item's size, so we
 // have to make sure to get it right on both ends; we can't just
 // dereference a uint64_t, for instance.
+
 static inline c4m_box_t
 c4m_unbox_obj(c4m_box_t *box)
 {
@@ -22,9 +23,21 @@ c4m_unbox_obj(c4m_box_t *box)
         .u64 = 0,
     };
 
-    switch (c4m_get_alloc_len(c4m_get_my_type(box))) {
+    c4m_type_t *t = c4m_type_unbox(c4m_get_my_type(box));
+
+    switch (c4m_get_alloc_len(t)) {
     case 1:
-        result.u8 = box->u8;
+        // On my mac, when this gets compiled w/ ASAN, ASAN somehow
+        // mangles the bool even when properly going through the union
+        // here.
+        //
+        // So this shouldn't be necessary, yet here it is.
+        if (t->details->base_type->typeid == C4M_T_BOOL) {
+            result.u64 = !!box->u64;
+        }
+        else {
+            result.u8 = box->u8;
+        }
         break;
     case 2:
         result.u16 = box->u16;

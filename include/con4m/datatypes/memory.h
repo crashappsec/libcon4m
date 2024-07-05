@@ -1,6 +1,10 @@
 #pragma once
 #include "con4m.h"
 
+#if defined(C4M_FULL_MEMCHECK) && !defined(C4M_GC_STATS)
+#define C4M_GC_STATS
+#endif
+
 #define C4M_FORCED_ALIGNMENT 16
 
 typedef void (*c4m_mem_scan_fn)(uint64_t *, int);
@@ -61,12 +65,13 @@ typedef struct c4m_alloc_hdr {
     // and a pointer to a bitfield that contains that many bits. The
     // bits that correspond to words with pointers should be set.
     c4m_mem_scan_fn       scan_fn;
-
-#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
-    char *alloc_file;
-    int   alloc_line;
+#ifdef C4M_FULL_MEMCHECK
+    uint64_t *end_guard_loc;
+    int       request_len;
 #endif
-    //
+    char       *alloc_file;
+    int         alloc_line;
+    __uint128_t cached_hash;
     // The actual exposed data. This must be 16-byte aligned!
     alignas(C4M_FORCED_ALIGNMENT) uint64_t data[];
 } c4m_alloc_hdr;
@@ -75,6 +80,18 @@ typedef struct c4m_finalizer_info_t {
     c4m_alloc_hdr               *allocation;
     struct c4m_finalizer_info_t *next;
 } c4m_finalizer_info_t;
+
+#ifdef C4M_FULL_MEMCHECK
+typedef struct c4m_shadow_alloc_t {
+    struct c4m_shadow_alloc_t *next;
+    struct c4m_shadow_alloc_t *prev;
+    char                      *file;
+    int                        line;
+    int                        len;
+    c4m_alloc_hdr             *start;
+    uint64_t                  *end;
+} c4m_shadow_alloc_t;
+#endif
 
 typedef struct {
     void    *ptr;
@@ -90,6 +107,10 @@ typedef struct {
 #endif
 
 typedef struct c4m_arena_t {
+#ifdef C4M_FULL_MEMCHECK
+    c4m_shadow_alloc_t *shadow_start;
+    c4m_shadow_alloc_t *shadow_end;
+#endif
     c4m_alloc_hdr        *next_alloc;
     hatrack_zarray_t     *roots;
     c4m_set_t            *external_holds;

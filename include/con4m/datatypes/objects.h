@@ -64,7 +64,6 @@ typedef struct {
 struct c4m_base_obj_t {
     c4m_dt_info_t     *base_data_type;
     struct c4m_type_t *concrete_type;
-    __uint128_t        cached_hash;
     // The exposed object data.
     uint64_t           data[];
 };
