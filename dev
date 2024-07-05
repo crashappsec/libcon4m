@@ -32,12 +32,10 @@ function log {
     echo $(color blue "[-- libcon4m --]" $@)
 }
 
-function meson_build {
-
+function meson_init_target {
     echo ${1} > .meson_last
     rm deps/local 2>/dev/null
     ln -s ${PWD}/deps/${OS}-${ARCH} ${PWD}/deps/local
-
 
     if [[ ! -d ${1} ]]; then
         if [[ -f ${1} ]]; then
@@ -47,6 +45,10 @@ function meson_build {
         log meson setup ${@}
         meson setup ${@}
     fi
+}
+
+function meson_build {
+    meson_init_target ${@}
     cd ${1}
 
     log Compiling meson target ${1}
@@ -75,7 +77,6 @@ function meson_build {
 }
 
 function meson_hatrack {
-
     if [[ ! -d ${1} ]]; then
         if [[ -f ${1} ]]; then
             rm -rf ${1}
@@ -111,7 +112,7 @@ function meson_hatrack {
 }
 
 function libcon4m_dev_usage {
-    echo "Usage: ./dev [build | run | release | debug | clean]"
+    echo "Usage: ./dev [build | run | release | debug | testbuild | clean]"
     exit 1
 }
 
@@ -121,13 +122,8 @@ function debug_it {
     DEBUGGER=${DEBUGGER:-$(which lldb)}
     cd debug
     log "Running debugger:v${DEBUGGER}"
-    echo
-    echo $(color RED 'Recommended environment variables:')
-    echo $(color CYAN 'export ASAN_OPTIONS=halt_on_error=0')
-    echo $(color CYAN 'export UBSAN_OPTIONS=print_stacktrace=1;halt_on_error=0')
     ${DEBUGGER} ./c4test
     cd ..
-
 }
 
 function libcon4m_run_tests {
@@ -162,7 +158,7 @@ function libcon4m_run_tests {
 }
 
 function libcon4m_dev_clean {
-    for item in build debug release; do
+    for item in build debug release cicd .meson_last; do
         if [[ -d ${item} ]]; then
             log Cleaning ${item}
             cd ${item}
@@ -183,10 +179,20 @@ case $1 in
              ;;
     build)   meson_build build --buildtype=plain
              ;;
-    debug)   meson_build debug --buildtype=debug
-             meson configure debug -Duse_ubsan=true -Duse_asan=true -Duse_memcheck=true
+    debug)   meson_init_target debug --buildtype=debug
+             meson configure debug -Duse_memcheck=true
+             meson_build debug
              debug_it
              ;;
+    testbuild)   meson_init_target cicd --buildtype=debug
+                 meson configure cicd -Duse_memcheck=true
+                 meson_build cicd
+                 ;;
+    sanitizers) meson_init_target sanitizers
+                meson configure sanitizers -Duse_ubsan=true -Duse_asan=true
+                meson build sanitizers
+                ;;
+
     release) meson_build release --buildtype=release
              ;;
     run)
