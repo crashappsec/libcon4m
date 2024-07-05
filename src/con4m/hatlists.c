@@ -272,7 +272,7 @@ c4m_flexarray_get_slice(flexarray_t *list, int64_t start, int64_t end)
         }
     }
     if (end < 0) {
-        end += len + 1;
+        end += len;
     }
     else {
         if (end > len) {
@@ -315,7 +315,7 @@ c4m_flexarray_set_slice(flexarray_t *list, int64_t start, int64_t end, flexarray
         }
     }
     if (end < 0) {
-        end += len1 + 1;
+        end += len1;
     }
     else {
         if (end > len1) {

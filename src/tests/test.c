@@ -77,7 +77,7 @@ c4m_parse_kat(c4m_str_t *path, c4m_str_t *s)
             err_basic_usage(path);
             return NULL;
         }
-        extract_errors(result, s, 9, -1);
+        extract_errors(result, s, 9, c4m_str_codepoint_len(s));
         result->ignore_output = 1;
         return result;
     }
@@ -87,7 +87,7 @@ c4m_parse_kat(c4m_str_t *path, c4m_str_t *s)
             err_basic_usage(path);
             return NULL;
         }
-        extract_output(result, s, 9, -1);
+        extract_output(result, s, 9, c4m_str_codepoint_len(s));
         return result;
     }
 
@@ -98,11 +98,11 @@ c4m_parse_kat(c4m_str_t *path, c4m_str_t *s)
 
     if (errix != 0) {
         extract_output(result, s, 9, errix);
-        extract_errors(result, s, errix + 9, -1);
+        extract_errors(result, s, errix + 9, c4m_str_codepoint_len(s));
     }
     else {
         extract_errors(result, s, 9, outix);
-        extract_output(result, s, outix + 9, -1);
+        extract_output(result, s, outix + 9, c4m_str_codepoint_len(s));
     }
 
     return result;
@@ -230,7 +230,8 @@ build_file_list()
 
     for (int i = 0; i < n; i++) {
         c4m_utf8_t *s = c4m_to_utf8(c4m_list_get(argv, i, NULL));
-        s             = c4m_resolve_path(s);
+        s             = c4m_resolve_path(c4m_path_simple_join(test_dir, s));
+
         switch (c4m_get_file_kind(s)) {
         case C4M_FK_IS_REG_FILE:
         case C4M_FK_IS_FLINK:
@@ -259,6 +260,7 @@ build_file_list()
     }
 
     n = c4m_list_len(to_recurse);
+
     for (int i = 0; i < n; i++) {
         int         num_hits = 0;
         c4m_utf8_t *path     = c4m_list_get(to_recurse, i, NULL);
@@ -269,6 +271,7 @@ build_file_list()
         int walk_len = c4m_list_len(files);
         for (int j = 0; j < walk_len; j++) {
             c4m_utf8_t *one = c4m_list_get(files, j, NULL);
+
             if (c4m_str_ends_with(one, ext)) {
                 kat = c4m_extract_kat(one);
                 // When scanning dirs, if we have test cases that span
