@@ -29,6 +29,10 @@ c_args        = ['-Wextra',
                   '-fno-omit-frame-pointer',
                   ]
 
+if (host_machine.cpu_family() == 'x86_64' and cc.get_id() == 'clang')
+  c_args    = c_args + ['-Wno-atomic-alignment']
+endif
+
 if (host_machine.system() == 'darwin')
   using_osx  = true
   link_args  = ['-target',
