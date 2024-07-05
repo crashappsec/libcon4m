@@ -1,5 +1,3 @@
-// "Exclusive" array, meaning not shared across threads. It's dynamic,
-// and supports resizing.
 #include "con4m.h"
 
 static void
@@ -469,7 +467,7 @@ c4m_list_get_slice(c4m_list_t *list, int64_t start, int64_t end)
         }
     }
     if (end < 0) {
-        end += len + 1;
+        end += len;
     }
     else {
         if (end > len) {
@@ -516,7 +514,7 @@ c4m_list_set_slice(c4m_list_t *list,
         }
     }
     if (end < 0) {
-        end += len1 + 1;
+        end += len1;
     }
     else {
         if (end > len1) {

@@ -57,7 +57,6 @@ styled_repeat(c4m_codepoint_t c, uint32_t width, c4m_style_t style)
 static inline c4m_utf32_t *
 get_styled_pad(uint32_t width, c4m_style_t style)
 {
-    assert(width < 200);
     return styled_repeat(' ', width, style);
 }
 

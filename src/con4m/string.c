@@ -65,7 +65,7 @@ c4m_str_slice(const c4m_str_t *instr, int64_t start, int64_t end)
         }
     }
     if (end < 0) {
-        end += len + 1;
+        end += len;
     }
     else {
         if (end > len) {
@@ -909,7 +909,7 @@ c4m_str_ends_with(const c4m_str_t *s1, const c4m_str_t *s2)
     c4m_utf32_t *u1 = c4m_to_utf32(s1);
     c4m_utf32_t *u2 = c4m_to_utf32(s2);
 
-    u1 = c4m_str_slice(u1, l1 - l2, -1);
+    u1 = c4m_str_slice(u1, l1 - l2, l1);
 
     return c4m_str_eq(u1, u2);
 }

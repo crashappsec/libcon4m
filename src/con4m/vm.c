@@ -532,9 +532,9 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         return;
     case C4M_BI_SLICE_SET:
         STACK_REQUIRE_VALUES(4);
-        // endIx = sp[3]
+        // container = sp[3]
+        // endIx = sp[2]
         // startIx = sp[1]
-        // container = sp[2]
         // value = sp[0]
 
         c4m_slice_set(tstate->sp[3].rvalue.obj,

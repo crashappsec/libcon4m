@@ -229,6 +229,7 @@ static const node_type_info_t node_type_info[] = {
     { "nt_field_prop", 1, 0, 0, 0, 0, },
     { "nt_expression", 0, 0, 0, 0, 0, },
     { "nt_extern_box", 0, 0, 0, 0, 0, },
+    { "nt_elided", 0, 0, 0, 0, 0, },
 #ifdef C4M_DEV
     { "nt_print", 0, 0, 0, 0, 0, },
 #endif
@@ -1602,7 +1603,13 @@ optional_range(parse_ctx *ctx, c4m_tree_node_t *lhs)
     start_node(ctx, c4m_nt_range, true);
     adopt_kid(ctx, lhs);
 
-    adopt_kid(ctx, expression(ctx));
+    if (tok_kind(ctx) == c4m_tt_rbracket) {
+        start_node(ctx, c4m_nt_elided, false);
+        end_node(ctx);
+    }
+    else {
+        adopt_kid(ctx, expression(ctx));
+    }
     end_node(ctx);
     return true;
 }
@@ -3116,7 +3123,16 @@ index_expr(parse_ctx *ctx, c4m_tree_node_t *lhs)
     temporary_tree(ctx, c4m_nt_index);
     adopt_kid(ctx, lhs);
     expect(ctx, c4m_tt_lbracket);
-    c4m_tree_node_t *item = expression(ctx);
+
+    c4m_tree_node_t *item;
+
+    if (tok_kind(ctx) == c4m_tt_colon) {
+        temporary_tree(ctx, c4m_nt_elided);
+        item = restore_tree(ctx);
+    }
+    else {
+        item = expression(ctx);
+    }
 
     if (!optional_range(ctx, item)) {
         adopt_kid(ctx, item);
