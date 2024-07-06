@@ -73,8 +73,11 @@ endif
 
 if (get_option('use_ubsan') == true)
   c_args = c_args + ['-fsanitize=undefined',
-                   '-fsanitize-recover=all'
-                   ]
+                     '-fsanitize-recover=all'
+                    ]
+link_args = link_args + ['-fsanitize=undefined',
+                         '-fsanitize-recover=all'
+                        ]
 endif
 
 if (get_option('use_memcheck') == true)
@@ -230,11 +233,7 @@ libc4m   = static_library('con4m',
                           dependencies : all_deps,
                           c_args : c4m_c_args,
                           link_args: link_args)
-libhat = static_library('hatrack',
-                        lib_src,
-                        include_directories : incdir,
-                        c_args : c_args,
-                        link_args : link_args)
+
 
 if get_option('build_con4m_dll') == true
   library('con4m-dll',
@@ -253,6 +252,12 @@ executable('c4test', test_src,
                       link_with : libc4m)
 
 if get_option('build_hatrack') == true
+  libhat = static_library('hatrack',
+                          lib_src,
+                          include_directories : incdir,
+                          c_args : c_args,
+                          link_args : link_args)
+
   executable('hash', hash_test_src,
              include_directories : incdir,
              dependencies : all_deps,
