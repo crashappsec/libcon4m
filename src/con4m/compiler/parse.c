@@ -3085,6 +3085,7 @@ assign(parse_ctx *ctx, c4m_tree_node_t *lhs, c4m_node_kind_t kind)
     adopt_kid(ctx, lhs);
     adopt_kid(ctx, expression(ctx));
     result = restore_tree(ctx);
+    end_of_statement(ctx);
 
     return result;
 }
@@ -3242,11 +3243,12 @@ expression_start(parse_ctx *ctx)
     switch (tok_kind(ctx)) {
     case c4m_tt_plus:
         consume(ctx);
+        return lt_expr_rhs(ctx);
         return NULL;
     case c4m_tt_minus:
         temporary_tree(ctx, c4m_nt_unary_op);
         consume(ctx);
-        adopt_kid(ctx, expression(ctx));
+        adopt_kid(ctx, minus_expr_rhs(ctx));
         return restore_tree(ctx);
     case c4m_tt_not:
         // Here the LHS is an empty string. For TtNot, if there is a LHS,
@@ -3848,7 +3850,7 @@ section(parse_ctx *ctx, c4m_tree_node_t *node)
     if (lhs->kind != c4m_nt_expression || !c4m_tree_get_number_children(node)) {
 bad_start:
         raise_err_at_node(ctx,
-                          current_parse_node(ctx),
+                          c4m_tree_get_contents(node),
                           c4m_err_parse_unexpected_after_expr,
                           false);
     }

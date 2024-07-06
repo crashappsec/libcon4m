@@ -21,9 +21,4 @@ if m == 1 {
     return -1;
   }
 }
-
-func foo(x) {
-  x + x
-}
-
 print(n(18))

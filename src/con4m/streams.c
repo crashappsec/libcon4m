@@ -496,8 +496,8 @@ c4m_stream_write_object(c4m_stream_t *stream, c4m_obj_t obj, bool ansi)
         C4M_CRAISE("Stream is already closed.");
     }
 
-    // c4m_str_t *s = c4m_value_obj_to_str(obj);
-    c4m_str_t *s = c4m_to_str(obj, c4m_get_my_type(obj));
+    c4m_type_t *t = c4m_get_my_type(obj);
+    c4m_str_t  *s = c4m_to_str(obj, t);
 
     if (ansi) {
         c4m_ansi_render(s, stream);
@@ -658,7 +658,10 @@ _c4m_print(c4m_obj_t first, ...)
     bool             nocolor   = false;
     int              numargs;
     bool             ansi;
-    bool             truncate = true;
+    // These only happen if ANSI is on.
+    // And the second only happens when one arg is passed.
+    bool             truncate            = true;
+    bool             wrap_simple_strings = true;
 
     va_start(args, first);
 
@@ -724,13 +727,23 @@ _c4m_print(c4m_obj_t first, ...)
             c4m_stream_putcp(stream, sep);
         }
 
+        if (numargs == 1 && wrap_simple_strings) {
+            if (c4m_types_are_compat(c4m_get_my_type(cur), c4m_type_utf8(), NULL)) {
+                c4m_list_t *lines = c4m_str_wrap(cur, c4m_terminal_width(), 0);
+                cur               = c4m_str_join(lines, NULL);
+                c4m_ansi_render_to_width(cur, c4m_terminal_width(), 0, stream);
+                break;
+            }
+        }
+
         if (ansi && truncate) {
-            // truncate requires ansi.
-            c4m_stream_write_to_width(stream, cur);
+            cur = c4m_to_str(cur, c4m_get_my_type(cur));
+            c4m_ansi_render_to_width(cur, c4m_terminal_width(), 0, stream);
         }
         else {
             c4m_stream_write_object(stream, cur, ansi);
         }
+
         cur = va_arg(args, c4m_obj_t);
     }
 

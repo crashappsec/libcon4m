@@ -1,7 +1,14 @@
+"""
+Basic switch test using fib()
+"""
+"""
+5
+"""
+
 func fib(x) {
   switch x {
     case 0:
-        return 0
+        return 1
     case 1:
         return 1
     else:
@@ -9,5 +16,6 @@ func fib(x) {
   }
 }
 
-print(fib(10))
+y = fib(4)
+print(y)
 

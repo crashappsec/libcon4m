@@ -220,6 +220,18 @@ const inst_info_t inst_info[256] = {
     [C4M_ZGte] = {
         .name = "ZGte",
     },
+    [C4M_ZULt] = {
+        .name = "ZULt",
+    },
+    [C4M_ZULte] = {
+        .name = "ZULte",
+    },
+    [C4M_ZUGt] = {
+        .name = "ZUGt",
+    },
+    [C4M_ZUGte] = {
+        .name = "ZGteU",
+    },
     [C4M_ZNeq] = {
         .name = "ZNeq",
     },

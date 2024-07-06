@@ -350,7 +350,7 @@ _c4m_str_join(c4m_list_t *l, const c4m_str_t *joiner, ...)
 
     int64_t n_parts  = c4m_list_len(l);
     int64_t n_styles = 0;
-    int64_t joinlen  = c4m_str_codepoint_len(joiner);
+    int64_t joinlen  = joiner ? c4m_str_codepoint_len(joiner) : 0;
     int64_t len      = joinlen * n_parts; // An overestimate when !add_trailing
 
     for (int i = 0; i < n_parts; i++) {
@@ -1351,6 +1351,49 @@ c4m_string_format(c4m_str_t *obj, c4m_fmt_spec_t *spec)
 {
     // For now, just do nothing.
     return obj;
+}
+
+c4m_list_t *
+c4m_str_wrap(const c4m_str_t *s, int64_t width, int64_t hang)
+{
+    c4m_list_t *result = c4m_list(c4m_type_utf32());
+
+    if (!s || !c4m_str_codepoint_len(s)) {
+        return result;
+    }
+
+    c4m_utf32_t *as_u32 = c4m_to_utf32(s);
+    int32_t      i;
+
+    if (width <= 0) {
+        width = c4m_terminal_width();
+        if (!width) {
+            width = C4M_MIN_RENDER_WIDTH;
+        }
+    }
+
+    c4m_break_info_t *line_starts = c4m_wrap_text(as_u32, width, hang);
+
+    for (i = 0; i < line_starts->num_breaks - 1; i++) {
+        c4m_utf32_t *slice = c4m_str_slice(as_u32,
+                                           line_starts->breaks[i],
+                                           line_starts->breaks[i + 1]);
+        c4m_list_append(result, slice);
+
+        if (!c4m_str_ends_with(slice, c4m_get_newline_const())) {
+            // Add a newline if we wrapped somewhere else.
+            c4m_list_append(result, c4m_get_newline_const());
+        }
+    }
+
+    if (i == line_starts->num_breaks - 1) {
+        c4m_utf32_t *slice = c4m_str_slice(as_u32,
+                                           line_starts->breaks[i],
+                                           c4m_str_codepoint_len(as_u32));
+        c4m_list_append(result, slice);
+    }
+
+    return result;
 }
 
 c4m_list_t *

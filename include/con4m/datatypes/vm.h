@@ -212,20 +212,24 @@ typedef enum : uint8_t {
     // Unused; will redo when adding objects.
     C4M_ZSObjNew       = 0x38,
     // Box a literal, which requires supplying the type for the object.
-    C4M_ZBox           = 0x40,
+    C4M_ZBox           = 0x3e,
     // Unbox a value literal into its actual value.
-    C4M_ZUnbox         = 0x41,
+    C4M_ZUnbox         = 0x3f,
     // Compare (and pop) two types to see if they're comptable.
-    C4M_ZTypeCmp       = 0x42,
+    C4M_ZTypeCmp       = 0x40,
     // Compare (and pop) two values to see if they're equal. Note that
     // this is not the same as checking for object equality; this assumes
     // primitive type or reference.
-    C4M_ZCmp           = 0x43,
-    C4M_ZLt            = 0x44,
-    C4M_ZLte           = 0x45,
+    C4M_ZCmp           = 0x41,
+    C4M_ZLt            = 0x42,
+    C4M_ZULt           = 0x43,
+    C4M_ZLte           = 0x44,
+    C4M_ZULte          = 0x45,
     C4M_ZGt            = 0x46,
-    C4M_ZGte           = 0x47,
-    C4M_ZNeq           = 0x48,
+    C4M_ZUGt           = 0x47,
+    C4M_ZGte           = 0x48,
+    C4M_ZUGte          = 0x49,
+    C4M_ZNeq           = 0x4A,
     // Do a GTE comparison without popping.
     C4M_ZGteNoPop      = 0x4D,
     // Do an equality comparison without popping.
@@ -259,23 +263,42 @@ typedef enum : uint8_t {
     // Exits the current call frame, returning the current state back to the
     // originating location, which is the instruction immediately following the
     // C4M_Z0Call instruction that created this frame.
-    C4M_ZRet           = 0x80,
+    C4M_ZRet           = 0x60,
     // Exits the current stack frame, returning the current state back to the
     // originating location, which is the instruction immediately following the
     // C4M_ZCallModule instruction that created this frame.
-    C4M_ZModuleRet     = 0x81,
+    C4M_ZModuleRet     = 0x61,
     // Halt the current program immediately.
-    C4M_ZHalt          = 0x82,
+    C4M_ZHalt          = 0x62,
     // Initialze module parameters. The number of parameters is encoded in the
     // instruction's arg field. This is only used during module initialization.
-    C4M_ZModuleEnter   = 0x83,
+    C4M_ZModuleEnter   = 0x63,
     // Adjust the stack pointer down by the amount encoded in the instruction's
     // arg field. This means specifically that the arg field is subtracted from
     // sp, so a single pop would encode -1 as the adjustment.
-    C4M_ZMoveSp        = 0x85,
+    C4M_ZMoveSp        = 0x65,
     // Test the top stack value. If it is non-zero, pop it and continue running
     // the program. Otherwise, print an assertion failure and stop running the
     // program.
+    // Math operations have signed and unsigned variants. We can go from
+    // signed to unsigned where it makes sense by adding 0x10.
+    // Currently, we do not do this for bit ops, they are just all unsigned.
+    C4M_ZAdd           = 0x70,
+    C4M_ZSub           = 0x71,
+    C4M_ZMul           = 0x72,
+    C4M_ZDiv           = 0x73,
+    C4M_ZMod           = 0x74,
+    C4M_ZBXOr          = 0x75,
+    C4M_ZShl           = 0x76,
+    C4M_ZShr           = 0x77,
+    C4M_ZBOr           = 0x78,
+    C4M_ZBAnd          = 0x79,
+    C4M_ZBNot          = 0x7A,
+    C4M_ZUAdd          = 0x80, // Same as ZAdd
+    C4M_ZUSub          = 0x81, // Same as ZSub
+    C4M_ZUMul          = 0x82,
+    C4M_ZUDiv          = 0x83,
+    C4M_ZUMod          = 0x84,
     C4M_ZAssert        = 0xA0,
     // Set the specified attribute to be "lock on write". Triggers an error if
     // the attribute is already set to lock on write. This instruction expects
@@ -292,25 +315,6 @@ typedef enum : uint8_t {
     // pop, the left operand will get replaced without additional
     // movement.
     //
-    // Math operations have signed and unsigned variants. We can go from
-    // signed to unsigned where it makes sense by adding 0x10.
-    // Currently, we do not do this for bit ops, they are just all unsigned.
-    C4M_ZAdd           = 0xC0,
-    C4M_ZSub           = 0xC1,
-    C4M_ZMul           = 0xC2,
-    C4M_ZDiv           = 0xC3,
-    C4M_ZMod           = 0xC4,
-    C4M_ZBXOr          = 0xC5,
-    C4M_ZShl           = 0xC6,
-    C4M_ZShr           = 0xC7,
-    C4M_ZBOr           = 0xC8,
-    C4M_ZBAnd          = 0xC9,
-    C4M_ZBNot          = 0xCA,
-    C4M_ZUAdd          = 0xD0,
-    C4M_ZUSub          = 0xD1,
-    C4M_ZUMul          = 0xD2,
-    C4M_ZUDiv          = 0xD3,
-    C4M_ZUMod          = 0xD4,
     // Perform a logical not operation on the top stack value. If the value is
     // zero, it will be replaced with a one value of the same type. If the value
     // is non-zero, it will be replaced with a zero value of the same type.
