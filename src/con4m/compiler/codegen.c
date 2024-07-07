@@ -488,6 +488,8 @@ gen_one_kid(gen_ctx *ctx, int n)
 {
     c4m_tree_node_t *saved = ctx->cur_node;
 
+    assert(saved);
+
     // TODO: Remove this when codegen is done.
     if (saved->num_kids <= n) {
         return;
@@ -1496,13 +1498,82 @@ gen_int_binary_op(gen_ctx *ctx, c4m_operator_t op, bool sign)
 }
 
 static inline void
-gen_polymorphic_binary_op(gen_ctx *ctx, c4m_operator_t op)
+gen_polymorphic_binary_op(gen_ctx *ctx, c4m_operator_t op, c4m_type_t *t)
 {
+    // Todo: type check and restrict down to the set of posssible
+    // types statically.
+
+    switch (op) {
+    case c4m_op_plus:
+        gen_tcall(ctx, C4M_BI_ADD, t);
+        break;
+    case c4m_op_minus:
+        gen_tcall(ctx, C4M_BI_SUB, t);
+        break;
+    case c4m_op_mul:
+        gen_tcall(ctx, C4M_BI_MUL, t);
+        break;
+    case c4m_op_div:
+        gen_tcall(ctx, C4M_BI_DIV, t);
+        break;
+    case c4m_op_mod:
+        gen_tcall(ctx, C4M_BI_MOD, t);
+        break;
+    case c4m_op_lt:
+        gen_tcall(ctx, C4M_BI_LT, t);
+        break;
+    case c4m_op_gt:
+        gen_tcall(ctx, C4M_BI_GT, t);
+        break;
+    case c4m_op_eq:
+        gen_tcall(ctx, C4M_BI_EQ, t);
+        break;
+    case c4m_op_neq:
+        gen_tcall(ctx, C4M_BI_EQ, t);
+        emit(ctx, C4M_ZNot);
+        break;
+    case c4m_op_lte:
+        gen_tcall(ctx, C4M_BI_GT, t);
+        emit(ctx, C4M_ZNot);
+        break;
+    case c4m_op_gte:
+        gen_tcall(ctx, C4M_BI_LT, t);
+        emit(ctx, C4M_ZNot);
+        break;
+    case c4m_op_fdiv:
+    case c4m_op_shl:
+    case c4m_op_shr:
+    case c4m_op_bitand:
+    case c4m_op_bitor:
+    case c4m_op_bitxor:
+    default:
+        c4m_unreachable();
+    }
 }
 
 static inline void
 gen_float_binary_op(gen_ctx *ctx, c4m_operator_t op)
 {
+    c4m_zop_t zop;
+
+    switch (op) {
+    case c4m_op_plus:
+        zop = C4M_ZFAdd;
+        break;
+    case c4m_op_minus:
+        zop = C4M_ZFSub;
+        break;
+    case c4m_op_mul:
+        zop = C4M_ZFMul;
+        break;
+    case c4m_op_div:
+    case c4m_op_fdiv:
+        zop = C4M_ZFDiv;
+        break;
+    default:
+        c4m_unreachable();
+    }
+    emit(ctx, zop);
 }
 
 static inline bool
@@ -1512,7 +1583,11 @@ skip_poly_call(c4m_type_t *t)
         return true;
     }
 
-    if (c4m_type_get_base(t) == C4M_DT_KIND_primitive) {
+    if (c4m_type_is_int_type(t)) {
+        return true;
+    }
+
+    if (c4m_type_is_float_type(t)) {
         return true;
     }
 
@@ -1520,15 +1595,14 @@ skip_poly_call(c4m_type_t *t)
 }
 
 static inline void
-gen_binary_op(gen_ctx *ctx)
+gen_binary_op(gen_ctx *ctx, c4m_type_t *t)
 {
     c4m_operator_t op = (c4m_operator_t)ctx->cur_pnode->extra_info;
-    c4m_type_t    *t  = c4m_type_resolve(ctx->cur_pnode->type);
 
     gen_kids(ctx);
 
     if (!skip_poly_call(t)) {
-        gen_polymorphic_binary_op(ctx, op);
+        gen_polymorphic_binary_op(ctx, op, t);
         return;
     }
 
@@ -1614,14 +1688,13 @@ gen_literal(gen_ctx *ctx)
     c4m_tree_node_t *n   = ctx->cur_node;
 
     if (lit != NULL) {
-        c4m_obj_t   obj = ctx->cur_pnode->value;
-        c4m_type_t *t   = c4m_type_resolve(c4m_get_my_type(obj));
+        c4m_type_t *t = c4m_type_resolve(c4m_get_my_type(lit));
 
-        if (c4m_type_is_value_type(t) || c4m_type_is_box(t)) {
-            gen_load_immediate(ctx, c4m_unbox(obj));
+        if (c4m_type_is_box(t)) {
+            gen_load_immediate(ctx, c4m_unbox(lit));
         }
         else {
-            gen_load_const_obj(ctx, obj);
+            gen_load_const_obj(ctx, lit);
             // This is only true for containers, which need to be
             // copied since they are mutable, but the const version
             // is... const.
@@ -1746,7 +1819,7 @@ gen_assign(gen_ctx *ctx)
                     gen_float_binary_op(ctx, op);              \
                 }                                              \
                 else {                                         \
-                    gen_polymorphic_binary_op(ctx, op);        \
+                    gen_polymorphic_binary_op(ctx, op, t);     \
                 }                                              \
             }                                                  \
         }                                                      \
@@ -1983,9 +2056,12 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_and:
         gen_and(ctx);
         break;
-    case c4m_nt_cmp:
+    case c4m_nt_cmp:;
+        c4m_pnode_t *p = c4m_get_pnode(ctx->cur_node->children[0]);
+        gen_binary_op(ctx, p->type);
+        break;
     case c4m_nt_binary_op:
-        gen_binary_op(ctx);
+        gen_binary_op(ctx, ctx->cur_pnode->type);
         break;
     case c4m_nt_member:
     case c4m_nt_identifier:

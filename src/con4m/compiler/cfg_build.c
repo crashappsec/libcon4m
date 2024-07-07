@@ -291,6 +291,9 @@ c4m_cfg_add_use(c4m_cfg_node_t  *parent,
                 c4m_tree_node_t *treeloc,
                 c4m_symbol_t    *symbol)
 {
+    if (symbol->kind == C4M_SK_ENUM_VAL) {
+        return parent;
+    }
     c4m_cfg_node_t *result           = c4m_gc_alloc(c4m_cfg_node_t);
     result->kind                     = c4m_cfg_use;
     result->reference_location       = treeloc;

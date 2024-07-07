@@ -2479,10 +2479,22 @@ check_formal_param(fn_check_ctx *ctx)
     }
 }
 
+static inline bool
+warn_on_unused(c4m_symbol_t *sym)
+{
+    switch (sym->kind) {
+    case C4M_SK_VARIABLE:
+    case C4M_SK_FORMAL:
+        return true;
+    default:
+        return false;
+    }
+}
+
 static void
 check_user_decl(fn_check_ctx *ctx)
 {
-    if (ctx->num_defs == 0 && ctx->num_uses == 0) {
+    if (!ctx->num_defs && !ctx->num_uses && warn_on_unused(ctx->sym)) {
         c4m_add_warning(ctx->pass_ctx->file_ctx,
                         c4m_warn_unused_decl,
                         ctx->sym->declaration_node,
@@ -2689,7 +2701,7 @@ check_module_variable(c4m_file_compile_ctx *ctx, c4m_symbol_t *sym)
     int num_defs = c4m_list_len(sym->sym_defs);
     int num_uses = c4m_list_len(sym->sym_uses);
 
-    if (num_defs == 0 && num_uses == 0) {
+    if (!num_defs && !num_uses && warn_on_unused(sym)) {
         c4m_add_warning(ctx,
                         c4m_warn_unused_decl,
                         sym->declaration_node,
@@ -2813,7 +2825,7 @@ check_used_global_variable(c4m_file_compile_ctx *ctx, c4m_symbol_t *sym)
     int num_defs = c4m_list_len(sym->sym_defs);
     int num_uses = c4m_list_len(sym->sym_uses);
 
-    if (num_uses == 0) {
+    if (!num_uses && warn_on_unused(sym)) {
         c4m_add_warning(ctx,
                         c4m_warn_unused_decl,
                         sym->declaration_node,

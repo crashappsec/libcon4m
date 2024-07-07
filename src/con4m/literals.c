@@ -218,6 +218,7 @@ c4m_init_literal_handling()
         c4m_register_literal(ST_Tuple, "", C4M_T_TUPLE);
         c4m_register_literal(ST_Tuple, "t", C4M_T_TUPLE);
         c4m_register_literal(ST_Tuple, "tuple", C4M_T_TUPLE);
+        c4m_register_literal(ST_Float, "", C4M_T_F64);
         no_more_containers();
     }
 }

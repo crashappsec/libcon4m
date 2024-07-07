@@ -1,7 +1,18 @@
+"""
+Test rules around labels (such as nesting, and the same label
+being allowed non-nested.
+"""
+"""
+$output:
+3
+"""
+x = 0
+
 outer:
   while true {
     inner:
     while true {
+      x += 1
       break outer
     }
   }
@@ -10,10 +21,14 @@ outer:
 while true {
   inner:
   while true {
+    x += 1
     break outer
   }
 }
 
 outer: while true {
+ x+= 1
  break
 }
+
+print(x)

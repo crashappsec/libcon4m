@@ -76,7 +76,7 @@ c4m_setup_treematch_patterns()
                                 0,
                                 c4m_toptional(c4m_nt_identifier, 0),
                                 c4m_tcount_content(c4m_nt_enum_item,
-                                                   0,
+                                                   1,
                                                    c4m_max_nodes,
                                                    1));
     c4m_member_last   = c4m_tfind(c4m_nt_member,

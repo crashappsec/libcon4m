@@ -329,7 +329,7 @@ f64_parse(c4m_utf8_t          *s,
     char  *end;
     double d = strtod(s->data, &end);
 
-    if (end == s->data || !*end) {
+    if (end == s->data || *end) {
         *code = c4m_err_parse_invalid_lit_char;
         return NULL;
     }
@@ -444,16 +444,15 @@ bool_coerce_to(const int64_t data, c4m_type_t *target_type)
 }
 
 static c4m_str_t *
-float_repr(const double d)
+float_repr(void *d)
 {
     char buf[20] = {
         0,
     };
 
     // snprintf includes null terminator in its count.
-    snprintf(buf, 20, "%g", d);
-
-    return c4m_new(c4m_type_utf8(), c4m_kw("cstring", c4m_ka(buf)));
+    snprintf(buf, 20, "%g", ((c4m_box_t)d).dbl);
+    return c4m_new_utf8(buf);
 }
 
 static void *

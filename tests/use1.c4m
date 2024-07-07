@@ -1,6 +1,0 @@
-use fib from "tests"
-use use2 from """tests2"""
-use foo.bar.boz
-use fib from "tests"
-
-assert(fact(4) == 24)

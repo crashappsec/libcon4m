@@ -1,7 +1,37 @@
-s = ["this", "is", "a", "test"]
+"""
+This will be easy to get working.
+"""
+"""
+$output:
+foo       
+this is a test
+THIS IS A TEST
+["this", "is", "a", "test"]
+"""
 
+extern c4m_str_upper(ptr) -> ptr {
+  local: upper(s: string) -> string
+}
+
+extern c4m_str_lower(ptr) -> ptr {
+  local: lower(s: string) -> string
+}
+
+extern c4m_join(ptr, ptr) -> ptr {
+  local: join(l: list[string], s: string) -> string
+}
+
+extern c4m_str_split(ptr, ptr) -> ptr {
+  local: split(s1: string, s2: string) -> list[string]
+}
+
+extern c4m_str_pad(ptr, i64) -> ptr {
+  local: pad(s1: string, n: int) -> string
+}
+
+print(pad("foo", 10))
+s = ["this", "is", "a", "test"]
 l = join(s, " ")
-assert join(s, " ") == "this is a test"
-assert upper(l) == "THIS IS A TEST"
-assert split(join(s, " "), " ") == s
-assert pad("foo", 10) == "foo       "
+print(l)
+print(upper(l))
+print(split(join(s, " "), " "))

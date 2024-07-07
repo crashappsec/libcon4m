@@ -1,3 +1,0 @@
-r = "Hello, world!"'h2 + "Yay!"'h4
-
-r.print()

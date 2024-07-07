@@ -8,6 +8,11 @@
 # But I'm not sure that's particularly necessary. Once there is enough
 # API, being able to leverage info about the calls made will generally
 # be able to help us make correct inferences.
+"""
+This is all kinds of wrong.
+"""
+"""
+"""
 
 func l_test(n: list[`t]) {
   n[2] = 100

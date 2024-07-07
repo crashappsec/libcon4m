@@ -31,6 +31,10 @@ extern bool                c4m_str_starts_with(const c4m_str_t *,
 extern bool                c4m_str_ends_with(const c4m_str_t *,
                                              const c4m_str_t *);
 extern c4m_list_t         *c4m_str_wrap(const c4m_str_t *, int64_t, int64_t);
+extern c4m_utf32_t        *c4m_str_upper(c4m_str_t *);
+extern c4m_utf32_t        *c4m_str_lower(c4m_str_t *);
+extern c4m_utf32_t        *c4m_title_case(c4m_str_t *);
+extern c4m_str_t          *c4m_str_pad(c4m_str_t *, int64_t);
 
 #define c4m_str_split(x, y) c4m_str_xsplit(x, y)
 // This is in richlit.c

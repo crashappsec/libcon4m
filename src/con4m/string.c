@@ -79,7 +79,8 @@ c4m_str_slice(const c4m_str_t *instr, int64_t start, int64_t end)
     int64_t      slice_len = end - start;
     c4m_utf32_t *res       = c4m_new(c4m_type_utf32(),
                                c4m_kw("length", c4m_ka(slice_len)));
-    res->codepoints        = slice_len;
+
+    res->codepoints = slice_len;
 
     c4m_codepoint_t *src = (c4m_codepoint_t *)s->data;
     c4m_codepoint_t *dst = (c4m_codepoint_t *)res->data;
@@ -447,16 +448,11 @@ c4m_to_utf8(const c4m_utf32_t *inp)
 c4m_utf32_t *
 c4m_to_utf32(const c4m_utf8_t *instr)
 {
-    /* // TODO: figure out why non-null empty strings f's up
-    ** //  grid stuff, because this really should get uncommented.
-    *
     if (!instr) {
         c4m_utf32_t *outstr = c4m_new(c4m_type_utf32(),
                                       c4m_kw("length", c4m_ka(0)));
-        printf("%d\n", c4m_str_codepoint_len(outstr));
         return outstr;
-        }
-    */
+    }
 
     if (!instr || c4m_str_is_u32(instr)) {
         return (c4m_utf32_t *)instr;
@@ -1393,6 +1389,104 @@ c4m_str_wrap(const c4m_str_t *s, int64_t width, int64_t hang)
         c4m_list_append(result, slice);
     }
 
+    return result;
+}
+
+c4m_utf32_t *
+c4m_str_upper(c4m_str_t *s)
+{
+    c4m_utf32_t *result;
+    if (c4m_str_is_u8(s)) {
+        result = c4m_to_utf32(s);
+    }
+    else {
+        result = c4m_str_copy(s);
+    }
+
+    c4m_codepoint_t *from = (c4m_codepoint_t *)s->data;
+    c4m_codepoint_t *to   = (c4m_codepoint_t *)result->data;
+    int64_t          n    = c4m_str_codepoint_len(s);
+
+    for (int i = 0; i < n; i++) {
+        *to++ = utf8proc_toupper(*from++);
+    }
+
+    result->codepoints = n;
+    return result;
+}
+
+c4m_utf32_t *
+c4m_str_lower(c4m_str_t *s)
+{
+    c4m_utf32_t *result;
+    if (c4m_str_is_u8(s)) {
+        result = c4m_to_utf32(s);
+    }
+    else {
+        result = c4m_str_copy(s);
+    }
+
+    c4m_codepoint_t *from = (c4m_codepoint_t *)s->data;
+    c4m_codepoint_t *to   = (c4m_codepoint_t *)result->data;
+    int64_t          n    = c4m_str_codepoint_len(s);
+
+    for (int i = 0; i < n; i++) {
+        *to++ = utf8proc_tolower(*from++);
+    }
+
+    result->codepoints = n;
+    return result;
+}
+
+c4m_utf32_t *
+c4m_str_title_case(c4m_str_t *s)
+{
+    c4m_utf32_t *result;
+    if (c4m_str_is_u8(s)) {
+        result = c4m_to_utf32(s);
+    }
+    else {
+        result = c4m_str_copy(s);
+    }
+
+    c4m_codepoint_t *from = (c4m_codepoint_t *)s->data;
+    c4m_codepoint_t *to   = (c4m_codepoint_t *)result->data;
+    int64_t          n    = c4m_str_codepoint_len(s);
+
+    for (int i = 0; i < n; i++) {
+        *to++ = utf8proc_totitle(*from++);
+    }
+
+    result->codepoints = n;
+    return result;
+}
+
+c4m_str_t *
+c4m_str_pad(c4m_str_t *s, int64_t to_len)
+{
+    int64_t n = c4m_str_codepoint_len(s);
+
+    if (n >= to_len) {
+        return s;
+    }
+
+    s = c4m_to_utf32(s);
+
+    c4m_utf32_t     *result = c4m_new(c4m_type_utf32(),
+                                  c4m_kw("length", c4m_ka(to_len)));
+    c4m_codepoint_t *from   = (c4m_codepoint_t *)s->data;
+    c4m_codepoint_t *to     = (c4m_codepoint_t *)result->data;
+    int              i;
+
+    for (i = 0; i < n; i++) {
+        *to++ = *from++;
+    }
+
+    for (; i < to_len; i++) {
+        *to++ = ' ';
+    }
+
+    result->codepoints = to_len;
     return result;
 }
 
