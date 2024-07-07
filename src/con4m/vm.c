@@ -159,12 +159,20 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
         C4M_CRAISE("stack overflow");        \
     }
 
-#define SIMPLE_COMPARE(op)                           \
-    do {                                             \
-        uint64_t v1 = tstate->sp->uint;              \
-        ++tstate->sp;                                \
-        uint64_t v2      = tstate->sp->uint;         \
-        tstate->sp->uint = !!((uint64_t)(v2 op v1)); \
+#define SIMPLE_COMPARE(op)                          \
+    do {                                            \
+        int64_t v1 = tstate->sp->sint;              \
+        ++tstate->sp;                               \
+        int64_t v2       = tstate->sp->sint;        \
+        tstate->sp->sint = !!((int64_t)(v2 op v1)); \
+    } while (0)
+
+#define SIMPLE_COMPARE_UNSIGNED(op)                 \
+    do {                                            \
+        int64_t v1 = tstate->sp->uint;              \
+        ++tstate->sp;                               \
+        int64_t v2       = tstate->sp->uint;        \
+        tstate->sp->uint = !!((int64_t)(v2 op v1)); \
     } while (0)
 
 static c4m_value_t *
@@ -825,14 +833,19 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                         printf("\e[34m[%p]\e[0m ", tstate->sp[i].vptr);
                     }
                     else {
+                        // stored program counter and module id.
                         if (&tstate->sp[i - 1] == tstate->fp) {
-                            printf("\e[32m[%p]\e[0m ", tstate->sp[i].vptr);
+                            printf("\e[32m[pc: 0x%llx module: %lld]\e[0m ",
+                                   tstate->sp[i].uint >> 28,
+                                   tstate->sp[i].uint & 0xffffffff);
                         }
                         else {
                             if (&tstate->sp[i] > tstate->fp) {
+                                // Older frames.
                                 printf("\e[31m[%p]\e[0m ", tstate->sp[i].vptr);
                             }
                             else {
+                                // This frame.
                                 printf("\e[33m[%p]\e[0m ", tstate->sp[i].vptr);
                             }
                         }
@@ -1265,6 +1278,22 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZGte:
                 STACK_REQUIRE_VALUES(2);
                 SIMPLE_COMPARE(>=);
+                break;
+            case C4M_ZULt:
+                STACK_REQUIRE_VALUES(2);
+                SIMPLE_COMPARE_UNSIGNED(<);
+                break;
+            case C4M_ZULte:
+                STACK_REQUIRE_VALUES(2);
+                SIMPLE_COMPARE_UNSIGNED(<=);
+                break;
+            case C4M_ZUGt:
+                STACK_REQUIRE_VALUES(2);
+                SIMPLE_COMPARE_UNSIGNED(>);
+                break;
+            case C4M_ZUGte:
+                STACK_REQUIRE_VALUES(2);
+                SIMPLE_COMPARE_UNSIGNED(>=);
                 break;
             case C4M_ZNeq:
                 STACK_REQUIRE_VALUES(2);

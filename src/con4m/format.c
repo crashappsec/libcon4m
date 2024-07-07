@@ -508,6 +508,10 @@ assemble_formatted_result(const c4m_str_t *fmt, c4m_list_t *arg_strings)
 
             i++; // Skip the } too.
             continue;
+        case '\0':
+            outp[out_ix] = 0;
+            style_adjustment(result, out_ix + 1, -1);
+            continue;
         default:
             outp[out_ix++] = fmtp[i];
             continue;

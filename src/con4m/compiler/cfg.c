@@ -669,6 +669,9 @@ cfg_process_node(cfg_ctx *ctx, c4m_cfg_node_t *node, c4m_cfg_node_t *parent)
         void          **v  = hatrack_dict_keys_sort(node->liveness_info,
                                           &n);
 
+        if (!ta) {
+            return NULL;
+        }
         if (!ta->sometimes_live) {
             ta->sometimes_live = c4m_new(c4m_type_list(c4m_type_ref()));
         }

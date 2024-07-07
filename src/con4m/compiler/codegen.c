@@ -917,74 +917,125 @@ gen_typeof(gen_ctx *ctx)
 }
 
 static inline void
-gen_switch(gen_ctx *ctx)
+gen_range_test(gen_ctx *ctx, c4m_type_t *type)
 {
-    int                 expr_ix = 0;
-    c4m_tree_node_t    *n       = ctx->cur_node;
-    c4m_pnode_t        *pnode   = c4m_get_pnode(n);
-    c4m_control_info_t *ci      = pnode->extra_info;
-    c4m_jump_info_t    *ji      = c4m_gc_array_alloc(c4m_jump_info_t,
-                                             n->num_kids);
-    c4m_type_t         *expr_type;
+    // The range is already on the stack. The top will be the high,
+    // the low second, and the value to test first.
+    //
+    // The test value will have been duped once, but not twice. So we:
+    //
+    // 1. Pop the upper end of the range.
+    // 2. Run GTE test.
+    // 3. If successful, dupe, push the other item, and leave the test result
+    //    as the definitive answer for the JNZ.
 
-    for (int i = 0; i < n->num_kids; i++) {
-        ji[i].linked_control_structure = pnode->extra_info;
+    emit(ctx, C4M_ZPopToR0);
+    if (c4m_type_is_signed(type)) {
+        emit(ctx, C4M_ZGte);
+    }
+    else {
+        emit(ctx, C4M_ZUGte);
     }
 
-    if (gen_label(ctx, ci->label)) {
+    GEN_JZ(emit(ctx, C4M_ZDupTop);
+           emit(ctx, C4M_ZPushFromR0);
+           emit(ctx, C4M_ZLte););
+}
+
+static inline void
+gen_one_case(gen_ctx *ctx, c4m_control_info_t *switch_exit, c4m_type_t *type)
+{
+    c4m_tree_node_t *n              = ctx->cur_node;
+    int              num_conditions = n->num_kids - 1;
+    c4m_jump_info_t *local_jumps    = c4m_gc_array_alloc(c4m_jump_info_t,
+                                                      num_conditions);
+    c4m_jump_info_t *case_end       = c4m_gc_alloc(c4m_jump_info_t);
+    c4m_jump_info_t *exit_jump      = c4m_gc_alloc(c4m_jump_info_t);
+
+    exit_jump->linked_control_structure = switch_exit;
+
+    for (int i = 0; i < num_conditions; i++) {
+        emit(ctx, C4M_ZDupTop);
+        gen_one_kid(ctx, i);
+        c4m_pnode_t *pn = c4m_get_pnode(ctx->cur_node->children[i]);
+        if (pn->kind == c4m_nt_range) {
+            gen_range_test(ctx, type);
+        }
+        else {
+            gen_equality_test(ctx, type);
+        }
+
+        gen_jnz(ctx, &local_jumps[i], true);
+    }
+
+    // If we've checked all the conditions, and nothing matched, we jump down
+    // to the next case.
+    gen_j(ctx, case_end);
+    // Now, we backpatch all the local jumps to our current location.
+    for (int i = 0; i < num_conditions; i++) {
+        gen_finish_jump(ctx, &local_jumps[i]);
+    }
+
+    gen_one_kid(ctx, num_conditions);
+    // Once the kid runs, jump to the switch exit.
+
+    gen_j(ctx, exit_jump);
+
+    // Now here's the start of the next case, if it exists, so
+    // backpatch the jump to the case end.
+    gen_finish_jump(ctx, case_end);
+}
+
+static inline void
+gen_switch(gen_ctx *ctx)
+{
+    int                 expr_ix     = 0;
+    c4m_tree_node_t    *n           = ctx->cur_node;
+    c4m_pnode_t        *pnode       = c4m_get_pnode(n);
+    c4m_loop_info_t    *ci          = pnode->extra_info;
+    c4m_control_info_t *switch_exit = &ci->branch_info;
+    c4m_type_t         *expr_type;
+
+    // for (int i = 0; i < n->num_kids; i++) {
+    // ji[i].linked_control_structure = pnode->extra_info;
+    // }
+
+    if (gen_label(ctx, ci->branch_info.label)) {
         expr_ix++;
     }
 
     // Get the value to test to the top of the stack.
-    gen_one_kid(ctx, expr_ix);
+    gen_one_kid(ctx, expr_ix++);
     pnode     = c4m_get_pnode(n->children[expr_ix]);
     expr_type = pnode->type;
 
-    for (int i = expr_ix + 1; i < n->num_kids; i++) {
-        c4m_tree_node_t *kid = n->children[i];
-        pnode                = c4m_get_pnode(kid);
+    int              n_cases       = n->num_kids - expr_ix;
+    c4m_tree_node_t *possible_else = n->children[n->num_kids - 1];
+    c4m_pnode_t     *kidpn         = c4m_get_pnode(possible_else);
+    bool             have_else     = kidpn->kind == c4m_nt_else;
 
-        ctx->cur_node = kid;
-
-        if (i + 1 == n->num_kids) {
-            emit(ctx, C4M_ZPop);
-            gen_one_node(ctx);
-            break;
-        }
-
-        int n_conds = kid->num_kids - 1;
-        if (n_conds == 1) {
-            emit(ctx, C4M_ZDupTop);
-            gen_one_kid(ctx, 0);
-            gen_equality_test(ctx, expr_type);
-            GEN_JZ(gen_one_kid(ctx, 1));
-        }
-        else {
-            c4m_jump_info_t *local_jumps = c4m_gc_array_alloc(c4m_jump_info_t,
-                                                              n_conds);
-
-            for (int j = 0; j < n_conds; j++) {
-                emit(ctx, C4M_ZDupTop);
-                gen_one_kid(ctx, j);
-                gen_equality_test(ctx, expr_type);
-                gen_jnz(ctx, &local_jumps[j], true);
-            }
-
-            for (int j = 0; j < n_conds; j++) {
-                gen_finish_jump(ctx, &local_jumps[j]);
-            }
-        }
-
-        emit(ctx, C4M_ZPop);
-        gen_one_kid(ctx, n_conds);
-        gen_j(ctx, &ji[i - (expr_ix + 1)]);
+    if (have_else) {
+        n_cases -= 1;
     }
 
-    if (pnode->kind != c4m_nt_else) {
-        emit(ctx, C4M_ZPop);
+    int ix = expr_ix;
+
+    for (int i = 0; i < n_cases; i++) {
+        ctx->cur_node = n->children[ix++];
+        gen_one_case(ctx, switch_exit, expr_type);
     }
 
-    gen_apply_waiting_patches(ctx, ci);
+    if (have_else) {
+        // No branch matched. Pop the value we were testing against, then
+        // run the else block, if any.
+        emit(ctx, C4M_ZPop);
+
+        if (have_else) {
+            ctx->cur_node = n;
+            gen_one_kid(ctx, n->num_kids - 1);
+        }
+    }
+    gen_apply_waiting_patches(ctx, switch_exit);
 }
 
 static inline bool
@@ -1421,16 +1472,16 @@ gen_int_binary_op(gen_ctx *ctx, c4m_operator_t op, bool sign)
         zop = C4M_ZBXOr;
         break;
     case c4m_op_lt:
-        zop = C4M_ZLt;
+        zop = sign ? C4M_ZLt : C4M_ZULt;
         break;
     case c4m_op_lte:
-        zop = C4M_ZLte;
+        zop = sign ? C4M_ZLte : C4M_ZULte;
         break;
     case c4m_op_gt:
-        zop = C4M_ZGt;
+        zop = sign ? C4M_ZGt : C4M_ZUGt;
         break;
     case c4m_op_gte:
-        zop = C4M_ZGte;
+        zop = sign ? C4M_ZGte : C4M_ZUGte;
         break;
     case c4m_op_eq:
         zop = C4M_ZCmp;

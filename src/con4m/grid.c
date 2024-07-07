@@ -905,8 +905,6 @@ render_to_cache(c4m_grid_t       *grid,
                 int16_t           width,
                 int16_t           height)
 {
-    assert(cell->raw_item != NULL);
-
     switch (c4m_base_type(cell->raw_item)) {
     case C4M_T_UTF8:
     case C4M_T_UTF32: {
@@ -1514,7 +1512,9 @@ grid_add_cell_contents(c4m_grid_t *grid,
                                                            NULL));
             if (!c4m_str_codepoint_len(piece)) {
                 c4m_style_t pad_style = c4m_get_pad_style(grid_style(grid));
-                assert(col_widths[i] < 1024);
+                if (col_widths[i] < 0) {
+                    col_widths[i] = 0;
+                }
                 piece = get_styled_pad(col_widths[i],
                                        pad_style);
             }

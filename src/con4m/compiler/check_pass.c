@@ -931,8 +931,9 @@ handle_break(pass2_ctx *ctx)
         c4m_control_info_t *bi = &li->branch_info;
 
         if (!label || (bi->label && !strcmp(label->data, bi->label->data))) {
-            c4m_pnode_t     *npnode      = c4m_get_pnode(n);
-            c4m_jump_info_t *ji          = npnode->extra_info;
+            c4m_pnode_t     *npnode = c4m_get_pnode(n);
+            c4m_jump_info_t *ji     = npnode->extra_info;
+            assert(bi);
             ji->linked_control_structure = bi;
             return;
         }
@@ -1750,9 +1751,12 @@ handle_switch_statement(pass2_ctx *ctx)
     c4m_pnode_t        *pnode        = c4m_get_pnode(saved);
     c4m_control_info_t *bi           = control_init(pnode->extra_info);
     c4m_list_t         *branches     = use_pattern(ctx, c4m_case_branches);
-    c4m_tree_node_t    *elsenode     = c4m_get_match_on_node(saved, c4m_case_else);
-    c4m_tree_node_t    *variant_node = c4m_get_match_on_node(saved, c4m_case_cond);
-    c4m_tree_node_t    *label        = c4m_get_match_on_node(saved, c4m_opt_label);
+    c4m_tree_node_t    *elsenode     = c4m_get_match_on_node(saved,
+                                                      c4m_case_else);
+    c4m_tree_node_t    *variant_node = c4m_get_match_on_node(saved,
+                                                          c4m_case_cond);
+    c4m_tree_node_t    *label        = c4m_get_match_on_node(saved,
+                                                   c4m_opt_label);
     int                 ncases       = c4m_list_len(branches);
     c4m_cfg_node_t     *entrance;
     c4m_cfg_node_t     *cfgbranch;

@@ -734,8 +734,8 @@ c4m_alloc_display_front_guard_error(c4m_alloc_hdr *hdr,
             "Alloc location: %s:%d\n\n",
             name_alloc(hdr),
             ptr,
-            c4m_gc_guard,
-            hdr->guard,
+            (long long unsigned)c4m_gc_guard,
+            (long long unsigned)hdr->guard,
             file ? file : hdr->alloc_file,
             file ? line : hdr->alloc_line);
 
@@ -766,8 +766,8 @@ c4m_alloc_display_rear_guard_error(c4m_alloc_hdr *hdr,
             ptr,
             len,
             rear_guard_loc,
-            c4m_end_guard,
-            *(uint64_t *)rear_guard_loc,
+            (long long unsigned int)c4m_end_guard,
+            (long long unsigned int)*(uint64_t *)rear_guard_loc,
             file ? file : hdr->alloc_file,
             file ? line : hdr->alloc_line);
 
@@ -833,9 +833,6 @@ memcheck_validate_old_records(c4m_arena_t *from_space)
                 }
                 p++;
             }
-        }
-        if (free) {
-            c4m_rc_free(a);
         }
         a = next;
     }

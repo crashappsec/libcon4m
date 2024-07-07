@@ -15,14 +15,15 @@ static void
 err_basic_usage(c4m_utf8_t *fname)
 {
     c4m_printf(
-        "[red]error:[/][em]{}[/]: Bad test case format. The second doc "
+        "[red]error:[/][em]{}[/]:\nBad test case format. The second doc "
         "string may have 0 or 1 [em]$output[/] sections and 0 or 1 "
         "[em]$errors[/] sections ONLY. If neither are provided, "
         "then the harness expects no errors and ignores output. "
-        "There may be nothing else in the doc string except whitespace.\n"
-        "\n[i]Note: If you want to explicitly test for no output, then "
-        "provide `$output:` with nothing following.",
+        "There may be nothing else in the doc string except whitespace.",
         fname);
+    c4m_printf(
+        "\n[i inv]Note: If you want to explicitly test for no output, then "
+        "provide `$output:` with nothing following.\n");
 }
 
 static void

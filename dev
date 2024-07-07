@@ -158,7 +158,7 @@ function libcon4m_run_tests {
 }
 
 function libcon4m_dev_clean {
-    for item in build debug release cicd .meson_last; do
+    for item in build debug release cicd; do
         if [[ -d ${item} ]]; then
             log Cleaning ${item}
             cd ${item}
@@ -166,6 +166,11 @@ function libcon4m_dev_clean {
             cd ..
         fi
     done
+
+    if [[ -f .meson_last ]]; then
+        rm .meson_last
+    fi
+
     log "Done!"
 }
 
