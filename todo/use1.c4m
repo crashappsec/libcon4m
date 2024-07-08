@@ -1,0 +1,14 @@
+"""
+Should work once the dirs are right."
+"""
+"""
+$output:
+24
+"""
+
+use fib from "tests"
+use use2 from """tests"""
+use foo.bar.boz
+use fib from "tests"
+
+print(fact(4))

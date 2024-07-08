@@ -577,6 +577,27 @@ c4m_type_is_int_type(c4m_type_t *t)
 }
 
 static inline bool
+c4m_type_is_float_type(c4m_type_t *t)
+{
+    if (t == NULL) {
+        return false;
+    }
+
+    t = c4m_type_resolve(t);
+    if (t->typeid == C4M_T_BOX) {
+        t = (c4m_type_t *)t->details->tsi;
+    }
+
+    switch (t->typeid) {
+    case C4M_T_F64:
+    case C4M_T_F32:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static inline bool
 c4m_type_is_signed(c4m_type_t *t)
 {
     if (t == NULL) {
@@ -611,14 +632,6 @@ c4m_type_is_void(c4m_type_t *t)
 }
 
 static inline bool
-c4m_obj_is_int_type(const c4m_obj_t *obj)
-{
-    c4m_base_obj_t *base = (c4m_base_obj_t *)c4m_object_header(obj);
-
-    return c4m_type_is_int_type(base->concrete_type);
-}
-
-static inline bool
 c4m_type_is_value_type(c4m_type_t *t)
 {
     // This should NOT unbox; check c4m_type_is_box() too if needed.
@@ -648,6 +661,26 @@ static inline int
 c4m_get_alloc_len(c4m_type_t *t)
 {
     return c4m_type_get_data_type_info(t)->alloc_len;
+}
+
+static inline c4m_type_t *
+c4m_resolve_and_unbox(c4m_type_t *t)
+{
+    t = c4m_type_resolve(t);
+
+    if (c4m_type_is_box(t)) {
+        return c4m_type_unbox(t);
+    }
+
+    return t;
+}
+
+static inline bool
+c4m_obj_is_int_type(const c4m_obj_t *obj)
+{
+    c4m_base_obj_t *base = (c4m_base_obj_t *)c4m_object_header(obj);
+
+    return c4m_type_is_int_type(c4m_resolve_and_unbox(base->concrete_type));
 }
 
 void c4m_set_next_typevar_fn(c4m_next_typevar_fn);

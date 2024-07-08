@@ -25,6 +25,11 @@
 
 // UBSan hates our underflow check.
 // #define C4M_OMIT_UNDERFLOW_CHECKS
+//
+// If you want to identify zero-length allocs while FULL_MEMCHECK is on...
+// But
+// #define C4M_WARN_ON_ZERO_ALLOCS
+
 #ifdef C4M_NO_DEV_MODE
 #undef C4M_DEV
 #undef C4M_PARSE_DEBUG
@@ -153,6 +158,9 @@
 
 // Really int log2 only right now.
 #include "con4m/math.h"
+
+// For functions we need to wrap to use through the FFI.
+#include "con4m/wrappers.h"
 
 // The compiler.
 #include "compiler/ast_utils.h"

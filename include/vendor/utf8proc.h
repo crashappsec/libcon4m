@@ -126,13 +126,15 @@ typedef enum {
 } utf8proc_option_t;
 
 // From libutf8proc
-extern int           utf8proc_iterate(const uint8_t *str, ssize_t len, int32_t *cp);
-extern bool          utf8proc_codepoint_valid(int32_t cp);
-extern int           utf8proc_encode_char(int32_t cp, uint8_t *dst);
-extern cp_category_t utf8proc_category(int32_t cp);
-extern int           utf8proc_charwidth(int32_t cp);
-extern int32_t       utf8proc_tolower(int32_t cp);
-extern int32_t       utf8proc_toupper(int32_t cp);
-extern int           utf8proc_charwidth(int32_t cp);
-extern bool          utf8proc_grapheme_break_stateful(int32_t cp1, int32_t cp2, int32_t *state);
-extern int32_t       utf8proc_map(const uint8_t *str, int32_t len, uint8_t **out, utf8proc_option_t options);
+extern int           utf8proc_iterate(const uint8_t *, ssize_t, int32_t *);
+extern bool          utf8proc_codepoint_valid(int32_t);
+extern int           utf8proc_encode_char(int32_t, uint8_t *);
+extern cp_category_t utf8proc_category(int32_t);
+extern int           utf8proc_charwidth(int32_t);
+extern int32_t       utf8proc_tolower(int32_t);
+extern int32_t       utf8proc_toupper(int32_t);
+extern uint32_t      utf8proc_totitle(uint32_t);
+extern int           utf8proc_charwidth(int32_t);
+
+extern bool    utf8proc_grapheme_break_stateful(int32_t, int32_t, int32_t *);
+extern int32_t utf8proc_map(const uint8_t *, int32_t, uint8_t **, utf8proc_option_t);

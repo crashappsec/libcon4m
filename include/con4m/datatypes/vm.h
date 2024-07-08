@@ -299,6 +299,10 @@ typedef enum : uint8_t {
     C4M_ZUMul          = 0x82,
     C4M_ZUDiv          = 0x83,
     C4M_ZUMod          = 0x84,
+    C4M_ZFAdd          = 0x90,
+    C4M_ZFSub          = 0x91,
+    C4M_ZFMul          = 0x92,
+    C4M_ZFDiv          = 0x93,
     C4M_ZAssert        = 0xA0,
     // Set the specified attribute to be "lock on write". Triggers an error if
     // the attribute is already set to lock on write. This instruction expects

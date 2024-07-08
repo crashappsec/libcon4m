@@ -1,3 +1,12 @@
+"""
+The assignment at the bottom is dead code, so the errors are spurious.
+"""
+"""
+$error:
+dead_code
+dead_code
+use_no_def
+"""
 func f(q) -> int {
   a = 1
   b = 2

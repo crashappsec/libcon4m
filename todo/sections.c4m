@@ -1,4 +1,11 @@
-## all of these should work
+"""
+Syntax test for sections.  Totally borked right now.
+"""
+"""
+$errors:
+use_no_def
+"""
+
 hello {}
 hello world {}
 hello "world" {}

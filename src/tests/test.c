@@ -484,6 +484,17 @@ add_static_symbols()
 {
     c4m_add_static_function(c4m_new_utf8("strndup"), strndup);
     c4m_add_static_function(c4m_new_utf8("c4m_list_append"), c4m_list_append);
+    c4m_add_static_function(c4m_new_utf8("c4m_join"), c4m_wrapper_join);
+    c4m_add_static_function(c4m_new_utf8("c4m_str_upper"), c4m_str_upper);
+    c4m_add_static_function(c4m_new_utf8("c4m_str_lower"), c4m_str_lower);
+    c4m_add_static_function(c4m_new_utf8("c4m_str_split"), c4m_str_xsplit);
+    c4m_add_static_function(c4m_new_utf8("c4m_str_pad"), c4m_str_pad);
+    c4m_add_static_function(c4m_new_utf8("c4m_hostname"), c4m_wrapper_hostname);
+    c4m_add_static_function(c4m_new_utf8("c4m_osname"), c4m_wrapper_os);
+    c4m_add_static_function(c4m_new_utf8("c4m_arch"), c4m_wrapper_arch);
+    c4m_add_static_function(c4m_new_utf8("c4m_repr"), c4m_wrapper_repr);
+    c4m_add_static_function(c4m_new_utf8("c4m_to_str"), c4m_wrapper_to_str);
+    c4m_add_static_function(c4m_new_utf8("c4m_len"), c4m_len);
 }
 
 static int
@@ -495,6 +506,12 @@ fname_sort(const hatrack_dict_item_t *o1,
 
     return strcmp(fname1->data, fname2->data);
 }
+
+#ifdef C4M_FULL_MEMCHECK
+extern bool c4m_definite_memcheck_error;
+#else
+bool c4m_definite_memcheck_error = false;
+#endif
 
 int
 main(int argc, char **argv, char **envp)
@@ -558,7 +575,7 @@ main(int argc, char **argv, char **envp)
                            fname);
             }
 
-            if (!test_compiler(fname, kat)) {
+            if (!test_compiler(fname, kat) || c4m_definite_memcheck_error) {
                 num_errs++;
 
                 row = c4m_list(c4m_type_utf8());
@@ -570,6 +587,7 @@ main(int argc, char **argv, char **envp)
 
                 c4m_printf("[h4]Finished test {}. [i b navy blue]FAILED.",
                            c4m_box_u64(num_tests));
+                c4m_definite_memcheck_error = false;
             }
             else {
                 if (kat != NULL) {

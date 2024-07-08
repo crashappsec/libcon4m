@@ -48,7 +48,7 @@ c4m_sym_get_best_ref_loc(c4m_symbol_t *sym)
 
 void
 c4m_shadow_check(c4m_file_compile_ctx *ctx,
-                 c4m_symbol_t    *sym,
+                 c4m_symbol_t         *sym,
                  c4m_scope_t          *cur_scope)
 {
     c4m_scope_t *module_scope = ctx->module_scope;
@@ -122,14 +122,14 @@ c4m_declare_symbol(c4m_file_compile_ctx *ctx,
                    bool                 *success,
                    bool                  err_if_present)
 {
-    c4m_symbol_t *entry = c4m_gc_alloc(c4m_symbol_t);
-    entry->path              = c4m_to_utf8(ctx->path);
-    entry->name              = name;
-    entry->declaration_node  = node;
-    entry->type              = c4m_new_typevar();
-    entry->kind              = kind;
-    entry->my_scope          = scope;
-    entry->sym_defs          = c4m_new(c4m_type_list(c4m_type_ref()));
+    c4m_symbol_t *entry     = c4m_gc_alloc(c4m_symbol_t);
+    entry->path             = c4m_to_utf8(ctx->path);
+    entry->name             = name;
+    entry->declaration_node = node;
+    entry->type             = c4m_new_typevar();
+    entry->kind             = kind;
+    entry->my_scope         = scope;
+    entry->sym_defs         = c4m_new(c4m_type_list(c4m_type_ref()));
 
     if (hatrack_dict_add(scope->symbols, name, entry)) {
         if (success != NULL) {
@@ -173,10 +173,10 @@ c4m_add_inferred_symbol(c4m_file_compile_ctx *ctx,
                         c4m_utf8_t           *name)
 {
     c4m_symbol_t *entry = c4m_gc_alloc(c4m_symbol_t);
-    entry->name              = name;
-    entry->type              = c4m_new_typevar();
-    entry->kind              = C4M_SK_VARIABLE;
-    entry->my_scope          = scope;
+    entry->name         = name;
+    entry->type         = c4m_new_typevar();
+    entry->kind         = C4M_SK_VARIABLE;
+    entry->my_scope     = scope;
 
     if (scope->kind & (C4M_SCOPE_FUNC | C4M_SCOPE_FORMALS)) {
         entry->flags |= C4M_F_FUNCTION_SCOPE;
@@ -197,10 +197,10 @@ c4m_add_or_replace_symbol(c4m_file_compile_ctx *ctx,
                           c4m_utf8_t           *name)
 {
     c4m_symbol_t *entry = c4m_gc_alloc(c4m_symbol_t);
-    entry->name              = name;
-    entry->type              = c4m_new_typevar();
-    entry->kind              = C4M_SK_VARIABLE;
-    entry->my_scope          = scope;
+    entry->name         = name;
+    entry->type         = c4m_new_typevar();
+    entry->kind         = C4M_SK_VARIABLE;
+    entry->my_scope     = scope;
 
     hatrack_dict_put(scope->symbols, name, entry);
 
@@ -222,8 +222,8 @@ c4m_lookup_symbol(c4m_scope_t *scope, c4m_utf8_t *name)
 
 static void
 type_cmp_exact_match(c4m_file_compile_ctx *new_ctx,
-                     c4m_symbol_t    *new_sym,
-                     c4m_symbol_t    *old_sym)
+                     c4m_symbol_t         *new_sym,
+                     c4m_symbol_t         *old_sym)
 {
     c4m_type_t *t1 = new_sym->type;
     c4m_type_t *t2 = old_sym->type;
@@ -288,8 +288,8 @@ type_cmp_exact_match(c4m_file_compile_ctx *new_ctx,
 
 bool
 c4m_merge_symbols(c4m_file_compile_ctx *ctx1,
-                  c4m_symbol_t    *sym1,
-                  c4m_symbol_t    *sym2) // The older symbol.
+                  c4m_symbol_t         *sym1,
+                  c4m_symbol_t         *sym2) // The older symbol.
 {
     if (sym1->kind != sym2->kind) {
         c4m_add_error(ctx1,
@@ -374,7 +374,7 @@ c4m_format_scope(c4m_scope_t *scope)
                                       c4m_ka(1),
                                       "stripe",
                                       c4m_ka(true)));
-    c4m_list_t          *row        = c4m_new_table_row();
+    c4m_list_t           *row        = c4m_new_table_row();
     c4m_utf8_t           *decl_const = c4m_new_utf8("declared");
     c4m_utf8_t           *inf_const  = c4m_new_utf8("inferred");
     c4m_dict_t           *memos      = c4m_new(c4m_type_dict(c4m_type_ref(),
@@ -401,7 +401,7 @@ c4m_format_scope(c4m_scope_t *scope)
     c4m_grid_add_row(grid, row);
 
     for (uint64_t i = 0; i < len; i++) {
-        c4m_utf8_t        *kind;
+        c4m_utf8_t   *kind;
         c4m_symbol_t *entry = values[i];
 
         kind = inf_const;
@@ -423,14 +423,14 @@ c4m_format_scope(c4m_scope_t *scope)
                 }
                 else {
                     c4m_list_append(row,
-                                     c4m_new_utf8(
-                                         c4m_symbol_kind_names[entry->kind]));
+                                    c4m_new_utf8(
+                                        c4m_symbol_kind_names[entry->kind]));
                 }
             }
         }
         else {
             c4m_list_append(row,
-                             c4m_new_utf8(c4m_symbol_kind_names[entry->kind]));
+                            c4m_new_utf8(c4m_symbol_kind_names[entry->kind]));
         }
 
         c4m_type_t *symtype = c4m_get_sym_type(entry);
@@ -441,29 +441,14 @@ c4m_format_scope(c4m_scope_t *scope)
         }
 
         c4m_list_append(row,
-                         c4m_cstr_format("[em]{} [/][i]({})",
-                                         c4m_internal_type_repr(symtype,
-                                                                memos,
-                                                                &nexttid),
-                                         kind));
-
-#if 0
-        if (c4m_sym_is_declared_const(entry)) {
-            if (entry->value == NULL) {
-                c4m_list_append(row, c4m_cstr_format("[red]not set[/]"));
-            }
-            else {
-                c4m_list_append(row, c4m_value_obj_repr(entry->value));
-            }
-        }
-        else {
-            c4m_list_append(row, c4m_cstr_format("[gray]n/a[/]"));
-        }
-#else
+                        c4m_cstr_format("[em]{} [/][i]({})",
+                                        c4m_internal_type_repr(symtype,
+                                                               memos,
+                                                               &nexttid),
+                                        kind));
         c4m_list_append(row,
-                         c4m_cstr_format("{:x}",
-                                         c4m_box_u64(entry->static_offset)));
-#endif
+                        c4m_cstr_format("{:x}",
+                                        c4m_box_u64(entry->static_offset)));
 
         int         n = c4m_list_len(entry->sym_defs);
         c4m_utf8_t *def_text;
@@ -483,6 +468,19 @@ c4m_format_scope(c4m_scope_t *scope)
             }
             def_text = c4m_str_join(defs, c4m_new_utf8(", "));
         }
+
+        if (c4m_sym_is_declared_const(entry)) {
+            if (entry->value == NULL) {
+                def_text = c4m_str_concat(c4m_cstr_format("[i]value:[red] not set[/]\n"),
+                                          def_text);
+            }
+            else {
+                def_text = c4m_str_concat(c4m_cstr_format("[i]value:[jazzberry] {}[/]\n",
+                                                          c4m_value_obj_repr(entry->value)),
+                                          def_text);
+            }
+        }
+
         c4m_list_append(row, def_text);
 
         n = c4m_list_len(entry->sym_uses);

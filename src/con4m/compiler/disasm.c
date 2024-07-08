@@ -172,11 +172,17 @@ const inst_info_t inst_info[256] = {
     [C4M_ZUAdd] = {
         .name = "ZUAdd",
     },
+    [C4M_ZFAdd] = {
+        .name = "ZFAdd",
+    },
     [C4M_ZSub] = {
         .name = "ZSub",
     },
     [C4M_ZUSub] = {
         .name = "ZUSub",
+    },
+    [C4M_ZFSub] = {
+        .name = "ZFSub",
     },
     [C4M_ZMul] = {
         .name = "ZMul",
@@ -184,11 +190,17 @@ const inst_info_t inst_info[256] = {
     [C4M_ZUMul] = {
         .name = "ZUMul",
     },
+    [C4M_ZFMul] = {
+        .name = "ZFMul",
+    },
     [C4M_ZDiv] = {
         .name = "ZDiv",
     },
     [C4M_ZUDiv] = {
         .name = "ZUDiv",
+    },
+    [C4M_ZFDiv] = {
+        .name = "ZFDiv",
     },
     [C4M_ZMod] = {
         .name = "ZMod",

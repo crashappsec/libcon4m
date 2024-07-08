@@ -157,28 +157,30 @@ layout_static(c4m_compile_ctx      *cctx,
         switch (sym->kind) {
         case C4M_SK_ENUM_VAL:
             if (c4m_types_are_compat(sym->type, c4m_type_utf8(), NULL)) {
-                c4m_layout_const_obj(cctx,
-                                     sym->value,
-                                     fctx,
-                                     sym->declaration_node,
-                                     sym->name);
+                sym->static_offset = c4m_layout_const_obj(cctx,
+                                                          sym->value,
+                                                          fctx,
+                                                          sym->declaration_node,
+                                                          sym->name);
             }
             break;
         case C4M_SK_VARIABLE:
             // We might someday allow references to const vars, so go
             // ahead and stick them in static data always.
             if (c4m_sym_is_declared_const(sym)) {
-                c4m_layout_const_obj(cctx,
-                                     sym->value,
-                                     fctx,
-                                     sym->declaration_node,
-                                     sym->name);
+                sym->static_offset = c4m_layout_const_obj(cctx,
+                                                          sym->value,
+                                                          fctx,
+                                                          sym->declaration_node,
+                                                          sym->name);
                 break;
             }
-            // For now, just lay everything in the world out as
-            // 8 byte values (and thus 8 byte aligned).
-            sym->static_offset = c4m_layout_static_obj(fctx, 8, 8);
-            break;
+            else {
+                // For now, just lay everything in the world out as
+                // 8 byte values (and thus 8 byte aligned).
+                sym->static_offset = c4m_layout_static_obj(fctx, 8, 8);
+                break;
+            }
         default:
             continue;
         }
@@ -221,7 +223,7 @@ layout_stack(void **view, uint64_t n)
 
 static void
 layout_func(c4m_file_compile_ctx *ctx,
-            c4m_symbol_t    *sym,
+            c4m_symbol_t         *sym,
             int                   i)
 
 {
@@ -258,7 +260,7 @@ c4m_layout_module_symbols(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
 
     for (unsigned int i = 0; i < n; i++) {
         c4m_module_param_info_t *param = view[i];
-        c4m_symbol_t       *sym   = param->linked_symbol;
+        c4m_symbol_t            *sym   = param->linked_symbol;
 
         // These don't need an index; we test for the default by
         // asking the attr store.

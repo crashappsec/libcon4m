@@ -1,4 +1,4 @@
-"Test"
+"Super crashy"
 
 func value_provider() {
   "Provide a value."
@@ -36,4 +36,4 @@ parameter example.two {
 
 print(example1)
 print(example2)
-assert false
+

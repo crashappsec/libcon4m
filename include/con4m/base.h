@@ -32,6 +32,7 @@
 #include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>

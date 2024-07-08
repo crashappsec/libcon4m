@@ -1523,6 +1523,7 @@ lock_attr(parse_ctx *ctx)
         adopt_kid(ctx, assign(ctx, expr, c4m_nt_assign));
         break;
     default:
+        adopt_kid(ctx, expr);
         break;
     }
 
@@ -1905,6 +1906,7 @@ case_body(parse_ctx *ctx)
                 case c4m_tt_colon:
                 case c4m_tt_assign:
                     adopt_kid(ctx, assign(ctx, expr, c4m_nt_assign));
+                    end_of_statement(ctx);
                     continue;
                 case c4m_tt_identifier:
                 case c4m_tt_string_lit:
@@ -3085,7 +3087,6 @@ assign(parse_ctx *ctx, c4m_tree_node_t *lhs, c4m_node_kind_t kind)
     adopt_kid(ctx, lhs);
     adopt_kid(ctx, expression(ctx));
     result = restore_tree(ctx);
-    end_of_statement(ctx);
 
     return result;
 }
@@ -3265,6 +3266,7 @@ expression_start(parse_ctx *ctx)
     case c4m_tt_hex_lit:
     case c4m_tt_string_lit:
     case c4m_tt_char_lit:
+    case c4m_tt_float_lit:
     case c4m_tt_true:
     case c4m_tt_false:
     case c4m_tt_nil:
@@ -4066,6 +4068,7 @@ body(parse_ctx *ctx, c4m_pnode_t *docstring_target)
                 case c4m_tt_colon:
                 case c4m_tt_assign:
                     adopt_kid(ctx, assign(ctx, expr, c4m_nt_assign));
+                    end_of_statement(ctx);
                     continue;
                 case c4m_tt_identifier:
                 case c4m_tt_string_lit:
@@ -4258,6 +4261,7 @@ module(parse_ctx *ctx)
                 case c4m_tt_colon:
                 case c4m_tt_assign:
                     adopt_kid(ctx, assign(ctx, expr, c4m_nt_assign));
+                    end_of_statement(ctx);
                     continue;
                 case c4m_tt_identifier:
                 case c4m_tt_string_lit:

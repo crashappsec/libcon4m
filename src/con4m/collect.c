@@ -721,6 +721,12 @@ _c4m_memcheck_object(c4m_obj_t o, char *file, int line)
     }
 }
 
+// No API here; we use this to fail tests if there's any definitive
+// error.  The abort() will do it, but that only fires if the check
+// for being recent finds the error, mainly for debugging purposes.
+
+bool c4m_definite_memcheck_error = false;
+
 void
 c4m_alloc_display_front_guard_error(c4m_alloc_hdr *hdr,
                                     void          *ptr,
@@ -738,6 +744,8 @@ c4m_alloc_display_front_guard_error(c4m_alloc_hdr *hdr,
             (long long unsigned)hdr->guard,
             file ? file : hdr->alloc_file,
             file ? line : hdr->alloc_line);
+
+    c4m_definite_memcheck_error = true;
 
     if (bail) {
         abort();
@@ -770,6 +778,8 @@ c4m_alloc_display_rear_guard_error(c4m_alloc_hdr *hdr,
             (long long unsigned int)*(uint64_t *)rear_guard_loc,
             file ? file : hdr->alloc_file,
             file ? line : hdr->alloc_line);
+
+    c4m_definite_memcheck_error = true;
 
     if (bail) {
         abort();
@@ -820,11 +830,20 @@ memcheck_validate_old_records(c4m_arena_t *from_space)
 
                     c4m_alloc_hdr *h = (c4m_alloc_hdr *)probe;
                     if (!h->fw_addr) {
+                        // We currently don't mark this as a definite
+                        // error for testing, because it *can* be a
+                        // false positive.  It's reasonably likely in
+                        // common situations on a mac.
                         fprintf(stderr,
                                 "Possible missed allocation. Found a pointer "
                                 " to %p, which was NOT copied. The pointer "
                                 " was found in a live allocation "
-                                " from %s:%d, now residing at %p.\n",
+                                " from %s:%d, now residing at %p.\n"
+                                "Note that this can be a false positive if "
+                                "the memory in the allocation was non-pointer "
+                                "data and properly marked as such."
+                                "Otherwise, it may be a pointer that was "
+                                "marked as data, incorrectly.",
                                 *p,
                                 h->alloc_file,
                                 h->alloc_line,

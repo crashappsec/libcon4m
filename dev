@@ -182,7 +182,7 @@ fi
 case $1 in
     clean)   libcon4m_dev_clean
              ;;
-    build)   meson_build build --buildtype=plain
+    build)   meson_build build --buildtype=plain -Duse_memcheck=true
              ;;
     debug)   meson_init_target debug --buildtype=debug
              meson configure debug -Duse_memcheck=true

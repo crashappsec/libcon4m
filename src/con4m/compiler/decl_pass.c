@@ -99,6 +99,7 @@ validate_int_enum_vals(c4m_pass1_ctx *ctx, c4m_list_t *items)
     uint64_t    next_implicit = 0;
     c4m_type_t *result;
 
+    // First, extract numbers from set values.
     for (int i = 0; i < n; i++) {
         c4m_tree_node_t *tnode = c4m_list_get(items, i, NULL);
         if (c4m_tree_get_number_children(tnode) == 0) {
@@ -191,7 +192,7 @@ validate_int_enum_vals(c4m_pass1_ctx *ctx, c4m_list_t *items)
         c4m_pnode_t     *pnode = c4m_get_pnode(tnode);
 
         if (c4m_tree_get_number_children(tnode) != 0) {
-            // pnode->value           = c4m_coerce_object(pnode->value, result);
+            pnode->value      = c4m_coerce_object(pnode->value, result);
             c4m_symbol_t *sym = pnode->extra_info;
             sym->value        = pnode->value;
             continue;
@@ -216,6 +217,24 @@ validate_int_enum_vals(c4m_pass1_ctx *ctx, c4m_list_t *items)
 // Once we add UDTs, it will be possible to make them propert UDTs,
 // so that we can do proper value checking.
 
+static c4m_list_t *
+extract_enum_items(c4m_pass1_ctx *ctx)
+{
+    c4m_list_t      *result = c4m_list(c4m_type_ref());
+    c4m_tree_node_t *node   = ctx->cur_tnode;
+    int              len    = node->num_kids;
+
+    for (int i = 0; i < len; i++) {
+        c4m_pnode_t *kid = c4m_get_pnode(node->children[i]);
+
+        if (kid->kind == c4m_nt_enum_item) {
+            c4m_list_append(result, node->children[i]);
+        }
+    }
+
+    return result;
+}
+
 static void
 handle_enum_decl(c4m_pass1_ctx *ctx)
 {
@@ -223,7 +242,7 @@ handle_enum_decl(c4m_pass1_ctx *ctx)
     c4m_tree_node_t *tnode  = c4m_get_match(ctx, c4m_first_kid_id);
     c4m_pnode_t     *id     = c4m_get_pnode(tnode);
     c4m_symbol_t    *idsym  = NULL;
-    c4m_list_t      *items  = c4m_apply_pattern(ctx, c4m_enum_items);
+    c4m_list_t      *items  = extract_enum_items(ctx);
     int              n      = c4m_list_len(items);
     bool             is_str = false;
     c4m_scope_t     *scope;
@@ -333,27 +352,6 @@ handle_enum_decl(c4m_pass1_ctx *ctx)
                           ty);
         }
     }
-
-#ifdef C4M_PASS1_UNIT_TESTS
-    if (id == NULL) {
-        printf("Anonymous enum (%lld kids).\n", c4m_xlist_len(items));
-    }
-    else {
-        printf("Enum name: %s (%lld kids)\n",
-               c4m_identifier_text(id->token)->data,
-               c4m_xlist_len(items));
-    }
-
-    for (int i = 0; i < n; i++) {
-        item               = c4m_xlist_get(items, i, NULL);
-        varname            = node_text(item);
-        c4m_pnode_t *pnode = c4m_get_pnode(item);
-        printf("About to print an enum value:\n");
-        c4m_print(c4m_cstr_format("enum name: {} value: {}",
-                                  varname,
-                                  pnode->value));
-    }
-#endif
 }
 
 static void

@@ -1,6 +1,0 @@
-foo.bar = "hello"
-assert foo.bar == "hello"
-~foo.bar
-foo.bar = "goodbye"
-assert foo.bar == "goodbye"
-

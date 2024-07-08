@@ -808,6 +808,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
     union {
         uint64_t uint;
         int64_t  sint;
+        double   dbl;
     } rhs;
 
     C4M_TRY
@@ -1032,6 +1033,30 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 rhs.uint = tstate->sp[0].uint;
                 ++tstate->sp;
                 tstate->sp[0].uint %= rhs.uint;
+                break;
+            case C4M_ZFAdd:
+                STACK_REQUIRE_VALUES(2);
+                rhs.dbl = tstate->sp[0].dbl;
+                ++tstate->sp;
+                tstate->sp[0].dbl += rhs.dbl;
+                break;
+            case C4M_ZFSub:
+                STACK_REQUIRE_VALUES(2);
+                rhs.dbl = tstate->sp[0].dbl;
+                ++tstate->sp;
+                tstate->sp[0].dbl -= rhs.dbl;
+                break;
+            case C4M_ZFMul:
+                STACK_REQUIRE_VALUES(2);
+                rhs.dbl = tstate->sp[0].dbl;
+                ++tstate->sp;
+                tstate->sp[0].dbl *= rhs.dbl;
+                break;
+            case C4M_ZFDiv:
+                STACK_REQUIRE_VALUES(2);
+                rhs.dbl = tstate->sp[0].dbl;
+                ++tstate->sp;
+                tstate->sp[0].dbl /= rhs.dbl;
                 break;
             case C4M_ZBOr:
                 STACK_REQUIRE_VALUES(2);

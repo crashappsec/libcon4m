@@ -129,5 +129,8 @@ c4m_box_double(double val)
     c4m_box_t v = {
         .dbl = val,
     };
-    return c4m_box_obj(v, c4m_type_f64());
+
+    c4m_box_t *res = c4m_box_obj(v, c4m_type_f64());
+
+    return (double *)res;
 }

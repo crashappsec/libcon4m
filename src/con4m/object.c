@@ -642,6 +642,10 @@ c4m_mod(c4m_obj_t lhs, c4m_obj_t rhs)
 int64_t
 c4m_len(c4m_obj_t container)
 {
+    if (!container) {
+        return 0;
+    }
+
     c4m_len_fn ptr = (c4m_len_fn)c4m_vtable(container)->methods[C4M_BI_LEN];
 
     if (ptr == NULL) {
@@ -728,8 +732,8 @@ c4m_can_coerce(c4m_type_t *t1, c4m_type_t *t2)
 c4m_obj_t
 c4m_coerce(void *data, c4m_type_t *t1, c4m_type_t *t2)
 {
-    // TODO-- if it's not a primitive type in t1, we should
-    // use data's type for extra precaution.
+    t1 = c4m_resolve_and_unbox(t1);
+    t2 = c4m_resolve_and_unbox(t2);
 
     c4m_dt_info_t *info = c4m_type_get_data_type_info(t1);
     c4m_vtable_t  *vtbl = (c4m_vtable_t *)info->vtable;
@@ -814,6 +818,8 @@ c4m_lt(c4m_type_t *t, c4m_obj_t o1, c4m_obj_t o2)
 bool
 c4m_gt(c4m_type_t *t, c4m_obj_t o1, c4m_obj_t o2)
 {
+    c4m_print(t);
+
     c4m_dt_info_t *info = c4m_type_get_data_type_info(t);
     c4m_vtable_t  *vtbl = (c4m_vtable_t *)info->vtable;
     c4m_cmp_fn     ptr  = (c4m_cmp_fn)vtbl->methods[C4M_BI_GT];

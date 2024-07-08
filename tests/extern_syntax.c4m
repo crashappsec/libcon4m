@@ -1,10 +1,23 @@
+"""
+Syntax testing for extern function decls.
+"""
+"""
+$errors:
+invalid_redeclaration
+invalid_redeclaration
+invalid_redeclaration
+dupe_hold
+bad_alloc_name
+invalid_redeclaration
+"""
+
 extern callecho(ptr) -> ptr {
-  local: print(x: string) -> void
+  local: echo(x: string) -> void
   pure: false
 }
 
 extern echoanint(cint) -> cvoid {
-  local: print(x: int) -> void
+  local: echo(x: int) -> void
   pure: false
 }
 
@@ -29,7 +42,7 @@ extern whatever(ptr) -> ptr {
 }
 
 extern callecho2(ptr, ptr) -> ptr {
-  local: print(x: string) -> void
+  local: echo(x: string) -> void
   pure: false
   holds: x, x
   allocs: b, return

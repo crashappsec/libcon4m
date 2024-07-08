@@ -613,9 +613,8 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
 
 #ifdef C4M_FULL_MEMCHECK
     size_t orig_len         = len;
-    len                     = c4m_round_up_to_given_power_of_2(8, len);
-    size_t end_guard_offset = len / sizeof(uint64_t);
-    len += sizeof(uint64_t);
+    len                     = c4m_round_up_to_given_power_of_2(8, len + 1);
+    size_t end_guard_offset = orig_len;
 #endif
     c4m_arena_t *arena = *arena_ptr;
 
@@ -632,13 +631,6 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
 
         raw  = arena->next_alloc;
         next = (c4m_alloc_hdr *)&(raw->data[wordlen]);
-        /*
-        if (((uint64_t *)next) > arena->heap_end) {
-            arena->grow_next = true;
-            arena            = c4m_collect_arena(arena);
-            *arena_ptr       = arena;
-            goto try_again;
-            }*/
     }
 
     if (len > arena->largest_alloc) {
@@ -665,6 +657,15 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
     record->prev               = arena->shadow_end;
     *record->end               = c4m_end_guard;
 
+#ifdef C4M_WARN_ON_ZERO_ALLOCS
+    if (orig_len == 0) {
+        fprintf(stderr,
+                "Memcheck zero-byte alloc from %s:%d (record @%p)\n",
+                file,
+                line,
+                raw);
+    }
+#endif
     // Duplicated in the header for spot-checking; this can get corrupted;
     // the out-of-heap list is better, but we don't want to bother searching
     // through the whole heap.
