@@ -1,4 +1,4 @@
-FROM ubuntu
+FROM ubuntu AS build
 
 ARG LIBCON4M_REPO=/libcon4m
 
@@ -22,4 +22,11 @@ RUN apt-get install -y \
     meson \
     libssl-dev
 
-ENTRYPOINT [ "./scripts/run_tests.sh" ]
+# ------
+FROM build AS test
+
+WORKDIR $LIBCON4M_REPO
+ENV TERM=dumb
+RUN CC="clang-18" ./dev build
+
+ENTRYPOINT [ "./dev", "run" ]
