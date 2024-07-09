@@ -1,8 +1,0 @@
-"""
-Currently broken.
-"""
-"""
-"""
-r = "[h2]Hello, world!" + "[h4]Yay!"
-
-print(r)
