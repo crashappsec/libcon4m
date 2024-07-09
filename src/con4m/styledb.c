@@ -634,7 +634,7 @@ c4m_layer_styles(const c4m_render_style_t *base, c4m_render_style_t *cur)
     }
 }
 
-static void
+void
 c4m_style_marshal(c4m_render_style_t *obj,
                   c4m_stream_t       *s,
                   c4m_dict_t         *memos,
@@ -645,7 +645,12 @@ c4m_style_marshal(c4m_render_style_t *obj,
     flags = (obj->pad_color_set << 6) | (obj->disable_wrap << 5) | (obj->tpad_set << 4) | (obj->bpad_set << 3) | (obj->lpad_set << 2) | (obj->rpad_set << 1) | obj->hang_set;
 
     c4m_marshal_cstring(obj->name, s);
-    c4m_marshal_cstring(obj->border_theme->name, s);
+    if (obj->border_theme) {
+        c4m_marshal_cstring(obj->border_theme->name, s);
+    }
+    else {
+        c4m_marshal_cstring("", s);
+    }
     c4m_marshal_u64(obj->base_style, s);
     c4m_marshal_i32(obj->pad_color, s);
     c4m_marshal_u64(obj->dims.units, s);
@@ -660,7 +665,7 @@ c4m_style_marshal(c4m_render_style_t *obj,
     c4m_marshal_u8(flags, s);
 }
 
-static void
+void
 c4m_style_unmarshal(c4m_render_style_t *obj,
                     c4m_stream_t       *s,
                     c4m_dict_t         *memos)
@@ -691,7 +696,9 @@ c4m_style_unmarshal(c4m_render_style_t *obj,
     obj->rpad_set      = (flags >> 1) & 0x01;
     obj->hang_set      = flags & 0x01;
 
-    c4m_set_border_theme(obj, theme);
+    if (theme && theme[0] != 0) {
+        c4m_set_border_theme(obj, theme);
+    }
 }
 
 bool

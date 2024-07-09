@@ -262,7 +262,7 @@ dict_coerce_to(c4m_dict_t *dict, c4m_type_t *dst_type)
 }
 
 c4m_dict_t *
-dict_copy(c4m_dict_t *dict)
+c4m_dict_copy(c4m_dict_t *dict)
 {
     return dict_coerce_to(dict, c4m_get_my_type(dict));
 }
@@ -343,7 +343,7 @@ const c4m_vtable_t c4m_dict_vtable = {
         [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_dict_unmarshal,
         [C4M_BI_COERCIBLE]     = (c4m_vtable_entry)dict_can_coerce_to,
         [C4M_BI_COERCE]        = (c4m_vtable_entry)dict_coerce_to,
-        [C4M_BI_COPY]          = (c4m_vtable_entry)dict_copy,
+        [C4M_BI_COPY]          = (c4m_vtable_entry)c4m_dict_copy,
         [C4M_BI_ADD]           = (c4m_vtable_entry)dict_plus,
         [C4M_BI_LEN]           = (c4m_vtable_entry)dict_len,
         [C4M_BI_INDEX_GET]     = (c4m_vtable_entry)dict_get,

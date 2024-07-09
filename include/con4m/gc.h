@@ -128,7 +128,7 @@
 #ifndef C4M_DEFAULT_ARENA_SIZE
 
 // This is the size any test case that prints a thing grows to awfully fast.
-#define C4M_DEFAULT_ARENA_SIZE (1 << 24)
+#define C4M_DEFAULT_ARENA_SIZE (1 << 25)
 #endif
 
 // In the future, we would expect that a writer seeing the

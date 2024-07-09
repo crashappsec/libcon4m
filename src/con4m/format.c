@@ -492,14 +492,6 @@ assemble_formatted_result(const c4m_str_t *fmt, c4m_list_t *arg_strings)
             arg  = c4m_to_utf32(arg);
             argp = (c4m_codepoint_t *)arg->data;
 
-            // If we have a null string and there's a style around it,
-            // things are broken without this kludge. But to be quite
-            // honest, I don't understand why it's broken or why this
-            // kludge works??
-            if (alen == 0) {
-                alen = 1;
-            }
-
             style_adjustment(result, out_ix, alen - 2);
 
             for (int64_t j = 0; j < alen; j++) {

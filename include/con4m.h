@@ -2,7 +2,6 @@
 
 // #define C4M_FULL_MEMCHECK
 // #define C4M_DEBUG
-// #define C4M_GC_STATS
 // #define C4M_TRACE_GC
 
 // #define C4M_GCT_MOVE        1

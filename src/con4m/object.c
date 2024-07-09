@@ -557,7 +557,13 @@ c4m_copy_object(c4m_obj_t obj)
     c4m_copy_fn ptr = (c4m_copy_fn)c4m_vtable(obj)->methods[C4M_BI_COPY];
 
     if (ptr == NULL) {
-        C4M_CRAISE("Copying for this object type not currently supported.");
+        c4m_utf8_t *err;
+
+        err = c4m_cstr_format(
+            "Copying for '{}' objects is not "
+            "currently supported.",
+            c4m_get_my_type(obj));
+        C4M_RAISE(err);
     }
 
     return (*ptr)(obj);
@@ -818,8 +824,6 @@ c4m_lt(c4m_type_t *t, c4m_obj_t o1, c4m_obj_t o2)
 bool
 c4m_gt(c4m_type_t *t, c4m_obj_t o1, c4m_obj_t o2)
 {
-    c4m_print(t);
-
     c4m_dt_info_t *info = c4m_type_get_data_type_info(t);
     c4m_vtable_t  *vtbl = (c4m_vtable_t *)info->vtable;
     c4m_cmp_fn     ptr  = (c4m_cmp_fn)vtbl->methods[C4M_BI_GT];
@@ -898,10 +902,25 @@ c4m_container_literal(c4m_type_t *t, c4m_list_t *items, c4m_utf8_t *mod)
     ptr = (c4m_container_lit_fn)vtbl->methods[C4M_BI_CONTAINER_LIT];
 
     if (ptr == NULL) {
-        C4M_CRAISE("Improper implementation; no literal fn defined.");
+        c4m_utf8_t *err = c4m_cstr_format(
+            "Improper implementation; no literal fn "
+            "defined for type '{}'.",
+            c4m_new_utf8(info->name));
+        C4M_RAISE(err);
     }
 
-    return (*ptr)(t, items, mod);
+    c4m_obj_t result = (*ptr)(t, items, mod);
+
+    if (result == NULL) {
+        c4m_utf8_t *err = c4m_cstr_format(
+            "Improper implementation; type '{}' did not instantiate "
+            "a literal for the literal modifier '{}'",
+            c4m_new_utf8(info->name),
+            mod);
+        C4M_RAISE(err);
+    }
+
+    return result;
 }
 
 void

@@ -222,7 +222,9 @@ type_check_node_vs_type_no_err(c4m_tree_node_t *n, c4m_type_t *t)
 }
 
 void
-c4m_fold_container(c4m_tree_node_t *n, c4m_lit_info_t *li)
+c4m_fold_container(c4m_tree_node_t *n,
+                   c4m_lit_info_t  *li,
+                   c4m_list_t      *item_types)
 {
     c4m_pnode_t *pn = c4m_get_pnode(n);
 
@@ -234,10 +236,10 @@ c4m_fold_container(c4m_tree_node_t *n, c4m_lit_info_t *li)
         }
     }
     c4m_list_t *items = c4m_new(c4m_type_list(c4m_type_ref()));
-    c4m_list_t *tlist = li->type->details->items;
+    c4m_list_t *tlist = item_types;
     c4m_obj_t   obj;
 
-    if (li->num_items == 1) {
+    if (li->num_items <= 1) {
         bool val_type = c4m_type_is_value_type(c4m_list_get(tlist, 0, NULL));
 
         for (int i = 0; i < n->num_kids; i++) {
@@ -251,8 +253,6 @@ c4m_fold_container(c4m_tree_node_t *n, c4m_lit_info_t *li)
         }
     }
     else {
-        c4m_list_t *item_types = li->type->details->items;
-
         c4m_tuple_t *t = c4m_new(c4m_type_tuple_from_xlist(item_types));
         for (int i = 0; i < n->num_kids; i++) {
             c4m_pnode_t *kid_pnode = c4m_get_pnode(n->children[i]);
@@ -278,8 +278,9 @@ c4m_fold_container(c4m_tree_node_t *n, c4m_lit_info_t *li)
 static void
 calculate_container_type(pass2_ctx *ctx, c4m_tree_node_t *n)
 {
-    c4m_pnode_t    *pn = c4m_get_pnode(n);
-    c4m_lit_info_t *li = (c4m_lit_info_t *)pn->extra_info;
+    c4m_pnode_t    *pn       = c4m_get_pnode(n);
+    c4m_lit_info_t *li       = (c4m_lit_info_t *)pn->extra_info;
+    bool            concrete = false;
 
     li->base_type = c4m_base_type_from_litmod(li->st, li->litmod);
 
@@ -307,8 +308,14 @@ calculate_container_type(pass2_ctx *ctx, c4m_tree_node_t *n)
         return;
     }
 
-    li->type = c4m_new(c4m_type_typespec(),
-                       li->base_type);
+    if (c4m_base_type_info[li->base_type].dt_kind == C4M_DT_KIND_primitive) {
+        li->type = c4m_bi_types[li->base_type];
+        concrete = true;
+    }
+    else {
+        li->type = c4m_new(c4m_type_typespec(),
+                           li->base_type);
+    }
     pn->type = li->type;
 
     if (pn->kind == c4m_nt_lit_empty_dict_or_set) {
@@ -318,31 +325,39 @@ calculate_container_type(pass2_ctx *ctx, c4m_tree_node_t *n)
         return;
     }
 
-    c4m_list_t *items = li->type->details->items;
+    c4m_list_t *items;
 
-    switch (li->st) {
-    case ST_List:
-        li->num_items = 1;
-        break;
-
-    case ST_Tuple:
-        li->num_items = n->num_kids;
-        break;
-
-    case ST_Dict:
-        if (pn->kind == c4m_nt_lit_set) {
-            li->num_items = 1;
-        }
-        else {
-            li->num_items = 2;
-        }
-        break;
-    default:
-        c4m_unreachable();
-    }
-
-    for (int i = 0; i < li->num_items; i++) {
+    if (concrete) {
+        items = c4m_list(c4m_type_typespec());
         c4m_list_append(items, c4m_new_typevar());
+        li->num_items = 1;
+    }
+    else {
+        items = li->type->details->items;
+        switch (li->st) {
+        case ST_List:
+            li->num_items = 1;
+            break;
+
+        case ST_Tuple:
+            li->num_items = n->num_kids;
+            break;
+
+        case ST_Dict:
+            if (pn->kind == c4m_nt_lit_set) {
+                li->num_items = 1;
+            }
+            else {
+                li->num_items = 2;
+            }
+            break;
+        default:
+            c4m_unreachable();
+        }
+
+        for (int i = 0; i < li->num_items; i++) {
+            c4m_list_append(items, c4m_new_typevar());
+        }
     }
 
     for (int i = 0; i < n->num_kids; i++) {
@@ -352,34 +367,40 @@ calculate_container_type(pass2_ctx *ctx, c4m_tree_node_t *n)
         ctx->node = n->children[i];
         base_check_pass_dispatch(ctx);
 
-        if (merge_or_ret_ignore_err(t, kid_pnode->type)) {
-            if (c4m_can_coerce(kid_pnode->type, t)) {
-                c4m_lit_info_t *li = (c4m_lit_info_t *)kid_pnode->extra_info;
-                li->cast_to        = t;
-                if (kid_pnode->value != NULL) {
-                    kid_pnode->value = c4m_coerce(kid_pnode->value,
-                                                  kid_pnode->type,
-                                                  t);
+        if (!concrete) {
+            if (merge_or_ret_ignore_err(t, kid_pnode->type)) {
+                if (c4m_can_coerce(kid_pnode->type, t)) {
+                    c4m_lit_info_t *li = kid_pnode->extra_info;
+                    li->cast_to        = t;
+                    if (kid_pnode->value != NULL) {
+                        kid_pnode->value = c4m_coerce(kid_pnode->value,
+                                                      kid_pnode->type,
+                                                      t);
+                    }
                 }
-            }
-            else {
-                char       *p = (char *)c4m_base_type_info[li->base_type].name;
-                c4m_utf8_t *s = c4m_new_utf8(p);
+                else {
+                    char *p = (char *)c4m_base_type_info[li->base_type].name;
 
-                c4m_add_error(ctx->file_ctx,
-                              c4m_err_inconsistent_item_type,
-                              n->children[i],
-                              s,
-                              t,
-                              kid_pnode->type);
-                c4m_calculate_type_hash(li->type);
-                return;
+                    c4m_utf8_t *s = c4m_new_utf8(p);
+
+                    c4m_add_error(ctx->file_ctx,
+                                  c4m_err_inconsistent_item_type,
+                                  n->children[i],
+                                  s,
+                                  t,
+                                  kid_pnode->type);
+                    c4m_calculate_type_hash(li->type);
+                    return;
+                }
             }
         }
     }
 
-    c4m_calculate_type_hash(li->type);
-    c4m_fold_container(n, li);
+    if (!concrete) {
+        c4m_calculate_type_hash(li->type);
+    }
+
+    c4m_fold_container(n, li, items);
 }
 
 // This maps names to how many arguments the function takes.  If

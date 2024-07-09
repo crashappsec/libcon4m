@@ -424,7 +424,6 @@ c4m_stream_read_all(c4m_stream_t *stream)
                 break;
             }
         }
-
         c4m_list_append(l, one);
     }
     if (outkind) {
@@ -492,7 +491,6 @@ void
 c4m_stream_write_object(c4m_stream_t *stream, c4m_obj_t obj, bool ansi)
 {
     if (stream->flags & C4M_F_STREAM_CLOSED) {
-        abort();
         C4M_CRAISE("Stream is already closed.");
     }
 

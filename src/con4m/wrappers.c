@@ -51,3 +51,9 @@ c4m_wrapper_arch()
 
     return c4m_new_utf8(info.machine);
 }
+
+void
+c4m_snap_column(c4m_grid_t *table, int64_t n)
+{
+    c4m_set_column_style(table, n, "snap");
+}

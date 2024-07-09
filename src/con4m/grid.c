@@ -409,9 +409,6 @@ get_col_props(c4m_grid_t *grid, int col)
     return c4m_lookup_cell_style("td");
 }
 
-// Contents currently must be a list[list[c4m_obj_t]].  Supply
-// properties separately; if you want something that spans you should
-// instead
 void
 c4m_grid_set_all_contents(c4m_grid_t *g, c4m_list_t *rows)
 {
@@ -1683,6 +1680,74 @@ c4m_grid_to_str(c4m_grid_t *g)
                         c4m_kw("add_trailing", c4m_ka(true)));
 }
 
+void
+c4m_grid_set_cell_contents(c4m_grid_t *g, int row, int col, c4m_obj_t item)
+{
+    c4m_renderable_t *cell;
+
+    if (row >= g->num_rows) {
+        c4m_grid_expand_rows(g, row - (g->num_rows - 1));
+    }
+
+    switch (c4m_base_type(item)) {
+    case C4M_T_RENDERABLE:
+        cell = (c4m_renderable_t *)item;
+        break;
+    case C4M_T_GRID: {
+        c4m_grid_t *subobj = (c4m_grid_t *)item;
+        int         tcells = subobj->num_rows * subobj->num_cols;
+        cell               = subobj->self;
+
+        for (int i = 0; i < tcells; i++) {
+            c4m_renderable_t *item = subobj->cells[i];
+            if (item == NULL) {
+                continue;
+            }
+            c4m_obj_t sub = item->raw_item;
+
+            if (c4m_base_type(sub) == C4M_T_GRID) {
+                c4m_layer_styles(g->self->current_style,
+                                 ((c4m_grid_t *)sub)->self->current_style);
+            }
+        }
+
+        break;
+    }
+    case C4M_T_UTF8:
+    case C4M_T_UTF32: {
+        char *tag;
+        if (row < g->header_rows || col < g->header_cols) {
+            tag = c4m_get_th_tag(g);
+        }
+        else {
+            tag = c4m_get_td_tag(g);
+        }
+
+        cell = c4m_new(c4m_type_renderable(),
+                       c4m_kw("tag",
+                              c4m_ka(tag),
+                              "obj",
+                              c4m_ka(item)));
+        break;
+    }
+    default:
+        C4M_CRAISE("Item passed to grid is not renderable.");
+    }
+
+    c4m_layer_styles(g->self->current_style, cell->current_style);
+    c4m_install_renderable(g, cell, row, row + 1, col, col + 1);
+    if (row >= g->row_cursor) {
+        if (col + 1 == g->num_cols) {
+            g->row_cursor = row + 1;
+            g->col_cursor = 0;
+        }
+        else {
+            g->row_cursor = row;
+            g->col_cursor = col + 1;
+        }
+    }
+}
+
 c4m_grid_t *
 _c4m_ordered_list(c4m_list_t *items, ...)
 {
@@ -1903,6 +1968,68 @@ c4m_grid_marshal(c4m_grid_t   *grid,
     c4m_sub_marshal(grid->self, s, memos, mid);
 }
 
+static c4m_renderable_t *
+c4m_renderable_copy(c4m_renderable_t *renderable)
+{
+    return renderable;
+}
+
+static c4m_dict_t *
+copy_props(c4m_dict_t *old)
+{
+    uint64_t             n;
+    c4m_dict_t          *res  = c4m_dict(c4m_type_int(), c4m_type_ref());
+    hatrack_dict_item_t *view = hatrack_dict_items_sort(old, &n);
+
+    for (uint64_t i = 0; i < n; i++) {
+        hatrack_dict_item_t item = view[i];
+
+        hatrack_dict_add(res, item.key, item.value);
+    }
+
+    return res;
+}
+
+static c4m_grid_t *
+c4m_grid_copy(c4m_grid_t *orig)
+{
+    c4m_grid_t *result  = c4m_new(c4m_type_grid(),
+                                 c4m_kw("start_rows",
+                                        c4m_ka(orig->num_rows),
+                                        "start_cols",
+                                        c4m_ka(orig->num_cols),
+                                        "spare_rows",
+                                        c4m_ka(orig->spare_rows),
+                                        "header_rows",
+                                        c4m_ka(orig->header_rows),
+                                        "header_cols",
+                                        c4m_ka(orig->header_cols),
+                                        "stripe",
+                                        c4m_ka(orig->stripe)));
+    result->width       = orig->width;
+    result->height      = orig->height;
+    result->td_tag_name = orig->td_tag_name;
+    result->th_tag_name = orig->th_tag_name;
+    result->col_props   = copy_props(orig->col_props);
+    result->row_props   = copy_props(orig->row_props);
+
+    size_t num_cells = (orig->num_rows + orig->spare_rows) * orig->num_cols;
+    result->cells    = c4m_gc_array_alloc(c4m_renderable_t *, num_cells);
+    num_cells        = orig->num_rows * orig->num_cols;
+
+    for (unsigned int i = 0; i < num_cells; i++) {
+        c4m_renderable_t *r = orig->cells[i];
+
+        if (r) {
+            result->cells[i] = c4m_renderable_copy(r);
+        }
+    }
+
+    result->self = c4m_renderable_copy(orig->self);
+
+    return result;
+}
+
 static void
 c4m_grid_unmarshal(c4m_grid_t *grid, c4m_stream_t *s, c4m_dict_t *memos)
 {
@@ -1933,6 +2060,12 @@ c4m_grid_unmarshal(c4m_grid_t *grid, c4m_stream_t *s, c4m_dict_t *memos)
     grid->self = c4m_sub_unmarshal(s, memos);
 }
 
+extern void
+c4m_style_marshal(c4m_render_style_t *obj,
+                  c4m_stream_t       *s,
+                  c4m_dict_t         *memos,
+                  int64_t            *mid);
+
 static void
 c4m_renderable_marshal(c4m_renderable_t *r,
                        c4m_stream_t     *s,
@@ -1941,7 +2074,7 @@ c4m_renderable_marshal(c4m_renderable_t *r,
 {
     c4m_sub_marshal(r->raw_item, s, memos, mid);
     c4m_marshal_cstring(r->container_tag, s);
-    c4m_sub_marshal(r->current_style, s, memos, mid);
+    c4m_style_marshal(r->current_style, s, memos, mid);
     c4m_marshal_u16(r->start_col, s);
     c4m_marshal_u16(r->start_row, s);
     c4m_marshal_u16(r->end_col, s);
@@ -1951,14 +2084,20 @@ c4m_renderable_marshal(c4m_renderable_t *r,
     c4m_marshal_u16(r->render_height, s);
 }
 
+extern void
+c4m_style_unmarshal(c4m_render_style_t *obj,
+                    c4m_stream_t       *s,
+                    c4m_dict_t         *memos);
+
 static void
 c4m_renderable_unmarshal(c4m_renderable_t *r,
                          c4m_stream_t     *s,
                          c4m_dict_t       *memos)
 {
-    r->raw_item      = c4m_sub_unmarshal(s, memos);
-    r->container_tag = c4m_unmarshal_cstring(s);
-    r->current_style = c4m_sub_unmarshal(s, memos);
+    r->raw_item            = c4m_sub_unmarshal(s, memos);
+    r->container_tag       = c4m_unmarshal_cstring(s);
+    c4m_render_style_t *rs = c4m_new(c4m_type_render_style());
+    c4m_style_unmarshal(rs, s, memos);
     r->start_col     = c4m_unmarshal_u16(s);
     r->start_row     = c4m_unmarshal_u16(s);
     r->end_col       = c4m_unmarshal_u16(s);
@@ -2116,8 +2255,7 @@ void
 c4m_set_column_props(c4m_grid_t *grid, int col, c4m_render_style_t *s)
 {
     if (grid->col_props == NULL) {
-        grid->col_props = c4m_new(c4m_type_dict(c4m_type_int(),
-                                                c4m_type_ref()));
+        grid->col_props = c4m_dict(c4m_type_int(), c4m_type_ref());
     }
 
     hatrack_dict_put(grid->col_props, (void *)(int64_t)col, s);
@@ -2127,8 +2265,7 @@ void
 c4m_set_row_props(c4m_grid_t *grid, int row, c4m_render_style_t *s)
 {
     if (grid->row_props == NULL) {
-        grid->row_props = c4m_new(c4m_type_dict(c4m_type_int(),
-                                                c4m_type_ref()));
+        grid->row_props = c4m_dict(c4m_type_int(), c4m_type_ref());
     }
 
     hatrack_dict_put(grid->row_props, (void *)(int64_t)row, s);
@@ -2253,17 +2390,73 @@ c4m_renderable_set_gc_bits(uint64_t *bitfield, int alloc_words)
     *bitfield |= (0x0f << ix);
 }
 
+static c4m_grid_t *
+c4m_to_grid_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *litmod)
+{
+    if (!strcmp(litmod->data, "table")) {
+        int nrows = c4m_list_len(items);
+        int ncols = 0;
+
+        if (!nrows) {
+            return c4m_new(c4m_type_grid(),
+                           c4m_kw("start_rows",
+                                  c4m_ka(0),
+                                  "start_cols",
+                                  c4m_ka(0)));
+        }
+
+        c4m_type_t *t = c4m_get_my_type(c4m_list_get(items, 0, NULL));
+        if (c4m_types_are_compat(t, c4m_type_utf8(), NULL)) {
+            C4M_CRAISE("Not implemented yet.");
+        }
+        if (!c4m_types_are_compat(t,
+                                  c4m_type_list(c4m_type_utf8()),
+                                  NULL)) {
+            C4M_CRAISE("Currently only strings are supported in tables.");
+        }
+        for (int i = 0; i < nrows; i++) {
+            c4m_list_t *l   = c4m_list_get(items, i, NULL);
+            int         len = c4m_list_len(l);
+
+            if (len > ncols) {
+                ncols = len;
+            }
+        }
+
+        c4m_grid_t *result = c4m_new(c4m_type_grid(),
+                                     c4m_kw("start_rows",
+                                            c4m_ka(nrows),
+                                            "start_cols",
+                                            c4m_ka(ncols),
+                                            "header_rows",
+                                            c4m_ka(1),
+                                            "stripe",
+                                            c4m_ka(true)));
+
+        for (int i = 0; i < nrows; i++) {
+            c4m_list_t *l = c4m_list_get(items, i, NULL);
+            c4m_grid_add_row(result, l);
+        }
+
+        return result;
+    }
+
+    C4M_CRAISE("Not implemented yet.");
+}
+
 const c4m_vtable_t c4m_grid_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)grid_init,
-        [C4M_BI_TO_STR]      = (c4m_vtable_entry)c4m_grid_to_str,
-        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_grid_marshal,
-        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_grid_unmarshal,
-        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)c4m_grid_set_gc_bits,
+        [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)grid_init,
+        [C4M_BI_TO_STR]        = (c4m_vtable_entry)c4m_grid_to_str,
+        [C4M_BI_MARSHAL]       = (c4m_vtable_entry)c4m_grid_marshal,
+        [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_grid_unmarshal,
+        [C4M_BI_GC_MAP]        = (c4m_vtable_entry)c4m_grid_set_gc_bits,
+        [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)c4m_to_grid_lit,
+        [C4M_BI_COPY]          = (c4m_vtable_entry)c4m_grid_copy,
         // Explicit because some compilers don't seem to always properly
         // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
-        [C4M_BI_FINALIZER]   = NULL,
+        [C4M_BI_FINALIZER]     = NULL,
     },
 };
 
@@ -2274,6 +2467,7 @@ const c4m_vtable_t c4m_renderable_vtable = {
         [C4M_BI_GC_MAP]      = (c4m_vtable_entry)c4m_renderable_set_gc_bits,
         [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_renderable_marshal,
         [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_renderable_unmarshal,
+        [C4M_BI_COPY]        = (c4m_vtable_entry)c4m_renderable_copy,
         [C4M_BI_FINALIZER]   = NULL,
     },
 };
