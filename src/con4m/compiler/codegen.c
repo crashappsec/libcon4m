@@ -851,28 +851,42 @@ gen_if(gen_ctx *ctx)
 }
 
 static inline void
+gen_one_tcase(gen_ctx *ctx, c4m_control_info_t *switch_exit)
+{
+    c4m_jump_info_t *exit_jump          = c4m_gc_alloc(c4m_jump_info_t);
+    exit_jump->linked_control_structure = switch_exit;
+
+    emit(ctx, C4M_ZDupTop);
+
+    // We stashed the type in the `nt_case` node's value field during
+    // the check pass for easy access.
+    c4m_pnode_t *pnode = c4m_get_pnode(ctx->cur_node);
+    gen_load_const_obj(ctx, pnode->value);
+    emit(ctx, C4M_ZTypeCmp);
+
+    GEN_JZ(emit(ctx, C4M_ZPop);
+           gen_one_kid(ctx, 1);
+           gen_j(ctx, exit_jump););
+    emit(ctx, C4M_ZPop);
+}
+
+static inline void
 gen_typeof(gen_ctx *ctx)
 {
     c4m_tree_node_t    *id_node;
     c4m_pnode_t        *id_pn;
     c4m_symbol_t       *sym;
-    c4m_tree_node_t    *n         = ctx->cur_node;
-    c4m_pnode_t        *pnode     = c4m_get_pnode(n);
-    c4m_control_info_t *ci        = pnode->extra_info;
-    int                 target_ix = 0;
-    int                 expr_ix   = 0;
-    c4m_jump_info_t    *ji        = c4m_gc_array_alloc(c4m_jump_info_t,
-                                             n->num_kids);
+    c4m_tree_node_t    *n           = ctx->cur_node;
+    c4m_pnode_t        *pnode       = c4m_get_pnode(n);
+    c4m_loop_info_t    *ci          = pnode->extra_info;
+    int                 expr_ix     = 0;
+    c4m_control_info_t *switch_exit = &ci->branch_info;
 
-    for (int i = 0; i < n->num_kids; i++) {
-        ji[i].linked_control_structure = pnode->extra_info;
-    }
-
-    if (gen_label(ctx, ci->label)) {
+    if (gen_label(ctx, ci->branch_info.label)) {
         expr_ix++;
     }
 
-    id_node = c4m_get_match_on_node(n->children[expr_ix], c4m_id_node);
+    id_node = c4m_get_match_on_node(n->children[expr_ix], c4m_id_node)->parent;
     id_pn   = c4m_get_pnode(id_node);
     sym     = id_pn->extra_info;
 
@@ -888,34 +902,16 @@ gen_typeof(gen_ctx *ctx)
         c4m_tree_node_t *kid = n->children[i];
         pnode                = c4m_get_pnode(kid);
 
-        // If it's the 'else' branch
-        if (i + 1 == n->num_kids) {
-            if (pnode->kind == c4m_nt_else) {
-                emit(ctx, C4M_ZPop); // Remove the type we keep copying.
-                gen_one_kid(ctx, i);
-                break;
-            }
+        ctx->cur_node = kid;
+        if (i + 1 != n->num_kids || pnode->kind != c4m_nt_else) {
+            gen_one_tcase(ctx, switch_exit);
         }
-
-        ctx->cur_node = kid->children[1];
-
-        // We stashed the type in the `nt_case` node's value field during
-        // the check pass for easy access.
-        emit(ctx, C4M_ZDupTop);
-        gen_load_const_obj(ctx, pnode->value);
-        emit(ctx, C4M_ZTypeCmp);
-        GEN_JZ(emit(ctx, C4M_ZPop);
-               gen_one_node(ctx);
-               gen_j(ctx, &ji[target_ix++]));
+        else {
+            emit(ctx, C4M_ZPop);
+            gen_one_node(ctx);
+        }
     }
-
-    // If there was no else branch, we still have to emit a pop if the last
-    // elif was false.
-    if (pnode->kind != c4m_nt_else) {
-        emit(ctx, C4M_ZPop);
-    }
-
-    gen_apply_waiting_patches(ctx, ci);
+    gen_apply_waiting_patches(ctx, switch_exit);
 }
 
 static inline void
@@ -997,10 +993,6 @@ gen_switch(gen_ctx *ctx)
     c4m_loop_info_t    *ci          = pnode->extra_info;
     c4m_control_info_t *switch_exit = &ci->branch_info;
     c4m_type_t         *expr_type;
-
-    // for (int i = 0; i < n->num_kids; i++) {
-    // ji[i].linked_control_structure = pnode->extra_info;
-    // }
 
     if (gen_label(ctx, ci->branch_info.label)) {
         expr_ix++;

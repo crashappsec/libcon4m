@@ -1602,13 +1602,28 @@ handle_range(pass2_ctx *ctx)
     }
 }
 
+c4m_list_t *
+c4m_get_case_branches(c4m_tree_node_t *n)
+{
+    c4m_list_t *result = c4m_list(c4m_type_ref());
+
+    for (int i = 0; i < n->num_kids; i++) {
+        c4m_pnode_t *pnode = c4m_get_pnode(n->children[i]);
+        if (pnode->kind == c4m_nt_case) {
+            c4m_list_append(result, n->children[i]);
+        }
+    }
+
+    return result;
+}
+
 static void
 handle_typeof_statement(pass2_ctx *ctx)
 {
     c4m_tree_node_t    *saved    = ctx->node;
     c4m_pnode_t        *pnode    = c4m_get_pnode(saved);
-    c4m_control_info_t *ci       = pnode->extra_info;
-    c4m_list_t         *branches = use_pattern(ctx, c4m_case_branches);
+    c4m_control_info_t *ci       = control_init(pnode->extra_info);
+    c4m_list_t         *branches = c4m_get_case_branches(saved);
     c4m_tree_node_t    *elsenode = c4m_get_match_on_node(saved, c4m_case_else);
     c4m_tree_node_t    *variant  = c4m_get_match_on_node(saved,
                                                      c4m_case_cond_typeof);
@@ -1667,6 +1682,7 @@ handle_typeof_statement(pass2_ctx *ctx)
 
         c4m_pnode_t *branch_pnode = c4m_get_pnode(branch);
         branch_pnode->value       = (c4m_obj_t)casetype;
+        branch_pnode->type        = casetype;
 
         for (int j = 0; j < c4m_list_len(prev_types); j++) {
             c4m_type_t *oldcase = c4m_list_get(prev_types, j, NULL);
@@ -1677,59 +1693,61 @@ handle_typeof_statement(pass2_ctx *ctx)
                                 branch->children[0],
                                 casetype,
                                 oldcase);
-                goto next_branch;
+                break;
             }
             if (!c4m_types_are_compat(casetype, type_to_test, NULL)) {
                 c4m_add_error(ctx->file_ctx,
                               c4m_err_dead_branch,
                               branch->children[0],
                               casetype);
-                goto next_branch;
+                break;
             }
-
-            // Alias absolutely everything except the
-            // type. It's the only thing that should change.
-            tmp                   = c4m_add_or_replace_symbol(ctx->file_ctx,
-                                            ctx->local_scope,
-                                            sym->name);
-            tmp->flags            = sym->flags;
-            tmp->kind             = sym->kind;
-            tmp->declaration_node = sym->declaration_node;
-            tmp->path             = sym->path;
-            tmp->value            = sym->value;
-            tmp->my_scope         = sym->my_scope;
-            tmp->other_info       = sym->other_info;
-            tmp->sym_defs         = sym->sym_defs;
-            tmp->sym_uses         = sym->sym_uses;
-            tmp->type             = casetype;
-
-            ctx->node = branch->children[1];
-            next_branch(ctx, cfgbranch);
-            bstart   = c4m_cfg_enter_block(ctx->cfg, ctx->node);
-            ctx->cfg = bstart;
-
-            base_check_pass_dispatch(ctx);
-            ctx->cfg = c4m_cfg_exit_block(ctx->cfg, bstart, ctx->node);
-
-            if (c4m_list_len(tmp->sym_defs) > c4m_list_len(sym->sym_defs)) {
-                for (int k = c4m_list_len(sym->sym_defs);
-                     k < c4m_list_len(tmp->sym_defs);
-                     k++) {
-                    c4m_list_append(sym->sym_defs,
-                                    c4m_list_get(tmp->sym_defs, k, NULL));
-                }
-            }
-
-            if (c4m_list_len(tmp->sym_uses) > c4m_list_len(sym->sym_uses)) {
-                for (int k = c4m_list_len(sym->sym_uses);
-                     k < c4m_list_len(tmp->sym_uses);
-                     k++) {
-                    c4m_list_append(sym->sym_uses,
-                                    c4m_list_get(tmp->sym_uses, k, NULL));
-                }
-            }
-            tmp->linked_symbol = sym;
         }
+        // Alias absolutely everything except the
+        // type. It's the only thing that should change.
+        tmp                   = c4m_add_or_replace_symbol(ctx->file_ctx,
+                                        ctx->local_scope,
+                                        sym->name);
+        tmp->flags            = sym->flags;
+        tmp->kind             = sym->kind;
+        tmp->declaration_node = sym->declaration_node;
+        tmp->path             = sym->path;
+        tmp->value            = sym->value;
+        tmp->my_scope         = sym->my_scope;
+        tmp->other_info       = sym->other_info;
+        tmp->sym_defs         = sym->sym_defs;
+        tmp->sym_uses         = sym->sym_uses;
+        tmp->type             = casetype;
+
+        ctx->node = branch->children[1];
+        next_branch(ctx, cfgbranch);
+        bstart   = c4m_cfg_enter_block(ctx->cfg, ctx->node);
+        ctx->cfg = bstart;
+
+        base_check_pass_dispatch(ctx);
+
+        c4m_print_parse_node(branch->children[1]);
+
+        ctx->cfg = c4m_cfg_exit_block(ctx->cfg, bstart, ctx->node);
+
+        if (c4m_list_len(tmp->sym_defs) > c4m_list_len(sym->sym_defs)) {
+            for (int k = c4m_list_len(sym->sym_defs);
+                 k < c4m_list_len(tmp->sym_defs);
+                 k++) {
+                c4m_list_append(sym->sym_defs,
+                                c4m_list_get(tmp->sym_defs, k, NULL));
+            }
+        }
+
+        if (c4m_list_len(tmp->sym_uses) > c4m_list_len(sym->sym_uses)) {
+            for (int k = c4m_list_len(sym->sym_uses);
+                 k < c4m_list_len(tmp->sym_uses);
+                 k++) {
+                c4m_list_append(sym->sym_uses,
+                                c4m_list_get(tmp->sym_uses, k, NULL));
+            }
+        }
+        tmp->linked_symbol = sym;
 
         next_branch(ctx, cfgbranch);
 
@@ -1750,16 +1768,12 @@ handle_typeof_statement(pass2_ctx *ctx)
         ctx->cfg  = c4m_cfg_exit_node(entrance);
         ctx->node = saved;
 
-        if (saved_sym != NULL) {
-            hatrack_dict_put(ctx->local_scope->symbols, sym->name, saved_sym);
-        }
-        else {
-            hatrack_dict_remove(ctx->local_scope->symbols, sym->name);
-        }
-
         c4m_list_append(prev_types, c4m_type_copy(casetype));
+    }
 
-next_branch: /* nothing */;
+    if (saved_sym != NULL) {
+        hatrack_dict_put(ctx->local_scope->symbols, sym->name, saved_sym);
+        printf("Replaced variable in scope.\n");
     }
 
     c4m_list_pop(ctx->loop_stack);
@@ -1771,7 +1785,7 @@ handle_switch_statement(pass2_ctx *ctx)
     c4m_tree_node_t    *saved        = ctx->node;
     c4m_pnode_t        *pnode        = c4m_get_pnode(saved);
     c4m_control_info_t *bi           = control_init(pnode->extra_info);
-    c4m_list_t         *branches     = use_pattern(ctx, c4m_case_branches);
+    c4m_list_t         *branches     = c4m_get_case_branches(saved);
     c4m_tree_node_t    *elsenode     = c4m_get_match_on_node(saved,
                                                       c4m_case_else);
     c4m_tree_node_t    *variant_node = c4m_get_match_on_node(saved,

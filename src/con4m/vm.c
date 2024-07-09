@@ -1262,9 +1262,6 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 do {
                     c4m_type_t *type = c4m_get_my_type(tstate->sp->rvalue.obj);
 
-                    if (!i->arg) {
-                        --tstate->sp;
-                    }
                     *tstate->sp = (c4m_stack_value_t){
                         .rvalue = (c4m_value_t){
                             .obj = type,
