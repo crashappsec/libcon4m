@@ -1,17 +1,91 @@
 #include "con4m.h"
 
 typedef struct {
+    void    *ptr;
+    uint64_t op;
+} worklist_item;
+
+typedef struct {
+    uint64_t      write_ix;
+    uint64_t      read_ix;
+    uint64_t      ring_size;
+    uint64_t      mod;
+    uint64_t      alloc_len;
+    worklist_item items[];
+} worklist_t;
+
+typedef struct {
     c4m_arena_t *from_space;
     c4m_arena_t *to_space;
-    void       **worklist;
-    void       **worklist_start;
-    void       **worklist_end;
-    void       **next_item;
     void        *fromspc_start;
     void        *fromspc_end;
+    worklist_t  *worklist;
     int          reached_allocs;
     int          copied_allocs;
 } c4m_collection_ctx;
+
+#define GC_OP_FW   0
+#define GC_OP_COPY 1
+
+static void process_worklist(c4m_collection_ctx *);
+
+static worklist_t *
+c4m_alloc_collection_worklist(c4m_arena_t *fromspace)
+{
+    int num_records = fromspace->largest_alloc;
+    num_records     = 1 << (64 - __builtin_clz(num_records - 1));
+    int alloc_len   = num_records * sizeof(worklist_item) + sizeof(worklist_t);
+    alloc_len       = c4m_round_up_to_given_power_of_2(getpagesize(),
+                                                 alloc_len);
+
+    worklist_t *result = mmap(NULL,
+                              alloc_len,
+                              PROT_READ | PROT_WRITE,
+                              MAP_PRIVATE | MAP_ANON,
+                              0,
+                              0);
+    result->write_ix   = 0;
+    result->read_ix    = 0;
+    result->ring_size  = num_records;
+    result->mod        = num_records - 1;
+    result->alloc_len  = alloc_len;
+
+    return result;
+}
+
+static inline void
+c4m_wl_write(c4m_collection_ctx *ctx, void *ptr, uint64_t op)
+{
+    worklist_t *wl = ctx->worklist;
+
+    if ((wl->write_ix - wl->read_ix) == wl->ring_size) {
+        process_worklist(ctx);
+    }
+
+    wl->items[wl->write_ix++ & wl->mod] = (worklist_item){.ptr = ptr,
+                                                          .op  = op};
+}
+
+static inline void *
+c4m_wl_read(c4m_collection_ctx *ctx, uint64_t *op)
+{
+    worklist_t *wl = ctx->worklist;
+
+    if (wl->write_ix == wl->read_ix) {
+        return NULL;
+    }
+
+    worklist_item item = wl->items[wl->read_ix++ & wl->mod];
+
+    *op = item.op;
+    return item.ptr;
+}
+
+static inline void
+c4m_free_collection_worklist(worklist_t *wl)
+{
+    munmap(wl, wl->alloc_len);
+}
 
 // In gcbase.c, but not directly exported.
 extern thread_local c4m_arena_t *c4m_current_heap;
@@ -260,64 +334,24 @@ get_header(c4m_collection_ctx *ctx, void *ptr)
     return result;
 }
 
-static void process_worklist(c4m_collection_ctx *);
-
 static inline void
 add_copy_to_worklist(c4m_collection_ctx *ctx, c4m_alloc_hdr *hdr)
 {
     c4m_gc_trace(C4M_GCT_SCAN_PTR,
-                 "Added copy instruction to worklist for %p (wl item @%p).",
-                 hdr,
-                 ctx->next_item);
+                 "Added copy instruction to worklist for %p",
+                 hdr);
 
-    *ctx->next_item++ = hdr;
-    *ctx->next_item++ = (void *)~0;
-
-    if (!(((uint64_t)ctx->next_item) & c4m_page_modulus)) {
-        char *p = (char *)ctx->next_item;
-        p -= c4m_page_bytes;
-
-        if (ctx->worklist < (void **)p || ctx->worklist > ctx->next_item) {
-            madvise(p, c4m_page_bytes, MADV_FREE);
-        }
-    }
-
-    if (ctx->next_item >= ctx->worklist_end) {
-        ctx->next_item = ctx->worklist_start;
-    }
-
-    if (ctx->next_item == ctx->worklist) {
-        process_worklist(ctx);
-    }
+    c4m_wl_write(ctx, hdr, GC_OP_COPY);
 }
 
 static inline void
 add_forward_to_worklist(c4m_collection_ctx *ctx, void **addr)
 {
     c4m_gc_trace(C4M_GCT_SCAN_PTR,
-                 "Added pointer %p to worklist (wl item @%p).",
-                 addr,
-                 ctx->next_item);
+                 "Added pointer %p to worklist to forward.",
+                 addr);
 
-    *ctx->next_item++ = addr;
-    *ctx->next_item++ = NULL;
-
-    if (!(((uint64_t)ctx->next_item) & c4m_page_modulus)) {
-        char *p = (char *)ctx->next_item;
-        p -= c4m_page_bytes;
-
-        if (ctx->worklist < (void **)p || ctx->worklist > ctx->next_item) {
-            madvise(p, c4m_page_bytes, MADV_FREE);
-        }
-    }
-
-    if (ctx->next_item >= ctx->worklist_end) {
-        ctx->next_item = ctx->worklist_start;
-    }
-
-    if (ctx->next_item == ctx->worklist) {
-        process_worklist(ctx);
-    }
+    c4m_wl_write(ctx, addr, GC_OP_FW);
 }
 
 static inline void
@@ -468,15 +502,12 @@ process_worklist(c4m_collection_ctx *ctx)
     // causing the to-space memory to be allocated, allowing us to
     // update the pointer.
 
-    while (ctx->worklist < ctx->next_item) {
-        void **p    = (void *)*ctx->worklist++;
-        void  *copy = (void *)*ctx->worklist++;
+    uint64_t op;
 
-        // We take the complement of the pointer if we're supposed to
-        // copy. So if it's not a pointer into the fromspace, we
-        // invert it and copy.
+    void **p = c4m_wl_read(ctx, &op);
 
-        if (!copy) {
+    while (p != (void **)NULL) {
+        if (op == GC_OP_FW) {
             forward_one_allocation(ctx, p);
         }
         else {
@@ -498,10 +529,8 @@ process_worklist(c4m_collection_ctx *ctx)
                          dst->alloc_file,
                          dst->alloc_line);
         }
+        p = c4m_wl_read(ctx, &op);
     }
-
-    ctx->worklist  = ctx->worklist_start;
-    ctx->next_item = ctx->worklist_start;
 }
 
 // This is only used for roots, not for memory allocations.
@@ -588,21 +617,7 @@ raw_trace(c4m_collection_ctx *ctx)
         ctx->to_space,
         (((char *)ctx->to_space->heap_end) - (char *)ctx->to_space->data));
 
-    uint64_t alloc_len = cur->largest_alloc * 32;
-    if (alloc_len & c4m_page_modulus) {
-        alloc_len = (alloc_len & c4m_modulus_mask) + c4m_page_bytes;
-    }
-
-    ctx->worklist_start = mmap(NULL,
-                               alloc_len,
-                               PROT_READ | PROT_WRITE,
-                               MAP_PRIVATE | MAP_ANON,
-                               0,
-                               0);
-
-    ctx->worklist     = (void **)ctx->worklist_start;
-    ctx->next_item    = ctx->worklist;
-    ctx->worklist_end = (void **)&ctx->worklist_start[alloc_len / 8];
+    ctx->worklist = c4m_alloc_collection_worklist(cur);
 
     c4m_get_stack_scan_region((uint64_t *)&stack_top,
                               (uint64_t *)&stack_bottom);
@@ -943,11 +958,8 @@ c4m_collect_arena(c4m_arena_t *from_space)
     c4m_delete_arena(ctx.from_space);
 
     // Free the worklist.
-    char *unmap_s = ((char *)ctx.worklist_start);
-    char *unmap_e = ((char *)ctx.worklist_end);
-    int   n       = unmap_e - unmap_s;
-    munmap(unmap_s, n);
-    c4m_gc_trace(C4M_GCT_MUNMAP, "worklist: del @%p (%d items)", unmap_s, n);
+    c4m_gc_trace(C4M_GCT_MUNMAP, "worklist: del @%p", ctx.worklist);
+    c4m_free_collection_worklist(ctx.worklist);
 
 #ifdef C4M_GC_STATS
     const int mb        = 0x100000;
