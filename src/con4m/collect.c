@@ -1045,6 +1045,10 @@ c4m_collect_arena(c4m_arena_t *from_space)
     c4m_printf("[b]Average allocation size:[/] [em]{:,}[/] bytes",
                c4m_box_u64((c4m_total_words * 8) / c4m_total_allocs));
 
+#ifdef C4M_GC_SHOW_COLLECT_STACK_TRACES
+    c4m_c_backtrace();
+#endif
+
 #endif
     return ctx.to_space;
 }

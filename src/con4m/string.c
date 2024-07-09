@@ -577,7 +577,7 @@ c4m_to_utf32(const c4m_utf8_t *instr)
         return outstr;
     }
 
-    if (!instr || c4m_str_is_u32(instr)) {
+    if (c4m_str_is_u32(instr)) {
         return (c4m_utf32_t *)instr;
     }
 
@@ -595,7 +595,6 @@ c4m_to_utf32(const c4m_utf8_t *instr)
     for (int i = 0; i < len; i++) {
         int val = utf8proc_iterate(inp, 4, outp + i);
         if (val < 0) {
-            printf("i = %d\n", i);
             C4M_CRAISE("Invalid utf8 in string when convering to utf32.");
         }
         inp += val;
@@ -709,8 +708,8 @@ utf32_init(c4m_utf32_t *s, va_list args)
                 "When specifying 'codepoints', must provide a valid "
                 "'length' containing the number of codepoints.");
         }
-        s->byte_len = (length + 1) * 4;
-        s->data     = c4m_gc_raw_alloc(s->byte_len, NULL);
+        s->byte_len = length * 4;
+        s->data     = c4m_gc_raw_alloc((length + 1) * 4, NULL);
 
         c4m_codepoint_t *local = (c4m_codepoint_t *)s->data;
 
@@ -731,8 +730,8 @@ utf32_init(c4m_utf32_t *s, va_list args)
                     "Invalid string constructor call: "
                     "len(cstring) is less than the start index");
             }
-            s->byte_len = (length + 1) * 4;
-            s->data     = c4m_gc_raw_alloc(s->byte_len, NULL);
+            s->byte_len = length * 4;
+            s->data     = c4m_gc_raw_alloc((length + 1) * 4, NULL);
 
             for (int64_t i = 0; i < length; i++) {
                 ((uint32_t *)s->data)[i] = (uint32_t)(cstring[i]);
@@ -745,8 +744,8 @@ utf32_init(c4m_utf32_t *s, va_list args)
                     "Must specify a valid length if not initializing "
                     "with a null-terminated cstring.");
             }
-            s->byte_len = (length + 1) * 4;
-            s->data     = c4m_gc_raw_alloc(s->byte_len, NULL);
+            s->byte_len = length * 4;
+            s->data     = c4m_gc_raw_alloc((length + 1) * 4, NULL);
         }
     }
 
@@ -1318,7 +1317,7 @@ c4m_string_unmarshal(c4m_str_t *s, c4m_stream_t *in, c4m_dict_t *memos)
     }
 
     if (s->byte_len) {
-        s->data = c4m_gc_raw_alloc(s->byte_len + 1, NULL);
+        s->data = c4m_gc_raw_alloc(s->byte_len + 4, NULL);
         c4m_stream_raw_read(in, s->byte_len, s->data);
     }
 }

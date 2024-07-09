@@ -168,6 +168,8 @@ tree_node_unmarshal(c4m_tree_node_t *t, c4m_stream_t *s, c4m_dict_t *memos)
     }
 }
 
+bool print_xform_info = false;
+
 c4m_tree_node_t *
 c4m_tree_str_transform(c4m_tree_node_t *t, c4m_str_t *(*fn)(void *))
 {

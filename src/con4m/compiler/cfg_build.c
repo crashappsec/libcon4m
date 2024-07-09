@@ -39,12 +39,19 @@ c4m_cfg_enter_block(c4m_cfg_node_t  *parent,
 
     result->contents.block_entrance.inbound_links = c4m_new(
         c4m_type_list(c4m_type_ref()));
+
+    exit->reference_location                = treeloc;
+    exit->parent                            = result;
+    exit->starting_liveness_info            = NULL;
+    exit->starting_sometimes                = NULL;
+    exit->liveness_info                     = NULL;
+    exit->sometimes_live                    = NULL;
+    exit->kind                              = c4m_cfg_block_exit;
+    exit->contents.block_exit.next_node     = NULL;
+    exit->contents.block_exit.entry_node    = result;
+    exit->contents.block_exit.to_merge      = NULL;
     exit->contents.block_exit.inbound_links = c4m_new(
         c4m_type_list(c4m_type_ref()));
-    exit->contents.block_exit.entry_node = result;
-
-    exit->parent = result;
-    exit->kind   = c4m_cfg_block_exit;
 
     if (parent != NULL) {
         add_child(parent, result);
@@ -444,6 +451,8 @@ c4m_cfg_repr_internal(c4m_cfg_node_t  *node,
                                            c4m_kw("contents", c4m_ka(label)));
             c4m_cfg_node_t  *kid   = node->contents.branches.branch_targets[i];
 
+            assert(kid != NULL);
+
             c4m_tree_adopt_node(result, sub);
             c4m_cfg_repr_internal(kid, sub, node, NULL);
         }
@@ -452,6 +461,7 @@ c4m_cfg_repr_internal(c4m_cfg_node_t  *node,
                               tree_parent,
                               node,
                               NULL);
+
         return result;
 
     case c4m_cfg_block_exit:

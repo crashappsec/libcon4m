@@ -1,8 +1,10 @@
 #pragma once
 
 // #define C4M_FULL_MEMCHECK
-// #define C4M_DEBUG
+#define C4M_DEBUG
 // #define C4M_TRACE_GC
+
+// #define C4M_GC_SHOW_COLLECT_STACK_TRACES
 
 // #define C4M_GCT_MOVE        1
 // #define C4M_GCT_PTR_TO_MOVE 1
@@ -160,6 +162,8 @@
 
 // For functions we need to wrap to use through the FFI.
 #include "con4m/wrappers.h"
+
+#include "con4m/cbacktrace.h"
 
 // The compiler.
 #include "compiler/ast_utils.h"

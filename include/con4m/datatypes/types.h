@@ -23,7 +23,7 @@ typedef struct c4m_type_info_t {
     c4m_dt_info_t *base_type;
     c4m_list_t    *items;
     void          *tsi; // Type-specific info.
-    uint8_t        flags;
+    uint64_t       flags;
 } c4m_type_info_t;
 
 #define C4M_FN_TY_VARARGS 1

@@ -907,7 +907,6 @@ gen_typeof(gen_ctx *ctx)
             gen_one_tcase(ctx, switch_exit);
         }
         else {
-            emit(ctx, C4M_ZPop);
             gen_one_node(ctx);
         }
     }

@@ -46,6 +46,13 @@ else
   c_args    = c_args + ['-D_GNU_SOURCE']
 endif
 
+backtrace = cc.find_library('backtrace',
+                               required: false)
+
+if backtrace.found()
+c_args = c_args + ['-DBACKTRACE_SUPPORTED']
+endif                               
+
 fpty_code = '''
 #include <stddef.h>
 #include <pty.h>
@@ -141,6 +148,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/ffi.c',
             'src/con4m/watch.c',
             'src/con4m/wrappers.c',
+            'src/con4m/ctrace.c',
             'src/con4m/crypto/sha.c',
             'src/con4m/compiler/compile.c',
             'src/con4m/compiler/lex.c',
@@ -221,7 +229,7 @@ ssl      = cc.find_library('ssl')
 unibreak = dependency('libunibreak')
 utf8proc = dependency('libutf8proc')
 
-deps     = [unibreak, utf8proc, threads, ffi, ssl, crypto]
+deps     = [unibreak, utf8proc, threads, ffi, ssl, crypto, backtrace]
 opts     = [math]
 if using_glibc
   opts   = opts + [cc.find_library('atomic')]

@@ -1726,8 +1726,6 @@ handle_typeof_statement(pass2_ctx *ctx)
 
         base_check_pass_dispatch(ctx);
 
-        c4m_print_parse_node(branch->children[1]);
-
         ctx->cfg = c4m_cfg_exit_block(ctx->cfg, bstart, ctx->node);
 
         if (c4m_list_len(tmp->sym_defs) > c4m_list_len(sym->sym_defs)) {

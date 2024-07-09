@@ -55,6 +55,7 @@ function meson_build {
 
     if [[ ${OS} = "Darwin" ]] ; then
         meson compile
+        dsymutil c4test
     else
         CC=musl-gcc meson compile
     fi

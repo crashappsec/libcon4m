@@ -131,15 +131,26 @@
 #define C4M_FINALLY           C4M_LFINALLY(default_label)
 #define C4M_TRY_END           C4M_LTRY_END(default_label)
 
-#define C4M_CRAISE(s, ...) c4m_exception_raise(         \
-    c4m_alloc_exception(s, __VA_OPT__(, ) __VA_ARGS__), \
-    __FILE__,                                           \
-    __LINE__)
+#if defined(C4M_DEBUG) && defined(BACKTRACE_SUPPORTED)
+extern void c4m_print_c_backtrace();
+#define c4m_trace() c4m_print_c_backtrace()
+#else
+#define c4m_trace()
+#endif
 
-#define C4M_RAISE(s, ...) c4m_exception_raise(             \
-    c4m_alloc_str_exception(s __VA_OPT__(, ) __VA_ARGS__), \
-    __FILE__,                                              \
-    __LINE__)
+#define C4M_CRAISE(s, ...)                                  \
+    c4m_trace();                                            \
+    c4m_exception_raise(                                    \
+        c4m_alloc_exception(s, __VA_OPT__(, ) __VA_ARGS__), \
+        __FILE__,                                           \
+        __LINE__)
+
+#define C4M_RAISE(s, ...)                                      \
+    c4m_trace();                                               \
+    c4m_exception_raise(                                       \
+        c4m_alloc_str_exception(s __VA_OPT__(, ) __VA_ARGS__), \
+        __FILE__,                                              \
+        __LINE__)
 
 #define C4M_RERAISE()                                 \
     _c4x_exception_state = C4M_EXCEPTION_NOT_HANDLED; \

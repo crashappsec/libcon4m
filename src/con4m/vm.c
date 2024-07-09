@@ -1272,9 +1272,11 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZTypeCmp:
                 STACK_REQUIRE_VALUES(2);
                 do {
-                    c4m_type_t *t1 = tstate->sp->rvalue.obj;
+                    c4m_type_t *t1 = tstate->sp[0].rvalue.obj;
+                    c4m_type_t *t2 = tstate->sp[1].rvalue.obj;
+
                     ++tstate->sp;
-                    c4m_type_t *t2   = tstate->sp->rvalue.obj;
+
                     // Does NOT check for coercible.
                     tstate->sp->uint = (uint64_t)c4m_types_are_compat(t1,
                                                                       t2,
