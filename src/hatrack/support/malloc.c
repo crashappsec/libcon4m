@@ -30,7 +30,7 @@ extern int  posix_memalign(void **, size_t, size_t) __attribute__((weak));
 extern void free(void *) __attribute__((weak));
 
 static void *
-hatrack_default_malloc(size_t size, void *arg)
+hatrack_default_malloc(size_t size, void *arg HATRACK_LOC_DECL)
 {
     void *ptr;
     if (posix_memalign(&ptr, 16, size) != 0) {
@@ -40,7 +40,7 @@ hatrack_default_malloc(size_t size, void *arg)
 }
 
 static void *
-hatrack_default_zalloc(size_t size, void *arg)
+hatrack_default_zalloc(size_t size, void *arg HATRACK_LOC_DECL)
 {
     void *ptr;
     if (posix_memalign(&ptr, 16, size) != 0) {
@@ -51,7 +51,11 @@ hatrack_default_zalloc(size_t size, void *arg)
 }
 
 static void *
-hatrack_default_realloc(void *oldptr, size_t oldsize, size_t newsize, void *arg)
+hatrack_default_realloc(void  *oldptr,
+                        size_t oldsize,
+                        size_t newsize,
+                        void *arg
+                            HATRACK_LOC_DECL)
 {
     // This is not the most efficient implementation of realloc, but the whole
     // realloc thing isn't all that efficient in the first place. This ignores
@@ -77,7 +81,7 @@ hatrack_default_realloc(void *oldptr, size_t oldsize, size_t newsize, void *arg)
 }
 
 static void
-hatrack_default_free(void *oldptr, size_t oldsize, void *arg)
+hatrack_default_free(void *oldptr, size_t oldsize, void *arg HATRACK_LOC_DECL)
 {
     free(oldptr);
 }
@@ -111,30 +115,36 @@ hatrack_setmallocfns(hatrack_mem_manager_t *info)
     }
 }
 
+#ifdef HATRACK_ALLOC_PASS_ALLOCATION
+#define POSSIBLE_LOCATION , file, line
+#else
+#define POSSIBLE_LOCATION
+#endif
+
 void *
-hatrack_malloc(size_t size)
+_hatrack_malloc(size_t size HATRACK_LOC_DECL)
 {
-    void *res = hatrack_malloc_fn(size, hatrack_malloc_arg);
+    void *res = hatrack_malloc_fn(size, hatrack_malloc_arg POSSIBLE_LOCATION);
 
     return res;
 }
 
 void *
-hatrack_zalloc(size_t size)
+_hatrack_zalloc(size_t size HATRACK_LOC_DECL)
 {
-    return hatrack_zalloc_fn(size, hatrack_malloc_arg);
+    return hatrack_zalloc_fn(size, hatrack_malloc_arg POSSIBLE_LOCATION);
 }
 
 void
-hatrack_free(void *oldptr, size_t oldsize)
+hatrack_free(void *oldptr, size_t oldsize HATRACK_LOC_DECL)
 {
     if (oldptr != NULL) {
-        hatrack_free_fn(oldptr, oldsize, hatrack_malloc_arg);
+        hatrack_free_fn(oldptr, oldsize, hatrack_malloc_arg POSSIBLE_LOCATION);
     }
 }
 
 void *
-hatrack_realloc(void *oldptr, size_t oldsize, size_t newsize)
+hatrack_realloc(void *oldptr, size_t oldsize, size_t newsize HATRACK_LOC_DECL)
 {
     if (NULL == oldptr) {
         return hatrack_malloc(newsize);
@@ -142,5 +152,9 @@ hatrack_realloc(void *oldptr, size_t oldsize, size_t newsize)
     if (oldsize == newsize) {
         return oldptr;
     }
-    return hatrack_realloc_fn(oldptr, oldsize, newsize, hatrack_malloc_arg);
+    return hatrack_realloc_fn(oldptr,
+                              oldsize,
+                              newsize,
+                              hatrack_malloc_arg
+                                  POSSIBLE_LOCATION);
 }
