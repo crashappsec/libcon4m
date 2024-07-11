@@ -7,7 +7,7 @@
 
 #define C4M_FORCED_ALIGNMENT 16
 
-typedef void (*c4m_mem_scan_fn)(uint64_t *, int);
+typedef void (*c4m_mem_scan_fn)(uint64_t *, void *);
 
 typedef struct c4m_alloc_hdr {
     // A guard value added to every allocation so that cross-heap
@@ -40,22 +40,12 @@ typedef struct c4m_alloc_hdr {
     // threads attempt to lock accesses any time. This only needs to
     // be 32-bit aligned, but let's keep it in a slot that is 64-bit
     // aligned.
-    _Atomic uint32_t      flags;
-    //
-    // This stores the allocated length of the data object measured in
-    // *words*!!
+    // Currently using the individual bitfields below, until we
+    // add in the multi-threading support.
+    // _Atomic uint32_t      flags;
     uint32_t              alloc_len;
+    uint32_t              request_len;
     //
-    // Set to 'true' if this object requires finalization. This is
-    // necessary, even though the arena tracks allocations needing
-    // finalization, because resizes could move the pointer.
-    //
-    // So when a resize is triggered and we see this bit, we go
-    // update the pointer in the finalizer list.
-    unsigned int          finalize  : 1;
-    // True if the memory allocation is a direct con4m object with
-    // an object header.
-    unsigned int          con4m_obj : 1;
     // This is a pointer to a sized bitfield. The first word indicates the
     // number of subsequent words in the bitfield. The bits then
     // represent the words of the data structure, in order, and whether
@@ -65,13 +55,27 @@ typedef struct c4m_alloc_hdr {
     // and a pointer to a bitfield that contains that many bits. The
     // bits that correspond to words with pointers should be set.
     c4m_mem_scan_fn       scan_fn;
+
 #ifdef C4M_FULL_MEMCHECK
     uint64_t *end_guard_loc;
-    int       request_len;
 #endif
-    char       *alloc_file;
-    int         alloc_line;
+#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+    char *alloc_file;
+    int   alloc_line;
+#endif
+    // Set to 'true' if this object requires finalization. This is
+    // necessary, even though the arena tracks allocations needing
+    // finalization, because resizes could move the pointer.
+    //
+    // So when a resize is triggered and we see this bit, we go
+    // update the pointer in the finalizer list.
+    unsigned int finalize  : 1;
+    // True if the memory allocation is a direct con4m object with
+    // an object header.
+    unsigned int con4m_obj : 1;
+
     __uint128_t cached_hash;
+
     // The actual exposed data. This must be 16-byte aligned!
     alignas(C4M_FORCED_ALIGNMENT) uint64_t data[];
 } c4m_alloc_hdr;
@@ -79,6 +83,7 @@ typedef struct c4m_alloc_hdr {
 typedef struct c4m_finalizer_info_t {
     c4m_alloc_hdr               *allocation;
     struct c4m_finalizer_info_t *next;
+    struct c4m_finalizer_info_t *prev;
 } c4m_finalizer_info_t;
 
 #ifdef C4M_FULL_MEMCHECK

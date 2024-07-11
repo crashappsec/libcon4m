@@ -153,10 +153,17 @@ merge_captures(c4m_set_t *s1, c4m_set_t *s2)
     return result;
 }
 
+static void
+tpat_gc_bits(uint64_t *bitmap, c4m_tpat_node_t *n)
+{
+    c4m_mark_raw_to_addr(bitmap, n, &n->children);
+}
+
 static inline c4m_tpat_node_t *
 tpat_base(void *contents, int16_t min, int16_t max, bool walk, int capture)
 {
-    c4m_tpat_node_t *result = c4m_gc_alloc(c4m_tpat_node_t);
+    c4m_tpat_node_t *result = c4m_gc_alloc_mapped(c4m_tpat_node_t,
+                                                  tpat_gc_bits);
     result->min             = min;
     result->max             = max;
     result->contents        = contents;
@@ -256,7 +263,7 @@ bool
 c4m_tree_match(c4m_tree_node_t *tree,
                c4m_tpat_node_t *pat,
                c4m_cmp_fn       cmp,
-               c4m_list_t    **match_loc)
+               c4m_list_t     **match_loc)
 {
     search_ctx_t search_state = {
         .tree_cur    = tree,
@@ -308,11 +315,11 @@ count_consecutive_matches(search_ctx_t    *ctx,
                           int              next_child,
                           void            *contents,
                           int              max,
-                          c4m_list_t    **captures)
+                          c4m_list_t     **captures)
 {
-    c4m_set_t   *saved_captures     = ctx->captures;
+    c4m_set_t  *saved_captures     = ctx->captures;
     c4m_list_t *per_match_captures = NULL;
-    int          result             = 0;
+    int         result             = 0;
 
     ctx->captures = NULL;
 
@@ -356,7 +363,7 @@ kid_match_from(search_ctx_t    *ctx,
                void            *contents)
 {
     c4m_tpat_node_t *subpattern   = parent_pattern->children[next_pattern];
-    c4m_list_t     *kid_captures = NULL;
+    c4m_list_t      *kid_captures = NULL;
     int              num_matches;
 
     ctx->pattern_cur = subpattern;
@@ -379,8 +386,8 @@ kid_match_from(search_ctx_t    *ctx,
     // Capture any nodes that are definitely part of this match.
     for (int i = next_child; i < subpattern->min; i++) {
         c4m_set_t *one_set = c4m_list_get(kid_captures,
-                                           kid_capture_ix++,
-                                           NULL);
+                                          kid_capture_ix++,
+                                          NULL);
         ctx->captures      = merge_captures(ctx->captures, one_set);
     }
 
@@ -396,8 +403,8 @@ kid_match_from(search_ctx_t    *ctx,
 
         for (int i = kid_capture_ix; i < c4m_list_len(kid_captures); i++) {
             c4m_set_t *one_set = c4m_list_get(kid_captures,
-                                               i,
-                                               NULL);
+                                              i,
+                                              NULL);
 
             ctx->captures = merge_captures(ctx->captures, one_set);
         }
@@ -444,8 +451,8 @@ kid_match_from(search_ctx_t    *ctx,
             ctx->captures = merge_captures(ctx->captures, copy);
             if (kid_capture_ix < c4m_list_len(kid_captures)) {
                 c4m_set_t *one_set = c4m_list_get(kid_captures,
-                                                   kid_capture_ix,
-                                                   NULL);
+                                                  kid_capture_ix,
+                                                  NULL);
                 ctx->captures      = merge_captures(ctx->captures, one_set);
             }
             return true;
@@ -457,8 +464,8 @@ kid_match_from(search_ctx_t    *ctx,
             // node that DOES work for us, if there's a capture
             // it's time to stash it.
             c4m_set_t *one_set = c4m_list_get(kid_captures,
-                                               kid_capture_ix++,
-                                               NULL);
+                                              kid_capture_ix++,
+                                              NULL);
             ctx->captures      = merge_captures(ctx->captures, one_set);
         }
     }

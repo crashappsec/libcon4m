@@ -556,7 +556,7 @@ static int16_t *
 calculate_col_widths(c4m_grid_t *grid, int16_t width, int16_t *render_width)
 {
     size_t              term_width;
-    int16_t            *result = c4m_gc_array_value_alloc(uint64_t,
+    int16_t            *result = c4m_gc_array_value_alloc(uint16_t,
                                                grid->num_cols);
     int16_t             sum    = get_column_render_overhead(grid);
     c4m_render_style_t *props;
@@ -577,17 +577,17 @@ calculate_col_widths(c4m_grid_t *grid, int16_t width, int16_t *render_width)
     }
 
     if (width == C4M_GRID_UNBOUNDED_DIM) {
-        result = c4m_gc_array_alloc(uint16_t, grid->num_cols);
-
         for (int i = 0; i < grid->num_cols; i++) {
             props = get_col_props(grid, i);
 
             switch (props->dim_kind) {
             case C4M_DIM_ABSOLUTE:
+                assert(i < grid->num_cols);
                 result[i] = (uint16_t)props->dims.units;
                 sum += result[i];
                 break;
             case C4M_DIM_ABSOLUTE_RANGE:
+                assert(i < grid->num_cols);
                 result[i] = (uint16_t)props->dims.range[1];
                 sum += result[i];
                 break;
@@ -627,7 +627,8 @@ calculate_col_widths(c4m_grid_t *grid, int16_t width, int16_t *render_width)
 
         switch (props->dim_kind) {
         case C4M_DIM_ABSOLUTE:
-            cur       = (uint16_t)props->dims.units;
+            cur = (uint16_t)props->dims.units;
+            assert(i < grid->num_cols);
             result[i] = cur;
             sum += cur;
             remaining -= cur;
@@ -635,20 +636,23 @@ calculate_col_widths(c4m_grid_t *grid, int16_t width, int16_t *render_width)
         case C4M_DIM_ABSOLUTE_RANGE:
             has_range = true;
             cur       = (uint16_t)props->dims.range[0];
+            assert(i < grid->num_cols);
             result[i] = cur;
             sum += cur;
             remaining -= cur;
             continue;
         case C4M_DIM_PERCENT_TRUNCATE:
-            pct       = (props->dims.percent / 100);
-            cur       = (uint16_t)(pct * width);
+            pct = (props->dims.percent / 100);
+            cur = (uint16_t)(pct * width);
+            assert(i < grid->num_cols);
             result[i] = cur;
             sum += cur;
             remaining -= cur;
             continue;
         case C4M_DIM_PERCENT_ROUND:
-            pct       = (props->dims.percent + 0.5) / 100;
-            cur       = (uint16_t)(pct * width);
+            pct = (props->dims.percent + 0.5) / 100;
+            cur = (uint16_t)(pct * width);
+            assert(i < grid->num_cols);
             result[i] = cur;
             sum += cur;
             remaining -= cur;
@@ -657,6 +661,7 @@ calculate_col_widths(c4m_grid_t *grid, int16_t width, int16_t *render_width)
             cur = column_text_width(grid, i);
             // Assume minimal padding needed.
             cur += 2;
+            assert(i < grid->num_cols);
             result[i] = cur;
             sum += cur;
             remaining -= cur;
@@ -700,6 +705,7 @@ calculate_col_widths(c4m_grid_t *grid, int16_t width, int16_t *render_width)
             cur = c4m_min((uint16_t)desired, (uint16_t)remaining);
             sum += cur;
             remaining -= cur;
+            assert(i < grid->num_cols);
             result[i] += cur;
             if (remaining == 0) {
                 *render_width = sum;
@@ -734,13 +740,15 @@ calculate_col_widths(c4m_grid_t *grid, int16_t width, int16_t *render_width)
         case C4M_DIM_UNSET:
         case C4M_DIM_AUTO:
             if (--num_flex == 0) {
+                assert(i < grid->num_cols);
                 result[i] += remaining;
                 sum += remaining;
 
                 *render_width = sum;
                 return result;
             }
-            cur       = (uint16_t)(units * flex_width);
+            cur = (uint16_t)(units * flex_width);
+            assert(i < grid->num_cols);
             result[i] = cur;
             sum += cur;
             remaining -= cur;
@@ -1507,11 +1515,12 @@ grid_add_cell_contents(c4m_grid_t *grid,
             c4m_utf32_t *piece = c4m_to_utf32(c4m_list_get(cell->render_cache,
                                                            i,
                                                            NULL));
-            if (!c4m_str_codepoint_len(piece)) {
+            if (i < grid->num_cols && !c4m_str_codepoint_len(piece)) {
                 c4m_style_t pad_style = c4m_get_pad_style(grid_style(grid));
                 if (col_widths[i] < 0) {
                     col_widths[i] = 0;
                 }
+
                 piece = get_styled_pad(col_widths[i],
                                        pad_style);
             }
@@ -2371,23 +2380,17 @@ _c4m_grid_tree(c4m_tree_node_t *tree, ...)
 }
 
 static void
-c4m_grid_set_gc_bits(uint64_t *bitfield, int alloc_words)
+c4m_grid_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
 {
-    int ix;
-
-    c4m_set_object_header_bits(bitfield, &ix);
-    // First 6 bits of the grid are pointers.
-    *bitfield |= (0x3f << ix);
+    c4m_grid_t *grid = (c4m_grid_t *)alloc->data;
+    c4m_mark_raw_to_addr(bitfield, alloc, &grid->th_tag_name);
 }
 
 static void
-c4m_renderable_set_gc_bits(uint64_t *bitfield, int alloc_words)
+c4m_renderable_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
 {
-    int ix;
-
-    c4m_set_object_header_bits(bitfield, &ix);
-    // First 4 words of the renderable are pointers.
-    *bitfield |= (0x0f << ix);
+    c4m_renderable_t *r = (c4m_renderable_t *)alloc->data;
+    c4m_mark_raw_to_addr(bitfield, alloc, &r->raw_item);
 }
 
 static c4m_grid_t *

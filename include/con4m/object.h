@@ -33,13 +33,6 @@ c4m_base_type_name(const c4m_obj_t *user_object)
 #define C4M_HEADER_SCAN_CONST 0x02ULL
 
 static inline void
-c4m_set_object_header_bits(uint64_t *bitfield, int *startbit)
-{
-    *bitfield = C4M_HEADER_SCAN_CONST;
-    *startbit = (sizeof(c4m_base_obj_t) / 8);
-}
-
-static inline void
 c4m_set_bit(uint64_t *bitfield, int ix)
 {
     int word = ix / 64;
@@ -122,7 +115,6 @@ extern const c4m_vtable_t c4m_tuple_vtable;
 extern const c4m_vtable_t c4m_mixed_vtable;
 extern const c4m_vtable_t c4m_ipaddr_vtable;
 extern const c4m_vtable_t c4m_stream_vtable;
-extern const c4m_vtable_t c4m_kargs_vtable;
 extern const c4m_vtable_t c4m_vm_vtable;
 extern const c4m_vtable_t c4m_parse_node_vtable;
 extern const c4m_vtable_t c4m_callback_vtable;

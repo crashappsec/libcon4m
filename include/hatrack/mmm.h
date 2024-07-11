@@ -472,6 +472,13 @@ mmm_alloc(uint64_t size);
 HATRACK_EXTERN void *
 mmm_alloc_committed(uint64_t size);
 
+#ifdef HATRACK_PER_INSTANCE_AUX
+HATRACK_EXTERN void *
+mmm_alloc_committed_aux(uint64_t size, void *aux);
+#else
+#define mmm_alloc_committed_aux(size, aux) mmm_alloc_committed(size)
+#endif
+
 /* Cleanup handlers get called right before an allocation is freed.
  * They're used for sub-objects that aren't allocated via mmm, such as
  * mutex objects.

@@ -27,6 +27,7 @@ c_args        = ['-Wextra',
                  '-Wno-unused-parameter',
                  '-Wno-cast-function-type',
                   '-fno-omit-frame-pointer',
+                  '-DHATRACK_PER_INSTANCE_AUX',
                   ]
 
 if (host_machine.cpu_family() == 'x86_64' and cc.get_id() == 'clang')
@@ -92,7 +93,7 @@ if (get_option('use_memcheck') == true)
 endif
 
 if (get_option('show_gc_stats') == true)
-  c_args = c_args + ['-DC4M_GC_STATS']
+  c_args = c_args + ['-DC4M_GC_STATS', '-DHATRACK_ALLOC_PASS_LOCATION']
 endif
 
 
@@ -124,6 +125,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/styledb.c',
             'src/con4m/exceptions.c',
             'src/con4m/marshal.c',
+            'src/con4m/typestore.c',
             'src/con4m/types.c',
             'src/con4m/tree.c',
             'src/con4m/tree_pattern.c',

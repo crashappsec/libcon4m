@@ -32,21 +32,37 @@ static void
 hatrack_dict_record_eject(hatrack_dict_item_t *, hatrack_dict_t *);
 
 hatrack_dict_t *
+#ifdef HATRACK_PER_INSTANCE_AUX
+hatrack_dict_new(uint32_t key_type, void *aux)
+#else
 hatrack_dict_new(uint32_t key_type)
+#endif
 {
     hatrack_dict_t *ret;
 
     ret = (hatrack_dict_t *)hatrack_malloc(sizeof(hatrack_dict_t));
 
+#ifdef HATRACK_PER_INSTANCE_AUX
+    hatrack_dict_init(ret, key_type, aux);
+#else
     hatrack_dict_init(ret, key_type);
+#endif
 
     return ret;
 }
 
 void
+#ifdef HATRACK_PER_INSTANCE_AUX
+hatrack_dict_init(hatrack_dict_t *self, uint32_t key_type, void *aux)
+#else
 hatrack_dict_init(hatrack_dict_t *self, uint32_t key_type)
+#endif
 {
+#ifdef HATRACK_PER_INSTANCE_AUX
+    crown_init(&self->crown_instance, aux);
+#else
     crown_init(&self->crown_instance);
+#endif
 
     switch (key_type) {
     case HATRACK_DICT_KEY_TYPE_INT:
@@ -245,8 +261,16 @@ hatrack_dict_get(hatrack_dict_t *self, void *key, bool *found)
  * We could do two layers of MMM, but instead we just lift it out here,
  * and skip directly to the crown_store() calls.
  */
+#ifdef HATRACK_PER_INSTANCE_ARG
+#define aux_arg(x) ((x)->bucket_aux)
+#else
+#define aux_arg(x) NULL
+#endif
 void
-hatrack_dict_put_mmm(hatrack_dict_t *self, mmm_thread_t *thread, void *key, void *value)
+hatrack_dict_put_mmm(hatrack_dict_t *self,
+                     mmm_thread_t   *thread,
+                     void           *key,
+                     void           *value)
 {
     hatrack_hash_t       hv;
     hatrack_dict_item_t *new_item;
@@ -257,7 +281,8 @@ hatrack_dict_put_mmm(hatrack_dict_t *self, mmm_thread_t *thread, void *key, void
 
     mmm_start_basic_op(thread);
 
-    new_item        = mmm_alloc_committed(sizeof(hatrack_dict_item_t));
+    new_item        = mmm_alloc_committed_aux(sizeof(hatrack_dict_item_t),
+                                       aux_arg(self));
     new_item->key   = key;
     new_item->value = value;
     store           = atomic_read(&self->crown_instance.store_current);

@@ -450,11 +450,12 @@ c4m_type_any_list(c4m_type_t *item_type)
 {
     c4m_type_t   *result = c4m_new(c4m_type_typespec(),
                                  C4M_T_GENERIC);
-    tv_options_t *tsi    = c4m_gc_alloc(tv_options_t);
+    tv_options_t *tsi    = c4m_gc_alloc_mapped(tv_options_t,
+                                            C4M_GC_SCAN_ALL);
 
     result->details->tsi   = tsi;
     tsi->container_options = c4m_get_list_bitfield();
-    result->details->items = c4m_new(c4m_type_list(c4m_type_typespec()));
+    result->details->items = c4m_list(c4m_type_typespec());
 
     if (item_type == NULL) {
         item_type = c4m_new_typevar();
@@ -470,7 +471,7 @@ c4m_type_any_dict(c4m_type_t *key, c4m_type_t *value)
 {
     c4m_type_t   *result = c4m_new(c4m_type_typespec(),
                                  C4M_T_GENERIC);
-    tv_options_t *tsi    = c4m_gc_alloc(tv_options_t);
+    tv_options_t *tsi    = c4m_gc_alloc_mapped(tv_options_t, C4M_GC_SCAN_ALL);
 
     result->details->tsi   = tsi;
     tsi->container_options = c4m_get_dict_bitfield();
@@ -495,7 +496,8 @@ c4m_type_any_set(c4m_type_t *item_type)
 {
     c4m_type_t   *result = c4m_new(c4m_type_typespec(),
                                  C4M_T_GENERIC);
-    tv_options_t *tsi    = c4m_gc_alloc(tv_options_t);
+    tv_options_t *tsi    = c4m_gc_alloc_mapped(tv_options_t,
+                                            C4M_GC_SCAN_ALL);
 
     result->details->tsi   = tsi;
     tsi->container_options = c4m_get_set_bitfield();
@@ -681,6 +683,19 @@ c4m_obj_is_int_type(const c4m_obj_t *obj)
     c4m_base_obj_t *base = (c4m_base_obj_t *)c4m_object_header(obj);
 
     return c4m_type_is_int_type(c4m_resolve_and_unbox(base->concrete_type));
+}
+
+static inline bool
+c4m_type_requires_gc_scan(c4m_type_t *t)
+{
+    t                 = c4m_type_resolve(t);
+    c4m_dt_info_t *dt = c4m_type_get_data_type_info(t);
+
+    if (dt->by_value) {
+        return false;
+    }
+
+    return true;
 }
 
 void c4m_set_next_typevar_fn(c4m_next_typevar_fn);

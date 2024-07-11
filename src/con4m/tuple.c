@@ -146,13 +146,27 @@ tuple_from_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *litmod)
     return c4m_new(objtype, c4m_kw("contents", c4m_ka(items)));
 }
 
+// TODO:
+// We need to scan the entire tuple, because we are currently
+// improperly boxing some ints when we shouldn't.
+
+/*
 static void
-tuple_set_gc_bits(uint64_t *bitfield, int alloc_words)
+tuple_set_gc_bits(uint64_t       *bitfield,
+                  c4m_base_obj_t *alloc)
 {
-    int ix;
-    c4m_set_object_header_bits(bitfield, &ix);
-    c4m_set_bit(bitfield, ix);
+    c4m_tuple_t *tup  = (c4m_tuple_t *)alloc->data;
+    c4m_type_t  *t    = alloc->concrete_type;
+    int          len  = c4m_type_get_num_params(t);
+    int          base = c4m_ptr_diff(alloc, &tup->items[0]);
+
+    for (int i = 0; i < len; i++) {
+        if (c4m_type_requires_gc_scan(c4m_type_get_param(t, i))) {
+            c4m_set_bit(bitfield, base + i);
+        }
+    }
 }
+*/
 
 const c4m_vtable_t c4m_tuple_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
@@ -167,7 +181,7 @@ const c4m_vtable_t c4m_tuple_vtable = {
         [C4M_BI_INDEX_GET]     = (c4m_vtable_entry)c4m_tuple_get,
         [C4M_BI_INDEX_SET]     = (c4m_vtable_entry)c4m_tuple_set,
         [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)tuple_from_lit,
-        [C4M_BI_GC_MAP]        = (c4m_vtable_entry)tuple_set_gc_bits,
+        [C4M_BI_GC_MAP]        = C4M_GC_SCAN_ALL,
         [C4M_BI_MARSHAL]       = (c4m_vtable_entry)tuple_marshal,
         [C4M_BI_FINALIZER]     = NULL,
     },

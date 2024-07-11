@@ -96,3 +96,4 @@ extern char        *c4m_sb_result_get_capture(c4m_capture_result_t *,
                                               char *,
                                               bool);
 extern void         c4m_sb_result_destroy(c4m_capture_result_t *);
+extern c4m_party_t *c4m_new_party();

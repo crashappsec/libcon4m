@@ -54,11 +54,153 @@ c4m_custom_string_hash(c4m_str_t *s)
 }
 
 static void
+c4m_store_bits(uint64_t     *bitfield,
+               mmm_header_t *alloc)
+{
+    c4m_set_bit(bitfield, c4m_ptr_diff(alloc, &alloc->next));
+    c4m_set_bit(bitfield, c4m_ptr_diff(alloc, &alloc->cleanup_aux));
+    crown_store_t *store = (crown_store_t *)alloc->data;
+    c4m_set_bit(bitfield, c4m_ptr_diff(alloc, &store->store_next));
+
+    crown_bucket_t *first_loc = (crown_bucket_t *)&store->buckets[0].record;
+    int             offset    = c4m_ptr_diff(alloc, first_loc);
+    int             step      = sizeof(crown_bucket_t) / sizeof(uint64_t);
+    uint64_t        last      = store->last_slot;
+
+    for (uint64_t i = 0; i <= last; i++) {
+        c4m_set_bit(bitfield, offset);
+        offset += step;
+    }
+}
+
+static void
+c4m_dict_gc_bits_obj(uint64_t       *bitfield,
+                     c4m_base_obj_t *alloc)
+{
+    c4m_dict_t *dict = (c4m_dict_t *)alloc->data;
+    c4m_mark_raw_to_addr(bitfield, alloc, &dict->crown_instance.store_current);
+}
+
+static void
+c4m_dict_gc_bits_raw(uint64_t       *bitfield,
+                     c4m_base_obj_t *alloc)
+{
+    c4m_dict_t *dict = (c4m_dict_t *)alloc;
+
+    c4m_mark_raw_to_addr(bitfield, alloc, &dict->crown_instance.store_current);
+}
+
+static inline void
+c4m_dict_gc_bits_bucket_base(uint64_t     *bitfield,
+                             mmm_header_t *alloc)
+
+{
+    // These could all be hard coded offsets, but aren't for right now
+    // just to ensure correctness.
+    c4m_set_bit(bitfield, c4m_ptr_diff(alloc, &alloc->next));
+    c4m_set_bit(bitfield, c4m_ptr_diff(alloc, &alloc->cleanup_aux));
+}
+
+static void
+c4m_dict_gc_bits_bucket_full(uint64_t     *bitfield,
+                             mmm_header_t *alloc)
+{
+    hatrack_dict_item_t *item = (hatrack_dict_item_t *)alloc->data;
+    c4m_mark_obj_to_addr(bitfield, alloc, &item->value);
+}
+
+static void
+c4m_dict_gc_bits_bucket_key(uint64_t     *bitfield,
+                            mmm_header_t *alloc)
+{
+    hatrack_dict_item_t *item = (hatrack_dict_item_t *)alloc->data;
+    c4m_mark_obj_to_addr(bitfield, alloc, &item->key);
+}
+
+static void
+c4m_dict_gc_bits_bucket_value(uint64_t     *bitfield,
+                              mmm_header_t *alloc)
+{
+    c4m_dict_gc_bits_bucket_base(bitfield, alloc);
+
+    hatrack_dict_item_t *item = (hatrack_dict_item_t *)alloc->data;
+    c4m_set_bit(bitfield, c4m_ptr_diff(alloc, &item->value));
+}
+
+static void
+c4m_dict_gc_bits_bucket_hdr_only(uint64_t     *bitfield,
+                                 mmm_header_t *alloc)
+{
+    c4m_dict_gc_bits_bucket_base(bitfield, alloc);
+}
+
+void
+c4m_setup_unmanaged_dict(c4m_dict_t *dict,
+                         size_t      hash_type,
+                         bool        trace_keys,
+                         bool        trace_vals)
+{
+    hatrack_dict_init(dict, hash_type, c4m_store_bits);
+
+    if (trace_keys && trace_vals) {
+        hatrack_dict_set_aux(dict, c4m_dict_gc_bits_bucket_full);
+        return;
+    }
+    if (trace_keys) {
+        hatrack_dict_set_aux(dict, c4m_dict_gc_bits_bucket_key);
+        return;
+    }
+    if (trace_vals) {
+        hatrack_dict_set_aux(dict, c4m_dict_gc_bits_bucket_value);
+        return;
+    }
+
+    hatrack_dict_set_aux(dict, c4m_dict_gc_bits_bucket_hdr_only);
+    return;
+}
+
+// Used to allocate dictionaries that we expect to treat as objects,
+// before the type system and GC are fully set up.
+c4m_base_obj_t *
+c4m_early_alloc_dict(size_t hash, bool trace_keys, bool trace_vals)
+{
+    c4m_base_obj_t *base;
+    // clang-format off
+    base                = c4m_gc_raw_alloc(sizeof(c4m_dict_t) +
+					   sizeof(c4m_base_obj_t),
+					    (c4m_mem_scan_fn)c4m_dict_gc_bits_obj);
+    // clang-format on
+
+    c4m_alloc_hdr *hdr  = &((c4m_alloc_hdr *)base)[-1];
+    c4m_dict_t    *dict = (c4m_dict_t *)base->data;
+
+    hdr->con4m_obj = 1;
+
+    c4m_setup_unmanaged_dict(dict, hash, trace_keys, trace_vals);
+
+    return base;
+}
+
+// Used for dictionaries that are temporary and cannot ever be used in
+// an object context. This is mainly for short-term state like marhal memos
+// and for type hashing.
+c4m_dict_t *
+c4m_new_unmanaged_dict(size_t hash, bool trace_keys, bool trace_vals)
+{
+    c4m_dict_t *dict = c4m_gc_raw_alloc(sizeof(c4m_dict_t),
+                                        (c4m_mem_scan_fn)c4m_dict_gc_bits_raw);
+
+    c4m_setup_unmanaged_dict(dict, hash, trace_keys, trace_vals);
+    return dict;
+}
+
+static void
 c4m_dict_init(c4m_dict_t *dict, va_list args)
 {
     size_t         hash_fn;
     c4m_list_t    *type_params;
     c4m_type_t    *key_type;
+    c4m_type_t    *value_type;
     c4m_dt_info_t *info;
     bool           using_obj     = false;
     c4m_type_t    *c4m_dict_type = c4m_get_my_type(dict);
@@ -66,6 +208,7 @@ c4m_dict_init(c4m_dict_t *dict, va_list args)
     if (c4m_dict_type != NULL) {
         type_params = c4m_type_get_params(c4m_dict_type);
         key_type    = c4m_list_get(type_params, 0, NULL);
+        value_type  = c4m_list_get(type_params, 1, NULL);
         info        = c4m_type_get_data_type_info(key_type);
         hash_fn     = info->hash_fn;
     }
@@ -78,13 +221,36 @@ c4m_dict_init(c4m_dict_t *dict, va_list args)
         hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR;
     }
 
-    hatrack_dict_init(dict, hash_fn);
+    hatrack_dict_init(dict, hash_fn, c4m_store_bits);
+
+    if (c4m_dict_type) {
+        void *aux_fun = NULL;
+
+        if (c4m_type_requires_gc_scan(key_type)) {
+            if (c4m_type_requires_gc_scan(value_type)) {
+                aux_fun = c4m_dict_gc_bits_bucket_full;
+            }
+            else {
+                aux_fun = c4m_dict_gc_bits_bucket_key;
+            }
+        }
+        else {
+            if (c4m_type_requires_gc_scan(value_type)) {
+                aux_fun = c4m_dict_gc_bits_bucket_value;
+            }
+            else {
+                aux_fun = c4m_dict_gc_bits_bucket_hdr_only;
+            }
+        }
+        hatrack_dict_set_aux(dict, aux_fun);
+    }
 
     switch (hash_fn) {
     case HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM:
         // clang-format off
         hatrack_dict_set_custom_hash(dict,
                                 (hatrack_hash_func_t)c4m_custom_string_hash);
+        // clang-format on
         break;
     case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
         hatrack_dict_set_hash_offset(dict, C4M_STR_HASH_KEY_POINTER_OFFSET);
@@ -92,15 +258,15 @@ c4m_dict_init(c4m_dict_t *dict, va_list args)
     case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
     case HATRACK_DICT_KEY_TYPE_OBJ_INT:
     case HATRACK_DICT_KEY_TYPE_OBJ_REAL:
-	if (using_obj) {
-	    hatrack_dict_set_cache_offset(dict, C4M_HASH_CACHE_OBJ_OFFSET);
-	}
-	else {
-	    hatrack_dict_set_cache_offset(dict, C4M_HASH_CACHE_RAW_OFFSET);
-	}
+        if (using_obj) {
+            hatrack_dict_set_cache_offset(dict, C4M_HASH_CACHE_OBJ_OFFSET);
+        }
+        else {
+            hatrack_dict_set_cache_offset(dict, C4M_HASH_CACHE_RAW_OFFSET);
+        }
         break;
     default:
-	break;
+        break;
     }
 
     dict->slow_views = false;
@@ -162,14 +328,36 @@ c4m_dict_unmarshal(c4m_dict_t *d, c4m_stream_t *s, c4m_dict_t *memos)
     c4m_dt_info_t *vinfo         = c4m_type_get_data_type_info(val_type);
     bool           key_by_val    = kinfo->by_value;
     bool           val_by_val    = vinfo->by_value;
+    void          *aux_fun       = NULL;
 
-    hatrack_dict_init(d, kinfo->hash_fn);
+    // Set up for proper tracing.
+    hatrack_dict_init(d, kinfo->hash_fn, c4m_store_bits);
+
+    if (c4m_type_requires_gc_scan(key_type)) {
+        if (c4m_type_requires_gc_scan(val_type)) {
+            aux_fun = c4m_dict_gc_bits_bucket_full;
+        }
+        else {
+            aux_fun = c4m_dict_gc_bits_bucket_key;
+        }
+    }
+    else {
+        if (c4m_type_requires_gc_scan(val_type)) {
+            aux_fun = c4m_dict_gc_bits_bucket_value;
+        }
+        else {
+            aux_fun = c4m_dict_gc_bits_bucket_hdr_only;
+        }
+    }
+
+    hatrack_dict_set_aux(d, aux_fun);
 
     switch (kinfo->hash_fn) {
     case HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM:
         // clang-format off
         hatrack_dict_set_custom_hash(d,
                                 (hatrack_hash_func_t)c4m_custom_string_hash);
+        // clang-format on
         break;
     case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
         hatrack_dict_set_hash_offset(d, 2 * (int32_t)sizeof(uint64_t));
@@ -325,14 +513,6 @@ to_dict_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *lm)
     return result;
 }
 
-static void
-c4m_dict_set_gc_bits(uint64_t *bitfield, int alloc_words)
-{
-    int ix;
-    c4m_set_object_header_bits(bitfield, &ix);
-    c4m_set_bit(bitfield, ix);
-}
-
 const c4m_vtable_t c4m_dict_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
@@ -350,7 +530,7 @@ const c4m_vtable_t c4m_dict_vtable = {
         [C4M_BI_INDEX_SET]     = (c4m_vtable_entry)hatrack_dict_put,
         [C4M_BI_VIEW]          = (c4m_vtable_entry)hatrack_dict_items_sort,
         [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)to_dict_lit,
-	[C4M_BI_GC_MAP]        = (c4m_vtable_entry)c4m_dict_set_gc_bits,
+        [C4M_BI_GC_MAP]        = (c4m_vtable_entry)c4m_dict_gc_bits_obj,
         NULL,
     },
 };

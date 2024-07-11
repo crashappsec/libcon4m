@@ -113,10 +113,16 @@ mem_c4m_stream_seek(c4m_cookie_t *c, int64_t pos)
     return true;
 }
 
+static void
+cookie_gc_bits(uint64_t *bitmap, c4m_cookie_t *cookie)
+{
+    c4m_mark_raw_to_addr(bitmap, cookie, &cookie->extra);
+}
+
 static inline c4m_cookie_t *
 new_mem_cookie()
 {
-    c4m_cookie_t *result = c4m_gc_alloc(c4m_cookie_t);
+    c4m_cookie_t *result = c4m_gc_alloc_mapped(c4m_cookie_t, cookie_gc_bits);
 
     result->ptr_setup = mem_c4m_stream_setup;
     result->ptr_read  = mem_c4m_stream_read;
@@ -795,11 +801,9 @@ c4m_get_stderr()
 }
 
 static void
-c4m_stream_set_gc_bits(uint64_t *bitfield, int alloc_words)
+c4m_stream_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
 {
-    int ix;
-    c4m_set_object_header_bits(bitfield, &ix);
-    c4m_set_bit(bitfield, ix);
+    c4m_set_bit(bitfield, c4m_ptr_diff(alloc, alloc->data));
 }
 
 const c4m_vtable_t c4m_stream_vtable = {

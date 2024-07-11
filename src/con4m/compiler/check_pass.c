@@ -32,6 +32,19 @@ typedef struct {
 
 static void base_check_pass_dispatch(pass2_ctx *);
 
+static void
+c4m_call_resolution_gc_bits(uint64_t *bitmap, c4m_call_resolution_info_t *ci)
+{
+    c4m_mark_raw_to_addr(bitmap, ci, &ci->resolution);
+}
+
+static c4m_call_resolution_info_t *
+c4m_new_call_resolution()
+{
+    return c4m_gc_alloc_mapped(c4m_call_resolution_info_t,
+                               c4m_call_resolution_gc_bits);
+}
+
 static inline c4m_control_info_t *
 control_init(c4m_control_info_t *ci)
 {
@@ -473,7 +486,7 @@ initial_function_resolution(pass2_ctx       *ctx,
         setup_polymorphic_fns();
     }
 
-    c4m_call_resolution_info_t *info = c4m_gc_alloc(c4m_call_resolution_info_t);
+    c4m_call_resolution_info_t *info = c4m_new_call_resolution();
 
     info->name = call_name;
     info->loc  = call_loc;

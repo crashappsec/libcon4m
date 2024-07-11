@@ -70,11 +70,21 @@ struct hatrack_dict_t {
     hatrack_mem_hook_t  free_handler;
     hatrack_mem_hook_t  key_return_hook;
     hatrack_mem_hook_t  val_return_hook;
+#ifdef HATRACK_PER_INSTANCE_AUX
+    alignas(8) void *bucket_aux;
+#endif
 };
 
 // clang-format off
+#ifdef HATRACK_PER_INSTANCE_AUX
+HATRACK_EXTERN hatrack_dict_t *hatrack_dict_new    (uint32_t, void *);
+HATRACK_EXTERN void            hatrack_dict_init   (hatrack_dict_t *, uint32_t, void *);
+#else
 HATRACK_EXTERN hatrack_dict_t *hatrack_dict_new    (uint32_t);
 HATRACK_EXTERN void            hatrack_dict_init   (hatrack_dict_t *, uint32_t);
+
+#endif
+
 HATRACK_EXTERN void            hatrack_dict_cleanup(hatrack_dict_t *);
 HATRACK_EXTERN void            hatrack_dict_delete (hatrack_dict_t *);
 
@@ -120,3 +130,11 @@ HATRACK_EXTERN hatrack_dict_item_t  *hatrack_dict_items_sort   (hatrack_dict_t *
 HATRACK_EXTERN hatrack_dict_key_t   *hatrack_dict_keys_nosort  (hatrack_dict_t *, uint64_t *);
 HATRACK_EXTERN hatrack_dict_value_t *hatrack_dict_values_nosort(hatrack_dict_t *, uint64_t *);
 HATRACK_EXTERN hatrack_dict_item_t  *hatrack_dict_items_nosort (hatrack_dict_t *, uint64_t *);
+
+#ifdef HATRACK_PER_INSTANCE_AUX
+static inline void
+hatrack_dict_set_aux(hatrack_dict_t *dict, void *aux)
+{
+    dict->bucket_aux = aux;
+}
+#endif

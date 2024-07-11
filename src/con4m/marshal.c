@@ -292,7 +292,8 @@ c4m_unmarshal_unmanaged_object(size_t           len,
         return addr;
     }
 
-    addr = c4m_gc_alloc(len);
+    // TODO: fix this; it needs to marshal the handler.
+    addr = c4m_gc_raw_alloc(len, C4M_GC_SCAN_ALL);
     hatrack_dict_put(memos, (void *)memo, addr);
 
     (*fn)(addr, s, memos);
@@ -330,9 +331,8 @@ c4m_sub_unmarshal(c4m_stream_t *s, c4m_dict_t *memos)
     dt_entry  = (c4m_dt_info_t *)&c4m_base_type_info[base_type_id];
     alloc_len = sizeof(c4m_base_obj_t) + dt_entry->alloc_len;
 
-    c4m_mem_scan_fn gc_fn = (void *)(dt_entry->vtable->methods[C4M_BI_GC_MAP]);
-
-    obj = (c4m_base_obj_t *)c4m_gc_raw_alloc(alloc_len, gc_fn);
+    // Todo: get the scan function right.
+    obj = (c4m_base_obj_t *)c4m_gc_raw_alloc(alloc_len, C4M_GC_SCAN_ALL);
 
     // Now that we've allocated the object, we need to fill in the memo
     // before we unmarshal, because cycles happen.

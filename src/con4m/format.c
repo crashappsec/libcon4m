@@ -253,6 +253,13 @@ look_for_sign:
     }
 }
 
+/* static */ void
+fmt_gc_bits(uint64_t *bitmap, c4m_fmt_info_t *fi)
+{
+    // If the union is an int, we live dangerously.
+    c4m_mark_raw_to_addr(bitmap, fi, &fi->next);
+}
+
 static c4m_fmt_info_t *
 c4m_extract_format_specifiers(const c4m_str_t *fmt)
 {
@@ -285,7 +292,8 @@ c4m_extract_format_specifiers(const c4m_str_t *fmt)
             if (n == l) {
                 C4M_CRAISE("Missing } to end format specifier.");
             }
-            cur        = c4m_gc_alloc(c4m_fmt_info_t);
+            cur        = c4m_gc_alloc_mapped(c4m_fmt_info_t,
+                                      fmt_gc_bits);
             cur->start = i + 1;
             cur->end   = n;
 
@@ -613,8 +621,7 @@ c4m_utf8_t *
 c4m_cstr_array_format(char *fmt, int num_args, c4m_utf8_t **params)
 {
     c4m_utf8_t *one;
-    c4m_dict_t *dict = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                             c4m_type_ref()));
+    c4m_dict_t *dict = c4m_dict(c4m_type_utf8(), c4m_type_ref());
 
     for (int i = 0; i < num_args; i++) {
         one             = params[i];

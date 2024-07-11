@@ -51,6 +51,66 @@ typedef struct {
 static void gen_one_node(gen_ctx *);
 
 static void
+c4m_zinstr_gc_bits(uint64_t *bitmap, c4m_zinstruction_t *instr)
+{
+    c4m_set_bit(bitmap, c4m_ptr_diff(instr, &instr->type_info));
+}
+
+c4m_zinstruction_t *
+c4m_new_instruction()
+{
+    return c4m_gc_alloc_mapped(c4m_zinstruction_t, c4m_zinstr_gc_bits);
+}
+
+static void
+c4m_zfn_gc_bits(uint64_t *bitmap, c4m_zfn_info_t *fn)
+{
+    c4m_mark_raw_to_addr(bitmap, fn, &fn->longdoc);
+}
+
+c4m_zfn_info_t *
+c4m_new_zfn()
+{
+    return c4m_gc_alloc_mapped(c4m_zfn_info_t, c4m_zfn_gc_bits);
+}
+
+static void
+c4m_zmodule_gc_bits(uint64_t *bitmap, c4m_zmodule_info_t *zm)
+{
+    c4m_mark_raw_to_addr(bitmap, zm, &zm->instructions);
+}
+
+c4m_zmodule_info_t *
+c4m_new_zmodule()
+{
+    return c4m_gc_alloc_mapped(c4m_zmodule_info_t, c4m_zmodule_gc_bits);
+}
+
+static void
+c4m_jump_info_gc_bits(uint64_t *bitmap, c4m_jump_info_t *ji)
+{
+    c4m_mark_raw_to_addr(bitmap, ji, &ji->to_patch);
+}
+
+c4m_jump_info_t *
+c4m_new_jump_info()
+{
+    return c4m_gc_alloc_mapped(c4m_jump_info_t, c4m_jump_info_gc_bits);
+}
+
+static void
+c4m_backpatch_gc_bits(uint64_t *bitmap, call_backpatch_info_t *bp)
+{
+    c4m_mark_raw_to_addr(bitmap, bp, &bp->i);
+}
+
+static call_backpatch_info_t *
+new_backpatch()
+{
+    return c4m_gc_alloc_mapped(call_backpatch_info_t, c4m_backpatch_gc_bits);
+}
+
+static void
 _emit(gen_ctx *ctx, int32_t op32, ...)
 {
     c4m_karg_only_init(op32);
@@ -68,7 +128,7 @@ _emit(gen_ctx *ctx, int32_t op32, ...)
     c4m_kw_ptr("type", type);
     c4m_kw_ptr("instrptr", instrptr);
 
-    c4m_zinstruction_t *instr = c4m_gc_alloc(c4m_zinstruction_t);
+    c4m_zinstruction_t *instr = c4m_new_instruction();
     instr->op                 = op;
     instr->module_id          = (int16_t)module_id;
     instr->line_no            = c4m_node_get_line_number(ctx->cur_node);
@@ -208,7 +268,7 @@ gen_equality_test(gen_ctx *ctx, c4m_type_t *operand_type)
 // Helpers for the common case where we have one exit only.
 #define JMP_TEMPLATE(g, user_code, ...)                                 \
     do {                                                                \
-        c4m_jump_info_t *ji    = c4m_gc_alloc(c4m_jump_info_t);         \
+        c4m_jump_info_t *ji    = c4m_new_jump_info();                   \
         bool             patch = g(ctx, ji __VA_OPT__(, ) __VA_ARGS__); \
         user_code;                                                      \
         if (patch) {                                                    \
@@ -659,7 +719,7 @@ gen_native_call(gen_ctx *ctx, c4m_symbol_t *fsym)
     if (target_fn_id == 0) {
         call_backpatch_info_t *bp;
 
-        bp       = c4m_gc_alloc(call_backpatch_info_t);
+        bp       = new_backpatch();
         bp->decl = decl;
         bp->i    = c4m_list_get(ctx->instructions, loc, NULL);
 
@@ -853,7 +913,7 @@ gen_if(gen_ctx *ctx)
 static inline void
 gen_one_tcase(gen_ctx *ctx, c4m_control_info_t *switch_exit)
 {
-    c4m_jump_info_t *exit_jump          = c4m_gc_alloc(c4m_jump_info_t);
+    c4m_jump_info_t *exit_jump          = c4m_new_jump_info();
     exit_jump->linked_control_structure = switch_exit;
 
     emit(ctx, C4M_ZDupTop);
@@ -946,8 +1006,8 @@ gen_one_case(gen_ctx *ctx, c4m_control_info_t *switch_exit, c4m_type_t *type)
     int              num_conditions = n->num_kids - 1;
     c4m_jump_info_t *local_jumps    = c4m_gc_array_alloc(c4m_jump_info_t,
                                                       num_conditions);
-    c4m_jump_info_t *case_end       = c4m_gc_alloc(c4m_jump_info_t);
-    c4m_jump_info_t *exit_jump      = c4m_gc_alloc(c4m_jump_info_t);
+    c4m_jump_info_t *case_end       = c4m_new_jump_info();
+    c4m_jump_info_t *exit_jump      = c4m_new_jump_info();
 
     exit_jump->linked_control_structure = switch_exit;
 
@@ -2198,7 +2258,7 @@ gen_function(gen_ctx            *ctx,
     c4m_fn_decl_t *decl             = sym->value;
     int            n                = sym->declaration_node->num_kids;
     ctx->cur_node                   = sym->declaration_node->children[n - 1];
-    c4m_zfn_info_t *fn_info_for_obj = c4m_gc_alloc(c4m_zfn_info_t);
+    c4m_zfn_info_t *fn_info_for_obj = c4m_new_zfn();
 
     ctx->retsym = hatrack_dict_get(decl->signature_info->fn_scope->symbols,
                                    c4m_new_utf8("$result"),
@@ -2289,13 +2349,13 @@ gen_function(gen_ctx            *ctx,
 static void
 gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
 {
-    c4m_zmodule_info_t *module = c4m_gc_alloc(c4m_zmodule_info_t);
+    c4m_zmodule_info_t *module = c4m_new_zmodule();
     c4m_pnode_t        *root;
 
     ctx->cur_module          = module;
     ctx->fctx->module_object = module;
     ctx->cur_node            = ctx->fctx->parse_tree;
-    module->instructions     = c4m_new(c4m_type_list(c4m_type_ref()));
+    module->instructions     = c4m_list(c4m_type_ref());
     ctx->instructions        = module->instructions;
     module->module_id        = ctx->fctx->local_module_id;
     module->module_hash      = ctx->fctx->module_id;

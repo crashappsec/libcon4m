@@ -5,6 +5,30 @@ static c4m_list_t *con4m_path       = NULL;
 static c4m_set_t  *con4m_extensions = NULL;
 
 static void
+fcx_gc_bits(uint64_t *bitfield, c4m_file_compile_ctx *ctx)
+{
+    c4m_mark_raw_to_addr(bitfield, ctx, &ctx->extern_decls);
+}
+
+c4m_file_compile_ctx *
+c4m_new_file_compile_ctx()
+{
+    return c4m_gc_alloc_mapped(c4m_file_compile_ctx, fcx_gc_bits);
+}
+
+static void
+cctx_gc_bits(uint64_t *bitfield, c4m_compile_ctx *ctx)
+{
+    c4m_mark_raw_to_addr(bitfield, ctx, &ctx->str_map);
+}
+
+c4m_compile_ctx *
+c4m_new_compile_ctx()
+{
+    return c4m_gc_alloc_mapped(c4m_compile_ctx, cctx_gc_bits);
+}
+
+static void
 init_con4m_path()
 {
     c4m_list_t *parts;
@@ -177,7 +201,7 @@ get_file_compile_ctx(c4m_compile_ctx *ctx,
         return result;
     }
 
-    result = c4m_gc_alloc(c4m_file_compile_ctx);
+    result = c4m_new_file_compile_ctx();
 
     if (!path) {
         path = perform_path_search(package, module);
@@ -568,10 +592,9 @@ c4m_init_from_use(c4m_compile_ctx *ctx,
 c4m_compile_ctx *
 c4m_new_compile_context(c4m_str_t *input)
 {
-    c4m_compile_ctx *result = c4m_gc_alloc(c4m_compile_ctx);
+    c4m_compile_ctx *result = c4m_new_compile_ctx();
 
-    result->module_cache  = c4m_new(c4m_type_dict(c4m_type_u64(),
-                                                 c4m_type_ref()));
+    result->module_cache  = c4m_dict(c4m_type_u64(), c4m_type_ref());
     result->final_attrs   = c4m_new_scope(NULL, C4M_SCOPE_GLOBAL);
     result->final_globals = c4m_new_scope(NULL, C4M_SCOPE_ATTRIBUTES);
     result->final_spec    = c4m_new_spec();

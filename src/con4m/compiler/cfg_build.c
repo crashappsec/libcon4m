@@ -1,6 +1,42 @@
 #include "con4m.h"
 
 static void
+c4m_cfg_gc_bits(uint64_t *bitmap, c4m_cfg_node_t *cfgnode)
+{
+    switch (cfgnode->kind) {
+    case c4m_cfg_block_entrance:
+        c4m_mark_raw_to_addr(bitmap,
+                             cfgnode,
+                             &cfgnode->contents.block_entrance.to_merge);
+        return;
+    case c4m_cfg_block_exit:
+        c4m_mark_raw_to_addr(bitmap,
+                             cfgnode,
+                             &cfgnode->contents.block_exit.to_merge);
+        return;
+    case c4m_cfg_node_branch:
+        c4m_mark_raw_to_addr(bitmap,
+                             cfgnode,
+                             &cfgnode->contents.branches.label);
+        return;
+    case c4m_cfg_jump:
+        c4m_mark_raw_to_addr(bitmap, cfgnode, &cfgnode->contents.jump.target);
+        return;
+    case c4m_cfg_use:
+    case c4m_cfg_def:
+    case c4m_cfg_call:
+        c4m_mark_raw_to_addr(bitmap, cfgnode, &cfgnode->contents.flow.deps);
+        return;
+    }
+}
+
+static c4m_cfg_node_t *
+c4m_new_cfg_node()
+{
+    return c4m_gc_alloc_mapped(c4m_cfg_node_t, c4m_cfg_gc_bits);
+}
+
+static void
 add_child(c4m_cfg_node_t *parent, c4m_cfg_node_t *child)
 {
     c4m_cfg_branch_info_t *branch_info;
@@ -29,8 +65,8 @@ c4m_cfg_node_t *
 c4m_cfg_enter_block(c4m_cfg_node_t  *parent,
                     c4m_tree_node_t *treeloc)
 {
-    c4m_cfg_node_t *result = c4m_gc_alloc(c4m_cfg_node_t);
-    c4m_cfg_node_t *exit   = c4m_gc_alloc(c4m_cfg_node_t);
+    c4m_cfg_node_t *result = c4m_new_cfg_node();
+    c4m_cfg_node_t *exit   = c4m_new_cfg_node();
 
     result->parent                            = parent;
     result->kind                              = c4m_cfg_block_entrance;
@@ -99,7 +135,7 @@ c4m_cfg_block_new_branch_node(c4m_cfg_node_t  *parent,
                               c4m_utf8_t      *label,
                               c4m_tree_node_t *treeloc)
 {
-    c4m_cfg_node_t  *result  = c4m_gc_alloc(c4m_cfg_node_t);
+    c4m_cfg_node_t  *result  = c4m_new_cfg_node();
     c4m_cfg_node_t **targets = c4m_gc_array_alloc(c4m_cfg_node_t *,
                                                   num_branches);
 
@@ -127,7 +163,7 @@ c4m_cfg_add_return(c4m_cfg_node_t  *parent,
                    c4m_tree_node_t *treeloc,
                    c4m_cfg_node_t  *fn_exit_node)
 {
-    c4m_cfg_node_t *result = c4m_gc_alloc(c4m_cfg_node_t);
+    c4m_cfg_node_t *result = c4m_new_cfg_node();
 
     add_child(parent, result);
 
@@ -162,7 +198,7 @@ c4m_cfg_add_continue(c4m_cfg_node_t  *parent,
     // we never find that loop label, we return NULL and the caller is
     // responsible for issuing the error.
 
-    c4m_cfg_node_t *result             = c4m_gc_alloc(c4m_cfg_node_t);
+    c4m_cfg_node_t *result             = c4m_new_cfg_node();
     c4m_cfg_node_t *cur                = parent;
     bool            found_proper_block = false;
 
@@ -212,7 +248,7 @@ c4m_cfg_add_break(c4m_cfg_node_t  *parent,
                   c4m_tree_node_t *treeloc,
                   c4m_utf8_t      *label)
 {
-    c4m_cfg_node_t *result             = c4m_gc_alloc(c4m_cfg_node_t);
+    c4m_cfg_node_t *result             = c4m_new_cfg_node();
     c4m_cfg_node_t *cur                = parent;
     bool            found_proper_block = false;
 
@@ -263,7 +299,7 @@ c4m_cfg_add_def(c4m_cfg_node_t  *parent,
                 c4m_symbol_t    *symbol,
                 c4m_list_t      *dependencies)
 {
-    c4m_cfg_node_t *result           = c4m_gc_alloc(c4m_cfg_node_t);
+    c4m_cfg_node_t *result           = c4m_new_cfg_node();
     result->kind                     = c4m_cfg_def;
     result->reference_location       = treeloc;
     result->parent                   = parent;
@@ -281,7 +317,7 @@ c4m_cfg_add_call(c4m_cfg_node_t  *parent,
                  c4m_symbol_t    *symbol,
                  c4m_list_t      *dependencies)
 {
-    c4m_cfg_node_t *result           = c4m_gc_alloc(c4m_cfg_node_t);
+    c4m_cfg_node_t *result           = c4m_new_cfg_node();
     result->kind                     = c4m_cfg_call;
     result->reference_location       = treeloc;
     result->parent                   = parent;
@@ -301,7 +337,7 @@ c4m_cfg_add_use(c4m_cfg_node_t  *parent,
     if (symbol->kind == C4M_SK_ENUM_VAL) {
         return parent;
     }
-    c4m_cfg_node_t *result           = c4m_gc_alloc(c4m_cfg_node_t);
+    c4m_cfg_node_t *result           = c4m_new_cfg_node();
     result->kind                     = c4m_cfg_use;
     result->reference_location       = treeloc;
     result->parent                   = parent;

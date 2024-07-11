@@ -32,8 +32,7 @@ static void process_worklist(c4m_collection_ctx *);
 static worklist_t *
 c4m_alloc_collection_worklist(c4m_arena_t *fromspace)
 {
-    int num_records = fromspace->largest_alloc;
-    num_records     = 1 << (64 - __builtin_clz(num_records - 1));
+    int num_records = 1 << 14;
     int alloc_len   = num_records * sizeof(worklist_item) + sizeof(worklist_t);
     alloc_len       = c4m_round_up_to_given_power_of_2(getpagesize(),
                                                  alloc_len);
@@ -102,7 +101,7 @@ c4m_gc_set_finalize_callback(c4m_system_finalizer_fn fn)
 }
 
 #ifdef C4M_GC_STATS
-int                          c4m_gc_show_heap_stats_on = 0;
+int                          c4m_gc_show_heap_stats_on = C4M_SHOW_GC_DEFAULT;
 static thread_local uint32_t c4m_total_collects        = 0;
 static thread_local uint64_t c4m_total_garbage_words   = 0;
 static thread_local uint64_t c4m_total_size            = 0;
@@ -202,6 +201,7 @@ static c4m_alloc_hdr *
 prep_allocation(c4m_alloc_hdr *old, c4m_arena_t *new_arena)
 {
     c4m_alloc_hdr *res;
+    c4m_arena_t   *arena = new_arena;
 
 #if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
 #define TRACE_DEBUG_ARGS , debug_file, debug_ln
@@ -212,16 +212,15 @@ prep_allocation(c4m_alloc_hdr *old, c4m_arena_t *new_arena)
 #define TRACE_DEBUG_ARGS
 #endif
 
-    res = c4m_alloc_from_arena(&new_arena,
-                               old->alloc_len,
+    res            = c4m_alloc_from_arena(&arena,
+                               old->request_len,
                                old->scan_fn,
                                (bool)old->finalize
                                    TRACE_DEBUG_ARGS);
-
-    res->finalize  = old->finalize;
+    res            = &res[-1];
     res->con4m_obj = old->con4m_obj;
 
-    return &res[-1];
+    return res;
 }
 
 static void
@@ -338,8 +337,10 @@ static inline void
 add_copy_to_worklist(c4m_collection_ctx *ctx, c4m_alloc_hdr *hdr)
 {
     c4m_gc_trace(C4M_GCT_SCAN_PTR,
-                 "Added copy instruction to worklist for %p",
-                 hdr);
+                 "Added copy instruction to worklist for %p (%s:%d)",
+                 hdr,
+                 hdr->alloc_file,
+                 hdr->alloc_line);
 
     c4m_wl_write(ctx, hdr, GC_OP_COPY);
 }
@@ -421,7 +422,12 @@ scan_allocation(c4m_collection_ctx *ctx, c4m_alloc_hdr *hdr)
     uint64_t *map         = alloca(bf_byte_len);
 
     memset(map, 0, bf_byte_len);
-    (*scanner)(map, numwords);
+
+    if (hdr->con4m_obj) {
+        map[0] = C4M_HEADER_SCAN_CONST;
+    }
+
+    (*scanner)(map, hdr->data);
 
     int last_cell = numwords / 64;
 
@@ -514,7 +520,7 @@ process_worklist(c4m_collection_ctx *ctx)
             c4m_alloc_hdr *src = (c4m_alloc_hdr *)p;
             c4m_alloc_hdr *dst = src->fw_addr;
 
-            memcpy(dst->data, src->data, src->alloc_len * 8);
+            memcpy(dst->data, src->data, src->alloc_len);
 
 #ifdef C4M_FULL_MEMCHECK
             // We just wiped the back guard with the memcpy.
@@ -522,10 +528,13 @@ process_worklist(c4m_collection_ctx *ctx)
 #endif
             ctx->copied_allocs++;
             c4m_gc_trace(C4M_GCT_MOVED,
-                         "%d words moved from %p to %p (%s:%d)\n",
+                         "%d words moved from %p to %p "
+                         "(hdrs: %p to %p; %s:%d)\n",
                          src->alloc_len,
                          src->data,
                          dst->data,
+                         src,
+                         dst,
                          dst->alloc_file,
                          dst->alloc_line);
         }
@@ -762,9 +771,13 @@ c4m_alloc_display_front_guard_error(c4m_alloc_hdr *hdr,
 
     c4m_definite_memcheck_error = true;
 
+#ifdef C4M_STRICT_MEMCHECK
+    abort();
+#else
     if (bail) {
         abort();
     }
+#endif
 }
 
 void
@@ -796,9 +809,13 @@ c4m_alloc_display_rear_guard_error(c4m_alloc_hdr *hdr,
 
     c4m_definite_memcheck_error = true;
 
+#ifdef C4M_STRICT_MEMCHECK
+    abort();
+#else
     if (bail) {
         abort();
     }
+#endif
 }
 
 static void
@@ -850,19 +867,30 @@ memcheck_validate_old_records(c4m_arena_t *from_space)
                         // false positive.  It's reasonably likely in
                         // common situations on a mac.
                         fprintf(stderr,
-                                "Possible missed allocation. Found a pointer "
-                                " to %p, which was NOT copied. The pointer "
-                                " was found in a live allocation "
-                                " from %s:%d, now residing at %p.\n"
+                                "*****Possible missed allocation*****\n"
+                                "At address %p, Found a pointer "
+                                " to %p, which was NOT copied.\n"
+                                "The pointer was found in a live allocation"
+                                " from %s:%d.\n"
+                                "That allocation moved to %p.\n"
+                                "The allocation's gc bit map: %p\n"
+                                "The pointer itself was allocated from %s:%d.\n"
                                 "Note that this can be a false positive if "
                                 "the memory in the allocation was non-pointer "
-                                "data and properly marked as such."
+                                "data and properly marked as such.\n"
                                 "Otherwise, it may be a pointer that was "
-                                "marked as data, incorrectly.",
+                                "marked as data, incorrectly.\n\n",
+                                p,
                                 *p,
+                                a->start->alloc_file,
+                                a->start->alloc_line,
+                                a->start->fw_addr,
+                                a->start->scan_fn,
                                 h->alloc_file,
-                                h->alloc_line,
-                                h->fw_addr);
+                                h->alloc_line);
+#ifdef C4M_STRICT_MEMCHECK
+                        exit(-4);
+#endif
                     }
                 }
                 p++;
@@ -917,15 +945,12 @@ c4m_collect_arena(c4m_arena_t *from_space)
     c4m_total_allocs = 0;
     c4m_total_words  = 0;
     c4m_total_collects++;
+
 #endif
 
     ASAN_UNPOISON_MEMORY_REGION(
         from_space,
         (((char *)ctx.from_space->heap_end) - (char *)ctx.from_space->data));
-
-#ifdef C4M_FULL_MEMCHECK
-    memcheck_validate_old_records(old_arena);
-#endif
 
 #if defined(C4M_GC_FULL_TRACE) && C4M_GCT_COLLECT != 0
     c4m_gc_trace(C4M_GCT_COLLECT,
@@ -940,6 +965,7 @@ c4m_collect_arena(c4m_arena_t *from_space)
 #endif
 
 #ifdef C4M_FULL_MEMCHECK
+    memcheck_validate_old_records(old_arena);
     memcheck_delete_old_records(old_arena);
 #endif
 
@@ -1046,7 +1072,7 @@ c4m_collect_arena(c4m_arena_t *from_space)
                c4m_box_u64((c4m_total_words * 8) / c4m_total_allocs));
 
 #ifdef C4M_GC_SHOW_COLLECT_STACK_TRACES
-    c4m_c_backtrace();
+    c4m_print_c_backtrace();
 #endif
 
 #endif

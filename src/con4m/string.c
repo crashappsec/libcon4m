@@ -694,6 +694,8 @@ utf32_init(c4m_utf32_t *s, va_list args)
 
     s->utf32 = 1;
 
+    assert(length >= 0);
+
     if (length == 0 && cstring == NULL) {
         return;
     }
@@ -703,7 +705,7 @@ utf32_init(c4m_utf32_t *s, va_list args)
     }
 
     if (codepoints != NULL) {
-        if (length <= 0) {
+        if (length == 0) {
             C4M_CRAISE(
                 "When specifying 'codepoints', must provide a valid "
                 "'length' containing the number of codepoints.");
@@ -721,7 +723,7 @@ utf32_init(c4m_utf32_t *s, va_list args)
     }
     else {
         if (cstring != NULL) {
-            if (length <= 0) {
+            if (length == 0) {
                 length = strlen(cstring);
             }
 
@@ -739,13 +741,13 @@ utf32_init(c4m_utf32_t *s, va_list args)
             s->codepoints = length;
         }
         else {
-            if (length <= 0) {
+            if (length == 0) {
                 C4M_CRAISE(
                     "Must specify a valid length if not initializing "
                     "with a null-terminated cstring.");
             }
             s->byte_len = length * 4;
-            s->data     = c4m_gc_raw_alloc((length + 1) * 4, NULL);
+            s->data     = c4m_gc_raw_alloc((length + 1) * 8, NULL);
         }
     }
 
@@ -1646,12 +1648,11 @@ c4m_str_view(c4m_str_t *s, uint64_t *n)
 }
 
 static void
-c4m_str_set_gc_bits(uint64_t *bitfield, int alloc_words)
+c4m_str_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
 {
-    int ix;
-    c4m_set_object_header_bits(bitfield, &ix);
-    c4m_set_bit(bitfield, ix++);
-    c4m_set_bit(bitfield, ix);
+    c4m_str_t *s = (c4m_str_t *)alloc->data;
+
+    c4m_mark_obj_to_addr(bitfield, alloc, &s->styling);
 }
 
 const c4m_vtable_t c4m_u8str_vtable = {

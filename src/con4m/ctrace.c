@@ -56,30 +56,63 @@ c4m_bt_create_backtrace(void       *data,
     return 0;
 };
 
-#define backtrace_core()                             \
-    c4m_trace_grid = c4m_new(c4m_type_grid(),        \
-                             c4m_kw("start_cols",    \
-                                    c4m_ka(3),       \
-                                    "start_rows",    \
-                                    c4m_ka(2),       \
-                                    "header_rows",   \
-                                    c4m_ka(1),       \
-                                    "container_tag", \
-                                    c4m_ka("table"), \
-                                    "striped",       \
-                                    c4m_ka(true)));  \
-                                                     \
-    c4m_list_t *x = c4m_list(c4m_type_utf8());       \
-    c4m_list_append(x, c4m_new_utf8("PC"));          \
-    c4m_list_append(x, c4m_new_utf8("Location"));    \
-    c4m_list_append(x, c4m_new_utf8("Function"));    \
-                                                     \
-    c4m_grid_add_row(c4m_trace_grid, x);             \
-                                                     \
-    c4m_snap_column(c4m_trace_grid, 0);              \
-    c4m_snap_column(c4m_trace_grid, 1);              \
-    c4m_snap_column(c4m_trace_grid, 2);              \
-                                                     \
+static int
+c4m_bt_static_backtrace(void       *data,
+                        uintptr_t   pc,
+                        const char *pathname,
+                        int         n,
+                        const char *function)
+{
+    static const char *unavailable = "?? (unavailable)";
+
+    char *path;
+    char *fn = (char *)function;
+    if (pathname == NULL) {
+        path = (char *)unavailable;
+    }
+    else {
+        path = rindex(pathname, '/');
+        if (path) {
+            path++;
+        }
+        else {
+            path = (char *)pathname;
+        }
+    }
+
+    if (fn == NULL) {
+        fn = (char *)unavailable;
+    }
+
+    fprintf(stderr, "pc: %p: file: %s:%d; func: %s\n", (void *)pc, path, n, fn);
+
+    return 0;
+}
+
+#define backtrace_core()                              \
+    c4m_trace_grid = c4m_new(c4m_type_grid(),         \
+                             c4m_kw("start_cols",     \
+                                    c4m_ka(3),        \
+                                    "start_rows",     \
+                                    c4m_ka(2),        \
+                                    "header_rows",    \
+                                    c4m_ka(1),        \
+                                    "container_tag",  \
+                                    c4m_ka("table2"), \
+                                    "stripe",         \
+                                    c4m_ka(true)));   \
+                                                      \
+    c4m_list_t *x = c4m_list(c4m_type_utf8());        \
+    c4m_list_append(x, c4m_new_utf8("PC"));           \
+    c4m_list_append(x, c4m_new_utf8("Location"));     \
+    c4m_list_append(x, c4m_new_utf8("Function"));     \
+                                                      \
+    c4m_grid_add_row(c4m_trace_grid, x);              \
+                                                      \
+    c4m_snap_column(c4m_trace_grid, 0);               \
+    c4m_snap_column(c4m_trace_grid, 1);               \
+    c4m_snap_column(c4m_trace_grid, 2);               \
+                                                      \
     backtrace_full(btstate, 0, c4m_bt_create_backtrace, c4m_bt_err, NULL);
 
 void
@@ -120,3 +153,9 @@ c4m_get_c_backtrace()
     return c4m_callout(c4m_new_utf8("Stack traces not enabled."));
 }
 #endif
+
+void
+c4m_static_c_backtrace()
+{
+    backtrace_full(btstate, 0, c4m_bt_static_backtrace, c4m_bt_err, NULL);
+}

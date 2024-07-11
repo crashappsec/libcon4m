@@ -439,6 +439,22 @@ mmm_alloc_committed(uint64_t size)
     return (void *)item->data;
 }
 
+#ifdef HATRACK_PER_INSTANCE_AUX
+void *
+mmm_alloc_committed_aux(uint64_t size, void *aux)
+{
+    uint64_t      actual_size = sizeof(mmm_header_t) + size;
+    mmm_header_t *item        = hatrack_zalloc_aux(actual_size, aux);
+
+    atomic_store(&item->write_epoch, atomic_fetch_add(&mmm_epoch, 1) + 1);
+
+    HATRACK_MALLOC_CTR();
+    DEBUG_MMM_INTERNAL(item->data, "mmm_alloc_committed");
+
+    return (void *)item->data;
+}
+#endif
+
 void
 mmm_add_cleanup_handler(void *ptr, mmm_cleanup_func handler, void *aux)
 {

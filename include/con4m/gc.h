@@ -128,7 +128,7 @@
 #ifndef C4M_DEFAULT_ARENA_SIZE
 
 // This is the size any test case that prints a thing grows to awfully fast.
-#define C4M_DEFAULT_ARENA_SIZE (1 << 25)
+#define C4M_DEFAULT_ARENA_SIZE (1 << 26)
 #endif
 
 // In the future, we would expect that a writer seeing the
@@ -222,6 +222,9 @@ extern void *c4m_alloc_from_arena(c4m_arena_t **,
 #endif
 
 #ifdef C4M_GC_STATS
+#ifndef C4M_SHOW_GC_DEFAULT
+#define C4M_SHOW_GC_DEFAULT 0
+#endif
 extern int c4m_gc_show_heap_stats_on;
 
 #define c4m_gc_show_heap_stats_on()  c4m_gc_show_heap_stats_on = 1
@@ -267,7 +270,6 @@ c4m_round_up_to_given_power_of_2(uint64_t power, uint64_t n)
 }
 
 #define C4M_GC_SCAN_ALL  ((void *)0)
-#define C4M_GC_SCAN_OBJ  ((void *)c4m_scan_header_only)
 #define C4M_GC_SCAN_NONE ((void *)0xffffffffffffffff)
 
 // gc_malloc and gc_alloc_* should only be used for INTERNAL dynamic
@@ -354,3 +356,22 @@ void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 #define ASAN_UNPOISON_MEMORY_REGION(addr, size) \
     ((void)(addr), (void)(size))
 #endif
+
+static inline ptrdiff_t
+c4m_ptr_diff(void *base, void *field)
+{
+    return (int64_t *)field - (int64_t *)base;
+}
+
+static inline void
+c4m_mark_raw_to_addr(uint64_t *bitfield, void *base, void *end)
+{
+    uint64_t diff = c4m_ptr_diff(base, end);
+    *bitfield     = (1 << (diff + 1)) - 1;
+}
+
+static inline void
+c4m_mark_obj_to_addr(uint64_t *bitfield, void *base, void *end)
+{
+    c4m_mark_raw_to_addr(bitfield, base, end);
+}

@@ -232,10 +232,22 @@ no_pct_check(tag_parse_ctx *ctx)
     }
 }
 
+static void
+tag_gc_bits(uint64_t *bitmap, tag_item_t *tag)
+{
+    c4m_mark_raw_to_addr(bitmap, tag, &tag->name);
+}
+
+static void
+frame_gc_bits(uint64_t *bitmap, fmt_frame_t *frame)
+{
+    c4m_mark_raw_to_addr(bitmap, frame, &frame->raw_contents);
+}
+
 static inline tag_item_t *
 alloc_tag_item(tag_parse_ctx *ctx)
 {
-    tag_item_t *out = c4m_gc_alloc(tag_item_t);
+    tag_item_t *out = c4m_gc_alloc_mapped(tag_item_t, tag_gc_bits);
     out->name       = ctx->not_matched;
 
     if (ctx->negating == true) {
@@ -391,10 +403,9 @@ internal_parse_style_lit(tag_parse_ctx *ctx)
 
     if (ctx->num_atoms == 0) {
         if (ctx->negating == false) {
-            c4m_utf8_t *msg = c4m_new_utf8(
-                "Empty tags are not allowed in rich literals. You can use [/] "
-                "to close all tags in a string, or to get literal square "
-                "brackets, escape with a backslash (e.g., \\[\\]");
+            c4m_utf8_t *msg = c4m_cstr_format(
+                "Empty tags are not allowed in rich literals ({}).",
+                ctx->raw);
             C4M_RAISE(msg);
         }
         alloc_tag_item(ctx);
@@ -460,7 +471,8 @@ c4m_extract_style_blocks(style_ctx *ctx, char *original_input)
             case ']':
                 tag_text[tag_ix++] = 0;
                 in_tag             = false;
-                tmp                = c4m_gc_alloc(fmt_frame_t);
+                tmp                = c4m_gc_alloc_mapped(fmt_frame_t,
+                                          frame_gc_bits);
                 tmp->start         = unstyled_cp;
                 tmp->raw_contents  = c4m_new_utf8(tag_text);
                 if (style_first == NULL) {

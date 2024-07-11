@@ -103,6 +103,7 @@ load_env(c4m_dict_t *environment_vars)
         c4m_utf8_t *value = c4m_new_utf8(val);
 
         hatrack_dict_put(environment_vars, key, value);
+        assert(hatrack_dict_get(environment_vars, key, NULL) == value);
     }
 
     c4m_gc_register_root(&environment_vars, 1);

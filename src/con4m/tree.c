@@ -201,13 +201,12 @@ c4m_tree_walk(c4m_tree_node_t *t, c4m_walker_fn callback)
 }
 
 static void
-c4m_tree_node_set_gc_bits(uint64_t *bitfield, int alloc_words)
-{
-    int ix;
+c4m_tree_node_set_gc_bits(uint64_t       *bitfield,
+                          c4m_base_obj_t *alloc)
 
-    c4m_set_object_header_bits(bitfield, &ix);
-    // First 3 words of the tree node pointers.
-    *bitfield |= (0x07 << ix);
+{
+    c4m_tree_node_t *n = (c4m_tree_node_t *)alloc->data;
+    c4m_mark_raw_to_addr(bitfield, alloc, &n->contents);
 }
 
 const c4m_vtable_t c4m_tree_vtable = {

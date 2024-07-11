@@ -2,14 +2,16 @@
 
 const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     [C4M_T_ERROR] = {
-        .name    = "error",
-        .typeid  = C4M_T_ERROR,
-        .dt_kind = C4M_DT_KIND_nil,
+        .name     = "error",
+        .typeid   = C4M_T_ERROR,
+        .dt_kind  = C4M_DT_KIND_nil,
+        .by_value = true,
     },
     [C4M_T_VOID] = {
-        .name    = "void",
-        .typeid  = C4M_T_VOID,
-        .dt_kind = C4M_DT_KIND_nil,
+        .name     = "void",
+        .typeid   = C4M_T_VOID,
+        .dt_kind  = C4M_DT_KIND_nil,
+        .by_value = true,
     },
     // Should only be used for views on bitfields and similar, where
     // the representation is packed bits. These should be 100%
@@ -373,7 +375,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name      = "keyword",
         .typeid    = C4M_T_KEYWORD,
         .alloc_len = sizeof(c4m_karg_info_t),
-        .vtable    = &c4m_kargs_vtable,
         .dt_kind   = C4M_DT_KIND_internal,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
@@ -426,33 +427,33 @@ _c4m_new(c4m_type_t *type, ...)
     c4m_dt_info_t   *tinfo     = type->details->base_type;
     uint64_t         alloc_len = tinfo->alloc_len + sizeof(c4m_base_obj_t);
     c4m_vtable_entry init_fn   = tinfo->vtable->methods[C4M_BI_CONSTRUCTOR];
+    c4m_vtable_entry scan_fn   = tinfo->vtable->methods[C4M_BI_GC_MAP];
 
 #if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
     if (tinfo->vtable->methods[C4M_BI_FINALIZER] == NULL) {
         obj = _c4m_gc_raw_alloc(alloc_len,
-                                (c4m_mem_scan_fn)init_fn,
+                                (c4m_mem_scan_fn)scan_fn,
                                 file,
                                 line);
     }
     else {
         obj = _c4m_gc_raw_alloc_with_finalizer(alloc_len,
-                                               (c4m_mem_scan_fn)init_fn,
+                                               (c4m_mem_scan_fn)scan_fn,
                                                file,
                                                line);
     }
 #else
     if (tinfo->vtable->methods[C4M_BI_FINALIZER] == NULL) {
-        obj = c4m_gc_raw_alloc(alloc_len, (c4m_mem_scan_fn)init_fn);
+        obj = c4m_gc_raw_alloc(alloc_len, (c4m_mem_scan_fn)scan_fn);
     }
     else {
         obj = c4m_gc_raw_alloc_with_finalizer(alloc_len,
-                                              (c4m_mem_scan_fn)init_fn);
+                                              (c4m_mem_scan_fn)scan_fn);
     }
 #endif
 
     c4m_alloc_hdr *hdr = &((c4m_alloc_hdr *)obj)[-1];
     hdr->con4m_obj     = 1;
-    hdr->scan_fn       = (c4m_mem_scan_fn)tinfo->vtable->methods[C4M_BI_GC_MAP];
 
     obj->base_data_type = tinfo;
     obj->concrete_type  = type;

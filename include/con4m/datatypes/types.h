@@ -57,7 +57,7 @@ typedef enum {
 typedef uint64_t (*c4m_next_typevar_fn)(void);
 
 typedef struct {
-    c4m_dict_t      *store;
+    crown_t          store;
     _Atomic uint64_t next_typeid;
 } c4m_type_universe_t;
 

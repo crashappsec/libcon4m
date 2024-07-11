@@ -13,11 +13,16 @@ c4m_list_init(c4m_list_t *list, va_list args)
     list->dont_acquire = false;
     pthread_rwlock_init(&list->lock, NULL);
 
-    if (c4m_obj_item_type_is_value(list)) {
-        list->data = c4m_gc_array_value_alloc(uint64_t *, list->length);
+    c4m_type_t *t = c4m_get_my_type(list);
+
+    if (c4m_type_requires_gc_scan(c4m_type_get_param(t, 0))) {
+        list->data = c4m_gc_array_alloc(uint64_t *, list->length);
     }
     else {
-        list->data = c4m_gc_array_alloc(uint64_t *, list->length);
+        if (t->details) {
+            c4m_print(c4m_type_get_param(t, 0));
+        }
+        list->data = c4m_gc_array_value_alloc(uint64_t *, list->length);
     }
 }
 
@@ -619,11 +624,10 @@ c4m_to_list_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *litmod)
 extern bool c4m_flexarray_can_coerce_to(c4m_type_t *, c4m_type_t *);
 
 static void
-c4m_list_set_gc_bits(uint64_t *bitfield, int alloc_words)
+c4m_list_set_gc_bits(uint64_t       *bitfield,
+                     c4m_base_obj_t *alloc)
 {
-    int ix;
-    c4m_set_object_header_bits(bitfield, &ix);
-    c4m_set_bit(bitfield, ix);
+    c4m_set_bit(bitfield, c4m_ptr_diff(alloc, alloc->data));
 }
 
 const c4m_vtable_t c4m_list_vtable = {

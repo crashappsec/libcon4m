@@ -88,8 +88,8 @@ extern void
 hatrack_setmallocfns(hatrack_mem_manager_t *);
 
 // This helps us declare optional parameters for allocation funcs
-#ifdef HATRACK_ALLOC_PASS_ALLOCATION
-#define HATRACK_LOC_DECL , char *file int line
+#ifdef HATRACK_ALLOC_PASS_LOCATION
+#define HATRACK_LOC_DECL , char *file, int line
 #else
 #define HATRACK_LOC_DECL
 #endif
@@ -153,4 +153,26 @@ _hatrack_free(void *oldptr, size_t oldsize HATRACK_LOC_DECL);
     _hatrack_free(oldptr, oldsize, __FILE__, __LINE__);
 #else
 #define hatrack_free(oldptr, oldsize) _hatrack_free(oldptr, oldsize)
+#endif
+
+#ifdef HATRACK_PER_INSTANCE_AUX
+extern void *
+_hatrack_malloc_aux(size_t size, void *aux HATRACK_LOC_DECL);
+extern void *
+_hatrack_zalloc_aux(size_t size, void *aux HATRACK_LOC_DECL);
+
+#ifdef HATRACK_ALLOC_PASS_LOCATION
+#define hatrack_malloc_aux(size, aux) \
+    _hatrack_malloc_aux(size, aux, __FILE__, __LINE__)
+#define hatrack_zalloc_aux(size, aux) \
+    _hatrack_zalloc_aux(size, aux, __FILE__, __LINE__)
+#else
+#define hatrack_malloc_aux(size, aux) \
+    _hatrack_malloc_aux(size, aux)
+#define hatrack_zalloc_aux(size, aux) \
+    _hatrack_zalloc_aux(size, aux)
+#endif // PASS_LOCATION
+#else  // PER_INSTANCE_AUX
+#define hatrack_malloc_aux(size) hatrack_malloc(size)
+#define hatrack_zalloc_aux(size) hatrack_zalloc(size)
 #endif

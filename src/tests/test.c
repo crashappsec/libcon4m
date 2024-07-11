@@ -120,12 +120,18 @@ extract_errors(c4m_test_kat *kat, c4m_utf32_t *s, int64_t start, int64_t end)
     }
 }
 
+static void
+kat_gc_bits(uint64_t *bitmap, c4m_test_kat *kat)
+{
+    c4m_mark_raw_to_addr(bitmap, kat, &kat->expected_errors);
+}
+
 static c4m_test_kat *
 c4m_parse_kat(c4m_str_t *path, c4m_str_t *s)
 {
     s = c4m_str_strip(s);
 
-    c4m_test_kat *result = c4m_gc_alloc(c4m_test_kat);
+    c4m_test_kat *result = c4m_gc_alloc_mapped(c4m_test_kat, kat_gc_bits);
     c4m_utf8_t   *output = c4m_new_utf8("$output:");
     c4m_utf8_t   *errors = c4m_new_utf8("$errors:");
     c4m_utf8_t   *hex    = c4m_new_utf8("$hex:");
@@ -186,7 +192,7 @@ c4m_parse_kat(c4m_str_t *path, c4m_str_t *s)
 static c4m_test_kat *
 c4m_extract_kat(c4m_utf8_t *path)
 {
-    c4m_file_compile_ctx *ctx = c4m_gc_alloc(c4m_file_compile_ctx);
+    c4m_file_compile_ctx *ctx = c4m_new_file_compile_ctx();
     c4m_stream_t         *s   = c4m_file_instream(path, C4M_T_UTF8);
 
     c4m_lex(ctx, s);
@@ -415,8 +421,8 @@ line_strip(c4m_str_t *s)
     c4m_list_t *parts = c4m_str_split(s, c4m_new_utf8("\n"));
 
     for (int i = 0; i < c4m_list_len(parts); i++) {
-        c4m_utf8_t *item = c4m_str_strip(c4m_list_get(parts, i, NULL));
-        item             = c4m_to_utf8(item);
+        c4m_utf8_t *line = c4m_to_utf8(c4m_list_get(parts, i, NULL));
+        c4m_utf8_t *item = c4m_to_utf8(c4m_str_strip(line));
         c4m_list_set(parts, i, item);
     }
 
@@ -460,8 +466,10 @@ empty_err:
                 output = c4m_str_to_hex(output, false);
             }
 
-            if (!c4m_str_eq(line_strip(output),
-                            line_strip(kat->expected_output))) {
+            c4m_utf8_t *expected = line_strip(kat->expected_output);
+            c4m_utf8_t *actual   = line_strip(output);
+
+            if (!c4m_str_eq(expected, actual)) {
                 ret = false;
 
                 c4m_printf(
@@ -469,14 +477,13 @@ empty_err:
                     fname);
                 c4m_printf(
                     "[h1]Expected output[/]\n{}\n[h1]Actual[/]\n{}\n",
-                    kat->expected_output,
-                    output);
+                    expected,
+                    actual);
 #if 1
                 c4m_printf(
                     "[h2]Expected (Hex)[/]\n{}\n[h2]Actual (Hex)[/]\n{}\n",
-                    c4m_hex_dump(kat->expected_output->data,
-                                 c4m_str_byte_len(kat->expected_output)),
-                    c4m_hex_dump(output->data, c4m_str_byte_len(output)));
+                    c4m_hex_dump(expected, c4m_str_byte_len(expected)),
+                    c4m_hex_dump(actual->data, c4m_str_byte_len(actual)));
 #endif
             }
         }
@@ -733,6 +740,7 @@ main(int argc, char **argv, char **envp)
             c4m_printf("[h5] Con4m testing [b navy blue]PASSED.[/]");
         }
     }
+
     c4m_gc_thread_collect();
 
     if (!num_errs && !no_exception) {

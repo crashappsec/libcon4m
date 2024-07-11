@@ -167,6 +167,18 @@
 
 #include <stdlib.h>
 
+#ifdef HATRACK_PER_INSTANCE_AUX
+
+static crown_store_t *_crown_store_new(uint64_t size, void *aux_arg);
+#define crown_store_new(size, aux_arg) _crown_store_new(size, aux_arg)
+#define get_aux(self)                  ((self)->aux_info_for_store)
+#else
+
+static crown_store_t *_crown_store_new(uint64_t size);
+#define crown_store_new(size, ignore) _crown_store_new(size)
+#define get_aux(ignore)
+#endif
+
 // Most of the store functions are needed by other modules, for better
 // or worse, so we lifted their prototypes into the header.
 static crown_store_t *
@@ -175,15 +187,71 @@ crown_store_migrate(crown_store_t *, mmm_thread_t *, crown_t *);
 static bool crown_help_required(uint64_t);
 static bool crown_need_to_help(crown_t *);
 
+#ifdef HATRACK_PER_INSTANCE_AUX
+crown_t *
+crown_new(void *aux)
+{
+    crown_t *ret;
+
+    ret = (crown_t *)hatrack_malloc(sizeof(crown_t));
+
+    crown_init(ret, aux);
+    return ret;
+}
+
+crown_t *
+crown_new_size(char size, void *aux)
+{
+    crown_t *ret;
+
+    ret = (crown_t *)hatrack_malloc(sizeof(crown_t));
+
+    crown_init_size(ret, size, aux);
+
+    return ret;
+}
+
+void
+crown_init(crown_t *self, void *aux)
+{
+    crown_init_size(self, HATRACK_MIN_SIZE_LOG, aux);
+
+    return;
+}
+
+void
+crown_init_size(crown_t *self, char size, void *aux)
+{
+    crown_store_t *store;
+    uint64_t       len;
+
+    if (((size_t)size) > (sizeof(intptr_t) * 8)) {
+        hatrack_panic("invalid size in crown_init_size");
+    }
+
+    if (size < HATRACK_MIN_SIZE_LOG) {
+        hatrack_panic("invalid size in crown_init_size");
+    }
+
+    len              = 1 << size;
+    store            = crown_store_new(len, aux);
+    self->next_epoch = 1;
+
+    atomic_store(&self->store_current, store);
+    atomic_store(&self->item_count, 0);
+
+    return;
+}
+
+#else
+
 crown_t *
 crown_new(void)
 {
     crown_t *ret;
 
     ret = (crown_t *)hatrack_malloc(sizeof(crown_t));
-
     crown_init(ret);
-
     return ret;
 }
 
@@ -222,7 +290,7 @@ crown_init_size(crown_t *self, char size)
     }
 
     len              = 1 << size;
-    store            = crown_store_new(len);
+    store            = crown_store_new(len, NULL);
     self->next_epoch = 1;
 
     atomic_store(&self->store_current, store);
@@ -230,6 +298,7 @@ crown_init_size(crown_t *self, char size)
 
     return;
 }
+#endif
 
 void
 crown_cleanup(crown_t *self)
@@ -531,14 +600,18 @@ crown_view_slow(crown_t *self, uint64_t *num, bool sort)
     return crown_view_slow_mmm(self, mmm_thread_acquire(), num, sort);
 }
 
-crown_store_t *
-crown_store_new(uint64_t size)
+static crown_store_t *
+#ifdef HATRACK_PER_INSTANCE_AUX
+_crown_store_new(uint64_t size, void *aux_arg)
+#else
+_crown_store_new(uint64_t size)
+#endif
 {
     crown_store_t *store;
     uint64_t       alloc_len;
 
     alloc_len = sizeof(crown_store_t) + sizeof(crown_bucket_t) * size;
-    store     = (crown_store_t *)mmm_alloc_committed(alloc_len);
+    store     = (crown_store_t *)mmm_alloc_committed_aux(alloc_len, aux_arg);
 
     store->last_slot = size - 1;
     store->threshold = hatrack_compute_table_threshold(size);
@@ -1387,7 +1460,7 @@ crown_store_migrate(crown_store_t *self, mmm_thread_t *thread, crown_t *top)
             new_size = hatrack_new_size(self->last_slot, new_used);
         }
 
-        candidate_store = crown_store_new(new_size);
+        candidate_store = crown_store_new(new_size, get_aux(top));
 
         if (!CAS(&self->store_next, &new_store, candidate_store)) {
             mmm_retire_unused(candidate_store);
