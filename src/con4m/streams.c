@@ -432,8 +432,16 @@ c4m_stream_read_all(c4m_stream_t *stream)
         }
         c4m_list_append(l, one);
     }
+
+    c4m_str_t *s;
+
     if (outkind) {
-        c4m_str_t *s = c4m_str_join(l, c4m_empty_string());
+        if (c4m_list_len(l) == 0) {
+            s = c4m_empty_string();
+        }
+        else {
+            s = c4m_str_join(l, c4m_empty_string());
+        }
 
         if (outkind == C4M_F_STREAM_UTF8_OUT) {
             return (c4m_obj_t *)c4m_to_utf8(s);

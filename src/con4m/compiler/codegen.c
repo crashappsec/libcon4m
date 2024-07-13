@@ -33,7 +33,6 @@ typedef struct {
     c4m_compile_ctx      *cctx;
     c4m_file_compile_ctx *fctx;
     c4m_list_t           *instructions;
-    c4m_list_t           *module_functions;
     c4m_tree_node_t      *cur_node;
     c4m_pnode_t          *cur_pnode;
     c4m_zmodule_info_t   *cur_module;
@@ -2344,29 +2343,37 @@ gen_function(gen_ctx            *ctx,
     // the same way, should probably make this more sane, but
     // that's why this is below the append.
     decl->local_id = c4m_list_len(vm->obj->func_info);
+    ctx->retsym    = NULL;
 }
 
 static void
 gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
 {
     c4m_zmodule_info_t *module = c4m_new_zmodule();
-    c4m_pnode_t        *root;
 
-    ctx->cur_module          = module;
-    ctx->fctx->module_object = module;
-    ctx->cur_node            = ctx->fctx->parse_tree;
-    module->instructions     = c4m_list(c4m_type_ref());
-    ctx->instructions        = module->instructions;
-    module->module_id        = ctx->fctx->local_module_id;
-    module->module_hash      = ctx->fctx->module_id;
-    module->modname          = ctx->fctx->module;
-    module->authority        = ctx->fctx->authority;
-    module->path             = ctx->fctx->path;
-    module->package          = ctx->fctx->package;
-    module->source           = c4m_to_utf8(ctx->fctx->raw);
-    root                     = c4m_get_pnode(ctx->cur_node);
-    module->shortdoc         = c4m_token_raw_content(root->short_doc);
-    module->longdoc          = c4m_token_raw_content(root->long_doc);
+    ctx->fctx->module_object  = module;
+    ctx->cur_node             = ctx->fctx->parse_tree;
+    ctx->instructions         = c4m_list(c4m_type_ref());
+    ctx->cur_pnode            = c4m_get_pnode(ctx->cur_node);
+    ctx->cur_module           = module;
+    ctx->target_info          = NULL;
+    ctx->retsym               = NULL;
+    ctx->instruction_counter  = 0;
+    ctx->current_stack_offset = ctx->fctx->static_size;
+    ctx->max_stack_size       = ctx->fctx->static_size;
+    ctx->lvalue               = false;
+    ctx->assign_method        = assign_to_mem_slot;
+
+    module->instructions = ctx->instructions;
+    module->module_id    = ctx->fctx->local_module_id;
+    module->module_hash  = ctx->fctx->module_id;
+    module->modname      = ctx->fctx->module;
+    module->authority    = ctx->fctx->authority;
+    module->path         = ctx->fctx->path;
+    module->package      = ctx->fctx->package;
+    module->source       = c4m_to_utf8(ctx->fctx->raw);
+    module->shortdoc     = c4m_token_raw_content(ctx->cur_pnode->short_doc);
+    module->longdoc      = c4m_token_raw_content(ctx->cur_pnode->long_doc);
 
     // Still to fill in to the zmodule object (need to reshuffle to align):
     // authority/path/provided_path/package/module_id
@@ -2375,8 +2382,6 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
     // Also need to do a bit of work aorund sym_types, codesyms, datasyms
     // and parameters.
 
-    ctx->current_stack_offset = ctx->fctx->static_size;
-    ctx->max_stack_size       = ctx->fctx->static_size;
     gen_one_node(ctx);
 
     c4m_zinstruction_t *sp_move = c4m_list_get(module->instructions,

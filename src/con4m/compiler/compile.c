@@ -1,6 +1,12 @@
 #define C4M_USE_INTERNAL_API
 #include "con4m.h"
 
+static hatrack_hash_t
+file_ctx_hash(c4m_file_compile_ctx *ctx)
+{
+    return ctx->module_id;
+}
+
 static void
 fcx_gc_bits(uint64_t *bitfield, c4m_file_compile_ctx *ctx)
 {
@@ -473,15 +479,15 @@ c4m_new_compile_context(c4m_str_t *input)
     result->final_attrs   = c4m_new_scope(NULL, C4M_SCOPE_GLOBAL);
     result->final_globals = c4m_new_scope(NULL, C4M_SCOPE_ATTRIBUTES);
     result->final_spec    = c4m_new_spec();
-    result->backlog       = c4m_new(c4m_type_set(c4m_type_ref()));
-    result->processed     = c4m_new(c4m_type_set(c4m_type_ref()));
+    result->backlog       = c4m_new(c4m_type_set(c4m_type_ref()),
+                              c4m_kw("hash", c4m_ka(file_ctx_hash)));
+    result->processed     = c4m_new(c4m_type_set(c4m_type_ref()),
+                                c4m_kw("hash", c4m_ka(file_ctx_hash)));
     result->const_data    = c4m_buffer_empty();
     result->const_memos   = c4m_alloc_marshal_memos();
     result->const_memoid  = 1;
-    result->instance_map  = c4m_new(c4m_type_dict(c4m_type_ref(),
-                                                 c4m_type_i64()));
-    result->str_map       = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                            c4m_type_i64()));
+    result->instance_map  = c4m_dict(c4m_type_ref(), c4m_type_i64());
+    result->str_map       = c4m_dict(c4m_type_utf8(), c4m_type_i64());
     result->const_stream  = c4m_buffer_outstream(result->const_data, true);
 
     if (input != NULL) {
@@ -644,26 +650,15 @@ c4m_perform_module_loads(c4m_compile_ctx *ctx)
             }
         }
 
-        merge_function_decls(ctx, cur);
+        if (cur->status < c4m_compile_status_scopes_merged) {
+            merge_function_decls(ctx, cur);
+            cur->status = c4m_compile_status_scopes_merged;
+        }
 
         c4m_set_put(ctx->processed, cur);
         c4m_set_remove(ctx->backlog, cur);
     }
 }
-
-#ifdef C4M_PASS1_UNIT_TESTS
-static void
-test_ordering(c4m_compile_ctx *cctx)
-{
-    c4m_file_compile_ctx *file;
-
-    for (int i = 0; i < c4m_xlist_len(cctx->module_ordering); i++) {
-        file = c4m_xlist_get(cctx->module_ordering, i, NULL);
-
-        c4m_print(c4m_cstr_format("[h2]{}[/]", file->path));
-    }
-}
-#endif
 
 typedef struct topologic_search_ctx {
     c4m_file_compile_ctx *cur;
@@ -715,10 +710,7 @@ topological_order_process(tsearch_ctx *ctx)
         }
     }
 
-    c4m_file_compile_ctx *popped = c4m_list_pop(ctx->visiting);
-
-    assert(popped == cur);
-
+    cur = c4m_list_pop(ctx->visiting);
     c4m_list_append(ctx->cctx->module_ordering, cur);
 }
 
@@ -736,13 +728,16 @@ build_topological_ordering(c4m_compile_ctx *cctx)
     // search.
 
     tsearch_ctx search_state = {
-        .cur      = cctx->entry_point,
+        .cur      = cctx->sys_package,
         .visiting = c4m_new(c4m_type_list(c4m_type_ref())),
         .cctx     = cctx,
     };
 
     cctx->module_ordering = c4m_new(c4m_type_list(c4m_type_ref()));
 
+    topological_order_process(&search_state);
+
+    search_state.cur = cctx->entry_point;
     topological_order_process(&search_state);
 }
 
@@ -923,10 +918,6 @@ merge_global_info(c4m_compile_ctx *cctx)
 
     build_topological_ordering(cctx);
 
-#ifdef C4M_PASS1_UNIT_TESTS
-    test_ordering(cctx);
-#endif
-
     uint64_t mod_len = c4m_list_len(cctx->module_ordering);
 
     for (uint64_t i = 0; i < mod_len; i++) {
@@ -942,24 +933,35 @@ merge_global_info(c4m_compile_ctx *cctx)
     }
 }
 
-c4m_compile_ctx *
-c4m_compile_from_entry_point(c4m_str_t *location)
+c4m_list_t *
+c4m_system_module_files()
 {
-    c4m_compile_ctx *result = c4m_new_compile_context(location);
+    return c4m_path_walk(c4m_system_module_path());
+}
+
+c4m_compile_ctx *
+c4m_compile_from_entry_point(c4m_str_t *entry)
+{
+    c4m_compile_ctx *result = c4m_new_compile_context(NULL);
+    c4m_str_t       *fname  = c4m_new_utf8("__init.c4m");
+
+    fname               = c4m_path_simple_join(c4m_system_module_path(), fname);
+    result->sys_package = c4m_init_module_from_loc(result, fname);
+
+    if (entry != NULL) {
+        result->entry_point = c4m_init_module_from_loc(result, entry);
+    }
 
     c4m_perform_module_loads(result);
-
     if (result->fatality) {
         return result;
     }
-
     merge_global_info(result);
-
     if (result->fatality) {
         return result;
     }
-
     c4m_check_pass(result);
+
     if (result->fatality) {
         return result;
     }
@@ -982,10 +984,4 @@ c4m_generate_code(c4m_compile_ctx *ctx)
 
     c4m_vm_reset(result);
     return result;
-}
-
-c4m_list_t *
-c4m_system_module_files()
-{
-    return c4m_path_walk(c4m_system_module_path());
 }

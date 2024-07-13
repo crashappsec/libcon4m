@@ -691,11 +691,12 @@ static inline c4m_tree_node_t *
 temporary_tree(parse_ctx *ctx, c4m_node_kind_t nt)
 {
     hatstack_push(ctx->root_stack, ctx->cur);
-    c4m_pnode_t     *tmproot = c4m_new(c4m_type_parse_node(), ctx, nt);
-    c4m_tree_node_t *result  = c4m_new(c4m_type_tree(c4m_type_parse_node()),
-                                      c4m_kw("contents", c4m_ka(tmproot)));
+    c4m_pnode_t *tmproot = c4m_new(c4m_type_parse_node(), ctx, nt);
 
-    ctx->cur = result;
+    c4m_type_t      *pn     = c4m_type_parse_node();
+    c4m_type_t      *tt     = c4m_type_tree(pn);
+    c4m_tree_node_t *result = c4m_new(tt, c4m_kw("contents", c4m_ka(tmproot)));
+    ctx->cur                = result;
 
     return result;
 }

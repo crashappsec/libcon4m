@@ -128,7 +128,7 @@ cfg_copy_du_info(cfg_ctx        *ctx,
 
     hatrack_dict_item_t *view = hatrack_dict_items_sort(node->liveness_info,
                                                         &n);
-    c4m_set_t           *s    = c4m_set(c4m_type_utf8());
+    c4m_dict_t          *d    = c4m_dict(c4m_type_utf8(), c4m_type_int());
 
     for (uint64_t i = 0; i < n; i++) {
         c4m_symbol_t *sym = view[i].key;
@@ -137,7 +137,7 @@ cfg_copy_du_info(cfg_ctx        *ctx,
             continue;
         }
 
-        if (hatrack_set_add(s, sym->name)) {
+        if (hatrack_dict_add(d, sym->name, 0)) {
             hatrack_dict_put(copy, view[i].key, view[i].value);
         }
     }
@@ -324,7 +324,7 @@ cfg_merge_aux_entries_to_top(cfg_ctx *ctx, c4m_cfg_node_t *node)
         return;
     }
 
-    c4m_set_t *sometimes = c4m_new(c4m_type_set(c4m_type_ref()));
+    c4m_set_t *sometimes = c4m_new(c4m_type_utf8());
 
     if (exit->sometimes_live != NULL) {
         int n = c4m_list_len(exit->sometimes_live);

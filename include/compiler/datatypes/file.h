@@ -6,6 +6,7 @@ typedef enum {
     c4m_compile_status_tokenized,
     c4m_compile_status_code_parsed,
     c4m_compile_status_code_loaded,     // parsed w/ declarations processed.
+    c4m_compile_status_scopes_merged,   // Merged info global scope,
     c4m_compile_status_tree_typed,      // full symbols and parsing.
     c4m_compile_status_applied_folding, // Skippable and not done yet.
     c4m_compile_status_generated_code

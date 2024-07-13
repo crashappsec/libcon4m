@@ -15,7 +15,7 @@
 #define SPAN_HERE  1
 #define SPAN_BELOW 2
 
-static inline c4m_render_style_t *
+static c4m_render_style_t *
 grid_style(c4m_grid_t *grid)
 {
     if (!grid->self->current_style) {
@@ -1350,13 +1350,12 @@ grid_add_right_pad(c4m_grid_t *grid, c4m_list_t *lines)
     }
 }
 
-static inline void
+static void
 add_vertical_bar(c4m_grid_t      *grid,
                  c4m_list_t      *lines,
                  c4m_border_set_t to_match)
 {
     c4m_render_style_t *gs = grid_style(grid);
-
     if (!(gs->borders & to_match)) {
         return;
     }
@@ -1366,9 +1365,12 @@ add_vertical_bar(c4m_grid_t      *grid,
     c4m_utf32_t        *bar;
 
     bar = styled_repeat(border_theme->vertical_rule, 1, border_color);
-
     for (int i = 0; i < c4m_list_len(lines); i++) {
-        c4m_utf32_t *s = c4m_to_utf32(c4m_list_get(lines, i, NULL));
+        c4m_str_t *n = c4m_list_get(lines, i, NULL);
+        if (n == NULL) {
+            n = c4m_empty_string();
+        }
+        c4m_utf32_t *s = c4m_to_utf32(n);
         c4m_list_set(lines, i, c4m_str_concat(s, bar));
     }
 }
@@ -1665,7 +1667,6 @@ _c4m_grid_render(c4m_grid_t *grid, ...)
 
         grid_add_right_border(grid, row);
         grid_add_right_pad(grid, row);
-
         c4m_list_plus_eq(result, row);
 
         if (i + 1 < grid->num_rows) {

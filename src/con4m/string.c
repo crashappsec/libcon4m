@@ -367,8 +367,6 @@ c4m_str_concat(const c4m_str_t *p1, const c4m_str_t *p2)
     memcpy(r->data, s1->data, s1_len * 4);
     ptr += s1_len;
 
-    assert(ptr[-1]);
-
     memcpy(ptr, s2->data, s2_len * 4);
 
     r->codepoints = n;
@@ -382,11 +380,14 @@ c4m_utf8_join(c4m_list_t *l, const c4m_utf8_t *joiner, bool add_trailing)
     int64_t     num_items = c4m_list_len(l);
     int64_t     new_len   = 0;
     int         jlen      = 0;
-    c4m_list_t *tmplist   = c4m_new(c4m_type_list(c4m_type_utf8()),
-                                  c4m_kw("length", c4m_ka(num_items)));
+    c4m_list_t *tmplist   = c4m_list(c4m_type_utf8());
 
     for (int i = 0; i < num_items; i++) {
-        c4m_str_t *s = c4m_to_utf8(c4m_list_get(l, i, NULL));
+        c4m_str_t *s = c4m_list_get(l, i, NULL);
+        if (!s) {
+            continue;
+        }
+        s = c4m_to_utf8(s);
         new_len += s->byte_len;
         c4m_list_append(tmplist, s);
     }
@@ -401,7 +402,9 @@ c4m_utf8_join(c4m_list_t *l, const c4m_utf8_t *joiner, bool add_trailing)
     char       *p      = result->data;
     c4m_utf8_t *cur    = c4m_list_get(tmplist, 0, NULL);
 
-    memcpy(p, cur->data, cur->byte_len);
+    if (cur && cur->byte_len) {
+        memcpy(p, cur->data, cur->byte_len);
+    }
 
     for (int i = 1; i < num_items; i++) {
         p += cur->byte_len;
@@ -412,7 +415,9 @@ c4m_utf8_join(c4m_list_t *l, const c4m_utf8_t *joiner, bool add_trailing)
         }
 
         cur = c4m_list_get(tmplist, i, NULL);
-        memcpy(p, cur->data, cur->byte_len);
+        if (cur && cur->byte_len) {
+            memcpy(p, cur->data, cur->byte_len);
+        }
     }
 
     if (add_trailing && jlen != 0) {
@@ -575,7 +580,7 @@ c4m_to_utf8(const c4m_utf32_t *inp)
 c4m_utf32_t *
 c4m_to_utf32(const c4m_utf8_t *instr)
 {
-    if (!instr) {
+    if (!instr || instr->byte_len == 0) {
         c4m_utf32_t *outstr = c4m_new(c4m_type_utf32(),
                                       c4m_kw("length", c4m_ka(0)));
         return outstr;

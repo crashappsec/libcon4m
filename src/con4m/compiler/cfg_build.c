@@ -399,8 +399,12 @@ du_format_node(c4m_cfg_node_t *n)
         result = c4m_new_utf8("-");
     }
     else {
-        result = c4m_cstr_format("[i]{}",
-                                 c4m_str_join(cells, c4m_new_utf8(", ")));
+        if (num_syms) {
+            result = c4m_str_join(cells, c4m_new_utf8(", "));
+        }
+        else {
+            result = c4m_rich_lit("[i](none)");
+        }
     }
 
     if (sometimes_live == NULL) {

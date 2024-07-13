@@ -658,6 +658,19 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
 
         raw  = arena->next_alloc;
         next = (c4m_alloc_hdr *)&(raw->data[wordlen]);
+        if (((uint64_t *)next) > arena->heap_end) {
+            arena->grow_next = true;
+#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+            return c4m_alloc_from_arena(arena_ptr,
+                                        len,
+                                        scan_fn,
+                                        finalize,
+                                        file,
+                                        line);
+#else
+            return c4m_alloc_from_arena(arena_ptr, len, scan_fn, finalize);
+#endif
+        }
     }
 
     if (len > arena->largest_alloc) {

@@ -411,6 +411,10 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     },
 };
 
+extern int TMP_DEBUG;
+extern int c4m_current_test_case;
+extern int c4m_watch_case;
+
 #if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
 c4m_obj_t
 _c4m_new(char *file, int line, c4m_type_t *type, ...)

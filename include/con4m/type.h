@@ -106,6 +106,12 @@ c4m_type_is_bool(c4m_type_t *n)
 }
 
 static inline bool
+c4m_type_is_ref(c4m_type_t *n)
+{
+    return c4m_type_resolve(n)->typeid == C4M_T_REF;
+}
+
+static inline bool
 c4m_type_is_locked(c4m_type_t *t)
 {
     return c4m_type_resolve(t)->details->flags & C4M_FN_TY_LOCK;

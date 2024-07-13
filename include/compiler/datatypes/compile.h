@@ -6,6 +6,7 @@ typedef struct {
     c4m_scope_t          *final_globals;
     c4m_spec_t           *final_spec;
     c4m_file_compile_ctx *entry_point;
+    c4m_file_compile_ctx *sys_package;
     c4m_dict_t           *module_cache;
     c4m_list_t           *module_ordering;
     c4m_set_t            *backlog;   // Modules we need to process.

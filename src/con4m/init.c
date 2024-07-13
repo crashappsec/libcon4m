@@ -167,7 +167,7 @@ c4m_init_path()
     c4m_gc_register_root(&con4m_path, 1);
     c4m_gc_register_root(&con4m_extensions, 1);
 
-    con4m_extensions = c4m_new(c4m_type_set(c4m_type_utf8()));
+    con4m_extensions = c4m_set(c4m_type_utf8());
 
     c4m_set_add(con4m_extensions, c4m_new_utf8("c4m"));
 

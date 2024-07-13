@@ -329,7 +329,6 @@ build_file_list()
             continue;
         case C4M_FK_NOT_FOUND:
             s = c4m_path_simple_join(cur_dir, fname);
-            c4m_printf("Second attempt: {}", s);
             switch (c4m_get_file_kind(s)) {
             case C4M_FK_IS_REG_FILE:
             case C4M_FK_IS_FLINK:
@@ -635,6 +634,9 @@ bool c4m_definite_memcheck_error = false;
 c4m_list_t *
 c4m_system_module_files();
 
+int c4m_current_test_case = 0;
+int c4m_watch_case        = 5;
+
 int
 main(int argc, char **argv, char **envp)
 {
@@ -691,6 +693,7 @@ main(int argc, char **argv, char **envp)
             c4m_test_kat *kat   = items[i].value;
 
             if (kat != NULL) {
+                c4m_current_test_case++;
                 num_tests++;
                 c4m_printf("[h4]Running test {}: [i]{}",
                            c4m_box_u64(num_tests),

@@ -1172,13 +1172,25 @@ extract_fn_sig_info(c4m_pass1_ctx   *ctx,
     return info;
 }
 
+static c4m_list_t *
+c4m_get_func_mods(c4m_tree_node_t *tnode)
+{
+    c4m_list_t *result = c4m_list(c4m_type_tree(c4m_type_parse_node()));
+
+    for (int i = 0; i < tnode->num_kids; i++) {
+        c4m_list_append(result, tnode->children[i]);
+    }
+
+    return result;
+}
+
 static void
 handle_func_decl(c4m_pass1_ctx *ctx)
 {
     c4m_tree_node_t *tnode = c4m_cur_node(ctx);
     c4m_fn_decl_t   *decl  = c4m_new_fn_decl();
-    c4m_utf8_t      *name  = c4m_node_text(c4m_get_match(ctx, c4m_2nd_kid_id));
-    c4m_list_t      *mods  = c4m_apply_pattern(ctx, c4m_func_mods);
+    c4m_utf8_t      *name  = c4m_node_text(tnode->children[1]);
+    c4m_list_t      *mods  = c4m_get_func_mods(tnode->children[0]);
     int              nmods = c4m_list_len(mods);
     c4m_symbol_t    *sym;
 

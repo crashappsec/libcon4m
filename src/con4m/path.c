@@ -203,7 +203,7 @@ c4m_path_join(c4m_list_t *items)
         else {
             len += tmplen;
         }
-        if (tmp->data[tmplen - 1] != '/') {
+        if (i + 1 != last && tmp->data[tmplen - 1] != '/') {
             len++;
         }
     }
@@ -220,9 +220,9 @@ c4m_path_join(c4m_list_t *items)
         }
 
         memcpy(p, tmp->data, tmplen);
-        p += (tmplen - 1);
+        p += tmplen;
 
-        if (i + 1 != last && *p++ != '/') {
+        if (i + 1 != last && *p != '/') {
             *p++ = '/';
         }
     }

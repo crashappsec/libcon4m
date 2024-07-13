@@ -212,13 +212,14 @@ prep_allocation(c4m_alloc_hdr *old, c4m_arena_t *new_arena)
 #define TRACE_DEBUG_ARGS
 #endif
 
-    res            = c4m_alloc_from_arena(&arena,
+    res              = c4m_alloc_from_arena(&arena,
                                old->request_len,
                                old->scan_fn,
                                (bool)old->finalize
                                    TRACE_DEBUG_ARGS);
-    res            = &res[-1];
-    res->con4m_obj = old->con4m_obj;
+    res              = &res[-1];
+    res->con4m_obj   = old->con4m_obj;
+    res->cached_hash = old->cached_hash;
 
     return res;
 }
@@ -1041,7 +1042,7 @@ c4m_collect_arena(c4m_arena_t *from_space)
         c4m_box_u64(available / mb),
         c4m_box_u64((old_used - live) / mb));
 
-    c4m_printf("Copied [em]{:,}[/] records; Trashed [em]{:,}[/].",
+    c4m_printf("Copied [em]{:,}[/] records; Trashed [em]{:,}[/]",
                c4m_box_u64(num_migrations),
                c4m_box_u64(old_num_records - num_migrations));
 

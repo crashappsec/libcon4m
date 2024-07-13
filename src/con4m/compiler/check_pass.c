@@ -481,7 +481,6 @@ initial_function_resolution(pass2_ctx       *ctx,
     // is worthless, because we don't want concrete types at call
     // sites to influence the actual type. So in those cases, we defer
     // until the end of the pass, just like w/ overloads.
-
     if (polymorphic_fns == NULL) {
         setup_polymorphic_fns();
     }
@@ -1637,7 +1636,8 @@ handle_typeof_statement(pass2_ctx *ctx)
     c4m_pnode_t        *pnode    = c4m_get_pnode(saved);
     c4m_control_info_t *ci       = control_init(pnode->extra_info);
     c4m_list_t         *branches = c4m_get_case_branches(saved);
-    c4m_tree_node_t    *elsenode = c4m_get_match_on_node(saved, c4m_case_else);
+    c4m_tree_node_t    *elsenode = c4m_get_match_on_node(saved,
+                                                      c4m_else_condition);
     c4m_tree_node_t    *variant  = c4m_get_match_on_node(saved,
                                                      c4m_case_cond_typeof);
     c4m_tree_node_t    *label    = c4m_get_match_on_node(saved, c4m_opt_label);
@@ -1797,7 +1797,7 @@ handle_switch_statement(pass2_ctx *ctx)
     c4m_control_info_t *bi           = control_init(pnode->extra_info);
     c4m_list_t         *branches     = c4m_get_case_branches(saved);
     c4m_tree_node_t    *elsenode     = c4m_get_match_on_node(saved,
-                                                      c4m_case_else);
+                                                      c4m_else_condition);
     c4m_tree_node_t    *variant_node = c4m_get_match_on_node(saved,
                                                           c4m_case_cond);
     c4m_tree_node_t    *label        = c4m_get_match_on_node(saved,

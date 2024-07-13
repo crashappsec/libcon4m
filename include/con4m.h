@@ -11,7 +11,6 @@
 
 // #define C4M_GC_SHOW_COLLECT_STACK_TRACES
 #define C4M_USE_FRAME_INTRINSIC
-
 // #define C4M_GCT_MOVE        1
 // #define C4M_GCT_PTR_TO_MOVE 1
 
@@ -36,6 +35,8 @@
 // If you want to identify zero-length allocs while FULL_MEMCHECK is on...
 // But
 // #define C4M_WARN_ON_ZERO_ALLOCS
+
+// #define C4M_DEBUG_PATTERNS
 
 #ifdef C4M_NO_DEV_MODE
 #undef C4M_DEV

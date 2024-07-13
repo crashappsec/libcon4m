@@ -5,50 +5,46 @@ extern hatrack_hash_t c4m_custom_string_hash(c4m_str_t *s);
 static void
 c4m_set_init(c4m_set_t *set, va_list args)
 {
-    size_t         hash_fn;
-    c4m_type_t    *stype     = c4m_get_my_type(set);
-    bool           using_obj = false;
-    c4m_dt_info_t *info;
+    size_t              hash_fn;
+    c4m_type_t         *stype       = c4m_get_my_type(set);
+    bool                using_obj   = true;
+    hatrack_hash_func_t custom_hash = NULL;
+    c4m_dt_info_t      *info;
 
-    if (stype != NULL) {
-        stype   = c4m_list_get(c4m_type_get_params(stype), 0, NULL);
-        info    = c4m_type_get_data_type_info(stype);
+    stype = c4m_list_get(c4m_type_get_params(stype), 0, NULL);
+    info  = c4m_type_get_data_type_info(stype);
+
+    switch (info->typeid) {
+    case C4M_T_REF:
+        hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR;
+        using_obj = false;
+        break;
+    case C4M_T_UTF8:
+    case C4M_T_UTF32:
+        custom_hash = (hatrack_hash_func_t)c4m_custom_string_hash;
+        break;
+    default:
         hash_fn = info->hash_fn;
+        break;
+    }
+
+    c4m_karg_va_init(args);
+    c4m_kw_ptr("hash", custom_hash);
+
+    if (custom_hash != NULL) {
+        hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM;
+        hatrack_set_init(set, hash_fn);
+        hatrack_set_set_custom_hash(set, custom_hash);
     }
     else {
-        hash_fn = (uint32_t)va_arg(args, size_t);
-    }
-
-    if (hash_fn == HATRACK_DICT_KEY_TYPE_PTR) {
-        using_obj = true;
-        hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR;
-    }
-
-    hatrack_set_init(set, hash_fn);
-
-    switch (hash_fn) {
-    case HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM:
-        // clang-format off
-        hatrack_set_set_custom_hash(set,
-                                (hatrack_hash_func_t)c4m_custom_string_hash);
-        // clang-format on
-        break;
-    case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
-        hatrack_set_set_hash_offset(set, C4M_STR_HASH_KEY_POINTER_OFFSET);
-        /* fallthrough */
-    case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
-    case HATRACK_DICT_KEY_TYPE_OBJ_INT:
-    case HATRACK_DICT_KEY_TYPE_OBJ_REAL:
+        hatrack_set_init(set, hash_fn);
+        hatrack_set_set_hash_offset(set, 0);
         if (using_obj) {
             hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_OBJ_OFFSET);
         }
         else {
             hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_RAW_OFFSET);
         }
-        break;
-    default:
-        hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_RAW_OFFSET);
-        break;
     }
 }
 
