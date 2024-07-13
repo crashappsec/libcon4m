@@ -19,9 +19,6 @@ c4m_list_init(c4m_list_t *list, va_list args)
         list->data = c4m_gc_array_alloc(uint64_t *, list->length);
     }
     else {
-        if (t->details) {
-            c4m_print(c4m_type_get_param(t, 0));
-        }
         list->data = c4m_gc_array_value_alloc(uint64_t *, list->length);
     }
 }

@@ -292,16 +292,18 @@ build_file_list()
     c4m_list_t   *to_recurse = c4m_list(c4m_type_utf8());
     c4m_dict_t   *result     = c4m_dict(c4m_type_utf8(), c4m_type_ref());
     c4m_utf8_t   *test_dir   = c4m_get_env(c4m_new_utf8("CON4M_TEST_DIR"));
+    c4m_utf8_t   *cur_dir    = c4m_get_current_directory();
     c4m_utf8_t   *ext        = c4m_new_utf8(".c4m");
     c4m_test_kat *kat;
 
     int n = c4m_list_len(argv);
 
     if (test_dir == NULL) {
-        test_dir = c4m_new_utf8("../tests/");
+        test_dir = c4m_cstr_format("{}/tests/", c4m_con4m_root());
     }
-
-    test_dir = c4m_resolve_path(test_dir);
+    else {
+        test_dir = c4m_resolve_path(test_dir);
+    }
 
     if (!n) {
         n    = 1;
@@ -310,8 +312,8 @@ build_file_list()
     }
 
     for (int i = 0; i < n; i++) {
-        c4m_utf8_t *s = c4m_to_utf8(c4m_list_get(argv, i, NULL));
-        s             = c4m_resolve_path(c4m_path_simple_join(test_dir, s));
+        c4m_utf8_t *fname = c4m_to_utf8(c4m_list_get(argv, i, NULL));
+        c4m_utf8_t *s     = c4m_path_simple_join(test_dir, fname);
 
         switch (c4m_get_file_kind(s)) {
         case C4M_FK_IS_REG_FILE:
@@ -326,6 +328,21 @@ build_file_list()
             c4m_list_append(to_recurse, s);
             continue;
         case C4M_FK_NOT_FOUND:
+            s = c4m_path_simple_join(cur_dir, fname);
+            c4m_printf("Second attempt: {}", s);
+            switch (c4m_get_file_kind(s)) {
+            case C4M_FK_IS_REG_FILE:
+            case C4M_FK_IS_FLINK:
+                kat = c4m_extract_kat(s);
+                hatrack_dict_put(result, s, kat);
+                continue;
+            case C4M_FK_IS_DIR:
+            case C4M_FK_IS_DLINK:
+                c4m_list_append(to_recurse, s);
+                continue;
+            default:
+                break;
+            }
             c4m_printf("[red]error:[/] No such file or directory: {}", s);
             fatal = true;
             continue;
@@ -745,7 +762,6 @@ main(int argc, char **argv, char **envp)
     }
 
     c4m_gc_thread_collect();
-    c4m_printf("[h3]Con4m system files: {}", c4m_system_module_files());
 
     if (!num_errs && !no_exception) {
         exit(-127);

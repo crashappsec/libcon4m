@@ -121,10 +121,8 @@ function debug_it {
     meson_build debug --buildtype=debug
     DEBUGGER=$(which gdb)
     DEBUGGER=${DEBUGGER:-$(which lldb)}
-    cd debug
     log "Running debugger:v${DEBUGGER}"
-    ${DEBUGGER} ./c4test
-    cd ..
+    ${DEBUGGER} debug/c4test
 }
 
 function libcon4m_run_tests {
@@ -134,8 +132,8 @@ function libcon4m_run_tests {
 
     log Running test binary for target: $(color green '[==' $TARGET '==]')
 
-    cd $TARGET
-    ./c4test $@
+
+    $TARGET/c4test $@
     EXIT=$?
     log "Exit status: ${EXIT}"
     if [[ ${EXIT} -gt 0 ]] && [[ ${EXIT} -lt 128 ]] && [[ $@ == "" ]]  ; then
@@ -155,7 +153,6 @@ function libcon4m_run_tests {
         done
         exit 127
     fi
-    cd ..
 }
 
 function libcon4m_dev_clean {
