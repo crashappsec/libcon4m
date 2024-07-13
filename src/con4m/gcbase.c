@@ -7,8 +7,8 @@ uint64_t                  c4m_page_modulus;
 uint64_t                  c4m_modulus_mask;
 
 #ifdef C4M_GC_STATS
-thread_local uint64_t c4m_total_words     = 0;
-thread_local uint64_t c4m_words_requested = 0;
+thread_local uint64_t c4m_total_requested = 0;
+thread_local uint64_t c4m_total_alloced   = 0;
 thread_local uint32_t c4m_total_allocs    = 0;
 #endif
 
@@ -726,8 +726,8 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
 #endif // C4M_FULL_MEMCHECK
 
 #ifdef C4M_GC_STATS
-    c4m_words_requested += len;
-    c4m_total_words += wordlen;
+    c4m_total_requested += orig_len;
+    c4m_total_alloced += wordlen * 8;
 
     raw->alloc_file = file;
     raw->alloc_line = line;

@@ -105,8 +105,8 @@ int                          c4m_gc_show_heap_stats_on = C4M_SHOW_GC_DEFAULT;
 static thread_local uint32_t c4m_total_collects        = 0;
 static thread_local uint64_t c4m_total_garbage_words   = 0;
 static thread_local uint64_t c4m_total_size            = 0;
-extern thread_local uint64_t c4m_total_words;
-extern thread_local uint64_t c4m_words_requested;
+extern thread_local uint64_t c4m_total_alloced;
+extern thread_local uint64_t c4m_total_requested;
 extern thread_local uint32_t c4m_total_allocs;
 
 uint64_t
@@ -931,8 +931,8 @@ c4m_collect_arena(c4m_arena_t *from_space)
     c4m_gc_heap_stats(&old_used, &old_free, &old_total);
 
     uint64_t stashed_counter  = c4m_total_allocs;
-    uint64_t stashed_words    = c4m_total_words;
-    uint64_t stashed_requests = c4m_words_requested;
+    uint64_t stashed_alloced  = c4m_total_alloced;
+    uint64_t stashed_requests = c4m_total_requested;
     uint64_t start_counter    = c4m_current_heap->starting_counter;
     uint64_t start_records    = c4m_current_heap->legacy_count;
     uint64_t prev_new_allocs  = stashed_counter - start_counter;
@@ -942,8 +942,9 @@ c4m_collect_arena(c4m_arena_t *from_space)
 
     uint64_t num_migrations;
 
-    c4m_total_allocs = 0;
-    c4m_total_words  = 0;
+    c4m_total_allocs    = 0;
+    c4m_total_alloced   = 0;
+    c4m_total_requested = 0;
     c4m_total_collects++;
 
 #endif
@@ -991,8 +992,8 @@ c4m_collect_arena(c4m_arena_t *from_space)
     const int mb        = 0x100000;
     num_migrations      = c4m_total_allocs;
     c4m_total_allocs    = stashed_counter;
-    c4m_total_words     = stashed_words;
-    c4m_words_requested = stashed_requests;
+    c4m_total_alloced   = stashed_alloced;
+    c4m_total_requested = stashed_requests;
 
     c4m_current_heap = ctx.to_space;
 
@@ -1022,10 +1023,9 @@ c4m_collect_arena(c4m_arena_t *from_space)
 
     c4m_printf(
         "[em]{:,}[/] records, [em]{:,}[/] "
-        "migrated ([em]{:,}[/] mb); [em]{:,}[/] new. ([em]{:,}[/] mb)\n",
+        "migrated; [em]{:,}[/] new. ([em]{:,}[/] mb)\n",
         c4m_box_u64(old_num_records),
         c4m_box_u64(start_records),
-        c4m_box_u64(prev_start_bytes / mb),
         c4m_box_u64(prev_new_allocs),
         c4m_box_u64(prev_used_mem / mb));
 
@@ -1041,15 +1041,15 @@ c4m_collect_arena(c4m_arena_t *from_space)
         c4m_box_u64(available / mb),
         c4m_box_u64((old_used - live) / mb));
 
-    c4m_printf("[b][i]Copied [em]{:,}[/] records; Trashed [em]{:,}[/]",
+    c4m_printf("Copied [em]{:,}[/] records; Trashed [em]{:,}[/].",
                c4m_box_u64(num_migrations),
                c4m_box_u64(old_num_records - num_migrations));
 
     c4m_printf("[h2]Totals[/h2]\n[b]Total requests:[/] [em]{:,}[/] mb ",
-               c4m_box_u64((c4m_words_requested * 8) / mb));
+               c4m_box_u64(c4m_total_requested / mb));
 
     c4m_printf("[b]Total alloced:[/] [em]{:,}[/] mb",
-               c4m_box_u64((c4m_total_words * 8) / mb));
+               c4m_box_u64(c4m_total_alloced / mb));
 
     c4m_printf("[b]Total allocs:[/] [em]{:,}[/]",
                c4m_box_u64(c4m_total_allocs));
@@ -1069,7 +1069,7 @@ c4m_collect_arena(c4m_arena_t *from_space)
                gstr);
 
     c4m_printf("[b]Average allocation size:[/] [em]{:,}[/] bytes",
-               c4m_box_u64((c4m_total_words * 8) / c4m_total_allocs));
+               c4m_box_u64(c4m_total_alloced / c4m_total_allocs));
 
 #ifdef C4M_GC_SHOW_COLLECT_STACK_TRACES
     c4m_print_c_backtrace();

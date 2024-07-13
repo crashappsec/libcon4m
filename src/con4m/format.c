@@ -503,7 +503,9 @@ assemble_formatted_result(const c4m_str_t *fmt, c4m_list_t *arg_strings)
             style_adjustment(result, out_ix, alen - 2);
 
             for (int64_t j = 0; j < alen; j++) {
-                outp[out_ix++] = argp[j];
+                if (argp[j]) {
+                    outp[out_ix++] = argp[j];
+                }
             }
 
             i++; // Skip the } too.

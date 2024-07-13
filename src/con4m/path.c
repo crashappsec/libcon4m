@@ -3,7 +3,7 @@
 #include "con4m.h"
 
 c4m_utf8_t *
-c4m_get_current_directory(c4m_utf8_t *s)
+c4m_get_current_directory()
 {
     char buf[MAXPATHLEN + 1];
 
@@ -167,7 +167,7 @@ c4m_resolve_path(c4m_utf8_t *s)
         return internal_normalize_and_join(
             c4m_str_xsplit(s, c4m_get_slash_const()));
     default:
-        parts = c4m_str_xsplit(c4m_get_current_directory(NULL),
+        parts = c4m_str_xsplit(c4m_get_current_directory(),
                                c4m_get_slash_const());
         c4m_list_plus_eq(parts, c4m_str_xsplit(s, c4m_get_slash_const()));
         return internal_normalize_and_join(parts);
@@ -287,6 +287,21 @@ typedef struct {
     bool        done_with_safety_checks;
 } c4m_walk_ctx;
 
+static c4m_utf8_t *
+add_slash_if_needed(c4m_utf8_t *s)
+{
+    c4m_utf8_t *result;
+
+    if (c4m_index(s, c4m_str_codepoint_len(s) - 1) == '/') {
+        result = s;
+    }
+    else {
+        result = c4m_cstr_format("{}/", s);
+    }
+
+    return result;
+}
+
 static void
 internal_path_walk(c4m_walk_ctx *ctx)
 {
@@ -294,7 +309,6 @@ internal_path_walk(c4m_walk_ctx *ctx)
     struct dirent *entry;
     c4m_utf8_t    *saved;
     struct stat    file_info;
-    bool           add_slash;
 
     if (!ctx->done_with_safety_checks) {
         if (c4m_str_starts_with(ctx->resolved, ctx->sc_proc)) {
@@ -327,18 +341,16 @@ actual_directory:
         if (!ctx->recurse) {
             return;
         }
+
+        ctx->resolved = add_slash_if_needed(ctx->resolved);
+
         dirobj = opendir(ctx->resolved->data);
+
         if (dirobj == NULL) {
             return;
         }
 
         saved = ctx->resolved;
-        if (c4m_index(saved, c4m_str_codepoint_len(saved) - 1) == '/') {
-            add_slash = false;
-        }
-        else {
-            add_slash = true;
-        }
 
         while (true) {
             entry = readdir(dirobj);
@@ -356,16 +368,9 @@ actual_directory:
                 continue;
             }
 
-            if (add_slash) {
-                ctx->resolved = c4m_cstr_format("{}/{}",
-                                                saved,
-                                                c4m_new_utf8(entry->d_name));
-            }
-            else {
-                ctx->resolved = c4m_cstr_format("{}{}",
-                                                saved,
-                                                c4m_new_utf8(entry->d_name));
-            }
+            ctx->resolved = c4m_to_utf8(
+                c4m_str_concat(saved, c4m_new_utf8(entry->d_name)));
+
             internal_path_walk(ctx);
         }
         ctx->resolved = saved;
@@ -446,6 +451,30 @@ actual_directory:
         return;
     }
 }
+
+#ifdef __linux__
+c4m_utf8_t *
+c4m_app_path()
+{
+    char buf[PATH_MAX];
+    char proc_path[PATH_MAX];
+    snprintf(proc_path, PATH_MAX, "/proc/%d/exe", getpid());
+    readlink(proc_path, buf, PATH_MAX);
+
+    return c4m_new_utf8(proc_path);
+}
+#elif defined(__MACH__)
+c4m_utf8_t *
+c4m_app_path()
+{
+    char buf[PROC_PIDPATHINFO_MAXSIZE];
+    proc_pidpath(getpid(), buf, PROC_PIDPATHINFO_MAXSIZE);
+
+    return c4m_new_utf8(buf);
+}
+#else
+#error "Unsupported platform"
+#endif
 
 c4m_list_t *
 _c4m_path_walk(c4m_utf8_t *dir, ...)

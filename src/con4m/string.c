@@ -365,7 +365,11 @@ c4m_str_concat(const c4m_str_t *p1, const c4m_str_t *p2)
     // Now copy the actual string data.
     uint32_t *ptr = (uint32_t *)r->data;
     memcpy(r->data, s1->data, s1_len * 4);
-    memcpy(ptr + s1_len, s2->data, s2_len * 4);
+    ptr += s1_len;
+
+    assert(ptr[-1]);
+
+    memcpy(ptr, s2->data, s2_len * 4);
 
     r->codepoints = n;
 

@@ -45,6 +45,7 @@
 
 #if defined(__MACH__)
 #include <machine/endian.h>
+#include <libproc.h>
 #endif
 
 #ifdef HAVE_MUSL

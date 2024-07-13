@@ -18,7 +18,14 @@ c4m_raw_envp()
     return c4m_stashed_envp;
 }
 
-c4m_list_t *c4m_get_program_arguments();
-c4m_utf8_t  *c4m_get_argv0();
-c4m_utf8_t  *c4m_get_env(c4m_utf8_t *);
-c4m_dict_t  *c4m_environment();
+extern c4m_list_t *c4m_get_program_arguments();
+extern c4m_utf8_t *c4m_get_argv0();
+extern c4m_utf8_t *c4m_get_env(c4m_utf8_t *);
+extern c4m_dict_t *c4m_environment();
+extern c4m_utf8_t *c4m_get_con4m_path();
+extern c4m_utf8_t *c4m_path_search(c4m_utf8_t *, c4m_utf8_t *);
+extern c4m_utf8_t *c4m_con4m_root();
+extern c4m_utf8_t *c4m_system_module_path();
+
+extern c4m_list_t *con4m_path;
+extern c4m_set_t  *con4m_extensions;

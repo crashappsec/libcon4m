@@ -615,6 +615,9 @@ extern bool c4m_definite_memcheck_error;
 bool c4m_definite_memcheck_error = false;
 #endif
 
+c4m_list_t *
+c4m_system_module_files();
+
 int
 main(int argc, char **argv, char **envp)
 {
@@ -742,6 +745,7 @@ main(int argc, char **argv, char **envp)
     }
 
     c4m_gc_thread_collect();
+    c4m_printf("[h3]Con4m system files: {}", c4m_system_module_files());
 
     if (!num_errs && !no_exception) {
         exit(-127);

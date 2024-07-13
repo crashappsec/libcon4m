@@ -1,9 +1,6 @@
 #define C4M_USE_INTERNAL_API
 #include "con4m.h"
 
-static c4m_list_t *con4m_path       = NULL;
-static c4m_set_t  *con4m_extensions = NULL;
-
 static void
 fcx_gc_bits(uint64_t *bitfield, c4m_file_compile_ctx *ctx)
 {
@@ -26,124 +23,6 @@ c4m_compile_ctx *
 c4m_new_compile_ctx()
 {
     return c4m_gc_alloc_mapped(c4m_compile_ctx, cctx_gc_bits);
-}
-
-static void
-init_con4m_path()
-{
-    c4m_list_t *parts;
-
-    c4m_gc_register_root(&con4m_path, 1);
-    c4m_gc_register_root(&con4m_extensions, 1);
-
-    con4m_extensions = c4m_new(c4m_type_set(c4m_type_utf8()));
-
-    c4m_set_add(con4m_extensions, c4m_new_utf8("c4m"));
-
-    c4m_utf8_t *extra = c4m_get_env(c4m_new_utf8("CON4M_EXTENSIONS"));
-
-    if (extra != NULL) {
-        parts = c4m_str_xsplit(extra, c4m_new_utf8(":"));
-        for (int i = 0; i < c4m_list_len(parts); i++) {
-            c4m_set_add(con4m_extensions,
-                        c4m_to_utf8(c4m_list_get(parts, i, NULL)));
-        }
-    }
-
-    c4m_set_package_search_path(c4m_resolve_path(c4m_new_utf8(".")));
-
-    extra = c4m_get_env(c4m_new_utf8("CON4M_PATH"));
-
-    if (extra == NULL) {
-        return;
-    }
-
-    parts = c4m_str_xsplit(extra, c4m_new_utf8(":"));
-
-    c4m_list_t *new_path = c4m_new(c4m_type_list(c4m_type_utf8()));
-
-    for (int i = 0; i < c4m_list_len(parts); i++) {
-        c4m_utf8_t *s = c4m_to_utf8(c4m_list_get(parts, i, NULL));
-
-        c4m_list_append(new_path, c4m_resolve_path(s));
-    }
-
-    // Always keep cwd in the path, but put it last.
-    c4m_list_append(new_path, c4m_resolve_path(c4m_new_utf8(".")));
-
-    con4m_path = new_path;
-}
-
-void
-_c4m_set_package_search_path(c4m_utf8_t *dir, ...)
-{
-    con4m_path = c4m_new(c4m_type_list(c4m_type_utf8()));
-
-    va_list args;
-
-    va_start(args, dir);
-
-    while (dir != NULL) {
-        c4m_list_append(con4m_path, dir);
-        dir = va_arg(args, c4m_utf8_t *);
-    }
-}
-
-static c4m_utf8_t *
-perform_path_search(c4m_utf8_t *package, c4m_utf8_t *module)
-{
-    if (con4m_path == NULL) {
-        init_con4m_path();
-    }
-
-    uint64_t     n_items;
-    c4m_utf8_t  *munged     = NULL;
-    c4m_utf8_t **extensions = c4m_set_items_sort(con4m_extensions, &n_items);
-
-    if (package != NULL && c4m_str_codepoint_len(package) != 0) {
-        c4m_list_t *parts = c4m_str_xsplit(package, c4m_new_utf8("."));
-
-        c4m_list_append(parts, module);
-        munged = c4m_to_utf8(c4m_str_join(parts, c4m_new_utf8("/")));
-    }
-
-    int l = (int)c4m_list_len(con4m_path);
-
-    if (munged != NULL) {
-        for (int i = 0; i < l; i++) {
-            c4m_str_t *dir = c4m_list_get(con4m_path, i, NULL);
-
-            for (int j = 0; j < (int)n_items; j++) {
-                c4m_utf8_t *ext = extensions[j];
-                c4m_str_t  *s   = c4m_cstr_format("{}/{}.{}", dir, munged, ext);
-                s               = c4m_to_utf8(s);
-
-                struct stat info;
-
-                if (!stat(s->data, &info)) {
-                    return s;
-                }
-            }
-        }
-    }
-    else {
-        for (int i = 0; i < l; i++) {
-            c4m_str_t *dir = c4m_list_get(con4m_path, i, NULL);
-            for (int j = 0; j < (int)n_items; j++) {
-                c4m_utf8_t *ext = extensions[j];
-                c4m_str_t  *s   = c4m_cstr_format("{}/{}.{}", dir, module, ext);
-                s               = c4m_to_utf8(s);
-
-                struct stat info;
-
-                if (!stat(s->data, &info)) {
-                    return s;
-                }
-            }
-        }
-    }
-
-    return NULL;
 }
 
 static inline uint64_t
@@ -177,10 +56,6 @@ get_file_compile_ctx(c4m_compile_ctx *ctx,
     uint64_t              key;
     c4m_file_compile_ctx *result;
 
-    if (con4m_extensions == NULL) {
-        init_con4m_path();
-    }
-
     module = c4m_to_utf8(module);
 
     if (path) {
@@ -204,7 +79,7 @@ get_file_compile_ctx(c4m_compile_ctx *ctx,
     result = c4m_new_file_compile_ctx();
 
     if (!path) {
-        path = perform_path_search(package, module);
+        path = c4m_path_search(package, module);
 
         if (!path) {
             if (package != NULL) {
@@ -555,7 +430,7 @@ c4m_init_from_use(c4m_compile_ctx *ctx,
         path = c4m_to_utf8(c4m_path_join(parts));
     }
     else {
-        path = perform_path_search(package, module);
+        path = c4m_path_search(package, module);
 
         if (path == NULL) {
             if (package) {
@@ -1107,4 +982,10 @@ c4m_generate_code(c4m_compile_ctx *ctx)
 
     c4m_vm_reset(result);
     return result;
+}
+
+c4m_list_t *
+c4m_system_module_files()
+{
+    return c4m_path_walk(c4m_system_module_path());
 }

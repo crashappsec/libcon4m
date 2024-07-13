@@ -1784,7 +1784,6 @@ handle_typeof_statement(pass2_ctx *ctx)
 
     if (saved_sym != NULL) {
         hatrack_dict_put(ctx->local_scope->symbols, sym->name, saved_sym);
-        printf("Replaced variable in scope.\n");
     }
 
     c4m_list_pop(ctx->loop_stack);
