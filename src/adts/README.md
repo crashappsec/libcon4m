@@ -23,28 +23,24 @@ related code lives in the `util` subdirectory, like code to support
 like tables, flows, etc. These are meant to be first class citizens in
 Con4m, and currently have some functionaility exposed.
 
-3. Supporting data structures for strings and grids, that may never be
-directly exposed as first class data types, like styles, colors, line
-breaks, etc.
+3. A buffer type, available from Con4m.
 
-4. A buffer type, available from Con4m.
+4. A stream type, not yet exposed (but will be).
 
-5. A stream type, not yet exposed (but will be).
-
-6. A `callback` type, which probably doesn't work yet, but should be
+5. A `callback` type, which probably doesn't work yet, but should be
 exposed.
 
-7. A tuple type, exposed to the language.
+6. A tuple type, exposed to the language.
 
-8. A tree type, not yet exposed.
+7. A tree type, not yet exposed.
 
-9. Standard numeric types. Currently, we lack 16 bit and 128 bit
+8. Standard numeric types. Currently, we lack 16 bit and 128 bit
 types. `char` in Con4m is a 32 bit int.
 
-10. A bitfield, not yet exposed.
+9. A bitfield, not yet exposed.
 
-11. An internal `box` type. Eventually, the `mixed` type will be
+10. An internal `box` type. Eventually, the `mixed` type will be
 exposed, but it's not close to done.
 
-12. Some light hatrack wrappers.  `set` and `dict` are well exposed,
+11. Some light hatrack wrappers.  `set` and `dict` are well exposed,
 but things like `rings` are not.
