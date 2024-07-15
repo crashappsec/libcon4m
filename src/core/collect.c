@@ -142,12 +142,13 @@ c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom)
 
     pthread_getattr_np(self, &attrs);
 
+    size_t size;
+
+    pthread_attr_getstack(&attrs, (void **)&addr, &size);
+
 #ifdef C4M_USE_FRAME_INTRINSIC
-    pthread_attr_getstackaddr(&attrs, (void **)&addr);
     *bottom = (uint64_t)__builtin_frame_address(0);
 #else
-    size_t size;
-    pthread_attr_getstack(&attrs, (void **)&addr, &size);
     *bottom = (uint64_t)addr + size;
 #endif
 
