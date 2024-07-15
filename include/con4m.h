@@ -4,13 +4,13 @@
 
 // #define C4M_FULL_MEMCHECK
 // #define C4M_STRICT_MEMCHECK
+// #define C4M_SHOW_NEXT_ALLOCS 1000
 // #define C4M_TRACE_GC
 
 // #define C4M_GC_SHOW_COLLECT_STACK_TRACES
 #define C4M_USE_FRAME_INTRINSIC
 // #define C4M_GCT_MOVE        1
 // #define C4M_GCT_PTR_TO_MOVE 1
-
 // #define C4M_GC_ALL_OFF
 // #define C4M_GC_ALL_ON
 // #define C4M_TYPE_LOG
@@ -85,96 +85,98 @@
 // due to interdependencies, though they can always be solved via
 // prototyping.
 #include "con4m/base.h"
-#include "con4m/init.h"
-#include "con4m/macros.h" // Helper macros, mostly 3rd party stuff.
-#include "con4m/kargs.h"  // Keyword arguments.
-#include "con4m/random.h"
+#include "core/init.h"
+#include "util/macros.h" // Helper macros
+#include "core/kargs.h"  // Keyword arguments.
+#include "util/random.h"
 
 // Memory management
-#include "con4m/refcount.h"
-#include "con4m/gc.h"
-#include "con4m/object.h"
-#include "con4m/color.h"
+#include "core/refcount.h"
+#include "core/gc.h"
+
+// Core object.
+#include "core/object.h"
+
+#include "util/color.h"
 
 // Basic "exclusive" (i.e., single threaded) list.
-#include "con4m/list.h"
+#include "adts/list.h"
 
 // Type system API.
-#include "con4m/typestore.h"
-#include "con4m/type.h"
+#include "core/typestore.h"
+#include "core/type.h"
 
-#include "con4m/box.h"
+#include "adts/box.h"
 
 // Extra data structure stuff.
-#include "con4m/tree.h"
-#include "con4m/tree_pattern.h"
-#include "con4m/buffer.h"
-#include "con4m/tuple.h"
+#include "adts/tree.h"
+#include "util/tree_pattern.h"
+#include "adts/buffer.h"
+#include "adts/tuple.h"
 
 // Basic string handling.
-#include "con4m/codepoint.h"
-#include "con4m/string.h"
-#include "con4m/breaks.h"
-#include "con4m/ansi.h"
-#include "con4m/hex.h"
+#include "adts/codepoint.h"
+#include "adts/string.h"
+#include "util/breaks.h"
+#include "io/ansi.h"
+#include "util/hex.h"
 
-#include "con4m/style.h"
-#include "con4m/styledb.h"
+#include "util/style.h"
+#include "util/styledb.h"
 
 // Our grid API.
-#include "con4m/grid.h"
+#include "adts/grid.h"
 
 // IO primitives.
-#include "con4m/term.h"
-#include "con4m/switchboard.h"
-#include "con4m/subproc.h"
+#include "io/term.h"
+#include "io/switchboard.h"
+#include "io/subproc.h"
 
 // Basic exception handling support.
-#include "con4m/exception.h"
+#include "core/exception.h"
 
 // Stream IO API.
-#include "con4m/stream.h"
+#include "adts/stream.h"
 
 // Helper functions for object marshal implementations to
 // marshal primitive values.
-#include "con4m/marshal.h"
+#include "core/marshal.h"
 
 // Mixed data type API.
-#include "con4m/mixed.h"
+#include "adts/mixed.h"
 
 // Basic internal API to cache and access common string constants.
-#include "con4m/conststr.h"
+#include "util/conststr.h"
 
 // Boxes for ordinal types
-#include "con4m/box.h"
+#include "adts/box.h"
 
 // A few prototypes for literal handling.
-#include "con4m/literal.h"
+#include "core/literal.h"
 
 // Format string API
-#include "con4m/format.h"
-
-#include "con4m/fp.h"
+#include "util/format.h"
+#include "util/fp.h"
 
 // Path handling utilities.
-#include "con4m/path.h"
+#include "util/path.h"
 
 // Yes we use cryptographic hashes internally for type IDing.
 #include "crypto/sha.h"
 
 // Virtual machine for running con4m code
-#include "con4m/vm.h"
+#include "core/vm.h"
 
 // Bitfields.
-#include "con4m/flags.h"
+#include "adts/flags.h"
 
 // Really int log2 only right now.
-#include "con4m/math.h"
+#include "util/math.h"
 
 // For functions we need to wrap to use through the FFI.
-#include "con4m/wrappers.h"
+#include "util/wrappers.h"
 
-#include "con4m/cbacktrace.h"
+#include "util/cbacktrace.h"
 
 // The compiler.
 #include "compiler/ast_utils.h"
@@ -187,8 +189,8 @@
 #include "compiler/cfgs.h"
 #include "compiler/codegen.h"
 
-#include "con4m/dict.h"
-#include "con4m/set.h"
+#include "adts/dict.h"
+#include "adts/set.h"
 
-#include "con4m/ffi.h"
-#include "con4m/watch.h"
+#include "core/ffi.h"
+#include "util/watch.h"
