@@ -103,8 +103,7 @@ c4m_setup_treematch_patterns()
                                              C4M_PAT_NO_KIDS),
                                   c4m_tmatch(c4m_nt_identifier,
                                              0,
-                                             C4M_PAT_NO_KIDS),
-                                  C4M_PAT_NO_KIDS);
+                                             C4M_PAT_NO_KIDS));
     c4m_func_mods     = c4m_tfind(c4m_nt_func_mods,
                               0,
                               c4m_tcount(c4m_nt_func_mod,
@@ -345,7 +344,7 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
                                                   c4m_tree_get_child(n, 0),
                                                   type_ctx));
         }
-        if (!strcmp(varname->data, "xlist")) {
+        if (!strcmp(varname->data, "list")) {
             return c4m_type_list(c4m_node_to_type(ctx,
                                                   c4m_tree_get_child(n, 0),
                                                   type_ctx));

@@ -87,18 +87,16 @@ load_env(c4m_dict_t *environment_vars)
                                          c4m_ka(item)));
         c4m_utf8_t *value = c4m_new_utf8(val);
 
+        c4m_gc_register_root(&environment_vars, 1);
         hatrack_dict_put(environment_vars, key, value);
         assert(hatrack_dict_get(environment_vars, key, NULL) == value);
     }
-
-    c4m_gc_register_root(&environment_vars, 1);
 }
 
 c4m_utf8_t *
 c4m_get_env(c4m_utf8_t *name)
 {
     if (cached_environment_vars == NULL) {
-        c4m_gc_register_root(&cached_environment_vars, 1);
         cached_environment_vars = c4m_new(c4m_type_dict(c4m_type_utf8(),
                                                         c4m_type_utf8()));
         load_env(cached_environment_vars);
@@ -126,8 +124,6 @@ c4m_utf8_t *
 c4m_con4m_root()
 {
     if (con4m_root == NULL) {
-        c4m_gc_register_root(&con4m_root, 1);
-
         con4m_root = c4m_get_env(c4m_new_utf8("CON4M_ROOT"));
 
         if (con4m_root == NULL) {
@@ -164,9 +160,6 @@ c4m_init_path()
 {
     c4m_list_t *parts;
 
-    c4m_gc_register_root(&con4m_path, 1);
-    c4m_gc_register_root(&con4m_extensions, 1);
-
     con4m_extensions = c4m_set(c4m_type_utf8());
 
     c4m_set_add(con4m_extensions, c4m_new_utf8("c4m"));
@@ -174,14 +167,16 @@ c4m_init_path()
     c4m_utf8_t *extra = c4m_get_env(c4m_new_utf8("CON4M_EXTENSIONS"));
 
     if (extra != NULL) {
-        parts = c4m_str_xsplit(extra, c4m_new_utf8(":"));
+        parts = c4m_str_split(extra, c4m_new_utf8(":"));
         for (int i = 0; i < c4m_list_len(parts); i++) {
             c4m_set_add(con4m_extensions,
                         c4m_to_utf8(c4m_list_get(parts, i, NULL)));
         }
     }
 
-    c4m_set_package_search_path(c4m_resolve_path(c4m_new_utf8(".")));
+    c4m_set_package_search_path(
+        c4m_system_module_path(),
+        c4m_resolve_path(c4m_new_utf8(".")));
 
     extra = c4m_get_env(c4m_new_utf8("CON4M_PATH"));
 
@@ -189,17 +184,19 @@ c4m_init_path()
         return;
     }
 
-    parts = c4m_str_xsplit(extra, c4m_new_utf8(":"));
+    parts = c4m_str_split(extra, c4m_new_utf8(":"));
 
-    c4m_list_t *new_path = c4m_new(c4m_type_list(c4m_type_utf8()));
+    // Always keep sys and cwd in the path; sys is first, . last.
+    c4m_list_t *new_path = c4m_list(c4m_type_utf8());
+
+    c4m_list_append(new_path, c4m_system_module_path());
 
     for (int i = 0; i < c4m_list_len(parts); i++) {
         c4m_utf8_t *s = c4m_to_utf8(c4m_list_get(parts, i, NULL));
 
-        c4m_list_append(new_path, c4m_resolve_path(s));
+        c4m_list_append(con4m_path, c4m_resolve_path(s));
     }
 
-    // Always keep cwd in the path, but put it last.
     c4m_list_append(new_path, c4m_resolve_path(c4m_new_utf8(".")));
 
     con4m_path = new_path;
@@ -213,7 +210,7 @@ c4m_path_search(c4m_utf8_t *package, c4m_utf8_t *module)
     c4m_utf8_t **extensions = c4m_set_items_sort(con4m_extensions, &n_items);
 
     if (package != NULL && c4m_str_codepoint_len(package) != 0) {
-        c4m_list_t *parts = c4m_str_xsplit(package, c4m_new_utf8("."));
+        c4m_list_t *parts = c4m_str_split(package, c4m_new_utf8("."));
 
         c4m_list_append(parts, module);
         munged = c4m_to_utf8(c4m_str_join(parts, c4m_new_utf8("/")));
@@ -261,7 +258,7 @@ c4m_path_search(c4m_utf8_t *package, c4m_utf8_t *module)
 void
 _c4m_set_package_search_path(c4m_utf8_t *dir, ...)
 {
-    con4m_path = c4m_new(c4m_type_list(c4m_type_utf8()));
+    con4m_path = c4m_list(c4m_type_utf8());
 
     va_list args;
 
@@ -271,6 +268,8 @@ _c4m_set_package_search_path(c4m_utf8_t *dir, ...)
         c4m_list_append(con4m_path, dir);
         dir = va_arg(args, c4m_utf8_t *);
     }
+
+    va_end(args);
 }
 
 __attribute__((constructor)) void
@@ -282,6 +281,10 @@ c4m_init(int argc, char **argv, char **envp)
     c4m_backtrace_init(argv[0]);
     c4m_gc_openssl();
     c4m_initialize_gc();
+    c4m_gc_register_root(&cached_environment_vars, 1);
+    c4m_gc_register_root(&con4m_root, 1);
+    c4m_gc_register_root(&con4m_path, 1);
+    c4m_gc_register_root(&con4m_extensions, 1);
     c4m_gc_set_finalize_callback((void *)c4m_finalize_allocation);
     c4m_initialize_global_types();
     c4m_init_std_streams();

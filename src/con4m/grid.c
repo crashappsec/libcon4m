@@ -265,7 +265,7 @@ c4m_grid_add_row(c4m_grid_t *grid, c4m_obj_t container)
             c4m_grid_set_cell_contents(grid, grid->row_cursor, i, x);
         }
         return;
-    case C4M_T_XLIST:
+    case C4M_T_LIST:
         for (int i = 0; i < grid->num_cols; i++) {
             c4m_obj_t x = c4m_list_get((c4m_list_t *)container, i, NULL);
             if (x == NULL) {
@@ -529,7 +529,7 @@ column_text_width(c4m_grid_t *grid, int col)
         case C4M_T_UTF32:
             s = (c4m_str_t *)cell->raw_item;
 
-            c4m_list_t *arr = c4m_str_xsplit(s, c4m_str_newline());
+            c4m_list_t *arr = c4m_str_split(s, c4m_str_newline());
             int         len = c4m_list_len(arr);
 
             for (int j = 0; j < len; j++) {
@@ -860,7 +860,7 @@ str_render_cell(c4m_grid_t       *grid,
     }
 
     if (cs->disable_wrap) {
-        c4m_list_t *arr = c4m_str_xsplit(s, c4m_str_newline());
+        c4m_list_t *arr = c4m_str_split(s, c4m_str_newline());
         bool        err;
 
         for (i = 0; i < c4m_list_len(arr); i++) {
@@ -1744,7 +1744,9 @@ c4m_grid_set_cell_contents(c4m_grid_t *g, int row, int col, c4m_obj_t item)
         C4M_CRAISE("Item passed to grid is not renderable.");
     }
 
-    c4m_layer_styles(g->self->current_style, cell->current_style);
+    if (g && g->self && cell) {
+        c4m_layer_styles(g->self->current_style, cell->current_style);
+    }
     c4m_install_renderable(g, cell, row, row + 1, col, col + 1);
     if (row >= g->row_cursor) {
         if (col + 1 == g->num_cols) {

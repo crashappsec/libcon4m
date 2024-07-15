@@ -1419,12 +1419,24 @@ next_alloc:
     c4m_list_append(ctx->file_ctx->extern_decls, sym);
 }
 
+static c4m_list_t *
+get_member_prefix(c4m_tree_node_t *n)
+{
+    c4m_list_t *result = c4m_list(c4m_type_tree(c4m_type_parse_node()));
+
+    for (int i = 0; i < n->num_kids - 1; i++) {
+        c4m_list_append(result, n->children[i]);
+    }
+
+    return result;
+}
+
 static void
 handle_use_stmt(c4m_pass1_ctx *ctx)
 {
     c4m_tree_node_t   *uri    = c4m_get_match(ctx, c4m_use_uri);
     c4m_tree_node_t   *member = c4m_get_match(ctx, c4m_member_last);
-    c4m_list_t        *prefix = c4m_apply_pattern(ctx, c4m_member_prefix);
+    c4m_list_t        *prefix = get_member_prefix(ctx->cur_tnode->children[0]);
     c4m_module_info_t *mi     = c4m_new_module_info();
     bool               status = false;
 

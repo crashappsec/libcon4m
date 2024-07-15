@@ -96,12 +96,13 @@ get_file_compile_ctx(c4m_compile_ctx *ctx,
             }
 
             c4m_file_load_error(result, c4m_err_search_path);
+            ctx->fatality = true;
         }
     }
     else {
         struct stat info;
         c4m_utf8_t *tmp    = c4m_resolve_path(path);
-        c4m_list_t *pieces = c4m_str_xsplit(tmp, c4m_new_utf8("."));
+        c4m_list_t *pieces = c4m_str_split(tmp, c4m_new_utf8("."));
         c4m_utf8_t *last   = c4m_list_get(pieces,
                                         c4m_list_len(pieces) - 1,
                                         NULL);
@@ -247,7 +248,7 @@ ctx_init_from_web_uri(c4m_compile_ctx *ctx, c4m_utf8_t *path)
         goto malformed;
     }
 
-    c4m_list_t *parts = c4m_str_xsplit(path, c4m_get_slash_const());
+    c4m_list_t *parts = c4m_str_split(path, c4m_get_slash_const());
     c4m_utf8_t *site  = c4m_to_utf8(c4m_list_get(parts, 2, NULL));
     int64_t     n     = c4m_list_len(parts);
 
@@ -272,7 +273,7 @@ ctx_init_from_web_uri(c4m_compile_ctx *ctx, c4m_utf8_t *path)
         return get_file_compile_ctx(ctx, path, last, NULL, flags, site);
     }
 
-    parts = c4m_str_xsplit(last, dot);
+    parts = c4m_str_split(last, dot);
 
     n = c4m_list_len(parts);
 
@@ -330,13 +331,13 @@ ctx_init_from_file_uri(c4m_compile_ctx *ctx, c4m_utf8_t *path, int ix)
         // should be slash-separated. We also expect to chop off a file
         // extension, but here we won't care what it is; we just look to
         // see if the last piece has a dot in it.
-        path_parts         = c4m_str_xsplit(suffix, c4m_new_utf8("/"));
+        path_parts         = c4m_str_split(suffix, c4m_new_utf8("/"));
         item_len           = c4m_list_len(path_parts);
 
-        c4m_list_t *module_parts = c4m_str_xsplit(c4m_list_get(path_parts,
-                                                               item_len - 1,
-                                                               NULL),
-                                                  c4m_new_utf8("."));
+        c4m_list_t *module_parts = c4m_str_split(c4m_list_get(path_parts,
+                                                              item_len - 1,
+                                                              NULL),
+                                                 c4m_new_utf8("."));
 
         module = c4m_to_utf8(c4m_list_get(module_parts, 0, NULL));
 
@@ -362,11 +363,11 @@ fill_in_package:
         // the last dotted piece is dropped, and everything else to the
         // right of the last slash is the path / module.
 
-        path_parts       = c4m_str_xsplit(path, c4m_new_utf8("/"));
+        path_parts       = c4m_str_split(path, c4m_new_utf8("/"));
         c4m_utf8_t *last = c4m_list_get(path_parts,
                                         c4m_list_len(path_parts) - 1,
                                         NULL);
-        path_parts       = c4m_str_xsplit(last, c4m_new_utf8("."));
+        path_parts       = c4m_str_split(last, c4m_new_utf8("."));
         item_len         = c4m_list_len(path_parts);
 
         if (item_len == 1) {
@@ -413,7 +414,7 @@ c4m_init_from_use(c4m_compile_ctx *ctx,
 
     if (path != NULL && c4m_str_starts_with(path, c4m_new_utf8("http"))) {
         if (package) {
-            parts   = c4m_u8_map(c4m_str_xsplit(package, c4m_new_utf8(".")));
+            parts   = c4m_u8_map(c4m_str_split(package, c4m_new_utf8(".")));
             parts   = c4m_u8_map(parts);
             package = c4m_path_join(parts);
         }
@@ -517,6 +518,7 @@ c4m_initial_load_one(c4m_compile_ctx *cctx, c4m_file_compile_ctx *ctx)
     c4m_stream_t *stream = NULL;
 
     if (c4m_fatal_error_in_module(ctx)) {
+        cctx->fatality = true;
         return;
     }
 
@@ -527,6 +529,10 @@ c4m_initial_load_one(c4m_compile_ctx *cctx, c4m_file_compile_ctx *ctx)
         if (c4m_lex(ctx, stream) != false) {
             c4m_parse(ctx);
             c4m_file_decl_pass(cctx, ctx);
+            if (c4m_fatal_error_in_module(ctx)) {
+                cctx->fatality = true;
+                return;
+            }
         }
         c4m_stream_close(stream);
     }
