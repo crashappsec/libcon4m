@@ -139,6 +139,9 @@ c4m_con4m_root()
             }
             C4M_TRY_END;
         }
+        else {
+            con4m_root = c4m_resolve_path(con4m_root);
+        }
     }
 
     return con4m_root;
