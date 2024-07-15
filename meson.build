@@ -50,7 +50,7 @@ endif
 backtrace = cc.find_library('backtrace',
                                required: false)
 
-if backtrace.found()
+if backtrace.found() and get_option('buildtype') != 'release'
 c_args = c_args + ['-DBACKTRACE_SUPPORTED']
 endif                               
 

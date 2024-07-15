@@ -461,7 +461,7 @@ c4m_app_path()
     snprintf(proc_path, PATH_MAX, "/proc/%d/exe", getpid());
     readlink(proc_path, buf, PATH_MAX);
 
-    return c4m_new_utf8(proc_path);
+    return c4m_new_utf8(buf);
 }
 #elif defined(__MACH__)
 c4m_utf8_t *
