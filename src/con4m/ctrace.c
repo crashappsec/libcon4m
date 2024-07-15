@@ -146,16 +146,24 @@ c4m_get_c_backtrace()
     backtrace_core();
     return c4m_trace_grid;
 }
-#else
-c4m_grid_t *
-c4m_get_c_backtrace()
-{
-    return c4m_callout(c4m_new_utf8("Stack traces not enabled."));
-}
-#endif
 
 void
 c4m_static_c_backtrace()
 {
     backtrace_full(btstate, 0, c4m_bt_static_backtrace, c4m_bt_err, NULL);
 }
+
+#else
+c4m_grid_t *
+c4m_get_c_backtrace()
+{
+    return c4m_callout(c4m_new_utf8("Stack traces not enabled."));
+}
+
+void
+c4m_static_c_backtrace()
+{
+    printf("Stack traces not enabled.\n");
+}
+
+#endif
