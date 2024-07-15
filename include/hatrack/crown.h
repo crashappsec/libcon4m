@@ -31,7 +31,7 @@
 #include "mmm.h"
 
 typedef struct {
-    void    *item;
+    alignas(8) void *item;
     uint64_t info;
 } crown_record_t;
 
@@ -49,10 +49,10 @@ typedef struct {
 typedef struct crown_store_st crown_store_t;
 
 struct crown_store_st {
+    _Atomic(crown_store_t *) store_next;
     uint64_t                 last_slot;
     uint64_t                 threshold;
     _Atomic uint64_t         used_count;
-    _Atomic(crown_store_t *) store_next;
     _Atomic bool             claimed;
     crown_bucket_t           buckets[];
 };
@@ -62,13 +62,23 @@ typedef struct {
     _Atomic uint64_t         item_count;
     _Atomic uint64_t         help_needed;
     uint64_t                 next_epoch;
+#ifdef HATRACK_PER_INSTANCE_AUX
+    void *aux_info_for_store;
+#endif
 } crown_t;
 
 // clang-format off
+#ifdef HATRACK_PER_INSTANCE_AUX
+HATRACK_EXTERN crown_t        *crown_new          (void *);
+HATRACK_EXTERN crown_t        *crown_new_size     (char, void *);
+HATRACK_EXTERN void            crown_init         (crown_t *, void *);
+HATRACK_EXTERN void            crown_init_size    (crown_t *, char, void *);
+#else
 HATRACK_EXTERN crown_t        *crown_new          (void);
 HATRACK_EXTERN crown_t        *crown_new_size     (char);
 HATRACK_EXTERN void            crown_init         (crown_t *);
 HATRACK_EXTERN void            crown_init_size    (crown_t *, char);
+#endif
 HATRACK_EXTERN void            crown_cleanup      (crown_t *);
 HATRACK_EXTERN void            crown_delete       (crown_t *);
 HATRACK_EXTERN void           *crown_get_mmm      (crown_t *, mmm_thread_t *, hatrack_hash_t, bool *);

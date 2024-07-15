@@ -32,6 +32,19 @@ typedef struct {
 
 static void base_check_pass_dispatch(pass2_ctx *);
 
+static void
+c4m_call_resolution_gc_bits(uint64_t *bitmap, c4m_call_resolution_info_t *ci)
+{
+    c4m_mark_raw_to_addr(bitmap, ci, &ci->resolution);
+}
+
+static c4m_call_resolution_info_t *
+c4m_new_call_resolution()
+{
+    return c4m_gc_alloc_mapped(c4m_call_resolution_info_t,
+                               c4m_call_resolution_gc_bits);
+}
+
 static inline c4m_control_info_t *
 control_init(c4m_control_info_t *ci)
 {
@@ -222,7 +235,9 @@ type_check_node_vs_type_no_err(c4m_tree_node_t *n, c4m_type_t *t)
 }
 
 void
-c4m_fold_container(c4m_tree_node_t *n, c4m_lit_info_t *li)
+c4m_fold_container(c4m_tree_node_t *n,
+                   c4m_lit_info_t  *li,
+                   c4m_list_t      *item_types)
 {
     c4m_pnode_t *pn = c4m_get_pnode(n);
 
@@ -234,10 +249,10 @@ c4m_fold_container(c4m_tree_node_t *n, c4m_lit_info_t *li)
         }
     }
     c4m_list_t *items = c4m_new(c4m_type_list(c4m_type_ref()));
-    c4m_list_t *tlist = li->type->details->items;
+    c4m_list_t *tlist = item_types;
     c4m_obj_t   obj;
 
-    if (li->num_items == 1) {
+    if (li->num_items <= 1) {
         bool val_type = c4m_type_is_value_type(c4m_list_get(tlist, 0, NULL));
 
         for (int i = 0; i < n->num_kids; i++) {
@@ -251,8 +266,6 @@ c4m_fold_container(c4m_tree_node_t *n, c4m_lit_info_t *li)
         }
     }
     else {
-        c4m_list_t *item_types = li->type->details->items;
-
         c4m_tuple_t *t = c4m_new(c4m_type_tuple_from_xlist(item_types));
         for (int i = 0; i < n->num_kids; i++) {
             c4m_pnode_t *kid_pnode = c4m_get_pnode(n->children[i]);
@@ -278,8 +291,9 @@ c4m_fold_container(c4m_tree_node_t *n, c4m_lit_info_t *li)
 static void
 calculate_container_type(pass2_ctx *ctx, c4m_tree_node_t *n)
 {
-    c4m_pnode_t    *pn = c4m_get_pnode(n);
-    c4m_lit_info_t *li = (c4m_lit_info_t *)pn->extra_info;
+    c4m_pnode_t    *pn       = c4m_get_pnode(n);
+    c4m_lit_info_t *li       = (c4m_lit_info_t *)pn->extra_info;
+    bool            concrete = false;
 
     li->base_type = c4m_base_type_from_litmod(li->st, li->litmod);
 
@@ -307,8 +321,14 @@ calculate_container_type(pass2_ctx *ctx, c4m_tree_node_t *n)
         return;
     }
 
-    li->type = c4m_new(c4m_type_typespec(),
-                       li->base_type);
+    if (c4m_base_type_info[li->base_type].dt_kind == C4M_DT_KIND_primitive) {
+        li->type = c4m_bi_types[li->base_type];
+        concrete = true;
+    }
+    else {
+        li->type = c4m_new(c4m_type_typespec(),
+                           li->base_type);
+    }
     pn->type = li->type;
 
     if (pn->kind == c4m_nt_lit_empty_dict_or_set) {
@@ -318,31 +338,39 @@ calculate_container_type(pass2_ctx *ctx, c4m_tree_node_t *n)
         return;
     }
 
-    c4m_list_t *items = li->type->details->items;
+    c4m_list_t *items;
 
-    switch (li->st) {
-    case ST_List:
-        li->num_items = 1;
-        break;
-
-    case ST_Tuple:
-        li->num_items = n->num_kids;
-        break;
-
-    case ST_Dict:
-        if (pn->kind == c4m_nt_lit_set) {
-            li->num_items = 1;
-        }
-        else {
-            li->num_items = 2;
-        }
-        break;
-    default:
-        c4m_unreachable();
-    }
-
-    for (int i = 0; i < li->num_items; i++) {
+    if (concrete) {
+        items = c4m_list(c4m_type_typespec());
         c4m_list_append(items, c4m_new_typevar());
+        li->num_items = 1;
+    }
+    else {
+        items = li->type->details->items;
+        switch (li->st) {
+        case ST_List:
+            li->num_items = 1;
+            break;
+
+        case ST_Tuple:
+            li->num_items = n->num_kids;
+            break;
+
+        case ST_Dict:
+            if (pn->kind == c4m_nt_lit_set) {
+                li->num_items = 1;
+            }
+            else {
+                li->num_items = 2;
+            }
+            break;
+        default:
+            c4m_unreachable();
+        }
+
+        for (int i = 0; i < li->num_items; i++) {
+            c4m_list_append(items, c4m_new_typevar());
+        }
     }
 
     for (int i = 0; i < n->num_kids; i++) {
@@ -352,34 +380,40 @@ calculate_container_type(pass2_ctx *ctx, c4m_tree_node_t *n)
         ctx->node = n->children[i];
         base_check_pass_dispatch(ctx);
 
-        if (merge_or_ret_ignore_err(t, kid_pnode->type)) {
-            if (c4m_can_coerce(kid_pnode->type, t)) {
-                c4m_lit_info_t *li = (c4m_lit_info_t *)kid_pnode->extra_info;
-                li->cast_to        = t;
-                if (kid_pnode->value != NULL) {
-                    kid_pnode->value = c4m_coerce(kid_pnode->value,
-                                                  kid_pnode->type,
-                                                  t);
+        if (!concrete) {
+            if (merge_or_ret_ignore_err(t, kid_pnode->type)) {
+                if (c4m_can_coerce(kid_pnode->type, t)) {
+                    c4m_lit_info_t *li = kid_pnode->extra_info;
+                    li->cast_to        = t;
+                    if (kid_pnode->value != NULL) {
+                        kid_pnode->value = c4m_coerce(kid_pnode->value,
+                                                      kid_pnode->type,
+                                                      t);
+                    }
                 }
-            }
-            else {
-                char       *p = (char *)c4m_base_type_info[li->base_type].name;
-                c4m_utf8_t *s = c4m_new_utf8(p);
+                else {
+                    char *p = (char *)c4m_base_type_info[li->base_type].name;
 
-                c4m_add_error(ctx->file_ctx,
-                              c4m_err_inconsistent_item_type,
-                              n->children[i],
-                              s,
-                              t,
-                              kid_pnode->type);
-                c4m_calculate_type_hash(li->type);
-                return;
+                    c4m_utf8_t *s = c4m_new_utf8(p);
+
+                    c4m_add_error(ctx->file_ctx,
+                                  c4m_err_inconsistent_item_type,
+                                  n->children[i],
+                                  s,
+                                  t,
+                                  kid_pnode->type);
+                    c4m_calculate_type_hash(li->type);
+                    return;
+                }
             }
         }
     }
 
-    c4m_calculate_type_hash(li->type);
-    c4m_fold_container(n, li);
+    if (!concrete) {
+        c4m_calculate_type_hash(li->type);
+    }
+
+    c4m_fold_container(n, li, items);
 }
 
 // This maps names to how many arguments the function takes.  If
@@ -447,12 +481,11 @@ initial_function_resolution(pass2_ctx       *ctx,
     // is worthless, because we don't want concrete types at call
     // sites to influence the actual type. So in those cases, we defer
     // until the end of the pass, just like w/ overloads.
-
     if (polymorphic_fns == NULL) {
         setup_polymorphic_fns();
     }
 
-    c4m_call_resolution_info_t *info = c4m_gc_alloc(c4m_call_resolution_info_t);
+    c4m_call_resolution_info_t *info = c4m_new_call_resolution();
 
     info->name = call_name;
     info->loc  = call_loc;
@@ -1581,14 +1614,30 @@ handle_range(pass2_ctx *ctx)
     }
 }
 
+c4m_list_t *
+c4m_get_case_branches(c4m_tree_node_t *n)
+{
+    c4m_list_t *result = c4m_list(c4m_type_ref());
+
+    for (int i = 0; i < n->num_kids; i++) {
+        c4m_pnode_t *pnode = c4m_get_pnode(n->children[i]);
+        if (pnode->kind == c4m_nt_case) {
+            c4m_list_append(result, n->children[i]);
+        }
+    }
+
+    return result;
+}
+
 static void
 handle_typeof_statement(pass2_ctx *ctx)
 {
     c4m_tree_node_t    *saved    = ctx->node;
     c4m_pnode_t        *pnode    = c4m_get_pnode(saved);
-    c4m_control_info_t *ci       = pnode->extra_info;
-    c4m_list_t         *branches = use_pattern(ctx, c4m_case_branches);
-    c4m_tree_node_t    *elsenode = c4m_get_match_on_node(saved, c4m_case_else);
+    c4m_control_info_t *ci       = control_init(pnode->extra_info);
+    c4m_list_t         *branches = c4m_get_case_branches(saved);
+    c4m_tree_node_t    *elsenode = c4m_get_match_on_node(saved,
+                                                      c4m_else_condition);
     c4m_tree_node_t    *variant  = c4m_get_match_on_node(saved,
                                                      c4m_case_cond_typeof);
     c4m_tree_node_t    *label    = c4m_get_match_on_node(saved, c4m_opt_label);
@@ -1646,6 +1695,7 @@ handle_typeof_statement(pass2_ctx *ctx)
 
         c4m_pnode_t *branch_pnode = c4m_get_pnode(branch);
         branch_pnode->value       = (c4m_obj_t)casetype;
+        branch_pnode->type        = casetype;
 
         for (int j = 0; j < c4m_list_len(prev_types); j++) {
             c4m_type_t *oldcase = c4m_list_get(prev_types, j, NULL);
@@ -1656,59 +1706,59 @@ handle_typeof_statement(pass2_ctx *ctx)
                                 branch->children[0],
                                 casetype,
                                 oldcase);
-                goto next_branch;
+                break;
             }
             if (!c4m_types_are_compat(casetype, type_to_test, NULL)) {
                 c4m_add_error(ctx->file_ctx,
                               c4m_err_dead_branch,
                               branch->children[0],
                               casetype);
-                goto next_branch;
+                break;
             }
-
-            // Alias absolutely everything except the
-            // type. It's the only thing that should change.
-            tmp                   = c4m_add_or_replace_symbol(ctx->file_ctx,
-                                            ctx->local_scope,
-                                            sym->name);
-            tmp->flags            = sym->flags;
-            tmp->kind             = sym->kind;
-            tmp->declaration_node = sym->declaration_node;
-            tmp->path             = sym->path;
-            tmp->value            = sym->value;
-            tmp->my_scope         = sym->my_scope;
-            tmp->other_info       = sym->other_info;
-            tmp->sym_defs         = sym->sym_defs;
-            tmp->sym_uses         = sym->sym_uses;
-            tmp->type             = casetype;
-
-            ctx->node = branch->children[1];
-            next_branch(ctx, cfgbranch);
-            bstart   = c4m_cfg_enter_block(ctx->cfg, ctx->node);
-            ctx->cfg = bstart;
-
-            base_check_pass_dispatch(ctx);
-            ctx->cfg = c4m_cfg_exit_block(ctx->cfg, bstart, ctx->node);
-
-            if (c4m_list_len(tmp->sym_defs) > c4m_list_len(sym->sym_defs)) {
-                for (int k = c4m_list_len(sym->sym_defs);
-                     k < c4m_list_len(tmp->sym_defs);
-                     k++) {
-                    c4m_list_append(sym->sym_defs,
-                                    c4m_list_get(tmp->sym_defs, k, NULL));
-                }
-            }
-
-            if (c4m_list_len(tmp->sym_uses) > c4m_list_len(sym->sym_uses)) {
-                for (int k = c4m_list_len(sym->sym_uses);
-                     k < c4m_list_len(tmp->sym_uses);
-                     k++) {
-                    c4m_list_append(sym->sym_uses,
-                                    c4m_list_get(tmp->sym_uses, k, NULL));
-                }
-            }
-            tmp->linked_symbol = sym;
         }
+        // Alias absolutely everything except the
+        // type. It's the only thing that should change.
+        tmp                   = c4m_add_or_replace_symbol(ctx->file_ctx,
+                                        ctx->local_scope,
+                                        sym->name);
+        tmp->flags            = sym->flags;
+        tmp->kind             = sym->kind;
+        tmp->declaration_node = sym->declaration_node;
+        tmp->path             = sym->path;
+        tmp->value            = sym->value;
+        tmp->my_scope         = sym->my_scope;
+        tmp->other_info       = sym->other_info;
+        tmp->sym_defs         = sym->sym_defs;
+        tmp->sym_uses         = sym->sym_uses;
+        tmp->type             = casetype;
+
+        ctx->node = branch->children[1];
+        next_branch(ctx, cfgbranch);
+        bstart   = c4m_cfg_enter_block(ctx->cfg, ctx->node);
+        ctx->cfg = bstart;
+
+        base_check_pass_dispatch(ctx);
+
+        ctx->cfg = c4m_cfg_exit_block(ctx->cfg, bstart, ctx->node);
+
+        if (c4m_list_len(tmp->sym_defs) > c4m_list_len(sym->sym_defs)) {
+            for (int k = c4m_list_len(sym->sym_defs);
+                 k < c4m_list_len(tmp->sym_defs);
+                 k++) {
+                c4m_list_append(sym->sym_defs,
+                                c4m_list_get(tmp->sym_defs, k, NULL));
+            }
+        }
+
+        if (c4m_list_len(tmp->sym_uses) > c4m_list_len(sym->sym_uses)) {
+            for (int k = c4m_list_len(sym->sym_uses);
+                 k < c4m_list_len(tmp->sym_uses);
+                 k++) {
+                c4m_list_append(sym->sym_uses,
+                                c4m_list_get(tmp->sym_uses, k, NULL));
+            }
+        }
+        tmp->linked_symbol = sym;
 
         next_branch(ctx, cfgbranch);
 
@@ -1729,16 +1779,11 @@ handle_typeof_statement(pass2_ctx *ctx)
         ctx->cfg  = c4m_cfg_exit_node(entrance);
         ctx->node = saved;
 
-        if (saved_sym != NULL) {
-            hatrack_dict_put(ctx->local_scope->symbols, sym->name, saved_sym);
-        }
-        else {
-            hatrack_dict_remove(ctx->local_scope->symbols, sym->name);
-        }
-
         c4m_list_append(prev_types, c4m_type_copy(casetype));
+    }
 
-next_branch: /* nothing */;
+    if (saved_sym != NULL) {
+        hatrack_dict_put(ctx->local_scope->symbols, sym->name, saved_sym);
     }
 
     c4m_list_pop(ctx->loop_stack);
@@ -1750,9 +1795,9 @@ handle_switch_statement(pass2_ctx *ctx)
     c4m_tree_node_t    *saved        = ctx->node;
     c4m_pnode_t        *pnode        = c4m_get_pnode(saved);
     c4m_control_info_t *bi           = control_init(pnode->extra_info);
-    c4m_list_t         *branches     = use_pattern(ctx, c4m_case_branches);
+    c4m_list_t         *branches     = c4m_get_case_branches(saved);
     c4m_tree_node_t    *elsenode     = c4m_get_match_on_node(saved,
-                                                      c4m_case_else);
+                                                      c4m_else_condition);
     c4m_tree_node_t    *variant_node = c4m_get_match_on_node(saved,
                                                           c4m_case_cond);
     c4m_tree_node_t    *label        = c4m_get_match_on_node(saved,

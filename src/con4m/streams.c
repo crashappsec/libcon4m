@@ -113,10 +113,16 @@ mem_c4m_stream_seek(c4m_cookie_t *c, int64_t pos)
     return true;
 }
 
+static void
+cookie_gc_bits(uint64_t *bitmap, c4m_cookie_t *cookie)
+{
+    c4m_mark_raw_to_addr(bitmap, cookie, &cookie->extra);
+}
+
 static inline c4m_cookie_t *
 new_mem_cookie()
 {
-    c4m_cookie_t *result = c4m_gc_alloc(c4m_cookie_t);
+    c4m_cookie_t *result = c4m_gc_alloc_mapped(c4m_cookie_t, cookie_gc_bits);
 
     result->ptr_setup = mem_c4m_stream_setup;
     result->ptr_read  = mem_c4m_stream_read;
@@ -424,11 +430,18 @@ c4m_stream_read_all(c4m_stream_t *stream)
                 break;
             }
         }
-
         c4m_list_append(l, one);
     }
+
+    c4m_str_t *s;
+
     if (outkind) {
-        c4m_str_t *s = c4m_str_join(l, c4m_empty_string());
+        if (c4m_list_len(l) == 0) {
+            s = c4m_empty_string();
+        }
+        else {
+            s = c4m_str_join(l, c4m_empty_string());
+        }
 
         if (outkind == C4M_F_STREAM_UTF8_OUT) {
             return (c4m_obj_t *)c4m_to_utf8(s);
@@ -492,7 +505,6 @@ void
 c4m_stream_write_object(c4m_stream_t *stream, c4m_obj_t obj, bool ansi)
 {
     if (stream->flags & C4M_F_STREAM_CLOSED) {
-        abort();
         C4M_CRAISE("Stream is already closed.");
     }
 
@@ -797,11 +809,9 @@ c4m_get_stderr()
 }
 
 static void
-c4m_stream_set_gc_bits(uint64_t *bitfield, int alloc_words)
+c4m_stream_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
 {
-    int ix;
-    c4m_set_object_header_bits(bitfield, &ix);
-    c4m_set_bit(bitfield, ix);
+    c4m_set_bit(bitfield, c4m_ptr_diff(alloc, alloc->data));
 }
 
 const c4m_vtable_t c4m_stream_vtable = {

@@ -3,6 +3,18 @@
  */
 #include "con4m.h"
 
+static void
+party_gc_bits(uint64_t *bitmap, c4m_party_t *party)
+{
+    c4m_mark_raw_to_addr(bitmap, party, &party->extra);
+}
+
+c4m_party_t *
+c4m_new_party()
+{
+    return c4m_gc_alloc_mapped(c4m_party_t, party_gc_bits);
+}
+
 /* The way we use the below two IO functions assumes that, while they
  * may be interrupted, they won't be blocked.
  *
@@ -197,7 +209,7 @@ c4m_sb_new_party_listener(c4m_switchboard_t *ctx,
                           bool               stop_when_closed,
                           bool               close_on_destroy)
 {
-    c4m_party_t *result = (c4m_party_t *)c4m_gc_alloc(c4m_party_t);
+    c4m_party_t *result = c4m_new_party();
     c4m_sb_init_party_listener(ctx,
                                result,
                                sockfd,
@@ -267,7 +279,7 @@ c4m_sb_new_party_fd(c4m_switchboard_t *ctx,
                     bool               close_on_destroy,
                     bool               proxy_close)
 {
-    c4m_party_t *result = (c4m_party_t *)c4m_gc_alloc(c4m_party_t);
+    c4m_party_t *result = c4m_new_party();
     c4m_sb_init_party_fd(ctx,
                          result,
                          fd,
@@ -296,7 +308,7 @@ c4m_sb_init_party_input_buf(c4m_switchboard_t *ctx,
     char *to_set = input;
 
     if (dup) {
-        to_set = (char *)c4m_gc_alloc(len + 1);
+        to_set = (char *)c4m_gc_alloc_mapped(len + 1, NULL);
         memcpy(to_set, input, len);
     }
     party->open_for_read     = true;
@@ -319,7 +331,7 @@ c4m_sb_new_party_input_buf(c4m_switchboard_t *ctx,
                            bool               dup,
                            bool               close_fd_when_done)
 {
-    c4m_party_t *result = (c4m_party_t *)c4m_gc_alloc(c4m_party_t);
+    c4m_party_t *result = c4m_new_party();
     c4m_sb_init_party_input_buf(ctx,
                                 result,
                                 input,
@@ -345,7 +357,7 @@ c4m_sb_party_input_buf_new_string(c4m_party_t *party,
     sobj->close_fd_when_done = close_fd_when_done;
 
     if (dup) {
-        sobj->strbuf = c4m_gc_alloc(len + 1);
+        sobj->strbuf = c4m_gc_alloc_mapped(len + 1, NULL);
         memcpy(sobj->strbuf, input, len);
     }
     else {
@@ -399,7 +411,7 @@ c4m_sb_init_party_output_buf(c4m_switchboard_t *ctx,
 c4m_party_t *
 c4m_sb_new_party_output_buf(c4m_switchboard_t *ctx, char *tag, size_t buflen)
 {
-    c4m_party_t *result = (c4m_party_t *)c4m_gc_alloc(c4m_party_t);
+    c4m_party_t *result = c4m_new_party();
     c4m_sb_init_party_output_buf(ctx, result, tag, buflen);
 
     return result;
@@ -430,6 +442,18 @@ c4m_sb_init_party_callback(c4m_switchboard_t *ctx,
     register_loner(ctx, party);
 }
 
+static void
+monitor_gc_bits(uint64_t *bitmap, c4m_monitor_t *monitor)
+{
+    c4m_mark_raw_to_addr(bitmap, monitor, &monitor->stderr_fd_party);
+}
+
+static c4m_monitor_t *
+new_monitor()
+{
+    return c4m_gc_alloc_mapped(c4m_monitor_t, monitor_gc_bits);
+}
+
 /*
  * This is used to register a process and associate it with its read/write
  * file descriptors (via party objects).
@@ -442,7 +466,7 @@ c4m_sb_monitor_pid(c4m_switchboard_t *ctx,
                    c4m_party_t       *stderr_fd_party,
                    bool               shutdown)
 {
-    c4m_monitor_t *monitor = (c4m_monitor_t *)c4m_gc_alloc(c4m_monitor_t);
+    c4m_monitor_t *monitor = new_monitor();
 
     monitor->pid                  = pid;
     monitor->stdin_fd_party       = stdin_fd_party;
@@ -584,6 +608,18 @@ publish(c4m_switchboard_t *ctx, char *buf, ssize_t len, c4m_party_t *party)
 #endif
 }
 
+void
+subscription_gc_bits(uint64_t *bitmap, c4m_subscription_t *sub)
+{
+    c4m_mark_raw_to_addr(bitmap, sub, &sub->subscriber);
+}
+
+static inline c4m_subscription_t *
+new_subscription()
+{
+    return c4m_gc_alloc_mapped(c4m_subscription_t, subscription_gc_bits);
+}
+
 /*
  * Route a party that we read from, to a party that we write to.
  * If the mix is invalid, then this returns 'false'.
@@ -653,7 +689,7 @@ c4m_sb_route(c4m_switchboard_t *ctx,
 
         c4m_subscription_t *subscription;
 
-        subscription = c4m_gc_alloc(c4m_subscription_t);
+        subscription = new_subscription();
 
         if (write_to->c4m_party_type == C4M_PT_FD) {
 #if defined(C4M_SB_DEBUG) || defined(C4M_SB_TEST)

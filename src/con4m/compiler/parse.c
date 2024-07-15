@@ -9,6 +9,30 @@ typedef struct checkpoint_t {
     jmp_buf              env;
 } checkpoint_t;
 
+static void
+c4m_checkpoint_gc_bits(uint64_t *bitmap, checkpoint_t *cp)
+{
+    c4m_mark_raw_to_addr(bitmap, cp, &cp->fn);
+}
+
+static checkpoint_t *
+new_checkpoint()
+{
+    return c4m_gc_alloc_mapped(checkpoint_t, c4m_checkpoint_gc_bits);
+}
+
+static void
+c4m_comment_node_gc_bits(uint64_t *bitmap, c4m_comment_node_t *n)
+{
+    *bitmap = 1;
+}
+
+static c4m_comment_node_t *
+new_comment_node()
+{
+    return c4m_gc_alloc_mapped(c4m_comment_node_t, c4m_comment_node_gc_bits);
+}
+
 typedef struct {
     c4m_tree_node_t      *cur;
     c4m_file_compile_ctx *file_ctx;
@@ -73,16 +97,16 @@ c4m_exit_to_checkpoint(parse_ctx  *ctx,
 #define DECLARE_CHECKPOINT() \
     int checkpoint_error = 0;
 
-#define ENTER_CHECKPOINT()                             \
-    if (!checkpoint_error) {                           \
-        checkpoint_t *cp = c4m_gc_alloc(checkpoint_t); \
-        cp->prev         = ctx->jump_state;            \
-        cp->fn           = (char *)__func__;           \
-        ctx->jump_state  = cp;                         \
-        checkpoint_error = setjmp(cp->env);            \
-        if (checkpoint_error != 0) {                   \
-            ctx->jump_state = cp->prev;                \
-        }                                              \
+#define ENTER_CHECKPOINT()                   \
+    if (!checkpoint_error) {                 \
+        checkpoint_t *cp = new_checkpoint(); \
+        cp->prev         = ctx->jump_state;  \
+        cp->fn           = (char *)__func__; \
+        ctx->jump_state  = cp;               \
+        checkpoint_error = setjmp(cp->env);  \
+        if (checkpoint_error != 0) {         \
+            ctx->jump_state = cp->prev;      \
+        }                                    \
     }
 
 #define CHECKPOINT_STATUS() (checkpoint_error)
@@ -475,13 +499,13 @@ _consume(parse_ctx *ctx)
         case c4m_tt_line_comment:
         case c4m_tt_long_comment:
             pn      = (c4m_pnode_t *)c4m_tree_get_contents(ctx->cur);
-            comment = c4m_gc_alloc(c4m_comment_node_t);
+            comment = new_comment_node();
 
             comment->comment_tok = t;
             comment->sibling_id  = pn->total_kids++;
 
             if (pn->comments == NULL) {
-                pn->comments = c4m_new(c4m_type_list(c4m_type_ref()));
+                pn->comments = c4m_list(c4m_type_ref());
             }
 
             c4m_list_append(pn->comments, comment);
@@ -667,11 +691,12 @@ static inline c4m_tree_node_t *
 temporary_tree(parse_ctx *ctx, c4m_node_kind_t nt)
 {
     hatstack_push(ctx->root_stack, ctx->cur);
-    c4m_pnode_t     *tmproot = c4m_new(c4m_type_parse_node(), ctx, nt);
-    c4m_tree_node_t *result  = c4m_new(c4m_type_tree(c4m_type_parse_node()),
-                                      c4m_kw("contents", c4m_ka(tmproot)));
+    c4m_pnode_t *tmproot = c4m_new(c4m_type_parse_node(), ctx, nt);
 
-    ctx->cur = result;
+    c4m_type_t      *pn     = c4m_type_parse_node();
+    c4m_type_t      *tt     = c4m_type_tree(pn);
+    c4m_tree_node_t *result = c4m_new(tt, c4m_kw("contents", c4m_ka(tmproot)));
+    ctx->cur                = result;
 
     return result;
 }
@@ -4442,13 +4467,11 @@ c4m_parse_type(c4m_file_compile_ctx *file_ctx)
 }
 
 static void
-c4m_pnode_set_gc_bits(uint64_t *bitfield, int alloc_words)
+c4m_pnode_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
 {
-    int ix;
+    c4m_pnode_t *pnode = (c4m_pnode_t *)alloc->data;
 
-    c4m_set_object_header_bits(bitfield, &ix);
-    // First 8 words of the pnode are pointers.
-    *bitfield |= (0xff << ix);
+    c4m_mark_obj_to_addr(bitfield, alloc, &pnode->type);
 }
 
 const c4m_vtable_t c4m_parse_node_vtable = {

@@ -3,29 +3,8 @@
 
 #ifdef C4M_USE_INTERNAL_API
 
-// More consise aliases internally only.
-#define c4m_tfind(x, y, ...) _c4m_tpat_find((void *)(int64_t)x, \
-                                            y,                  \
-                                            C4M_VA(__VA_ARGS__))
-#define c4m_tfind_content(x, y) c4m_tpat_content_find((void *)(int64_t)x, y)
-#define c4m_tmatch(x, y, ...)   _c4m_tpat_match((void *)(int64_t)x, \
-                                              y,                    \
-                                              C4M_VA(__VA_ARGS__))
-#define c4m_tcontent(x, y) c4m_tpat_content_match((void *)(int64_t)x, y)
-#define c4m_toptional(x, y, ...) \
-    _c4m_tpat_opt_match((void *)(int64_t)x, y, C4M_VA(__VA_ARGS__))
-#define c4m_tcount(a, b, c, d, ...) \
-    _c4m_tpat_n_m_match((void *)(int64_t)a, b, c, d, C4M_VA(__VA_ARGS__))
-#define c4m_tcount_content(a, b, c, d, ...) \
-    c4m_tpat_n_m_content_match((void *)(int64_t)a, b, c, d)
-
-#define c4m_get_pnode(x) ((x) ? c4m_tree_get_contents(x) : NULL)
-
-// We use the null value (error) in patterns to match any type node.
-#define c4m_nt_any    (c4m_nt_error)
-#define c4m_max_nodes 0x7fff
-
 #ifdef C4M_DEBUG_PATTERNS
+
 static inline void
 c4m_print_type(c4m_obj_t o)
 {
@@ -51,7 +30,7 @@ c4m_content_formatter(void *contents)
 }
 
 static inline void
-show_pattern(c4m_tpat_node_t *pat)
+_show_pattern(c4m_tpat_node_t *pat)
 {
     c4m_tree_node_t *t = c4m_pat_repr(pat, c4m_content_formatter);
     c4m_grid_t      *g = c4m_grid_tree(t);
@@ -59,7 +38,13 @@ show_pattern(c4m_tpat_node_t *pat)
     c4m_print(g);
 }
 
+#define show_pattern(x)                                              \
+    printf("Showing pattern: %s (%s:%d)\n", #x, __FILE__, __LINE__); \
+    _show_pattern(x)
+
 #endif
+
+#define c4m_get_pnode(x) ((x) ? c4m_tree_get_contents(x) : NULL)
 
 extern bool        c4m_tcmp(int64_t, c4m_tree_node_t *);
 extern void        c4m_setup_treematch_patterns();

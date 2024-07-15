@@ -12,6 +12,18 @@ typedef struct {
     c4m_list_t           *sometimes_info;
 } cfg_ctx;
 
+static void
+c4m_cfg_status_gc_bits(uint64_t *bitmap, c4m_cfg_status_t *cfgstatus)
+{
+    c4m_mark_raw_to_addr(bitmap, cfgstatus, &cfgstatus->last_use);
+}
+
+static c4m_cfg_status_t *
+c4m_new_cfg_status()
+{
+    return c4m_gc_alloc_mapped(c4m_cfg_status_t, c4m_cfg_status_gc_bits);
+}
+
 static c4m_symbol_t *
 follow_sym_links(c4m_symbol_t *sym)
 {
@@ -46,7 +58,7 @@ cfg_propogate_def(cfg_ctx        *ctx,
     // to drop it on the floor. Note that this
     sym = follow_sym_links(sym);
 
-    c4m_cfg_status_t *new = c4m_gc_alloc(c4m_cfg_status_t);
+    c4m_cfg_status_t *new = c4m_new_cfg_status();
     c4m_cfg_status_t *old = hatrack_dict_get(du_info, sym, NULL);
 
     if (old) {
@@ -76,7 +88,7 @@ cfg_propogate_use(cfg_ctx        *ctx,
 
     sym = follow_sym_links(sym);
 
-    c4m_cfg_status_t *new = c4m_gc_alloc(c4m_cfg_status_t);
+    c4m_cfg_status_t *new = c4m_new_cfg_status();
 
     hatrack_dict_item_t *view;
     uint64_t             x;
@@ -116,7 +128,7 @@ cfg_copy_du_info(cfg_ctx        *ctx,
 
     hatrack_dict_item_t *view = hatrack_dict_items_sort(node->liveness_info,
                                                         &n);
-    c4m_set_t           *s    = c4m_set(c4m_type_utf8());
+    c4m_dict_t          *d    = c4m_dict(c4m_type_utf8(), c4m_type_int());
 
     for (uint64_t i = 0; i < n; i++) {
         c4m_symbol_t *sym = view[i].key;
@@ -125,7 +137,7 @@ cfg_copy_du_info(cfg_ctx        *ctx,
             continue;
         }
 
-        if (hatrack_set_add(s, sym->name)) {
+        if (hatrack_dict_add(d, sym->name, 0)) {
             hatrack_dict_put(copy, view[i].key, view[i].value);
         }
     }
@@ -312,7 +324,7 @@ cfg_merge_aux_entries_to_top(cfg_ctx *ctx, c4m_cfg_node_t *node)
         return;
     }
 
-    c4m_set_t *sometimes = c4m_new(c4m_type_set(c4m_type_ref()));
+    c4m_set_t *sometimes = c4m_new(c4m_type_utf8());
 
     if (exit->sometimes_live != NULL) {
         int n = c4m_list_len(exit->sometimes_live);
@@ -461,7 +473,7 @@ process_branch_exit(cfg_ctx *ctx, c4m_cfg_node_t *node)
             continue;
         }
 
-        status     = c4m_gc_alloc(c4m_cfg_status_t);
+        status     = c4m_new_cfg_status();
         old_status = hatrack_dict_get(node->liveness_info, sym, NULL);
         if (old_status != NULL) {
             status->last_def = old_status->last_def;

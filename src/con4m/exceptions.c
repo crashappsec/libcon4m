@@ -8,9 +8,6 @@ thread_local c4m_exception_stack_t __exception_stack = {
 
 static pthread_once_t exceptions_inited = PTHREAD_ONCE_INIT;
 
-// Skip the 4 GC header words, then the first 3 words are heap pointers.
-const uint64_t c4m_exception_pmap[2] = {1, 0x0e00000000000000};
-
 static void
 exception_init(c4m_exception_t *exception, va_list args)
 {
@@ -28,10 +25,19 @@ exception_init(c4m_exception_t *exception, va_list args)
     exception->code    = error_code;
 }
 
+static void
+exception_gc_bits(uint64_t *bitmap, c4m_base_obj_t *obj)
+{
+    c4m_exception_t *x = (c4m_exception_t *)obj->data;
+
+    c4m_mark_raw_to_addr(bitmap, obj, &x->previous);
+}
+
 c4m_exception_t *
 _c4m_alloc_exception(const char *msg, ...)
 {
-    c4m_exception_t *ret = c4m_gc_alloc(c4m_exception_t);
+    c4m_exception_t *ret = c4m_gc_alloc_mapped(c4m_exception_t,
+                                               exception_gc_bits);
     ret->msg             = c4m_new(c4m_type_utf8(),
                        c4m_kw("cstring", c4m_ka(msg)));
 
@@ -41,7 +47,8 @@ _c4m_alloc_exception(const char *msg, ...)
 c4m_exception_t *
 _c4m_alloc_str_exception(c4m_utf8_t *msg, ...)
 {
-    c4m_exception_t *ret = c4m_gc_alloc(c4m_exception_t);
+    c4m_exception_t *ret = c4m_gc_alloc_mapped(c4m_exception_t,
+                                               exception_gc_bits);
     ret->msg             = msg;
 
     return ret;

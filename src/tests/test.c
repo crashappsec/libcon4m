@@ -9,6 +9,7 @@ typedef struct {
     c4m_utf8_t *expected_output;
     c4m_list_t *expected_errors;
     bool        ignore_output;
+    bool        in_hex;
 } c4m_test_kat;
 
 static void
@@ -19,20 +20,85 @@ err_basic_usage(c4m_utf8_t *fname)
         "string may have 0 or 1 [em]$output[/] sections and 0 or 1 "
         "[em]$errors[/] sections ONLY. If neither are provided, "
         "then the harness expects no errors and ignores output. "
-        "There may be nothing else in the doc string except whitespace.",
+        "There may be nothing else in the doc string except whitespace."
+        "Also, instead of [em]$output[/] you may add a [em]$hex[/] section, "
+        "where the contents must be raw hex bytes.",
         fname);
     c4m_printf(
         "\n[i inv]Note: If you want to explicitly test for no output, then "
         "provide `$output:` with nothing following.\n");
 }
 
+static c4m_utf8_t *
+process_hex(c4m_utf32_t *s)
+{
+    c4m_utf8_t *res = c4m_to_utf8(s);
+
+    int n = 0;
+
+    for (int i = 0; i < res->byte_len; i++) {
+        char c = res->data[i];
+
+        switch (c) {
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+        case 'a':
+        case 'b':
+        case 'c':
+        case 'd':
+        case 'e':
+        case 'f':
+            res->data[n++] = c;
+            continue;
+        case 'A':
+            res->data[n++] = 'a';
+            continue;
+        case 'B':
+            res->data[n++] = 'b';
+            continue;
+        case 'C':
+            res->data[n++] = 'c';
+            continue;
+        case 'D':
+            res->data[n++] = 'd';
+            continue;
+        case 'E':
+            res->data[n++] = 'e';
+            continue;
+        case 'F':
+            res->data[n++] = 'f';
+            continue;
+        default:
+            continue;
+        }
+    }
+    res->data[n]    = 0;
+    res->byte_len   = n;
+    res->codepoints = n;
+
+    return res;
+}
+
 static void
-extract_output(c4m_test_kat *kat, c4m_utf32_t *s, int64_t start, int64_t end)
+extract_output(c4m_test_kat *kat,
+               c4m_utf32_t  *s,
+               int64_t       start,
+               int64_t       end,
+               bool          hex)
 {
     s                    = c4m_str_slice(s, start, end);
     s                    = c4m_str_strip(s);
     s                    = c4m_to_utf8(s);
-    kat->expected_output = s;
+    kat->expected_output = kat->in_hex ? process_hex(s) : s;
+    kat->in_hex          = hex;
 }
 
 static void
@@ -54,16 +120,30 @@ extract_errors(c4m_test_kat *kat, c4m_utf32_t *s, int64_t start, int64_t end)
     }
 }
 
+static void
+kat_gc_bits(uint64_t *bitmap, c4m_test_kat *kat)
+{
+    c4m_mark_raw_to_addr(bitmap, kat, &kat->expected_errors);
+}
+
 static c4m_test_kat *
 c4m_parse_kat(c4m_str_t *path, c4m_str_t *s)
 {
     s = c4m_str_strip(s);
 
-    c4m_test_kat *result = c4m_gc_alloc(c4m_test_kat);
+    c4m_test_kat *result = c4m_gc_alloc_mapped(c4m_test_kat, kat_gc_bits);
     c4m_utf8_t   *output = c4m_new_utf8("$output:");
     c4m_utf8_t   *errors = c4m_new_utf8("$errors:");
+    c4m_utf8_t   *hex    = c4m_new_utf8("$hex:");
     int64_t       outix  = c4m_str_find(s, output);
     int64_t       errix  = c4m_str_find(s, errors);
+    int64_t       hexix  = c4m_str_find(s, hex);
+    bool          ishex  = false;
+
+    if (hexix != -1) {
+        ishex = true;
+        outix = hexix;
+    }
 
     if (outix == -1 && errix == -1) {
         if (c4m_str_codepoint_len(s) != 0) {
@@ -88,7 +168,7 @@ c4m_parse_kat(c4m_str_t *path, c4m_str_t *s)
             err_basic_usage(path);
             return NULL;
         }
-        extract_output(result, s, 9, c4m_str_codepoint_len(s));
+        extract_output(result, s, 9, c4m_str_codepoint_len(s), ishex);
         return result;
     }
 
@@ -98,12 +178,12 @@ c4m_parse_kat(c4m_str_t *path, c4m_str_t *s)
     }
 
     if (errix != 0) {
-        extract_output(result, s, 9, errix);
+        extract_output(result, s, 9, errix, ishex);
         extract_errors(result, s, errix + 9, c4m_str_codepoint_len(s));
     }
     else {
         extract_errors(result, s, 9, outix);
-        extract_output(result, s, outix + 9, c4m_str_codepoint_len(s));
+        extract_output(result, s, outix + 9, c4m_str_codepoint_len(s), ishex);
     }
 
     return result;
@@ -112,7 +192,7 @@ c4m_parse_kat(c4m_str_t *path, c4m_str_t *s)
 static c4m_test_kat *
 c4m_extract_kat(c4m_utf8_t *path)
 {
-    c4m_file_compile_ctx *ctx = c4m_gc_alloc(c4m_file_compile_ctx);
+    c4m_file_compile_ctx *ctx = c4m_new_file_compile_ctx();
     c4m_stream_t         *s   = c4m_file_instream(path, C4M_T_UTF8);
 
     c4m_lex(ctx, s);
@@ -212,16 +292,18 @@ build_file_list()
     c4m_list_t   *to_recurse = c4m_list(c4m_type_utf8());
     c4m_dict_t   *result     = c4m_dict(c4m_type_utf8(), c4m_type_ref());
     c4m_utf8_t   *test_dir   = c4m_get_env(c4m_new_utf8("CON4M_TEST_DIR"));
+    c4m_utf8_t   *cur_dir    = c4m_get_current_directory();
     c4m_utf8_t   *ext        = c4m_new_utf8(".c4m");
     c4m_test_kat *kat;
 
     int n = c4m_list_len(argv);
 
     if (test_dir == NULL) {
-        test_dir = c4m_new_utf8("../tests/");
+        test_dir = c4m_cstr_format("{}/tests/", c4m_con4m_root());
     }
-
-    test_dir = c4m_resolve_path(test_dir);
+    else {
+        test_dir = c4m_resolve_path(test_dir);
+    }
 
     if (!n) {
         n    = 1;
@@ -230,8 +312,8 @@ build_file_list()
     }
 
     for (int i = 0; i < n; i++) {
-        c4m_utf8_t *s = c4m_to_utf8(c4m_list_get(argv, i, NULL));
-        s             = c4m_resolve_path(c4m_path_simple_join(test_dir, s));
+        c4m_utf8_t *fname = c4m_to_utf8(c4m_list_get(argv, i, NULL));
+        c4m_utf8_t *s     = c4m_path_simple_join(test_dir, fname);
 
         switch (c4m_get_file_kind(s)) {
         case C4M_FK_IS_REG_FILE:
@@ -246,6 +328,20 @@ build_file_list()
             c4m_list_append(to_recurse, s);
             continue;
         case C4M_FK_NOT_FOUND:
+            s = c4m_path_simple_join(cur_dir, fname);
+            switch (c4m_get_file_kind(s)) {
+            case C4M_FK_IS_REG_FILE:
+            case C4M_FK_IS_FLINK:
+                kat = c4m_extract_kat(s);
+                hatrack_dict_put(result, s, kat);
+                continue;
+            case C4M_FK_IS_DIR:
+            case C4M_FK_IS_DLINK:
+                c4m_list_append(to_recurse, s);
+                continue;
+            default:
+                break;
+            }
             c4m_printf("[red]error:[/] No such file or directory: {}", s);
             fatal = true;
             continue;
@@ -335,6 +431,20 @@ show_err_diffs(c4m_utf8_t *fname, c4m_list_t *expected, c4m_list_t *actual)
     }
 }
 
+static c4m_utf8_t *
+line_strip(c4m_str_t *s)
+{
+    c4m_list_t *parts = c4m_str_split(s, c4m_new_utf8("\n"));
+
+    for (int i = 0; i < c4m_list_len(parts); i++) {
+        c4m_utf8_t *line = c4m_to_utf8(c4m_list_get(parts, i, NULL));
+        c4m_utf8_t *item = c4m_to_utf8(c4m_str_strip(line));
+        c4m_list_set(parts, i, item);
+    }
+
+    return c4m_str_join(parts, c4m_new_utf8("\n"));
+}
+
 static bool
 compare_results(c4m_utf8_t      *fname,
                 c4m_test_kat    *kat,
@@ -367,7 +477,15 @@ empty_err:
             if (c4m_str_codepoint_len(output) == 0) {
                 goto empty_err;
             }
-            if (!c4m_str_eq(output, kat->expected_output)) {
+
+            if (kat->in_hex) {
+                output = c4m_str_to_hex(output, false);
+            }
+
+            c4m_utf8_t *expected = line_strip(kat->expected_output);
+            c4m_utf8_t *actual   = line_strip(output);
+
+            if (!c4m_str_eq(expected, actual)) {
                 ret = false;
 
                 c4m_printf(
@@ -375,14 +493,13 @@ empty_err:
                     fname);
                 c4m_printf(
                     "[h1]Expected output[/]\n{}\n[h1]Actual[/]\n{}\n",
-                    kat->expected_output,
-                    output);
-#if 0
+                    expected,
+                    actual);
+#if 1
                 c4m_printf(
                     "[h2]Expected (Hex)[/]\n{}\n[h2]Actual (Hex)[/]\n{}\n",
-                    c4m_hex_dump(kat->expected_output->data,
-                                 c4m_str_byte_len(kat->expected_output)),
-                    c4m_hex_dump(output->data, c4m_str_byte_len(output)));
+                    c4m_hex_dump(expected, c4m_str_byte_len(expected)),
+                    c4m_hex_dump(actual->data, c4m_str_byte_len(actual)));
 #endif
             }
         }
@@ -495,6 +612,7 @@ add_static_symbols()
     c4m_add_static_function(c4m_new_utf8("c4m_repr"), c4m_wrapper_repr);
     c4m_add_static_function(c4m_new_utf8("c4m_to_str"), c4m_wrapper_to_str);
     c4m_add_static_function(c4m_new_utf8("c4m_len"), c4m_len);
+    c4m_add_static_function(c4m_new_utf8("c4m_snap_column"), c4m_snap_column);
 }
 
 static int
@@ -512,6 +630,12 @@ extern bool c4m_definite_memcheck_error;
 #else
 bool c4m_definite_memcheck_error = false;
 #endif
+
+c4m_list_t *
+c4m_system_module_files();
+
+int c4m_current_test_case = 0;
+int c4m_watch_case        = 5;
 
 int
 main(int argc, char **argv, char **envp)
@@ -569,6 +693,7 @@ main(int argc, char **argv, char **envp)
             c4m_test_kat *kat   = items[i].value;
 
             if (kat != NULL) {
+                c4m_current_test_case++;
                 num_tests++;
                 c4m_printf("[h4]Running test {}: [i]{}",
                            c4m_box_u64(num_tests),
@@ -638,6 +763,7 @@ main(int argc, char **argv, char **envp)
             c4m_printf("[h5] Con4m testing [b navy blue]PASSED.[/]");
         }
     }
+
     c4m_gc_thread_collect();
 
     if (!num_errs && !no_exception) {

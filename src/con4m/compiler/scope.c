@@ -14,13 +14,30 @@ char *c4m_symbol_kind_names[C4M_SK_NUM_SYM_KINDS] = {
 };
 // clang-format on
 
+static void
+c4m_sym_gc_bits(uint64_t *bitfield, c4m_symbol_t *sym)
+{
+    c4m_mark_raw_to_addr(bitfield, sym, &sym->value);
+}
+
+c4m_symbol_t *
+c4m_new_symbol()
+{
+    return c4m_gc_alloc_mapped(c4m_symbol_t, c4m_sym_gc_bits);
+}
+
+static void
+c4m_scope_gc_bits(uint64_t *bitfield, c4m_scope_t *scope)
+{
+    c4m_mark_raw_to_addr(bitfield, scope, &scope->symbols);
+}
+
 c4m_scope_t *
 c4m_new_scope(c4m_scope_t *parent, c4m_scope_kind kind)
 {
-    c4m_scope_t *result = c4m_gc_alloc(c4m_scope_t);
+    c4m_scope_t *result = c4m_gc_alloc_mapped(c4m_scope_t, c4m_scope_gc_bits);
     result->parent      = parent;
-    result->symbols     = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                            c4m_type_ref()));
+    result->symbols     = c4m_dict(c4m_type_utf8(), c4m_type_ref());
     result->kind        = kind;
 
     return result;
@@ -113,6 +130,7 @@ c4m_shadow_check(c4m_file_compile_ctx *ctx,
         }
     }
 }
+
 c4m_symbol_t *
 c4m_declare_symbol(c4m_file_compile_ctx *ctx,
                    c4m_scope_t          *scope,
@@ -122,14 +140,14 @@ c4m_declare_symbol(c4m_file_compile_ctx *ctx,
                    bool                 *success,
                    bool                  err_if_present)
 {
-    c4m_symbol_t *entry     = c4m_gc_alloc(c4m_symbol_t);
+    c4m_symbol_t *entry     = c4m_new_symbol();
     entry->path             = c4m_to_utf8(ctx->path);
     entry->name             = name;
     entry->declaration_node = node;
     entry->type             = c4m_new_typevar();
     entry->kind             = kind;
     entry->my_scope         = scope;
-    entry->sym_defs         = c4m_new(c4m_type_list(c4m_type_ref()));
+    entry->sym_defs         = c4m_list(c4m_type_ref());
 
     if (hatrack_dict_add(scope->symbols, name, entry)) {
         if (success != NULL) {
@@ -143,7 +161,6 @@ c4m_declare_symbol(c4m_file_compile_ctx *ctx,
         default:
             c4m_list_append(entry->sym_defs, node);
         }
-
         return entry;
     }
 
@@ -166,13 +183,12 @@ c4m_declare_symbol(c4m_file_compile_ctx *ctx,
 
     return old;
 }
-
 c4m_symbol_t *
 c4m_add_inferred_symbol(c4m_file_compile_ctx *ctx,
                         c4m_scope_t          *scope,
                         c4m_utf8_t           *name)
 {
-    c4m_symbol_t *entry = c4m_gc_alloc(c4m_symbol_t);
+    c4m_symbol_t *entry = c4m_new_symbol();
     entry->name         = name;
     entry->type         = c4m_new_typevar();
     entry->kind         = C4M_SK_VARIABLE;
@@ -196,7 +212,7 @@ c4m_add_or_replace_symbol(c4m_file_compile_ctx *ctx,
                           c4m_scope_t          *scope,
                           c4m_utf8_t           *name)
 {
-    c4m_symbol_t *entry = c4m_gc_alloc(c4m_symbol_t);
+    c4m_symbol_t *entry = c4m_new_symbol();
     entry->name         = name;
     entry->type         = c4m_new_typevar();
     entry->kind         = C4M_SK_VARIABLE;
@@ -377,8 +393,8 @@ c4m_format_scope(c4m_scope_t *scope)
     c4m_list_t           *row        = c4m_new_table_row();
     c4m_utf8_t           *decl_const = c4m_new_utf8("declared");
     c4m_utf8_t           *inf_const  = c4m_new_utf8("inferred");
-    c4m_dict_t           *memos      = c4m_new(c4m_type_dict(c4m_type_ref(),
-                                              c4m_type_utf8()));
+    c4m_dict_t           *memos      = c4m_dict(c4m_type_typespec(),
+                                 c4m_type_utf8());
     int64_t               nexttid    = 0;
 
     values = hatrack_dict_values_sort(scope->symbols,

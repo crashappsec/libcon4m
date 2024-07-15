@@ -28,7 +28,11 @@
 // memory. The size is a minimum size; the function may return a larger size.
 // The function must return a pointer that is 16-byte aligned. The returned
 // pointer may be NULL if the requested allocation cannot be satisfied.
+#ifdef HATRACK_ALLOC_PASS_LOCATION
+typedef void *(*hatrack_malloc_t)(size_t size, void *arg, char *file, int line);
+#else
 typedef void *(*hatrack_malloc_t)(size_t size, void *arg);
+#endif
 
 // hatrack_realloc_t is the signature of a function that is used to resize an
 // existing allocation. The old pointer and size are always provided (oldptr
@@ -40,15 +44,32 @@ typedef void *(*hatrack_malloc_t)(size_t size, void *arg);
 // memory from the old pointer to the new pointer, as appropriate. The returned
 // pointer may be NULL if the requested allocation cannot be satisfied. In this
 // case the original pointer remains valid.
+#ifdef HATRACK_ALLOC_PASS_LOCATION
+typedef void *(*hatrack_realloc_t)(void  *oldptr,
+                                   size_t oldsize,
+                                   size_t newsize,
+                                   void  *arg,
+                                   char  *file,
+                                   int    line);
+#else
 typedef void *(*hatrack_realloc_t)(void  *oldptr,
                                    size_t oldsize,
                                    size_t newsize,
                                    void  *arg);
+#endif
 
 // hatrack_free_t is the signature of a function that is used to deallocate
 // previously allocated memory. The pointer to free is always provided (it will
 // never be NULL).
+#ifdef HATRACK_ALLOC_PASS_LOCATION
+typedef void (*hatrack_free_t)(void  *ptr,
+                               size_t size,
+                               void  *arg,
+                               char  *file,
+                               int    line);
+#else
 typedef void (*hatrack_free_t)(void *ptr, size_t size, void *arg);
+#endif
 
 typedef struct {
     hatrack_malloc_t  mallocfn;
@@ -66,19 +87,38 @@ typedef struct {
 extern void
 hatrack_setmallocfns(hatrack_mem_manager_t *);
 
+// This helps us declare optional parameters for allocation funcs
+#ifdef HATRACK_ALLOC_PASS_LOCATION
+#define HATRACK_LOC_DECL , char *file, int line
+#else
+#define HATRACK_LOC_DECL
+#endif
+
 // hatrack_malloc calls the configured memory allocation function to allocate
 // the requested amount of memory. The returned pointer may be NULL if the
 // allocation cannot be satisfied; otherwise, it is guaranteed to be 16-byte
 // aligned.
 extern void *
-hatrack_malloc(size_t size);
+_hatrack_malloc(size_t size HATRACK_LOC_DECL);
+
+#ifdef HATRACK_ALLOC_PASS_LOCATION
+#define hatrack_malloc(size) _hatrack_malloc(size, __FILE__, __LINE__)
+#else
+#define hatrack_malloc(size) _hatrack_malloc(size)
+#endif
 
 // hatrack_zalloc calls the configured memory allocation function to allocate
 // the requested amount of zeroed memory. The returned pointer may be NULL if
 // the allocation cannot be satisfied; otherwise, it is guaranteed to be 16-byte
 // aligned and filled with 0 bytes.
 extern void *
-hatrack_zalloc(size_t size);
+_hatrack_zalloc(size_t size HATRACK_LOC_DECL);
+
+#ifdef HATRACK_ALLOC_PASS_LOCATION
+#define hatrack_zalloc(size) _hatrack_zalloc(size, __FILE__, __LINE__)
+#else
+#define hatrack_zalloc(size) _hatrack_zalloc(size)
+#endif
 
 // hatrack_realloc calls the configured memory reallocation function to resize
 // an existing allocation. The returned pointer may be NULL if the allocation
@@ -89,10 +129,50 @@ hatrack_zalloc(size_t size);
 // The allocated size of the original pointer to reallocate is required, but
 // ignored if oldptr is NULL.
 extern void *
-hatrack_realloc(void *oldptr, size_t oldsize, size_t newsize);
+_hatrack_realloc(void  *oldptr,
+                 size_t oldsize,
+                 size_t newsize
+                     HATRACK_LOC_DECL);
+
+#ifdef HATRACK_ALLOC_PASS_LOCATION
+#define hatrack_realloc(oldptr, oldsize, newsize) \
+    _hatrack_realloc(oldptr, oldsize, newsize, __FILE__, __LINE__);
+#else
+#define hatrack_realloc(oldptr, oldsize, newsize) \
+    _hatrack_realloc(oldptr, oldsize, newsize)
+#endif
 
 // hatrack_free calls the configured memory deallocation function to deallocate
 // an existing allocation. The pointer to deallocate may be NULL, in which case
 // nothing is done. The allocated size of the pointer to free is required.
 extern void
-hatrack_free(void *oldptr, size_t oldsize);
+_hatrack_free(void *oldptr, size_t oldsize HATRACK_LOC_DECL);
+
+#ifdef HATRACK_ALLOC_PASS_LOCATION
+#define hatrack_free(oldptr, oldsize) \
+    _hatrack_free(oldptr, oldsize, __FILE__, __LINE__);
+#else
+#define hatrack_free(oldptr, oldsize) _hatrack_free(oldptr, oldsize)
+#endif
+
+#ifdef HATRACK_PER_INSTANCE_AUX
+extern void *
+_hatrack_malloc_aux(size_t size, void *aux HATRACK_LOC_DECL);
+extern void *
+_hatrack_zalloc_aux(size_t size, void *aux HATRACK_LOC_DECL);
+
+#ifdef HATRACK_ALLOC_PASS_LOCATION
+#define hatrack_malloc_aux(size, aux) \
+    _hatrack_malloc_aux(size, aux, __FILE__, __LINE__)
+#define hatrack_zalloc_aux(size, aux) \
+    _hatrack_zalloc_aux(size, aux, __FILE__, __LINE__)
+#else
+#define hatrack_malloc_aux(size, aux) \
+    _hatrack_malloc_aux(size, aux)
+#define hatrack_zalloc_aux(size, aux) \
+    _hatrack_zalloc_aux(size, aux)
+#endif // PASS_LOCATION
+#else  // PER_INSTANCE_AUX
+#define hatrack_malloc_aux(size) hatrack_malloc(size)
+#define hatrack_zalloc_aux(size) hatrack_zalloc(size)
+#endif

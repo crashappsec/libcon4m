@@ -1,5 +1,10 @@
 #include "con4m.h"
 
+extern c4m_zinstruction_t *c4m_new_instruction();
+extern c4m_zfn_info_t     *c4m_new_zfn();
+extern c4m_zmodule_info_t *c4m_new_zmodule();
+extern c4m_zobject_file_t *c4m_new_zobject();
+
 typedef void (*marshalfn_t)(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid);
 
 static void
@@ -43,9 +48,9 @@ static c4m_list_t *
 unmarshal_xlist_ref(c4m_stream_t *in, c4m_dict_t *memos, unmarshalfn_t fn)
 {
     c4m_list_t *x = c4m_list(c4m_type_ref());
-    x->append_ix   = c4m_unmarshal_i32(in);
-    x->length      = c4m_unmarshal_i32(in);
-    x->data        = c4m_gc_array_alloc(int64_t *, x->length);
+    x->append_ix  = c4m_unmarshal_i32(in);
+    x->length     = c4m_unmarshal_i32(in);
+    x->data       = c4m_gc_array_alloc(int64_t *, x->length);
 
     for (int32_t i = 0; i < x->append_ix; ++i) {
         x->data[i] = fn(in, memos);
@@ -71,7 +76,7 @@ marshal_instruction(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mi
 static void *
 unmarshal_instruction(c4m_stream_t *in, c4m_dict_t *memos)
 {
-    c4m_zinstruction_t *out = c4m_gc_alloc(c4m_zinstruction_t);
+    c4m_zinstruction_t *out = c4m_new_instruction();
 
     out->op        = c4m_unmarshal_u8(in);
     out->pad       = c4m_unmarshal_u8(in);
@@ -97,11 +102,18 @@ marshal_ffi_arg_info(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *m
     c4m_sub_marshal(in->name, out, memos, mid);
 }
 
+static void
+ffi_decl_gc_map(uint64_t *bitmap, c4m_zffi_arg_info_t *info)
+{
+    c4m_mark_raw_to_addr(bitmap, info, &info->external_params);
+}
+
 static void *
 unmarshal_ffi_arg_info(c4m_stream_t *in, c4m_dict_t *memos)
 {
 
-    c4m_zffi_arg_info_t *out = c4m_gc_alloc(c4m_zffi_arg_info_t);
+    c4m_zffi_arg_info_t *out = c4m_gc_alloc_mapped(c4m_zffi_arg_info_t,
+	ffi_decl_gc_map);
 
     out->held     = c4m_unmarshal_bool(in);
     out->alloced  = c4m_unmarshal_bool(in);
@@ -155,21 +167,26 @@ unmarshal_ffi_info(c4m_stream_t *in, c4m_dict_t *memos)
 static void
 marshal_symbol(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
 {
+#if 0
     c4m_zsymbol_t *in = ref;
 
     c4m_marshal_i64(in->offset, out);
     c4m_sub_marshal(in->tid, out, memos, mid);
+#endif
 }
 
 static void *
 unmarshal_symbol(c4m_stream_t *in, c4m_dict_t *memos)
 {
+#if 0
     c4m_zsymbol_t *out = c4m_gc_alloc(c4m_zsymbol_t);
 
     out->offset = c4m_unmarshal_i64(in);
     out->tid    = c4m_sub_unmarshal(in, memos);
 
     return out;
+#endif
+    return NULL;
 }
 
 static void
@@ -191,7 +208,7 @@ marshal_fn_info(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
 static void *
 unmarshal_fn_info(c4m_stream_t *in, c4m_dict_t *memos)
 {
-    c4m_zfn_info_t *out = c4m_gc_alloc(c4m_zfn_info_t);
+    c4m_zfn_info_t *out = c4m_new_zfn();
 
     out->funcname  = c4m_sub_unmarshal(in, memos);
     out->syms      = c4m_sub_unmarshal(in, memos);
@@ -219,6 +236,7 @@ unmarshal_value(c4m_value_t *out, c4m_stream_t *in, c4m_dict_t *memos)
 static void
 marshal_param_info(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
 {
+#if 0
     c4m_zparam_info_t *in = ref;
 
     c4m_sub_marshal(in->attr, out, memos, mid);
@@ -235,11 +253,13 @@ marshal_param_info(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid
     if (in->have_default) {
         marshal_value(&in->default_value, out, memos, mid);
     }
+#endif
 }
 
 static void *
 unmarshal_param_info(c4m_stream_t *in, c4m_dict_t *memos)
 {
+#if 0
     c4m_zparam_info_t *out = c4m_gc_alloc(c4m_zparam_info_t);
 
     out->attr         = c4m_sub_unmarshal(in, memos);
@@ -259,6 +279,8 @@ unmarshal_param_info(c4m_stream_t *in, c4m_dict_t *memos)
     }
 
     return out;
+#endif
+    return NULL;
 }
 
 static void
@@ -285,7 +307,7 @@ marshal_module_info(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mi
 static void *
 unmarshal_module_info(c4m_stream_t *in, c4m_dict_t *memos)
 {
-    c4m_zmodule_info_t *out = c4m_gc_alloc(c4m_zmodule_info_t);
+    c4m_zmodule_info_t *out = c4m_new_zmodule();
 
     out->module_id       = c4m_unmarshal_i32(in);
     out->module_hash     = c4m_unmarshal_u64(in);
@@ -352,7 +374,7 @@ marshal_object_file(c4m_zobject_file_t *in, c4m_stream_t *out, c4m_dict_t *memos
 static c4m_zobject_file_t *
 unmarshal_object_file(c4m_stream_t *in, c4m_dict_t *memos)
 {
-    c4m_zobject_file_t *out = c4m_gc_alloc(c4m_zobject_file_t);
+    c4m_zobject_file_t *out = c4m_new_zobject();
 
     out->zero_magic      = c4m_unmarshal_u64(in);
     out->zc_object_vers  = c4m_unmarshal_u16(in);
@@ -374,6 +396,7 @@ marshal_attr_contents(void         *ref,
                       c4m_dict_t   *memos,
                       int64_t      *mid)
 {
+#if 0
     c4m_attr_contents_t *in = ref;
 
     c4m_marshal_bool(in->is_set, out);
@@ -385,11 +408,13 @@ marshal_attr_contents(void         *ref,
     }
     else {
     }
+#endif
 }
 
 static void *
 unmarshal_attr_contents(c4m_stream_t *in, c4m_dict_t *memos)
 {
+#if 0
     c4m_attr_contents_t *out = c4m_gc_alloc(c4m_attr_contents_t);
 
     out->is_set        = c4m_unmarshal_bool(in);
@@ -403,26 +428,33 @@ unmarshal_attr_contents(c4m_stream_t *in, c4m_dict_t *memos)
     }
 
     return out;
+#endif
+    return NULL;
 }
 
 static void
 marshal_docs_container(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
 {
+#if 0
     c4m_docs_container_t *in = ref;
 
     c4m_sub_marshal(in->shortdoc, out, memos, mid);
     c4m_sub_marshal(in->longdoc, out, memos, mid);
+#endif
 }
 
 static void *
 unmarshal_docs_container(c4m_stream_t *in, c4m_dict_t *memos)
 {
+#if 0
     c4m_docs_container_t *out = c4m_gc_alloc(c4m_docs_container_t);
 
     out->shortdoc = c4m_sub_unmarshal(in, memos);
     out->longdoc  = c4m_sub_unmarshal(in, memos);
 
     return out;
+#endif
+    return NULL;
 }
 
 static void
@@ -431,8 +463,8 @@ marshal_module_allocations(c4m_vm_t *vm, c4m_stream_t *out, c4m_dict_t *memos, i
     const int64_t nmodules = c4m_list_len(vm->obj->module_contents);
     for (int64_t n = 0; n < nmodules; ++n) {
         c4m_zmodule_info_t *module = c4m_list_get(vm->obj->module_contents,
-                                                   n,
-                                                   NULL);
+                                                  n,
+                                                  NULL);
         for (int64_t i = 0; i < module->module_var_size; ++i) {
             marshal_value(&vm->module_allocations[n][i], out, memos, mid);
         }
@@ -445,8 +477,8 @@ unmarshal_module_allocations(c4m_vm_t *vm, c4m_stream_t *in, c4m_dict_t *memos)
     const int64_t nmodules = c4m_list_len(vm->obj->module_contents);
     for (int64_t n = 0; n < nmodules; ++n) {
         c4m_zmodule_info_t *module = c4m_list_get(vm->obj->module_contents,
-                                                   n,
-                                                   NULL);
+                                                  n,
+                                                  NULL);
         for (int64_t i = 0; i < module->module_var_size; ++i) {
             unmarshal_value(&vm->module_allocations[n][i], in, memos);
         }

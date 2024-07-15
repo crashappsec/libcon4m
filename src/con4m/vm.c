@@ -64,6 +64,18 @@ c4m_init_strings()
     c4m_ansi_render(s, f);
 
 static void
+zcallback_gc_bits(uint64_t *bitmap, c4m_zcallback_t *cb)
+{
+    c4m_mark_raw_to_addr(bitmap, cb, &cb->tid);
+}
+
+c4m_zcallback_t *
+c4m_new_zcallback()
+{
+    return c4m_gc_alloc_mapped(c4m_zcallback_t, zcallback_gc_bits);
+}
+
+static void
 c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
 {
     c4m_init_strings();
@@ -1262,9 +1274,6 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 do {
                     c4m_type_t *type = c4m_get_my_type(tstate->sp->rvalue.obj);
 
-                    if (!i->arg) {
-                        --tstate->sp;
-                    }
                     *tstate->sp = (c4m_stack_value_t){
                         .rvalue = (c4m_value_t){
                             .obj = type,
@@ -1275,9 +1284,11 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZTypeCmp:
                 STACK_REQUIRE_VALUES(2);
                 do {
-                    c4m_type_t *t1 = tstate->sp->rvalue.obj;
+                    c4m_type_t *t1 = tstate->sp[0].rvalue.obj;
+                    c4m_type_t *t2 = tstate->sp[1].rvalue.obj;
+
                     ++tstate->sp;
-                    c4m_type_t *t2   = tstate->sp->rvalue.obj;
+
                     // Does NOT check for coercible.
                     tstate->sp->uint = (uint64_t)c4m_types_are_compat(t1,
                                                                       t2,
@@ -1385,7 +1396,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZPushFfiPtr:
                 STACK_REQUIRE_SLOTS(1);
                 do {
-                    c4m_zcallback_t *cb = c4m_gc_alloc(c4m_zcallback_t);
+                    c4m_zcallback_t *cb = c4m_new_zcallback();
 
                     *cb = (c4m_zcallback_t){
                         .impl       = i->arg,
@@ -1403,7 +1414,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZPushVmPtr:
                 STACK_REQUIRE_SLOTS(1);
                 do {
-                    c4m_zcallback_t *cb = c4m_gc_alloc(c4m_zcallback_t);
+                    c4m_zcallback_t *cb = c4m_new_zcallback();
 
                     *cb = (c4m_zcallback_t){
                         .impl       = i->arg,
@@ -1699,11 +1710,21 @@ c4m_vm_reset(c4m_vm_t *vm)
     vm->using_attrs  = false;
 }
 
+static void
+vm_gc_bits(uint64_t *bitmap, c4m_vmthread_t *t)
+{
+    uint64_t diff = c4m_ptr_diff(t, &t->r3);
+    for (unsigned int i = 0; i < diff; i++) {
+        c4m_set_bit(bitmap, i);
+    }
+}
+
 c4m_vmthread_t *
 c4m_vmthread_new(c4m_vm_t *vm)
 {
     // c4m_arena_t    *arena  = c4m_internal_stash_heap();
-    c4m_vmthread_t *tstate = c4m_gc_alloc(c4m_vmthread_t);
+    c4m_vmthread_t *tstate = c4m_gc_alloc_mapped(c4m_vmthread_t,
+                                                 vm_gc_bits);
     tstate->vm             = vm;
 
     c4m_vmthread_reset(tstate);
@@ -1763,5 +1784,6 @@ const c4m_vtable_t c4m_vm_vtable = {
     .methods     = {
         [C4M_BI_MARSHAL]   = (c4m_vtable_entry)c4m_vm_marshal,
         [C4M_BI_UNMARSHAL] = (c4m_vtable_entry)c4m_vm_unmarshal,
+        [C4M_BI_GC_MAP]    = (c4m_vtable_entry)vm_gc_bits,
     },
 };

@@ -27,6 +27,7 @@ c_args        = ['-Wextra',
                  '-Wno-unused-parameter',
                  '-Wno-cast-function-type',
                   '-fno-omit-frame-pointer',
+                  '-DHATRACK_PER_INSTANCE_AUX',
                   ]
 
 if (host_machine.cpu_family() == 'x86_64' and cc.get_id() == 'clang')
@@ -45,6 +46,13 @@ else
   link_args = []
   c_args    = c_args + ['-D_GNU_SOURCE']
 endif
+
+backtrace = cc.find_library('backtrace',
+                               required: false)
+
+if backtrace.found()
+c_args = c_args + ['-DBACKTRACE_SUPPORTED']
+endif                               
 
 fpty_code = '''
 #include <stddef.h>
@@ -85,7 +93,7 @@ if (get_option('use_memcheck') == true)
 endif
 
 if (get_option('show_gc_stats') == true)
-  c_args = c_args + ['-DC4M_GC_STATS']
+  c_args = c_args + ['-DC4M_GC_STATS', '-DHATRACK_ALLOC_PASS_LOCATION']
 endif
 
 
@@ -117,6 +125,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/styledb.c',
             'src/con4m/exceptions.c',
             'src/con4m/marshal.c',
+            'src/con4m/typestore.c',
             'src/con4m/types.c',
             'src/con4m/tree.c',
             'src/con4m/tree_pattern.c',
@@ -141,6 +150,7 @@ c4m_src  = ['src/con4m/style.c',
             'src/con4m/ffi.c',
             'src/con4m/watch.c',
             'src/con4m/wrappers.c',
+            'src/con4m/ctrace.c',
             'src/con4m/crypto/sha.c',
             'src/con4m/compiler/compile.c',
             'src/con4m/compiler/lex.c',
@@ -221,7 +231,7 @@ ssl      = cc.find_library('ssl')
 unibreak = dependency('libunibreak')
 utf8proc = dependency('libutf8proc')
 
-deps     = [unibreak, utf8proc, threads, ffi, ssl, crypto]
+deps     = [unibreak, utf8proc, threads, ffi, ssl, crypto, backtrace]
 opts     = [math]
 if using_glibc
   opts   = opts + [cc.find_library('atomic')]

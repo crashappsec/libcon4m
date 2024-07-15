@@ -343,8 +343,9 @@ const inst_info_t inst_info[256] = {
         .show_module = 1,
     },
     [C4M_ZFFICall] = {
-        .name    = "ZFFICall",
-        .arg_fmt = fmt_hex,
+        .name        = "ZFFICall",
+        .arg_fmt     = fmt_hex,
+        .show_module = 1,
     },
     [C4M_ZLockOnWrite] = {
         .name = "ZLockOnWrite",

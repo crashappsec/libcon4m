@@ -1,125 +1,34 @@
 #define C4M_USE_INTERNAL_API
 #include "con4m.h"
 
-static c4m_list_t *con4m_path       = NULL;
-static c4m_set_t  *con4m_extensions = NULL;
+static hatrack_hash_t
+file_ctx_hash(c4m_file_compile_ctx *ctx)
+{
+    return ctx->module_id;
+}
 
 static void
-init_con4m_path()
+fcx_gc_bits(uint64_t *bitfield, c4m_file_compile_ctx *ctx)
 {
-    c4m_list_t *parts;
-
-    c4m_gc_register_root(&con4m_path, 1);
-    c4m_gc_register_root(&con4m_extensions, 1);
-
-    con4m_extensions = c4m_new(c4m_type_set(c4m_type_utf8()));
-
-    c4m_set_add(con4m_extensions, c4m_new_utf8("c4m"));
-
-    c4m_utf8_t *extra = c4m_get_env(c4m_new_utf8("CON4M_EXTENSIONS"));
-
-    if (extra != NULL) {
-        parts = c4m_str_xsplit(extra, c4m_new_utf8(":"));
-        for (int i = 0; i < c4m_list_len(parts); i++) {
-            c4m_set_add(con4m_extensions,
-                        c4m_to_utf8(c4m_list_get(parts, i, NULL)));
-        }
-    }
-
-    c4m_set_package_search_path(c4m_resolve_path(c4m_new_utf8(".")));
-
-    extra = c4m_get_env(c4m_new_utf8("CON4M_PATH"));
-
-    if (extra == NULL) {
-        return;
-    }
-
-    parts = c4m_str_xsplit(extra, c4m_new_utf8(":"));
-
-    c4m_list_t *new_path = c4m_new(c4m_type_list(c4m_type_utf8()));
-
-    for (int i = 0; i < c4m_list_len(parts); i++) {
-        c4m_utf8_t *s = c4m_to_utf8(c4m_list_get(parts, i, NULL));
-
-        c4m_list_append(new_path, c4m_resolve_path(s));
-    }
-
-    // Always keep cwd in the path, but put it last.
-    c4m_list_append(new_path, c4m_resolve_path(c4m_new_utf8(".")));
-
-    con4m_path = new_path;
+    c4m_mark_raw_to_addr(bitfield, ctx, &ctx->extern_decls);
 }
 
-void
-_c4m_set_package_search_path(c4m_utf8_t *dir, ...)
+c4m_file_compile_ctx *
+c4m_new_file_compile_ctx()
 {
-    con4m_path = c4m_new(c4m_type_list(c4m_type_utf8()));
-
-    va_list args;
-
-    va_start(args, dir);
-
-    while (dir != NULL) {
-        c4m_list_append(con4m_path, dir);
-        dir = va_arg(args, c4m_utf8_t *);
-    }
+    return c4m_gc_alloc_mapped(c4m_file_compile_ctx, fcx_gc_bits);
 }
 
-static c4m_utf8_t *
-perform_path_search(c4m_utf8_t *package, c4m_utf8_t *module)
+static void
+cctx_gc_bits(uint64_t *bitfield, c4m_compile_ctx *ctx)
 {
-    if (con4m_path == NULL) {
-        init_con4m_path();
-    }
+    c4m_mark_raw_to_addr(bitfield, ctx, &ctx->str_map);
+}
 
-    uint64_t     n_items;
-    c4m_utf8_t  *munged     = NULL;
-    c4m_utf8_t **extensions = c4m_set_items_sort(con4m_extensions, &n_items);
-
-    if (package != NULL && c4m_str_codepoint_len(package) != 0) {
-        c4m_list_t *parts = c4m_str_xsplit(package, c4m_new_utf8("."));
-
-        c4m_list_append(parts, module);
-        munged = c4m_to_utf8(c4m_str_join(parts, c4m_new_utf8("/")));
-    }
-
-    int l = (int)c4m_list_len(con4m_path);
-
-    if (munged != NULL) {
-        for (int i = 0; i < l; i++) {
-            c4m_str_t *dir = c4m_list_get(con4m_path, i, NULL);
-
-            for (int j = 0; j < (int)n_items; j++) {
-                c4m_utf8_t *ext = extensions[j];
-                c4m_str_t  *s   = c4m_cstr_format("{}/{}.{}", dir, munged, ext);
-                s               = c4m_to_utf8(s);
-
-                struct stat info;
-
-                if (!stat(s->data, &info)) {
-                    return s;
-                }
-            }
-        }
-    }
-    else {
-        for (int i = 0; i < l; i++) {
-            c4m_str_t *dir = c4m_list_get(con4m_path, i, NULL);
-            for (int j = 0; j < (int)n_items; j++) {
-                c4m_utf8_t *ext = extensions[j];
-                c4m_str_t  *s   = c4m_cstr_format("{}/{}.{}", dir, module, ext);
-                s               = c4m_to_utf8(s);
-
-                struct stat info;
-
-                if (!stat(s->data, &info)) {
-                    return s;
-                }
-            }
-        }
-    }
-
-    return NULL;
+c4m_compile_ctx *
+c4m_new_compile_ctx()
+{
+    return c4m_gc_alloc_mapped(c4m_compile_ctx, cctx_gc_bits);
 }
 
 static inline uint64_t
@@ -153,10 +62,6 @@ get_file_compile_ctx(c4m_compile_ctx *ctx,
     uint64_t              key;
     c4m_file_compile_ctx *result;
 
-    if (con4m_extensions == NULL) {
-        init_con4m_path();
-    }
-
     module = c4m_to_utf8(module);
 
     if (path) {
@@ -177,10 +82,10 @@ get_file_compile_ctx(c4m_compile_ctx *ctx,
         return result;
     }
 
-    result = c4m_gc_alloc(c4m_file_compile_ctx);
+    result = c4m_new_file_compile_ctx();
 
     if (!path) {
-        path = perform_path_search(package, module);
+        path = c4m_path_search(package, module);
 
         if (!path) {
             if (package != NULL) {
@@ -191,12 +96,13 @@ get_file_compile_ctx(c4m_compile_ctx *ctx,
             }
 
             c4m_file_load_error(result, c4m_err_search_path);
+            ctx->fatality = true;
         }
     }
     else {
         struct stat info;
         c4m_utf8_t *tmp    = c4m_resolve_path(path);
-        c4m_list_t *pieces = c4m_str_xsplit(tmp, c4m_new_utf8("."));
+        c4m_list_t *pieces = c4m_str_split(tmp, c4m_new_utf8("."));
         c4m_utf8_t *last   = c4m_list_get(pieces,
                                         c4m_list_len(pieces) - 1,
                                         NULL);
@@ -342,7 +248,7 @@ ctx_init_from_web_uri(c4m_compile_ctx *ctx, c4m_utf8_t *path)
         goto malformed;
     }
 
-    c4m_list_t *parts = c4m_str_xsplit(path, c4m_get_slash_const());
+    c4m_list_t *parts = c4m_str_split(path, c4m_get_slash_const());
     c4m_utf8_t *site  = c4m_to_utf8(c4m_list_get(parts, 2, NULL));
     int64_t     n     = c4m_list_len(parts);
 
@@ -367,7 +273,7 @@ ctx_init_from_web_uri(c4m_compile_ctx *ctx, c4m_utf8_t *path)
         return get_file_compile_ctx(ctx, path, last, NULL, flags, site);
     }
 
-    parts = c4m_str_xsplit(last, dot);
+    parts = c4m_str_split(last, dot);
 
     n = c4m_list_len(parts);
 
@@ -425,13 +331,13 @@ ctx_init_from_file_uri(c4m_compile_ctx *ctx, c4m_utf8_t *path, int ix)
         // should be slash-separated. We also expect to chop off a file
         // extension, but here we won't care what it is; we just look to
         // see if the last piece has a dot in it.
-        path_parts         = c4m_str_xsplit(suffix, c4m_new_utf8("/"));
+        path_parts         = c4m_str_split(suffix, c4m_new_utf8("/"));
         item_len           = c4m_list_len(path_parts);
 
-        c4m_list_t *module_parts = c4m_str_xsplit(c4m_list_get(path_parts,
-                                                               item_len - 1,
-                                                               NULL),
-                                                  c4m_new_utf8("."));
+        c4m_list_t *module_parts = c4m_str_split(c4m_list_get(path_parts,
+                                                              item_len - 1,
+                                                              NULL),
+                                                 c4m_new_utf8("."));
 
         module = c4m_to_utf8(c4m_list_get(module_parts, 0, NULL));
 
@@ -457,11 +363,11 @@ fill_in_package:
         // the last dotted piece is dropped, and everything else to the
         // right of the last slash is the path / module.
 
-        path_parts       = c4m_str_xsplit(path, c4m_new_utf8("/"));
+        path_parts       = c4m_str_split(path, c4m_new_utf8("/"));
         c4m_utf8_t *last = c4m_list_get(path_parts,
                                         c4m_list_len(path_parts) - 1,
                                         NULL);
-        path_parts       = c4m_str_xsplit(last, c4m_new_utf8("."));
+        path_parts       = c4m_str_split(last, c4m_new_utf8("."));
         item_len         = c4m_list_len(path_parts);
 
         if (item_len == 1) {
@@ -508,7 +414,7 @@ c4m_init_from_use(c4m_compile_ctx *ctx,
 
     if (path != NULL && c4m_str_starts_with(path, c4m_new_utf8("http"))) {
         if (package) {
-            parts   = c4m_u8_map(c4m_str_xsplit(package, c4m_new_utf8(".")));
+            parts   = c4m_u8_map(c4m_str_split(package, c4m_new_utf8(".")));
             parts   = c4m_u8_map(parts);
             package = c4m_path_join(parts);
         }
@@ -531,7 +437,7 @@ c4m_init_from_use(c4m_compile_ctx *ctx,
         path = c4m_to_utf8(c4m_path_join(parts));
     }
     else {
-        path = perform_path_search(package, module);
+        path = c4m_path_search(package, module);
 
         if (path == NULL) {
             if (package) {
@@ -568,22 +474,21 @@ c4m_init_from_use(c4m_compile_ctx *ctx,
 c4m_compile_ctx *
 c4m_new_compile_context(c4m_str_t *input)
 {
-    c4m_compile_ctx *result = c4m_gc_alloc(c4m_compile_ctx);
+    c4m_compile_ctx *result = c4m_new_compile_ctx();
 
-    result->module_cache  = c4m_new(c4m_type_dict(c4m_type_u64(),
-                                                 c4m_type_ref()));
+    result->module_cache  = c4m_dict(c4m_type_u64(), c4m_type_ref());
     result->final_attrs   = c4m_new_scope(NULL, C4M_SCOPE_GLOBAL);
     result->final_globals = c4m_new_scope(NULL, C4M_SCOPE_ATTRIBUTES);
     result->final_spec    = c4m_new_spec();
-    result->backlog       = c4m_new(c4m_type_set(c4m_type_ref()));
-    result->processed     = c4m_new(c4m_type_set(c4m_type_ref()));
+    result->backlog       = c4m_new(c4m_type_set(c4m_type_ref()),
+                              c4m_kw("hash", c4m_ka(file_ctx_hash)));
+    result->processed     = c4m_new(c4m_type_set(c4m_type_ref()),
+                                c4m_kw("hash", c4m_ka(file_ctx_hash)));
     result->const_data    = c4m_buffer_empty();
     result->const_memos   = c4m_alloc_marshal_memos();
     result->const_memoid  = 1;
-    result->instance_map  = c4m_new(c4m_type_dict(c4m_type_ref(),
-                                                 c4m_type_i64()));
-    result->str_map       = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                            c4m_type_i64()));
+    result->instance_map  = c4m_dict(c4m_type_ref(), c4m_type_i64());
+    result->str_map       = c4m_dict(c4m_type_utf8(), c4m_type_i64());
     result->const_stream  = c4m_buffer_outstream(result->const_data, true);
 
     if (input != NULL) {
@@ -613,6 +518,7 @@ c4m_initial_load_one(c4m_compile_ctx *cctx, c4m_file_compile_ctx *ctx)
     c4m_stream_t *stream = NULL;
 
     if (c4m_fatal_error_in_module(ctx)) {
+        cctx->fatality = true;
         return;
     }
 
@@ -623,6 +529,10 @@ c4m_initial_load_one(c4m_compile_ctx *cctx, c4m_file_compile_ctx *ctx)
         if (c4m_lex(ctx, stream) != false) {
             c4m_parse(ctx);
             c4m_file_decl_pass(cctx, ctx);
+            if (c4m_fatal_error_in_module(ctx)) {
+                cctx->fatality = true;
+                return;
+            }
         }
         c4m_stream_close(stream);
     }
@@ -631,7 +541,10 @@ c4m_initial_load_one(c4m_compile_ctx *cctx, c4m_file_compile_ctx *ctx)
         c4m_utf8_t *msg = c4m_exception_get_message(C4M_X_CUR());
 
         if (errno == ENOENT) {
-            if (ctx->package && strcmp(ctx->package->data, "__default__")) {
+            // clang-format off
+            if (ctx->package && ctx->package->data &&
+		strcmp(ctx->package->data, "__default__")) {
+                // clang-format on
                 ctx->path = c4m_cstr_format("{}.{}",
                                             ctx->package,
                                             ctx->module);
@@ -746,26 +659,15 @@ c4m_perform_module_loads(c4m_compile_ctx *ctx)
             }
         }
 
-        merge_function_decls(ctx, cur);
+        if (cur->status < c4m_compile_status_scopes_merged) {
+            merge_function_decls(ctx, cur);
+            cur->status = c4m_compile_status_scopes_merged;
+        }
 
         c4m_set_put(ctx->processed, cur);
         c4m_set_remove(ctx->backlog, cur);
     }
 }
-
-#ifdef C4M_PASS1_UNIT_TESTS
-static void
-test_ordering(c4m_compile_ctx *cctx)
-{
-    c4m_file_compile_ctx *file;
-
-    for (int i = 0; i < c4m_xlist_len(cctx->module_ordering); i++) {
-        file = c4m_xlist_get(cctx->module_ordering, i, NULL);
-
-        c4m_print(c4m_cstr_format("[h2]{}[/]", file->path));
-    }
-}
-#endif
 
 typedef struct topologic_search_ctx {
     c4m_file_compile_ctx *cur;
@@ -817,10 +719,7 @@ topological_order_process(tsearch_ctx *ctx)
         }
     }
 
-    c4m_file_compile_ctx *popped = c4m_list_pop(ctx->visiting);
-
-    assert(popped == cur);
-
+    cur = c4m_list_pop(ctx->visiting);
     c4m_list_append(ctx->cctx->module_ordering, cur);
 }
 
@@ -838,13 +737,16 @@ build_topological_ordering(c4m_compile_ctx *cctx)
     // search.
 
     tsearch_ctx search_state = {
-        .cur      = cctx->entry_point,
+        .cur      = cctx->sys_package,
         .visiting = c4m_new(c4m_type_list(c4m_type_ref())),
         .cctx     = cctx,
     };
 
     cctx->module_ordering = c4m_new(c4m_type_list(c4m_type_ref()));
 
+    topological_order_process(&search_state);
+
+    search_state.cur = cctx->entry_point;
     topological_order_process(&search_state);
 }
 
@@ -1025,10 +927,6 @@ merge_global_info(c4m_compile_ctx *cctx)
 
     build_topological_ordering(cctx);
 
-#ifdef C4M_PASS1_UNIT_TESTS
-    test_ordering(cctx);
-#endif
-
     uint64_t mod_len = c4m_list_len(cctx->module_ordering);
 
     for (uint64_t i = 0; i < mod_len; i++) {
@@ -1044,24 +942,35 @@ merge_global_info(c4m_compile_ctx *cctx)
     }
 }
 
-c4m_compile_ctx *
-c4m_compile_from_entry_point(c4m_str_t *location)
+c4m_list_t *
+c4m_system_module_files()
 {
-    c4m_compile_ctx *result = c4m_new_compile_context(location);
+    return c4m_path_walk(c4m_system_module_path());
+}
+
+c4m_compile_ctx *
+c4m_compile_from_entry_point(c4m_str_t *entry)
+{
+    c4m_compile_ctx *result = c4m_new_compile_context(NULL);
+    c4m_str_t       *fname  = c4m_new_utf8("__init.c4m");
+
+    fname               = c4m_path_simple_join(c4m_system_module_path(), fname);
+    result->sys_package = c4m_init_module_from_loc(result, fname);
+
+    if (entry != NULL) {
+        result->entry_point = c4m_init_module_from_loc(result, entry);
+    }
 
     c4m_perform_module_loads(result);
-
     if (result->fatality) {
         return result;
     }
-
     merge_global_info(result);
-
     if (result->fatality) {
         return result;
     }
-
     c4m_check_pass(result);
+
     if (result->fatality) {
         return result;
     }

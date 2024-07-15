@@ -177,6 +177,12 @@ c4m_subproc_set_capture(c4m_subproc_t *ctx, unsigned char which, bool combine)
     return true;
 }
 
+static void
+deferred_cb_gc_bits(uint64_t *bitmap, c4m_deferred_cb_t *cb)
+{
+    c4m_mark_raw_to_addr(bitmap, cb, &cb->to_free);
+}
+
 bool
 c4m_subproc_set_io_callback(c4m_subproc_t *ctx,
                             unsigned char  which,
@@ -186,7 +192,8 @@ c4m_subproc_set_io_callback(c4m_subproc_t *ctx,
         return false;
     }
 
-    c4m_deferred_cb_t *cbinfo = c4m_gc_alloc(c4m_deferred_cb_t);
+    c4m_deferred_cb_t *cbinfo = c4m_gc_alloc_mapped(c4m_deferred_cb_t,
+                                                    deferred_cb_gc_bits);
 
     cbinfo->next  = ctx->deferred_cbs;
     cbinfo->which = which;
@@ -491,7 +498,7 @@ c4m_subproc_do_exec(c4m_subproc_t *ctx)
 c4m_party_t *
 c4m_subproc_new_party_callback(c4m_switchboard_t *ctx, c4m_sb_cb_t cb)
 {
-    c4m_party_t *result = (c4m_party_t *)c4m_gc_alloc(c4m_party_t);
+    c4m_party_t *result = c4m_new_party();
     c4m_sb_init_party_callback(ctx, result, cb);
 
     return result;

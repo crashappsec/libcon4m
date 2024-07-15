@@ -475,12 +475,12 @@ typedef struct {
 } c4m_zmodule_info_t;
 
 typedef struct {
+    uint64_t    zero_magic;
     c4m_buf_t  *static_data;
     c4m_buf_t  *marshaled_consts;
     c4m_list_t *module_contents; // tspec_ref: c4m_zmodule_info_t
     c4m_list_t *func_info;       // tspec_ref: c4m_zfn_info_t
     c4m_list_t *ffi_info;        // tspec_ref: c4m_zffi_info_t
-    uint64_t    zero_magic;
     uint32_t    zc_object_vers;
     int32_t     num_const_objs;
     int32_t     entrypoint;

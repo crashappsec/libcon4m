@@ -1362,11 +1362,16 @@ c4m_compile_extract_all_error_codes(c4m_compile_ctx *cctx)
 }
 
 static void
-c4m_err_set_gc_bits(uint64_t *bitfield, int length)
+c4m_err_set_gc_bits(uint64_t *bitfield, void *alloc)
 {
     *bitfield = 0x0b;
-    for (int i = 4; i < length; i++) {
-        c4m_set_bit(bitfield, i);
+
+    c4m_compile_error *err = alloc;
+
+    int base = c4m_ptr_diff(alloc, &err->msg_parameters[0]);
+
+    for (int i = 0; i < err->num_args; i++) {
+        c4m_set_bit(bitfield, base++);
     }
 }
 

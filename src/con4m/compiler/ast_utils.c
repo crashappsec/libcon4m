@@ -54,18 +54,24 @@ c4m_setup_treematch_patterns()
     if (c4m_first_kid_id != NULL) {
         return;
     }
+
     // Returns first child if it's an identifier, null otherwise.
-    c4m_first_kid_id  = c4m_tmatch(c4m_nt_any,
+    c4m_first_kid_id = c4m_tmatch(c4m_nt_any,
                                   0,
-                                  c4m_tmatch(c4m_nt_identifier, 1),
+                                  c4m_tmatch(c4m_nt_identifier,
+                                             1,
+                                             C4M_PAT_NO_KIDS),
                                   c4m_tcount_content(c4m_nt_any,
                                                      0,
                                                      c4m_max_nodes,
                                                      0));
+
     c4m_2nd_kid_id    = c4m_tmatch(c4m_nt_any,
                                 0,
                                 c4m_tcontent(c4m_nt_any, 0),
-                                c4m_tmatch(c4m_nt_identifier, 1),
+                                c4m_tmatch(c4m_nt_identifier,
+                                           1,
+                                           C4M_PAT_NO_KIDS),
                                 c4m_tcount_content(c4m_nt_any,
                                                    0,
                                                    c4m_max_nodes,
@@ -85,20 +91,27 @@ c4m_setup_treematch_patterns()
                                            0,
                                            c4m_max_nodes,
                                            0),
-                                c4m_tmatch(c4m_nt_identifier, 1));
+                                c4m_tmatch(c4m_nt_identifier,
+                                           1,
+                                           C4M_PAT_NO_KIDS));
     c4m_member_prefix = c4m_tfind(c4m_nt_member,
                                   0,
                                   c4m_tcount(c4m_nt_identifier,
                                              0,
                                              c4m_max_nodes,
-                                             1),
-                                  c4m_tmatch(c4m_nt_identifier, 0));
+                                             1,
+                                             C4M_PAT_NO_KIDS),
+                                  c4m_tmatch(c4m_nt_identifier,
+                                             0,
+                                             C4M_PAT_NO_KIDS));
     c4m_func_mods     = c4m_tfind(c4m_nt_func_mods,
                               0,
                               c4m_tcount(c4m_nt_func_mod,
                                          0,
                                          c4m_max_nodes,
-                                         1));
+                                         1,
+                                         C4M_PAT_NO_KIDS),
+                              0);
     c4m_extern_params = c4m_tfind(c4m_nt_extern_sig,
                                   0,
                                   c4m_tcount_content(c4m_nt_extern_param,
@@ -109,7 +122,8 @@ c4m_setup_treematch_patterns()
                                       c4m_nt_lit_tspec_return_type,
                                       0,
                                       1,
-                                      0));
+                                      0),
+                                  0);
     c4m_extern_return = c4m_tfind(
         c4m_nt_extern_sig,
         0,
@@ -120,13 +134,12 @@ c4m_setup_treematch_patterns()
                            1));
     c4m_return_extract   = c4m_tfind(c4m_nt_lit_tspec_return_type,
                                    0,
-                                   c4m_tmatch(c4m_nt_any, 1));
-    c4m_use_uri          = c4m_tfind(c4m_nt_simple_lit, 1);
+                                   c4m_tmatch(c4m_nt_any, 1, C4M_PAT_NO_KIDS));
+    c4m_use_uri          = c4m_tfind(c4m_nt_simple_lit, 1, C4M_PAT_NO_KIDS);
     c4m_param_extraction = c4m_tfind(
         c4m_nt_formals,
         0,
         c4m_tcount_content(c4m_nt_sym_decl, 0, c4m_max_nodes, 1));
-
     c4m_find_pure         = c4m_tfind_content(c4m_nt_extern_pure, 1);
     c4m_find_holds        = c4m_tfind_content(c4m_nt_extern_holds, 1);
     c4m_find_allocs       = c4m_tfind_content(c4m_nt_extern_allocs, 1);
@@ -137,7 +150,8 @@ c4m_setup_treematch_patterns()
                                       c4m_tcount(c4m_nt_identifier,
                                                  0,
                                                  c4m_max_nodes,
-                                                 1));
+                                                 1,
+                                                 C4M_PAT_NO_KIDS));
     c4m_sym_decls         = c4m_tmatch(c4m_nt_variable_decls,
                                0,
                                c4m_tcount_content(c4m_nt_decl_qualifiers,
@@ -183,15 +197,6 @@ c4m_setup_treematch_patterns()
                                                       c4m_max_nodes,
                                                       1),
                                    c4m_tcount_content(c4m_nt_else, 0, 1, 0));
-    c4m_case_else         = c4m_tmatch(c4m_nt_any,
-                               0,
-                               c4m_tcount_content(c4m_nt_any, 0, 2, 0),
-                               c4m_tcontent(c4m_nt_any, 0),
-                               c4m_tcount_content(c4m_nt_case,
-                                                  1,
-                                                  c4m_max_nodes,
-                                                  0),
-                               c4m_tcount_content(c4m_nt_else, 0, 1, 1));
     c4m_elif_branches     = c4m_tmatch(c4m_nt_any,
                                    0,
                                    c4m_tcontent(c4m_nt_cmp, 0),
@@ -204,14 +209,15 @@ c4m_setup_treematch_patterns()
     c4m_else_condition    = c4m_tfind_content(c4m_nt_else, 1);
     c4m_case_cond         = c4m_tmatch(c4m_nt_any,
                                0,
-                               c4m_toptional(c4m_nt_label, 0),
+                               c4m_toptional(c4m_nt_label, 0, C4M_PAT_NO_KIDS),
                                c4m_tcontent(c4m_nt_expression, 1),
                                c4m_tcount_content(c4m_nt_case,
                                                   1,
                                                   c4m_max_nodes,
                                                   0),
                                c4m_tcount_content(c4m_nt_else, 0, 1, 0));
-    c4m_case_cond_typeof  = c4m_tmatch(c4m_nt_any,
+
+    c4m_case_cond_typeof = c4m_tmatch(c4m_nt_any,
                                       0,
                                       c4m_toptional(c4m_nt_label, 0),
                                       c4m_tcontent(c4m_nt_member, 1),
@@ -220,9 +226,9 @@ c4m_setup_treematch_patterns()
                                                          c4m_max_nodes,
                                                          0),
                                       c4m_tcount_content(c4m_nt_else, 0, 1, 0));
-    c4m_opt_label         = c4m_tfind(c4m_nt_label, 1);
-    c4m_id_node           = c4m_tfind(c4m_nt_identifier, 1);
-    c4m_tuple_assign      = c4m_tmatch(c4m_nt_assign,
+    c4m_opt_label        = c4m_tfind(c4m_nt_label, 1, C4M_PAT_NO_KIDS);
+    c4m_id_node          = c4m_tfind(c4m_nt_identifier, 1, C4M_PAT_NO_KIDS);
+    c4m_tuple_assign     = c4m_tmatch(c4m_nt_assign,
                                   0,
                                   c4m_tmatch(c4m_nt_expression,
                                              0,
@@ -338,7 +344,7 @@ c4m_node_to_type(c4m_file_compile_ctx *ctx,
                                                   c4m_tree_get_child(n, 0),
                                                   type_ctx));
         }
-        if (!strcmp(varname->data, "xlist")) {
+        if (!strcmp(varname->data, "list")) {
             return c4m_type_list(c4m_node_to_type(ctx,
                                                   c4m_tree_get_child(n, 0),
                                                   type_ctx));

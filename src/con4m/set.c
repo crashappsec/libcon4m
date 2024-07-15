@@ -5,50 +5,46 @@ extern hatrack_hash_t c4m_custom_string_hash(c4m_str_t *s);
 static void
 c4m_set_init(c4m_set_t *set, va_list args)
 {
-    size_t         hash_fn;
-    c4m_type_t    *stype     = c4m_get_my_type(set);
-    bool           using_obj = false;
-    c4m_dt_info_t *info;
+    size_t              hash_fn;
+    c4m_type_t         *stype       = c4m_get_my_type(set);
+    bool                using_obj   = true;
+    hatrack_hash_func_t custom_hash = NULL;
+    c4m_dt_info_t      *info;
 
-    if (stype != NULL) {
-        stype   = c4m_list_get(c4m_type_get_params(stype), 0, NULL);
-        info    = c4m_type_get_data_type_info(stype);
-        hash_fn = info->hash_fn;
-    }
-    else {
-        hash_fn = (uint32_t)va_arg(args, size_t);
-    }
+    stype = c4m_list_get(c4m_type_get_params(stype), 0, NULL);
+    info  = c4m_type_get_data_type_info(stype);
 
-    if (hash_fn == HATRACK_DICT_KEY_TYPE_PTR) {
-        using_obj = true;
+    switch (info->typeid) {
+    case C4M_T_REF:
         hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR;
-    }
-
-    hatrack_set_init(set, hash_fn);
-
-    switch (hash_fn) {
-    case HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM:
-        // clang-format off
-        hatrack_set_set_custom_hash(set,
-                                (hatrack_hash_func_t)c4m_custom_string_hash);
+        using_obj = false;
         break;
-    case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
-        hatrack_set_set_hash_offset(set, C4M_STR_HASH_KEY_POINTER_OFFSET);
-        /* fallthrough */
-    case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
-    case HATRACK_DICT_KEY_TYPE_OBJ_INT:
-    case HATRACK_DICT_KEY_TYPE_OBJ_REAL:
-	if (using_obj) {
-	    hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_OBJ_OFFSET);
-	}
-	else {
-	    hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_RAW_OFFSET);
-	}
+    case C4M_T_UTF8:
+    case C4M_T_UTF32:
+        custom_hash = (hatrack_hash_func_t)c4m_custom_string_hash;
         break;
     default:
-	    hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_RAW_OFFSET);
-	break;
+        hash_fn = info->hash_fn;
+        break;
+    }
 
+    c4m_karg_va_init(args);
+    c4m_kw_ptr("hash", custom_hash);
+
+    if (custom_hash != NULL) {
+        hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM;
+        hatrack_set_init(set, hash_fn);
+        hatrack_set_set_custom_hash(set, custom_hash);
+    }
+    else {
+        hatrack_set_init(set, hash_fn);
+        hatrack_set_set_hash_offset(set, 0);
+        if (using_obj) {
+            hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_OBJ_OFFSET);
+        }
+        else {
+            hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_RAW_OFFSET);
+        }
     }
 }
 
@@ -98,8 +94,8 @@ c4m_set_unmarshal(c4m_set_t *d, c4m_stream_t *s, c4m_dict_t *memos)
     switch (kt) {
     case HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM:
         hatrack_set_set_custom_hash(d,
-                                (hatrack_hash_func_t)c4m_custom_string_hash);
-	break;
+                                    (hatrack_hash_func_t)c4m_custom_string_hash);
+        break;
     case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
         hatrack_set_set_hash_offset(d, sizeof(uint64_t) * 2);
         /* fallthrough */
@@ -156,10 +152,10 @@ c4m_set_to_xlist(c4m_set_t *s)
         return NULL;
     }
 
-    c4m_type_t  *item_type = c4m_type_get_param(c4m_get_my_type(s), 0);
+    c4m_type_t *item_type = c4m_type_get_param(c4m_get_my_type(s), 0);
     c4m_list_t *result    = c4m_new(c4m_type_list(item_type));
-    uint64_t     count     = 0;
-    void       **items     = (void **)hatrack_set_items_sort(s, &count);
+    uint64_t    count     = 0;
+    void      **items     = (void **)hatrack_set_items_sort(s, &count);
 
     for (uint64_t i = 0; i < count; i++) {
         assert(items[i] != NULL);
@@ -186,11 +182,10 @@ to_set_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *litmod)
 }
 
 static void
-c4m_set_set_gc_bits(uint64_t *bitfield, int alloc_words)
+c4m_set_set_gc_bits(uint64_t       *bitfield,
+                    c4m_base_obj_t *alloc)
 {
-    int ix;
-    c4m_set_object_header_bits(bitfield, &ix);
-    c4m_set_bit(bitfield, ix);
+    c4m_set_bit(bitfield, c4m_ptr_diff(alloc, alloc->data));
 }
 
 const c4m_vtable_t c4m_set_vtable = {
@@ -202,7 +197,7 @@ const c4m_vtable_t c4m_set_vtable = {
         [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_set_unmarshal,
         [C4M_BI_VIEW]          = (c4m_vtable_entry)hatrack_set_items_sort,
         [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)to_set_lit,
-	[C4M_BI_GC_MAP]        = (c4m_vtable_entry)c4m_set_set_gc_bits,
+        [C4M_BI_GC_MAP]        = (c4m_vtable_entry)c4m_set_set_gc_bits,
         NULL,
     },
 };

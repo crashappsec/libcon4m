@@ -86,73 +86,7 @@ extern c4m_grid_t *c4m_grid_horizontal_flow(c4m_list_t *,
                                             char *,
                                             char *);
 
-static inline void
-c4m_grid_set_cell_contents(c4m_grid_t *g, int row, int col, c4m_obj_t item)
-{
-    c4m_renderable_t *cell;
-
-    if (row >= g->num_rows) {
-        c4m_grid_expand_rows(g, row - (g->num_rows - 1));
-    }
-
-    switch (c4m_base_type(item)) {
-    case C4M_T_RENDERABLE:
-        cell = (c4m_renderable_t *)item;
-        break;
-    case C4M_T_GRID: {
-        c4m_grid_t *subobj = (c4m_grid_t *)item;
-        int         tcells = subobj->num_rows * subobj->num_cols;
-        cell               = subobj->self;
-
-        for (int i = 0; i < tcells; i++) {
-            c4m_renderable_t *item = subobj->cells[i];
-            if (item == NULL) {
-                continue;
-            }
-            c4m_obj_t sub = item->raw_item;
-
-            if (c4m_base_type(sub) == C4M_T_GRID) {
-                c4m_layer_styles(g->self->current_style,
-                                 ((c4m_grid_t *)sub)->self->current_style);
-            }
-        }
-
-        break;
-    }
-    case C4M_T_UTF8:
-    case C4M_T_UTF32: {
-        char *tag;
-        if (row < g->header_rows || col < g->header_cols) {
-            tag = c4m_get_th_tag(g);
-        }
-        else {
-            tag = c4m_get_td_tag(g);
-        }
-
-        cell = c4m_new(c4m_type_renderable(),
-                       c4m_kw("tag",
-                              c4m_ka(tag),
-                              "obj",
-                              c4m_ka(item)));
-        break;
-    }
-    default:
-        abort();
-    }
-
-    c4m_layer_styles(g->self->current_style, cell->current_style);
-    c4m_install_renderable(g, cell, row, row + 1, col, col + 1);
-    if (row >= g->row_cursor) {
-        if (col + 1 == g->num_cols) {
-            g->row_cursor = row + 1;
-            g->col_cursor = 0;
-        }
-        else {
-            g->row_cursor = row;
-            g->col_cursor = col + 1;
-        }
-    }
-}
+extern void c4m_grid_set_cell_contents(c4m_grid_t *, int, int, c4m_obj_t);
 
 static inline void
 c4m_grid_add_cell(c4m_grid_t *grid, c4m_obj_t container)

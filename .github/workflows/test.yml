@@ -11,6 +11,7 @@ env:
   TERM: dumb
   ASAN_OPTIONS: halt_on_error=0
   UBSAN_OPTIONS: print_stacktrace=1
+  CON4M_ROOT: .
 
 permissions:
   contents: read

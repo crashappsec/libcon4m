@@ -13,7 +13,7 @@ extern c4m_utf8_t         *c4m_utf8_repeat(c4m_codepoint_t, int64_t);
 extern c4m_utf32_t        *c4m_utf32_repeat(c4m_codepoint_t, int64_t);
 extern c4m_utf32_t        *_c4m_str_strip(const c4m_str_t *s, ...);
 extern c4m_str_t          *_c4m_str_truncate(const c4m_str_t *s, int64_t, ...);
-extern c4m_utf32_t        *_c4m_str_join(c4m_list_t *,
+extern c4m_str_t          *_c4m_str_join(c4m_list_t *,
                                          const c4m_str_t *,
                                          ...);
 extern c4m_utf8_t         *c4m_str_from_int(int64_t n);
@@ -35,6 +35,7 @@ extern c4m_utf32_t        *c4m_str_upper(c4m_str_t *);
 extern c4m_utf32_t        *c4m_str_lower(c4m_str_t *);
 extern c4m_utf32_t        *c4m_title_case(c4m_str_t *);
 extern c4m_str_t          *c4m_str_pad(c4m_str_t *, int64_t);
+extern c4m_utf8_t         *c4m_str_to_hex(c4m_str_t *, bool);
 
 #define c4m_str_split(x, y) c4m_str_xsplit(x, y)
 // This is in richlit.c

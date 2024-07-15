@@ -8,8 +8,8 @@
  **/
 
 #define C4M_STR_HASH_KEY_POINTER_OFFSET 0
-#define C4M_HASH_CACHE_OBJ_OFFSET           (-4 * (int32_t)sizeof(uint64_t))
-#define C4M_HASH_CACHE_RAW_OFFSET           (-2 * (int32_t)sizeof(uint64_t))
+#define C4M_HASH_CACHE_OBJ_OFFSET       (-4 * (int32_t)sizeof(uint64_t))
+#define C4M_HASH_CACHE_RAW_OFFSET       (-2 * (int32_t)sizeof(uint64_t))
 
 typedef struct c4m_str_t {
     char             *data;
@@ -50,8 +50,8 @@ typedef enum {
     const struct c4m_internal_string_st _static_##id = {                    \
         .base_data_type = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_UTF8], \
         .concrete_type  = (struct c4m_type_t *)&c4m_bi_types[C4M_T_UTF8],   \
-        .s.byte_len     = sizeof(val),                                      \
-        .s.codepoints   = sizeof(val),                                      \
+        .s.byte_len     = sizeof(val) - 1,                                  \
+        .s.codepoints   = sizeof(val) - 1,                                  \
         .s.styling      = NULL,                                             \
         .s.data         = val,                                              \
     };                                                                      \

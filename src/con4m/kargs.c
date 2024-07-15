@@ -10,14 +10,49 @@
 
 #include "con4m.h"
 
-static void
-kargs_init(c4m_karg_info_t *kargs, va_list args)
-{
-    int nargs = va_arg(args, int);
+#ifndef C4M_MAX_KARGS_NESTING_DEPTH
+// Must be a power of two.
+#define C4M_MAX_KARGS_NESTING_DEPTH 32
+#endif
 
-    kargs->num_provided = nargs;
-    kargs->args         = c4m_gc_raw_alloc(sizeof(c4m_one_karg_t) * nargs,
-                                   NULL);
+#ifndef C4M_MAX_KEYWORD_SIZE
+#define C4M_MAX_KEYWORD_SIZE 32
+#endif
+
+static thread_local c4m_karg_info_t *kcache[C4M_MAX_KARGS_NESTING_DEPTH];
+static thread_local int              kargs_next_entry = -1;
+
+const int kargs_cache_mod = C4M_MAX_KARGS_NESTING_DEPTH - 1;
+
+static c4m_karg_info_t *
+c4m_kargs_acquire()
+{
+    if (kargs_next_entry == -1) {
+        kargs_next_entry = 0;
+        int alloc_len    = sizeof(c4m_base_obj_t) + sizeof(c4m_karg_info_t);
+        int arg_len      = C4M_MAX_KEYWORD_SIZE * sizeof(c4m_one_karg_t);
+
+        for (int i = 0; i < C4M_MAX_KARGS_NESTING_DEPTH; i++) {
+            c4m_base_obj_t *record = c4m_rc_alloc(alloc_len);
+
+            record->base_data_type = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_KEYWORD];
+            record->concrete_type  = c4m_type_kargs();
+
+            c4m_karg_info_t *karg = (c4m_karg_info_t *)record->data;
+            karg->args            = c4m_rc_alloc(arg_len);
+            karg->num_provided    = 0;
+            c4m_gc_register_root(karg->args, arg_len / 8);
+
+            kcache[i]        = karg;
+            kargs_next_entry = 0;
+        }
+    }
+
+    kargs_next_entry &= kargs_cache_mod;
+
+    c4m_karg_info_t *result = kcache[kargs_next_entry++];
+
+    return result;
 }
 
 c4m_karg_info_t *
@@ -40,7 +75,12 @@ c4m_pass_kargs(int nargs, ...)
     }
 
     nargs >>= 1;
-    c4m_karg_info_t *kargs = c4m_new(c4m_type_kargs(), nargs);
+    c4m_karg_info_t *kargs = c4m_kargs_acquire();
+
+    kargs->num_provided = nargs;
+
+    assert(nargs < C4M_MAX_KEYWORD_SIZE);
+    assert(kargs->num_provided == nargs);
 
     for (int i = 0; i < nargs; i++) {
         kargs->args[i].kw    = va_arg(args, char *);
@@ -102,23 +142,3 @@ c4m_get_kargs_and_count(va_list args, int *nargs)
     va_end(arg_copy);
     return NULL;
 }
-
-static void
-c4m_kw_set_gc_bits(uint64_t *bitfield, int alloc_words)
-{
-    int ix;
-    c4m_set_object_header_bits(bitfield, &ix);
-    c4m_set_bit(bitfield, ix);
-}
-
-const c4m_vtable_t c4m_kargs_vtable = {
-    .num_entries = C4M_BI_NUM_FUNCS,
-    .methods     = {
-        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)kargs_init,
-        // Explicit because some compilers don't seem to always properly
-        // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
-        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)c4m_kw_set_gc_bits,
-        [C4M_BI_FINALIZER]   = NULL,
-        NULL, // Aboslutelty nothing else.
-    },
-};

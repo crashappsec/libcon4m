@@ -36,8 +36,8 @@ typedef struct {
     c4m_cfg_node_t  *exit_node;
     c4m_cfg_node_t **branch_targets;
     c4m_utf8_t      *label; // For loops
-    int32_t          num_branches;
-    int32_t          next_to_process;
+    int64_t          num_branches;
+    int64_t          next_to_process;
 } c4m_cfg_branch_info_t;
 
 typedef struct {

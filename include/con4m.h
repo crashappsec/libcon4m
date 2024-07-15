@@ -1,10 +1,13 @@
 #pragma once
 
+#define C4M_DEBUG // Get backtrace on exceptions.
+
 // #define C4M_FULL_MEMCHECK
-// #define C4M_DEBUG
-// #define C4M_GC_STATS
+// #define C4M_STRICT_MEMCHECK
 // #define C4M_TRACE_GC
 
+// #define C4M_GC_SHOW_COLLECT_STACK_TRACES
+#define C4M_USE_FRAME_INTRINSIC
 // #define C4M_GCT_MOVE        1
 // #define C4M_GCT_PTR_TO_MOVE 1
 
@@ -30,6 +33,8 @@
 // But
 // #define C4M_WARN_ON_ZERO_ALLOCS
 
+// #define C4M_DEBUG_PATTERNS
+
 #ifdef C4M_NO_DEV_MODE
 #undef C4M_DEV
 #undef C4M_PARSE_DEBUG
@@ -49,11 +54,17 @@
 #endif
 #endif
 
-#ifdef C4M_TRACE_GC
+#if !defined(HATRACK_PER_INSTANCE_AUX)
+#error "HATRACK_PER_INSTANCE_AUX must be defined for con4m to compile."
+#endif
+
+#if defined(C4M_TRACE_GC) || defined(HATRACK_ALLOC_PASS_LOCATION)
 #ifndef C4M_GC_STATS
 #define C4M_GC_STATS
 #endif
+#endif
 
+#if defined(C4M_TRACE_GC)
 #ifndef C4M_GC_FULL_TRACE
 #define C4M_GC_FULL_TRACE
 #endif
@@ -89,6 +100,7 @@
 #include "con4m/list.h"
 
 // Type system API.
+#include "con4m/typestore.h"
 #include "con4m/type.h"
 
 #include "con4m/box.h"
@@ -161,6 +173,8 @@
 
 // For functions we need to wrap to use through the FFI.
 #include "con4m/wrappers.h"
+
+#include "con4m/cbacktrace.h"
 
 // The compiler.
 #include "compiler/ast_utils.h"

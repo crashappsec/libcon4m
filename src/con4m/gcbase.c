@@ -7,15 +7,15 @@ uint64_t                  c4m_page_modulus;
 uint64_t                  c4m_modulus_mask;
 
 #ifdef C4M_GC_STATS
-thread_local uint64_t c4m_total_words     = 0;
-thread_local uint64_t c4m_words_requested = 0;
+thread_local uint64_t c4m_total_requested = 0;
+thread_local uint64_t c4m_total_alloced   = 0;
 thread_local uint32_t c4m_total_allocs    = 0;
 #endif
 
 #ifdef C4M_FULL_MEMCHECK
 #ifndef C4M_MEMCHECK_RING_SZ
 // Must be a power of 2.
-#define C4M_MEMCHECK_RING_SZ 64
+#define C4M_MEMCHECK_RING_SZ 128
 #endif
 #if C4M_MEMCHECK_RING_SZ != 0
 #define C4M_USE_RING
@@ -62,6 +62,8 @@ c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom)
 {
     pthread_t self = pthread_self();
 
+    *bottom = (uint64_t)__builtin_frame_address(0);
+
 #if defined(__linux__)
     pthread_attr_t attrs;
     size_t         size;
@@ -71,13 +73,12 @@ c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom)
     pthread_attr_getstack(&attrs, (void **)&addr, &size);
 
     *top = (uint64_t)addr;
+
 #elif defined(__APPLE__) || defined(BSD)
     // Apple at least has no way to get the thread's attr struct that
     // I can find. But it does provide an API to get at the same data.
     *top = *bottom - pthread_get_stacksize_np(self);
 #endif
-
-    *bottom = (uint64_t)__builtin_frame_address(0);
 }
 
 void
@@ -100,13 +101,38 @@ c4m_gc_heap_stats(uint64_t *used, uint64_t *available, uint64_t *total)
     }
 }
 
+#ifdef HATRACK_ALLOC_PASS_LOCATION
+void *
+c4m_gc_malloc_wrapper(size_t size, void *arg, char *file, int line)
+{
+    return _c4m_gc_raw_alloc(size, arg, file, line);
+}
+
+static void
+c4m_gc_free_wrapper(void *oldptr, size_t size, void *arg, char *file, int line)
+{
+    // do nothing; memory is garbage collected
+}
+
+static void *
+c4m_gc_realloc_wrapper(void  *oldptr,
+                       size_t oldsize,
+                       size_t newsize,
+                       void  *arg,
+                       char  *file,
+                       int    line)
+{
+    return c4m_gc_resize(oldptr, newsize);
+}
+
+#else
 static void *
 c4m_gc_malloc_wrapper(size_t size, void *arg)
 {
     // Hatrack wants a 16-byte aligned pointer. The con4m gc allocator will
     // always produce a 16-byte aligned pointer. The raw allocation header is
     // 48 bytes and its base pointer is always 16-byte aligned.
-    return c4m_gc_raw_alloc(size * 2, C4M_GC_SCAN_ALL);
+    return c4m_gc_raw_alloc(size * 2, arg);
 }
 
 static void
@@ -120,6 +146,8 @@ c4m_gc_realloc_wrapper(void *oldptr, size_t oldsize, size_t newsize, void *arg)
 {
     return c4m_gc_resize(oldptr, newsize);
 }
+
+#endif
 
 static void
 c4m_thread_release_pthread(void *arg)
@@ -339,7 +367,6 @@ c4m_new_arena(size_t num_words, hatrack_zarray_t *roots)
     // queue_init(new_arena->late_mutations);
 
     new_arena->roots = roots;
-
     return new_arena;
 }
 
@@ -425,8 +452,6 @@ c4m_gc_resize(void *ptr, size_t len)
         }
         c4m_unreachable();
     }
-
-    assert(!(hdr->flags & GC_FLAG_REACHED));
 
     return result;
 }
@@ -607,23 +632,25 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
                      bool            finalize)
 #endif
 {
+    size_t orig_len = len;
+
+    len += sizeof(c4m_alloc_hdr);
+
 #ifdef C4M_DEBUG
     _c4m_watch_scan(file, line);
 #endif
 
 #ifdef C4M_FULL_MEMCHECK
-    size_t orig_len         = len;
-    len                     = c4m_round_up_to_given_power_of_2(8, len + 1);
-    size_t end_guard_offset = orig_len;
+    len += 8; // Ensure room for sentinel.
 #endif
     c4m_arena_t *arena = *arena_ptr;
 
     // Round up to aligned length.
-    size_t wordlen = c4m_round_up_to_given_power_of_2(C4M_FORCED_ALIGNMENT,
-                                                      len);
+    len = c4m_round_up_to_given_power_of_2(C4M_FORCED_ALIGNMENT, len);
 
-    c4m_alloc_hdr *raw  = arena->next_alloc;
-    c4m_alloc_hdr *next = (c4m_alloc_hdr *)&(raw->data[wordlen]);
+    size_t         wordlen = len / 8;
+    c4m_alloc_hdr *raw     = arena->next_alloc;
+    c4m_alloc_hdr *next    = (c4m_alloc_hdr *)&(raw->data[wordlen]);
 
     if (((uint64_t *)next) > arena->heap_end) {
         arena      = c4m_collect_arena(arena);
@@ -631,6 +658,19 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
 
         raw  = arena->next_alloc;
         next = (c4m_alloc_hdr *)&(raw->data[wordlen]);
+        if (((uint64_t *)next) > arena->heap_end) {
+            arena->grow_next = true;
+#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+            return c4m_alloc_from_arena(arena_ptr,
+                                        len,
+                                        scan_fn,
+                                        finalize,
+                                        file,
+                                        line);
+#else
+            return c4m_alloc_from_arena(arena_ptr, len, scan_fn, finalize);
+#endif
+        }
     }
 
     if (len > arena->largest_alloc) {
@@ -643,19 +683,23 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
     raw->guard        = c4m_gc_guard;
     raw->arena        = arena;
     raw->next_addr    = (uint64_t *)arena->next_alloc;
-    raw->alloc_len    = wordlen;
+    raw->alloc_len    = len;
+    raw->request_len  = orig_len;
     raw->scan_fn      = scan_fn;
 
 #ifdef C4M_FULL_MEMCHECK
+    uint64_t *end_guard_addr = &raw->data[wordlen - 2];
+
     c4m_shadow_alloc_t *record = c4m_rc_alloc(sizeof(c4m_shadow_alloc_t));
     record->start              = raw;
-    record->end                = &raw->data[end_guard_offset];
-    record->file               = file;
-    record->line               = line;
-    record->len                = orig_len;
-    record->next               = NULL;
-    record->prev               = arena->shadow_end;
-    *record->end               = c4m_end_guard;
+    record->end                = end_guard_addr;
+
+    record->file = file;
+    record->line = line;
+    record->len  = orig_len;
+    record->next = NULL;
+    record->prev = arena->shadow_end;
+    *record->end = c4m_end_guard;
 
 #ifdef C4M_WARN_ON_ZERO_ALLOCS
     if (orig_len == 0) {
@@ -669,8 +713,7 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
     // Duplicated in the header for spot-checking; this can get corrupted;
     // the out-of-heap list is better, but we don't want to bother searching
     // through the whole heap.
-    raw->end_guard_loc = record->end;
-    raw->request_len   = orig_len;
+    raw->end_guard_loc = end_guard_addr;
 
     assert(*raw->end_guard_loc == c4m_end_guard);
 
@@ -696,8 +739,8 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
 #endif // C4M_FULL_MEMCHECK
 
 #ifdef C4M_GC_STATS
-    c4m_words_requested += len;
-    c4m_total_words += wordlen;
+    c4m_total_requested += orig_len;
+    c4m_total_alloced += wordlen * 8;
 
     raw->alloc_file = file;
     raw->alloc_line = line;
@@ -720,8 +763,14 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
         c4m_finalizer_info_t *record = c4m_rc_alloc(sizeof(c4m_finalizer_info_t));
         record->allocation           = raw;
         record->next                 = arena->to_finalize;
-        arena->to_finalize           = record;
+
+        if (arena->to_finalize) {
+            arena->to_finalize->prev = record;
+        }
+
+        arena->to_finalize = record;
     }
 
+    assert(raw != NULL);
     return (void *)(raw->data);
 }

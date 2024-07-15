@@ -531,11 +531,9 @@ buffer_view(c4m_buf_t *inbuf, uint64_t *outlen)
 
 // We conservatively scan the data pointer.
 static void
-buffer_set_gc_bits(uint64_t *bitfield, int alloc_words)
+buffer_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
 {
-    int ix;
-    c4m_set_object_header_bits(bitfield, &ix);
-    c4m_set_bit(bitfield, ix);
+    c4m_mark_raw_to_addr(bitfield, alloc, alloc->data);
 }
 
 const c4m_vtable_t c4m_buffer_vtable = {

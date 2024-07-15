@@ -33,7 +33,6 @@ typedef struct {
     c4m_compile_ctx      *cctx;
     c4m_file_compile_ctx *fctx;
     c4m_list_t           *instructions;
-    c4m_list_t           *module_functions;
     c4m_tree_node_t      *cur_node;
     c4m_pnode_t          *cur_pnode;
     c4m_zmodule_info_t   *cur_module;
@@ -49,6 +48,66 @@ typedef struct {
 } gen_ctx;
 
 static void gen_one_node(gen_ctx *);
+
+static void
+c4m_zinstr_gc_bits(uint64_t *bitmap, c4m_zinstruction_t *instr)
+{
+    c4m_set_bit(bitmap, c4m_ptr_diff(instr, &instr->type_info));
+}
+
+c4m_zinstruction_t *
+c4m_new_instruction()
+{
+    return c4m_gc_alloc_mapped(c4m_zinstruction_t, c4m_zinstr_gc_bits);
+}
+
+static void
+c4m_zfn_gc_bits(uint64_t *bitmap, c4m_zfn_info_t *fn)
+{
+    c4m_mark_raw_to_addr(bitmap, fn, &fn->longdoc);
+}
+
+c4m_zfn_info_t *
+c4m_new_zfn()
+{
+    return c4m_gc_alloc_mapped(c4m_zfn_info_t, c4m_zfn_gc_bits);
+}
+
+static void
+c4m_zmodule_gc_bits(uint64_t *bitmap, c4m_zmodule_info_t *zm)
+{
+    c4m_mark_raw_to_addr(bitmap, zm, &zm->instructions);
+}
+
+c4m_zmodule_info_t *
+c4m_new_zmodule()
+{
+    return c4m_gc_alloc_mapped(c4m_zmodule_info_t, c4m_zmodule_gc_bits);
+}
+
+static void
+c4m_jump_info_gc_bits(uint64_t *bitmap, c4m_jump_info_t *ji)
+{
+    c4m_mark_raw_to_addr(bitmap, ji, &ji->to_patch);
+}
+
+c4m_jump_info_t *
+c4m_new_jump_info()
+{
+    return c4m_gc_alloc_mapped(c4m_jump_info_t, c4m_jump_info_gc_bits);
+}
+
+static void
+c4m_backpatch_gc_bits(uint64_t *bitmap, call_backpatch_info_t *bp)
+{
+    c4m_mark_raw_to_addr(bitmap, bp, &bp->i);
+}
+
+static call_backpatch_info_t *
+new_backpatch()
+{
+    return c4m_gc_alloc_mapped(call_backpatch_info_t, c4m_backpatch_gc_bits);
+}
 
 static void
 _emit(gen_ctx *ctx, int32_t op32, ...)
@@ -68,7 +127,7 @@ _emit(gen_ctx *ctx, int32_t op32, ...)
     c4m_kw_ptr("type", type);
     c4m_kw_ptr("instrptr", instrptr);
 
-    c4m_zinstruction_t *instr = c4m_gc_alloc(c4m_zinstruction_t);
+    c4m_zinstruction_t *instr = c4m_new_instruction();
     instr->op                 = op;
     instr->module_id          = (int16_t)module_id;
     instr->line_no            = c4m_node_get_line_number(ctx->cur_node);
@@ -208,7 +267,7 @@ gen_equality_test(gen_ctx *ctx, c4m_type_t *operand_type)
 // Helpers for the common case where we have one exit only.
 #define JMP_TEMPLATE(g, user_code, ...)                                 \
     do {                                                                \
-        c4m_jump_info_t *ji    = c4m_gc_alloc(c4m_jump_info_t);         \
+        c4m_jump_info_t *ji    = c4m_new_jump_info();                   \
         bool             patch = g(ctx, ji __VA_OPT__(, ) __VA_ARGS__); \
         user_code;                                                      \
         if (patch) {                                                    \
@@ -659,7 +718,7 @@ gen_native_call(gen_ctx *ctx, c4m_symbol_t *fsym)
     if (target_fn_id == 0) {
         call_backpatch_info_t *bp;
 
-        bp       = c4m_gc_alloc(call_backpatch_info_t);
+        bp       = new_backpatch();
         bp->decl = decl;
         bp->i    = c4m_list_get(ctx->instructions, loc, NULL);
 
@@ -851,28 +910,42 @@ gen_if(gen_ctx *ctx)
 }
 
 static inline void
+gen_one_tcase(gen_ctx *ctx, c4m_control_info_t *switch_exit)
+{
+    c4m_jump_info_t *exit_jump          = c4m_new_jump_info();
+    exit_jump->linked_control_structure = switch_exit;
+
+    emit(ctx, C4M_ZDupTop);
+
+    // We stashed the type in the `nt_case` node's value field during
+    // the check pass for easy access.
+    c4m_pnode_t *pnode = c4m_get_pnode(ctx->cur_node);
+    gen_load_const_obj(ctx, pnode->value);
+    emit(ctx, C4M_ZTypeCmp);
+
+    GEN_JZ(emit(ctx, C4M_ZPop);
+           gen_one_kid(ctx, 1);
+           gen_j(ctx, exit_jump););
+    emit(ctx, C4M_ZPop);
+}
+
+static inline void
 gen_typeof(gen_ctx *ctx)
 {
     c4m_tree_node_t    *id_node;
     c4m_pnode_t        *id_pn;
     c4m_symbol_t       *sym;
-    c4m_tree_node_t    *n         = ctx->cur_node;
-    c4m_pnode_t        *pnode     = c4m_get_pnode(n);
-    c4m_control_info_t *ci        = pnode->extra_info;
-    int                 target_ix = 0;
-    int                 expr_ix   = 0;
-    c4m_jump_info_t    *ji        = c4m_gc_array_alloc(c4m_jump_info_t,
-                                             n->num_kids);
+    c4m_tree_node_t    *n           = ctx->cur_node;
+    c4m_pnode_t        *pnode       = c4m_get_pnode(n);
+    c4m_loop_info_t    *ci          = pnode->extra_info;
+    int                 expr_ix     = 0;
+    c4m_control_info_t *switch_exit = &ci->branch_info;
 
-    for (int i = 0; i < n->num_kids; i++) {
-        ji[i].linked_control_structure = pnode->extra_info;
-    }
-
-    if (gen_label(ctx, ci->label)) {
+    if (gen_label(ctx, ci->branch_info.label)) {
         expr_ix++;
     }
 
-    id_node = c4m_get_match_on_node(n->children[expr_ix], c4m_id_node);
+    id_node = c4m_get_match_on_node(n->children[expr_ix], c4m_id_node)->parent;
     id_pn   = c4m_get_pnode(id_node);
     sym     = id_pn->extra_info;
 
@@ -888,34 +961,15 @@ gen_typeof(gen_ctx *ctx)
         c4m_tree_node_t *kid = n->children[i];
         pnode                = c4m_get_pnode(kid);
 
-        // If it's the 'else' branch
-        if (i + 1 == n->num_kids) {
-            if (pnode->kind == c4m_nt_else) {
-                emit(ctx, C4M_ZPop); // Remove the type we keep copying.
-                gen_one_kid(ctx, i);
-                break;
-            }
+        ctx->cur_node = kid;
+        if (i + 1 != n->num_kids || pnode->kind != c4m_nt_else) {
+            gen_one_tcase(ctx, switch_exit);
         }
-
-        ctx->cur_node = kid->children[1];
-
-        // We stashed the type in the `nt_case` node's value field during
-        // the check pass for easy access.
-        emit(ctx, C4M_ZDupTop);
-        gen_load_const_obj(ctx, pnode->value);
-        emit(ctx, C4M_ZTypeCmp);
-        GEN_JZ(emit(ctx, C4M_ZPop);
-               gen_one_node(ctx);
-               gen_j(ctx, &ji[target_ix++]));
+        else {
+            gen_one_node(ctx);
+        }
     }
-
-    // If there was no else branch, we still have to emit a pop if the last
-    // elif was false.
-    if (pnode->kind != c4m_nt_else) {
-        emit(ctx, C4M_ZPop);
-    }
-
-    gen_apply_waiting_patches(ctx, ci);
+    gen_apply_waiting_patches(ctx, switch_exit);
 }
 
 static inline void
@@ -951,8 +1005,8 @@ gen_one_case(gen_ctx *ctx, c4m_control_info_t *switch_exit, c4m_type_t *type)
     int              num_conditions = n->num_kids - 1;
     c4m_jump_info_t *local_jumps    = c4m_gc_array_alloc(c4m_jump_info_t,
                                                       num_conditions);
-    c4m_jump_info_t *case_end       = c4m_gc_alloc(c4m_jump_info_t);
-    c4m_jump_info_t *exit_jump      = c4m_gc_alloc(c4m_jump_info_t);
+    c4m_jump_info_t *case_end       = c4m_new_jump_info();
+    c4m_jump_info_t *exit_jump      = c4m_new_jump_info();
 
     exit_jump->linked_control_structure = switch_exit;
 
@@ -997,10 +1051,6 @@ gen_switch(gen_ctx *ctx)
     c4m_loop_info_t    *ci          = pnode->extra_info;
     c4m_control_info_t *switch_exit = &ci->branch_info;
     c4m_type_t         *expr_type;
-
-    // for (int i = 0; i < n->num_kids; i++) {
-    // ji[i].linked_control_structure = pnode->extra_info;
-    // }
 
     if (gen_label(ctx, ci->branch_info.label)) {
         expr_ix++;
@@ -2207,7 +2257,7 @@ gen_function(gen_ctx            *ctx,
     c4m_fn_decl_t *decl             = sym->value;
     int            n                = sym->declaration_node->num_kids;
     ctx->cur_node                   = sym->declaration_node->children[n - 1];
-    c4m_zfn_info_t *fn_info_for_obj = c4m_gc_alloc(c4m_zfn_info_t);
+    c4m_zfn_info_t *fn_info_for_obj = c4m_new_zfn();
 
     ctx->retsym = hatrack_dict_get(decl->signature_info->fn_scope->symbols,
                                    c4m_new_utf8("$result"),
@@ -2293,29 +2343,37 @@ gen_function(gen_ctx            *ctx,
     // the same way, should probably make this more sane, but
     // that's why this is below the append.
     decl->local_id = c4m_list_len(vm->obj->func_info);
+    ctx->retsym    = NULL;
 }
 
 static void
 gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
 {
-    c4m_zmodule_info_t *module = c4m_gc_alloc(c4m_zmodule_info_t);
-    c4m_pnode_t        *root;
+    c4m_zmodule_info_t *module = c4m_new_zmodule();
 
-    ctx->cur_module          = module;
-    ctx->fctx->module_object = module;
-    ctx->cur_node            = ctx->fctx->parse_tree;
-    module->instructions     = c4m_new(c4m_type_list(c4m_type_ref()));
-    ctx->instructions        = module->instructions;
-    module->module_id        = ctx->fctx->local_module_id;
-    module->module_hash      = ctx->fctx->module_id;
-    module->modname          = ctx->fctx->module;
-    module->authority        = ctx->fctx->authority;
-    module->path             = ctx->fctx->path;
-    module->package          = ctx->fctx->package;
-    module->source           = c4m_to_utf8(ctx->fctx->raw);
-    root                     = c4m_get_pnode(ctx->cur_node);
-    module->shortdoc         = c4m_token_raw_content(root->short_doc);
-    module->longdoc          = c4m_token_raw_content(root->long_doc);
+    ctx->fctx->module_object  = module;
+    ctx->cur_node             = ctx->fctx->parse_tree;
+    ctx->instructions         = c4m_list(c4m_type_ref());
+    ctx->cur_pnode            = c4m_get_pnode(ctx->cur_node);
+    ctx->cur_module           = module;
+    ctx->target_info          = NULL;
+    ctx->retsym               = NULL;
+    ctx->instruction_counter  = 0;
+    ctx->current_stack_offset = ctx->fctx->static_size;
+    ctx->max_stack_size       = ctx->fctx->static_size;
+    ctx->lvalue               = false;
+    ctx->assign_method        = assign_to_mem_slot;
+
+    module->instructions = ctx->instructions;
+    module->module_id    = ctx->fctx->local_module_id;
+    module->module_hash  = ctx->fctx->module_id;
+    module->modname      = ctx->fctx->module;
+    module->authority    = ctx->fctx->authority;
+    module->path         = ctx->fctx->path;
+    module->package      = ctx->fctx->package;
+    module->source       = c4m_to_utf8(ctx->fctx->raw);
+    module->shortdoc     = c4m_token_raw_content(ctx->cur_pnode->short_doc);
+    module->longdoc      = c4m_token_raw_content(ctx->cur_pnode->long_doc);
 
     // Still to fill in to the zmodule object (need to reshuffle to align):
     // authority/path/provided_path/package/module_id
@@ -2324,8 +2382,6 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
     // Also need to do a bit of work aorund sym_types, codesyms, datasyms
     // and parameters.
 
-    ctx->current_stack_offset = ctx->fctx->static_size;
-    ctx->max_stack_size       = ctx->fctx->static_size;
     gen_one_node(ctx);
 
     c4m_zinstruction_t *sp_move = c4m_list_get(module->instructions,

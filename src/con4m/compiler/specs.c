@@ -1,20 +1,33 @@
 #include "con4m.h"
 
+static void
+c4m_spec_gc_bits(uint64_t *bitmap, c4m_spec_t *spec)
+{
+    c4m_mark_raw_to_addr(bitmap, spec, &spec->section_specs);
+}
+
 c4m_spec_t *
 c4m_new_spec()
 {
-    c4m_spec_t *result = c4m_gc_alloc(c4m_spec_t);
+    c4m_spec_t *result = c4m_gc_alloc_mapped(c4m_spec_t, c4m_spec_gc_bits);
 
     result->section_specs = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                                   c4m_type_ref()));
+                                                  c4m_type_ref()));
 
     return result;
+}
+
+static void
+attr_info_gc_bits(uint64_t *bitmap, c4m_attr_info_t *ai)
+{
+    c4m_mark_raw_to_addr(bitmap, ai, &ai->info.field_info);
 }
 
 c4m_attr_info_t *
 c4m_get_attr_info(c4m_spec_t *spec, c4m_list_t *fqn)
 {
-    c4m_attr_info_t *result = c4m_gc_alloc(c4m_attr_info_t);
+    c4m_attr_info_t *result = c4m_gc_alloc_mapped(c4m_attr_info_t,
+                                                  attr_info_gc_bits);
 
     if (!spec || !spec->root_section) {
         result->kind = c4m_attr_user_def_field;

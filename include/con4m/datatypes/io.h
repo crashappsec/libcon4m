@@ -168,8 +168,12 @@ typedef union {
  * - `extra` is user-defined, ideal for state keeping in callbacks.
  */
 typedef struct c4m_party_t {
-    c4m_party_enum      c4m_party_type;
     c4m_party_info_t    info;
+    struct c4m_party_t *next_reader;
+    struct c4m_party_t *next_writer;
+    struct c4m_party_t *next_loner;
+    void               *extra;
+    c4m_party_enum      c4m_party_type;
     int                 found_errno;
     bool                open_for_write;
     bool                open_for_read;
@@ -177,10 +181,6 @@ typedef struct c4m_party_t {
     bool                can_write_to_it;
     bool                close_on_destroy;
     bool                stop_on_close;
-    struct c4m_party_t *next_reader;
-    struct c4m_party_t *next_writer;
-    struct c4m_party_t *next_loner;
-    void               *extra;
 } c4m_party_t;
 
 /*
@@ -290,7 +290,7 @@ typedef bool (*c4m_progress_cb_t)(struct c4m_switchboard_t *);
 
 typedef struct c4m_dcb_t {
     struct c4m_dcb_t *next;
+    c4m_party_t      *to_free;
     unsigned char     which;
     c4m_sb_cb_t       cb;
-    c4m_party_t      *to_free;
 } c4m_deferred_cb_t;

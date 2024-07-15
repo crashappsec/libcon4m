@@ -12,6 +12,85 @@
 
 static void pass_dispatch(c4m_pass1_ctx *ctx);
 
+static void
+c4m_module_param_gc_bits(uint64_t *bitmap, c4m_module_param_info_t *pi)
+{
+    c4m_mark_raw_to_addr(bitmap, pi, &pi->default_value);
+}
+
+c4m_module_param_info_t *
+c4m_new_module_param()
+{
+    return c4m_gc_alloc_mapped(c4m_module_param_info_t,
+                               c4m_module_param_gc_bits);
+}
+
+static void
+c4m_spec_field_gc_bits(uint64_t *bitmap, c4m_spec_field_t *field)
+{
+    c4m_mark_raw_to_addr(bitmap, field, &field->exclusions);
+}
+
+static c4m_spec_field_t *
+c4m_new_spec_field()
+{
+    return c4m_gc_alloc_mapped(c4m_spec_field_t, c4m_spec_field_gc_bits);
+}
+
+static void
+c4m_spec_gc_bits(uint64_t *bitmap, c4m_spec_section_t *sec)
+{
+    c4m_mark_raw_to_addr(bitmap, sec, &sec->validator);
+}
+
+c4m_spec_section_t *
+c4m_new_spec_section()
+{
+    return c4m_gc_alloc_mapped(c4m_spec_section_t, c4m_spec_gc_bits);
+}
+
+static void
+c4m_sig_info_gc_bits(uint64_t *bitmap, c4m_sig_info_t *si)
+{
+    c4m_mark_raw_to_addr(bitmap, si, &si->return_info.type);
+}
+
+c4m_sig_info_t *
+c4m_new_sig_info()
+{
+    return c4m_gc_alloc_mapped(c4m_sig_info_t, c4m_sig_info_gc_bits);
+}
+
+static void
+c4m_fn_decl_gc_bits(uint64_t *bitmap, c4m_fn_decl_t *decl)
+{
+    c4m_mark_raw_to_addr(bitmap, decl, &decl->cfg);
+}
+
+c4m_fn_decl_t *
+c4m_new_fn_decl()
+{
+    return c4m_gc_alloc_mapped(c4m_fn_decl_t, c4m_fn_decl_gc_bits);
+}
+
+c4m_ffi_decl_t *
+c4m_new_ffi_decl()
+{
+    return c4m_gc_alloc_mapped(c4m_ffi_decl_t, C4M_GC_SCAN_ALL);
+}
+
+static void
+c4m_module_info_gc_bits(uint64_t *bitmap, c4m_module_info_t *info)
+{
+    c4m_mark_raw_to_addr(bitmap, info, &info->specified_uri);
+}
+
+c4m_module_info_t *
+c4m_new_module_info()
+{
+    return c4m_gc_alloc_mapped(c4m_module_info_t, c4m_module_info_gc_bits);
+}
+
 static inline void
 process_children(c4m_pass1_ctx *ctx)
 {
@@ -478,7 +557,7 @@ handle_param_block(c4m_pass1_ctx *ctx)
 {
     // Reminder to self: make sure to check for not const in the decl.
     // That really needs to happen at the end of the pass through :)
-    c4m_module_param_info_t *prop      = c4m_gc_alloc(c4m_module_param_info_t);
+    c4m_module_param_info_t *prop      = c4m_new_module_param();
     c4m_tree_node_t         *root      = c4m_cur_node(ctx);
     c4m_pnode_t             *pnode     = c4m_get_pnode(root);
     c4m_tree_node_t         *name_node = c4m_tree_get_child(root, 0);
@@ -678,7 +757,7 @@ one_field(c4m_pass1_ctx      *ctx,
           c4m_spec_section_t *section,
           c4m_tree_node_t    *tnode)
 {
-    c4m_spec_field_t *f        = c4m_gc_alloc(c4m_spec_field_t);
+    c4m_spec_field_t *f        = c4m_new_spec_field();
     c4m_utf8_t       *name     = c4m_node_text(c4m_tree_get_child(tnode, 0));
     c4m_pnode_t      *pnode    = c4m_get_pnode(tnode);
     int               num_kids = c4m_tree_get_number_children(tnode);
@@ -819,7 +898,7 @@ static void
 handle_section_spec(c4m_pass1_ctx *ctx)
 {
     c4m_spec_t         *spec     = ctx->spec;
-    c4m_spec_section_t *section  = c4m_gc_alloc(c4m_spec_section_t);
+    c4m_spec_section_t *section  = c4m_new_spec_section();
     c4m_tree_node_t    *tnode    = c4m_cur_node(ctx);
     c4m_pnode_t        *pnode    = c4m_get_pnode(tnode);
     int                 ix       = 2;
@@ -912,7 +991,7 @@ handle_config_spec(c4m_pass1_ctx *ctx)
 static c4m_sig_info_t *
 new_sig_info(int num_params)
 {
-    c4m_sig_info_t *result = c4m_gc_alloc(c4m_sig_info_t);
+    c4m_sig_info_t *result = c4m_new_sig_info();
     result->num_params     = num_params;
 
     if (result->num_params > 0) {
@@ -1093,13 +1172,25 @@ extract_fn_sig_info(c4m_pass1_ctx   *ctx,
     return info;
 }
 
+static c4m_list_t *
+c4m_get_func_mods(c4m_tree_node_t *tnode)
+{
+    c4m_list_t *result = c4m_list(c4m_type_tree(c4m_type_parse_node()));
+
+    for (int i = 0; i < tnode->num_kids; i++) {
+        c4m_list_append(result, tnode->children[i]);
+    }
+
+    return result;
+}
+
 static void
 handle_func_decl(c4m_pass1_ctx *ctx)
 {
     c4m_tree_node_t *tnode = c4m_cur_node(ctx);
-    c4m_fn_decl_t   *decl  = c4m_gc_alloc(c4m_fn_decl_t);
-    c4m_utf8_t      *name  = c4m_node_text(c4m_get_match(ctx, c4m_2nd_kid_id));
-    c4m_list_t      *mods  = c4m_apply_pattern(ctx, c4m_func_mods);
+    c4m_fn_decl_t   *decl  = c4m_new_fn_decl();
+    c4m_utf8_t      *name  = c4m_node_text(tnode->children[1]);
+    c4m_list_t      *mods  = c4m_get_func_mods(tnode->children[0]);
     int              nmods = c4m_list_len(mods);
     c4m_symbol_t    *sym;
 
@@ -1145,7 +1236,7 @@ handle_func_decl(c4m_pass1_ctx *ctx)
 static void
 handle_extern_block(c4m_pass1_ctx *ctx)
 {
-    c4m_ffi_decl_t  *info          = c4m_gc_alloc(c4m_ffi_decl_t);
+    c4m_ffi_decl_t  *info          = c4m_new_ffi_decl();
     c4m_utf8_t      *external_name = c4m_node_text(c4m_get_match(ctx,
                                                             c4m_first_kid_id));
     c4m_tree_node_t *ext_ret       = c4m_get_match(ctx, c4m_extern_return);
@@ -1328,13 +1419,25 @@ next_alloc:
     c4m_list_append(ctx->file_ctx->extern_decls, sym);
 }
 
+static c4m_list_t *
+get_member_prefix(c4m_tree_node_t *n)
+{
+    c4m_list_t *result = c4m_list(c4m_type_tree(c4m_type_parse_node()));
+
+    for (int i = 0; i < n->num_kids - 1; i++) {
+        c4m_list_append(result, n->children[i]);
+    }
+
+    return result;
+}
+
 static void
 handle_use_stmt(c4m_pass1_ctx *ctx)
 {
     c4m_tree_node_t   *uri    = c4m_get_match(ctx, c4m_use_uri);
     c4m_tree_node_t   *member = c4m_get_match(ctx, c4m_member_last);
-    c4m_list_t        *prefix = c4m_apply_pattern(ctx, c4m_member_prefix);
-    c4m_module_info_t *mi     = c4m_gc_alloc(c4m_module_info_t);
+    c4m_list_t        *prefix = get_member_prefix(ctx->cur_tnode->children[0]);
+    c4m_module_info_t *mi     = c4m_new_module_info();
     bool               status = false;
 
     mi->specified_module = c4m_node_text(member);
