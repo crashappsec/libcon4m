@@ -692,7 +692,6 @@ _c4m_memcheck_raw_alloc(void *a, char *file, int line)
                 file,
                 line,
                 a);
-        return;
         abort();
     }
 
@@ -820,6 +819,20 @@ c4m_alloc_display_rear_guard_error(c4m_alloc_hdr *hdr,
 }
 
 static void
+show_next_n_allocs(c4m_shadow_alloc_t *a, int n)
+{
+    printf("Next allocs:\n");
+
+    while (a && n) {
+        printf("%s:%d (@%p; %d bytes)\n", a->file, a->line, a->start, a->len);
+        a = a->next;
+        n -= 1;
+    }
+
+    abort();
+}
+
+static void
 memcheck_validate_old_records(c4m_arena_t *from_space)
 {
     uint64_t           *low  = (void *)from_space->data;
@@ -845,6 +858,7 @@ memcheck_validate_old_records(c4m_arena_t *from_space)
                                                a->file,
                                                a->line,
                                                false);
+            show_next_n_allocs(next, 1000);
         }
 
         if (a->start->fw_addr != NULL) {

@@ -15,7 +15,7 @@ thread_local uint32_t c4m_total_allocs    = 0;
 #ifdef C4M_FULL_MEMCHECK
 #ifndef C4M_MEMCHECK_RING_SZ
 // Must be a power of 2.
-#define C4M_MEMCHECK_RING_SZ 64
+#define C4M_MEMCHECK_RING_SZ 128
 #endif
 #if C4M_MEMCHECK_RING_SZ != 0
 #define C4M_USE_RING
@@ -641,7 +641,7 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
 #endif
 
 #ifdef C4M_FULL_MEMCHECK
-    len = len + 8; // Ensure room for sentinel.
+    len += 8; // Ensure room for sentinel.
 #endif
     c4m_arena_t *arena = *arena_ptr;
 
@@ -688,7 +688,7 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
     raw->scan_fn      = scan_fn;
 
 #ifdef C4M_FULL_MEMCHECK
-    uint64_t *end_guard_addr = &raw->data[wordlen - 1];
+    uint64_t *end_guard_addr = &raw->data[wordlen - 2];
 
     c4m_shadow_alloc_t *record = c4m_rc_alloc(sizeof(c4m_shadow_alloc_t));
     record->start              = raw;
@@ -713,7 +713,7 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
     // Duplicated in the header for spot-checking; this can get corrupted;
     // the out-of-heap list is better, but we don't want to bother searching
     // through the whole heap.
-    raw->end_guard_loc = record->end;
+    raw->end_guard_loc = end_guard_addr;
 
     assert(*raw->end_guard_loc == c4m_end_guard);
 

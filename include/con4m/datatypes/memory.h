@@ -56,13 +56,15 @@ typedef struct c4m_alloc_hdr {
     // bits that correspond to words with pointers should be set.
     c4m_mem_scan_fn       scan_fn;
 
-#ifdef C4M_FULL_MEMCHECK
-    uint64_t *end_guard_loc;
-#endif
 #if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
     char *alloc_file;
     int   alloc_line;
 #endif
+
+#ifdef C4M_FULL_MEMCHECK
+    uint64_t *end_guard_loc;
+#endif
+
     // Set to 'true' if this object requires finalization. This is
     // necessary, even though the arena tracks allocations needing
     // finalization, because resizes could move the pointer.

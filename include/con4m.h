@@ -2,10 +2,6 @@
 
 #define C4M_DEBUG // Get backtrace on exceptions.
 
-#ifdef C4M_FULL_MEMCHECK
-#undef C4M_FULL_MEMCHECK
-#endif
-
 // #define C4M_FULL_MEMCHECK
 // #define C4M_STRICT_MEMCHECK
 // #define C4M_TRACE_GC

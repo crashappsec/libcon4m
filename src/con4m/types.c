@@ -277,6 +277,7 @@ c4m_early_alloc_type(c4m_base_obj_t **bptr)
     base->concrete_type  = c4m_bi_types[C4M_T_TYPESPEC];
 
     result->details = info;
+    info->items     = NULL;
     info->base_type = tspec;
 
     return result;
@@ -400,7 +401,16 @@ internal_type_hash(c4m_type_t *node, type_hash_ctx *ctx)
         c4m_sha_int_update(ctx->sha, num_tvars);
         c4m_sha_int_update(ctx->sha, node->typeid);
         break;
+    case C4M_DT_KIND_primitive:
+    case C4M_DT_KIND_box:
+    case C4M_DT_KIND_nil:
+    case C4M_DT_KIND_internal:
+        return;
     default:; // Do nothing.
+    }
+
+    if (!deets->items) {
+        return;
     }
 
     size_t n = c4m_list_len(deets->items);
@@ -1690,6 +1700,7 @@ setup_primitive_types()
             c4m_type_t *t         = c4m_early_alloc_type(&base);
             t->typeid             = i;
             t->details->base_type = one_spec;
+            t->details->items     = NULL;
             c4m_bi_types[i]       = t;
 
             if (i) {
