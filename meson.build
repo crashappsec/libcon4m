@@ -81,6 +81,7 @@ endif
 
 if (get_option('use_ubsan') == true)
   c_args = c_args + ['-fsanitize=undefined',
+                     '-fno-sanitize=function',
                      '-fsanitize-recover=all'
                     ]
 link_args = link_args + ['-fsanitize=undefined',
