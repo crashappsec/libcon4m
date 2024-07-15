@@ -71,7 +71,7 @@ struct hatrack_dict_t {
     hatrack_mem_hook_t  key_return_hook;
     hatrack_mem_hook_t  val_return_hook;
 #ifdef HATRACK_PER_INSTANCE_AUX
-    alignas(8) void *bucket_aux;
+    void *bucket_aux;
 #endif
 };
 

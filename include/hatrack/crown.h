@@ -31,7 +31,7 @@
 #include "mmm.h"
 
 typedef struct {
-    alignas(8) void *item;
+    void    *item;
     uint64_t info;
 } crown_record_t;
 
