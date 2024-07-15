@@ -819,8 +819,10 @@ c4m_alloc_display_rear_guard_error(c4m_alloc_hdr *hdr,
 }
 
 static void
-show_next_n_allocs(c4m_shadow_alloc_t *a, int n)
+show_next_allocs(c4m_shadow_alloc_t *a)
 {
+#ifdef C4M_SHOW_NEXT_ALLOCS
+    int n = C4M_SHOW_NEXT_ALLOCS;
     printf("Next allocs:\n");
 
     while (a && n) {
@@ -828,8 +830,7 @@ show_next_n_allocs(c4m_shadow_alloc_t *a, int n)
         a = a->next;
         n -= 1;
     }
-
-    abort();
+#endif
 }
 
 static void
@@ -858,7 +859,7 @@ memcheck_validate_old_records(c4m_arena_t *from_space)
                                                a->file,
                                                a->line,
                                                false);
-            show_next_n_allocs(next, 1000);
+            show_next_allocs(next);
         }
 
         if (a->start->fw_addr != NULL) {

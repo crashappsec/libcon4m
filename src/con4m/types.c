@@ -185,6 +185,8 @@ type_end_log()
 #define type_log(x, y)
 #endif
 
+#define BASE_ALLOC_SZ (sizeof(c4m_alloc_hdr) + sizeof(c4m_base_obj_t))
+
 typedef struct {
     c4m_sha_t  *sha;
     c4m_dict_t *memos;
@@ -263,22 +265,21 @@ c4m_early_alloc_type(c4m_base_obj_t **bptr)
     tspec = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_TYPESPEC];
 
     if (!tspec_len) {
-        tspec_len = tspec->alloc_len + sizeof(c4m_base_obj_t);
+        tspec_len = tspec->alloc_len + BASE_ALLOC_SZ;
     }
 
-    c4m_base_obj_t *base    = c4m_rc_alloc(tspec_len);
-    c4m_alloc_hdr  *hdr     = &((c4m_alloc_hdr *)base)[-1];
-    *bptr                   = base;
-    c4m_type_info_t *info   = c4m_rc_alloc(sizeof(c4m_type_info_t));
+    c4m_alloc_hdr   *hdr    = c4m_rc_alloc(tspec_len);
+    c4m_base_obj_t  *base   = (c4m_base_obj_t *)hdr->data;
     c4m_type_t      *result = (c4m_type_t *)base->data;
+    c4m_type_info_t *info   = c4m_rc_alloc(sizeof(c4m_type_info_t));
 
+    *bptr                = base;
     hdr->con4m_obj       = 1;
     base->base_data_type = tspec;
     base->concrete_type  = c4m_bi_types[C4M_T_TYPESPEC];
-
-    result->details = info;
-    info->items     = NULL;
-    info->base_type = tspec;
+    info->items          = NULL;
+    info->base_type      = tspec;
+    result->details      = info;
 
     return result;
 }
@@ -286,17 +287,18 @@ c4m_early_alloc_type(c4m_base_obj_t **bptr)
 static inline c4m_list_t *
 early_type_list()
 {
-    size_t          sz     = sizeof(c4m_base_obj_t) + sizeof(c4m_list_t);
-    c4m_base_obj_t *alloc  = c4m_rc_alloc(sz);
-    c4m_alloc_hdr  *hdr    = &((c4m_alloc_hdr *)alloc)[-1];
-    c4m_list_t     *result = (c4m_list_t *)alloc->data;
+    size_t         sz  = BASE_ALLOC_SZ + sizeof(c4m_list_t);
+    c4m_alloc_hdr *hdr = c4m_rc_alloc(sz);
+
+    c4m_base_obj_t *base   = (c4m_base_obj_t *)hdr->data;
+    c4m_list_t     *result = (c4m_list_t *)base->data;
 
     hdr->con4m_obj = 1;
 
     // The object we're returning is a list of types, so we need to set the
     // object header.
-    alloc->base_data_type = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_LIST];
-    alloc->concrete_type  = type_node_for_list_of_type_objects;
+    base->base_data_type = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_LIST];
+    base->concrete_type  = type_node_for_list_of_type_objects;
 
     // Create the empty list to hold up to two types.
     result->data      = c4m_rc_alloc(sizeof(uint64_t *) * 2);
@@ -312,12 +314,12 @@ setup_list_of_types()
     // Does not perform the type hash; do it once the type environment
     // is set up.
 
-    c4m_base_obj_t *alloc;
-    c4m_type_t     *l          = c4m_early_alloc_type(&alloc);
+    c4m_base_obj_t *base;
+    c4m_type_t     *l          = c4m_early_alloc_type(&base);
     l->details->items          = early_type_list();
     l->details->items->data[0] = (void *)c4m_bi_types[C4M_T_TYPESPEC];
-    alloc->concrete_type       = l;
-    l->details->base_type      = alloc->base_data_type;
+    base->concrete_type        = l;
+    l->details->base_type      = base->base_data_type;
 
     type_node_for_list_of_type_objects = l;
 }
@@ -524,18 +526,18 @@ static void
 internal_add_items_array(c4m_type_t *n)
 {
     // Avoid infinite recursion by manually constructing the list.
-    size_t          sz    = sizeof(c4m_base_obj_t) + sizeof(c4m_list_t);
-    c4m_base_obj_t *alloc = c4m_gc_raw_alloc(sz, C4M_GC_SCAN_ALL);
-    c4m_alloc_hdr  *hdr   = &((c4m_alloc_hdr *)alloc)[-1];
+    // Similar to the `early_type_list()` call, but uses the GC.
+    size_t          sz    = BASE_ALLOC_SZ + sizeof(c4m_list_t);
+    c4m_alloc_hdr  *hdr   = c4m_gc_raw_alloc(sz, C4M_GC_SCAN_ALL);
+    c4m_base_obj_t *base  = (c4m_base_obj_t *)hdr->data;
+    c4m_list_t     *items = (c4m_list_t *)base->data;
 
-    hdr->con4m_obj = 1;
-
-    c4m_list_t *items     = (c4m_list_t *)alloc->data;
-    alloc->base_data_type = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_XLIST];
-    alloc->concrete_type  = type_node_for_list_of_type_objects;
-    items->data           = c4m_gc_array_alloc(uint64_t *, 16);
-    items->length         = 16;
-    items->append_ix      = 0;
+    hdr->con4m_obj       = 1;
+    base->base_data_type = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_XLIST];
+    base->concrete_type  = type_node_for_list_of_type_objects;
+    items->data          = c4m_gc_array_alloc(uint64_t *, 4);
+    items->length        = 4;
+    items->append_ix     = 0;
 
     n->details->items = items;
 }

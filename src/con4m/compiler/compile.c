@@ -541,7 +541,10 @@ c4m_initial_load_one(c4m_compile_ctx *cctx, c4m_file_compile_ctx *ctx)
         c4m_utf8_t *msg = c4m_exception_get_message(C4M_X_CUR());
 
         if (errno == ENOENT) {
-            if (ctx->package && strcmp(ctx->package->data, "__default__")) {
+            // clang-format off
+            if (ctx->package && ctx->package->data &&
+		strcmp(ctx->package->data, "__default__")) {
+                // clang-format on
                 ctx->path = c4m_cstr_format("{}.{}",
                                             ctx->package,
                                             ctx->module);
