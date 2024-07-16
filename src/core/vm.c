@@ -154,9 +154,9 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
 #ifdef C4M_OMIT_UNDERFLOW_CHECKS
 #define STACK_REQUIRE_VALUES(_n)
 #else
-#define STACK_REQUIRE_VALUES(_n)                          \
-    if (tstate->sp > &tstate->stack[STACK_SIZE - (_n)]) { \
-        C4M_CRAISE("stack underflow");                    \
+#define STACK_REQUIRE_VALUES(_n)                              \
+    if (tstate->sp > &tstate->stack[C4M_STACK_SIZE - (_n)]) { \
+        C4M_CRAISE("stack underflow");                        \
     }
 #endif
 
@@ -283,7 +283,7 @@ c4m_vmframe_push(c4m_vmthread_t     *tstate,
                  c4m_zfn_info_t     *target_func,
                  int32_t             target_lineno)
 {
-    if (MAX_CALL_DEPTH == tstate->num_frames) {
+    if (C4M_MAX_CALL_DEPTH == tstate->num_frames) {
         C4M_CRAISE("maximum call depth reached");
     }
 
@@ -839,7 +839,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 "FP@{:x}; a = {}; i = {}; m = {})";
 
             if (debug_on && i->op != C4M_ZNop) {
-                int num_stack_items = &tstate->stack[STACK_SIZE] - tstate->sp;
+                int num_stack_items = &tstate->stack[C4M_STACK_SIZE] - tstate->sp;
                 printf("stack has %d items on it: ", num_stack_items);
                 for (int i = 0; i < num_stack_items; i++) {
                     if (&tstate->sp[i] == tstate->fp) {
@@ -1738,7 +1738,7 @@ c4m_vmthread_new(c4m_vm_t *vm)
 void
 c4m_vmthread_reset(c4m_vmthread_t *tstate)
 {
-    tstate->sp                = &tstate->stack[STACK_SIZE];
+    tstate->sp                = &tstate->stack[C4M_STACK_SIZE];
     tstate->fp                = tstate->sp;
     tstate->pc                = 0;
     tstate->num_frames        = 1;

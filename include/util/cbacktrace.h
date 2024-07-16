@@ -1,7 +1,7 @@
 #pragma once
 #include "con4m.h"
 
-#ifdef BACKTRACE_SUPPORTED
+#ifdef C4M_BACKTRACE_SUPPORTED
 extern void c4m_backtrace_init(char *);
 extern void c4m_print_c_backtrace();
 #else

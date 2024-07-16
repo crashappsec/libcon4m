@@ -1,9 +1,6 @@
 #pragma once
 
 #include "con4m.h"
-#ifndef C4M_EMPTY_BUFFER_ALLOC
-#define C4M_EMPTY_BUFFER_ALLOC 128
-#endif
 
 extern c4m_buf_t  *c4m_buffer_add(c4m_buf_t *, c4m_buf_t *);
 extern c4m_buf_t  *c4m_buffer_join(c4m_list_t *, c4m_buf_t *);

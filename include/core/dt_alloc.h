@@ -1,12 +1,6 @@
 #pragma once
 #include "con4m.h"
 
-#if defined(C4M_FULL_MEMCHECK) && !defined(C4M_GC_STATS)
-#define C4M_GC_STATS
-#endif
-
-#define C4M_FORCED_ALIGNMENT 16
-
 typedef void (*c4m_mem_scan_fn)(uint64_t *, void *);
 
 typedef struct c4m_alloc_hdr {
@@ -60,7 +54,7 @@ typedef struct c4m_alloc_hdr {
     uint64_t *end_guard_loc;
 #endif
 
-#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+#if defined(C4M_ADD_ALLOC_LOC_INFO)
     char *alloc_file;
     int   alloc_line;
 #endif
@@ -103,15 +97,11 @@ typedef struct c4m_shadow_alloc_t {
 typedef struct {
     void    *ptr;
     uint64_t num_items;
-#ifdef C4M_GC_STATS
+#ifdef C4M_ADD_ALLOC_LOC_INFO
     char *file;
     int   line;
 #endif
 } c4m_gc_root_info_t;
-
-#ifndef C4M_MAX_GC_ROOTS
-#define C4M_MAX_GC_ROOTS (1 << 15)
-#endif
 
 typedef struct c4m_arena_t {
 #ifdef C4M_FULL_MEMCHECK

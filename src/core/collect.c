@@ -117,7 +117,7 @@ c4m_get_alloc_counter()
 #endif
 
 #ifdef C4M_GC_FULL_TRACE
-int c4m_gc_trace_on = 1;
+int c4m_gc_trace_on = C4M_GC_FULL_TRACE_DEFAULT;
 #endif
 
 #ifdef C4M_FULL_MEMCHECK
@@ -204,7 +204,7 @@ prep_allocation(c4m_alloc_hdr *old, c4m_arena_t *new_arena)
     c4m_alloc_hdr *res;
     c4m_arena_t   *arena = new_arena;
 
-#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+#if defined(C4M_ADD_ALLOC_LOC_INFO)
 #define TRACE_DEBUG_ARGS , debug_file, debug_ln
 
     char *debug_file = old->alloc_file;
@@ -310,7 +310,7 @@ get_header(c4m_collection_ctx *ctx, void *ptr)
 
     c4m_alloc_hdr *result = (c4m_alloc_hdr *)p;
 
-#if defined(C4M_GC_STATS) && (C4M_GCT_OBJ != 0)
+#if defined(C4M_ADD_ALLOC_LOC_INFO) && (C4M_GCT_OBJ != 0)
     if (result->con4m_obj) {
         c4m_base_obj_t *obj = (c4m_base_obj_t *)result->data;
 
@@ -383,7 +383,11 @@ scan_allocation(c4m_collection_ctx *ctx, c4m_alloc_hdr *hdr)
     c4m_mem_scan_fn scanner = hdr->scan_fn;
     void           *contents;
 
+#ifdef C4M_USE_GC_HOOKS
     if ((void *)scanner == C4M_GC_SCAN_ALL) {
+#else
+    if ((void *)scanner != C4M_GC_SCAN_NONE) {
+#endif
         while (p < end) {
             ASAN_UNPOISON_MEMORY_REGION(p, 8);
             contents = *p;

@@ -53,8 +53,10 @@ get_bool_label(c4m_zop_t op)
         return c4m_new_utf8("currently unused");
     case C4M_ZLoadFromView:
         return c4m_new_utf8("load kv pair");
+#ifdef C4M_VM_DEBUG
     case C4M_ZDebug:
         return c4m_new_utf8("set debug");
+#endif
     default:
         c4m_unreachable();
     }
