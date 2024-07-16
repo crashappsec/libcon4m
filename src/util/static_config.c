@@ -122,7 +122,7 @@
 #ifdef C4M_MIN_RENDER_WIDTH
 #warning "C4M_MIN_RENDER_WIDTH is: " #C4M_MIN_RENDER_WIDTH
 #else
-#warning "C4M_MIN_RENDER_WIDTH is not set.
+#warning "C4M_MIN_RENDER_WIDTH is not set."
 #endif
 
 #ifdef _GNU_SOURCE
@@ -132,9 +132,9 @@
 #endif
 
 #ifdef HAVE_PTY_H
-#warning "HAVE_PTY_H is ON (forkpty is available")
+#warning "HAVE_PTY_H is ON (forkpty is available)"
 #else
-#warning "HAVE_PTY_H is OFF (forkpty is NOT available")
+#warning "HAVE_PTY_H is OFF (forkpty is NOT available)"
 #endif
 
 #endif

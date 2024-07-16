@@ -32,9 +32,10 @@ static void process_worklist(c4m_collection_ctx *);
 static worklist_t *
 c4m_alloc_collection_worklist(c4m_arena_t *fromspace)
 {
-    int num_records = 1 << 14;
-    int alloc_len   = num_records * sizeof(worklist_item) + sizeof(worklist_t);
-    alloc_len       = c4m_round_up_to_given_power_of_2(getpagesize(),
+    int n = (1 << (64 - __builtin_clzll(fromspace->largest_alloc)));
+
+    int alloc_len = n * sizeof(worklist_item) + sizeof(worklist_t);
+    alloc_len     = c4m_round_up_to_given_power_of_2(getpagesize(),
                                                  alloc_len);
 
     worklist_t *result = mmap(NULL,
@@ -45,8 +46,8 @@ c4m_alloc_collection_worklist(c4m_arena_t *fromspace)
                               0);
     result->write_ix   = 0;
     result->read_ix    = 0;
-    result->ring_size  = num_records;
-    result->mod        = num_records - 1;
+    result->ring_size  = n;
+    result->mod        = n - 1;
     result->alloc_len  = alloc_len;
 
     return result;
@@ -633,7 +634,6 @@ raw_trace(c4m_collection_ctx *ctx)
         (((char *)ctx->to_space->heap_end) - (char *)ctx->to_space->data));
 
     ctx->worklist = c4m_alloc_collection_worklist(cur);
-
     c4m_get_stack_scan_region((uint64_t *)&stack_top,
                               (uint64_t *)&stack_bottom);
 

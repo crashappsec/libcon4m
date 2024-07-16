@@ -59,7 +59,7 @@ endif
 
 backtrace = cc.find_library('backtrace', required: false)
 
-if backtrace.found() and get_option('buildtype') != 'release'
+if backtrace.found()
     c_args = c_args + ['-DC4M_BACKTRACE_SUPPORTED']
 endif
 
@@ -95,7 +95,7 @@ endif
 if get_option('dev_mode') == true
     c_args = c_args + ['-DC4M_DEV']
 
-    if get_option('exception_traces').enabled()
+    if not get_option('exception_traces').disabled()
         c_args = c_args + ['-DC4M_DEBUG']
     endif
 

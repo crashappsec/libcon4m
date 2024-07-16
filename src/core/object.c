@@ -433,7 +433,7 @@ _c4m_new(c4m_type_t *type, ...)
     c4m_vtable_entry init_fn   = tinfo->vtable->methods[C4M_BI_CONSTRUCTOR];
     c4m_vtable_entry scan_fn   = tinfo->vtable->methods[C4M_BI_GC_MAP];
 
-#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+#if defined(C4M_ADD_ALLOC_LOC_INFO)
     if (tinfo->vtable->methods[C4M_BI_FINALIZER] == NULL) {
         obj = _c4m_gc_raw_alloc(alloc_len,
                                 (c4m_mem_scan_fn)scan_fn,

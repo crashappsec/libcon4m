@@ -621,7 +621,7 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
 
     len += sizeof(c4m_alloc_hdr);
 
-#ifdef C4M_DEBUG
+#if defined(C4M_DEBUG) && defined(C4M_ADD_ALLOC_LOC_INFO)
     _c4m_watch_scan(file, line);
 #endif
 
