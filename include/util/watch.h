@@ -8,14 +8,6 @@
 // memory writes.  For now, it's just a prototype to help me hunt down
 // a Heisenbug that is afraid of debuggers.
 
-#ifndef C4M_WATCH_SLOTS
-#define C4M_WATCH_SLOTS 30
-#endif
-
-#ifndef C4M_WATCH_LOG_SZ
-#define C4M_WATCH_LOG_SZ (1 << 14)
-#endif
-
 typedef enum : int8_t {
     c4m_wa_ignore,
     c4m_wa_log,

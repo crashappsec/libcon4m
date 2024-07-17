@@ -1,6 +1,6 @@
 #include "con4m.h"
 
-#ifdef BACKTRACE_SUPPORTED
+#ifdef C4M_BACKTRACE_SUPPORTED
 
 static void
 c4m_bt_err(void *data, const char *msg, int errnum)

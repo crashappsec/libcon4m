@@ -32,9 +32,10 @@ static void process_worklist(c4m_collection_ctx *);
 static worklist_t *
 c4m_alloc_collection_worklist(c4m_arena_t *fromspace)
 {
-    int num_records = 1 << 14;
-    int alloc_len   = num_records * sizeof(worklist_item) + sizeof(worklist_t);
-    alloc_len       = c4m_round_up_to_given_power_of_2(getpagesize(),
+    int n = (1 << (64 - __builtin_clzll(fromspace->largest_alloc)));
+
+    int alloc_len = n * sizeof(worklist_item) + sizeof(worklist_t);
+    alloc_len     = c4m_round_up_to_given_power_of_2(getpagesize(),
                                                  alloc_len);
 
     worklist_t *result = mmap(NULL,
@@ -45,8 +46,8 @@ c4m_alloc_collection_worklist(c4m_arena_t *fromspace)
                               0);
     result->write_ix   = 0;
     result->read_ix    = 0;
-    result->ring_size  = num_records;
-    result->mod        = num_records - 1;
+    result->ring_size  = n;
+    result->mod        = n - 1;
     result->alloc_len  = alloc_len;
 
     return result;
@@ -117,7 +118,7 @@ c4m_get_alloc_counter()
 #endif
 
 #ifdef C4M_GC_FULL_TRACE
-int c4m_gc_trace_on = 1;
+int c4m_gc_trace_on = C4M_GC_FULL_TRACE_DEFAULT;
 #endif
 
 #ifdef C4M_FULL_MEMCHECK
@@ -142,12 +143,13 @@ c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom)
 
     pthread_getattr_np(self, &attrs);
 
+    size_t size;
+
+    pthread_attr_getstack(&attrs, (void **)&addr, &size);
+
 #ifdef C4M_USE_FRAME_INTRINSIC
-    pthread_attr_getstackaddr(&attrs, (void **)&addr);
     *bottom = (uint64_t)__builtin_frame_address(0);
 #else
-    size_t size;
-    pthread_attr_getstack(&attrs, (void **)&addr, &size);
     *bottom = (uint64_t)addr + size;
 #endif
 
@@ -203,7 +205,7 @@ prep_allocation(c4m_alloc_hdr *old, c4m_arena_t *new_arena)
     c4m_alloc_hdr *res;
     c4m_arena_t   *arena = new_arena;
 
-#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+#if defined(C4M_ADD_ALLOC_LOC_INFO)
 #define TRACE_DEBUG_ARGS , debug_file, debug_ln
 
     char *debug_file = old->alloc_file;
@@ -309,7 +311,7 @@ get_header(c4m_collection_ctx *ctx, void *ptr)
 
     c4m_alloc_hdr *result = (c4m_alloc_hdr *)p;
 
-#if defined(C4M_GC_STATS) && (C4M_GCT_OBJ != 0)
+#if defined(C4M_ADD_ALLOC_LOC_INFO) && (C4M_GCT_OBJ != 0)
     if (result->con4m_obj) {
         c4m_base_obj_t *obj = (c4m_base_obj_t *)result->data;
 
@@ -382,7 +384,11 @@ scan_allocation(c4m_collection_ctx *ctx, c4m_alloc_hdr *hdr)
     c4m_mem_scan_fn scanner = hdr->scan_fn;
     void           *contents;
 
+#ifdef C4M_USE_GC_HOOKS
     if ((void *)scanner == C4M_GC_SCAN_ALL) {
+#else
+    if ((void *)scanner != C4M_GC_SCAN_NONE) {
+#endif
         while (p < end) {
             ASAN_UNPOISON_MEMORY_REGION(p, 8);
             contents = *p;
@@ -628,7 +634,6 @@ raw_trace(c4m_collection_ctx *ctx)
         (((char *)ctx->to_space->heap_end) - (char *)ctx->to_space->data));
 
     ctx->worklist = c4m_alloc_collection_worklist(cur);
-
     c4m_get_stack_scan_region((uint64_t *)&stack_top,
                               (uint64_t *)&stack_bottom);
 

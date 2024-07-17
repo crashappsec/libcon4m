@@ -552,6 +552,9 @@ void
 c4m_layer_styles(const c4m_render_style_t *base, c4m_render_style_t *cur)
 {
     // Anything not explicitly set in 'cur' will get set from base.
+    if (!cur || !base) {
+        return;
+    }
     if (!(cur->base_style & C4M_STY_FG) && base->base_style & C4M_STY_FG) {
         c4m_set_render_style_fg_color(cur,
                                       base->base_style & ~C4M_STY_CLEAR_FG);

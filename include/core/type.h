@@ -138,7 +138,12 @@ c4m_type_unlock(c4m_type_t *t)
 static inline c4m_type_t *
 c4m_type_get_param(c4m_type_t *t, int i)
 {
-    return c4m_list_get(t->details->items, i, NULL);
+    if (t && t->details) {
+        return c4m_list_get(t->details->items, i, NULL);
+    }
+    else {
+        return NULL;
+    }
 }
 
 static inline c4m_type_t *

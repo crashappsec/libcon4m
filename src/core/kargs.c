@@ -10,15 +10,6 @@
 
 #include "con4m.h"
 
-#ifndef C4M_MAX_KARGS_NESTING_DEPTH
-// Must be a power of two.
-#define C4M_MAX_KARGS_NESTING_DEPTH 32
-#endif
-
-#ifndef C4M_MAX_KEYWORD_SIZE
-#define C4M_MAX_KEYWORD_SIZE 32
-#endif
-
 static thread_local c4m_karg_info_t *kcache[C4M_MAX_KARGS_NESTING_DEPTH];
 static thread_local int              kargs_next_entry = -1;
 

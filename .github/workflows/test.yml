@@ -77,8 +77,11 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install meson ninja
 
+      - name: Setup
+        run: ./dev profile test
+
       - name: Build
-        run: ./dev testbuild
+        run: ./dev compile
 
       - name: Run
         run: ./dev run

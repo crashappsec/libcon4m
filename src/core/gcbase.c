@@ -12,17 +12,6 @@ thread_local uint64_t c4m_total_alloced   = 0;
 thread_local uint32_t c4m_total_allocs    = 0;
 #endif
 
-#ifdef C4M_FULL_MEMCHECK
-#ifndef C4M_MEMCHECK_RING_SZ
-// Must be a power of 2.
-#define C4M_MEMCHECK_RING_SZ 128
-#endif
-#if C4M_MEMCHECK_RING_SZ != 0
-#define C4M_USE_RING
-#else
-#undef C4M_USE_RING
-#endif
-
 uint64_t c4m_end_guard;
 
 #ifdef C4M_USE_RING
@@ -32,8 +21,6 @@ static thread_local c4m_shadow_alloc_t *memcheck_ring[C4M_MEMCHECK_RING_SZ] = {
 static thread_local unsigned int ring_head = 0;
 static thread_local unsigned int ring_tail = 0;
 #endif
-
-#endif // C4M_FULL_MEMCHECK
 
 static c4m_set_t    *external_holds = NULL;
 static pthread_key_t c4m_thread_key;
@@ -101,7 +88,7 @@ c4m_gc_heap_stats(uint64_t *used, uint64_t *available, uint64_t *total)
     }
 }
 
-#ifdef HATRACK_ALLOC_PASS_LOCATION
+#ifdef C4M_ADD_ALLOC_LOC_INFO
 void *
 c4m_gc_malloc_wrapper(size_t size, void *arg, char *file, int line)
 {
@@ -370,7 +357,7 @@ c4m_new_arena(size_t num_words, hatrack_zarray_t *roots)
     return new_arena;
 }
 
-#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+#if defined(C4M_ADD_ALLOC_LOC_INFO)
 #define TRACE_DEBUG_ARGS , debug_file, debug_ln
 
 void *
@@ -393,7 +380,7 @@ _c4m_gc_raw_alloc(size_t len, c4m_mem_scan_fn scan_fn)
                                 false TRACE_DEBUG_ARGS);
 }
 
-#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+#if defined(C4M_ADD_ALLOC_LOC_INFO)
 void *
 _c4m_gc_raw_alloc_with_finalizer(size_t          len,
                                  c4m_mem_scan_fn scan_fn,
@@ -423,7 +410,7 @@ c4m_gc_resize(void *ptr, size_t len)
 
     assert(hdr->guard = c4m_gc_guard);
 
-#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+#if defined(C4M_ADD_ALLOC_LOC_INFO)
     char *debug_file = hdr->alloc_file;
     int   debug_ln   = hdr->alloc_line;
 #endif
@@ -480,7 +467,7 @@ c4m_delete_arena(c4m_arena_t *arena)
     return;
 }
 
-#ifdef C4M_GC_STATS
+#ifdef C4M_ADD_ALLOC_LOC_INFO
 void
 _c4m_arena_register_root(c4m_arena_t *arena,
                          void        *ptr,
@@ -532,7 +519,7 @@ c4m_find_alloc(void *ptr)
     return NULL;
 }
 
-#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+#if defined(C4M_ADD_ALLOC_LOC_INFO)
 c4m_utf8_t *
 c4m_gc_alloc_info(void *addr, int *line)
 {
@@ -551,9 +538,7 @@ c4m_gc_alloc_info(void *addr, int *line)
 
     return c4m_new_utf8(h->alloc_file);
 }
-#endif
 
-#ifdef C4M_GC_STATS
 void
 _c4m_gc_register_root(void *ptr, uint64_t num_words, char *f, int l)
 {
@@ -614,7 +599,7 @@ memcheck_process_ring()
 }
 #endif
 
-#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+#if defined(C4M_ADD_ALLOC_LOC_INFO)
 void *
 c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
                      size_t          len,
@@ -636,7 +621,7 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
 
     len += sizeof(c4m_alloc_hdr);
 
-#ifdef C4M_DEBUG
+#if defined(C4M_DEBUG) && defined(C4M_ADD_ALLOC_LOC_INFO)
     _c4m_watch_scan(file, line);
 #endif
 
@@ -660,7 +645,7 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
         next = (c4m_alloc_hdr *)&(raw->data[wordlen]);
         if (((uint64_t *)next) > arena->heap_end) {
             arena->grow_next = true;
-#if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
+#if defined(C4M_ADD_ALLOC_LOC_INFO)
             return c4m_alloc_from_arena(arena_ptr,
                                         len,
                                         scan_fn,

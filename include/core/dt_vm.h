@@ -63,18 +63,6 @@
 // caller must push the return register onto the stack if it's interested in
 // its value.
 
-#ifndef C4M_STACK_SIZE
-#define STACK_SIZE (1 << 17)
-#else
-#define STACK_SIZE C4M_STACK_SIZE
-#endif
-
-#ifndef C4M_MAX_CALL_DEPTH
-#define MAX_CALL_DEPTH 200
-#else
-#define MAX_CALL_DEPTH C4M_MAX_CALL_DEPTH
-#endif
-
 typedef enum : uint8_t {
     // Push from const storage onto the stack.
     // Const values that are not reference objects can be pushed as immediates
@@ -563,11 +551,11 @@ typedef struct {
     c4m_arena_t *thread_arena;
 
     // frame_stack is the base address of the call stack
-    c4m_vmframe_t frame_stack[MAX_CALL_DEPTH];
+    c4m_vmframe_t frame_stack[C4M_MAX_CALL_DEPTH];
 
     // stack is the base address of the stack for this thread of execution.
     // the stack grows down, so the stack bottom is &stack[STACK_SIZE]
-    c4m_stack_value_t stack[STACK_SIZE];
+    c4m_stack_value_t stack[C4M_STACK_SIZE];
 
     // General purpose registers.
     // R0 should generally only be used for passing return values.

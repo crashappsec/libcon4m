@@ -17,7 +17,7 @@
 
 typedef struct {
     _Atomic int64_t refcount;
-    char            data[];
+    alignas(C4M_FORCED_ALIGNMENT) char data[];
 } refcount_alloc_t;
 
 static inline void *
@@ -25,7 +25,10 @@ c4m_rc_alloc(size_t len)
 {
     refcount_alloc_t *raw;
 
-    raw = (refcount_alloc_t *)calloc(sizeof(refcount_alloc_t) + len, 1);
+    len += sizeof(refcount_alloc_t);
+
+    assert(!posix_memalign((void **)&raw, C4M_FORCED_ALIGNMENT, len));
+    bzero(raw, len);
     atomic_store(&(raw->refcount), 1);
 
     return (void *)raw->data;

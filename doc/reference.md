@@ -347,7 +347,7 @@ bodyItem ::= lockAttr | ifStmt | forStmt | whileStmt | typeOfStmt |
 body          ::= '{' docString? (bodyItem? EOS)* '}'
 optionalBody  ::= body | 
 
-enumStmt     ::= "enum" enumItem (',' enumItem)* EOS
+enumStmt     ::= "enum" ID? '{' enumItem (',' enumItem)* '}'
 enumItem     ::= ID (('=' | ':') expression)?
 lockAttr     ::= '~' (assign | memberExpr)
 ifStmt       ::= "if" expression body ("elif" expression body)* ("else" body)?

@@ -131,7 +131,7 @@
 #define C4M_FINALLY           C4M_LFINALLY(default_label)
 #define C4M_TRY_END           C4M_LTRY_END(default_label)
 
-#if defined(C4M_DEBUG) && defined(BACKTRACE_SUPPORTED)
+#if defined(C4M_DEBUG) && defined(C4M_BACKTRACE_SUPPORTED)
 extern void c4m_print_c_backtrace();
 #define c4m_trace() c4m_print_c_backtrace()
 #else
