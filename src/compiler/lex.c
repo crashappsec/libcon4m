@@ -1222,6 +1222,8 @@ c4m_format_tokens(c4m_file_compile_ctx *ctx)
                                       c4m_ka(5),
                                       "header_rows",
                                       c4m_ka(1),
+                                      "container_tag",
+                                      c4m_ka("table2"),
                                       "stripe",
                                       c4m_ka(true)));
 

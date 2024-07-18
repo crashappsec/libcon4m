@@ -388,8 +388,6 @@ c4m_format_scope(c4m_scope_t *scope)
                                       c4m_ka(6),
                                       "header_rows",
                                       c4m_ka(1),
-                                      "container_tag",
-                                      c4m_ka("table2"),
                                       "stripe",
                                       c4m_ka(true)));
     c4m_list_t           *row        = c4m_new_table_row();
@@ -405,7 +403,6 @@ c4m_format_scope(c4m_scope_t *scope)
     }
 
     if (len == 0) {
-empty_scope:
         grid = c4m_new(c4m_type_grid(), c4m_kw("start_cols", c4m_ka(1)));
         c4m_list_append(row, c4m_new_utf8("Scope is empty"));
         c4m_grid_add_row(grid, row);
