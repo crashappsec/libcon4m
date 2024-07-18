@@ -89,6 +89,8 @@ c4m_list_set(c4m_list_t *list, int64_t ix, void *item)
 void
 c4m_list_append(c4m_list_t *list, void *item)
 {
+    // Warning; this being in place and taking a user callback is a
+    // recipe for danger on the lock.
     lock_list(list);
     if (list->append_ix >= list->length) {
         list_auto_resize(list);
@@ -98,6 +100,14 @@ c4m_list_append(c4m_list_t *list, void *item)
 
     unlock_list(list);
     return;
+}
+
+void
+c4m_list_sort(c4m_list_t *list, c4m_sort_fn f)
+{
+    lock_list(list);
+    qsort(list->data, list->append_ix, sizeof(int64_t *), f);
+    unlock_list(list);
 }
 
 static inline void *

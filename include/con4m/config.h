@@ -166,10 +166,6 @@
 #define C4M_GC_DEFAULT_OFF 0
 #endif
 
-#if defined(C4M_DEBUG) && !defined(C4M_BACKTRACE_SUPPORTED)
-#warning "Cannot add debug stack traces to exceptions: libbacktrace not supported"
-#endif
-
 #ifndef C4M_GCT_INIT
 #define C4M_GCT_INIT C4M_GC_DEFAULT_ON
 #endif
@@ -217,4 +213,11 @@
 #endif
 #ifndef C4M_MAX_GC_ROOTS
 #define C4M_MAX_GC_ROOTS (1 << 15)
+#endif
+
+#ifndef C4M_TEST_SUITE_TIMEOUT_SEC
+#define C4M_TEST_SUITE_TIMEOUT_SEC 1
+#endif
+#ifndef C4M_TEST_SUITE_TIMEOUT_USEC
+#define C4M_TEST_SUITE_TIMEOUT_USEC 0
 #endif

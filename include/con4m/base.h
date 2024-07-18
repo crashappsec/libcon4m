@@ -41,6 +41,8 @@
 #include <sys/random.h>
 #include <threads.h>
 #include <endian.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #endif
 
 #if defined(__MACH__)

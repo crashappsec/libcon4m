@@ -57,6 +57,10 @@ else
     endif
 endif
 
+if get_option('forkless_tests').enabled()
+    c_args = c_args + ['-DC4M_TEST_WITHOUT_FORK']
+endif
+
 backtrace = cc.find_library('backtrace', required: false)
 
 if backtrace.found()
