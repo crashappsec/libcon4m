@@ -1,5 +1,9 @@
 #include "con4m.h"
 
+#if defined(C4M_DEBUG) && !defined(C4M_BACKTRACE_SUPPORTED)
+#warning "Cannot add debug stack traces to exceptions: libbacktrace not supported"
+#endif
+
 #ifdef C4M_BACKTRACE_SUPPORTED
 
 static void
@@ -123,14 +127,35 @@ c4m_print_c_backtrace()
     c4m_print(c4m_trace_grid);
 }
 
+static void (*c4m_crash_callback)() = NULL;
+static bool c4m_show_trace_on_crash = true;
+
+void
+c4m_set_crash_callback(void (*cb)())
+{
+    c4m_crash_callback = cb;
+}
+
+void
+c4m_set_show_trace_on_crash(bool n)
+{
+    c4m_show_trace_on_crash = n;
+}
+
 static void
 c4m_crash_handler(int n)
 {
-    c4m_print(c4m_callout(c4m_new_utf8("PROGRAM CRASHED.")));
-    backtrace_core();
-    c4m_printf("[h6]C Stack Trace:");
-    c4m_print(c4m_trace_grid);
-    _exit(-4);
+    if (c4m_show_trace_on_crash) {
+        backtrace_core();
+        c4m_printf("[h6]C Stack Trace:");
+        c4m_print(c4m_trace_grid);
+    }
+
+    if (c4m_crash_callback) {
+        (*c4m_crash_callback)();
+    }
+
+    _exit(139); // Standard for sigsegv.
 }
 
 void

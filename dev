@@ -2,7 +2,7 @@
 
 C4M_DEV_CFG="--buildtype=debug -Duse_memcheck=on -Ddev_mode=true"
 C4M_RELEASE_CFG="--buildtype=release"
-C4M_DEBUG_EXTRA="-Duse_ubsan=enabled -Duse_asan=enabled -Dshow_preprocessor_config=enabled"
+C4M_DEBUG_EXTRA="-Duse_ubsan=enabled -Duse_asan=enabled -Dshow_preprocessor_config=enabled -Dforkless_tests=enabled"
 C4M_TEST_CFG=${C4M_DEV_CFG}
 
 

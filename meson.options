@@ -113,3 +113,10 @@ option(
     value: 'auto',
     description: 'Use undefined behavior sanitizer',
 )
+
+option(
+    'forkless_tests',
+    type: 'feature',
+    value: 'auto',
+    description: 'Run test suite without forking',
+)

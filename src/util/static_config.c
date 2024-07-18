@@ -125,6 +125,12 @@
 #warning "C4M_MIN_RENDER_WIDTH is not set."
 #endif
 
+#ifdef C4M_TEST_WITHOUT_FORK
+#warning "C4M_TEST_WITHOUT_FORK is: ON (No forking during testing.)"
+#else
+#warning "C4M_TEST_WITHOUT_FORK is: OFF (Tests fork.)"
+#endif
+
 #ifdef _GNU_SOURCE
 #warning "_GNU_SOURCE is ON (gnu stdlib)"
 #else
