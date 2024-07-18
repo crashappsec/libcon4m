@@ -441,6 +441,12 @@ c4m_type_bit()
 }
 
 static inline c4m_type_t *
+c4m_type_http()
+{
+    return c4m_bi_types[C4M_T_HTTP];
+}
+
+static inline c4m_type_t *
 c4m_merge_types(c4m_type_t *t1, c4m_type_t *t2, int *warning)
 {
     c4m_type_t *result = c4m_unify(t1, t2);

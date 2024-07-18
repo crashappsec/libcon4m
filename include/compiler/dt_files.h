@@ -56,7 +56,7 @@ typedef struct c4m_file_compile_ctx {
     uint64_t                module_id; // Module hash.
     int32_t                 static_size;
     uint32_t                num_params;
-    uint32_t                local_module_id;
+    uint32_t                local_module_id; // Index in object file.
     unsigned int            fatal_errors : 1;
     unsigned int            file         : 1;
     unsigned int            secure       : 1;

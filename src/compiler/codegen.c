@@ -2475,4 +2475,5 @@ c4m_internal_codegen(c4m_compile_ctx *cctx, c4m_vm_t *c4m_new_vm)
 
     c4m_new_vm->obj->num_const_objs = cctx->const_instantiation_id;
     c4m_new_vm->obj->static_data    = cctx->const_data;
+    c4m_new_vm->obj->entrypoint     = cctx->entry_point->local_module_id;
 }

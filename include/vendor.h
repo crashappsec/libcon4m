@@ -4,3 +4,4 @@
 #include "vendor/utf8proc.h"
 #include "vendor/md4c.h"
 #include "vendor/backtrace.h"
+#include <curl/curl.h>

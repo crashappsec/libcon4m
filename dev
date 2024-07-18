@@ -124,7 +124,9 @@ function ensure_project {
 }
 
 function configure_target {
-    meson configure ${C4M_BUILD_DIR} ${C4M_PASSTHROUGH_ARGS}
+    if [[ $# -ne 0 ]] ; then
+        meson configure ${C4M_BUILD_DIR} ${C4M_PASSTHROUGH_ARGS}
+    fi
 }
 
 function build_target {
@@ -236,6 +238,12 @@ function libcon4m_set_profile {
 }
 
 function libcon4m_prebuild {
+    CONFIGURE=1
+    if [[ ${1} -eq 0 ]] ; then
+        shift
+        CONFIGURE=0
+    fi
+
     if [[ $# -ne 0 ]]; then
         case ${1} in
             dev | debug | release | test)
@@ -253,6 +261,10 @@ function libcon4m_prebuild {
 
     ensure_directory
     ensure_project
+
+    if [[ CONFIGURE -ne 0 ]] ; then
+        configure_target
+    fi
 }
 
 function libcon4m_compile {
@@ -286,8 +298,7 @@ function libcon4m_run_tests {
 }
 
 function libcon4m_run {
-    libcon4m_prebuild $@
-
+    libcon4m_prebuild 0 $@
     libcon4m_compile
 
     set -e

@@ -120,6 +120,4 @@ extern const c4m_vtable_t c4m_parse_node_vtable;
 extern const c4m_vtable_t c4m_callback_vtable;
 extern const c4m_vtable_t c4m_flags_vtable;
 extern const c4m_vtable_t c4m_box_vtable;
-extern const uint64_t     c4m_pmap_first_word[2];
-extern const uint64_t     c4m_rs_pmap[2];
-extern const uint64_t     c4m_exception_pmap[2];
+extern const c4m_vtable_t c4m_basic_http_vtable;

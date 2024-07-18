@@ -93,6 +93,8 @@ c4m_default_uncaught_handler(c4m_exception_t *exception)
     c4m_grid_add_col_span(tbl, row1, 1, 0, 2);
     c4m_grid_add_row(tbl, row2);
     c4m_stream_write_object(errf, tbl, true);
+
+    c4m_print_c_backtrace();
 }
 
 void

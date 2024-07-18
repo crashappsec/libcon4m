@@ -117,3 +117,4 @@
 
 #include "core/ffi.h"
 #include "util/watch.h"
+#include "io/http.h"

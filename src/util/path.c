@@ -222,7 +222,7 @@ c4m_path_join(c4m_list_t *items)
         memcpy(p, tmp->data, tmplen);
         p += tmplen;
 
-        if (i + 1 != last && *p != '/') {
+        if (i + 1 != last && tmp->data[tmplen - 1] != '/') {
             *p++ = '/';
         }
     }

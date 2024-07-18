@@ -130,6 +130,12 @@ if get_option('dev_mode') == true
         if memcheck == 'strict'
             c_args = c_args + ['-DC4M_STRICT_MEMCHECK']
         endif
+
+        show_count = get_option('memcheck_show_allocs')
+        if show_count != 0
+            as_str = show_count.to_string()
+            c_args = c_args + ['-DC4M_SHOW_NEXT_ALLOCS=' + as_str]
+        endif
     endif
 
     if get_option('show_gc_stats').enabled()
@@ -209,6 +215,7 @@ c4m_io = [
     'src/io/switchboard.c',
     'src/io/subproc.c',
     'src/io/term.c',
+    'src/io/http.c',
 ]
 
 c4m_compiler = [
@@ -319,8 +326,9 @@ ssl = cc.find_library('ssl')
 
 unibreak = dependency('libunibreak')
 utf8proc = dependency('libutf8proc')
+libcurl  = dependency('curl')
 
-deps = [unibreak, utf8proc, threads, ffi, ssl, crypto, backtrace]
+deps = [unibreak, utf8proc, threads, ffi, ssl, crypto, backtrace, libcurl]
 opts = [math]
 if using_glibc
     opts = opts + [cc.find_library('atomic')]

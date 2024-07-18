@@ -110,10 +110,9 @@ identify_test_files(void)
     }
 
     for (int i = 0; i < n; i++) {
-one_retry:;
-
         c4m_utf8_t *fname = c4m_to_utf8(c4m_list_get(argv, i, NULL));
-        c4m_utf8_t *s     = c4m_path_simple_join(test_dir, fname);
+one_retry:;
+        c4m_utf8_t *s = c4m_path_simple_join(test_dir, fname);
 
         switch (c4m_get_file_kind(s)) {
         case C4M_FK_IS_REG_FILE:
@@ -130,7 +129,7 @@ one_retry:;
             if (!c4m_str_ends_with(s, ext)) {
                 // We only attempt to add the file extension if
                 // it's something on the command line.
-                s = c4m_to_utf8(c4m_str_concat(s, ext));
+                fname = c4m_to_utf8(c4m_str_concat(fname, ext));
                 goto one_retry;
             }
             s = c4m_path_simple_join(cur_dir, fname);
@@ -475,6 +474,11 @@ run_tests(void)
 static void
 run_other_files(void)
 {
+    if (c4m_test_total_items == c4m_test_total_tests) {
+        return;
+    }
+
+    c4m_print(c4m_callout(c4m_new_utf8("RUNNING NON-TEST FILES.")));
     for (int i = 0; i < c4m_test_total_items; i++) {
         c4m_test_kat *item = &c4m_test_info[i];
 
@@ -521,7 +525,8 @@ run_other_files(void)
         default:
             waitpid(pid, &status, WNOHANG);
             c4m_printf("[h4]{}[/h4] exited with return code: [em]{}[/].",
-                       WEXITSTATUS(status));
+                       item->path,
+                       c4m_box_u64(WEXITSTATUS(status)));
             continue;
         }
     }
@@ -724,7 +729,7 @@ show_dev_compile_info(c4m_compile_ctx *ctx)
 {
     c4m_printf("[h2]Module Source Code for {}", ctx->entry_point->path);
     c4m_print(ctx->entry_point->raw);
-    c4m_printf("[h2]Module Source Code for {}", ctx->entry_point->path);
+    c4m_printf("[h2]Module Tokens for {}", ctx->entry_point->path);
     c4m_print(c4m_format_tokens(ctx->entry_point));
     if (ctx->entry_point->parse_tree) {
         c4m_print(c4m_format_parse_tree(ctx->entry_point));

@@ -1751,7 +1751,7 @@ c4m_vmthread_reset(c4m_vmthread_t *tstate)
     tstate->module_lock_stack = c4m_list(c4m_type_i32());
 
     tstate->current_module = c4m_list_get(tstate->vm->obj->module_contents,
-                                          tstate->vm->obj->entrypoint - 1,
+                                          tstate->vm->obj->entrypoint,
                                           NULL);
 }
 
