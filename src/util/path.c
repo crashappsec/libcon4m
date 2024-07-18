@@ -459,7 +459,7 @@ c4m_app_path()
     char buf[PATH_MAX];
     char proc_path[PATH_MAX];
     snprintf(proc_path, PATH_MAX, "/proc/%d/exe", getpid());
-    readlink(proc_path, buf, PATH_MAX);
+    buf[readlink(proc_path, buf, PATH_MAX)] = 0;
 
     return c4m_new_utf8(buf);
 }
