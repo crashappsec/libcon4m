@@ -722,53 +722,38 @@ next_comparison:;
 static void
 show_dev_compile_info(c4m_compile_ctx *ctx)
 {
-    if (!dev_mode) {
-        return;
-    }
-
+    c4m_printf("[h2]Module Source Code for {}", ctx->entry_point->path);
+    c4m_print(ctx->entry_point->raw);
+    c4m_printf("[h2]Module Source Code for {}", ctx->entry_point->path);
     c4m_print(c4m_format_tokens(ctx->entry_point));
-
-    for (int i = 0; i < c4m_list_len(ctx->module_ordering); i++) {
-        c4m_file_compile_ctx *f = c4m_list_get(ctx->module_ordering,
-                                               i,
-                                               NULL);
-
-        c4m_print(c4m_cstr_format("[h1]Processing module {}", f->path));
-        if (ctx->entry_point->parse_tree) {
-            c4m_print(c4m_format_parse_tree(ctx->entry_point));
-        }
-        else {
-            continue;
-        }
-
-        if (ctx->entry_point->cfg) {
-            c4m_print(c4m_cstr_format("[h1]Toplevel CFG for {}", f->path));
-            c4m_print(c4m_cfg_repr(ctx->entry_point->cfg));
-        }
-        else {
-            continue;
-        }
-
-        for (int j = 0; j < c4m_list_len(f->fn_def_syms); j++) {
-            c4m_symbol_t  *sym  = c4m_list_get(f->fn_def_syms,
-                                             j,
-                                             NULL);
-            c4m_fn_decl_t *decl = sym->value;
-            c4m_print(c4m_cstr_format("[h1]CFG for Function {}{}",
-                                      sym->name,
-                                      sym->type));
-            c4m_print(c4m_cfg_repr(decl->cfg));
-            c4m_print(c4m_cstr_format("[h2]Function Scope for {}{}",
-                                      sym->name,
-                                      sym->type));
-            c4m_print(c4m_format_scope(decl->signature_info->fn_scope));
-        }
-
-        c4m_print(c4m_rich_lit("[h2]Global Scope"));
-        c4m_print(c4m_format_scope(ctx->final_globals));
-        c4m_print(c4m_rich_lit("[h2]Module Scope"));
-        c4m_print(c4m_format_scope(ctx->entry_point->module_scope));
+    if (ctx->entry_point->parse_tree) {
+        c4m_print(c4m_format_parse_tree(ctx->entry_point));
     }
+    if (ctx->entry_point->cfg) {
+        c4m_print(c4m_cstr_format("[h1]Toplevel CFG for {}",
+                                  ctx->entry_point->path));
+        c4m_print(c4m_cfg_repr(ctx->entry_point->cfg));
+    }
+
+    for (int j = 0; j < c4m_list_len(ctx->entry_point->fn_def_syms); j++) {
+        c4m_symbol_t  *sym  = c4m_list_get(ctx->entry_point->fn_def_syms,
+                                         j,
+                                         NULL);
+        c4m_fn_decl_t *decl = sym->value;
+        c4m_print(c4m_cstr_format("[h1]CFG for Function {}{}",
+                                  sym->name,
+                                  sym->type));
+        c4m_print(c4m_cfg_repr(decl->cfg));
+        c4m_print(c4m_cstr_format("[h2]Function Scope for {}{}",
+                                  sym->name,
+                                  sym->type));
+        c4m_print(c4m_format_scope(decl->signature_info->fn_scope));
+    }
+
+    c4m_print(c4m_rich_lit("[h2]Module Scope"));
+    c4m_print(c4m_format_scope(ctx->entry_point->module_scope));
+    c4m_print(c4m_rich_lit("[h2]Global Scope"));
+    c4m_print(c4m_format_scope(ctx->final_globals));
 }
 
 static void
@@ -785,16 +770,12 @@ execute_test(c4m_test_kat *kat)
 {
     c4m_compile_ctx *ctx;
     c4m_gc_show_heap_stats_on();
-    c4m_printf("[atomic lime]info:[/] Compiling: {}", kat->path);
+    c4m_print(c4m_cstr_format("[h1]Processing module {}", kat->path));
 
     ctx = c4m_compile_from_entry_point(kat->path);
 
-    show_dev_compile_info(ctx);
-
     if (dev_mode) {
-        c4m_file_compile_ctx *f = ctx->entry_point;
-        c4m_print(c4m_rich_lit("[h2]Module Source Code"));
-        c4m_print(f->raw);
+        show_dev_compile_info(ctx);
     }
 
     c4m_grid_t *err_output = c4m_format_errors(ctx);
