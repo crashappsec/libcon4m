@@ -108,7 +108,7 @@ c4m_token_type_to_string(c4m_token_kind_t tk)
 }
 
 typedef struct {
-    c4m_file_compile_ctx *ctx;
+    c4m_module_compile_ctx *ctx;
     c4m_codepoint_t      *start;
     c4m_codepoint_t      *end;
     c4m_codepoint_t      *pos;
@@ -1114,7 +1114,7 @@ line_comment:
 }
 
 bool
-c4m_lex(c4m_file_compile_ctx *ctx, c4m_stream_t *stream)
+c4m_lex(c4m_module_compile_ctx *ctx, c4m_stream_t *stream)
 {
     if (ctx->status >= c4m_compile_status_tokenized) {
         return ctx->fatal_errors;
@@ -1180,7 +1180,8 @@ c4m_lex(c4m_file_compile_ctx *ctx, c4m_stream_t *stream)
     }
     C4M_TRY_END;
 
-    ctx->status       = c4m_compile_status_tokenized;
+    ctx->status = c4m_compile_status_tokenized;
+    c4m_module_set_status(ctx, c4m_compile_status_tokenized);
     ctx->fatal_errors = error;
 
     return !error;
@@ -1215,7 +1216,7 @@ c4m_format_one_token(c4m_token_t *tok, c4m_str_t *prefix)
 // them into a default table for now aimed at debugging, and we'll add
 // a facility for styling later.
 c4m_grid_t *
-c4m_format_tokens(c4m_file_compile_ctx *ctx)
+c4m_format_tokens(c4m_module_compile_ctx *ctx)
 {
     c4m_grid_t *grid = c4m_new(c4m_type_grid(),
                                c4m_kw("start_cols",

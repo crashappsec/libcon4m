@@ -22,7 +22,7 @@
 // time.
 
 static inline uint64_t
-c4m_layout_static_obj(c4m_file_compile_ctx *ctx, int bytes, int alignment)
+c4m_layout_static_obj(c4m_module_compile_ctx *ctx, int bytes, int alignment)
 {
     uint64_t result = c4m_round_up_to_given_power_of_2(alignment,
                                                        ctx->static_size);
@@ -66,7 +66,7 @@ _c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
 
     va_start(args, obj);
 
-    c4m_file_compile_ctx *fctx = va_arg(args, c4m_file_compile_ctx *);
+    c4m_module_compile_ctx *fctx = va_arg(args, c4m_module_compile_ctx *);
     c4m_tree_node_t      *loc  = NULL;
     c4m_utf8_t           *name = NULL;
 
@@ -137,7 +137,7 @@ _c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
 
 static void
 layout_static(c4m_compile_ctx      *cctx,
-              c4m_file_compile_ctx *fctx,
+              c4m_module_compile_ctx *fctx,
               void                **view,
               uint64_t              n)
 {
@@ -222,7 +222,7 @@ layout_stack(void **view, uint64_t n)
 }
 
 static void
-layout_func(c4m_file_compile_ctx *ctx,
+layout_func(c4m_module_compile_ctx *ctx,
             c4m_symbol_t         *sym,
             int                   i)
 
@@ -249,7 +249,7 @@ layout_func(c4m_file_compile_ctx *ctx,
 }
 
 void
-c4m_layout_module_symbols(c4m_compile_ctx *cctx, c4m_file_compile_ctx *fctx)
+c4m_layout_module_symbols(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
 {
     uint64_t n;
 

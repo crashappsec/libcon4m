@@ -57,20 +57,20 @@ c4m_str_slice(const c4m_str_t *instr, int64_t start, int64_t end)
     c4m_utf32_t *s   = c4m_to_utf32(instr);
     int64_t      len = c4m_str_codepoint_len(s);
 
-    if (start < 0) {
-        start += len;
-    }
-    else {
-        if (start >= len) {
-            return c4m_to_utf32(c4m_empty_string());
-        }
-    }
     if (end < 0) {
         end += len;
     }
     else {
         if (end > len) {
             end = len;
+        }
+    }
+    if (start < 0) {
+        start += len;
+    }
+    else {
+        if (start >= len) {
+            return c4m_to_utf32(c4m_empty_string());
         }
     }
     if ((start | end) < 0 || start >= end) {
@@ -425,6 +425,10 @@ c4m_utf8_join(c4m_list_t *l, const c4m_utf8_t *joiner, bool add_trailing)
         memcpy(p, joiner->data, jlen);
     }
 
+    while (new_len && result->data[new_len - 1] == 0) {
+        new_len--;
+    }
+
     result->byte_len      = new_len;
     result->data[new_len] = 0;
     c4m_internal_utf8_set_codepoint_count(result);
@@ -483,6 +487,7 @@ c4m_utf32_join(c4m_list_t *l, const c4m_utf32_t *joiner, bool add_trailing)
 
         memcpy(p, line->data, n_cp * 4);
     }
+
     return result;
 }
 

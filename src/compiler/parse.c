@@ -35,7 +35,7 @@ new_comment_node()
 
 typedef struct {
     c4m_tree_node_t      *cur;
-    c4m_file_compile_ctx *file_ctx;
+    c4m_module_compile_ctx *module_ctx;
     c4m_token_t          *cached_token;
     hatstack_t           *root_stack;
     checkpoint_t         *jump_state;
@@ -269,7 +269,7 @@ _tok_cur(parse_ctx *ctx)
 #endif
 {
     if (!ctx->cached_token || ctx->token_ix != ctx->cache_ix) {
-        ctx->cached_token = c4m_list_get(ctx->file_ctx->tokens,
+        ctx->cached_token = c4m_list_get(ctx->module_ctx->tokens,
                                          ctx->token_ix,
                                          NULL);
         ctx->cache_ix     = ctx->token_ix;
@@ -304,12 +304,12 @@ _add_parse_error(parse_ctx *ctx, c4m_compile_error_t code, ...)
     va_list args;
 
     va_start(args, code);
-    c4m_base_add_error(ctx->file_ctx->errors,
+    c4m_base_add_error(ctx->module_ctx->errors,
                        code,
                        tok_cur(ctx),
                        c4m_err_severity_error,
                        args);
-    ctx->file_ctx->fatal_errors = 1;
+    ctx->module_ctx->fatal_errors = 1;
     va_end(args);
 }
 
@@ -328,7 +328,7 @@ _raise_err_at_node(parse_ctx          *ctx,
     c4m_compile_error *err = c4m_new_error(0);
     err->code              = code;
     err->current_token     = n->token;
-    c4m_list_append(ctx->file_ctx->errors, err);
+    c4m_list_append(ctx->module_ctx->errors, err);
 
     if (bail) {
         c4m_exit_to_checkpoint(ctx, '!', f, line, fn);
@@ -421,7 +421,7 @@ previous_token(parse_ctx *ctx)
     c4m_token_t *tok = NULL;
 
     while (i--) {
-        tok = c4m_list_get(ctx->file_ctx->tokens, i, NULL);
+        tok = c4m_list_get(ctx->module_ctx->tokens, i, NULL);
         if (tok->kind != c4m_tt_space) {
             break;
         }
@@ -944,12 +944,12 @@ simple_lit(parse_ctx *ctx)
             if (!c4m_str_codepoint_len(li->litmod)) {
                 li->litmod = c4m_new_utf8("<none>");
             }
-            c4m_error_from_token(ctx->file_ctx, err, tok, li->litmod, syntax_str);
+            c4m_error_from_token(ctx->module_ctx, err, tok, li->litmod, syntax_str);
             break;
         case c4m_err_no_error:
             break;
         default:
-            c4m_error_from_token(ctx->file_ctx, err, tok);
+            c4m_error_from_token(ctx->module_ctx, err, tok);
             break;
         }
         end_node(ctx);
@@ -970,7 +970,7 @@ string_lit(parse_ctx *ctx)
         c4m_compile_error_t err = c4m_parse_simple_lit(tok, NULL, NULL);
 
         if (err != c4m_err_no_error) {
-            c4m_error_from_token(ctx->file_ctx, err, tok);
+            c4m_error_from_token(ctx->module_ctx, err, tok);
         }
 
         end_node(ctx);
@@ -991,7 +991,7 @@ bool_lit(parse_ctx *ctx)
         c4m_compile_error_t err = c4m_parse_simple_lit(tok, NULL, NULL);
 
         if (err != c4m_err_no_error) {
-            c4m_error_from_token(ctx->file_ctx, err, tok);
+            c4m_error_from_token(ctx->module_ctx, err, tok);
         }
 
         end_node(ctx);
@@ -4370,7 +4370,7 @@ c4m_print_parse_node(c4m_tree_node_t *n)
 }
 
 c4m_grid_t *
-c4m_format_parse_tree(c4m_file_compile_ctx *ctx)
+c4m_format_parse_tree(c4m_module_compile_ctx *ctx)
 {
     return c4m_grid_tree(ctx->parse_tree,
                          c4m_kw("converter", c4m_ka(repr_one_node)));
@@ -4398,23 +4398,23 @@ prime_tokens(parse_ctx *ctx)
 }
 
 bool
-c4m_parse(c4m_file_compile_ctx *file_ctx)
+c4m_parse(c4m_module_compile_ctx *module_ctx)
 {
-    if (c4m_fatal_error_in_module(file_ctx)) {
+    if (c4m_fatal_error_in_module(module_ctx)) {
         return false;
     }
 
-    if (file_ctx->status >= c4m_compile_status_code_parsed) {
-        return c4m_fatal_error_in_module(file_ctx);
+    if (module_ctx->status >= c4m_compile_status_code_parsed) {
+        return c4m_fatal_error_in_module(module_ctx);
     }
 
-    if (file_ctx->status != c4m_compile_status_tokenized) {
+    if (module_ctx->status != c4m_compile_status_tokenized) {
         C4M_CRAISE("Cannot parse files that are not tokenized.");
     }
 
     parse_ctx ctx = {
         .cur          = NULL,
-        .file_ctx     = file_ctx,
+        .module_ctx     = module_ctx,
         .cached_token = NULL,
         .token_ix     = 0,
         .cache_ix     = -1,
@@ -4423,27 +4423,27 @@ c4m_parse(c4m_file_compile_ctx *file_ctx)
 
     prime_tokens(&ctx);
 
-    file_ctx->parse_tree = module(&ctx);
+    module_ctx->parse_tree = module(&ctx);
 
-    if (file_ctx->parse_tree == NULL) {
-        file_ctx->fatal_errors = 1;
+    if (module_ctx->parse_tree == NULL) {
+        module_ctx->fatal_errors = 1;
     }
 
-    file_ctx->status = c4m_compile_status_code_parsed;
+    c4m_module_set_status(module_ctx, c4m_compile_status_code_parsed);
 
-    return file_ctx->fatal_errors != 1;
+    return module_ctx->fatal_errors != 1;
 }
 
 bool
-c4m_parse_type(c4m_file_compile_ctx *file_ctx)
+c4m_parse_type(c4m_module_compile_ctx *module_ctx)
 {
-    if (c4m_fatal_error_in_module(file_ctx)) {
+    if (c4m_fatal_error_in_module(module_ctx)) {
         return false;
     }
 
     parse_ctx ctx = {
         .cur          = NULL,
-        .file_ctx     = file_ctx,
+        .module_ctx     = module_ctx,
         .cached_token = NULL,
         .token_ix     = 0,
         .cache_ix     = -1,
@@ -4457,11 +4457,11 @@ c4m_parse_type(c4m_file_compile_ctx *file_ctx)
                                  c4m_kw("contents", c4m_ka(root)));
 
     ctx.cur              = t;
-    file_ctx->parse_tree = ctx.cur;
+    module_ctx->parse_tree = ctx.cur;
 
     type_spec(&ctx);
 
-    file_ctx->parse_tree = file_ctx->parse_tree->children[0];
+    module_ctx->parse_tree = module_ctx->parse_tree->children[0];
 
     return true;
 }

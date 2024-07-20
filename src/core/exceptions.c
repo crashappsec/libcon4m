@@ -54,7 +54,7 @@ _c4m_alloc_str_exception(c4m_utf8_t *msg, ...)
     return ret;
 }
 
-static void
+void
 c4m_default_uncaught_handler(c4m_exception_t *exception)
 {
     c4m_list_t       *empty = c4m_list(c4m_type_utf8());
@@ -94,7 +94,15 @@ c4m_default_uncaught_handler(c4m_exception_t *exception)
     c4m_grid_add_row(tbl, row2);
     c4m_stream_write_object(errf, tbl, true);
 
-    c4m_print_c_backtrace();
+#if defined(C4M_DEBUG) && defined(C4M_BACKTRACE_SUPPORTED)
+    if (!exception->c_trace) {
+        c4m_printf("[h1]No C backtrace available.");
+    }
+    else {
+        c4m_printf("[h1]C backtrace:");
+        c4m_print(exception->c_trace);
+    }
+#endif
 }
 
 void

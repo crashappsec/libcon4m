@@ -6,13 +6,14 @@ $errors:
 dupe_import
 dupe_import
 $output:
+4181
+4181
 24
 """
 
+use sub.use2 from """tests"""
 use fib from "tests"
-#use use2 from """tests"""
-use use2 from "tests.sub"
-
+use use2 from "tests/sub"
 use fib from "tests"
 
 print(fact(4))

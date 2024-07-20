@@ -59,7 +59,7 @@ option(
     'exception_traces',
     type: 'feature',
     value: 'auto',
-    description: 'Enable C stack traces on internal exceptions if possible',
+    description: 'Enable C stack traces on uncaught internal exceptions if possible',
 )
 
 option(

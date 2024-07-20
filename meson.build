@@ -216,10 +216,12 @@ c4m_io = [
     'src/io/subproc.c',
     'src/io/term.c',
     'src/io/http.c',
+    'src/io/file.c',
 ]
 
 c4m_compiler = [
     'src/compiler/compile.c',
+    'src/compiler/module.c',    
     'src/compiler/lex.c',
     'src/compiler/parse.c',
     'src/compiler/errors.c',
@@ -295,13 +297,13 @@ hat_hashref = [
 ]
 
 hash_test_src = hat_hashref + [
-    'src/tests/hash/test.c',
-    'src/tests/hash/default.c',
-    'src/tests/hash/performance.c',
-    'src/tests/hash/config.c',
-    'src/tests/hash/functional.c',
-    'src/tests/hash/rand.c',
-    'src/tests/hash/testhat.c',
+    'src/harness/hash/test.c',
+    'src/harness/hash/default.c',
+    'src/harness/hash/performance.c',
+    'src/harness/hash/config.c',
+    'src/harness/hash/functional.c',
+    'src/harness/hash/rand.c',
+    'src/harness/hash/testhat.c',
 ]
 
 if not using_osx and not using_glibc
@@ -312,7 +314,13 @@ endif
 
 lib_src = c4m_src + hat_primary
 
-test_src = ['src/tests/test.c']
+test_src = [
+    'src/harness/con4m_base/test.c',
+    'src/harness/con4m_base/scan.c',
+    'src/harness/con4m_base/run.c',
+    'src/harness/con4m_base/validation.c',
+    'src/harness/con4m_base/results.c',
+]
 
 threads = dependency('threads')
 math = cc.find_library('m', required: false)

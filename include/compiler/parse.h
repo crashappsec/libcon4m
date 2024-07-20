@@ -1,9 +1,9 @@
 #pragma once
 #include "con4m.h"
 
-extern bool        c4m_parse(c4m_file_compile_ctx *);
-extern bool        c4m_parse_type(c4m_file_compile_ctx *);
-extern c4m_grid_t *c4m_format_parse_tree(c4m_file_compile_ctx *);
+extern bool        c4m_parse(c4m_module_compile_ctx *);
+extern bool        c4m_parse_type(c4m_module_compile_ctx *);
+extern c4m_grid_t *c4m_format_parse_tree(c4m_module_compile_ctx *);
 extern void        c4m_print_parse_node(c4m_tree_node_t *);
 extern c4m_utf8_t *c4m_node_type_name(c4m_node_kind_t);
 
@@ -78,71 +78,6 @@ c4m_node_simp_literal(c4m_tree_node_t *n)
     c4m_token_t *tok = p->token;
 
     return tok->literal_value;
-}
-
-typedef struct c4m_pass1_ctx {
-    c4m_tree_node_t      *cur_tnode;
-    c4m_pnode_t          *cur;
-    c4m_spec_t           *spec;
-    c4m_file_compile_ctx *file_ctx;
-    c4m_scope_t          *static_scope;
-    c4m_list_t           *extern_decls;
-    bool                  in_func;
-} c4m_pass1_ctx;
-
-static inline c4m_tree_node_t *
-c4m_get_match(c4m_pass1_ctx *ctx, c4m_tpat_node_t *pattern)
-{
-    return c4m_get_match_on_node(ctx->cur_tnode, pattern);
-}
-
-static inline c4m_list_t *
-c4m_apply_pattern(c4m_pass1_ctx *ctx, c4m_tpat_node_t *pattern)
-{
-    return c4m_apply_pattern_on_node(ctx->cur_tnode, pattern);
-}
-
-static inline void
-c4m_set_current_node(c4m_pass1_ctx *ctx, c4m_tree_node_t *n)
-{
-    ctx->cur_tnode = n;
-    ctx->cur       = c4m_tree_get_contents(n);
-}
-
-static inline bool
-c4m_node_down(c4m_pass1_ctx *ctx, int i)
-{
-    c4m_tree_node_t *n = ctx->cur_tnode;
-
-    if (i >= n->num_kids) {
-        return false;
-    }
-
-    if (n->children[i]->parent != n) {
-        c4m_print_parse_node(n->children[i]);
-    }
-    assert(n->children[i]->parent == n);
-    c4m_set_current_node(ctx, n->children[i]);
-
-    return true;
-}
-
-static inline void
-c4m_node_up(c4m_pass1_ctx *ctx)
-{
-    c4m_set_current_node(ctx, ctx->cur_tnode->parent);
-}
-
-static inline c4m_node_kind_t
-c4m_cur_node_type(c4m_pass1_ctx *ctx)
-{
-    return ctx->cur->kind;
-}
-
-static inline c4m_tree_node_t *
-c4m_cur_node(c4m_pass1_ctx *ctx)
-{
-    return ctx->cur_tnode;
 }
 
 #endif

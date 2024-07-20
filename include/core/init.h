@@ -22,10 +22,21 @@ extern c4m_list_t *c4m_get_program_arguments();
 extern c4m_utf8_t *c4m_get_argv0();
 extern c4m_utf8_t *c4m_get_env(c4m_utf8_t *);
 extern c4m_dict_t *c4m_environment();
-extern c4m_utf8_t *c4m_get_con4m_path();
 extern c4m_utf8_t *c4m_path_search(c4m_utf8_t *, c4m_utf8_t *);
 extern c4m_utf8_t *c4m_con4m_root();
-extern c4m_utf8_t *c4m_system_module_path();
+c4m_utf8_t        *c4m_system_module_path();
 
 extern c4m_list_t *con4m_path;
 extern c4m_set_t  *con4m_extensions;
+
+static inline c4m_list_t *
+c4m_get_module_search_path()
+{
+    return con4m_path;
+}
+
+static inline c4m_set_t *
+c4m_get_allowed_file_extensions()
+{
+    return con4m_extensions;
+}

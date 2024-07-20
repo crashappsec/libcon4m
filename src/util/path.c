@@ -191,7 +191,7 @@ c4m_path_join(c4m_list_t *items)
             C4M_CRAISE("Strings passed to c4m_path_join must be utf8 encoded.");
         }
 
-        tmplen = c4m_str_byte_len(tmp);
+        tmplen = strlen(tmp->data);
 
         if (tmplen == 0) {
             continue;
@@ -213,7 +213,7 @@ c4m_path_join(c4m_list_t *items)
 
     for (int i = first; i < last; i++) {
         tmp    = c4m_list_get(items, i, NULL);
-        tmplen = c4m_str_byte_len(tmp);
+        tmplen = strlen(tmp->data);
 
         if (tmplen == 0) {
             continue;
@@ -285,6 +285,7 @@ typedef struct {
     bool        follow_links;
     bool        ignore_special;
     bool        done_with_safety_checks;
+    bool        have_recursed;
 } c4m_walk_ctx;
 
 static c4m_utf8_t *
@@ -339,7 +340,10 @@ internal_path_walk(c4m_walk_ctx *ctx)
 
 actual_directory:
         if (!ctx->recurse) {
-            return;
+            if (ctx->have_recursed) {
+                return;
+            }
+            ctx->have_recursed = true;
         }
 
         ctx->resolved = add_slash_if_needed(ctx->resolved);
@@ -503,6 +507,7 @@ _c4m_path_walk(c4m_utf8_t *dir, ...)
         .follow_links            = follow_links,
         .ignore_special          = ignore_special,
         .done_with_safety_checks = false,
+        .have_recursed           = false,
         .result                  = c4m_list(c4m_type_utf8()),
         .resolved                = c4m_resolve_path(dir),
     };

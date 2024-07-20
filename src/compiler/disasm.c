@@ -353,7 +353,8 @@ const inst_info_t inst_info[256] = {
         .name = "ZLockOnWrite",
     },
     [C4M_ZCallModule] = {
-        .name = "ZCallModule",
+        .name        = "ZCallModule",
+        .show_module = 1,
     },
     [C4M_ZUnpack] = {
         .name    = "ZUnpack",

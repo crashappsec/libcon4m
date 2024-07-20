@@ -99,6 +99,12 @@ c4m_str_crlf()
     return c4m_str_copy(c4m_crlf_const);
 }
 
+static inline c4m_str_t *
+c4m_str_replace(c4m_str_t *base, c4m_str_t *sub_old, c4m_str_t *sub_new)
+{
+    return c4m_str_join(c4m_str_split(base, sub_old), sub_new);
+}
+
 #define c4m_new_utf8(to_copy) \
     c4m_new(c4m_type_utf8(), c4m_kw("cstring", c4m_ka(to_copy)))
 

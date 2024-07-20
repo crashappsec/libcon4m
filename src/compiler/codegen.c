@@ -31,7 +31,7 @@ typedef struct {
 
 typedef struct {
     c4m_compile_ctx      *cctx;
-    c4m_file_compile_ctx *fctx;
+    c4m_module_compile_ctx *fctx;
     c4m_list_t           *instructions;
     c4m_tree_node_t      *cur_node;
     c4m_pnode_t          *cur_pnode;
@@ -2051,10 +2051,12 @@ gen_lock(gen_ctx *ctx)
 static inline void
 gen_use(gen_ctx *ctx)
 {
-    c4m_file_compile_ctx *tocall;
+    c4m_module_compile_ctx *tocall;
 
-    tocall = (c4m_file_compile_ctx *)ctx->cur_pnode->value;
-    emit(ctx, C4M_ZCallModule, c4m_kw("arg", c4m_ka(tocall->local_module_id)));
+    tocall = (c4m_module_compile_ctx *)ctx->cur_pnode->value;
+    emit(ctx,
+         C4M_ZCallModule,
+         c4m_kw("module_id", c4m_ka(tocall->local_module_id)));
 }
 
 static void
@@ -2368,7 +2370,6 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
     module->module_id    = ctx->fctx->local_module_id;
     module->module_hash  = ctx->fctx->module_id;
     module->modname      = ctx->fctx->module;
-    module->authority    = ctx->fctx->authority;
     module->path         = ctx->fctx->path;
     module->package      = ctx->fctx->package;
     module->source       = c4m_to_utf8(ctx->fctx->raw);

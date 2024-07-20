@@ -60,6 +60,32 @@ extern c4m_basic_http_response_t *_c4m_http_upload(c4m_str_t *,
                                                    c4m_buf_t *,
                                                    ...);
 
+static inline bool
+c4m_http_op_succeded(c4m_basic_http_response_t *op)
+{
+    return op->code == CURLE_OK;
+}
+
+static inline c4m_buf_t *
+c4m_http_op_get_output_buffer(c4m_basic_http_response_t *op)
+{
+    if (!c4m_http_op_succeded(op)) {
+        return NULL;
+    }
+
+    return op->contents;
+}
+
+static inline c4m_utf8_t *
+c4m_http_op_get_output_utf8(c4m_basic_http_response_t *op)
+{
+    if (!c4m_http_op_succeded(op)) {
+        return NULL;
+    }
+
+    return c4m_buf_to_utf8_string(op->contents);
+}
+
 #define c4m_http_get(u, ...) \
     _c4m_http_get(u, C4M_VA(__VA_ARGS__))
 

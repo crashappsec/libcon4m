@@ -4,7 +4,7 @@
 
 #ifdef C4M_USE_INTERNAL_API
 extern c4m_scope_t       *c4m_new_scope(c4m_scope_t *, c4m_scope_kind);
-extern c4m_symbol_t *c4m_declare_symbol(c4m_file_compile_ctx *,
+extern c4m_symbol_t *c4m_declare_symbol(c4m_module_compile_ctx *,
                                              c4m_scope_t *,
                                              c4m_utf8_t *,
                                              c4m_tree_node_t *,
@@ -12,11 +12,11 @@ extern c4m_symbol_t *c4m_declare_symbol(c4m_file_compile_ctx *,
                                              bool *,
                                              bool);
 extern c4m_symbol_t *c4m_lookup_symbol(c4m_scope_t *, c4m_utf8_t *);
-extern bool               c4m_merge_symbols(c4m_file_compile_ctx *,
+extern bool               c4m_merge_symbols(c4m_module_compile_ctx *,
                                             c4m_symbol_t *,
                                             c4m_symbol_t *);
 extern c4m_grid_t        *c4m_format_scope(c4m_scope_t *);
-extern void               c4m_shadow_check(c4m_file_compile_ctx *,
+extern void               c4m_shadow_check(c4m_module_compile_ctx *,
                                            c4m_symbol_t *,
                                            c4m_scope_t *);
 extern c4m_symbol_t *c4m_symbol_lookup(c4m_scope_t *,
@@ -24,10 +24,10 @@ extern c4m_symbol_t *c4m_symbol_lookup(c4m_scope_t *,
                                             c4m_scope_t *,
                                             c4m_scope_t *,
                                             c4m_utf8_t *);
-extern c4m_symbol_t *c4m_add_inferred_symbol(c4m_file_compile_ctx *,
+extern c4m_symbol_t *c4m_add_inferred_symbol(c4m_module_compile_ctx *,
                                                   c4m_scope_t *,
                                                   c4m_utf8_t *);
-extern c4m_symbol_t *c4m_add_or_replace_symbol(c4m_file_compile_ctx *,
+extern c4m_symbol_t *c4m_add_or_replace_symbol(c4m_module_compile_ctx *,
                                                     c4m_scope_t *,
                                                     c4m_utf8_t *);
 extern c4m_utf8_t        *c4m_sym_get_best_ref_loc(c4m_symbol_t *);

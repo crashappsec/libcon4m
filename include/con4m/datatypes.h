@@ -36,7 +36,7 @@ typedef struct hatrack_set_st c4m_set_t;
 #include "compiler/dt_nodeinfo.h"
 #include "compiler/dt_specs.h"
 #include "compiler/dt_cfgs.h"
-#include "compiler/dt_files.h"
+#include "compiler/dt_module.h"
 #include "compiler/dt_compile.h"
 
 typedef c4m_str_t *(*c4m_repr_fn)(c4m_obj_t);
