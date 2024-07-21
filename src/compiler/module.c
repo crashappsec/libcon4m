@@ -257,6 +257,20 @@ adjust_path_and_package(c4m_str_t **pathp, c4m_str_t **pkgp)
     }
 }
 
+static bool
+path_is_url(c4m_str_t *path)
+{
+    if (c4m_str_starts_with(path, c4m_new_utf8("https:"))) {
+        return true;
+    }
+
+    if (c4m_str_starts_with(path, c4m_new_utf8("http:"))) {
+        return true;
+    }
+
+    return false;
+}
+
 // In this function, the 'path' parameter is either a full URL or
 // file system path, or a URL. If it's missing, we need to search.
 //
@@ -281,7 +295,9 @@ c4m_find_module(c4m_compile_ctx *ctx,
     // If a path was provided, then the package / module need to be
     // fully qualified.
     if (path != NULL) {
-        path = c4m_resolve_path(path);
+        if (!path_is_url(path)) {
+            path = c4m_resolve_path(path);
+        }
         adjust_path_and_package(&path, &package);
 
         result = one_lookup_try(ctx, path, module, package, fext);
@@ -351,9 +367,9 @@ postprocess_module(c4m_compile_ctx        *cctx,
             errmsg = c4m_new_utf8("Internal error");
         }
         c4m_module_load_error(result,
-                            c4m_err_open_module,
-                            path,
-                            errmsg);
+                              c4m_err_open_module,
+                              path,
+                              errmsg);
 
         return result;
     }
