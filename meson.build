@@ -46,6 +46,8 @@ if (host_machine.system() == 'darwin')
     if not get_option('use_frame_intrinsic').disabled()
         c_args = c_args + ['-DC4M_USE_FRAME_INTRINSIC']
     endif
+
+    libcurl  = dependency('curl')
 else
     using_osx = false
     link_args = []
@@ -55,6 +57,8 @@ else
     if get_option('use_frame_intrinsic').enabled()
         c_args = c_args + ['-DC4M_USE_FRAME_INTRINSIC']
     endif
+
+    libcurl = cc.find_library('curl')
 endif
 
 if get_option('forkless_tests').enabled()
@@ -334,7 +338,6 @@ ssl = cc.find_library('ssl')
 
 unibreak = dependency('libunibreak')
 utf8proc = dependency('libutf8proc')
-libcurl  = dependency('curl')
 
 deps = [unibreak, utf8proc, threads, ffi, ssl, crypto, backtrace, libcurl]
 opts = [math]
