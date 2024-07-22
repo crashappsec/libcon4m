@@ -34,21 +34,21 @@ new_comment_node()
 }
 
 typedef struct {
-    c4m_tree_node_t      *cur;
+    c4m_tree_node_t        *cur;
     c4m_module_compile_ctx *module_ctx;
-    c4m_token_t          *cached_token;
-    hatstack_t           *root_stack;
-    checkpoint_t         *jump_state;
-    int32_t               token_ix;
-    int32_t               cache_ix;
-    int32_t               loop_depth;
-    int32_t               switch_depth;
+    c4m_token_t            *cached_token;
+    hatstack_t             *root_stack;
+    checkpoint_t           *jump_state;
+    int32_t                 token_ix;
+    int32_t                 cache_ix;
+    int32_t                 loop_depth;
+    int32_t                 switch_depth;
     // This is used to figure out whether we should allow a newline
     // after a ), ] or }. If we're inside a literal definition, we
     // allow it. If we're in a literal definition context, the newline
     // is okay, otherwise it is not.
-    int32_t               lit_depth;
-    bool                  in_function;
+    int32_t                 lit_depth;
+    bool                    in_function;
 } parse_ctx;
 
 #ifdef C4M_PARSE_DEBUG
@@ -1979,6 +1979,11 @@ typeof_case_block(parse_ctx *ctx)
     start_node(ctx, c4m_nt_case, false);
 
     type_spec(ctx);
+
+    while (tok_kind(ctx) == c4m_tt_comma) {
+        consume(ctx);
+        type_spec(ctx);
+    }
 
     if (tok_kind(ctx) == c4m_tt_colon) {
         case_body(ctx);
@@ -4414,7 +4419,7 @@ c4m_parse(c4m_module_compile_ctx *module_ctx)
 
     parse_ctx ctx = {
         .cur          = NULL,
-        .module_ctx     = module_ctx,
+        .module_ctx   = module_ctx,
         .cached_token = NULL,
         .token_ix     = 0,
         .cache_ix     = -1,
@@ -4443,7 +4448,7 @@ c4m_parse_type(c4m_module_compile_ctx *module_ctx)
 
     parse_ctx ctx = {
         .cur          = NULL,
-        .module_ctx     = module_ctx,
+        .module_ctx   = module_ctx,
         .cached_token = NULL,
         .token_ix     = 0,
         .cache_ix     = -1,
@@ -4456,7 +4461,7 @@ c4m_parse_type(c4m_module_compile_ctx *module_ctx)
     c4m_tree_node_t *t    = c4m_new(c4m_type_tree(c4m_type_parse_node()),
                                  c4m_kw("contents", c4m_ka(root)));
 
-    ctx.cur              = t;
+    ctx.cur                = t;
     module_ctx->parse_tree = ctx.cur;
 
     type_spec(&ctx);

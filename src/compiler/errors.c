@@ -971,6 +971,13 @@ static error_info_t error_info[] = {
         "that overlaps with a previous case type: [em]{}[/]",
         true,
     },
+    [c4m_warn_empty_case] = {
+        c4m_warn_empty_case,
+        "empty_case",
+        "This case statement body is empty; it will [em]not[/] fall through. "
+        "Case conditions can be comma-separated if needed.",
+        false,
+    },
     [c4m_err_dead_branch] = {
         c4m_err_dead_branch,
         "dead_branch",
@@ -1421,8 +1428,8 @@ c4m_base_add_error(c4m_list_t         *err_list,
 
 c4m_compile_error *
 _c4m_error_from_token(c4m_module_compile_ctx *ctx,
-                      c4m_compile_error_t   code,
-                      c4m_token_t          *tok,
+                      c4m_compile_error_t     code,
+                      c4m_token_t            *tok,
                       ...)
 {
     c4m_compile_error *result;
@@ -1443,9 +1450,9 @@ _c4m_error_from_token(c4m_module_compile_ctx *ctx,
 
 #define c4m_base_err_decl(func_name, severity_value)            \
     c4m_compile_error *                                         \
-    func_name(c4m_module_compile_ctx *ctx,                        \
-              c4m_compile_error_t   code,                       \
-              c4m_tree_node_t      *node,                       \
+    func_name(c4m_module_compile_ctx *ctx,                      \
+              c4m_compile_error_t     code,                     \
+              c4m_tree_node_t        *node,                     \
               ...)                                              \
     {                                                           \
         c4m_compile_error *result;                              \

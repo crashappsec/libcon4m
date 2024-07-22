@@ -152,6 +152,7 @@ typedef enum {
     c4m_err_switch_case_type,
     c4m_err_concrete_typeof,
     c4m_warn_type_overlap,
+    c4m_warn_empty_case,
     c4m_err_dead_branch,
     c4m_err_no_ret,
     c4m_err_use_no_def,
