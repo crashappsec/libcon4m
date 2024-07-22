@@ -181,15 +181,15 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_IPV4] = {
-        .name      = "Ipaddr",
+        .name      = "IPaddr",
         .typeid    = C4M_T_IPV4,
         .vtable    = &c4m_ipaddr_vtable,
-        .alloc_len = sizeof(struct sockaddr_in6),
+        .alloc_len = sizeof(c4m_ipaddr_t),
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_IPV6] = {
-        .name      = "Ipv6_unused", // Going to merge w/ ipv4
+        .name      = "IPv6_unused", // Going to merge w/ ipv4
         .typeid    = C4M_T_IPV6,
         .vtable    = &c4m_ipaddr_vtable,
         .alloc_len = sizeof(struct sockaddr_in6),
@@ -197,34 +197,44 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_DURATION] = {
-        .name    = "Duration",
-        .typeid  = C4M_T_DURATION,
-        .dt_kind = C4M_DT_KIND_primitive,
-        .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .name      = "Duration",
+        .typeid    = C4M_T_DURATION,
+        .vtable    = &c4m_duration_vtable,
+        .alloc_len = sizeof(struct timespec),
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_SIZE] = {
-        .name    = "Size",
-        .typeid  = C4M_T_SIZE,
-        .dt_kind = C4M_DT_KIND_primitive,
-        .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .name      = "Size",
+        .typeid    = C4M_T_SIZE,
+        .vtable    = &c4m_size_vtable,
+        .alloc_len = sizeof(c4m_size_t),
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_DATETIME] = {
-        .name    = "Datetime",
-        .typeid  = C4M_T_DATETIME,
-        .dt_kind = C4M_DT_KIND_primitive,
-        .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .name      = "Datetime",
+        .typeid    = C4M_T_DATETIME,
+        .vtable    = &c4m_datetime_vtable,
+        .alloc_len = sizeof(c4m_date_time_t),
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_DATE] = {
-        .name    = "Date",
-        .typeid  = C4M_T_DATE,
-        .dt_kind = C4M_DT_KIND_primitive,
-        .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .name      = "Date",
+        .typeid    = C4M_T_DATE,
+        .vtable    = &c4m_date_vtable,
+        .alloc_len = sizeof(c4m_date_time_t),
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_TIME] = {
-        .name    = "Time",
-        .typeid  = C4M_T_TIME,
-        .dt_kind = C4M_DT_KIND_primitive,
-        .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .name      = "Time",
+        .typeid    = C4M_T_TIME,
+        .vtable    = &c4m_time_vtable,
+        .alloc_len = sizeof(c4m_date_time_t),
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_URL] = {
         .name    = "Url",
@@ -572,13 +582,7 @@ c4m_copy_object(c4m_obj_t obj)
     c4m_copy_fn ptr = (c4m_copy_fn)c4m_vtable(obj)->methods[C4M_BI_COPY];
 
     if (ptr == NULL) {
-        c4m_utf8_t *err;
-
-        err = c4m_cstr_format(
-            "Copying for '{}' objects is not "
-            "currently supported.",
-            c4m_get_my_type(obj));
-        C4M_RAISE(err);
+        return obj;
     }
 
     return (*ptr)(obj);

@@ -5,9 +5,10 @@ test harness if 'output' key is not provided.
 Also tests FFI with 0 arguments.
 """
 """
+$errors:
 """
-extern c4m_rand() -> i64 {
-  local: random() -> int
+extern c4m_rand64() -> i64 {
+  local: r() -> int
 }
 
-print(random());
+print(r())

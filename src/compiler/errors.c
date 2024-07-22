@@ -1190,12 +1190,49 @@ static error_info_t error_info[] = {
         "integer types.",
         false,
     },
+    [c4m_err_invalid_ip] = {
+        c4m_err_invalid_ip,
+        "invalid_ip",
+        "Literal is not a valid IP address.",
+        false,
+    },
     [c4m_err_last] = {
         c4m_err_last,
         "last",
         "If you see this error, the compiler writer messed up bad",
         false,
     },
+    [c4m_err_invalid_dt_spec] = {
+        c4m_err_invalid_dt_spec,
+        "invalid_dt_spec",
+        "Invalid literal for type Datetime",
+        false,
+    },
+    [c4m_err_invalid_date_spec] = {
+        c4m_err_invalid_date_spec,
+        "invalid_date_spec",
+        "Invalid literal for type Date",
+        false,
+    },
+    [c4m_err_invalid_time_spec] = {
+        c4m_err_invalid_time_spec,
+        "invalid_time_spec",
+        "Invalid literal for type Time",
+        false,
+    },
+    [c4m_err_invalid_size_lit] = {
+        c4m_err_invalid_size_lit,
+        "invalid_size_lit",
+        "Invalid literal for type Size",
+        false,
+    },
+    [c4m_err_invalid_duration_lit] = {
+        c4m_err_invalid_duration_lit,
+        "invalid_duration_lit",
+        "Invalid literal for type Duration",
+        false,
+    },
+
 #ifdef C4M_DEV
     [c4m_err_void_print] = {
         c4m_err_void_print,

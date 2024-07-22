@@ -121,3 +121,8 @@ extern const c4m_vtable_t c4m_callback_vtable;
 extern const c4m_vtable_t c4m_flags_vtable;
 extern const c4m_vtable_t c4m_box_vtable;
 extern const c4m_vtable_t c4m_basic_http_vtable;
+extern const c4m_vtable_t c4m_datetime_vtable;
+extern const c4m_vtable_t c4m_date_vtable;
+extern const c4m_vtable_t c4m_time_vtable;
+extern const c4m_vtable_t c4m_size_vtable;
+extern const c4m_vtable_t c4m_duration_vtable;

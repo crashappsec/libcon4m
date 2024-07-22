@@ -1,5 +1,4 @@
 #pragma once
-
 #include "con4m/config.h"
 // Useful options (mainly for dev) are commented out here.
 // The logic below (and into the relevent header files) sets up defaults.
@@ -115,6 +114,9 @@
 
 #include "adts/dict.h"
 #include "adts/set.h"
+#include "adts/ipaddr.h"
+#include "adts/datetime.h"
+#include "adts/duration.h"
 
 #include "core/ffi.h"
 #include "util/watch.h"

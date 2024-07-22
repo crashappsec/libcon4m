@@ -1,0 +1,47 @@
+extern c4m_wrapper_hostname() -> ptr {
+  local: hostname() -> string
+}
+
+extern c4m_wrapper_osname() -> ptr {
+  local: osname() -> string
+}
+
+extern c4m_wrapper_arch() -> ptr {
+  local: arch() -> string
+}
+
+extern c4m_len(ptr) -> i64 {
+  local: len(s: `x) -> int
+}
+
+/*
+extern c4m_marshal(ptr, ptr) -> void {
+  local: marshal(o: `x, s: stream) -> void
+}
+
+extern c4m_unmarshal_to_type(ptr) -> ptr {
+  local: unmarshal(s: stream, t: typespec) -> `t
+}
+
+extern c4m_wrapper_coerce(ptr, ptr) -> ptr {
+  local: coerce(o: `t, t: typespec) -> `v
+}
+*/
+
+extern c4m_copy_object(ptr) -> ptr {
+  local: copy(o: `t) -> `t
+}
+
+extern c4m_get_c_backtrace() -> ptr {
+  local: c_backtrace() -> grid
+}
+
+# These should eventually move to a styling specific module
+
+extern c4m_lookup_color(ptr) -> i64 {
+  local: get_color_by_name(s: string) -> int
+}
+
+extern c4m_to_vga(i64) -> i64 {
+  local: trucolor_to_vga(int) -> int
+}

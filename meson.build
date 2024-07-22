@@ -6,7 +6,6 @@ project(
     license: 'MIT',
 )
 
-
 cc = meson.get_compiler('c')
 incdir = include_directories('include')
 using_osx = false
@@ -64,6 +63,12 @@ endif
 if get_option('forkless_tests').enabled()
     c_args = c_args + ['-DC4M_TEST_WITHOUT_FORK']
 endif
+
+
+
+if not get_option('static_ffi_binding').disabled()
+  c_args = c_args + ['-DC4M_STATIC_FFI_BINDING']
+endif  
 
 backtrace = cc.find_library('backtrace', required: false)
 
@@ -208,6 +213,9 @@ c4m_adts = [
     'src/adts/mixed.c',
     'src/adts/tuple.c',
     'src/adts/ipaddr.c',
+    'src/adts/datetime.c',
+    'src/adts/size.c',
+    'src/adts/duration.c',
     'src/adts/callback.c',
     'src/adts/streams.c',
     'src/adts/flags.c',
@@ -328,6 +336,7 @@ test_src = [
 
 threads = dependency('threads')
 math = cc.find_library('m', required: false)
+
 ffi = cc.find_library(
     'ffi',
     required: true

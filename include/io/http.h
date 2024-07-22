@@ -61,6 +61,14 @@ extern c4m_basic_http_response_t *_c4m_http_upload(c4m_str_t *,
                                                    ...);
 
 static inline bool
+c4m_validate_url(c4m_utf8_t *candidate)
+{
+    CURLU *handle = curl_url();
+
+    return curl_url_set(handle, CURLUPART_URL, candidate->data, 0) == CURLUE_OK;
+}
+
+static inline bool
 c4m_http_op_succeded(c4m_basic_http_response_t *op)
 {
     return op->code == CURLE_OK;

@@ -157,6 +157,8 @@ c4m_init_literal_handling()
         c4m_register_literal(ST_Base10, "char", C4M_T_CHAR);
         c4m_register_literal(ST_Base10, "f", C4M_T_F64);
         c4m_register_literal(ST_Base10, "f64", C4M_T_F64);
+        c4m_register_literal(ST_Base10, "sz", C4M_T_SIZE);
+        c4m_register_literal(ST_Base10, "size", C4M_T_SIZE);
         c4m_register_literal(ST_Hex, "", C4M_T_INT);
         c4m_register_literal(ST_Hex, "int", C4M_T_INT);
         c4m_register_literal(ST_Hex, "i64", C4M_T_INT);
@@ -185,7 +187,7 @@ c4m_init_literal_handling()
         c4m_register_literal(ST_2Quote, "ip", C4M_T_IPV4);
         c4m_register_literal(ST_2Quote, "sz", C4M_T_SIZE);
         c4m_register_literal(ST_2Quote, "size", C4M_T_SIZE);
-        c4m_register_literal(ST_2Quote, "url", C4M_T_URL);
+        c4m_register_literal(ST_2Quote, "url", C4M_T_UTF8);
         c4m_register_literal(ST_1Quote, "", C4M_T_CHAR);
         c4m_register_literal(ST_1Quote, "c", C4M_T_CHAR);
         c4m_register_literal(ST_1Quote, "char", C4M_T_CHAR);
@@ -198,18 +200,18 @@ c4m_init_literal_handling()
         c4m_register_literal(ST_List, "ol", C4M_T_GRID);
         c4m_register_literal(ST_List, "ul", C4M_T_GRID);
         c4m_register_literal(ST_List, "list", C4M_T_XLIST);
-        c4m_register_literal(ST_List, "f", C4M_T_FLIST);
-        c4m_register_literal(ST_List, "flist", C4M_T_FLIST);
-        c4m_register_literal(ST_List, "q", C4M_T_QUEUE);
-        c4m_register_literal(ST_List, "queue", C4M_T_QUEUE);
+        // c4m_register_literal(ST_List, "f", C4M_T_FLIST);
+        // c4m_register_literal(ST_List, "flist", C4M_T_FLIST);
+        // c4m_register_literal(ST_List, "q", C4M_T_QUEUE);
+        // c4m_register_literal(ST_List, "queue", C4M_T_QUEUE);
         c4m_register_literal(ST_List, "t", C4M_T_TREE);
         c4m_register_literal(ST_List, "tree", C4M_T_TREE);
-        c4m_register_literal(ST_List, "r", C4M_T_RING);
-        c4m_register_literal(ST_List, "ring", C4M_T_RING);
-        c4m_register_literal(ST_List, "log", C4M_T_LOGRING);
-        c4m_register_literal(ST_List, "logring", C4M_T_LOGRING);
-        c4m_register_literal(ST_List, "s", C4M_T_STACK);
-        c4m_register_literal(ST_List, "stack", C4M_T_STACK);
+        // c4m_register_literal(ST_List, "r", C4M_T_RING);
+        // c4m_register_literal(ST_List, "ring", C4M_T_RING);
+        // c4m_register_literal(ST_List, "log", C4M_T_LOGRING);
+        // c4m_register_literal(ST_List, "logring", C4M_T_LOGRING);
+        // c4m_register_literal(ST_List, "s", C4M_T_STACK);
+        // c4m_register_literal(ST_List, "stack", C4M_T_STACK);
         c4m_register_literal(ST_Dict, "", C4M_T_DICT);
         c4m_register_literal(ST_Dict, "d", C4M_T_DICT);
         c4m_register_literal(ST_Dict, "dict", C4M_T_DICT);
@@ -285,6 +287,50 @@ c4m_parse_simple_lit(c4m_token_t *tok, c4m_lit_syntax_t *kptr, c4m_utf8_t **lm)
     }
 
     return err;
+}
+
+bool
+c4m_fix_litmod(c4m_token_t *tok, c4m_pnode_t *pnode)
+{
+    // Precondition: pnode's type is concrete, simple, and no litmod
+    // was spec'd.
+    //
+    // Our goal is to pick the first litmod for the syntax that matches
+    // the type.
+
+    uint64_t             n;
+    c4m_dict_t          *d         = mod_map[tok->syntax];
+    c4m_type_t          *t         = c4m_type_resolve(pnode->type);
+    c4m_builtin_t        base_type = c4m_type_get_base_tid(t);
+    hatrack_dict_item_t *items     = hatrack_dict_items_sort(d, &n);
+
+    for (unsigned int i = 0; i < n; i++) {
+        if (base_type == (c4m_builtin_t)items[i].value) {
+            c4m_utf8_t         *lm = items[i].key;
+            c4m_vtable_t       *vtbl;
+            c4m_literal_fn      fn;
+            c4m_compile_error_t err = c4m_err_no_error;
+
+            tok->literal_modifier = lm;
+
+            vtbl = (c4m_vtable_t *)c4m_base_type_info[base_type].vtable;
+            fn   = (c4m_literal_fn)vtbl->methods[C4M_BI_FROM_LITERAL];
+
+            tok->literal_value = (*fn)(tok->text,
+                                       tok->syntax,
+                                       tok->literal_modifier,
+                                       &err);
+            if (err != c4m_err_no_error) {
+                return false;
+            }
+
+            pnode->value = tok->literal_value;
+
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool

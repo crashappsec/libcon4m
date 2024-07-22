@@ -28,6 +28,7 @@ typedef struct {
     bool                    augmented_assignment;
     __uint128_t             du_stack;
     int                     du_stack_ix;
+    c4m_list_t             *simple_lits_wo_mod;
 } pass2_ctx;
 
 static void base_check_pass_dispatch(pass2_ctx *);
@@ -646,7 +647,7 @@ sym_lookup(pass2_ctx *ctx, c4m_utf8_t *name)
     // even if it's not in the symbol table.
 
     if (spec != NULL) {
-        c4m_list_t      *parts     = c4m_str_xsplit(name, dot);
+        c4m_list_t      *parts     = c4m_str_split(name, dot);
         c4m_attr_info_t *attr_info = c4m_get_attr_info(spec, parts);
 
         switch (attr_info->kind) {
@@ -2078,21 +2079,61 @@ handle_identifier(pass2_ctx *ctx)
     set_node_type(ctx, ctx->node, sym->type);
 }
 
+static inline bool
+should_defer(pass2_ctx *ctx, c4m_utf8_t *litmod)
+{
+    if (litmod && c4m_str_codepoint_len(litmod)) {
+        return false;
+    }
+
+    c4m_tree_node_t *t = ctx->node->parent;
+    c4m_pnode_t     *p = c4m_get_pnode(t);
+
+    if (p->kind != c4m_nt_expression) {
+        return false;
+    }
+
+    t = t->parent;
+
+    if (!t) {
+        return false;
+    }
+
+    p = c4m_get_pnode(t);
+
+    // Only do it for simple assignment.
+    return p->kind == c4m_nt_assign;
+}
+
 static void
 check_literal(pass2_ctx *ctx)
 {
     //  Right now, we don't try to fold sub-items.
     c4m_pnode_t *pnode  = c4m_get_pnode(ctx->node);
-    c4m_str_t   *litmod = pnode->extra_info;
+    c4m_str_t   *litmod = pnode->token->literal_modifier;
 
     if (litmod != NULL && litmod->data) {
-        litmod = c4m_to_utf8(litmod);
+        litmod            = c4m_to_utf8(litmod);
+        pnode->extra_info = litmod;
     }
 
     switch (pnode->kind) {
     case c4m_nt_simple_lit:
         pnode->value = c4m_node_simp_literal(ctx->node);
-        pnode->type  = c4m_get_my_type(pnode->value);
+
+        // If there's no litmod, we want to defer adding the type until
+        // if the type is concrete by the end of the pass, and the
+        // type of the parsed object is not aligned, then we will
+        // re-parse the type.
+
+        if (should_defer(ctx, litmod)) {
+            c4m_list_append(ctx->simple_lits_wo_mod, ctx->node);
+            pnode->type = c4m_new_typevar();
+        }
+        else {
+            pnode->type = c4m_get_my_type(pnode->value);
+        }
+
         break;
     case c4m_nt_lit_callback:
         pnode->value = c4m_node_to_callback(ctx->module_ctx, ctx->node);
@@ -2980,6 +3021,31 @@ perform_index_rechecks(pass2_ctx *ctx)
     }
 }
 
+static void
+process_deferred_lits(pass2_ctx *ctx)
+{
+    int n = c4m_list_len(ctx->simple_lits_wo_mod);
+
+    for (int i = 0; i < n; i++) {
+        c4m_tree_node_t *t    = c4m_list_get(ctx->simple_lits_wo_mod, i, NULL);
+        c4m_pnode_t     *p    = c4m_get_pnode(t);
+        c4m_obj_t        lit  = p->value;
+        c4m_token_t     *tok  = p->token;
+        c4m_type_t      *type = merge_ignore_err(p->type,
+                                            c4m_get_my_type(lit));
+
+        if (!c4m_type_is_error(type)) {
+            continue;
+        }
+        if (c4m_type_is_concrete(p->type) && c4m_fix_litmod(tok, p)) {
+            continue;
+        }
+
+        // This already failed; generate the error though.
+        merge_or_err(ctx, p->type, c4m_get_my_type(lit));
+    }
+}
+
 static c4m_list_t *
 module_check_pass(c4m_compile_ctx *cctx, c4m_module_compile_ctx *module_ctx)
 {
@@ -2989,27 +3055,28 @@ module_check_pass(c4m_compile_ctx *cctx, c4m_module_compile_ctx *module_ctx)
     }
 
     pass2_ctx ctx = {
-        .attr_scope     = cctx->final_attrs,
-        .global_scope   = cctx->final_globals,
-        .spec           = cctx->final_spec,
-        .compile        = cctx,
-        .module_ctx     = module_ctx,
-        .du_stack       = 0,
-        .du_stack_ix    = 0,
-        .loop_stack     = c4m_list(c4m_type_ref()),
-        .deferred_calls = c4m_list(c4m_type_ref()),
-        .index_rechecks = c4m_list(c4m_type_ref()),
-
+        .attr_scope         = cctx->final_attrs,
+        .global_scope       = cctx->final_globals,
+        .spec               = cctx->final_spec,
+        .compile            = cctx,
+        .module_ctx         = module_ctx,
+        .du_stack           = 0,
+        .du_stack_ix        = 0,
+        .loop_stack         = c4m_list(c4m_type_ref()),
+        .deferred_calls     = c4m_list(c4m_type_ref()),
+        .index_rechecks     = c4m_list(c4m_type_tree(c4m_type_parse_node())),
+        .simple_lits_wo_mod = c4m_list(c4m_type_tree(c4m_type_parse_node())),
     };
 
 #ifdef C4M_DEV
-    module_ctx->print_nodes = c4m_list(c4m_type_ref());
+    module_ctx->print_nodes = c4m_list(c4m_type_tree(c4m_type_parse_node()));
 #endif
 
     check_module_toplevel(&ctx);
     process_function_definitions(&ctx);
     perform_index_rechecks(&ctx);
     validate_module_variables(module_ctx);
+    process_deferred_lits(&ctx);
 
     return ctx.deferred_calls;
 }

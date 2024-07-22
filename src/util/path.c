@@ -121,23 +121,23 @@ raw_path_tilde_expand(c4m_utf8_t *in)
     }
 
     if (in->data[0] != '~') {
-        return c4m_str_xsplit(in, c4m_get_slash_const());
+        return c4m_str_split(in, c4m_get_slash_const());
     }
 
-    c4m_list_t *parts = c4m_str_xsplit(in, c4m_get_slash_const());
+    c4m_list_t *parts = c4m_str_split(in, c4m_get_slash_const());
     c4m_utf8_t *home  = c4m_to_utf8(c4m_list_get(parts, 0, NULL));
 
     if (c4m_str_codepoint_len(home) == 1) {
         c4m_list_set(parts, 0, c4m_empty_string());
-        parts = c4m_list_plus(c4m_str_xsplit(c4m_get_user_dir(NULL),
-                                             c4m_get_slash_const()),
+        parts = c4m_list_plus(c4m_str_split(c4m_get_user_dir(NULL),
+                                            c4m_get_slash_const()),
                               parts);
     }
     else {
         home->data++;
         c4m_list_set(parts, 0, c4m_empty_string());
-        parts = c4m_list_plus(c4m_str_xsplit(c4m_get_user_dir(home),
-                                             c4m_get_slash_const()),
+        parts = c4m_list_plus(c4m_str_split(c4m_get_user_dir(home),
+                                            c4m_get_slash_const()),
                               parts);
         home->data--;
     }
@@ -165,11 +165,11 @@ c4m_resolve_path(c4m_utf8_t *s)
         return c4m_path_tilde_expand(s);
     case '/':
         return internal_normalize_and_join(
-            c4m_str_xsplit(s, c4m_get_slash_const()));
+            c4m_str_split(s, c4m_get_slash_const()));
     default:
-        parts = c4m_str_xsplit(c4m_get_current_directory(),
-                               c4m_get_slash_const());
-        c4m_list_plus_eq(parts, c4m_str_xsplit(s, c4m_get_slash_const()));
+        parts = c4m_str_split(c4m_get_current_directory(),
+                              c4m_get_slash_const());
+        c4m_list_plus_eq(parts, c4m_str_split(s, c4m_get_slash_const()));
         return internal_normalize_and_join(parts);
     }
 }

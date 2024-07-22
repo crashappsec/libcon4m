@@ -23,7 +23,7 @@ c4m_wrapper_to_str(c4m_obj_t obj)
 }
 
 c4m_str_t *
-c4m_wrapper_hostname()
+c4m_wrapper_hostname(void)
 {
     struct utsname info;
 
@@ -33,7 +33,7 @@ c4m_wrapper_hostname()
 }
 
 c4m_str_t *
-c4m_wrapper_os()
+c4m_wrapper_os(void)
 {
     struct utsname info;
 
@@ -43,7 +43,7 @@ c4m_wrapper_os()
 }
 
 c4m_str_t *
-c4m_wrapper_arch()
+c4m_wrapper_arch(void)
 {
     struct utsname info;
 
@@ -56,4 +56,10 @@ void
 c4m_snap_column(c4m_grid_t *table, int64_t n)
 {
     c4m_set_column_style(table, n, "snap");
+}
+
+uint64_t
+c4m_clz(uint64_t n)
+{
+    return __builtin_clzll(n);
 }

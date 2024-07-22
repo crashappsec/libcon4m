@@ -109,15 +109,15 @@ c4m_token_type_to_string(c4m_token_kind_t tk)
 
 typedef struct {
     c4m_module_compile_ctx *ctx;
-    c4m_codepoint_t      *start;
-    c4m_codepoint_t      *end;
-    c4m_codepoint_t      *pos;
-    c4m_codepoint_t      *line_start;
-    c4m_token_t          *last_token;
-    size_t                token_id;
-    size_t                line_no;
-    size_t                cur_tok_line_no;
-    size_t                cur_tok_offset;
+    c4m_codepoint_t        *start;
+    c4m_codepoint_t        *end;
+    c4m_codepoint_t        *pos;
+    c4m_codepoint_t        *line_start;
+    c4m_token_t            *last_token;
+    size_t                  token_id;
+    size_t                  line_no;
+    size_t                  cur_tok_line_no;
+    size_t                  cur_tok_offset;
 } lex_state_t;
 
 // These helpers definitely require us to keep names consistent internally.
@@ -128,11 +128,11 @@ typedef struct {
 // - a lit modifier at the end; if there is, it copies it into the token.
 // - LEX_ERROR adds an error to the broader context object, and longjumps.
 #define TOK(kind) output_token(state, kind)
-#define LITERAL_TOK(kind, amt)           \
+#define LITERAL_TOK(kind, amt, syntax)   \
     output_token(state, kind);           \
     state->last_token->adjustment = amt; \
     capture_lit_text(state->last_token); \
-    handle_lit_mod(state)
+    handle_lit_mod(state, syntax)
 #define LEX_ERROR(code)          \
     fill_lex_error(state, code); \
     C4M_CRAISE("Exception:" #code "\n")
@@ -234,8 +234,12 @@ possible_ws_token:
 }
 
 static inline void
-handle_lit_mod(lex_state_t *state)
+handle_lit_mod(lex_state_t *state, c4m_lit_syntax_t syntax)
 {
+    c4m_token_t *tok = state->last_token;
+
+    tok->syntax = syntax;
+
     if (peek(state) != '\'') {
         return;
     }
@@ -249,7 +253,6 @@ handle_lit_mod(lex_state_t *state)
 
     size_t n = (size_t)(state->pos - lm_start);
 
-    c4m_token_t *tok      = state->last_token;
     tok->literal_modifier = c4m_to_utf8(
         c4m_new(c4m_type_utf32(),
                 c4m_kw("length",
@@ -414,7 +417,7 @@ scan_int_or_float_literal(lex_state_t *state)
         int float_strlen = (int)(endp - u8->data);
         if (float_strlen > float_ix) {
             state->pos = state->start + float_strlen;
-            LITERAL_TOK(c4m_tt_float_lit, 0);
+            LITERAL_TOK(c4m_tt_float_lit, 0, ST_Float);
             state->last_token->literal_value = ((c4m_box_t)value).v;
             return;
         }
@@ -455,7 +458,7 @@ scan_int_or_float_literal(lex_state_t *state)
 finished_int:;
     uint64_t n = (uint64_t)val;
     state->pos = state->start + i;
-    LITERAL_TOK(c4m_tt_int_lit, 0);
+    LITERAL_TOK(c4m_tt_int_lit, 0, ST_Base10);
     state->last_token->literal_value = (void *)n;
     return;
 }
@@ -490,7 +493,7 @@ scan_hex_literal(lex_state_t *state)
             advance(state);
             continue;
         default:
-            LITERAL_TOK(c4m_tt_hex_lit, 0);
+            LITERAL_TOK(c4m_tt_hex_lit, 0, ST_Hex);
             return;
         }
     }
@@ -539,7 +542,7 @@ scan_tristring(lex_state_t *state)
             break;
         case '"':
             if (++quote_count == 3) {
-                LITERAL_TOK(c4m_tt_string_lit, 3);
+                LITERAL_TOK(c4m_tt_string_lit, 3, ST_2Quote);
                 return;
             }
             continue; // breaking would reset quote count.
@@ -593,7 +596,7 @@ scan_string_literal(lex_state_t *state)
             continue;
         case '"':
 finish_single_quote:
-            LITERAL_TOK(c4m_tt_string_lit, 1);
+            LITERAL_TOK(c4m_tt_string_lit, 1, ST_2Quote);
             return;
         default:
             continue;
@@ -657,7 +660,7 @@ scan_char_literal(lex_state_t *state)
     }
 
 finish_up:
-    LITERAL_TOK(c4m_tt_char_lit, 1);
+    LITERAL_TOK(c4m_tt_char_lit, 1, ST_1Quote);
     return;
 }
 
@@ -765,7 +768,7 @@ scan_id_or_keyword(lex_state_t *state)
     switch (r) {
     case c4m_tt_true:
     case c4m_tt_false:
-        LITERAL_TOK(r, 0);
+        LITERAL_TOK(r, 0, ST_Bool);
         return;
     case c4m_tt_float_lit: {
         c4m_utf32_t *u32 = c4m_new(
@@ -778,7 +781,7 @@ scan_id_or_keyword(lex_state_t *state)
         c4m_utf8_t *u8    = c4m_to_utf8(u32);
         double      value = strtod((char *)u8->data, NULL);
 
-        LITERAL_TOK(r, 0);
+        LITERAL_TOK(r, 0, ST_Float);
         state->last_token->literal_value = ((c4m_box_t)value).v;
         return;
     }
@@ -1037,21 +1040,21 @@ line_comment:
             skip_optional_newline(state);
             continue;
         case '}':
-            LITERAL_TOK(c4m_tt_rbrace, 0);
+            LITERAL_TOK(c4m_tt_rbrace, 0, ST_Dict);
             continue;
         case '[':
             TOK(c4m_tt_lbracket);
             skip_optional_newline(state);
             continue;
         case ']':
-            LITERAL_TOK(c4m_tt_rbracket, 0);
+            LITERAL_TOK(c4m_tt_rbracket, 0, ST_List);
             continue;
         case '(':
             TOK(c4m_tt_lparen);
             skip_optional_newline(state);
             continue;
         case ')':
-            LITERAL_TOK(c4m_tt_rparen, 0);
+            LITERAL_TOK(c4m_tt_rparen, 0, ST_Tuple);
             continue;
         case '&':
             if (peek(state) == '=') {

@@ -1,16 +1,13 @@
 """
 Test extern list functions like append() that don't want a box when
 the type is concrete.
+
+The wrap now happens in the standard library.
 """
 """
 $output:
 190
 """
-extern c4m_list_append(ptr, ptr) -> void {
-  local: append(l: list[`x], item: `x) -> void
-  box_values: false
-}
-
 func f(n) {
   total = 0
   l = []
