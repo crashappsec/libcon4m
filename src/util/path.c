@@ -516,3 +516,30 @@ _c4m_path_walk(c4m_utf8_t *dir, ...)
 
     return ctx.result;
 }
+
+c4m_utf8_t *
+c4m_path_trim_slashes(c4m_str_t *s)
+{
+    if (!c4m_str_codepoint_len(s)) {
+        return s;
+    }
+
+    c4m_utf8_t *n     = c4m_to_utf8(s);
+    int         b_len = c4m_str_byte_len(n);
+
+    if (n->data[--b_len] != '/') {
+        return n;
+    }
+
+    if (n == s) {
+        n = c4m_str_copy(s);
+    }
+
+    do {
+        n->data[b_len] = 0;
+        n->codepoints--;
+        n->byte_len--;
+    } while (b_len && n->data[--b_len] == '/');
+
+    return n;
+}

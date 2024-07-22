@@ -184,6 +184,7 @@ c4m_init_path()
     extra = c4m_get_env(c4m_new_utf8("CON4M_PATH"));
 
     if (extra == NULL) {
+        c4m_list_append(con4m_path, c4m_con4m_root());
         return;
     }
 

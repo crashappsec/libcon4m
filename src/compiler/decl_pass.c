@@ -27,12 +27,6 @@ c4m_get_match(c4m_pass1_ctx *ctx, c4m_tpat_node_t *pattern)
     return c4m_get_match_on_node(ctx->cur_tnode, pattern);
 }
 
-static inline c4m_list_t *
-c4m_apply_pattern(c4m_pass1_ctx *ctx, c4m_tpat_node_t *pattern)
-{
-    return c4m_apply_pattern_on_node(ctx->cur_tnode, pattern);
-}
-
 static inline void
 c4m_set_current_node(c4m_pass1_ctx *ctx, c4m_tree_node_t *n)
 {

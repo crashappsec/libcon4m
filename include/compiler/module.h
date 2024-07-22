@@ -9,6 +9,8 @@ extern c4m_module_compile_ctx *c4m_new_module_compile_ctx();
 extern c4m_grid_t             *c4m_get_module_summary_info(c4m_compile_ctx *);
 extern bool                    c4m_add_module_to_worklist(c4m_compile_ctx *,
                                                           c4m_module_compile_ctx *);
+extern c4m_utf8_t             *c4m_package_from_path_prefix(c4m_utf8_t *,
+                                                            c4m_utf8_t **);
 
 static inline void
 c4m_module_set_status(c4m_module_compile_ctx *ctx, c4m_module_compile_status status)
@@ -38,6 +40,20 @@ c4m_module_fully_qualified(c4m_module_compile_ctx *f)
     }
 
     return f->module;
+}
+
+static inline bool
+c4m_path_is_url(c4m_str_t *path)
+{
+    if (c4m_str_starts_with(path, c4m_new_utf8("https:"))) {
+        return true;
+    }
+
+    if (c4m_str_starts_with(path, c4m_new_utf8("http:"))) {
+        return true;
+    }
+
+    return false;
 }
 
 #define C4M_INDEX_FN  "$index"

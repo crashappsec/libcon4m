@@ -89,6 +89,16 @@ c4m_str_slice(const c4m_str_t *instr, int64_t start, int64_t end)
     for (int i = 0; i < slice_len; i++) {
         dst[i] = src[start + i];
     }
+
+    while (res->codepoints != 0) {
+        if (dst[res->codepoints - 1] == 0) {
+            --res->codepoints;
+        }
+        else {
+            break;
+        }
+    }
+
     if (s->styling && s->styling->num_entries) {
         int64_t first = -1;
         int64_t last  = 0;
@@ -152,6 +162,7 @@ c4m_str_slice(const c4m_str_t *instr, int64_t start, int64_t end)
             res->styling->styles[i].info  = info;
         }
     }
+
     return res;
 }
 
@@ -395,6 +406,10 @@ c4m_utf8_join(c4m_list_t *l, const c4m_utf8_t *joiner, bool add_trailing)
     if (joiner != NULL) {
         jlen = joiner->byte_len;
         new_len += jlen * (num_items - (add_trailing ? 0 : 1));
+    }
+
+    if (new_len <= 0) {
+        return c4m_empty_string();
     }
 
     c4m_utf8_t *result = c4m_new(c4m_type_utf8(),

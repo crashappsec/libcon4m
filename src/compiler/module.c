@@ -122,10 +122,12 @@ one_lookup_try(c4m_compile_ctx *ctx,
 
     c4m_list_append(l, path);
 
-    if (package) {
+    if (package && c4m_str_byte_len(package)) {
         // For the package lookup, we need to replace dots in the package
         // name with slashes.
-        c4m_utf8_t *s = c4m_str_replace(package, c4m_new_utf8("."), c4m_new_utf8("/"));
+        c4m_utf8_t *s = c4m_to_utf8(c4m_str_replace(package,
+                                                    c4m_new_utf8("."),
+                                                    c4m_new_utf8("/")));
         c4m_list_append(l, s);
     }
     c4m_list_append(l, module);
@@ -141,10 +143,7 @@ one_lookup_try(c4m_compile_ctx *ctx,
                                   base,
                                   c4m_list_get(fext, i, NULL));
 
-        // clang-format off
-	if (c4m_str_starts_with(attempt, c4m_new_utf8("http:")) ||
-	    c4m_str_starts_with(attempt, c4m_new_utf8("https:"))) {
-            // clang-format on
+        if (c4m_path_is_url(attempt)) {
             c4m_basic_http_response_t *r = c4m_http_get(attempt);
             contents                     = c4m_http_op_get_output_utf8(r);
         }
@@ -236,11 +235,13 @@ adjust_path_and_package(c4m_str_t **pathp, c4m_str_t **pkgp)
     for (int i = 0; i < c4m_list_len(sp); i++) {
         c4m_utf8_t *possible = c4m_to_utf8(c4m_list_get(sp, i, NULL));
 
+        possible = c4m_path_trim_slashes(possible);
+
         if (c4m_str_starts_with(path, possible)) {
             otherlen = c4m_str_byte_len(possible);
 
             if (pathlen == otherlen) {
-                if (*pkgp) {
+                if (*pkgp && c4m_str_byte_len(*pkgp)) {
                     *pkgp = c4m_str_replace(*pkgp, c4m_new_utf8("/"), c4m_new_utf8("."));
                 }
                 break;
@@ -255,20 +256,6 @@ adjust_path_and_package(c4m_str_t **pathp, c4m_str_t **pkgp)
             }
         }
     }
-}
-
-static bool
-path_is_url(c4m_str_t *path)
-{
-    if (c4m_str_starts_with(path, c4m_new_utf8("https:"))) {
-        return true;
-    }
-
-    if (c4m_str_starts_with(path, c4m_new_utf8("http:"))) {
-        return true;
-    }
-
-    return false;
 }
 
 // In this function, the 'path' parameter is either a full URL or
@@ -295,11 +282,17 @@ c4m_find_module(c4m_compile_ctx *ctx,
     // If a path was provided, then the package / module need to be
     // fully qualified.
     if (path != NULL) {
-        if (!path_is_url(path)) {
-            path = c4m_resolve_path(path);
-        }
-        adjust_path_and_package(&path, &package);
+        // clang-format off
+	if (!c4m_str_starts_with(path, c4m_new_utf8("/")) &&
+	    !c4m_path_is_url(path)) {
+            // clang-format on
 
+            path             = c4m_path_simple_join(relative_path, path);
+            // Would be weird to take this relative to the file too.
+            relative_package = NULL;
+        }
+
+        adjust_path_and_package(&path, &package);
         result = one_lookup_try(ctx, path, module, package, fext);
         return result;
     }
@@ -381,8 +374,8 @@ postprocess_module(c4m_compile_ctx        *cctx,
     return fctx;
 }
 
-static c4m_utf8_t *
-package_from_path_prefix(c4m_utf8_t *path, c4m_utf8_t **path_loc)
+c4m_utf8_t *
+c4m_package_from_path_prefix(c4m_utf8_t *path, c4m_utf8_t **path_loc)
 {
     c4m_list_t *paths = c4m_get_module_search_path();
     c4m_utf8_t *one;
@@ -392,17 +385,28 @@ package_from_path_prefix(c4m_utf8_t *path, c4m_utf8_t **path_loc)
     for (int i = 0; i < n; i++) {
         one = c4m_to_utf8(c4m_list_get(paths, i, NULL));
 
-        if (c4m_str_starts_with(one, path)) {
+        if (c4m_str_ends_with(one, c4m_new_utf8("/"))) {
+            one = c4m_str_copy(one);
+            while (one->byte_len && one->data[one->byte_len - 1] == '/') {
+                one->data[--one->byte_len] = 0;
+                one->codepoints--;
+            }
+        }
+
+        if (c4m_str_starts_with(path, one)) {
             *path_loc = one;
 
             int         ix = c4m_str_byte_len(one);
-            c4m_utf8_t *s  = c4m_to_utf8(c4m_str_slice(path, ix, -1));
-
-            while (s->byte_len != 0 && s->data[0] == '/') {
+            c4m_utf8_t *s  = c4m_str_slice(path,
+                                          ix,
+                                          c4m_str_codepoint_len(path));
+            s              = c4m_path_trim_slashes(s);
+            if (s->byte_len && s->data[0] == '/') {
                 s->data++;
                 s->codepoints--;
                 s->byte_len--;
             }
+
             for (int j = 0; j < s->byte_len; j++) {
                 if (s->data[j] == '/') {
                     s->data[j] = '.';
@@ -458,7 +462,7 @@ ctx_init_from_web_uri(c4m_compile_ctx *ctx,
         module = c4m_new_utf8(C4M_PACKAGE_INIT_MODULE);
     }
 
-    package = package_from_path_prefix(inpath, &path);
+    package = c4m_package_from_path_prefix(inpath, &path);
 
     if (!package) {
         path = inpath;
@@ -481,9 +485,9 @@ ctx_init_from_local_file(c4m_compile_ctx *ctx, c4m_str_t *inpath)
 {
     c4m_utf8_t *module;
     c4m_utf8_t *package;
-    c4m_utf8_t *path;
+    c4m_utf8_t *path = NULL;
 
-    inpath    = c4m_resolve_path(inpath);
+    inpath    = c4m_path_trim_slashes(c4m_resolve_path(inpath));
     int64_t n = c4m_str_rfind(inpath, c4m_new_utf8("/"));
 
     if (n == -1) {
@@ -499,14 +503,16 @@ ctx_init_from_local_file(c4m_compile_ctx *ctx, c4m_str_t *inpath)
         l       = c4m_str_codepoint_len(module);
         n       = c4m_str_rfind(module, c4m_new_utf8("."));
         module  = c4m_to_utf8(c4m_str_slice(module, 0, n));
-        package = package_from_path_prefix(inpath, &path);
+        package = c4m_package_from_path_prefix(inpath, &path);
 
         if (!package) {
             path = inpath;
         }
     }
 
-    return c4m_find_module(ctx, path, module, package, NULL, NULL, NULL);
+    c4m_module_compile_ctx *result = c4m_find_module(ctx, path, module, package, NULL, NULL, NULL);
+
+    return result;
 }
 
 static c4m_module_compile_ctx *
