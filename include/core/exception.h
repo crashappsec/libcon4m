@@ -132,8 +132,10 @@
 #define C4M_TRY_END           C4M_LTRY_END(default_label)
 
 #if defined(C4M_DEBUG) && defined(C4M_BACKTRACE_SUPPORTED)
-extern void c4m_print_c_backtrace();
-#define c4m_trace() c4m_print_c_backtrace()
+extern c4m_grid_t                        *c4m_get_c_backtrace();
+extern thread_local c4m_exception_stack_t __exception_stack;
+
+#define c4m_trace() __exception_stack.c_trace = c4m_get_c_backtrace()
 #else
 #define c4m_trace()
 #endif

@@ -22,6 +22,7 @@ extern c4m_utf8_t   *c4m_path_join(c4m_list_t *);
 extern c4m_file_kind c4m_get_file_kind(c4m_utf8_t *);
 extern c4m_list_t   *_c4m_path_walk(c4m_utf8_t *, ...);
 extern c4m_utf8_t   *c4m_app_path();
+extern c4m_utf8_t   *c4m_path_trim_slashes(c4m_str_t *);
 
 #define c4m_path_walk(x, ...) _c4m_path_walk(x, C4M_VA(__VA_ARGS__))
 

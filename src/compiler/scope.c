@@ -64,7 +64,7 @@ c4m_sym_get_best_ref_loc(c4m_symbol_t *sym)
 }
 
 void
-c4m_shadow_check(c4m_file_compile_ctx *ctx,
+c4m_shadow_check(c4m_module_compile_ctx *ctx,
                  c4m_symbol_t         *sym,
                  c4m_scope_t          *cur_scope)
 {
@@ -132,7 +132,7 @@ c4m_shadow_check(c4m_file_compile_ctx *ctx,
 }
 
 c4m_symbol_t *
-c4m_declare_symbol(c4m_file_compile_ctx *ctx,
+c4m_declare_symbol(c4m_module_compile_ctx *ctx,
                    c4m_scope_t          *scope,
                    c4m_utf8_t           *name,
                    c4m_tree_node_t      *node,
@@ -184,7 +184,7 @@ c4m_declare_symbol(c4m_file_compile_ctx *ctx,
     return old;
 }
 c4m_symbol_t *
-c4m_add_inferred_symbol(c4m_file_compile_ctx *ctx,
+c4m_add_inferred_symbol(c4m_module_compile_ctx *ctx,
                         c4m_scope_t          *scope,
                         c4m_utf8_t           *name)
 {
@@ -208,7 +208,7 @@ c4m_add_inferred_symbol(c4m_file_compile_ctx *ctx,
 }
 
 c4m_symbol_t *
-c4m_add_or_replace_symbol(c4m_file_compile_ctx *ctx,
+c4m_add_or_replace_symbol(c4m_module_compile_ctx *ctx,
                           c4m_scope_t          *scope,
                           c4m_utf8_t           *name)
 {
@@ -237,7 +237,7 @@ c4m_lookup_symbol(c4m_scope_t *scope, c4m_utf8_t *name)
 // will have the type stored in inferred_type.
 
 static void
-type_cmp_exact_match(c4m_file_compile_ctx *new_ctx,
+type_cmp_exact_match(c4m_module_compile_ctx *new_ctx,
                      c4m_symbol_t         *new_sym,
                      c4m_symbol_t         *old_sym)
 {
@@ -303,7 +303,7 @@ type_cmp_exact_match(c4m_file_compile_ctx *new_ctx,
 // to compare when exact types are provided.
 
 bool
-c4m_merge_symbols(c4m_file_compile_ctx *ctx1,
+c4m_merge_symbols(c4m_module_compile_ctx *ctx1,
                   c4m_symbol_t         *sym1,
                   c4m_symbol_t         *sym2) // The older symbol.
 {

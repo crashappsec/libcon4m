@@ -59,6 +59,10 @@ jobs:
           echo "CC=${{ matrix.cc }}" >> "${GITHUB_ENV}"
           clang --version
 
+      - name: On Linux, install curl
+        if: runner.os == 'Linux'
+        run: sudo apt-get install libcurl4-openssl-dev
+
       - name: On macOS, allow Meson to find libcrypto and libssl
         if: runner.os == 'macOS'
         run: |

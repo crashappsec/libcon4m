@@ -46,6 +46,8 @@ if (host_machine.system() == 'darwin')
     if not get_option('use_frame_intrinsic').disabled()
         c_args = c_args + ['-DC4M_USE_FRAME_INTRINSIC']
     endif
+
+    libcurl  = dependency('curl')
 else
     using_osx = false
     link_args = []
@@ -55,6 +57,8 @@ else
     if get_option('use_frame_intrinsic').enabled()
         c_args = c_args + ['-DC4M_USE_FRAME_INTRINSIC']
     endif
+
+    libcurl = cc.find_library('curl')
 endif
 
 if get_option('forkless_tests').enabled()
@@ -129,6 +133,12 @@ if get_option('dev_mode') == true
 
         if memcheck == 'strict'
             c_args = c_args + ['-DC4M_STRICT_MEMCHECK']
+        endif
+
+        show_count = get_option('memcheck_show_allocs')
+        if show_count != 0
+            as_str = show_count.to_string()
+            c_args = c_args + ['-DC4M_SHOW_NEXT_ALLOCS=' + as_str]
         endif
     endif
 
@@ -209,10 +219,13 @@ c4m_io = [
     'src/io/switchboard.c',
     'src/io/subproc.c',
     'src/io/term.c',
+    'src/io/http.c',
+    'src/io/file.c',
 ]
 
 c4m_compiler = [
     'src/compiler/compile.c',
+    'src/compiler/module.c',    
     'src/compiler/lex.c',
     'src/compiler/parse.c',
     'src/compiler/errors.c',
@@ -288,13 +301,13 @@ hat_hashref = [
 ]
 
 hash_test_src = hat_hashref + [
-    'src/tests/hash/test.c',
-    'src/tests/hash/default.c',
-    'src/tests/hash/performance.c',
-    'src/tests/hash/config.c',
-    'src/tests/hash/functional.c',
-    'src/tests/hash/rand.c',
-    'src/tests/hash/testhat.c',
+    'src/harness/hash/test.c',
+    'src/harness/hash/default.c',
+    'src/harness/hash/performance.c',
+    'src/harness/hash/config.c',
+    'src/harness/hash/functional.c',
+    'src/harness/hash/rand.c',
+    'src/harness/hash/testhat.c',
 ]
 
 if not using_osx and not using_glibc
@@ -305,7 +318,13 @@ endif
 
 lib_src = c4m_src + hat_primary
 
-test_src = ['src/tests/test.c']
+test_src = [
+    'src/harness/con4m_base/test.c',
+    'src/harness/con4m_base/scan.c',
+    'src/harness/con4m_base/run.c',
+    'src/harness/con4m_base/validation.c',
+    'src/harness/con4m_base/results.c',
+]
 
 threads = dependency('threads')
 math = cc.find_library('m', required: false)
@@ -320,7 +339,7 @@ ssl = cc.find_library('ssl')
 unibreak = dependency('libunibreak')
 utf8proc = dependency('libutf8proc')
 
-deps = [unibreak, utf8proc, threads, ffi, ssl, crypto, backtrace]
+deps = [unibreak, utf8proc, threads, ffi, ssl, crypto, backtrace, libcurl]
 opts = [math]
 if using_glibc
     opts = opts + [cc.find_library('atomic')]

@@ -545,8 +545,6 @@ typedef struct {
     // belong.
     c4m_zmodule_info_t *current_module;
 
-    c4m_list_t *module_lock_stack;
-
     // The arena this allocation is from.
     c4m_arena_t *thread_arena;
 

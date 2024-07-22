@@ -8,8 +8,8 @@ typedef struct {
 } error_info_t;
 
 static error_info_t error_info[] = {
-    [c4m_err_open_file] = {
-        c4m_err_open_file,
+    [c4m_err_open_module] = {
+        c4m_err_open_module,
         "open_file",
         "Could not open the file [i]{}[/]. Reason: [em]{}[/]",
         true,
@@ -680,13 +680,13 @@ static error_info_t error_info[] = {
     [c4m_err_search_path] = {
         c4m_err_search_path,
         "search_path",
-        "Could not find module in the search path.",
+        "Could not find the module [em]{}[/] in the Con4m search path.",
         true,
     },
-    [c4m_err_no_http] = {
-        c4m_err_no_http,
-        "no_http",
-        "HTTP and HTTPS support is not yet back in Con4m.",
+    [c4m_err_invalid_path] = {
+        c4m_err_invalid_path,
+        "invalid_path",
+        "Invalid characters in module spec.",
         false,
     },
     [c4m_info_recursive_use] = {
@@ -971,6 +971,13 @@ static error_info_t error_info[] = {
         "that overlaps with a previous case type: [em]{}[/]",
         true,
     },
+    [c4m_warn_empty_case] = {
+        c4m_warn_empty_case,
+        "empty_case",
+        "This case statement body is empty; it will [em]not[/] fall through. "
+        "Case conditions can be comma-separated if needed.",
+        false,
+    },
     [c4m_err_dead_branch] = {
         c4m_err_dead_branch,
         "dead_branch",
@@ -1251,26 +1258,27 @@ format_severity(c4m_compile_error *err)
 }
 
 static inline c4m_utf8_t *
-format_location(c4m_file_compile_ctx *ctx, c4m_compile_error *err)
+format_location(c4m_module_compile_ctx *ctx, c4m_compile_error *err)
 {
     c4m_token_t *tok = err->current_token;
 
+    if (!ctx->loaded_from) {
+        ctx->loaded_from = c4m_cstr_format("{}.{}",
+                                           ctx->package,
+                                           ctx->module);
+    }
+
     if (!tok) {
-        if (!ctx->path) {
-            ctx->path = c4m_cstr_format("{}.{}",
-                                        ctx->package,
-                                        ctx->module);
-        }
-        return c4m_cstr_format("[b]{}[/]", ctx->path);
+        return c4m_cstr_format("[b]{}[/]", ctx->loaded_from);
     }
     return c4m_cstr_format("[b]{}:{:n}:{:n}:[/]",
-                           ctx->path,
+                           ctx->loaded_from,
                            c4m_box_i64(tok->line_no),
                            c4m_box_i64(tok->line_offset + 1));
 }
 
 static void
-c4m_format_module_errors(c4m_file_compile_ctx *ctx, c4m_grid_t *table)
+c4m_format_module_errors(c4m_module_compile_ctx *ctx, c4m_grid_t *table)
 {
     if (error_constant == NULL) {
         error_constant = c4m_rich_lit("[red]error:[/]");
@@ -1319,7 +1327,7 @@ c4m_format_errors(c4m_compile_ctx *cctx)
                                                         &num_modules);
 
     for (unsigned int i = 0; i < num_modules; i++) {
-        c4m_file_compile_ctx *ctx = view[i].value;
+        c4m_module_compile_ctx *ctx = view[i].value;
         if (ctx->errors != NULL) {
             n += c4m_list_len(ctx->errors);
             c4m_format_module_errors(ctx, table);
@@ -1346,7 +1354,7 @@ c4m_compile_extract_all_error_codes(c4m_compile_ctx *cctx)
     view = hatrack_dict_items_sort(cctx->module_cache, &num_modules);
 
     for (unsigned int i = 0; i < num_modules; i++) {
-        c4m_file_compile_ctx *ctx = view[i].value;
+        c4m_module_compile_ctx *ctx = view[i].value;
 
         if (ctx->errors != NULL) {
             int n = c4m_list_len(ctx->errors);
@@ -1419,9 +1427,9 @@ c4m_base_add_error(c4m_list_t         *err_list,
 }
 
 c4m_compile_error *
-_c4m_error_from_token(c4m_file_compile_ctx *ctx,
-                      c4m_compile_error_t   code,
-                      c4m_token_t          *tok,
+_c4m_error_from_token(c4m_module_compile_ctx *ctx,
+                      c4m_compile_error_t     code,
+                      c4m_token_t            *tok,
                       ...)
 {
     c4m_compile_error *result;
@@ -1442,9 +1450,9 @@ _c4m_error_from_token(c4m_file_compile_ctx *ctx,
 
 #define c4m_base_err_decl(func_name, severity_value)            \
     c4m_compile_error *                                         \
-    func_name(c4m_file_compile_ctx *ctx,                        \
-              c4m_compile_error_t   code,                       \
-              c4m_tree_node_t      *node,                       \
+    func_name(c4m_module_compile_ctx *ctx,                      \
+              c4m_compile_error_t     code,                     \
+              c4m_tree_node_t        *node,                     \
               ...)                                              \
     {                                                           \
         c4m_compile_error *result;                              \
@@ -1462,14 +1470,16 @@ _c4m_error_from_token(c4m_file_compile_ctx *ctx,
         if (severity_value == c4m_err_severity_error) {         \
             ctx->fatal_errors = 1;                              \
         }                                                       \
+                                                                \
         return result;                                          \
     }
+
 c4m_base_err_decl(_c4m_add_error, c4m_err_severity_error);
 c4m_base_err_decl(_c4m_add_warning, c4m_err_severity_warning);
 c4m_base_err_decl(_c4m_add_info, c4m_err_severity_info);
 
 void
-_c4m_file_load_error(c4m_file_compile_ctx *ctx, c4m_compile_error_t code, ...)
+_c4m_module_load_error(c4m_module_compile_ctx *ctx, c4m_compile_error_t code, ...)
 {
     va_list args;
 
@@ -1480,7 +1490,7 @@ _c4m_file_load_error(c4m_file_compile_ctx *ctx, c4m_compile_error_t code, ...)
 }
 
 void
-_c4m_file_load_warn(c4m_file_compile_ctx *ctx, c4m_compile_error_t code, ...)
+_c4m_module_load_warn(c4m_module_compile_ctx *ctx, c4m_compile_error_t code, ...)
 {
     va_list args;
 

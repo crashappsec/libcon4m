@@ -520,7 +520,17 @@ assemble_formatted_result(const c4m_str_t *fmt, c4m_list_t *arg_strings)
         }
     }
 
+    while (out_ix != 0) {
+        if (outp[out_ix - 1] == 0) {
+            --out_ix;
+        }
+        else {
+            break;
+        }
+    }
+
     result->codepoints = out_ix;
+
     return c4m_to_utf8(result);
 }
 
@@ -587,7 +597,6 @@ c4m_base_format(const c4m_str_t *fmt, int nargs, va_list args)
         c4m_utf8_t *key = c4m_str_from_int(i);
         hatrack_dict_add(dict, key, one);
     }
-
     return c4m_str_vformat(fmt, dict);
 }
 

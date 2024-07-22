@@ -819,8 +819,6 @@ const c4m_vtable_t c4m_stream_vtable = {
     .methods     = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_stream_init,
         [C4M_BI_GC_MAP]      = (c4m_vtable_entry)c4m_stream_set_gc_bits,
-        // This is not supposed to be necessary, but it sometimes crashes w/o.
         [C4M_BI_FINALIZER]   = (c4m_vtable_entry)c4m_stream_close,
-        NULL,
     },
 };

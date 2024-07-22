@@ -102,12 +102,14 @@ c4m_vm_attr_set(c4m_vmthread_t *tstate,
         new_info->lastset = c4m_list_get(tstate->current_module->instructions,
                                          tstate->pc - 1,
                                          NULL);
+        /*
         if (c4m_list_len(tstate->module_lock_stack) > 0) {
             new_info->module_lock
                 = (int32_t)(int64_t)c4m_list_get(tstate->module_lock_stack,
                                                  -1,
                                                  NULL);
         }
+        */
     }
 
     // Don't trigger write lock if we're setting a default (i.e., internal is set).

@@ -59,7 +59,7 @@ option(
     'exception_traces',
     type: 'feature',
     value: 'auto',
-    description: 'Enable C stack traces on internal exceptions if possible',
+    description: 'Enable C stack traces on uncaught internal exceptions if possible',
 )
 
 option(
@@ -75,6 +75,14 @@ option(
     choices: ['off', 'on', 'strict'],
     value: 'off',
     description: 'Enable internal lightweight heap checks',
+)
+
+option(
+    'memcheck_show_allocs',
+    type: 'integer',
+    min: 0,
+    value: 2000,
+    description: 'On a memcheck guard error, # of subsequent allocs to show',
 )
 
 option(

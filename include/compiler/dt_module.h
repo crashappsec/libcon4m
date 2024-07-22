@@ -10,9 +10,9 @@ typedef enum {
     c4m_compile_status_tree_typed,      // full symbols and parsing.
     c4m_compile_status_applied_folding, // Skippable and not done yet.
     c4m_compile_status_generated_code
-} c4m_file_compile_status;
+} c4m_module_compile_status;
 
-typedef struct c4m_file_compile_ctx {
+typedef struct c4m_module_compile_ctx {
 #ifdef C4M_DEV
     // Cache all the print nodes to type check before running.
     c4m_list_t *print_nodes;
@@ -31,10 +31,9 @@ typedef struct c4m_file_compile_ctx {
     // pass raw source as long as you give at least a module name).
 
     c4m_str_t              *module;          // Module name.
-    c4m_str_t              *authority;       // http/s only.
     c4m_str_t              *path;            // Fully qualified path
-    c4m_str_t              *provided_path;   // Provided in use statement.
     c4m_str_t              *package;         // Package name.
+    c4m_str_t              *loaded_from;     // Abs path / URL if found.
     c4m_utf32_t            *raw;             // raw contents before lex pass.
     c4m_list_t             *tokens;          // an xlist of x4m_token_t objects;
     c4m_tree_node_t        *parse_tree;
@@ -56,10 +55,8 @@ typedef struct c4m_file_compile_ctx {
     uint64_t                module_id; // Module hash.
     int32_t                 static_size;
     uint32_t                num_params;
-    uint32_t                local_module_id;
+    uint32_t                local_module_id; // Index in object file.
     unsigned int            fatal_errors : 1;
-    unsigned int            file         : 1;
-    unsigned int            secure       : 1;
-    c4m_file_compile_status status;
+    c4m_module_compile_status status;
 
-} c4m_file_compile_ctx;
+} c4m_module_compile_ctx;

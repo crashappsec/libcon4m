@@ -233,20 +233,13 @@ get_param_value(c4m_vmthread_t *tstate, c4m_zparam_info_t *p)
 static void
 c4m_vm_module_enter(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 {
-    if (!i->arg) {
-        if (c4m_list_len(tstate->module_lock_stack) > 0) {
-            c4m_list_append(tstate->module_lock_stack,
-                            c4m_list_get(tstate->module_lock_stack,
-                                         -1,
-                                         NULL));
-        }
-        else {
-            c4m_list_append(tstate->module_lock_stack, 0);
-        }
-        return;
-    }
+    // If there's already a lock, we always push ourselves to the module
+    // lock stack. If there isn't, we start the stack if our module
+    // has parameters.
 
-    for (int32_t n = 0; n < c4m_list_len(tstate->current_module->parameters); ++n) {
+    int nparams = c4m_list_len(tstate->current_module->parameters);
+
+    for (int32_t n = 0; n < nparams; ++n) {
         c4m_zparam_info_t *p = c4m_list_get(tstate->current_module->parameters,
                                             n,
                                             NULL);
@@ -264,9 +257,6 @@ c4m_vm_module_enter(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
             }
         }
     }
-
-    c4m_list_append(tstate->module_lock_stack,
-                    (c4m_obj_t)(uint64_t)tstate->current_module->module_id);
 }
 
 static c4m_utf8_t *
@@ -662,21 +652,18 @@ c4m_vm_call_module(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 
     // combine pc / module id together and push it onto the stack for recovery
     // on return
-    // clang-format: off
-    tstate->sp->uint = ((uint64_t)tstate->pc << 32u)
-                     | tstate->current_module->module_id;
     --tstate->sp;
-    // clang-format: on
+    tstate->sp->uint = ((uint64_t)tstate->pc << 32u) | tstate->current_module->module_id;
+    --tstate->sp;
 
-    tstate->sp->fp = tstate->fp;
-    --tstate->sp;
-    tstate->fp = tstate->sp;
+    tstate->sp->vptr = tstate->fp;
+    tstate->fp       = (c4m_stack_value_t *)&tstate->sp->vptr;
 
     c4m_zmodule_info_t *old_module = tstate->current_module;
 
     tstate->pc             = 0;
     tstate->current_module = c4m_list_get(tstate->vm->obj->module_contents,
-                                          i->arg,
+                                          i->module_id,
                                           NULL);
 
     c4m_zinstruction_t *nexti = c4m_list_get(tstate->current_module->instructions,
@@ -1386,8 +1373,6 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 if (tstate->num_frames <= 2) {
                     C4M_JUMP_TO_TRY_END();
                 }
-                // pop module_lock_stack
-                c4m_list_set_slice(tstate->module_lock_stack, -2, -1, NULL);
                 c4m_vm_return(tstate, i);
                 break;
             case C4M_ZFFICall:
@@ -1738,20 +1723,19 @@ c4m_vmthread_new(c4m_vm_t *vm)
 void
 c4m_vmthread_reset(c4m_vmthread_t *tstate)
 {
-    tstate->sp                = &tstate->stack[C4M_STACK_SIZE];
-    tstate->fp                = tstate->sp;
-    tstate->pc                = 0;
-    tstate->num_frames        = 1;
-    tstate->r0                = (c4m_value_t){};
-    tstate->r1                = (c4m_value_t){};
-    tstate->r2                = (c4m_value_t){};
-    tstate->r3                = (c4m_value_t){};
-    tstate->running           = false;
-    tstate->error             = false;
-    tstate->module_lock_stack = c4m_list(c4m_type_i32());
+    tstate->sp         = &tstate->stack[C4M_STACK_SIZE];
+    tstate->fp         = tstate->sp;
+    tstate->pc         = 0;
+    tstate->num_frames = 1;
+    tstate->r0         = (c4m_value_t){};
+    tstate->r1         = (c4m_value_t){};
+    tstate->r2         = (c4m_value_t){};
+    tstate->r3         = (c4m_value_t){};
+    tstate->running    = false;
+    tstate->error      = false;
 
     tstate->current_module = c4m_list_get(tstate->vm->obj->module_contents,
-                                          tstate->vm->obj->entrypoint - 1,
+                                          tstate->vm->obj->entrypoint,
                                           NULL);
 }
 

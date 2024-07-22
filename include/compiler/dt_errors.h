@@ -2,7 +2,7 @@
 #include "con4m.h"
 
 typedef enum {
-    c4m_err_open_file,
+    c4m_err_open_module,
     c4m_err_location,
     c4m_err_lex_stray_cr,
     c4m_err_lex_eof_in_comment,
@@ -112,7 +112,7 @@ typedef enum {
     c4m_err_malformed_url,
     c4m_warn_no_tls,
     c4m_err_search_path,
-    c4m_err_no_http,
+    c4m_err_invalid_path,
     c4m_info_recursive_use,
     c4m_err_self_recursive_use,
     c4m_err_redecl_kind,
@@ -152,6 +152,7 @@ typedef enum {
     c4m_err_switch_case_type,
     c4m_err_concrete_typeof,
     c4m_warn_type_overlap,
+    c4m_warn_empty_case,
     c4m_err_dead_branch,
     c4m_err_no_ret,
     c4m_err_use_no_def,

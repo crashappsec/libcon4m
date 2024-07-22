@@ -181,7 +181,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_IPV4] = {
-        .name      = "ipaddr",
+        .name      = "Ipaddr",
         .typeid    = C4M_T_IPV4,
         .vtable    = &c4m_ipaddr_vtable,
         .alloc_len = sizeof(struct sockaddr_in6),
@@ -189,7 +189,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_IPV6] = {
-        .name      = "ipv6_unused", // Going to merge w/ ipv4
+        .name      = "Ipv6_unused", // Going to merge w/ ipv4
         .typeid    = C4M_T_IPV6,
         .vtable    = &c4m_ipaddr_vtable,
         .alloc_len = sizeof(struct sockaddr_in6),
@@ -197,43 +197,43 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_DURATION] = {
-        .name    = "duration",
+        .name    = "Duration",
         .typeid  = C4M_T_DURATION,
         .dt_kind = C4M_DT_KIND_primitive,
         .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_SIZE] = {
-        .name    = "size",
+        .name    = "Size",
         .typeid  = C4M_T_SIZE,
         .dt_kind = C4M_DT_KIND_primitive,
         .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_DATETIME] = {
-        .name    = "datetime",
+        .name    = "Datetime",
         .typeid  = C4M_T_DATETIME,
         .dt_kind = C4M_DT_KIND_primitive,
         .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_DATE] = {
-        .name    = "date",
+        .name    = "Date",
         .typeid  = C4M_T_DATE,
         .dt_kind = C4M_DT_KIND_primitive,
         .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_TIME] = {
-        .name    = "time",
+        .name    = "Time",
         .typeid  = C4M_T_TIME,
         .dt_kind = C4M_DT_KIND_primitive,
         .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_URL] = {
-        .name    = "url",
+        .name    = "Url",
         .typeid  = C4M_T_URL,
         .dt_kind = C4M_DT_KIND_primitive,
         .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_FLAGS] = {
-        .name      = "flags",
+        .name      = "Flags",
         .typeid    = C4M_T_FLAGS,
         .alloc_len = sizeof(c4m_flags_t),
         .vtable    = &c4m_flags_vtable,
@@ -249,7 +249,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_QUEUE] = {
-        .name      = "queue",
+        .name      = "Queue",
         .typeid    = C4M_T_QUEUE,
         .alloc_len = sizeof(queue_t),
         .vtable    = &c4m_queue_vtable,
@@ -257,7 +257,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_RING] = {
-        .name      = "ring",
+        .name      = "Ring",
         .typeid    = C4M_T_RING,
         .alloc_len = sizeof(hatring_t),
         .vtable    = &c4m_ring_vtable,
@@ -265,7 +265,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_LOGRING] = {
-        .name      = "logring",
+        .name      = "Logring",
         .typeid    = C4M_T_LOGRING,
         .alloc_len = sizeof(logring_t),
         .vtable    = &c4m_logring_vtable,
@@ -273,7 +273,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_STACK] = {
-        .name      = "stack",
+        .name      = "Stack",
         .typeid    = C4M_T_STACK,
         .alloc_len = sizeof(stack_t),
         .vtable    = &c4m_stack_vtable,
@@ -281,7 +281,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_RENDERABLE] = {
-        .name      = "renderable",
+        .name      = "Renderable",
         .typeid    = C4M_T_RENDERABLE,
         .alloc_len = sizeof(c4m_renderable_t),
         .vtable    = &c4m_renderable_vtable,
@@ -289,7 +289,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_FLIST] = {
-        .name      = "flist",
+        .name      = "Rlist",
         .typeid    = C4M_T_FLIST,
         .alloc_len = sizeof(flexarray_t),
         .vtable    = &c4m_flexarray_vtable,
@@ -297,7 +297,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_RENDER_STYLE] = {
-        .name      = "render_style",
+        .name      = "Render_style",
         .typeid    = C4M_T_RENDER_STYLE,
         .alloc_len = sizeof(c4m_render_style_t),
         .vtable    = &c4m_render_style_vtable,
@@ -305,7 +305,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_SHA] = {
-        .name      = "hash",
+        .name      = "Hash",
         .typeid    = C4M_T_SHA,
         .alloc_len = sizeof(c4m_sha_t),
         .vtable    = &c4m_sha_vtable,
@@ -321,7 +321,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_TREE] = {
-        .name      = "tree",
+        .name      = "Tree",
         .typeid    = C4M_T_TREE,
         .alloc_len = sizeof(c4m_tree_node_t),
         .vtable    = &c4m_tree_vtable,
@@ -392,6 +392,8 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_internal,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
+    // Used to represent the type of single bit objects, which
+    // basically only applies to bitfields.
     [C4M_T_BIT] = {
         .name    = "bit",
         .typeid  = C4M_T_BIT,
@@ -407,6 +409,14 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .alloc_len = sizeof(c4m_box_t),
         .dt_kind   = C4M_DT_KIND_box,
         .vtable    = &c4m_box_vtable,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+    },
+    [C4M_T_HTTP] = {
+        .name      = "Http",
+        .typeid    = C4M_T_HTTP,
+        .alloc_len = sizeof(c4m_basic_http_t),
+        .vtable    = &c4m_basic_http_vtable,
+        .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
 };

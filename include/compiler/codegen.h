@@ -3,7 +3,7 @@
 
 #ifdef C4M_USE_INTERNAL_API
 extern void        c4m_layout_module_symbols(c4m_compile_ctx *,
-                                             c4m_file_compile_ctx *);
+                                             c4m_module_compile_ctx *);
 extern int64_t     c4m_layout_string_const(c4m_compile_ctx *, c4m_str_t *);
 extern uint32_t    _c4m_layout_const_obj(c4m_compile_ctx *, c4m_obj_t, ...);
 extern c4m_grid_t *c4m_disasm(c4m_vm_t *, c4m_zmodule_info_t *m);

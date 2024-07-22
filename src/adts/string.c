@@ -57,20 +57,20 @@ c4m_str_slice(const c4m_str_t *instr, int64_t start, int64_t end)
     c4m_utf32_t *s   = c4m_to_utf32(instr);
     int64_t      len = c4m_str_codepoint_len(s);
 
-    if (start < 0) {
-        start += len;
-    }
-    else {
-        if (start >= len) {
-            return c4m_to_utf32(c4m_empty_string());
-        }
-    }
     if (end < 0) {
         end += len;
     }
     else {
         if (end > len) {
             end = len;
+        }
+    }
+    if (start < 0) {
+        start += len;
+    }
+    else {
+        if (start >= len) {
+            return c4m_to_utf32(c4m_empty_string());
         }
     }
     if ((start | end) < 0 || start >= end) {
@@ -89,6 +89,16 @@ c4m_str_slice(const c4m_str_t *instr, int64_t start, int64_t end)
     for (int i = 0; i < slice_len; i++) {
         dst[i] = src[start + i];
     }
+
+    while (res->codepoints != 0) {
+        if (dst[res->codepoints - 1] == 0) {
+            --res->codepoints;
+        }
+        else {
+            break;
+        }
+    }
+
     if (s->styling && s->styling->num_entries) {
         int64_t first = -1;
         int64_t last  = 0;
@@ -152,6 +162,7 @@ c4m_str_slice(const c4m_str_t *instr, int64_t start, int64_t end)
             res->styling->styles[i].info  = info;
         }
     }
+
     return res;
 }
 
@@ -397,6 +408,10 @@ c4m_utf8_join(c4m_list_t *l, const c4m_utf8_t *joiner, bool add_trailing)
         new_len += jlen * (num_items - (add_trailing ? 0 : 1));
     }
 
+    if (new_len <= 0) {
+        return c4m_empty_string();
+    }
+
     c4m_utf8_t *result = c4m_new(c4m_type_utf8(),
                                  c4m_kw("length", c4m_ka(new_len)));
     char       *p      = result->data;
@@ -423,6 +438,10 @@ c4m_utf8_join(c4m_list_t *l, const c4m_utf8_t *joiner, bool add_trailing)
     if (add_trailing && jlen != 0) {
         p += cur->byte_len;
         memcpy(p, joiner->data, jlen);
+    }
+
+    while (new_len && result->data[new_len - 1] == 0) {
+        new_len--;
     }
 
     result->byte_len      = new_len;
@@ -483,6 +502,7 @@ c4m_utf32_join(c4m_list_t *l, const c4m_utf32_t *joiner, bool add_trailing)
 
         memcpy(p, line->data, n_cp * 4);
     }
+
     return result;
 }
 

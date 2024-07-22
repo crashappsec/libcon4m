@@ -103,6 +103,7 @@
 
 // The compiler.
 #include "compiler/ast_utils.h"
+#include "compiler/module.h"
 #include "compiler/compile.h"
 #include "compiler/errors.h"
 #include "compiler/lex.h"
@@ -117,3 +118,5 @@
 
 #include "core/ffi.h"
 #include "util/watch.h"
+#include "io/http.h"
+#include "io/file.h"

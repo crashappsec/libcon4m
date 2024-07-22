@@ -2,7 +2,8 @@
 
 C4M_DEV_CFG="--buildtype=debug -Duse_memcheck=on -Ddev_mode=true"
 C4M_RELEASE_CFG="--buildtype=release"
-C4M_DEBUG_EXTRA="-Duse_ubsan=enabled -Duse_asan=enabled -Dshow_preprocessor_config=enabled -Dforkless_tests=enabled"
+C4M_DEBUG_EXTRA="-Dshow_preprocessor_config=enabled -Dforkless_tests=enabled -Duse_memcheck=on -Dexception_traces=enabled"
+C4M_SANITIZE_EXTRA="-Duse_ubsan=enabled -Duse_asan=enabled -Dshow_preprocessor_config=enabled -Dforkless_tests=enabled"
 C4M_TEST_CFG=${C4M_DEV_CFG}
 
 
@@ -124,7 +125,9 @@ function ensure_project {
 }
 
 function configure_target {
-    meson configure ${C4M_BUILD_DIR} ${C4M_PASSTHROUGH_ARGS}
+    if [[ $# -ne 0 ]] ; then
+        meson configure ${C4M_BUILD_DIR} ${C4M_PASSTHROUGH_ARGS}
+    fi
 }
 
 function build_target {
@@ -155,19 +158,22 @@ function set_profile {
     case ${C4M_BUILD_TARGET} in
         dev)
             export C4M_MESON_CONF="${C4M_DEV_CFG}"
-        ;;
+            ;;
+        sanitize)
+            export C4M_MESON_CONF="${C4M_DEV_CFG} ${C4M_SANITIZE_EXTRA}"
+            ;;
         debug)
             export C4M_MESON_CONF="${C4M_DEV_CFG} ${C4M_DEBUG_EXTRA}"
-        ;;
+            ;;
         release)
             export C4M_MESON_CONF="${C4M_RELEASE_CFG}"
-        ;;
+            ;;
         test)
             export C4M_MESON_CONF="${C4M_TEST_CFG}"
-        ;;
+            ;;
         *)
             echo $(color RED "[-- libcon4m --] ") Invalid profile: $(color RED ${C4M_BUILD_TARGET})
-            echo $(color blue "Valid targets are: dev, debug, release, test")
+            echo $(color blue "Valid targets are: dev, debug, release, sanitize, test")
             return -1
             ;;
     esac
@@ -198,7 +204,7 @@ function clean_one_target {
 
 function libcon4m_clean {
     if [[ "$1" == "all" ]] ; then
-        for TARGET in dev debug release test ; do
+        for TARGET in dev sanitize debug release test ; do
             clean_one_target ${TARGET}
         done
         if [[ -f ${C4M_MESON_STATE_FILE} ]]; then
@@ -236,9 +242,15 @@ function libcon4m_set_profile {
 }
 
 function libcon4m_prebuild {
+    CONFIGURE=1
+    if [[ ${1} -eq 0 ]] ; then
+        shift
+        CONFIGURE=0
+    fi
+
     if [[ $# -ne 0 ]]; then
         case ${1} in
-            dev | debug | release | test)
+            dev | debug | release | sanitize | test)
                 set_profile $@
                 shift
                 ;;
@@ -253,6 +265,10 @@ function libcon4m_prebuild {
 
     ensure_directory
     ensure_project
+
+    if [[ CONFIGURE -ne 0 ]] ; then
+        configure_target
+    fi
 }
 
 function libcon4m_compile {
@@ -286,8 +302,7 @@ function libcon4m_run_tests {
 }
 
 function libcon4m_run {
-    libcon4m_prebuild $@
-
+    libcon4m_prebuild 0 $@
     libcon4m_compile
 
     set -e

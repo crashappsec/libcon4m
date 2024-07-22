@@ -30,21 +30,21 @@ typedef struct {
 } call_backpatch_info_t;
 
 typedef struct {
-    c4m_compile_ctx      *cctx;
-    c4m_file_compile_ctx *fctx;
-    c4m_list_t           *instructions;
-    c4m_tree_node_t      *cur_node;
-    c4m_pnode_t          *cur_pnode;
-    c4m_zmodule_info_t   *cur_module;
-    c4m_list_t           *call_backpatches;
-    target_info_t        *target_info;
-    c4m_symbol_t         *retsym;
-    int                   instruction_counter;
-    int                   current_stack_offset;
-    int                   max_stack_size;
-    int                   module_patch_loc;
-    bool                  lvalue;
-    assign_type_t         assign_method;
+    c4m_compile_ctx        *cctx;
+    c4m_module_compile_ctx *fctx;
+    c4m_list_t             *instructions;
+    c4m_tree_node_t        *cur_node;
+    c4m_pnode_t            *cur_pnode;
+    c4m_zmodule_info_t     *cur_module;
+    c4m_list_t             *call_backpatches;
+    target_info_t          *target_info;
+    c4m_symbol_t           *retsym;
+    int                     instruction_counter;
+    int                     current_stack_offset;
+    int                     max_stack_size;
+    int                     module_patch_loc;
+    bool                    lvalue;
+    assign_type_t           assign_method;
 } gen_ctx;
 
 static void gen_one_node(gen_ctx *);
@@ -912,21 +912,33 @@ gen_if(gen_ctx *ctx)
 static inline void
 gen_one_tcase(gen_ctx *ctx, c4m_control_info_t *switch_exit)
 {
-    c4m_jump_info_t *exit_jump          = c4m_new_jump_info();
+    int              num_conditions = ctx->cur_node->num_kids - 1;
+    c4m_jump_info_t *local_jumps    = c4m_gc_array_alloc(c4m_jump_info_t,
+                                                      num_conditions);
+    c4m_jump_info_t *exit_jump      = c4m_new_jump_info();
+    c4m_jump_info_t *case_end       = c4m_new_jump_info();
+
     exit_jump->linked_control_structure = switch_exit;
 
-    emit(ctx, C4M_ZDupTop);
+    for (int i = 0; i < num_conditions; i++) {
+        emit(ctx, C4M_ZDupTop);
 
-    // We stashed the type in the `nt_case` node's value field during
-    // the check pass for easy access.
-    c4m_pnode_t *pnode = c4m_get_pnode(ctx->cur_node);
-    gen_load_const_obj(ctx, pnode->value);
-    emit(ctx, C4M_ZTypeCmp);
+        // We stashed the type in the `nt_case` node's value field during
+        // the check pass for easy access.
+        c4m_pnode_t *pnode = c4m_get_pnode(ctx->cur_node->children[i]);
+        gen_load_const_obj(ctx, pnode->value);
+        emit(ctx, C4M_ZTypeCmp);
 
-    GEN_JZ(emit(ctx, C4M_ZPop);
-           gen_one_kid(ctx, 1);
-           gen_j(ctx, exit_jump););
-    emit(ctx, C4M_ZPop);
+        gen_jnz(ctx, &local_jumps[i], true);
+    }
+    gen_j(ctx, case_end);
+    for (int i = 0; i < num_conditions; i++) {
+        gen_finish_jump(ctx, &local_jumps[i]);
+    }
+
+    gen_one_kid(ctx, num_conditions);
+    gen_j(ctx, exit_jump);
+    gen_finish_jump(ctx, case_end);
 }
 
 static inline void
@@ -1318,8 +1330,7 @@ gen_container_for(gen_ctx *ctx, c4m_loop_info_t *li)
     // 2. The ZLoadFromView instruction assumes the item size is at the
     //    top slot, and the view in the second slot. It fetches the
     //    next item and pushes it automatically.
-    //    If the view object is a bitfield, the iteration count is
-    //    required to be in register 1 (necessary for calculating
+    //    If the view object is a bitfield, the iteration count is//    required to be in register 1 (necessary for calculating
     //    which bit to push and when to shift the view pointer).
     //
     // Also, note that the VIEW builtin doesn't need to copy objects,
@@ -2051,10 +2062,12 @@ gen_lock(gen_ctx *ctx)
 static inline void
 gen_use(gen_ctx *ctx)
 {
-    c4m_file_compile_ctx *tocall;
+    c4m_module_compile_ctx *tocall;
 
-    tocall = (c4m_file_compile_ctx *)ctx->cur_pnode->value;
-    emit(ctx, C4M_ZCallModule, c4m_kw("arg", c4m_ka(tocall->local_module_id)));
+    tocall = (c4m_module_compile_ctx *)ctx->cur_pnode->value;
+    emit(ctx,
+         C4M_ZCallModule,
+         c4m_kw("module_id", c4m_ka(tocall->local_module_id)));
 }
 
 static void
@@ -2368,7 +2381,6 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
     module->module_id    = ctx->fctx->local_module_id;
     module->module_hash  = ctx->fctx->module_id;
     module->modname      = ctx->fctx->module;
-    module->authority    = ctx->fctx->authority;
     module->path         = ctx->fctx->path;
     module->package      = ctx->fctx->package;
     module->source       = c4m_to_utf8(ctx->fctx->raw);
@@ -2475,4 +2487,5 @@ c4m_internal_codegen(c4m_compile_ctx *cctx, c4m_vm_t *c4m_new_vm)
 
     c4m_new_vm->obj->num_const_objs = cctx->const_instantiation_id;
     c4m_new_vm->obj->static_data    = cctx->const_data;
+    c4m_new_vm->obj->entrypoint     = cctx->entry_point->local_module_id;
 }
