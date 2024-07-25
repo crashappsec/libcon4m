@@ -128,3 +128,10 @@ option(
     value: 'auto',
     description: 'Run test suite without forking',
 )
+
+option(
+    'static_ffi_binding',
+    type: 'feature',
+    value: 'auto',
+    description: 'Whether to statically bind native builtins in std library',
+)

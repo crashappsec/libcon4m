@@ -1,14 +1,7 @@
 #include "con4m.h"
 
-// I realize some of this is redundant, but it's just easier.
-typedef struct {
-    char     addr[sizeof(struct sockaddr_in6)];
-    uint16_t port;
-    int32_t  af;
-} ipaddr_t;
-
 void
-ipaddr_set_address(ipaddr_t *obj, c4m_str_t *s, uint16_t port)
+c4m_ipaddr_set_address(c4m_ipaddr_t *obj, c4m_str_t *s, uint16_t port)
 {
     s = c4m_to_utf8(s);
 
@@ -27,7 +20,7 @@ ipaddr_set_address(ipaddr_t *obj, c4m_str_t *s, uint16_t port)
 }
 
 static void
-ipaddr_init(ipaddr_t *obj, va_list args)
+ipaddr_init(c4m_ipaddr_t *obj, va_list args)
 {
     c4m_str_t *address = NULL;
     int32_t    port    = -1;
@@ -49,14 +42,17 @@ ipaddr_init(ipaddr_t *obj, va_list args)
         if (port < 0 || port > 0xffff) {
             C4M_CRAISE("Invalid port for IP address.");
         }
-        ipaddr_set_address(obj, address, (uint16_t)port);
+        c4m_ipaddr_set_address(obj, address, (uint16_t)port);
     }
 }
 
 // TODO: currently this isn't at all portable across platforms.
 // Too quick and dirty.
 static void
-ipaddr_marshal(ipaddr_t *obj, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
+ipaddr_marshal(c4m_ipaddr_t *obj,
+               c4m_stream_t *s,
+               c4m_dict_t   *memos,
+               int64_t      *mid)
 {
     c4m_marshal_u32(sizeof(struct sockaddr_in6), s);
     c4m_stream_raw_write(s, sizeof(struct sockaddr_in6), obj->addr);
@@ -65,7 +61,7 @@ ipaddr_marshal(ipaddr_t *obj, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
 }
 
 static void
-ipaddr_unmarshal(ipaddr_t *obj, c4m_stream_t *s, c4m_dict_t *memos)
+ipaddr_unmarshal(c4m_ipaddr_t *obj, c4m_stream_t *s, c4m_dict_t *memos)
 {
     uint32_t struct_sz = c4m_unmarshal_u32(s);
 
@@ -79,7 +75,7 @@ ipaddr_unmarshal(ipaddr_t *obj, c4m_stream_t *s, c4m_dict_t *memos)
 }
 
 static c4m_str_t *
-ipaddr_repr(ipaddr_t *obj)
+ipaddr_repr(c4m_ipaddr_t *obj)
 {
     char buf[INET6_ADDRSTRLEN + 1] = {
         0,
@@ -98,16 +94,38 @@ ipaddr_repr(ipaddr_t *obj)
                                          c4m_str_from_int((int64_t)obj->port)));
 }
 
+static c4m_ipaddr_t *
+ipaddr_lit(c4m_utf8_t          *s_u8,
+           c4m_lit_syntax_t     st,
+           c4m_utf8_t          *litmod,
+           c4m_compile_error_t *err)
+{
+    c4m_ipaddr_t *result = c4m_new(c4m_type_ip());
+
+    if (inet_pton(AF_INET, s_u8->data, result) == 1) {
+        return result;
+    }
+
+    if (inet_pton(AF_INET6, s_u8->data, result) == 1) {
+        return result;
+    }
+
+    *err = c4m_err_invalid_ip;
+
+    return NULL;
+}
+
 const c4m_vtable_t c4m_ipaddr_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)ipaddr_init,
-        [C4M_BI_TO_STR]      = (c4m_vtable_entry)ipaddr_repr,
-        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)ipaddr_marshal,
-        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)ipaddr_unmarshal,
-        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)C4M_GC_SCAN_NONE,
+        [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)ipaddr_init,
+        [C4M_BI_TO_STR]       = (c4m_vtable_entry)ipaddr_repr,
+        [C4M_BI_MARSHAL]      = (c4m_vtable_entry)ipaddr_marshal,
+        [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)ipaddr_unmarshal,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_NONE,
+        [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)ipaddr_lit,
         // Explicit because some compilers don't seem to always properly
         // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
-        [C4M_BI_FINALIZER]   = NULL,
+        [C4M_BI_FINALIZER]    = NULL,
     },
 };

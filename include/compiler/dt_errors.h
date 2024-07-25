@@ -185,6 +185,12 @@ typedef enum {
     c4m_internal_type_error,
     c4m_err_concrete_index,
     c4m_err_non_dict_index_type,
+    c4m_err_invalid_ip,
+    c4m_err_invalid_dt_spec,
+    c4m_err_invalid_date_spec,
+    c4m_err_invalid_time_spec,
+    c4m_err_invalid_size_lit,
+    c4m_err_invalid_duration_lit,
 #ifdef C4M_DEV
     c4m_err_void_print,
 #endif

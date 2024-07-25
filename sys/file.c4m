@@ -1,0 +1,8 @@
+extern c4m_read_utf8_file(ptr) -> ptr {
+  local: read_file_utf8(string) -> string
+}
+
+extern c4m_read_binary_file(ptr) -> ptr {
+  local: read_file_binary(string) -> buffer
+}
+

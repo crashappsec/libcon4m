@@ -24,6 +24,7 @@
 #include <dlfcn.h>
 #include <pwd.h>
 #include <dirent.h>
+#include <ctype.h>
 
 #include <sys/select.h>
 #include <sys/types.h>

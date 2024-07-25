@@ -759,3 +759,9 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
     assert(raw != NULL);
     return (void *)(raw->data);
 }
+
+void
+c4m_header_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
+{
+    c4m_mark_obj_to_addr(bitfield, alloc, &alloc->concrete_type);
+}

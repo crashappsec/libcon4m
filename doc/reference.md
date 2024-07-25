@@ -533,74 +533,31 @@ BITYPE ::= "void" | "bool" | "i8" | "byte" | "i32" | "char" | "u32" | "int" |
 EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 ```
 
-# Builtin methods used by the language
-- $repr
-
 # Features to re-add from old con4m
 - VM save restore
 - Arg parsing
-- Libraries
-- Doc API.
-- Checkpointing
-- Hot loading
-- Finish data types (date, ip, and extra hatrack stuff)
+- Change $result back to result (or alias?)
+- Libraries (but only the ones Chalk needs)
 - Final mile: specs
 - Final mile: params
-- Auto-import standard library.
+- Doc API.
 - Callbacks
-- Len, etc.
+- Make litmods optional when types are declared. 
 
 # Items for afterward
 - Objects
 - Folding
 - Casting
+- Mixed
 - Varargs functions
-- Clean up unused instructions in VM
-- Remove the two-words-per-stack-slot thing; it's not needed anymore.
 - automatic logfd + optional server for log messages
 - REPL
 - Keyword arguments
 - 'maybe' types / nil
 - Aspects (before / after / around pattern(sig) when x) 
-- Casting
-- (Possibly) re-add := literals
 - Threading
-- Mixed
 - Pretty printing w/ type annotations
 - Language server
 - Checks based on PDG
 - Full-program info on unused fields & fns.
-
-# Features removed (considered for adding back in)
-Also, the language accepts ":=", which has the special syntax of
-generating a "=" operator, then tries to automatically determine the
-(non-numeric) literal type automatically by running through a
-prioritized list of literal parsers (currently intended for the
-config-focused literals).
-
-For instance:
-
-```
-now := 11 Jan 2024
-```
-
-Is equal to:
-
-```
-now = "11 Jan 2024"'date
-```
-
-Note that currently, without a literal modifier, "" always assume
-'string', so the following does NOT work:
-
-```
-var now: date
-now = "11 Jan 2024"
-```
-
-This gives a string vs. date type error. `:=` is the thing that says,
-"try to be smart!"
-
-The lexer actually does the conversion, adding an assignment token and the
-`OTHERLIT` token (which maybe we should change to be more descriptive?)
 

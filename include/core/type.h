@@ -315,15 +315,15 @@ c4m_type_typespec()
 }
 
 static inline c4m_type_t *
-c4m_type_ipv4()
+c4m_type_ip()
 {
     return c4m_bi_types[C4M_T_IPV4];
 }
 
 static inline c4m_type_t *
-c4m_type_ipv6()
+c4m_type_ipv4()
 {
-    return c4m_bi_types[C4M_T_IPV6];
+    return c4m_bi_types[C4M_T_IPV4];
 }
 
 static inline c4m_type_t *

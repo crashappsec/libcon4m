@@ -72,7 +72,7 @@ unsigned_repr(int64_t item)
 }
 
 __uint128_t
-raw_int_parse(c4m_utf8_t *u8, c4m_compile_error_t *err, bool *neg)
+c4m_raw_int_parse(c4m_utf8_t *u8, c4m_compile_error_t *err, bool *neg)
 {
     __uint128_t cur  = 0;
     __uint128_t last = 0;
@@ -180,7 +180,7 @@ raw_hex_parse(c4m_utf8_t *u8, c4m_compile_error_t *err)
                                                               \
     switch (st) {                                             \
     case ST_Base10:                                           \
-        val = raw_int_parse(s, code, &neg);                   \
+        val = c4m_raw_int_parse(s, code, &neg);               \
         break;                                                \
     case ST_1Quote:                                           \
         C4M_CRAISE("Single quoted not reimplemented yet.\n"); \
@@ -383,6 +383,19 @@ any_number_can_coerce_to(c4m_type_t *my_type, c4m_type_t *target_type)
     case C4M_T_F32:
     case C4M_T_F64:
         return true;
+    case C4M_T_SIZE:
+        switch (c4m_type_get_data_type_info(my_type)->typeid) {
+        case C4M_T_I8:
+        case C4M_T_BYTE:
+        case C4M_T_I32:
+        case C4M_T_CHAR:
+        case C4M_T_U32:
+        case C4M_T_INT:
+        case C4M_T_UINT:
+            return true;
+        default:
+            return false;
+        }
     default:
         return false;
     }
@@ -403,6 +416,8 @@ any_int_coerce_to(const int64_t data, c4m_type_t *target_type)
     case C4M_T_INT:
     case C4M_T_UINT:
         return (void *)data;
+    case C4M_T_SIZE:
+        return c4m_new(c4m_type_size(), c4m_kw("bytes", c4m_ka(data)));
     case C4M_T_F32:
     case C4M_T_F64:
         d = (double)(data);

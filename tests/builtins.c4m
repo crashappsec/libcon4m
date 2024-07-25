@@ -8,30 +8,6 @@ Hello, world!
 13
 """
 
-extern c4m_hostname() -> ptr {
-  local: hostname() -> string
-}
-
-extern c4m_osname() -> ptr {
-  local: osname() -> string
-}
-
-extern c4m_arch() -> ptr {
-  local: arch() -> string
-}
-
-extern c4m_repr(ptr) -> ptr {
-  local: repr(s: `x) -> string       
-}
-
-extern c4m_to_str(ptr) -> ptr {
-  local: str(s: `x) -> string       
-}
-
-extern c4m_len(ptr) -> i64 {
-  local: len(s: `x) -> int
-}
-
 x = "[h1]Hello, world!"'r
 print(repr(x))
 print(str(x))

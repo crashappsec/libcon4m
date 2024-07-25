@@ -21,29 +21,18 @@ bool c4m_definite_memcheck_error = false;
 #endif
 
 void
-add_static_symbols()
+add_static_test_symbols()
 {
-    c4m_add_static_function(c4m_new_utf8("strndup"), strndup);
-    c4m_add_static_function(c4m_new_utf8("c4m_list_append"), c4m_list_append);
-    c4m_add_static_function(c4m_new_utf8("c4m_join"), c4m_wrapper_join);
-    c4m_add_static_function(c4m_new_utf8("c4m_str_upper"), c4m_str_upper);
-    c4m_add_static_function(c4m_new_utf8("c4m_str_lower"), c4m_str_lower);
-    c4m_add_static_function(c4m_new_utf8("c4m_str_split"), c4m_str_xsplit);
-    c4m_add_static_function(c4m_new_utf8("c4m_str_pad"), c4m_str_pad);
-    c4m_add_static_function(c4m_new_utf8("c4m_hostname"), c4m_wrapper_hostname);
-    c4m_add_static_function(c4m_new_utf8("c4m_osname"), c4m_wrapper_os);
-    c4m_add_static_function(c4m_new_utf8("c4m_arch"), c4m_wrapper_arch);
-    c4m_add_static_function(c4m_new_utf8("c4m_repr"), c4m_wrapper_repr);
-    c4m_add_static_function(c4m_new_utf8("c4m_to_str"), c4m_wrapper_to_str);
-    c4m_add_static_function(c4m_new_utf8("c4m_len"), c4m_len);
-    c4m_add_static_function(c4m_new_utf8("c4m_snap_column"), c4m_snap_column);
+    c4m_add_static_symbols();
+    c4m_add_static_function(c4m_new_utf8("strndup"),
+                            strndup);
 }
 
 int
 main(int argc, char **argv, char **envp)
 {
     c4m_init(argc, argv, envp);
-    add_static_symbols();
+    add_static_test_symbols();
     c4m_install_default_styles();
     c4m_terminal_dimensions(&c4m_term_width, NULL);
 

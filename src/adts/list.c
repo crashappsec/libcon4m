@@ -23,7 +23,7 @@ c4m_list_init(c4m_list_t *list, va_list args)
     }
 }
 
-static inline void
+void
 c4m_list_resize(c4m_list_t *list, size_t len)
 {
     if (!list->dont_acquire) {

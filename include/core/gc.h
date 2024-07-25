@@ -244,6 +244,7 @@ extern void           c4m_get_heap_bounds(uint64_t *, uint64_t *, uint64_t *);
 extern void           c4m_gc_register_collect_fns(c4m_gc_hook, c4m_gc_hook);
 extern c4m_alloc_hdr *c4m_find_alloc(void *);
 extern bool           c4m_in_heap(void *);
+extern void           c4m_header_gc_bits(uint64_t *, c4m_base_obj_t *);
 
 #ifdef C4M_GC_STATS
 uint64_t c4m_get_alloc_counter();

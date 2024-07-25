@@ -39,6 +39,9 @@ typedef struct hatrack_set_st c4m_set_t;
 #include "compiler/dt_module.h"
 #include "compiler/dt_compile.h"
 
+typedef uint64_t        c4m_size_t;
+typedef struct timespec c4m_duration_t;
+
 typedef c4m_str_t *(*c4m_repr_fn)(c4m_obj_t);
 typedef void (*c4m_marshal_fn)(c4m_obj_t,
                                c4m_stream_t *,

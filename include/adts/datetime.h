@@ -1,0 +1,14 @@
+#pragma once
+#include "con4m.h"
+
+typedef struct c4m_date_time_t {
+    struct tm    dt;
+    int64_t     fracsec;
+    unsigned int have_time     : 1;
+    unsigned int have_sec      : 1;
+    unsigned int have_frac_sec : 1;
+    unsigned int have_month    : 1;
+    unsigned int have_year     : 1;
+    unsigned int have_day      : 1;
+    unsigned int have_offset   : 1;
+} c4m_date_time_t;

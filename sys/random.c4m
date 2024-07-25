@@ -1,0 +1,3 @@
+extern c4m_rand64() -> i64 {
+  local: random() -> int
+}

@@ -24,7 +24,7 @@ extern c4m_utf8_t         *c4m_rich(c4m_utf8_t *, c4m_utf8_t *style);
 extern c4m_codepoint_t     c4m_index(const c4m_str_t *, int64_t);
 extern bool                c4m_str_can_coerce_to(c4m_type_t *, c4m_type_t *);
 extern c4m_obj_t           c4m_str_coerce_to(const c4m_str_t *, c4m_type_t *);
-extern c4m_list_t         *c4m_str_xsplit(c4m_str_t *, c4m_str_t *);
+extern c4m_list_t         *c4m_str_split(c4m_str_t *, c4m_str_t *);
 extern struct flexarray_t *c4m_str_fsplit(c4m_str_t *, c4m_str_t *);
 extern bool                c4m_str_starts_with(const c4m_str_t *,
                                                const c4m_str_t *);
@@ -37,7 +37,6 @@ extern c4m_utf32_t        *c4m_title_case(c4m_str_t *);
 extern c4m_str_t          *c4m_str_pad(c4m_str_t *, int64_t);
 extern c4m_utf8_t         *c4m_str_to_hex(c4m_str_t *, bool);
 
-#define c4m_str_split(x, y) c4m_str_xsplit(x, y)
 // This is in richlit.c
 extern c4m_utf8_t *c4m_rich_lit(char *);
 

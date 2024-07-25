@@ -6,7 +6,7 @@ extern c4m_str_lower(ptr) -> ptr {
   local: lower(s: string) -> string
 }
 
-extern c4m_join(ptr, ptr) -> ptr {
+extern c4m_wrapper_join(ptr, ptr) -> ptr {
   local: join(l: list[string], s: string) -> string
 }
 
@@ -17,3 +17,12 @@ extern c4m_str_split(ptr, ptr) -> ptr {
 extern c4m_str_pad(ptr, i64) -> ptr {
   local: pad(s1: string, n: int) -> string
 }
+
+extern c4m_wrapper_repr(ptr) -> ptr {
+  local: repr(s: `x) -> string       
+}
+
+extern c4m_wrapper_to_str(ptr) -> ptr {
+  local: str(s: `x) -> string       
+}
+

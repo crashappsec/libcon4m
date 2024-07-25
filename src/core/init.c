@@ -6,30 +6,17 @@
 char **c4m_stashed_argv;
 char **c4m_stashed_envp;
 
-// A few builtins here; will break this out soon.
-uint64_t
-c4m_clz(uint64_t n)
-{
-    return __builtin_clzll(n);
-}
-
-uint64_t
-c4m_rand()
-{
-    return c4m_rand64();
-}
-
 static void
-c4m_register_builtins()
+c4m_register_builtins(void)
 {
     c4m_add_static_function(c4m_new_utf8("c4m_clz"), c4m_clz);
     c4m_add_static_function(c4m_new_utf8("c4m_gc_remove_hold"),
                             c4m_gc_remove_hold);
-    c4m_add_static_function(c4m_new_utf8("c4m_rand"), c4m_rand);
+    c4m_add_static_function(c4m_new_utf8("c4m_rand64"), c4m_rand64);
 }
 
 c4m_list_t *
-c4m_get_program_arguments()
+c4m_get_program_arguments(void)
 {
     c4m_list_t *result = c4m_list(c4m_type_utf8());
     char      **cur    = c4m_stashed_argv + 1; // Skip argv0.
@@ -43,7 +30,7 @@ c4m_get_program_arguments()
 }
 
 c4m_utf8_t *
-c4m_get_argv0()
+c4m_get_argv0(void)
 {
     return c4m_new_utf8(*c4m_stashed_argv);
 }
@@ -106,7 +93,7 @@ c4m_get_env(c4m_utf8_t *name)
 }
 
 c4m_dict_t *
-c4m_environment()
+c4m_environment(void)
 {
     c4m_dict_t *result = c4m_new(c4m_type_dict(c4m_type_utf8(),
                                                c4m_type_utf8()));
@@ -121,7 +108,7 @@ c4m_list_t        *con4m_path       = NULL;
 c4m_set_t         *con4m_extensions = NULL;
 
 c4m_utf8_t *
-c4m_con4m_root()
+c4m_con4m_root(void)
 {
     if (con4m_root == NULL) {
         con4m_root = c4m_get_env(c4m_new_utf8("CON4M_ROOT"));
@@ -148,7 +135,7 @@ c4m_con4m_root()
 }
 
 c4m_utf8_t *
-c4m_system_module_path()
+c4m_system_module_path(void)
 {
     c4m_list_t *l = c4m_list(c4m_type_utf8());
 
@@ -159,7 +146,7 @@ c4m_system_module_path()
 }
 
 static void
-c4m_init_path()
+c4m_init_path(void)
 {
     c4m_list_t *parts;
 
@@ -275,6 +262,53 @@ _c4m_set_package_search_path(c4m_utf8_t *dir, ...)
 
     va_end(args);
 }
+#ifdef C4M_STATIC_FFI_BINDING
+#define FSTAT(x) c4m_add_static_function(c4m_new_utf8(#x), x)
+#else
+#define FSTAT(x)
+#endif
+
+void
+c4m_add_static_symbols(void)
+{
+    FSTAT(c4m_list_append);
+    FSTAT(c4m_wrapper_join);
+    FSTAT(c4m_str_upper);
+    FSTAT(c4m_str_lower);
+    FSTAT(c4m_str_split);
+    FSTAT(c4m_str_pad);
+    FSTAT(c4m_wrapper_hostname);
+    FSTAT(c4m_wrapper_os);
+    FSTAT(c4m_wrapper_arch);
+    FSTAT(c4m_wrapper_repr);
+    FSTAT(c4m_wrapper_to_str);
+    FSTAT(c4m_len);
+    FSTAT(c4m_snap_column);
+    FSTAT(c4m_now);
+    FSTAT(c4m_timestamp);
+    FSTAT(c4m_process_cpu);
+    FSTAT(c4m_thread_cpu);
+    FSTAT(c4m_uptime);
+    FSTAT(c4m_program_clock);
+    FSTAT(c4m_copy_object);
+    FSTAT(c4m_get_c_backtrace);
+    FSTAT(c4m_lookup_color);
+    FSTAT(c4m_to_vga);
+    FSTAT(c4m_read_utf8_file);
+    FSTAT(c4m_read_binary_file);
+    FSTAT(c4m_list_resize);
+    FSTAT(c4m_list_append);
+    FSTAT(c4m_list_sort);
+    FSTAT(c4m_list_pop);
+    FSTAT(c4m_list_contains);
+}
+
+static void
+c4m_initialize_library(void)
+{
+    c4m_init_program_timestamp();
+    c4m_init_std_streams();
+}
 
 __attribute__((constructor)) void
 c4m_init(int argc, char **argv, char **envp)
@@ -291,7 +325,7 @@ c4m_init(int argc, char **argv, char **envp)
     c4m_gc_register_root(&con4m_extensions, 1);
     c4m_gc_set_finalize_callback((void *)c4m_finalize_allocation);
     c4m_initialize_global_types();
-    c4m_init_std_streams();
+    c4m_initialize_library();
     c4m_register_builtins();
     c4m_init_path();
 }
