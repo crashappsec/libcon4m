@@ -53,11 +53,13 @@ typedef struct c4m_jump_info_t {
 
 #ifdef C4M_USE_INTERNAL_API
 typedef struct {
+    c4m_scope_t     *module_scope; // For callback resolution.
     c4m_utf8_t      *name;
     c4m_type_t      *sig;
     c4m_tree_node_t *loc;
     c4m_symbol_t    *resolution;
     unsigned int     polymorphic : 1;
     unsigned int     deferred    : 1;
+    unsigned int     callback    : 1;
 } c4m_call_resolution_info_t;
 #endif

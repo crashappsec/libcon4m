@@ -132,25 +132,25 @@
 #define C4M_TRY_END           C4M_LTRY_END(default_label)
 
 #if defined(C4M_DEBUG) && defined(C4M_BACKTRACE_SUPPORTED)
-extern c4m_grid_t                        *c4m_get_c_backtrace();
+extern c4m_grid_t                        *c4m_get_c_backtrace(int);
 extern thread_local c4m_exception_stack_t __exception_stack;
 
-#define c4m_trace() __exception_stack.c_trace = c4m_get_c_backtrace()
+#define c4m_trace() c4m_get_c_backtrace(1)
 #else
-#define c4m_trace()
+#define c4m_trace() NULL
 #endif
 
 #define C4M_CRAISE(s, ...)                                  \
-    c4m_trace();                                            \
     c4m_exception_raise(                                    \
         c4m_alloc_exception(s, __VA_OPT__(, ) __VA_ARGS__), \
+        c4m_trace(),                                        \
         __FILE__,                                           \
         __LINE__)
 
 #define C4M_RAISE(s, ...)                                      \
-    c4m_trace();                                               \
     c4m_exception_raise(                                       \
         c4m_alloc_str_exception(s __VA_OPT__(, ) __VA_ARGS__), \
+        c4m_trace(),                                           \
         __FILE__,                                              \
         __LINE__)
 
@@ -178,6 +178,7 @@ void                   c4m_exception_free_frame(c4m_exception_frame_t *,
                                                 c4m_exception_stack_t *);
 void                   c4m_exception_uncaught(c4m_exception_t *);
 void                   c4m_exception_raise(c4m_exception_t *,
+                                           c4m_grid_t *,
                                            char *,
                                            int) __attribute((__noreturn__));
 c4m_utf8_t            *c4m_repr_exception_stack_no_vm(c4m_utf8_t *);

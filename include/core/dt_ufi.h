@@ -10,7 +10,7 @@ typedef struct {
 
 typedef struct c4m_sig_info_t {
     c4m_type_t          *full_type;
-    c4m_fn_param_info_t *param_info; // Pretty sure these are unused,
+    c4m_fn_param_info_t *param_info;
     c4m_scope_t         *fn_scope;
     c4m_scope_t         *formals;
     c4m_fn_param_info_t  return_info; // minus initialization.
@@ -42,8 +42,8 @@ typedef struct {
     int32_t                sc_bool_offset;
     int32_t                sc_memo_offset;
     int32_t                local_id;
-    int32_t                offset;
     int32_t                module_id;
+    int32_t                offset;
 
     unsigned int private : 1;
     unsigned int once    : 1;

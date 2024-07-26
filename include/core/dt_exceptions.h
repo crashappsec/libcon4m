@@ -5,11 +5,9 @@ typedef struct c4m_exception_st       c4m_exception_t;
 typedef struct c4m_exception_frame_st c4m_exception_frame_t;
 
 struct c4m_exception_st {
-    c4m_utf8_t *msg;
-    c4m_obj_t  *context;
-#if defined(C4M_DEBUG) && defined(C4M_BACKTRACE_SUPPORTED)
-    c4m_grid_t *c_trace;
-#endif
+    c4m_utf8_t      *msg;
+    c4m_obj_t       *context;
+    c4m_grid_t      *c_trace;
     c4m_exception_t *previous;
     int64_t          code;
     const char      *file;

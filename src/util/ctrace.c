@@ -52,7 +52,7 @@ c4m_bt_create_backtrace(void       *data,
 
     c4m_list_t *x = c4m_list(c4m_type_utf8());
 
-    c4m_list_append(x, c4m_cstr_format("{:x}", c4m_box_u64(pc)));
+    c4m_list_append(x, c4m_cstr_format("{:18x}", c4m_box_u64(pc)));
     c4m_list_append(x, file);
     c4m_list_append(x, fn);
     c4m_grid_add_row(c4m_trace_grid, x);
@@ -93,7 +93,7 @@ c4m_bt_static_backtrace(void       *data,
     return 0;
 }
 
-#define backtrace_core()                              \
+#define backtrace_core(nframes)                       \
     c4m_trace_grid = c4m_new(c4m_type_grid(),         \
                              c4m_kw("start_cols",     \
                                     c4m_ka(3),        \
@@ -117,58 +117,26 @@ c4m_bt_static_backtrace(void       *data,
     c4m_snap_column(c4m_trace_grid, 1);               \
     c4m_snap_column(c4m_trace_grid, 2);               \
                                                       \
-    backtrace_full(btstate, 0, c4m_bt_create_backtrace, c4m_bt_err, NULL);
+    backtrace_full(btstate, nframes, c4m_bt_create_backtrace, c4m_bt_err, NULL);
 
 void
 c4m_print_c_backtrace()
 {
-    backtrace_core();
+    backtrace_core(1);
     c4m_printf("[h6]C Stack Trace:");
     c4m_print(c4m_trace_grid);
-}
-
-static void (*c4m_crash_callback)() = NULL;
-static bool c4m_show_trace_on_crash = true;
-
-void
-c4m_set_crash_callback(void (*cb)())
-{
-    c4m_crash_callback = cb;
-}
-
-void
-c4m_set_show_trace_on_crash(bool n)
-{
-    c4m_show_trace_on_crash = n;
-}
-
-static void
-c4m_crash_handler(int n)
-{
-    if (c4m_show_trace_on_crash) {
-        backtrace_core();
-        c4m_printf("[h6]C Stack Trace:");
-        c4m_print(c4m_trace_grid);
-    }
-
-    if (c4m_crash_callback) {
-        (*c4m_crash_callback)();
-    }
-
-    _exit(139); // Standard for sigsegv.
 }
 
 void
 c4m_backtrace_init(char *fname)
 {
-    signal(SIGSEGV, c4m_crash_handler);
     btstate = backtrace_create_state(fname, 1, c4m_bt_err, NULL);
 }
 
 c4m_grid_t *
-c4m_get_c_backtrace()
+c4m_get_c_backtrace(int skips)
 {
-    backtrace_core();
+    backtrace_core(skips + 1);
     return c4m_trace_grid;
 }
 
@@ -180,7 +148,7 @@ c4m_static_c_backtrace()
 
 #else
 c4m_grid_t *
-c4m_get_c_backtrace()
+c4m_get_c_backtrace(int skips)
 {
     return c4m_callout(c4m_new_utf8("Stack traces not enabled."));
 }

@@ -138,6 +138,10 @@ c4m_perform_module_loads(c4m_compile_ctx *ctx)
                 ctx->fatality = true;
                 return;
             }
+            if (c4m_fatal_error_in_module(cur)) {
+                ctx->fatality = true;
+                return;
+            }
         }
 
         if (cur->status < c4m_compile_status_scopes_merged) {
@@ -270,27 +274,13 @@ merge_one_plain_scope(c4m_compile_ctx        *cctx,
 }
 
 static void
-merge_var_scope(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
-{
-    merge_one_plain_scope(cctx, fctx, fctx->global_scope, cctx->final_globals);
-}
-
-static void
-merge_attrs(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
-{
-    merge_one_plain_scope(cctx, fctx, fctx->attribute_scope, cctx->final_attrs);
-}
-
-static void
 merge_one_confspec(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
 {
     if (fctx->local_confspecs == NULL) {
         return;
     }
 
-    if (cctx->final_spec == NULL) {
-        cctx->final_spec = c4m_new_spec();
-    }
+    cctx->final_spec->in_use = true;
 
     uint64_t              num_sections;
     c4m_dict_t           *fspecs = cctx->final_spec->section_specs;
@@ -299,12 +289,11 @@ merge_one_confspec(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
     sections = hatrack_dict_values(fctx->local_confspecs->section_specs,
                                    &num_sections);
 
-    if (num_sections || fctx->local_confspecs->root_section) {
-        if (cctx->final_spec->locked) {
-            c4m_add_error(fctx,
-                          c4m_err_spec_locked,
-                          fctx->local_confspecs->declaration_node);
-        }
+    if (num_sections && cctx->final_spec->locked) {
+        c4m_add_error(fctx,
+                      c4m_err_spec_locked,
+                      fctx->local_confspecs->declaration_node);
+        cctx->fatality = true;
     }
 
     for (uint64_t i = 0; i < num_sections; i++) {
@@ -321,6 +310,7 @@ merge_one_confspec(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
                       cur->declaration_node,
                       cur->name,
                       c4m_node_get_loc_str(old->declaration_node));
+        cctx->fatality = true;
     }
 
     c4m_spec_section_t *root_adds = fctx->local_confspecs->root_section;
@@ -331,8 +321,30 @@ merge_one_confspec(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
         return;
     }
 
+    if (root_adds->short_doc) {
+        if (!true_root->short_doc) {
+            true_root->short_doc = root_adds->short_doc;
+        }
+        else {
+            true_root->short_doc = c4m_cstr_format("{}\n{}",
+                                                   true_root->short_doc,
+                                                   root_adds->short_doc);
+        }
+    }
+    if (root_adds->long_doc) {
+        if (!true_root->long_doc) {
+            true_root->long_doc = root_adds->long_doc;
+        }
+        else {
+            true_root->long_doc = c4m_cstr_format("{}\n{}",
+                                                  true_root->long_doc,
+                                                  root_adds->long_doc);
+        }
+    }
+
     hatrack_dict_value_t *fields = hatrack_dict_values(root_adds->fields,
                                                        &num_fields);
+
     for (uint64_t i = 0; i < num_fields; i++) {
         c4m_spec_field_t *cur = fields[i];
 
@@ -349,14 +361,10 @@ merge_one_confspec(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
                       cur->declaration_node,
                       cur->name,
                       c4m_node_get_loc_str(old->declaration_node));
+        cctx->fatality = true;
     }
 
     if (root_adds->allowed_sections != NULL) {
-        if (true_root->allowed_sections == NULL) {
-            true_root->allowed_sections = c4m_new(
-                c4m_type_set(c4m_type_ref()));
-        }
-
         uint64_t num_allows;
         void   **allows = c4m_set_items(root_adds->allowed_sections,
                                       &num_allows);
@@ -367,15 +375,11 @@ merge_one_confspec(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
                                 c4m_warn_dupe_allow,
                                 root_adds->declaration_node);
             }
+            assert(c4m_set_contains(true_root->allowed_sections, allows[i]));
         }
     }
 
     if (root_adds->required_sections != NULL) {
-        if (true_root->required_sections == NULL) {
-            true_root->required_sections = c4m_new(
-                c4m_type_set(c4m_type_ref()));
-        }
-
         uint64_t num_reqs;
         void   **reqs = c4m_set_items(root_adds->required_sections,
                                     &num_reqs);
@@ -397,10 +401,23 @@ merge_one_confspec(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
         c4m_add_error(fctx,
                       c4m_err_dupe_validator,
                       root_adds->declaration_node);
+        cctx->fatality = true;
     }
     else {
         true_root->validator = root_adds->validator;
     }
+}
+
+static void
+merge_var_scope(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
+{
+    merge_one_plain_scope(cctx, fctx, fctx->global_scope, cctx->final_globals);
+}
+
+static void
+merge_attrs(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
+{
+    merge_one_plain_scope(cctx, fctx, fctx->attribute_scope, cctx->final_attrs);
 }
 
 static void
@@ -418,9 +435,8 @@ merge_global_info(c4m_compile_ctx *cctx)
         assert(fctx->local_module_id == 0 || fctx->local_module_id == i);
 
         fctx->local_module_id = i;
-
-        merge_var_scope(cctx, fctx);
         merge_one_confspec(cctx, fctx);
+        merge_var_scope(cctx, fctx);
         merge_attrs(cctx, fctx);
     }
 }
@@ -480,7 +496,7 @@ c4m_generate_code(c4m_compile_ctx *ctx)
 
     c4m_vm_reset(result);
     c4m_internal_codegen(ctx, result);
-    c4m_vm_setup_runtime(result);
+    c4m_vm_setup_first_runtime(result);
 
     if (ctx->fatality) {
         return NULL;

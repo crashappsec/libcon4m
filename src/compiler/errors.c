@@ -602,6 +602,71 @@ static error_info_t error_info[] = {
         "Duplicate entry in spec for [em]allowed[/] subsections.",
         false,
     },
+    [c4m_err_dupe_property] = {
+        c4m_err_dupe_property,
+        "dupe_property",
+        "Duplicate field property provided here.",
+        false,
+    },
+    [c4m_err_missing_type] = {
+        c4m_err_missing_type,
+        "missing_type",
+        "Field specification is missing the required [em]type[/] property.",
+        false,
+    },
+    [c4m_err_default_inconsistent_field] = {
+        c4m_err_default_inconsistent_field,
+        "inconsistent_field",
+        "Type of provided default value ([em]{}[/]) is not compatable "
+        "with the specified field type ([em]{}[/])",
+        true,
+    },
+    [c4m_err_validator_inconsistent_field] = {
+        c4m_err_validator_inconsistent_field,
+        "inconsistent_field",
+        "Type of provided validator ([em]{}[/]) is not compatable "
+        "with the specified field type ([em]{}[/]). "
+        "Validators must take a string with the full attribute path, and "
+        "an object of the appropriate type, and return a string, which "
+        "is either an error message, or the empty string if valid.",
+        true,
+    },
+    [c4m_err_range_inconsistent_field] = {
+        c4m_err_range_inconsistent_field,
+        "inconsistent_field",
+        "Range constraints currently can only be applied to fields that are "
+        "integers, but the field was specified to be of type [em]{}[/].",
+        true,
+    },
+    [c4m_err_choice_inconsistent_field] = {
+        c4m_err_range_inconsistent_field,
+        "inconsistent_field",
+        "Choice constraints currently only be applied to fields that are "
+        "strings or integers, and the choice field must consist of a list "
+        "of items of the proper type.",
+        false,
+    },
+    [c4m_err_type_ptr_range] = {
+        c4m_err_type_ptr_range,
+        "type_ptr_range",
+        "Type supplied from another field cannot have a range constraint.",
+        false,
+    },
+    [c4m_err_type_ptr_choice] = {
+        c4m_err_type_ptr_choice,
+        "type_ptr_choice",
+        "Type supplied from another field cannot have a choice constraint.",
+        false,
+    },
+    [c4m_err_req_and_default] = {
+        c4m_err_req_and_default,
+        "req_and_default",
+        "Fields cannot both be [em]require[/] and [em]default[/]; "
+        "the former means the user must supply the field whenever defining "
+        "the section; the later fills in a value when the user doesn't "
+        "provide one.",
+        false,
+    },
     [c4m_warn_require_allow] = {
         c4m_warn_require_allow,
         "require_allow",
@@ -710,14 +775,14 @@ static error_info_t error_info[] = {
         "redecl_kind",
         "Global symbol [em]{}[/] was previously declared as a [i]{}[/], so "
         "cannot be redeclared as a [i]{}[/]. Previous declaration was: "
-        "[strong]{}[/]",
+        "[b]{}[/]",
         true,
     },
     [c4m_err_no_redecl] = {
         c4m_err_no_redecl,
         "no_redecl",
         "Redeclaration of [i]{}[/] [em]{}[/] is not allowed. Previous "
-        "definition's location was: [strong]{}[/]",
+        "definition's location was: [b]{}[/]",
         true,
     },
     [c4m_err_redecl_neq_generics] = {
@@ -727,7 +792,7 @@ static error_info_t error_info[] = {
         "re-declared in a different module (redeclarations that name a "
         "type, must name the exact same time as in other modules). "
         "Previous type was: [em]{}[/] vs. current type: [em]{}[/]."
-        "Previous definition's location was: [strong]{}[/]",
+        "Previous definition's location was: [b]{}[/]",
         true,
     },
     [c4m_err_spec_redef_section] = {
@@ -736,7 +801,7 @@ static error_info_t error_info[] = {
         "Redefinition of [i]confspec[/] sections is not allowed. You can "
         "add data to the [i]root[/] section, but no named sections may "
         "appear twice in any program. Previous declaration of "
-        "section [em]{}[/] was: [strong]{}[/]",
+        "section [em]{}[/] was: [b]{}[/]",
         true,
     },
     [c4m_err_spec_redef_field] = {
@@ -744,7 +809,7 @@ static error_info_t error_info[] = {
         "redef_field",
         "Redefinition of [i]confspec[/] fields are not allowed. You can "
         "add new fields to the [i]root[/] section, but no new ones. "
-        "Previous declaration of field [em]{}[/] was: [strong]{}[/]",
+        "Previous declaration of field [em]{}[/] was: [b]{}[/]",
         true,
     },
     [c4m_err_spec_locked] = {
@@ -1145,9 +1210,9 @@ static error_info_t error_info[] = {
     [c4m_err_callback_type_mismatch] = {
         c4m_err_callback_type_mismatch,
         "callback_type_mismatch",
-        "Declared callback type is not compatable with the implementation "
-        "callback type ([em]{}[/] vs declared type [em]{}[/]). "
-        " Declaration is here: {}",
+        "Declared callback type is not compatable with the implementation. "
+        "The callback is of type ([em]{}[/]), but the actual type is "
+        "[em]{}[/]). Declaration is here: {}",
         true,
     },
     [c4m_err_tup_ix] = {

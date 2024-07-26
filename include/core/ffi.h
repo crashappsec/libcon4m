@@ -19,4 +19,6 @@ extern c4m_ffi_status ffi_prep_cif_var(c4m_ffi_cif *,
                                        c4m_ffi_type **);
 extern void           ffi_call(c4m_ffi_cif *, void *, void *, void **);
 
+extern c4m_callback_info_t *c4m_callback_info_init();
+
 #define C4M_CSTR_CTYPE_CONST 24

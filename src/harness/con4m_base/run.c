@@ -17,7 +17,17 @@ execute_test(c4m_test_kat *kat)
     c4m_grid_t *err_output = c4m_format_errors(ctx);
 
     if (err_output != NULL) {
-        c4m_print(err_output);
+        c4m_grid_t *err_grid = c4m_new(c4m_type_grid(),
+                                       c4m_kw("start_rows",
+                                              c4m_ka(2),
+                                              "start_cols",
+                                              c4m_ka(1),
+                                              "container_tag",
+                                              c4m_ka("flow")));
+        c4m_utf8_t *s        = c4m_new_utf8("Error Output");
+        c4m_grid_add_row(err_grid, c4m_to_str_renderable(s, "h2"));
+        c4m_grid_add_row(err_grid, err_output);
+        c4m_print(err_grid);
     }
 
     c4m_printf("[atomic lime]info:[/] Done processing: {}", kat->path);

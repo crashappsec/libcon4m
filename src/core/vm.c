@@ -1,52 +1,9 @@
 #define C4M_USE_INTERNAL_API
 #include "con4m.h"
 
-// Error handling needs to be revisited. The Nim code has a whole
-// bunch of error handling infrastructure that hasn't been ported to C
-// yet, so what's here is just a stopgap until that is done. It'll be
-// done separately from the main VM code drop. So for now, errors are
-// just raised via C4M_RAISE or C4M_CRAISE, and they're just string
-// error messages, often inadequately constructed. The implementation
-// of c4m_vm_exception that catches those exceptions is similarly just
-// a stopgap.
-
-// Full attribute validation and default population needs to be
-// done. There's a whole lot of infrastructure there that needs to be
-// built out. It'll be done separately from the main VM code drop.
-
-// Marshalling and unmarshalling of object files needs to be
-// done. That's a large body of work that'll be done separately from
-// the main VM code drop.
-
-// I seem to have broken this macro, so here's a replacement for the
-// moment, but not static.
-
 #undef C4M_STATIC_ASCII_STR
 #define C4M_STATIC_ASCII_STR(var, contents) \
     c4m_utf8_t *var = c4m_new_utf8(contents)
-
-static c4m_utf8_t *c4m_err_prefix = NULL;
-static c4m_utf8_t *c4m_err_trace;
-static c4m_utf8_t *c4m_fmt_mod;
-static c4m_utf8_t *c4m_fmt_fn;
-
-static inline void
-c4m_init_strings()
-{
-    if (c4m_err_prefix == NULL) {
-        c4m_err_prefix = c4m_rich_lit("[h1]Runtime Error: ");
-        c4m_err_trace  = c4m_rich_lit("\n[h2]Stack Trace:\n");
-        c4m_fmt_mod    = c4m_new_utf8("  [b]{}:[/] in module: [em]{}:{}[/]\n");
-        c4m_fmt_fn     = c4m_new_utf8(
-            "  [b]{}:[/] in func: [em]{}[/], "
-                "module: [em]{}:{}[/]\n");
-
-        c4m_gc_register_root(&c4m_err_prefix, 1);
-        c4m_gc_register_root(&c4m_err_trace, 1);
-        c4m_gc_register_root(&c4m_fmt_mod, 1);
-        c4m_gc_register_root(&c4m_fmt_fn, 1);
-    }
-}
 
 #define FORMAT_NOT_IN_FN()                     \
     s = c4m_str_format(c4m_fmt_mod,            \
@@ -63,83 +20,157 @@ c4m_init_strings()
 #define OUTPUT_FRAME() \
     c4m_ansi_render(s, f);
 
-static void
-zcallback_gc_bits(uint64_t *bitmap, c4m_zcallback_t *cb)
+static inline c4m_list_t *
+format_one_frame(c4m_vmthread_t *tstate, int n)
 {
-    c4m_mark_raw_to_addr(bitmap, cb, &cb->tid);
+    c4m_list_t     *l = c4m_list(c4m_type_utf8());
+    uint64_t       *pc;
+    uint64_t       *line;
+    c4m_zfn_info_t *f;
+    c4m_utf8_t     *modname;
+    c4m_utf8_t     *fname;
+
+    if (n == tstate->num_frames) {
+        c4m_zmodule_info_t *m = tstate->current_module;
+        c4m_zinstruction_t *i = c4m_list_get(m->instructions, tstate->pc, NULL);
+
+        pc      = c4m_box_u64(tstate->pc);
+        modname = tstate->current_module->modname;
+        line    = c4m_box_u64(i->line_no);
+    }
+    else {
+        c4m_vmframe_t *frame = &tstate->frame_stack[n];
+        modname              = frame->call_module->modname;
+        pc                   = c4m_box_u64(frame->pc);
+        line                 = c4m_box_u64(frame->calllineno);
+    }
+
+    if (n == 0) {
+        f = NULL;
+    }
+    else {
+        f = tstate->frame_stack[n - 1].targetfunc;
+    }
+
+    if (n == 1) {
+        fname = c4m_new_utf8("(start of execution)");
+    }
+    else {
+        fname = f ? f->funcname : c4m_new_utf8("(module toplevel)");
+    }
+
+    c4m_list_append(l, c4m_cstr_format("{:18x}", pc));
+    c4m_list_append(l, c4m_cstr_format("{}:{}", modname, line));
+    c4m_list_append(l, fname);
+
+    return l;
 }
 
-c4m_zcallback_t *
-c4m_new_zcallback()
+#if defined(C4M_DEBUG)
+extern int16_t *c4m_calculate_col_widths(c4m_grid_t *, int16_t, int16_t *);
+#endif
+
+c4m_grid_t *
+c4m_get_backtrace(c4m_vmthread_t *tstate)
 {
-    return c4m_gc_alloc_mapped(c4m_zcallback_t, zcallback_gc_bits);
+    if (!tstate->running) {
+        return c4m_callout(c4m_new_utf8("Con4m is not running!"));
+    }
+
+    int         nframes = tstate->num_frames;
+    c4m_list_t *hdr     = c4m_list(c4m_type_utf8());
+    c4m_grid_t *bt      = c4m_new(c4m_type_grid(),
+                             c4m_kw("start_cols",
+                                    c4m_ka(3),
+                                    "start_rows",
+                                    c4m_ka(nframes + 1),
+                                    "header_rows",
+                                    c4m_ka(1),
+                                    "container_tag",
+                                    c4m_ka("table2"),
+                                    "stripe",
+                                    c4m_ka(true)));
+
+    c4m_list_append(hdr, c4m_new_utf8("PC"));
+    c4m_list_append(hdr, c4m_new_utf8("Location"));
+    c4m_list_append(hdr, c4m_new_utf8("Function"));
+    c4m_grid_add_row(bt, hdr);
+
+    while (nframes > 0) {
+        c4m_grid_add_row(bt, format_one_frame(tstate, nframes--));
+    }
+
+    // Snap columns to calculate a stand-alone with. If we have a C
+    // backtrace, we will then resize columns to make both tables
+    // the same width.
+
+    c4m_snap_column(bt, 0);
+    c4m_snap_column(bt, 1);
+    c4m_snap_column(bt, 2);
+
+    return bt;
 }
 
 static void
 c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
 {
-    c4m_init_strings();
+    c4m_stream_t *f      = c4m_get_stderr();
+    c4m_grid_t   *bt     = c4m_get_backtrace(tstate);
+    c4m_utf8_t   *to_out = c4m_cstr_format(
+        "[h2]Fatal Exception:[/] [h5]{}[/]\n"
+          "[h6]Con4m Trace:[/]",
+        c4m_exception_get_message(exc));
+
+#if defined(C4M_DEBUG) && defined(C4M_BACKTRACE_SUPPORTED)
+    int16_t  tmp;
+    int16_t *widths1 = c4m_calculate_col_widths(exc->c_trace,
+                                                C4M_GRID_TERMINAL_DIM,
+                                                &tmp);
+    int16_t *widths2 = c4m_calculate_col_widths(bt,
+                                                C4M_GRID_TERMINAL_DIM,
+                                                &tmp);
+
+    for (int i = 0; i < 3; i++) {
+        int w = c4m_max(widths1[i], widths2[i]);
+
+        c4m_render_style_t *s = c4m_new(c4m_type_render_style(),
+                                        c4m_kw("min_size",
+                                               c4m_ka(w),
+                                               "max_size",
+                                               c4m_ka(w),
+                                               "left_pad",
+                                               c4m_ka(1),
+                                               "right_pad",
+                                               c4m_ka(1)));
+        c4m_set_column_props(bt, i, s);
+        c4m_set_column_props(exc->c_trace, i, s);
+    }
+#endif
+    c4m_print(c4m_kw("stream", c4m_ka(f), "sep", c4m_ka('\n')), 2, to_out, bt);
+
+#ifdef C4M_DEV
+    c4m_stream_write_object(tstate->vm->print_stream,
+                            c4m_exception_get_message(exc),
+                            false);
+    c4m_stream_putc(tstate->vm->print_stream, '\n');
+#endif
+
     // This is currently just a stub that prints an rudimentary error
     // message and a stack trace. The caller handles how to
     // proceed. This will need to be changed later when a better error
     // handling framework is in place.
 
-    c4m_stream_t *f = c4m_get_stderr();
-    c4m_utf8_t   *s;
-    c4m_utf8_t   *fnname;
-    c4m_utf8_t   *modname;
-    uint64_t      frameno    = 0;
-    int           num_frames = tstate->num_frames - 1;
-    uint64_t      lineno;
-
-    // instruction that triggered the error:
-    c4m_zinstruction_t *i = c4m_list_get(tstate->current_module->instructions,
-                                         tstate->pc,
-                                         NULL);
-
-    lineno  = i->line_no;
-    modname = tstate->current_module->modname;
-
-    if (tstate->frame_stack[num_frames].targetfunc == NULL) {
-        FORMAT_NOT_IN_FN();
+#if defined(C4M_DEBUG) && defined(C4M_BACKTRACE_SUPPORTED)
+    if (!exc->c_trace) {
+        c4m_printf("[h6]No C stack trace available.");
     }
     else {
-        FORMAT_IN_FN();
+        c4m_printf("[h6]C stack trace:");
+        c4m_print(c4m_kw("stream", c4m_ka(f)), 1, exc->c_trace);
     }
+#endif
 
-    c4m_ansi_render(c4m_err_prefix, f);
-    c4m_ansi_render(c4m_exception_get_message(exc), f);
-    c4m_ansi_render(c4m_err_trace, f);
-
-    OUTPUT_FRAME();
-    // When a frame pushes for a call, the calling module and line number are
-    // recorded, but the calling function is not. The called module, function,
-    // and line are also recorded. To print the frame information that we want
-    // (calling function, calling module, and lineno at call site), we need to
-    // use two frames. We start with num_frames - 2, because we've already
-    // reported the error location, which would be the first frame and handled
-    // differently because line number comes from the current instruction.
-    for (int32_t n = num_frames - 1; n > 0; --n) {
-        // get function and module from current frame
-        c4m_vmframe_t *frame        = &tstate->frame_stack[n];
-        // get lineno from called frame
-        c4m_vmframe_t *called_frame = &tstate->frame_stack[n + 1];
-
-        modname = frame->targetmodule->modname;
-        lineno  = called_frame->calllineno;
-
-        if (frame->targetfunc == NULL) {
-            FORMAT_NOT_IN_FN();
-        }
-        else {
-            FORMAT_IN_FN();
-        }
-        OUTPUT_FRAME();
-    }
-
-    // Nim calls quit() in its error handling, but we're a library intended to
-    // be embedded, so we don't want to do that. The caller will know what to
-    // do.
+    // The caller will know what to do on exception.
 }
 
 // So much of this VM implementation is based on trust that it seems silly to
@@ -199,6 +230,8 @@ c4m_value_iszero(c4m_value_t *value)
     return 0 == value->obj;
 }
 
+#if 0 // Will return soon
+
 static c4m_str_t *
 get_param_name(c4m_zparam_info_t *p, c4m_zmodule_info_t *m)
 {
@@ -229,6 +262,7 @@ get_param_value(c4m_vmthread_t *tstate, c4m_zparam_info_t *p)
     msg = c4m_str_concat(msg, module_suffix);
     C4M_RAISE(msg);
 }
+#endif
 
 static void
 c4m_vm_module_enter(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
@@ -237,6 +271,7 @@ c4m_vm_module_enter(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
     // lock stack. If there isn't, we start the stack if our module
     // has parameters.
 
+#if 0 // Redoing parameters soon.
     int nparams = c4m_list_len(tstate->current_module->parameters);
 
     for (int32_t n = 0; n < nparams; ++n) {
@@ -253,26 +288,30 @@ c4m_vm_module_enter(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
             hatrack_dict_get(tstate->vm->attrs, p->attr, &found);
             if (!found) {
                 c4m_value_t *value = get_param_value(tstate, p);
-                c4m_vm_attr_set(tstate, p->attr, value, true, false, true);
+                c4m_vm_attr_set(tstate,
+				p->attr,
+				value,
+				true,
+				false,
+				true);
             }
         }
     }
-}
-
-static c4m_utf8_t *
-c4m_vm_attr_key(c4m_vmthread_t *tstate, uint64_t static_ptr)
-{
-    return (c4m_utf8_t *)(tstate->vm->obj->static_data->data + tstate->sp->static_ptr);
+#endif
 }
 
 static void
 c4m_vmframe_push(c4m_vmthread_t     *tstate,
                  c4m_zinstruction_t *i,
                  c4m_zmodule_info_t *call_module,
+                 int32_t             call_pc,
                  c4m_zmodule_info_t *target_module,
                  c4m_zfn_info_t     *target_func,
                  int32_t             target_lineno)
 {
+    // TODO: Should probably recover call_pc off the stack when
+    // needed, instead of adding the extra param here.
+
     if (C4M_MAX_CALL_DEPTH == tstate->num_frames) {
         C4M_CRAISE("maximum call depth reached");
     }
@@ -285,6 +324,7 @@ c4m_vmframe_push(c4m_vmthread_t     *tstate,
         .targetline   = target_lineno,
         .targetmodule = target_module,
         .targetfunc   = target_func,
+        .pc           = call_pc,
     };
 
     ++tstate->num_frames;
@@ -627,6 +667,8 @@ c4m_vm_0call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
                                       ix - 1,
                                       NULL);
 
+    int32_t call_pc = tstate->pc;
+
     tstate->pc             = fn->offset;
     tstate->current_module = c4m_list_get(tstate->vm->obj->module_contents,
                                           fn->mid,
@@ -640,6 +682,7 @@ c4m_vm_0call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
     c4m_vmframe_push(tstate,
                      i,
                      old_module,
+                     call_pc,
                      tstate->current_module,
                      fn,
                      nexti->line_no);
@@ -661,6 +704,7 @@ c4m_vm_call_module(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 
     c4m_zmodule_info_t *old_module = tstate->current_module;
 
+    int32_t call_pc        = tstate->pc;
     tstate->pc             = 0;
     tstate->current_module = c4m_list_get(tstate->vm->obj->module_contents,
                                           i->module_id,
@@ -674,24 +718,82 @@ c4m_vm_call_module(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
     c4m_vmframe_push(tstate,
                      i,
                      old_module,
+                     call_pc,
                      tstate->current_module,
                      NULL,
                      nexti->line_no);
 }
 
+static inline uint64_t
+ffi_possibly_box(c4m_vmthread_t     *tstate,
+                 c4m_zinstruction_t *i,
+                 c4m_type_t         *dynamic_type,
+                 int                 local_param)
+{
+    // TODO: Handle varargs.
+    if (dynamic_type == NULL) {
+        return tstate->sp[local_param].uint;
+    }
+
+    c4m_type_t *param = c4m_type_get_param(dynamic_type, local_param);
+    param             = c4m_resolve_and_unbox(param);
+
+    if (c4m_type_is_concrete(param)) {
+        return tstate->sp[local_param].uint;
+    }
+
+    c4m_type_t *actual = c4m_type_get_param(i->type_info, local_param);
+
+    actual = c4m_resolve_and_unbox(actual);
+
+    if (c4m_type_is_value_type(actual)) {
+        c4m_box_t box = {
+            .u64 = tstate->sp[local_param].uint,
+        };
+
+        return (uint64_t)c4m_box_obj(box, actual);
+    }
+
+    return tstate->sp[local_param].uint;
+}
+
+static inline void
+ffi_possible_ret_munge(c4m_vmthread_t *tstate, c4m_type_t *at, c4m_type_t *ft)
+{
+    // at == actual type; ft == formal type.
+    at = c4m_resolve_and_unbox(at);
+    ft = c4m_resolve_and_unbox(ft);
+
+    if (!c4m_type_is_concrete(at)) {
+        if (c4m_type_is_concrete(ft) && c4m_type_is_value_type(ft)) {
+	     tstate->r0.obj = c4m_box_obj((c4m_box_t){.v = tstate->r0.obj}, ft);
+        }
+    }
+    else {
+        if (c4m_type_is_value_type(at) && !c4m_type_is_concrete(ft)) {
+            tstate->r0.obj = c4m_unbox_obj(tstate->r0.obj).v;
+        }
+    }
+
+    return;
+}
+
 static void
-c4m_vm_ffi_call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
+c4m_vm_ffi_call(c4m_vmthread_t     *tstate,
+                c4m_zinstruction_t *instr,
+                int64_t             ix,
+                c4m_type_t         *dynamic_type)
 {
     c4m_ffi_decl_t *decl = c4m_list_get(tstate->vm->obj->ffi_info,
-                                        i->arg,
+                                        instr->arg,
                                         NULL);
 
     if (decl == NULL) {
-        fprintf(stderr, "Could not load external function.\n");
-        abort();
+        C4M_CRAISE("Could not load external function.");
     }
 
-    c4m_zffi_cif *ffiinfo = &decl->cif;
+    c4m_zffi_cif *ffiinfo     = &decl->cif;
+    int           local_param = 0;
     void        **args;
 
     if (!ffiinfo->cif.nargs) {
@@ -715,10 +817,17 @@ c4m_vm_ffi_call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
             }
             // clang-format on
             else {
-                c4m_box_t  value = {.u64 = tstate->sp[i].uint};
-                c4m_box_t *box   = c4m_new(c4m_type_box(c4m_type_ref()),
+                uint64_t raw;
+                raw = ffi_possibly_box(tstate,
+                                       instr,
+                                       dynamic_type,
+                                       i);
+
+                c4m_box_t value = {.u64 = raw};
+
+                c4m_box_t *box = c4m_new(c4m_type_box(c4m_type_ref()),
                                          value);
-                args[n]          = c4m_ref_via_ffi_type(box,
+                args[n]        = c4m_ref_via_ffi_type(box,
                                                ffiinfo->cif.arg_types[n]);
             }
 
@@ -734,12 +843,24 @@ c4m_vm_ffi_call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
         char *s        = (char *)tstate->r0.obj;
         tstate->r0.obj = c4m_new_utf8(s);
     }
+
+    if (dynamic_type != NULL) {
+        ffi_possible_ret_munge(tstate,
+                               c4m_type_get_param(dynamic_type, local_param),
+                               c4m_type_get_param(instr->type_info,
+                                                  local_param));
+    }
 }
 
 static void
 c4m_vm_foreign_z_call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
 {
     // TODO foreign_z_call
+}
+c4m_zcallback_t *
+c4m_new_zcallback()
+{
+    return c4m_new(c4m_type_callback());
 }
 
 static void
@@ -751,7 +872,7 @@ c4m_vm_run_callback(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
     ++tstate->sp;
 
     if (cb->ffi) {
-        c4m_vm_ffi_call(tstate, i, cb->impl);
+        c4m_vm_ffi_call(tstate, i, cb->impl, cb->tid);
     }
     else if (tstate->running) {
         // The generated code will, in this branch, push the result
@@ -801,6 +922,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
     // This is crucial, because we need it in the except block and we need it
     // after the try block ends.
     c4m_vmthread_t *volatile const tstate = tstate_arg;
+    c4m_zcallback_t *cb;
 
     // This temporary is used to hold popped operands during binary
     // operations.
@@ -1138,11 +1260,10 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 } while (0);
                 break;
             case C4M_ZLoadFromAttr:
-                STACK_REQUIRE_VALUES(2);
+                STACK_REQUIRE_VALUES(1);
                 do {
                     bool         found = true;
-                    c4m_utf8_t  *key   = c4m_vm_attr_key(tstate,
-                                                      tstate->sp->static_ptr);
+                    c4m_utf8_t  *key   = tstate->sp->vptr;
                     c4m_value_t *val;
                     uint64_t     flag = i->immediate;
 
@@ -1156,18 +1277,17 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     // If we didn't pass the reference to `found`, then
                     // an exception gets thrown if the attr doesn't exist,
                     // which is why `found` is true by default.
-                    if (found && (flag != C4M_F_ATTR_SKIP_LOAD)) {
-                        if (i->arg) {
-                            *tstate->sp = (c4m_stack_value_t){
-                                .lvalue = val,
-                            };
-                        }
-                        else {
-                            *tstate->sp = (c4m_stack_value_t){
-                                .rvalue = *val,
-                            };
-                        }
+
+                    if (c4m_type_is_value_type(i->type_info)) {
+                        c4m_box_t box      = c4m_unbox_obj((c4m_box_t *)val);
+                        tstate->sp[0].vptr = box.v;
                     }
+                    else {
+                        *tstate->sp = (c4m_stack_value_t){
+                            .lvalue = val,
+                        };
+                    }
+
                     // Only push the status if it was explicitly requested.
                     if (flag) {
                         *--tstate->sp = (c4m_stack_value_t){
@@ -1179,12 +1299,20 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZAssignAttr:
                 STACK_REQUIRE_VALUES(2);
                 do {
-                    c4m_utf8_t *key = c4m_vm_attr_key(tstate,
-                                                      tstate->sp->static_ptr);
+                    void *val = tstate->sp[0].vptr;
+
+                    if (c4m_type_is_value_type(i->type_info)) {
+                        c4m_box_t item = {
+                            .v = val,
+                        };
+
+                        val = c4m_box_obj(item, i->type_info);
+                    }
 
                     c4m_vm_attr_set(tstate,
-                                    key,
-                                    &tstate->sp[1].rvalue,
+                                    tstate->sp[1].vptr,
+                                    val,
+                                    i->type_info,
                                     i->arg != 0,
                                     false,
                                     false);
@@ -1194,8 +1322,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZLockOnWrite:
                 STACK_REQUIRE_VALUES(1);
                 do {
-                    c4m_utf8_t *key = c4m_vm_attr_key(tstate,
-                                                      tstate->sp->static_ptr);
+                    c4m_utf8_t *key = tstate->sp->vptr;
                     c4m_vm_attr_lock(tstate, key, true);
                 } while (0);
                 break;
@@ -1257,6 +1384,8 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 };
                 break;
             case C4M_ZPushObjType:
+                // Name is a a bit of a mis-name because it also pops
+                // the object. Should be ZReplaceObjWType
                 STACK_REQUIRE_SLOTS(1);
                 do {
                     c4m_type_t *type = c4m_get_my_type(tstate->sp->rvalue.obj);
@@ -1363,6 +1492,33 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZRunCallback:
                 c4m_vm_run_callback(tstate, i);
                 break;
+            case C4M_ZPushFfiPtr:;
+                STACK_REQUIRE_VALUES(1);
+                cb = c4m_new_zcallback();
+
+                *cb = (c4m_zcallback_t){
+                    .name       = tstate->sp->vptr,
+                    .tid        = i->type_info,
+                    .impl       = i->arg,
+                    .ffi        = true,
+                    .skip_boxes = (bool)i->immediate,
+                };
+
+                tstate->sp->vptr = cb;
+                break;
+            case C4M_ZPushVmPtr:;
+                STACK_REQUIRE_VALUES(1);
+                cb = c4m_new_zcallback();
+
+                *cb = (c4m_zcallback_t){
+                    .name = tstate->sp->vptr,
+                    .tid  = i->type_info,
+                    .impl = i->arg,
+                    .mid  = i->module_id,
+                };
+
+                tstate->sp->vptr = cb;
+                break;
             case C4M_ZRet:
                 c4m_vm_return(tstate, i);
                 break;
@@ -1376,43 +1532,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 c4m_vm_return(tstate, i);
                 break;
             case C4M_ZFFICall:
-                c4m_vm_ffi_call(tstate, i, i->arg);
-                break;
-            case C4M_ZPushFfiPtr:
-                STACK_REQUIRE_SLOTS(1);
-                do {
-                    c4m_zcallback_t *cb = c4m_new_zcallback();
-
-                    *cb = (c4m_zcallback_t){
-                        .impl       = i->arg,
-                        .nameoffset = i->immediate,
-                        .tid        = i->type_info,
-                        .ffi        = true,
-                    };
-
-                    --tstate->sp;
-                    *tstate->sp = (c4m_stack_value_t){
-                        .callback = cb,
-                    };
-                } while (0);
-                break;
-            case C4M_ZPushVmPtr:
-                STACK_REQUIRE_SLOTS(1);
-                do {
-                    c4m_zcallback_t *cb = c4m_new_zcallback();
-
-                    *cb = (c4m_zcallback_t){
-                        .impl       = i->arg,
-                        .nameoffset = i->immediate,
-                        .tid        = i->type_info,
-                        .ffi        = false,
-                    };
-
-                    --tstate->sp;
-                    *tstate->sp = (c4m_stack_value_t){
-                        .callback = cb,
-                    };
-                } while (0);
+                c4m_vm_ffi_call(tstate, i, i->arg, NULL);
                 break;
             case C4M_ZSObjNew:
                 STACK_REQUIRE_SLOTS(1);
@@ -1660,11 +1780,17 @@ c4m_vm_setup_ffi(c4m_vm_t *vm)
     }
 }
 
+static void
+c4m_vm_load_starting_attrs(c4m_vm_t *vm)
+{
+}
+
 void
-c4m_vm_setup_runtime(c4m_vm_t *vm)
+c4m_vm_setup_first_runtime(c4m_vm_t *vm)
 {
     c4m_vm_load_const_data(vm);
     c4m_vm_setup_ffi(vm);
+    c4m_vm_load_starting_attrs(vm);
 
 #ifdef C4M_DEV
     vm->print_buf    = c4m_buffer_empty();
@@ -1690,8 +1816,6 @@ c4m_vm_reset(c4m_vm_t *vm)
     vm->attrs        = c4m_new(c4m_type_dict(c4m_type_utf8(),
                                       c4m_type_ref()));
     vm->all_sections = c4m_new(c4m_type_set(c4m_type_utf8()));
-    vm->section_docs = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                             c4m_type_ref()));
     vm->using_attrs  = false;
 }
 
@@ -1739,11 +1863,21 @@ c4m_vmthread_reset(c4m_vmthread_t *tstate)
                                           NULL);
 }
 
+static thread_local c4m_vmthread_t *thread_runtime = NULL;
+
+c4m_vmthread_t *
+c4m_thread_runtime_acquire()
+{
+    return thread_runtime;
+}
+
 int
 c4m_vmthread_run(c4m_vmthread_t *tstate)
 {
     assert(!tstate->running);
     tstate->running = true;
+
+    thread_runtime = tstate;
 
     c4m_zinstruction_t *i = c4m_list_get(tstate->current_module->instructions,
                                          tstate->pc,
@@ -1752,6 +1886,7 @@ c4m_vmthread_run(c4m_vmthread_t *tstate)
     c4m_vmframe_push(tstate,
                      i,
                      tstate->current_module,
+                     0,
                      tstate->current_module,
                      NULL,
                      0);

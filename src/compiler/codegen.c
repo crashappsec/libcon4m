@@ -22,6 +22,7 @@ typedef enum {
     assign_via_index_set_call,
     assign_via_slice_set_call,
     assign_via_len_then_slice_set_call,
+    assign_to_attribute,
 } assign_type_t;
 
 typedef struct {
@@ -45,6 +46,7 @@ typedef struct {
     int                     module_patch_loc;
     bool                    lvalue;
     assign_type_t           assign_method;
+    bool                    attr_lock;
 } gen_ctx;
 
 static void gen_one_node(gen_ctx *);
@@ -355,12 +357,20 @@ gen_sym_load_attr(gen_ctx *ctx, c4m_symbol_t *sym, bool addressof)
 {
     int64_t offset = c4m_layout_string_const(ctx->cctx, sym->name);
 
-    emit(ctx,
-         C4M_ZPushConstObj,
-         c4m_kw("arg", c4m_ka(offset), "type", c4m_ka(sym->type)));
-    emit(ctx,
-         C4M_ZLoadFromAttr,
-         c4m_kw("arg", c4m_ka(addressof), "type", c4m_ka(sym->type)));
+    if (!addressof) {
+        emit(ctx,
+             C4M_ZPushConstObj,
+             c4m_kw("arg", c4m_ka(offset), "type", c4m_ka(sym->type)));
+        emit(ctx,
+             C4M_ZLoadFromAttr,
+             c4m_kw("arg", c4m_ka(addressof), "type", c4m_ka(sym->type)));
+    }
+    else {
+        emit(ctx,
+             C4M_ZPushConstObj,
+             c4m_kw("arg", c4m_ka(offset), "type", c4m_ka(sym->type)));
+        ctx->assign_method = assign_to_attribute;
+    }
 }
 
 // Right now we only ever generate the version that returns the rhs
@@ -606,8 +616,9 @@ gen_param_via_default_ref_type(gen_ctx                 *ctx,
 }
 
 static inline void
-gen_run_callback(gen_ctx *ctx, c4m_callback_t *cb)
+gen_run_internal_callback(gen_ctx *ctx, c4m_callback_info_t *cb)
 {
+    // This might go away soon.
     uint32_t    offset   = c4m_layout_const_obj(ctx->cctx, cb);
     c4m_type_t *t        = cb->target_type;
     int         nargs    = c4m_type_get_num_params(t) - 1;
@@ -615,12 +626,11 @@ gen_run_callback(gen_ctx *ctx, c4m_callback_t *cb)
     bool        useret   = !(c4m_types_are_compat(ret_type,
                                          c4m_type_void(),
                                          NULL));
-    int         imm      = useret ? 1 : 0;
 
     gen_load_const_by_offset(ctx, offset, c4m_get_my_type(cb));
     emit(ctx,
          C4M_ZRunCallback,
-         c4m_kw("arg", c4m_ka(nargs), "immediate", c4m_ka(imm)));
+         c4m_kw("arg", c4m_ka(nargs), "immediate", c4m_ka(useret)));
 
     if (nargs) {
         emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-1 * nargs)));
@@ -765,10 +775,68 @@ gen_extern_call(gen_ctx *ctx, c4m_symbol_t *fsym)
 }
 
 static void
+gen_run_callback(gen_ctx *ctx, c4m_call_resolution_info_t *info)
+{
+    // We're going to use r3 to keep the callback object where we need
+    // it as we push on arguments.  But since it might be in use, we
+    // need to spill, and then restore when the call returns.
+    //
+    // Note that ZRunCallback will have to dynamically handle boxing
+    // and unboxing if needed.
+
+    emit(ctx, C4M_ZPushFromR3);
+    gen_one_kid(ctx, 0);
+    emit(ctx, C4M_ZPopToR3);
+
+    c4m_tree_node_t *call_node = ctx->cur_node;
+    c4m_pnode_t     *pnode     = c4m_get_pnode(call_node);
+    c4m_type_t      *rettype   = pnode->type;
+    int              n         = call_node->num_kids;
+    bool             use_ret   = (!c4m_types_are_compat(rettype,
+                                          c4m_type_void(),
+                                          NULL));
+    c4m_list_t      *params    = c4m_list(c4m_type_typespec());
+
+    for (int i = 1; i < n; i++) {
+        pnode = c4m_get_pnode(call_node->children[i]);
+        c4m_list_append(params, pnode->type);
+        gen_one_kid(ctx, i);
+    }
+
+    c4m_type_t *sig = c4m_type_fn(rettype, params, false);
+
+    emit(ctx, C4M_ZPushFromR3);
+    emit(ctx,
+         C4M_ZRunCallback,
+         c4m_kw("arg",
+                c4m_ka(n - 1),
+                "immediate",
+                c4m_ka(use_ret),
+                "type",
+                c4m_ka(sig)));
+
+    if (n > 1) {
+        emit(ctx, C4M_ZMoveSp, c4m_kw("arg", c4m_ka(-1 * (n - 1))));
+    }
+
+    // Restore the saved register;
+    emit(ctx, C4M_ZPopToR3);
+    if (use_ret) {
+        emit(ctx, C4M_ZPushFromR0);
+    }
+}
+
+static void
 gen_call(gen_ctx *ctx)
 {
     c4m_call_resolution_info_t *info = ctx->cur_pnode->extra_info;
-    c4m_symbol_t               *fsym = info->resolution;
+
+    if (info->callback) {
+        gen_run_callback(ctx, info);
+        return;
+    }
+
+    c4m_symbol_t *fsym = info->resolution;
 
     // Pushes arguments onto the stack.
     if (fsym->kind != C4M_SK_FUNC) {
@@ -795,7 +863,8 @@ gen_param_via_callback(gen_ctx                 *ctx,
                        c4m_module_param_info_t *param,
                        c4m_symbol_t            *sym)
 {
-    gen_run_callback(ctx, param->callback);
+    // TODO: this needs to be redone.
+    gen_run_internal_callback(ctx, param->callback);
     // The third parameter gives 'false' for attrs (where the
     // parameter would cause the attribute to lock) and 'true' for
     // variables, which leads to the value being popped after stored
@@ -1742,6 +1811,40 @@ gen_print(gen_ctx *ctx)
 #endif
 
 static inline void
+gen_callback_literal(gen_ctx *ctx)
+{
+    c4m_callback_info_t *scb = (c4m_callback_info_t *)ctx->cur_pnode->value;
+
+    int64_t arg = c4m_layout_string_const(ctx->cctx, scb->target_symbol_name);
+    gen_load_const_by_offset(ctx, arg, c4m_type_utf8());
+
+    if (scb->binding.ffi) {
+        c4m_ffi_decl_t *f = scb->binding.implementation.ffi_interface;
+
+        emit(ctx,
+             C4M_ZPushFfiPtr,
+             c4m_kw("arg",
+                    c4m_ka(f->global_ffi_call_ix),
+                    "type",
+                    c4m_ka(scb->target_type),
+                    "immediate",
+                    c4m_ka(f->skip_boxes)));
+    }
+    else {
+        c4m_fn_decl_t *f = scb->binding.implementation.local_interface;
+
+        emit(ctx,
+             C4M_ZPushVmPtr,
+             c4m_kw("arg",
+                    c4m_ka(f->local_id),
+                    "module_id",
+                    c4m_ka(f->module_id),
+                    "type",
+                    c4m_ka(scb->target_type)));
+    }
+}
+
+static inline void
 gen_literal(gen_ctx *ctx)
 {
     c4m_obj_t        lit = ctx->cur_pnode->value;
@@ -1812,16 +1915,23 @@ is_tuple_assignment(gen_ctx *ctx)
 static inline void
 gen_assign(gen_ctx *ctx)
 {
-    c4m_type_t *t      = c4m_type_resolve(ctx->cur_pnode->type);
-    ctx->assign_method = assign_to_mem_slot;
-    ctx->lvalue        = true;
+    c4m_type_t *t        = c4m_type_resolve(ctx->cur_pnode->type);
+    bool        lhs_attr = false;
+    ctx->assign_method   = assign_to_mem_slot;
+    ctx->lvalue          = true;
+
     gen_one_kid(ctx, 0);
+    if (ctx->assign_method == assign_to_attribute) {
+        lhs_attr = true;
+    }
     ctx->lvalue = false;
     gen_one_kid(ctx, 1);
 
     switch (ctx->assign_method) {
     case assign_to_mem_slot:
-
+        if (lhs_attr) {
+            goto handle_attribute;
+        }
         if (is_tuple_assignment(ctx)) {
             emit(ctx, C4M_ZPopToR1);
             emit(ctx,
@@ -1835,6 +1945,12 @@ gen_assign(gen_ctx *ctx)
         break;
     case assign_via_slice_set_call:
         gen_tcall(ctx, C4M_BI_SLICE_SET, ctx->cur_pnode->type);
+        break;
+    case assign_to_attribute:
+handle_attribute:
+        emit(ctx,
+             C4M_ZAssignAttr,
+             c4m_kw("arg", c4m_ka(ctx->attr_lock), "type", c4m_ka(t)));
         break;
     case assign_via_len_then_slice_set_call:
         // Need to call len() on the object for the 2nd slice
@@ -2052,11 +2168,22 @@ static inline void
 gen_lock(gen_ctx *ctx)
 {
     c4m_tree_node_t *saved = ctx->cur_node;
-    ctx->cur_node          = saved->children[0];
-    gen_one_kid(ctx, 0);
-    ctx->cur_node = saved;
-    emit(ctx, C4M_ZLockOnWrite);
-    gen_kids(ctx);
+    c4m_pnode_t     *p     = c4m_tree_get_contents(saved->children[0]);
+
+    switch (p->kind) {
+    case c4m_nt_assign:
+    case c4m_nt_binary_assign_op:
+        ctx->attr_lock = true;
+        gen_kids(ctx);
+        ctx->attr_lock = false;
+        break;
+    default:
+        gen_one_kid(ctx, 0);
+        ctx->cur_node = saved;
+        emit(ctx, C4M_ZLockOnWrite);
+        gen_kids(ctx);
+        break;
+    }
 }
 
 static inline void
@@ -2068,6 +2195,12 @@ gen_use(gen_ctx *ctx)
     emit(ctx,
          C4M_ZCallModule,
          c4m_kw("module_id", c4m_ka(tocall->local_module_id)));
+}
+
+static inline void
+gen_section(gen_ctx *ctx)
+{
+    gen_one_kid(ctx, ctx->cur_node->num_kids - 1);
 }
 
 static void
@@ -2143,6 +2276,9 @@ gen_one_node(gen_ctx *ctx)
         gen_print(ctx);
         break;
 #endif
+    case c4m_nt_lit_callback:
+        gen_callback_literal(ctx);
+        break;
     case c4m_nt_simple_lit:
     case c4m_nt_lit_list:
     case c4m_nt_lit_dict:
@@ -2150,7 +2286,6 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_lit_empty_dict_or_set:
     case c4m_nt_lit_tuple:
     case c4m_nt_lit_unquoted:
-    case c4m_nt_lit_callback:
     case c4m_nt_lit_tspec:
         gen_literal(ctx);
         break;
@@ -2192,6 +2327,9 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_variable_decls:
         gen_kids(ctx);
         break;
+    case c4m_nt_section:
+        gen_section(ctx);
+        break;
     // These nodes should NOT do any work and not descend if they're
     // hit; many of them are handled elsewhere and this should be
     // unreachable for many of them.
@@ -2212,7 +2350,6 @@ gen_one_node(gen_ctx *ctx)
     case c4m_nt_lit_tspec_func:
     case c4m_nt_lit_tspec_varargs:
     case c4m_nt_lit_tspec_return_type:
-    case c4m_nt_section:
     case c4m_nt_param_block:
     case c4m_nt_param_prop:
     case c4m_nt_extern_block:
@@ -2372,7 +2509,7 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
     ctx->target_info          = NULL;
     ctx->retsym               = NULL;
     ctx->instruction_counter  = 0;
-    ctx->current_stack_offset = ctx->fctx->static_size;
+    ctx->current_stack_offset = ctx->fctx->static_size / sizeof(uint64_t);
     ctx->max_stack_size       = ctx->fctx->static_size;
     ctx->lvalue               = false;
     ctx->assign_method        = assign_to_mem_slot;

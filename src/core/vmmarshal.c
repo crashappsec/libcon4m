@@ -501,7 +501,6 @@ c4m_vm_marshal(c4m_vm_t *vm, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
     if (vm->using_attrs) {
         c4m_sub_marshal(vm->all_sections, out, memos, mid);
         marshal_dict_value_ref(vm->attrs, out, memos, mid, marshal_attr_contents);
-        marshal_dict_value_ref(vm->section_docs, out, memos, mid, marshal_docs_container);
     }
 }
 
@@ -520,6 +519,5 @@ c4m_vm_unmarshal(c4m_vm_t *vm, c4m_stream_t *in, c4m_dict_t *memos)
     if (vm->using_attrs) {
         vm->all_sections = c4m_sub_unmarshal(in, memos);
         unmarshal_dict_value_ref(vm->attrs, in, memos, unmarshal_attr_contents);
-        unmarshal_dict_value_ref(vm->section_docs, in, memos, unmarshal_docs_container);
     }
 }

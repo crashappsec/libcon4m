@@ -716,7 +716,6 @@ init_keywords()
     add_keyword("typeof", c4m_tt_typeof);
     add_keyword("switch", c4m_tt_switch);
     add_keyword("infinity", c4m_tt_float_lit);
-    add_keyword("lock", c4m_tt_lock);
     add_keyword("NaN", c4m_tt_float_lit);
 #ifdef C4M_DEV
     add_keyword("print", c4m_tt_print);

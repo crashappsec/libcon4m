@@ -51,8 +51,8 @@ extern void        c4m_setup_treematch_patterns();
 extern c4m_type_t *c4m_node_to_type(c4m_module_compile_ctx *,
                                     c4m_tree_node_t *,
                                     c4m_dict_t *);
-extern c4m_obj_t
-c4m_node_to_callback(c4m_module_compile_ctx *ctx, c4m_tree_node_t *n);
+extern c4m_obj_t   c4m_node_to_callback(c4m_module_compile_ctx *,
+                                        c4m_tree_node_t *);
 
 static inline bool
 c4m_node_has_type(c4m_tree_node_t *node, c4m_node_kind_t expect)

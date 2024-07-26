@@ -316,6 +316,29 @@ _add_parse_error(parse_ctx *ctx, c4m_compile_error_t code, ...)
 #define add_parse_error(ctx, code, ...) \
     _add_parse_error(ctx, code, C4M_VA(__VA_ARGS__))
 
+// For minor errors that don't involve a raise.
+static void
+_error_at_node(parse_ctx          *ctx,
+               c4m_tree_node_t    *n,
+               c4m_compile_error_t code,
+               ...)
+{
+    va_list      args;
+    c4m_pnode_t *p = (c4m_pnode_t *)c4m_tree_get_contents(n);
+
+    va_start(args, code);
+    c4m_base_add_error(ctx->module_ctx->errors,
+                       code,
+                       p->token,
+                       c4m_err_severity_error,
+                       args);
+    ctx->module_ctx->fatal_errors = 1;
+    va_end(args);
+}
+
+#define error_at_node(ctx, n, code, ...) \
+    _error_at_node(ctx, n, code, C4M_VA(__VA_ARGS__))
+
 static void __attribute__((noreturn))
 _raise_err_at_node(parse_ctx          *ctx,
                    c4m_pnode_t        *n,
@@ -2784,7 +2807,8 @@ invalid_field_part(parse_ctx *ctx)
 static void
 field_property(parse_ctx *ctx)
 {
-    char *txt = c4m_identifier_text(tok_cur(ctx))->data;
+    c4m_token_t *tok = tok_cur(ctx);
+    char        *txt = c4m_identifier_text(tok)->data;
 
     switch (txt[0]) {
     case 'c':
@@ -2834,6 +2858,10 @@ field_property(parse_ctx *ctx)
         else {
             if (!strcmp(txt, "range")) {
                 property_range(ctx);
+                int              nkids = ctx->cur->num_kids;
+                c4m_tree_node_t *range = ctx->cur->children[nkids - 1];
+                c4m_pnode_t     *pn    = c4m_tree_get_contents(range);
+                pn->token              = tok;
             }
             else {
                 invalid_field_part(ctx);
@@ -2864,6 +2892,102 @@ field_property(parse_ctx *ctx)
 }
 
 static void
+field_structure_check(parse_ctx *ctx)
+{
+    int  got_type      = 0;
+    int  got_choice    = 0;
+    int  got_default   = 0;
+    int  got_exclude   = 0;
+    int  got_hide      = 0;
+    int  got_lock      = 0;
+    int  got_require   = 0;
+    int  got_range     = 0;
+    int  got_validator = 0;
+    bool type_pointer  = false;
+
+    for (int i = 1; i < ctx->cur->num_kids; i++) {
+        c4m_tree_node_t *kid = ctx->cur->children[i];
+        c4m_utf8_t      *s   = c4m_node_text(kid);
+
+        switch (s->data[0]) {
+        case 't':
+            if (got_type++) {
+                error_at_node(ctx, kid, c4m_err_dupe_property);
+                continue;
+            }
+            c4m_pnode_t *p = c4m_tree_get_contents(kid->children[0]);
+            if (p->kind == c4m_nt_identifier) {
+                type_pointer = true;
+            }
+            continue;
+        case 'c':
+            if (got_choice++) {
+                error_at_node(ctx, kid, c4m_err_dupe_property);
+            }
+            continue;
+        case 'd':
+            if (got_default++) {
+                error_at_node(ctx, kid, c4m_err_dupe_property);
+            }
+            continue;
+        case 'e':
+            if (got_exclude++) {
+                error_at_node(ctx, kid, c4m_err_dupe_property);
+            }
+            continue;
+        case 'h':
+            if (got_hide++) {
+                error_at_node(ctx, kid, c4m_err_dupe_property);
+            }
+            continue;
+        case 'l':
+            if (got_lock++) {
+                error_at_node(ctx, kid, c4m_err_dupe_property);
+            }
+            continue;
+        case 'r':
+            if (s->data[1] == 'e') {
+                if (got_require++) {
+                    error_at_node(ctx, kid, c4m_err_dupe_property);
+                }
+            }
+            else {
+                if (got_range++) {
+                    error_at_node(ctx, kid, c4m_err_dupe_property);
+                }
+            }
+            continue;
+        case 'v':
+            if (got_validator++) {
+                error_at_node(ctx, kid, c4m_err_dupe_property);
+            }
+            continue;
+        default:
+            c4m_unreachable();
+        }
+    }
+
+    if (!got_type) {
+        add_parse_error(ctx, c4m_err_missing_type);
+    }
+
+    if (type_pointer && got_range) {
+        add_parse_error(ctx, c4m_err_type_ptr_range);
+    }
+
+    if (type_pointer && got_choice) {
+        add_parse_error(ctx, c4m_err_type_ptr_choice);
+    }
+
+    if (got_require && got_default) {
+        add_parse_error(ctx, c4m_err_req_and_default);
+    }
+
+    // We will let range / choice co-exist with validator; the
+    // validator will be in addition.
+}
+
+static void
 field_spec(parse_ctx *ctx)
 {
     volatile int safety_check = 0;
@@ -2890,6 +3014,7 @@ field_spec(parse_ctx *ctx)
                 EOF_ERROR(ctx);
             case c4m_tt_rbrace:
                 consume(ctx);
+                field_structure_check(ctx);
                 end_node(ctx);
                 END_CHECKPOINT();
                 return;

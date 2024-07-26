@@ -269,25 +269,37 @@ c4m_setup_treematch_patterns()
 }
 
 c4m_obj_t
-c4m_node_to_callback(c4m_module_compile_ctx *ctx, c4m_tree_node_t *n)
+c4m_node_to_callback(c4m_module_compile_ctx *ctx,
+                     c4m_tree_node_t        *n)
 {
     if (!c4m_node_has_type(n, c4m_nt_lit_callback)) {
         return NULL;
     }
 
     c4m_utf8_t *name = c4m_node_text(c4m_tree_get_child(n, 0));
-    c4m_type_t *type = c4m_node_to_type(ctx, c4m_tree_get_child(n, 1), NULL);
+    c4m_type_t *type = NULL;
 
-    c4m_callback_t *result = c4m_new(c4m_type_callback(), name, type);
-    result->decl_loc       = n;
+    if (n->num_kids > 1) {
+        type = c4m_node_to_type(ctx, c4m_tree_get_child(n, 1), NULL);
+    }
+
+    c4m_callback_info_t *result = c4m_callback_info_init();
+
+    c4m_pnode_t *pn = c4m_get_pnode(n);
+    pn->type        = type;
+    pn->value       = (void *)result;
+
+    result->target_symbol_name = name;
+    result->target_type        = type;
+    result->decl_loc           = n;
 
     return result;
 }
 
 c4m_type_t *
 c4m_node_to_type(c4m_module_compile_ctx *ctx,
-                 c4m_tree_node_t      *n,
-                 c4m_dict_t           *type_ctx)
+                 c4m_tree_node_t        *n,
+                 c4m_dict_t             *type_ctx)
 {
     if (type_ctx == NULL) {
         type_ctx = c4m_new(c4m_type_dict(c4m_type_utf8(), c4m_type_ref()));

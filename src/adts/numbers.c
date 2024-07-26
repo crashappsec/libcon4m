@@ -631,6 +631,28 @@ base_int_fmt(__int128_t v, c4m_fmt_spec_t *spec, c4m_codepoint_t default_type)
         }
     }
 
+    int l = spec->width - c4m_str_codepoint_len(s);
+
+    if (prefix_option) {
+        l -= 2;
+    }
+    // clang-format off
+    if (v < 0 || spec->sign == C4M_FMT_SIGN_ALWAYS ||
+	spec->sign == C4M_FMT_SIGN_POS_SPACE) {
+	l -= 1;
+    }
+    // clang-format on
+
+    if (l > 0) {
+        c4m_codepoint_t pchar = spec->fill;
+
+        if (!pchar) {
+            pchar = '0';
+        }
+
+        s = c4m_str_concat(c4m_utf32_repeat(pchar, l), s);
+    }
+
     switch (prefix_option) {
     case 1:
         s = c4m_str_concat(

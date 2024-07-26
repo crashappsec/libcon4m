@@ -110,20 +110,24 @@ typedef enum : uint8_t {
     // actual value will not be pushed.
     C4M_ZLoadFromAttr  = 0x0C,
     C4M_ZLoadFromView  = 0x0D,
-    // Create a callback and push it onto the stack. The instruction's arg,
-    // immediate, and type_info fields are encoded into the callback as the
-    // implementation (ffi function index), name offset, and type info,
-    // respectively. The ZRunCallback instruction is used to run the callback,
-    // which is run as an FFI function.
+    // Create a callback and push it onto the stack. The instruction's
+    // arg, immediate, and type_info fields are encoded into the
+    // callback as the implementation (ffi function index), whether to
+    // skip needed boxing,, and type info, respectively. The func name
+    // is expected to be on the top of the stack, and get will
+    // replaced with a callback object when this instruction runs. The
+    // ZRunCallback instruction is used to run the callback, which is
+    // run as an FFI function.
     //
-    // Currently unused. I think this can be removed.
     C4M_ZPushFfiPtr    = 0x0E,
-    // Create a callback and push it onto the stack. The instruction's arg,
-    // immediate, and type_info fields are encoded into the callback as the
-    // implementation (function index), name offset, and type info,
-    // respectively. The ZRunCallback instruction is used to run the callback,
-    // which is run as a native function via C4M_Z0Call, but using a separate
-    // VM state.
+    // Create a callback and push it onto the stack. The instruction's
+    // arg, and type_info fields are encoded into the callback as the
+    // implementation (function index), and type info,
+    // respectively. The func name is expected to be on the top of the
+    // stack, and get will replaced with a callback object when this
+    // instruction runs. The ZRunCallback instruction is used to run
+    // the callback, which is run as a native function via C4M_Z0Call,
+    // but using a separate VM state.
     C4M_ZPushVmPtr     = 0x0F,
     // Stores a value to the attribute named by the top value on the stack. The
     // value to store is the stack value just below it. Both values are popped
@@ -356,13 +360,14 @@ typedef struct {
 } c4m_zinstruction_t;
 
 typedef struct {
+    c4m_utf8_t *name;
     c4m_type_t *tid;
     // Nim casts this around as a pointer, but it's always used as an integer
-    // index into an array
+    // index into an array.
     int64_t     impl;
-    int64_t     nameoffset;
     int32_t     mid;
     bool        ffi;
+    bool        skip_boxes;
 } c4m_zcallback_t;
 
 // this is an arbitrary value that combines the value itself with its type
@@ -463,17 +468,17 @@ typedef struct {
 } c4m_zmodule_info_t;
 
 typedef struct {
-    uint64_t    zero_magic;
-    c4m_buf_t  *static_data;
-    c4m_buf_t  *marshaled_consts;
-    c4m_list_t *module_contents; // tspec_ref: c4m_zmodule_info_t
-    c4m_list_t *func_info;       // tspec_ref: c4m_zfn_info_t
-    c4m_list_t *ffi_info;        // tspec_ref: c4m_zffi_info_t
-    uint32_t    zc_object_vers;
-    int32_t     num_const_objs;
-    int32_t     entrypoint;
-    int32_t     next_entrypoint;
-    // TODO c4m_validation_spec_t *spec;
+    uint64_t           zero_magic;
+    c4m_buf_t         *static_data;
+    struct c4m_spec_t *attr_spec;
+    c4m_buf_t         *marshaled_consts;
+    c4m_list_t        *module_contents; // tspec_ref: c4m_zmodule_info_t
+    c4m_list_t        *func_info;       // tspec_ref: c4m_zfn_info_t
+    c4m_list_t        *ffi_info;        // tspec_ref: c4m_zffi_info_t
+    uint32_t           zc_object_vers;
+    int32_t            num_const_objs;
+    int32_t            entrypoint;
+    int32_t            next_entrypoint;
 } c4m_zobject_file_t;
 
 typedef struct {
@@ -482,11 +487,12 @@ typedef struct {
     c4m_zfn_info_t     *targetfunc;
     int32_t             calllineno;
     int32_t             targetline;
+    uint32_t            pc;
 } c4m_vmframe_t;
 
 typedef struct {
     c4m_zinstruction_t *lastset; // (not marshaled)
-    c4m_value_t         contents;
+    void               *contents;
     bool                is_set;
     bool                locked;
     bool                lock_on_write;
@@ -517,10 +523,10 @@ typedef struct {
     c4m_value_t **module_allocations;
     c4m_dict_t   *attrs;        // string, c4m_attr_contents_t (tspec_ref)
     c4m_set_t    *all_sections; // string
-    c4m_dict_t   *section_docs; // string, c4m_docs_container_t (tspec_ref)
     c4m_list_t   *ffi_info;
     int           ffi_info_entries;
     bool          using_attrs;
+    bool          root_populated;
 } c4m_vm_t;
 
 typedef struct {

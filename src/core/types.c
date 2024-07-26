@@ -967,6 +967,7 @@ unify_tv_with_concrete_type(c4m_type_t *t1,
     switch (t2->details->base_type->dt_kind) {
     case C4M_DT_KIND_primitive:
     case C4M_DT_KIND_internal:
+    case C4M_DT_KIND_func:
     case C4M_DT_KIND_nil:
         c4m_universe_forward(&c4m_type_universe, t1, t2);
         type_log("unify(t1, t2)", t2);

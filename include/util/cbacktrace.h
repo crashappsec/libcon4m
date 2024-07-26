@@ -9,7 +9,7 @@ extern void c4m_print_c_backtrace();
 #define c4m_print_c_backtrace()
 #endif
 
-extern c4m_grid_t *c4m_get_c_backtrace();
+extern c4m_grid_t *c4m_get_c_backtrace(int);
 extern void        c4m_static_c_backtrace();
 extern void        c4m_set_crash_callback(void (*)());
 extern void        c4m_set_show_trace_on_crash(bool);

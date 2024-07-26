@@ -552,8 +552,8 @@ column_text_width(c4m_grid_t *grid, int col)
 // will produce, knowing that it might be less than or greater than the
 // desired width (which we'll handle by padding or truncating).
 
-static int16_t *
-calculate_col_widths(c4m_grid_t *grid, int16_t width, int16_t *render_width)
+int16_t *
+c4m_calculate_col_widths(c4m_grid_t *grid, int16_t width, int16_t *render_width)
 {
     size_t              term_width;
     int16_t            *result = c4m_gc_array_value_alloc(uint16_t,
@@ -1613,7 +1613,7 @@ _c4m_grid_render(c4m_grid_t *grid, ...)
                        c4m_kw("length", c4m_ka(0)));
     }
 
-    int16_t *col_widths  = calculate_col_widths(grid, width, &grid->width);
+    int16_t *col_widths  = c4m_calculate_col_widths(grid, width, &grid->width);
     int16_t *row_heights = grid_pre_render(grid, col_widths);
 
     // Right now, we're not going to do the final padding and row

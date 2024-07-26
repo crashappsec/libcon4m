@@ -682,9 +682,15 @@ _c4m_print(c4m_obj_t first, ...)
         return;
     }
 
-    if (c4m_get_my_type(first) == c4m_type_kargs()) {
+    if (c4m_types_are_compat(c4m_get_my_type(first), c4m_type_kargs(), NULL)) {
         _c4m_karg = first;
-        numargs   = 0;
+        va_arg(args, int); // will be a 0
+        numargs = va_arg(args, int);
+
+        if (numargs < 0) {
+            numargs = 0;
+        }
+        cur = va_arg(args, c4m_obj_t);
     }
     else {
         _c4m_karg = c4m_get_kargs_and_count(args, &numargs);

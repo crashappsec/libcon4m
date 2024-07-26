@@ -86,30 +86,6 @@ c4m_new_module_param()
 }
 
 static void
-c4m_spec_field_gc_bits(uint64_t *bitmap, c4m_spec_field_t *field)
-{
-    c4m_mark_raw_to_addr(bitmap, field, &field->exclusions);
-}
-
-static c4m_spec_field_t *
-c4m_new_spec_field()
-{
-    return c4m_gc_alloc_mapped(c4m_spec_field_t, c4m_spec_field_gc_bits);
-}
-
-static void
-c4m_spec_gc_bits(uint64_t *bitmap, c4m_spec_section_t *sec)
-{
-    c4m_mark_raw_to_addr(bitmap, sec, &sec->validator);
-}
-
-c4m_spec_section_t *
-c4m_new_spec_section()
-{
-    return c4m_gc_alloc_mapped(c4m_spec_section_t, c4m_spec_gc_bits);
-}
-
-static void
 c4m_sig_info_gc_bits(uint64_t *bitmap, c4m_sig_info_t *si)
 {
     c4m_mark_raw_to_addr(bitmap, si, &si->return_info.type);
@@ -768,7 +744,8 @@ one_section_prop(c4m_pass1_ctx      *ctx,
         }
         break;
     case 'v': // validator
-        callback = c4m_node_to_callback(ctx->module_ctx, c4m_tree_get_child(n, 0));
+        callback = c4m_node_to_callback(ctx->module_ctx,
+                                        c4m_tree_get_child(n, 0));
 
         if (!callback) {
             c4m_add_error(ctx->module_ctx,
@@ -827,6 +804,7 @@ one_field(c4m_pass1_ctx      *ctx,
     f->exclusions       = c4m_new(c4m_type_set(c4m_type_utf8()));
     f->name             = name;
     f->declaration_node = tnode;
+    pnode->extra_info   = f;
 
     if (pnode->short_doc) {
         section->short_doc = c4m_token_raw_content(pnode->short_doc);
@@ -844,13 +822,13 @@ one_field(c4m_pass1_ctx      *ctx,
                   // For now, we just stash the raw nodes, and
                   // evaluate it later.
             f->stashed_options = c4m_tree_get_child(kid, 0);
-            f->validate_choice = 1;
+            f->validate_choice = true;
             break;
 
         case 'd': // default:
                   // Same.
             f->default_value    = c4m_tree_get_child(kid, 0);
-            f->default_provided = 1;
+            f->default_provided = true;
             break;
 
         case 'h': // hidden
@@ -865,7 +843,7 @@ one_field(c4m_pass1_ctx      *ctx,
             }
             else {
                 if (*value) {
-                    f->hidden = 1;
+                    f->hidden = true;
                 }
             }
             break;
@@ -927,6 +905,7 @@ one_field(c4m_pass1_ctx      *ctx,
         default:
             if (!strcmp(prop->data, "range")) {
                 f->stashed_options = c4m_tree_get_child(kid, 0);
+                f->validate_range  = true;
             }
             else {
                 // required.
@@ -941,7 +920,7 @@ one_field(c4m_pass1_ctx      *ctx,
                 }
                 else {
                     if (*value) {
-                        f->required = 1;
+                        f->required = true;
                     }
                 }
                 break;
@@ -964,11 +943,7 @@ handle_section_spec(c4m_pass1_ctx *ctx)
     int                 ix       = 2;
     int                 num_kids = c4m_tree_get_number_children(tnode);
 
-    section->fields            = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                            c4m_type_ref()));
-    section->allowed_sections  = c4m_new(c4m_type_set(c4m_type_utf8()));
-    section->required_sections = c4m_new(c4m_type_set(c4m_type_utf8()));
-    section->declaration_node  = tnode;
+    section->declaration_node = tnode;
 
     if (pnode->short_doc) {
         section->short_doc = c4m_token_raw_content(pnode->short_doc);
@@ -1004,7 +979,7 @@ handle_section_spec(c4m_pass1_ctx *ctx)
     }
 
     if (section->name == NULL) {
-        if (spec->root_section) {
+        if (spec->in_use) {
             c4m_add_error(ctx->module_ctx,
                           c4m_err_dupe_root_section,
                           tnode);

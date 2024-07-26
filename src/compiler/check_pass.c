@@ -25,10 +25,10 @@ typedef struct {
     c4m_list_t             *loop_stack;
     c4m_list_t             *deferred_calls;
     c4m_list_t             *index_rechecks;
-    bool                    augmented_assignment;
     __uint128_t             du_stack;
     int                     du_stack_ix;
     c4m_list_t             *simple_lits_wo_mod;
+    bool                    augmented_assignment;
 } pass2_ctx;
 
 static void base_check_pass_dispatch(pass2_ctx *);
@@ -451,9 +451,37 @@ setup_polymorphic_fns()
     c4m_gc_register_root(&polymorphic_fns, 1);
 }
 
+// If a callback was specified w/o a type, we only check the return type;
+// the params we copy from the context.
+
+static void
+add_callback_params(c4m_type_t *callback, c4m_type_t *func_type)
+{
+    c4m_list_t *fnlist = func_type->details->items;
+    c4m_list_t *cblist = c4m_list(c4m_type_typespec());
+    int         n      = c4m_list_len(fnlist) - 1;
+
+    for (int i = 0; i < n; i++) {
+        c4m_type_t *param = c4m_type_copy(c4m_list_get(fnlist, i, NULL));
+        c4m_list_append(cblist, param);
+    }
+
+    if (c4m_list_len(callback->details->items)) {
+        c4m_type_t *ret = c4m_list_get(callback->details->items, 0, NULL);
+        c4m_list_append(cblist, ret);
+    }
+    else {
+        c4m_list_append(cblist, c4m_new_typevar());
+    }
+
+    callback->details->flags &= C4M_FN_MISSING_PARAMS;
+    callback->details->items = cblist;
+}
+
 static c4m_call_resolution_info_t *
 initial_function_resolution(pass2_ctx       *ctx,
                             c4m_utf8_t      *call_name,
+                            c4m_tree_node_t *sym_node,
                             c4m_type_t      *called_type,
                             c4m_tree_node_t *call_loc)
 {
@@ -482,6 +510,7 @@ initial_function_resolution(pass2_ctx       *ctx,
     // is worthless, because we don't want concrete types at call
     // sites to influence the actual type. So in those cases, we defer
     // until the end of the pass, just like w/ overloads.
+
     if (polymorphic_fns == NULL) {
         setup_polymorphic_fns();
     }
@@ -519,6 +548,9 @@ initial_function_resolution(pass2_ctx       *ctx,
                       call_name);
         return NULL;
     }
+
+    c4m_pnode_t *pnode = c4m_get_pnode(call_loc->children[0]);
+    pnode->extra_info = sym;
 
     switch (sym->kind) {
     case C4M_SK_FUNC:
@@ -558,13 +590,41 @@ initial_function_resolution(pass2_ctx       *ctx,
         return info;
 
     default:
-        c4m_add_error(ctx->module_ctx,
-                      c4m_err_calling_non_fn,
-                      call_loc,
-                      call_name,
-                      c4m_sym_kind_name(sym));
+        if (!sym_node) {
+            c4m_add_error(ctx->module_ctx,
+                          c4m_err_calling_non_fn,
+                          call_loc,
+                          call_name,
+                          c4m_sym_kind_name(sym));
+        }
 
-        return NULL;
+        // At this point, it must be a callback, or else it's an
+        // error.  But callbacks might not have specified arguments,
+        // so we need to be careful, we just can't just merge types
+        // without checking.
+
+        c4m_type_t *t = c4m_type_resolve(sym->type);
+
+        if (t->details->base_type->typeid != C4M_T_FUNCDEF) {
+            c4m_add_error(ctx->module_ctx,
+                          c4m_err_calling_non_fn,
+                          call_loc,
+                          call_name,
+                          c4m_sym_kind_name(sym));
+
+            return NULL;
+        }
+
+        if (t->details->flags & C4M_FN_MISSING_PARAMS) {
+            add_callback_params(t, called_type);
+        }
+
+        merge_or_err(ctx, sym->type, called_type);
+
+        info->module_scope = ctx->module_ctx->module_scope;
+        info->callback     = true;
+
+        return info;
     }
 }
 
@@ -657,13 +717,28 @@ sym_lookup(pass2_ctx *ctx, c4m_utf8_t *name)
             }
             // fallthrough
         case c4m_attr_field:
-
             result = hatrack_dict_get(ctx->attr_scope->symbols, name, NULL);
             if (result == NULL) {
                 result             = c4m_add_inferred_symbol(ctx->module_ctx,
                                                  ctx->attr_scope,
                                                  name);
                 result->other_info = attr_info;
+
+                if (attr_info->kind == c4m_attr_user_def_field) {
+                    return result;
+                }
+
+                if (!c4m_list_len(result->sym_defs)) {
+                    if (attr_info->info.field_info->default_provided) {
+                        add_def(ctx, result, false);
+                    }
+                }
+
+                if (!attr_info->info.field_info->have_type_pointer) {
+                    merge_or_err(ctx,
+                                 result->type,
+                                 attr_info->info.field_info->tinfo.type);
+                }
             }
             return result;
 
@@ -845,6 +920,7 @@ handle_index(pass2_ctx *ctx)
         info = initial_function_resolution(
             ctx,
             c4m_new_utf8(C4M_SLICE_FN),
+            NULL,
             c4m_type_varargs_fn(node_type,
                                 3,
                                 container_type,
@@ -858,6 +934,7 @@ handle_index(pass2_ctx *ctx)
         info = initial_function_resolution(
             ctx,
             c4m_new_utf8(C4M_INDEX_FN),
+            NULL,
             c4m_type_varargs_fn(node_type,
                                 2,
                                 container_type,
@@ -925,7 +1002,7 @@ handle_call(pass2_ctx *ctx)
     c4m_tree_node_t *saved    = ctx->node;
     int              n        = saved->num_kids;
     c4m_list_t      *argtypes = c4m_new(c4m_type_list(c4m_type_typespec()));
-    c4m_utf8_t      *fname    = c4m_node_text(saved->children[0]);
+    c4m_tree_node_t *id       = saved->children[0];
     c4m_pnode_t     *pnode;
 
     for (int i = 1; i < n; i++) {
@@ -937,13 +1014,16 @@ handle_call(pass2_ctx *ctx)
 
     c4m_type_t *fn_type;
 
-    pnode       = c4m_get_pnode(saved);
-    pnode->type = c4m_new_typevar();
-    fn_type     = c4m_type_fn(pnode->type, argtypes, false);
-
-    pnode->extra_info = initial_function_resolution(ctx, fname, fn_type, saved);
-
+    pnode                 = c4m_get_pnode(saved);
+    pnode->type           = c4m_new_typevar();
+    fn_type               = c4m_type_fn(pnode->type, argtypes, false);
+    pnode->extra_info     = initial_function_resolution(ctx,
+                                                    c4m_node_text(id),
+                                                    id,
+                                                    fn_type,
+                                                    saved);
     ctx->current_rhs_uses = stashed_uses;
+
     def_use_context_exit(ctx);
 }
 
@@ -2009,6 +2089,7 @@ base_handle_assign(pass2_ctx *ctx, bool binop)
     base_check_pass_dispatch(ctx);
     def_use_context_exit(ctx);
 
+    c4m_print_parse_node(saved);
     pnode->type = merge_or_err(ctx,
                                get_pnode_type(saved->children[0]),
                                get_pnode_type(saved->children[1]));
@@ -2070,7 +2151,7 @@ handle_identifier(pass2_ctx *ctx)
     c4m_pnode_t *pnode = c4m_get_pnode(ctx->node);
     c4m_utf8_t  *id    = c4m_node_text(ctx->node);
 
-    if (ctx->current_section_prefix != NULL) {
+    if (is_def_context(ctx) && ctx->current_section_prefix != NULL) {
         id = c4m_cstr_format("{}.{}", ctx->current_section_prefix, id);
     }
 
@@ -2136,8 +2217,21 @@ check_literal(pass2_ctx *ctx)
 
         break;
     case c4m_nt_lit_callback:
-        pnode->value = c4m_node_to_callback(ctx->module_ctx, ctx->node);
+        if (!pnode->value) {
+            pnode->value = c4m_node_to_callback(ctx->module_ctx, ctx->node);
+        }
+        c4m_callback_info_t *cb = (c4m_callback_info_t *)pnode->value;
+
+        // If the user supplied a signature we can look up the type.
+        if (!cb->target_type) {
+            cb->target_type = c4m_type_fn(c4m_new_typevar(),
+                                          c4m_list(c4m_type_typespec()),
+                                          false);
+            cb->target_type->details->flags |= C4M_FN_MISSING_PARAMS;
+        }
         c4m_list_append(ctx->module_ctx->callback_literals, pnode->value);
+        pnode->type = cb->target_type;
+
         break;
     case c4m_nt_lit_tspec:
         do {
@@ -2166,8 +2260,9 @@ handle_member(pass2_ctx *ctx)
     c4m_pnode_t      *pnode    = c4m_get_pnode(ctx->node);
 
     for (int i = 1; i < ctx->node->num_kids; i++) {
-        sym_name = c4m_str_concat(sym_name, dot);
-        sym_name = c4m_str_concat(sym_name, c4m_node_text(kids[i]));
+        sym_name = c4m_to_utf8(c4m_str_concat(sym_name, dot));
+        sym_name = c4m_to_utf8(c4m_str_concat(sym_name,
+                                              c4m_node_text(kids[i])));
     }
 
     if (ctx->current_section_prefix != NULL) {
@@ -2283,6 +2378,118 @@ handle_var_decl(pass2_ctx *ctx)
 }
 
 static void
+process_field(pass2_ctx *ctx, c4m_spec_field_t *field)
+{
+    c4m_tree_node_t *default_node = field->default_value;
+    int              warn;
+
+    if (default_node != NULL) {
+        c4m_pnode_t *default_payload = c4m_get_pnode(default_node);
+        field->default_value         = default_payload->value;
+
+        if (merge_or_ret_ignore_err(c4m_get_my_type(field->default_value),
+                                    field->tinfo.type)) {
+            c4m_add_error(ctx->module_ctx,
+                          c4m_err_default_inconsistent_field,
+                          ctx->node,
+                          c4m_get_my_type(field->default_value),
+                          field->tinfo.type);
+        }
+    }
+
+    if (field->validate_choice) {
+        c4m_tree_node_t *node = (c4m_tree_node_t *)field->stashed_options;
+        c4m_type_t      *type = get_pnode_type(node);
+        c4m_type_t      *merge;
+
+        merge = c4m_merge_types(c4m_type_list(field->tinfo.type),
+                                type,
+                                &warn);
+
+        if (c4m_type_is_error(merge)) {
+            c4m_add_error(ctx->module_ctx,
+                          c4m_err_choice_inconsistent_field,
+                          node);
+        }
+    }
+
+    if (field->validate_range) {
+        c4m_type_t *merge = c4m_merge_types(c4m_type_int(),
+                                            field->tinfo.type,
+                                            &warn);
+
+        if (c4m_type_is_error(merge)) {
+            c4m_add_error(ctx->module_ctx,
+                          c4m_err_range_inconsistent_field,
+                          field->stashed_options,
+                          field->tinfo.type);
+        }
+    }
+
+    if (field->validator) {
+        c4m_callback_info_t *cb     = (c4m_callback_info_t *)field->validator;
+        c4m_type_t     *cbtype = cb->target_type;
+        c4m_list_t     *params = c4m_list(c4m_type_typespec());
+
+        c4m_list_append(params, c4m_type_utf8());
+        c4m_list_append(params, field->tinfo.type);
+
+        c4m_type_t *target = c4m_type_fn(c4m_type_utf8(), params, false);
+
+        if (cbtype == NULL) {
+            cb->target_type = target;
+        }
+        else {
+          if (!(cbtype->details->flags & C4M_FN_MISSING_PARAMS)) {
+                if (c4m_type_is_error(c4m_merge_types(target, cbtype, &warn))) {
+                    c4m_add_error(ctx->module_ctx,
+                                  c4m_err_validator_inconsistent_field,
+                                  cb->decl_loc,
+                                  cbtype,
+                                  field->tinfo.type);
+                 }
+            }
+        }
+    }
+}
+
+static void
+process_staticly_defined_item(pass2_ctx *ctx)
+{
+    c4m_tree_node_t *cur   = ctx->node;
+    c4m_pnode_t     *pnode = c4m_get_pnode(cur);
+
+    switch (pnode->kind) {
+    case c4m_nt_range:
+        base_check_pass_dispatch(ctx);
+        return;
+    case c4m_nt_simple_lit:
+    case c4m_nt_lit_list:
+    case c4m_nt_lit_dict:
+    case c4m_nt_lit_set:
+    case c4m_nt_lit_empty_dict_or_set:
+    case c4m_nt_lit_tuple:
+    case c4m_nt_lit_unquoted:
+    case c4m_nt_lit_callback:
+    case c4m_nt_lit_tspec:
+        check_literal(ctx);
+        return;
+    default:
+        for (int i = 0; i < cur->num_kids; i++) {
+            ctx->node = cur->children[i];
+            process_staticly_defined_item(ctx);
+        }
+        ctx->node = cur;
+
+        if (pnode->kind == c4m_nt_field_spec) {
+            c4m_spec_field_t *field = pnode->extra_info;
+            process_field(ctx, field);
+        }
+        return;
+    }
+}
+
+static void
 base_check_pass_dispatch(pass2_ctx *ctx)
 {
     c4m_pnode_t *pnode = c4m_tree_get_contents(ctx->node);
@@ -2290,9 +2497,6 @@ base_check_pass_dispatch(pass2_ctx *ctx)
     case c4m_nt_global_enum:
     case c4m_nt_enum:
     case c4m_nt_func_def:
-    case c4m_nt_config_spec:
-    case c4m_nt_section_spec:
-    case c4m_nt_param_block:
     case c4m_nt_extern_block:
     case c4m_nt_use:
         return;
@@ -2402,7 +2606,14 @@ base_check_pass_dispatch(pass2_ctx *ctx)
         process_children(ctx);
         break;
 #endif
+        // Note: we descend on confspec sections etc. to fold
+        // and type any literals they contain.
+    case c4m_nt_config_spec:
+    case c4m_nt_param_block:
+        process_staticly_defined_item(ctx);
+        break;
     default:
+
         process_children(ctx);
         break;
     }
@@ -2555,7 +2766,6 @@ check_formal_param(fn_check_ctx *ctx)
     if (param->type != NULL) {
         decl_type = c4m_type_copy(param->type);
         cmp_type  = merge_ignore_err(decl_type, ctx->sym->type);
-
         if (c4m_type_is_error(cmp_type)) {
             c4m_add_error(ctx->pass_ctx->module_ctx,
                           c4m_err_declared_incompat,
@@ -3200,16 +3410,19 @@ process_deferred_callbacks(c4m_compile_ctx *cctx)
     c4m_utf8_t *s;
 
     for (int i = 0; i < n; i++) {
-        c4m_module_compile_ctx *f = c4m_list_get(cctx->module_ordering, i, NULL);
+        c4m_module_compile_ctx *f = c4m_list_get(cctx->module_ordering,
+                                                 i,
+                                                 NULL);
         int                     m = c4m_list_len(f->callback_literals);
         for (int j = 0; j < m; j++) {
-            c4m_callback_t *cb = c4m_list_get(f->callback_literals, j, NULL);
-
-            c4m_symbol_t *sym = c4m_symbol_lookup(NULL,
-                                                  f->module_scope,
-                                                  f->global_scope,
-                                                  NULL,
-                                                  cb->target_symbol_name);
+            c4m_callback_info_t *cb = c4m_list_get(f->callback_literals,
+                                                   j,
+                                                   NULL);
+            c4m_symbol_t        *sym = c4m_symbol_lookup(NULL,
+                                                         f->module_scope,
+                                                         cctx->final_globals,
+                                                         NULL,
+                                                         cb->target_symbol_name);
 
             if (!sym) {
                 c4m_add_error(f, c4m_err_callback_no_match, cb->decl_loc);
@@ -3235,9 +3448,19 @@ process_deferred_callbacks(c4m_compile_ctx *cctx)
                 return;
             }
 
-            c4m_type_t *sym_type = c4m_type_copy(sym->type);
+            c4m_type_t *sym_type = c4m_type_copy(c4m_type_resolve(sym->type));
             c4m_type_t *lit_type = cb->target_type;
-            c4m_type_t *merged   = merge_ignore_err(sym_type, lit_type);
+
+            if (!lit_type) {
+                cb->target_type = sym_type;
+                continue;
+            }
+
+            if (lit_type->details->flags & C4M_FN_MISSING_PARAMS) {
+                add_callback_params(lit_type, sym_type);
+            }
+
+            c4m_type_t *merged = merge_ignore_err(sym_type, lit_type);
 
             if (c4m_type_is_error(merged)) {
                 s = c4m_node_get_loc_str(sym->declaration_node);
@@ -3289,7 +3512,7 @@ c4m_check_pass(c4m_compile_ctx *cctx)
         }
 
         if (f->fatal_errors) {
-            C4M_CRAISE("Cannot check files that have do not properly load.");
+            C4M_CRAISE("Cannot check files that do not properly load.");
         }
 
         if (f->status >= c4m_compile_status_tree_typed) {
@@ -3314,7 +3537,9 @@ c4m_check_pass(c4m_compile_ctx *cctx)
     process_deferred_callbacks(cctx);
 
     for (int i = 0; i < n; i++) {
-        c4m_module_compile_ctx *f = c4m_list_get(cctx->module_ordering, i, NULL);
+        c4m_module_compile_ctx *f = c4m_list_get(cctx->module_ordering,
+                                                 i,
+                                                 NULL);
 
         if (f->cfg != NULL) {
             c4m_cfg_analyze(f, NULL);

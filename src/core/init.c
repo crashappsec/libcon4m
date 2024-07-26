@@ -310,6 +310,8 @@ c4m_initialize_library(void)
     c4m_init_std_streams();
 }
 
+extern void c4m_crash_init();
+
 __attribute__((constructor)) void
 c4m_init(int argc, char **argv, char **envp)
 {
@@ -325,6 +327,7 @@ c4m_init(int argc, char **argv, char **envp)
     c4m_gc_register_root(&con4m_extensions, 1);
     c4m_gc_set_finalize_callback((void *)c4m_finalize_allocation);
     c4m_initialize_global_types();
+    c4m_crash_init();
     c4m_initialize_library();
     c4m_register_builtins();
     c4m_init_path();

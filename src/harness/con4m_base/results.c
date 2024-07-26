@@ -81,9 +81,12 @@ c4m_show_dev_compile_info(c4m_compile_ctx *ctx)
     c4m_print(c4m_format_scope(ctx->entry_point->module_scope));
     c4m_printf("[h2]Global Scope");
     c4m_print(c4m_format_scope(ctx->final_globals));
+    c4m_printf("[h2]Attribute Scope");
+    c4m_print(c4m_format_scope(ctx->final_attrs));
 
     c4m_printf("[h2]Loaded Modules");
     c4m_print(c4m_get_module_summary_info(ctx));
+    c4m_print(c4m_repr_spec(ctx->final_spec));
 }
 
 void

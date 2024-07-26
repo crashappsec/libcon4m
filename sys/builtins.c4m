@@ -43,5 +43,5 @@ extern c4m_lookup_color(ptr) -> i64 {
 }
 
 extern c4m_to_vga(i64) -> i64 {
-  local: trucolor_to_vga(int) -> int
+  local: truecolor_to_vga(int) -> int
 }

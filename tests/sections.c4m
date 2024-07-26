@@ -1,10 +1,12 @@
 """
-Syntax test for sections.  Totally borked right now.
+Syntax test 1 for sections.  
 """
 """
-$errors:
-use_no_def
+$output:
+2
 """
+
+foo = 2
 
 hello {}
 hello world {}
@@ -21,11 +23,12 @@ hello {
 
 # These no longer work, as it is too easy to do this on accident.
 # But the error probably should be improved.
+// hello world
+// hello "world"
 
-//hello world
-//hello "world"
+print(hello.world.y)
 
-# This should not work; should give a use-before-def.
-# But for now this is disabled.
-foo
+
+
+
 

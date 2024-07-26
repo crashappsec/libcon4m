@@ -35,6 +35,7 @@ typedef struct c4m_type_info_t {
 // Basically think of locked types as fully resolved in one universe,
 // but being copied over into others.
 #define C4M_FN_TY_LOCK    2
+
 // When we're type inferencing, we will keep things as type variables
 // until the last possible minute, whenever we don't have an absolutely
 // concrete type.
@@ -43,8 +44,16 @@ typedef struct c4m_type_info_t {
 // indicates whether or not we're confident in how many type
 // parameters there will be. This is present mainly to aid in tuple
 // merging, and I'm not focused on it right now, so will need to do
-// more testing lqter.
+// more testing later.
 #define C4M_FN_UNKNOWN_TV_LEN 4
+
+// This indicates that we know about a function type, but have not yet
+// received any information about their arguments.
+//
+// This isn't consulted during unification; it's primarily intended for
+// call sites to check, so they can fill in param info on callbacks where
+// the arguments are elided before we're prepared to do a global lookup.
+#define C4M_FN_MISSING_PARAMS 8
 
 typedef enum {
     c4m_type_match_exact,

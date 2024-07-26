@@ -1,8 +1,17 @@
 """
-Currently broken.
+Syntax test.
 """
 """
+$errors:
+range_type
+inconsistent_field
+inconsistent_field
+inconsistent_field
 """
+
+func f(x: int) {
+  return x != 0
+}
 
 confspec {
 
@@ -12,7 +21,7 @@ confspec {
     field max {
       type: int
       default: 0xffffffffffffffff
-      lock: true
+      lock: true      
     }
     
     field audit_id {
@@ -26,6 +35,7 @@ confspec {
     field audit_location {
       type:   string
       default: "test 1"
+      validator: func f(int) -> bool
     }
   }
 
@@ -35,8 +45,7 @@ confspec {
     
     field log_level {
      type:    string
-     require: true
-     default: "info"
+     default: 7
      choices: ["trace", "info", "warn", "error", "fatal"]
     }
   }

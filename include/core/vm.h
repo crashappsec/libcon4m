@@ -9,9 +9,9 @@ extern void
 c4m_vm_reset(c4m_vm_t *vm);
 
 // Loads any constants and other state expected to be present
-// before running.
+// before running for the first time.
 extern void
-c4m_vm_setup_runtime(c4m_vm_t *vm);
+c4m_vm_setup_first_runtime(c4m_vm_t *vm);
 
 // create a new thread state attached to the specified vm. Multiple threads may
 // run code from the same VM simultaneously, but each one needs its own thread
@@ -31,7 +31,7 @@ c4m_vmthread_reset(c4m_vmthread_t *tstate);
 
 // retrieve the attribute specified by key. if the `found param`is not
 // provided, throw an exception when the attribute is not found.
-extern c4m_value_t *
+extern void *
 c4m_vm_attr_get(c4m_vmthread_t *tstate,
                 c4m_str_t      *key,
                 bool           *found);
@@ -39,7 +39,8 @@ c4m_vm_attr_get(c4m_vmthread_t *tstate,
 extern void
 c4m_vm_attr_set(c4m_vmthread_t *tstate,
                 c4m_str_t      *key,
-                c4m_value_t    *value,
+                void           *value,
+                c4m_type_t     *type,
                 bool            lock,
                 bool            override,
                 bool            internal);

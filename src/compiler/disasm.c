@@ -49,10 +49,12 @@ get_bool_label(c4m_zop_t op)
         return c4m_new_utf8("addressof");
     case C4M_ZAssignAttr:
         return c4m_new_utf8("lock");
-    case C4M_ZRunCallback:
-        return c4m_new_utf8("currently unused");
     case C4M_ZLoadFromView:
         return c4m_new_utf8("load kv pair");
+    case C4M_ZPushFfiPtr:
+        return c4m_new_utf8("skip boxing");
+    case C4M_ZRunCallback:
+        return c4m_new_utf8("use return");
 #ifdef C4M_VM_DEBUG
     case C4M_ZDebug:
         return c4m_new_utf8("set debug");
@@ -66,12 +68,12 @@ const inst_info_t inst_info[256] = {
     [C4M_ZPushConstObj] = {
         .name      = "ZPushConstObj",
         .arg_fmt   = fmt_const_obj,
-        .show_type = 1,
+        .show_type = true,
     },
     [C4M_ZPushConstRef] = {
         .name      = "ZPushConstRef",
         .arg_fmt   = fmt_const_ptr,
-        .show_type = 1,
+        .show_type = true,
     },
     [C4M_ZPushLocalObj] = {
         .name    = "ZPushLocalObj",
@@ -84,13 +86,13 @@ const inst_info_t inst_info[256] = {
     },
     [C4M_ZPushStaticObj] = {
         .name        = "ZPushStaticObj",
-        .show_module = 1,
+        .show_module = true,
         .arg_fmt     = fmt_sym_static,
     },
     [C4M_ZPushStaticRef] = {
         .name        = "ZPushStaticRef",
         .arg_fmt     = fmt_sym_static,
-        .show_module = 1,
+        .show_module = true,
         .unused      = true,
     },
     [C4M_ZJ] = {
@@ -112,14 +114,16 @@ const inst_info_t inst_info[256] = {
         .name      = "ZLoadFromAttr",
         .arg_fmt   = fmt_bool,
         .imm_fmt   = fmt_load_from_attr,
-        .show_type = 1,
+        .show_type = true,
     },
     [C4M_ZAssignAttr] = {
-        .name    = "ZAssignAttr",
-        .arg_fmt = fmt_bool,
+        .name      = "ZAssignAttr",
+        .arg_fmt   = fmt_bool,
+        .show_type = true,
     },
     [C4M_ZAssignToLoc] = {
-        .name = "ZAssignToLoc",
+        .name      = "ZAssignToLoc",
+        .show_type = true,
     },
     [C4M_ZBail] = {
         .name = "ZBail",
@@ -135,15 +139,28 @@ const inst_info_t inst_info[256] = {
     [C4M_ZTCall] = {
         .name      = "ZTCall",
         .arg_fmt   = fmt_tcall,
-        .show_type = 1,
+        .show_type = true,
     },
     [C4M_ZBAnd] = {
         .name = "ZBAnd",
     },
+    [C4M_ZPushFfiPtr] = {
+        .name      = "ZPushFfiPtr",
+        .arg_fmt   = fmt_int,
+        .imm_fmt   = fmt_bool,
+        .show_type = true,
+    },
+    [C4M_ZPushVmPtr] = {
+        .name        = "ZPushVmPtr",
+        .arg_fmt     = fmt_int,
+        .show_type   = true,
+        .show_module = true,
+    },
     [C4M_ZRunCallback] = {
-        .name    = "ZRunCallback",
-        .arg_fmt = fmt_int,
-        .imm_fmt = fmt_bool,
+        .name      = "ZRunCallback",
+        .arg_fmt   = fmt_int,
+        .show_type = true,
+        .imm_fmt   = fmt_bool,
     },
     [C4M_ZMoveSp] = {
         .name    = "ZMoveSp",
@@ -302,11 +319,11 @@ const inst_info_t inst_info[256] = {
     },
     [C4M_ZBox] = {
         .name      = "ZBox",
-        .show_type = 1,
+        .show_type = true,
     },
     [C4M_ZUnbox] = {
         .name      = "ZUnbox",
-        .show_type = 1,
+        .show_type = true,
     },
     [C4M_ZSubNoPop] = {
         .name = "ZSubNoPop",
@@ -332,29 +349,29 @@ const inst_info_t inst_info[256] = {
     [C4M_ZLockMutex] = {
         .name        = "ZLockMutex",
         .arg_fmt     = fmt_hex,
-        .show_module = 1,
+        .show_module = true,
     },
     [C4M_ZUnlockMutex] = {
         .name        = "ZUnLockMutex",
         .arg_fmt     = fmt_hex,
-        .show_module = 1,
+        .show_module = true,
     },
     [C4M_Z0Call] = {
         .name        = "Z0Call",
         .arg_fmt     = fmt_hex, // Should add a fmt here.
-        .show_module = 1,
+        .show_module = true,
     },
     [C4M_ZFFICall] = {
         .name        = "ZFFICall",
-        .arg_fmt     = fmt_hex,
-        .show_module = 1,
+        .arg_fmt     = fmt_int,
+        .show_module = true,
     },
     [C4M_ZLockOnWrite] = {
         .name = "ZLockOnWrite",
     },
     [C4M_ZCallModule] = {
         .name        = "ZCallModule",
-        .show_module = 1,
+        .show_module = true,
     },
     [C4M_ZUnpack] = {
         .name    = "ZUnpack",
@@ -461,14 +478,16 @@ fmt_arg_or_imm_no_syms(c4m_vm_t *vm, c4m_zinstruction_t *instr, int i, bool imm)
     case fmt_unused:
         return c4m_get_space_const();
     case fmt_const_obj:
-        return c4m_cstr_format("{}\n[i]@offset: {:8x}", c4m_box_i64(value), c4m_box_i64(value));
+        return c4m_cstr_format("{}\n[i]@offset: {:10x}",
+                               c4m_box_i64(value),
+                               c4m_box_i64(value));
     case fmt_const_ptr:
-        return c4m_cstr_format("offset to ptr: {:x}",
+        return c4m_cstr_format("offset to ptr: {:4x}",
                                c4m_box_i64(value));
     case fmt_offset:
         do {
             int64_t *b = c4m_box_i64(value);
-            return c4m_cstr_format("target @{:8x}", b);
+            return c4m_cstr_format("target @{:10x}", b);
         } while (false);
     case fmt_bool:
         return c4m_cstr_format("{}: {}",
@@ -477,14 +496,14 @@ fmt_arg_or_imm_no_syms(c4m_vm_t *vm, c4m_zinstruction_t *instr, int i, bool imm)
     case fmt_int:
         return c4m_cstr_format("{}", c4m_box_i64(value));
     case fmt_hex:
-        return c4m_cstr_format("{:x}", c4m_box_i64(value));
+        return c4m_cstr_format("{:18x}", c4m_box_i64(value));
     case fmt_sym_local:
         return c4m_cstr_format("sym stack slot offset: {}", c4m_box_i64(value));
     case fmt_sym_static:
-        return c4m_cstr_format("static offset: {:x}",
+        return c4m_cstr_format("static offset: {:4x}",
                                c4m_box_i64(value));
     case fmt_load_from_attr:
-        return c4m_cstr_format("attr name @{:8x}", c4m_box_i64(value));
+        return c4m_cstr_format("attr name @{:10x}", c4m_box_i64(value));
     case fmt_label:
         return c4m_cstr_format("[h2]{}",
                                value_to_object(vm, value, c4m_type_utf8()));

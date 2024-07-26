@@ -65,8 +65,8 @@ c4m_sym_get_best_ref_loc(c4m_symbol_t *sym)
 
 void
 c4m_shadow_check(c4m_module_compile_ctx *ctx,
-                 c4m_symbol_t         *sym,
-                 c4m_scope_t          *cur_scope)
+                 c4m_symbol_t           *sym,
+                 c4m_scope_t            *cur_scope)
 {
     c4m_scope_t *module_scope = ctx->module_scope;
     c4m_scope_t *global_scope = ctx->global_scope;
@@ -133,12 +133,12 @@ c4m_shadow_check(c4m_module_compile_ctx *ctx,
 
 c4m_symbol_t *
 c4m_declare_symbol(c4m_module_compile_ctx *ctx,
-                   c4m_scope_t          *scope,
-                   c4m_utf8_t           *name,
-                   c4m_tree_node_t      *node,
-                   c4m_symbol_kind       kind,
-                   bool                 *success,
-                   bool                  err_if_present)
+                   c4m_scope_t            *scope,
+                   c4m_utf8_t             *name,
+                   c4m_tree_node_t        *node,
+                   c4m_symbol_kind         kind,
+                   bool                   *success,
+                   bool                    err_if_present)
 {
     c4m_symbol_t *entry     = c4m_new_symbol();
     entry->path             = c4m_to_utf8(ctx->path);
@@ -185,23 +185,28 @@ c4m_declare_symbol(c4m_module_compile_ctx *ctx,
 }
 c4m_symbol_t *
 c4m_add_inferred_symbol(c4m_module_compile_ctx *ctx,
-                        c4m_scope_t          *scope,
-                        c4m_utf8_t           *name)
+                        c4m_scope_t            *scope,
+                        c4m_utf8_t             *name)
 {
     c4m_symbol_t *entry = c4m_new_symbol();
     entry->name         = name;
     entry->type         = c4m_new_typevar();
-    entry->kind         = C4M_SK_VARIABLE;
     entry->my_scope     = scope;
 
     if (scope->kind & (C4M_SCOPE_FUNC | C4M_SCOPE_FORMALS)) {
         entry->flags |= C4M_F_FUNCTION_SCOPE;
     }
 
+    if (scope->kind & C4M_SK_ATTR) {
+        entry->kind = C4M_SK_ATTR;
+    }
+    else {
+        entry->kind = C4M_SK_VARIABLE;
+    }
+
     if (!hatrack_dict_add(scope->symbols, name, entry)) {
-        C4M_CRAISE(
-            "c4m_add_inferred_symbol must only be called if the symbol "
-            "is not already in the symbol table.");
+        // Indicates a compile error, so return the old symbol.
+        return hatrack_dict_get(scope->symbols, name, NULL);
     }
 
     return entry;
@@ -209,8 +214,8 @@ c4m_add_inferred_symbol(c4m_module_compile_ctx *ctx,
 
 c4m_symbol_t *
 c4m_add_or_replace_symbol(c4m_module_compile_ctx *ctx,
-                          c4m_scope_t          *scope,
-                          c4m_utf8_t           *name)
+                          c4m_scope_t            *scope,
+                          c4m_utf8_t             *name)
 {
     c4m_symbol_t *entry = c4m_new_symbol();
     entry->name         = name;
@@ -238,8 +243,8 @@ c4m_lookup_symbol(c4m_scope_t *scope, c4m_utf8_t *name)
 
 static void
 type_cmp_exact_match(c4m_module_compile_ctx *new_ctx,
-                     c4m_symbol_t         *new_sym,
-                     c4m_symbol_t         *old_sym)
+                     c4m_symbol_t           *new_sym,
+                     c4m_symbol_t           *old_sym)
 {
     c4m_type_t *t1 = new_sym->type;
     c4m_type_t *t2 = old_sym->type;
@@ -304,8 +309,8 @@ type_cmp_exact_match(c4m_module_compile_ctx *new_ctx,
 
 bool
 c4m_merge_symbols(c4m_module_compile_ctx *ctx1,
-                  c4m_symbol_t         *sym1,
-                  c4m_symbol_t         *sym2) // The older symbol.
+                  c4m_symbol_t           *sym1,
+                  c4m_symbol_t           *sym2) // The older symbol.
 {
     if (sym1->kind != sym2->kind) {
         c4m_add_error(ctx1,

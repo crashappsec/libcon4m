@@ -1,7 +1,7 @@
 #pragma once
 #include "con4m.h"
 
-typedef struct {
+typedef struct c4m_spec_field_t {
     union {
         c4m_type_t *type;
         c4m_utf8_t *type_pointer;
@@ -51,13 +51,14 @@ typedef struct {
     unsigned int     cycle       : 1;
 } c4m_spec_section_t;
 
-typedef struct {
+typedef struct c4m_spec_t {
     c4m_tree_node_t    *declaration_node;
     c4m_utf8_t         *short_doc;
     c4m_utf8_t         *long_doc;
     c4m_spec_section_t *root_section;
     c4m_dict_t         *section_specs;
     unsigned int        locked : 1;
+    unsigned int        in_use : 1;
 } c4m_spec_t;
 
 typedef enum {

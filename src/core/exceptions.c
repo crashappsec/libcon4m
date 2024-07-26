@@ -186,12 +186,16 @@ c4m_exception_uncaught(c4m_exception_t *exception)
 }
 
 void
-c4m_exception_raise(c4m_exception_t *exception, char *filename, int line)
+c4m_exception_raise(c4m_exception_t *exception,
+                    c4m_grid_t      *backtrace,
+                    char            *filename,
+                    int              line)
 {
     c4m_exception_frame_t *frame = __exception_stack.top;
 
-    exception->file = filename;
-    exception->line = line;
+    exception->file    = filename;
+    exception->line    = line;
+    exception->c_trace = backtrace;
 
     if (!frame) {
         (*uncaught_handler)(exception);

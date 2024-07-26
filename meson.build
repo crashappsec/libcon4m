@@ -46,7 +46,6 @@ if (host_machine.system() == 'darwin')
         c_args = c_args + ['-DC4M_USE_FRAME_INTRINSIC']
     endif
 
-    libcurl  = dependency('curl')
 else
     using_osx = false
     link_args = []
@@ -56,8 +55,6 @@ else
     if get_option('use_frame_intrinsic').enabled()
         c_args = c_args + ['-DC4M_USE_FRAME_INTRINSIC']
     endif
-
-    libcurl = cc.find_library('curl')
 endif
 
 if get_option('forkless_tests').enabled()
@@ -68,9 +65,9 @@ endif
 
 if not get_option('static_ffi_binding').disabled()
   c_args = c_args + ['-DC4M_STATIC_FFI_BINDING']
-endif  
+endif
 
-backtrace = cc.find_library('backtrace', required: false)
+backtrace = cc.find_library('backtrace')
 
 if backtrace.found()
     c_args = c_args + ['-DC4M_BACKTRACE_SUPPORTED']
@@ -233,7 +230,7 @@ c4m_io = [
 
 c4m_compiler = [
     'src/compiler/compile.c',
-    'src/compiler/module.c',    
+    'src/compiler/module.c',
     'src/compiler/lex.c',
     'src/compiler/parse.c',
     'src/compiler/errors.c',
@@ -266,6 +263,7 @@ c4m_util = [
     'src/util/wrappers.c',
     'src/util/ctrace.c',
     'src/util/static_config.c',
+    'src/util/segv.c',
 ]
 
 c4m_crypto = ['src/crypto/sha.c']
@@ -337,18 +335,13 @@ test_src = [
 threads = dependency('threads')
 math = cc.find_library('m', required: false)
 
-ffi = cc.find_library(
-    'ffi',
-    required: true
-)
-
-crypto = cc.find_library('crypto')
-ssl = cc.find_library('ssl')
-
+openssl  = dependency('openssl')
 unibreak = dependency('libunibreak')
 utf8proc = dependency('libutf8proc')
+libcurl  = dependency('curl', modules: ['CURL::libcurl'])
+ffi      = dependency('libffi')
 
-deps = [unibreak, utf8proc, threads, ffi, ssl, crypto, backtrace, libcurl]
+deps = [unibreak, utf8proc, threads, ffi, openssl, backtrace, libcurl]
 opts = [math]
 if using_glibc
     opts = opts + [cc.find_library('atomic')]

@@ -47,27 +47,26 @@ extern c4m_type_t     *c4m_get_promotion_type(c4m_type_t *,
 extern c4m_type_t     *c4m_new_typevar();
 extern void            c4m_initialize_global_types();
 extern c4m_type_hash_t c4m_calculate_type_hash(c4m_type_t *node);
-
-extern uint64_t *c4m_get_list_bitfield();
-extern uint64_t *c4m_get_dict_bitfield();
-extern uint64_t *c4m_get_set_bitfield();
-extern uint64_t *c4m_get_tuple_bitfield();
-extern uint64_t *c4m_get_all_containers_bitfield();
-extern uint64_t *c4m_get_no_containers_bitfield();
-extern int       c4m_get_num_bitfield_words();
-extern bool      c4m_partial_inference(c4m_type_t *);
-extern bool      c4m_list_syntax_possible(c4m_type_t *);
-extern bool      c4m_dict_syntax_possible(c4m_type_t *);
-extern bool      c4m_set_syntax_possible(c4m_type_t *);
-extern bool      c4m_tuple_syntax_possible(c4m_type_t *);
-extern void      c4m_remove_list_options(c4m_type_t *);
-extern void      c4m_remove_dict_options(c4m_type_t *);
-extern void      c4m_remove_set_options(c4m_type_t *);
-extern void      c4m_remove_tuple_options(c4m_type_t *);
-extern bool      c4m_type_has_list_syntax(c4m_type_t *);
-extern bool      c4m_type_has_dict_syntax(c4m_type_t *);
-extern bool      c4m_type_has_set_syntax(c4m_type_t *);
-extern bool      c4m_type_has_tuple_syntax(c4m_type_t *);
+extern uint64_t       *c4m_get_list_bitfield();
+extern uint64_t       *c4m_get_dict_bitfield();
+extern uint64_t       *c4m_get_set_bitfield();
+extern uint64_t       *c4m_get_tuple_bitfield();
+extern uint64_t       *c4m_get_all_containers_bitfield();
+extern uint64_t       *c4m_get_no_containers_bitfield();
+extern int             c4m_get_num_bitfield_words();
+extern bool            c4m_partial_inference(c4m_type_t *);
+extern bool            c4m_list_syntax_possible(c4m_type_t *);
+extern bool            c4m_dict_syntax_possible(c4m_type_t *);
+extern bool            c4m_set_syntax_possible(c4m_type_t *);
+extern bool            c4m_tuple_syntax_possible(c4m_type_t *);
+extern void            c4m_remove_list_options(c4m_type_t *);
+extern void            c4m_remove_dict_options(c4m_type_t *);
+extern void            c4m_remove_set_options(c4m_type_t *);
+extern void            c4m_remove_tuple_options(c4m_type_t *);
+extern bool            c4m_type_has_list_syntax(c4m_type_t *);
+extern bool            c4m_type_has_dict_syntax(c4m_type_t *);
+extern bool            c4m_type_has_set_syntax(c4m_type_t *);
+extern bool            c4m_type_has_tuple_syntax(c4m_type_t *);
 
 static inline void
 c4m_remove_all_container_options(c4m_type_t *t)

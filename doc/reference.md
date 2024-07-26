@@ -542,7 +542,6 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - Final mile: params
 - Doc API.
 - Callbacks
-- Make litmods optional when types are declared. 
 
 # Items for afterward
 - Objects
@@ -561,3 +560,14 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - Checks based on PDG
 - Full-program info on unused fields & fns.
 
+- Need to deal with tuple assignment to attributes.
+- Need to ensure things that must be static consts are actually consts.
+- Enforce No default if there is a type param.
+- After the check pass, enforce constants.
+- Warning on exclusions that are not defined fields.
+- Default provided + lock should not lock.
+- Type pointer + validator should be workable.
+- Lock w/o attr being set should be compile-time error where possible.
+- Attr lock applied to non-attrs.
+- Calls via callback, possibly once interpreter stops.
+- Validation post-run.

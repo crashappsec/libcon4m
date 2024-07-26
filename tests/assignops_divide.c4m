@@ -8,6 +8,7 @@ $output:
 -6
 -3
 3
+Division by zero error.
 """
 
 x = 12
@@ -27,6 +28,5 @@ print(x)
 x /= -1
 print(x)
 
-# TODO: remove this later. See basic25.c4m.
 x /= 0
 print(x)
