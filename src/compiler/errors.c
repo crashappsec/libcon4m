@@ -2,9 +2,9 @@
 
 typedef struct {
     c4m_compile_error_t errorid;
-    alignas(8) char *name;
-    char *message;
-    bool  takes_args;
+    alignas(8) char    *name;
+    char               *message;
+    bool                takes_args;
 } error_info_t;
 
 static error_info_t error_info[] = {
@@ -1270,34 +1270,133 @@ static error_info_t error_info[] = {
     [c4m_err_invalid_dt_spec] = {
         c4m_err_invalid_dt_spec,
         "invalid_dt_spec",
-        "Invalid literal for type Datetime",
+        "Invalid literal for type [em]Datetime",
         false,
     },
     [c4m_err_invalid_date_spec] = {
         c4m_err_invalid_date_spec,
         "invalid_date_spec",
-        "Invalid literal for type Date",
+        "Invalid literal for type [em]Date",
         false,
     },
     [c4m_err_invalid_time_spec] = {
         c4m_err_invalid_time_spec,
         "invalid_time_spec",
-        "Invalid literal for type Time",
+        "Invalid literal for type [em]Time",
         false,
     },
     [c4m_err_invalid_size_lit] = {
         c4m_err_invalid_size_lit,
         "invalid_size_lit",
-        "Invalid literal for type Size",
+        "Invalid literal for type [em]Size",
         false,
     },
     [c4m_err_invalid_duration_lit] = {
         c4m_err_invalid_duration_lit,
         "invalid_duration_lit",
-        "Invalid literal for type Duration",
+        "Invalid literal for type [em]Duration",
         false,
     },
-
+    [c4m_spec_disallowed_field] = {
+        c4m_spec_disallowed_field,
+        "disallowed_field",
+        "The [em]{}[/] does not support a field named [em]{}[/].",
+        true,
+    },
+    [c4m_spec_mutex_field] = {
+        c4m_spec_mutex_field,
+        "mutex_field",
+        "In [em]{}[/], the field [em]{}[/] cannot appear in this "
+        "section when the field [em]{}[/] also appears (set at: {}).",
+        true,
+    },
+    [c4m_spec_missing_ptr] = {
+        c4m_spec_missing_ptr,
+        "missing_ptr",
+        "In [em]{}[/], the field [em]{}[/] is supposed to get its type from "
+        "the value of field [em]{}[/], but the later was not provided. "
+        "{}",
+        true,
+    },
+    [c4m_spec_invalid_type_ptr] = {
+        c4m_spec_invalid_type_ptr,
+        "invalid_type_ptr",
+        "In [em]{}[/], the field [em]{}[/] is supposed to get its type "
+        "from the value of field [em]{}[/], but that field is not a type "
+        "specification; it is an object of type [em]{} (per {})[/]",
+        true,
+    },
+    [c4m_spec_ptr_typecheck] = {
+        c4m_spec_ptr_typecheck,
+        "ptr_typecheck",
+        "In [em]{}[/], the field [em]{}[/] is supposed to get its type from "
+        "the value of field [em]{}[/], but the type was actually [em]{}[/] not "
+        "[em]{}[/] as per [i]{}[/].",
+        true,
+    },
+    [c4m_spec_field_typecheck] = {
+        c4m_spec_field_typecheck,
+        "field_typecheck",
+        "In [em]{}[/], the field [em]{}[/] is supposed to be of type "
+        "[em]{}[/], but it is of type [em]{}[/]{}.",
+        true,
+    },
+    [c4m_spec_missing_field] = {
+        c4m_spec_missing_field,
+        "missing_field",
+        "The section {} requires a field named [em]{}[/], but it is not present.",
+        true,
+    },
+    [c4m_spec_out_of_range] = {
+        c4m_spec_out_of_range,
+        "out_of_range",
+        "Invalid value [em]{}[/] for the field [em]{}[/]. "
+        "The allowed range is from [em]{}[/] to [em]{}[/]",
+        true,
+    },
+    [c4m_spec_bad_choice] = {
+        c4m_spec_bad_choice,
+        "bad_choice",
+        "Invalid choice [em]{}[/] for the field [em]{}[/]. "
+        "Allowed choices are: [em]{}[/]",
+        true,
+    },
+    [c4m_spec_invalid_value] = {
+        c4m_spec_invalid_value,
+        "invalid_value",
+        "The value [em]{}[/] is invalid for field [em]{}[/]: [i]{}",
+        true,
+    },
+    [c4m_spec_disallowed_section] = {
+        c4m_spec_disallowed_section,
+        "disallowed_section",
+        "(spec location) In [em]{}[/], the section [em]{}[/] is not an allowed "
+        "section type",
+        true,
+    },
+    [c4m_spec_unknown_section] = {
+        c4m_spec_unknown_section,
+        "unknown_section",
+        "(spec location) In [em]{}[/], attempted to use a section [em]{}[/] "
+        "that is an unknown section type.",
+        true,
+    },
+    [c4m_spec_missing_require] = {
+        c4m_spec_missing_require,
+        "missing_require",
+        "(spec location) In [em]{}[/], a section of type [em]{}[/] is "
+        "required, but no section with that name was found.",
+        true,
+    },
+    [c4m_spec_blueprint_fields] = {
+        c4m_spec_blueprint_fields,
+        "blueprint_fields",
+        "In [em]{}[/], fields are not allowed in a toplevel blueprint. "
+        "The confspec denoted this section was a section [i]blueprint[/] ({}), "
+        "which means it can only be instantiated with section instances. "
+        "Yet, [em]{}[/] is set as a field per [i]{}[/].",
+        true,
+    },
 #ifdef C4M_DEV
     [c4m_err_void_print] = {
         c4m_err_void_print,
@@ -1360,23 +1459,43 @@ format_severity(c4m_compile_error *err)
 }
 
 static inline c4m_utf8_t *
-format_location(c4m_module_compile_ctx *ctx, c4m_compile_error *err)
+err_format_module_location(c4m_module_compile_ctx *ctx, c4m_compile_error *err)
 {
-    c4m_token_t *tok = err->current_token;
+    return c4m_format_module_location(ctx, err->loc.current_token);
+}
 
-    if (!ctx->loaded_from) {
-        ctx->loaded_from = c4m_cstr_format("{}.{}",
-                                           ctx->package,
-                                           ctx->module);
+
+c4m_grid_t *
+c4m_format_runtime_errors(c4m_list_t *errors)
+{
+    int n = c4m_list_len(errors);
+    if (!n) {
+        return NULL;
     }
 
-    if (!tok) {
-        return c4m_cstr_format("[b]{}[/]", ctx->loaded_from);
+    c4m_grid_t *table = c4m_new(c4m_type_grid(),
+                                c4m_kw("container_tag",
+                                       c4m_ka("error_grid"),
+                                       "td_tag",
+                                       c4m_ka("tcol"),
+                                       "start_cols",
+                                       c4m_ka(3),
+                                       "header_rows",
+                                       c4m_ka(0)));
+
+    for (int i = 0; i < n; i++) {
+        c4m_compile_error *err = c4m_list_get(errors, i, NULL);
+        c4m_list_t        *row = c4m_list(c4m_type_utf8());
+        c4m_utf8_t        *msg = c4m_format_error_message(err, true);
+
+        c4m_list_append(row, format_severity(err));
+        c4m_list_append(row, err->loc.runtime_loc);
+        c4m_list_append(row, msg);
+
+        c4m_grid_add_row(table, row);
     }
-    return c4m_cstr_format("[b]{}:{:n}:{:n}:[/]",
-                           ctx->loaded_from,
-                           c4m_box_i64(tok->line_no),
-                           c4m_box_i64(tok->line_offset + 1));
+
+    return table;
 }
 
 static void
@@ -1399,10 +1518,10 @@ c4m_format_module_errors(c4m_module_compile_ctx *ctx, c4m_grid_t *table)
 
     for (int i = 0; i < n; i++) {
         c4m_compile_error *err = c4m_list_get(ctx->errors, i, NULL);
-        c4m_list_t        *row = c4m_new(c4m_type_list(c4m_type_utf8()));
+        c4m_list_t        *row = c4m_list(c4m_type_utf8());
 
         c4m_list_append(row, format_severity(err));
-        c4m_list_append(row, format_location(ctx, err));
+        c4m_list_append(row, err_format_module_location(ctx, err));
         c4m_list_append(row, c4m_format_error_message(err, true));
 
         c4m_grid_add_row(table, row);
@@ -1472,17 +1591,9 @@ c4m_compile_extract_all_error_codes(c4m_compile_ctx *cctx)
 }
 
 static void
-c4m_err_set_gc_bits(uint64_t *bitfield, void *alloc)
+c4m_err_set_gc_bits(uint64_t *bitmap, c4m_compile_error *alloc)
 {
-    *bitfield = 0x0b;
-
-    c4m_compile_error *err = alloc;
-
-    int base = c4m_ptr_diff(alloc, &err->msg_parameters[0]);
-
-    for (int i = 0; i < err->num_args; i++) {
-        c4m_set_bit(bitfield, base++);
-    }
+    c4m_mark_raw_to_addr(bitmap, alloc, &alloc->msg_parameters);
 }
 
 c4m_compile_error *
@@ -1491,7 +1602,43 @@ c4m_new_error(int nargs)
     return c4m_gc_flex_alloc(c4m_compile_error,
                              void *,
                              nargs,
-                             c4m_err_set_gc_bits);
+                             (c4m_mem_scan_fn)c4m_err_set_gc_bits);
+}
+
+#define COMMON_ERR_BASE()                                         \
+    va_list arg_counter;                                          \
+    int     num_args = 0;                                         \
+                                                                  \
+    va_copy(arg_counter, args);                                   \
+    while (va_arg(arg_counter, void *) != NULL) {                 \
+        num_args++;                                               \
+    }                                                             \
+    va_end(arg_counter);                                          \
+                                                                  \
+   c4m_compile_error *err = c4m_new_error(num_args);              \
+    err->code             = code;                                 \
+                                                                  \
+    if (num_args) {                                               \
+        for (int i = 0; i < num_args; i++) {                      \
+            err->msg_parameters[i] = va_arg(args, c4m_str_t *);   \
+        }                                                         \
+        err->num_args = num_args;                                 \
+    }                                                             \
+                                                                  \
+    c4m_list_append(err_list, err)
+
+c4m_compile_error *
+c4m_base_runtime_error(c4m_list_t          *err_list,
+                       c4m_compile_error_t  code,
+                       c4m_utf8_t          *location,
+                       va_list              args)
+{
+    COMMON_ERR_BASE();
+
+    err->severity        = c4m_err_severity_error;
+    err->loc.runtime_loc = location;
+
+    return err;
 }
 
 c4m_compile_error *
@@ -1501,29 +1648,9 @@ c4m_base_add_error(c4m_list_t         *err_list,
                    c4m_err_severity_t  severity,
                    va_list             args)
 {
-    va_list arg_counter;
-    int     num_args = 0;
-
-    va_copy(arg_counter, args);
-    while (va_arg(arg_counter, void *) != NULL) {
-        num_args++;
-    }
-    va_end(arg_counter);
-
-    c4m_compile_error *err = c4m_new_error(num_args);
-
-    err->code          = code;
-    err->current_token = tok;
-    err->severity      = severity;
-
-    if (num_args) {
-        for (int i = 0; i < num_args; i++) {
-            err->msg_parameters[i] = va_arg(args, c4m_str_t *);
-        }
-        err->num_args = num_args;
-    }
-
-    c4m_list_append(err_list, err);
+    COMMON_ERR_BASE();
+    err->loc.current_token = tok;
+    err->severity          = severity;
 
     return err;
 }
@@ -1549,6 +1676,7 @@ _c4m_error_from_token(c4m_module_compile_ctx *ctx,
 
     return result;
 }
+
 
 #define c4m_base_err_decl(func_name, severity_value)            \
     c4m_compile_error *                                         \

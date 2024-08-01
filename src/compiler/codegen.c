@@ -2515,6 +2515,7 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
     ctx->assign_method        = assign_to_mem_slot;
 
     module->instructions = ctx->instructions;
+    module->full_url     = ctx->fctx->loaded_from;
     module->module_id    = ctx->fctx->local_module_id;
     module->module_hash  = ctx->fctx->module_id;
     module->modname      = ctx->fctx->module;

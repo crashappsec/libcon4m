@@ -4,7 +4,7 @@
 typedef struct c4m_spec_field_t {
     union {
         c4m_type_t *type;
-        c4m_utf8_t *type_pointer;
+        c4m_utf8_t *type_pointer; // Isn't this redundant now?
     } tinfo;
 
     // The 'stashed options' field is for holding data specific to the
@@ -17,8 +17,9 @@ typedef struct c4m_spec_field_t {
     // we can allow for as much constant folding as possible.  This
     // even includes loading exported symbols from dependent modules.
 
-    void            *stashed_options;
     c4m_tree_node_t *declaration_node;
+    c4m_utf8_t      *location_string;
+    void            *stashed_options;
     c4m_utf8_t      *name;
     c4m_utf8_t      *short_doc;
     c4m_utf8_t      *long_doc;
@@ -26,7 +27,7 @@ typedef struct c4m_spec_field_t {
     void            *default_value;
     void            *validator;
     c4m_set_t       *exclusions;
-    unsigned int     user_def_ok       : 1;
+    unsigned int     user_def_ok       : 1;  // This shouldn't be here???
     unsigned int     hidden            : 1;
     unsigned int     required          : 1;
     unsigned int     lock_on_write     : 1;
@@ -38,6 +39,7 @@ typedef struct c4m_spec_field_t {
 
 typedef struct {
     c4m_tree_node_t *declaration_node;
+    c4m_utf8_t      *location_string;
     c4m_utf8_t      *name;
     c4m_utf8_t      *short_doc;
     c4m_utf8_t      *long_doc;

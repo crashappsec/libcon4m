@@ -63,6 +63,8 @@ HATRACK_EXTERN void            hatrack_set_difference_mmm  (hatrack_set_t *, mmm
 HATRACK_EXTERN void            hatrack_set_union_mmm       (hatrack_set_t *, mmm_thread_t *, hatrack_set_t *, hatrack_set_t *);
 HATRACK_EXTERN void            hatrack_set_intersection_mmm(hatrack_set_t *, mmm_thread_t *, hatrack_set_t *, hatrack_set_t *);
 HATRACK_EXTERN void            hatrack_set_disjunction_mmm (hatrack_set_t *, mmm_thread_t *, hatrack_set_t *, hatrack_set_t *);
+// Unreliable if there are parallel mutations.
+HATRACK_EXTERN uint64_t        hatrack_set_len(hatrack_set_t *);
 
 HATRACK_EXTERN bool            hatrack_set_contains    (hatrack_set_t *, void *);
 HATRACK_EXTERN bool            hatrack_set_put         (hatrack_set_t *, void *);

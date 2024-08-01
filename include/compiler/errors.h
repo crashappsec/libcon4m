@@ -3,6 +3,7 @@
 
 extern c4m_str_t  *c4m_format_error_message(c4m_compile_error *, bool);
 extern c4m_grid_t *c4m_format_errors(c4m_compile_ctx *);
+extern c4m_grid_t *c4m_format_runtime_errors(c4m_list_t *);
 extern c4m_list_t *c4m_compile_extract_all_error_codes(c4m_compile_ctx *);
 extern c4m_utf8_t *c4m_err_code_to_str(c4m_compile_error_t);
 
@@ -11,6 +12,10 @@ extern c4m_compile_error *c4m_base_add_error(c4m_list_t *,
                                              c4m_token_t *,
                                              c4m_err_severity_t,
                                              va_list);
+extern c4m_compile_error * c4m_base_runtime_error(c4m_list_t *,
+                                                  c4m_compile_error_t,
+                                                  c4m_utf8_t *,
+                                                  va_list);
 extern c4m_compile_error *_c4m_add_error(c4m_module_compile_ctx *,
                                          c4m_compile_error_t,
                                          c4m_tree_node_t *,

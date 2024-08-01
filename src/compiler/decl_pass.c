@@ -804,6 +804,8 @@ one_field(c4m_pass1_ctx      *ctx,
     f->exclusions       = c4m_new(c4m_type_set(c4m_type_utf8()));
     f->name             = name;
     f->declaration_node = tnode;
+    f->location_string  = c4m_format_module_location(ctx->module_ctx,
+                                                     pnode->token);
     pnode->extra_info   = f;
 
     if (pnode->short_doc) {
@@ -944,6 +946,8 @@ handle_section_spec(c4m_pass1_ctx *ctx)
     int                 num_kids = c4m_tree_get_number_children(tnode);
 
     section->declaration_node = tnode;
+    section->location_string  = c4m_format_module_location(ctx->module_ctx,
+                                                           pnode->token);
 
     if (pnode->short_doc) {
         section->short_doc = c4m_token_raw_content(pnode->short_doc);

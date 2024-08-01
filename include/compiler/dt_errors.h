@@ -200,6 +200,20 @@ typedef enum {
     c4m_err_invalid_time_spec,
     c4m_err_invalid_size_lit,
     c4m_err_invalid_duration_lit,
+    c4m_spec_disallowed_field,
+    c4m_spec_mutex_field,
+    c4m_spec_missing_ptr,
+    c4m_spec_invalid_type_ptr,
+    c4m_spec_ptr_typecheck,
+    c4m_spec_field_typecheck,
+    c4m_spec_missing_field,
+    c4m_spec_disallowed_section,
+    c4m_spec_unknown_section,
+    c4m_spec_missing_require,
+    c4m_spec_out_of_range,
+    c4m_spec_bad_choice,
+    c4m_spec_invalid_value,
+    c4m_spec_blueprint_fields,
 #ifdef C4M_DEV
     c4m_err_void_print,
 #endif
@@ -225,7 +239,11 @@ typedef struct {
     // .. $n, and the formatter will assume the right number of array
     // elements are there based on the values it sees.
 
-    c4m_token_t       *current_token;
+    union {
+        c4m_token_t *current_token;
+        c4m_utf8_t  *runtime_loc;
+    } loc;
+
     c4m_str_t         *long_info;
     int32_t            num_args;
     c4m_err_severity_t severity;

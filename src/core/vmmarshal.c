@@ -224,12 +224,12 @@ unmarshal_fn_info(c4m_stream_t *in, c4m_dict_t *memos)
 }
 
 static void
-marshal_value(c4m_value_t *in, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
+marshal_value(c4m_obj_t in, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mid)
 {
 }
 
 static void
-unmarshal_value(c4m_value_t *out, c4m_stream_t *in, c4m_dict_t *memos)
+unmarshal_value(c4m_obj_t *out, c4m_stream_t *in, c4m_dict_t *memos)
 {
 }
 
@@ -291,7 +291,6 @@ marshal_module_info(void *ref, c4m_stream_t *out, c4m_dict_t *memos, int64_t *mi
     c4m_marshal_i32(in->module_id, out);
     c4m_marshal_u64(in->module_hash, out);
     c4m_sub_marshal(in->modname, out, memos, mid);
-    c4m_sub_marshal(in->authority, out, memos, mid);
     c4m_sub_marshal(in->path, out, memos, mid);
     c4m_sub_marshal(in->package, out, memos, mid);
     c4m_sub_marshal(in->source, out, memos, mid);
@@ -312,7 +311,6 @@ unmarshal_module_info(c4m_stream_t *in, c4m_dict_t *memos)
     out->module_id       = c4m_unmarshal_i32(in);
     out->module_hash     = c4m_unmarshal_u64(in);
     out->modname         = c4m_sub_unmarshal(in, memos);
-    out->authority       = c4m_sub_unmarshal(in, memos);
     out->path            = c4m_sub_unmarshal(in, memos);
     out->package         = c4m_sub_unmarshal(in, memos);
     out->source          = c4m_sub_unmarshal(in, memos);

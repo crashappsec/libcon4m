@@ -11,6 +11,8 @@ extern bool                    c4m_add_module_to_worklist(c4m_compile_ctx *,
                                                           c4m_module_compile_ctx *);
 extern c4m_utf8_t             *c4m_package_from_path_prefix(c4m_utf8_t *,
                                                             c4m_utf8_t **);
+extern c4m_utf8_t             *c4m_format_module_location(c4m_module_compile_ctx *ctx,
+                                                          c4m_token_t *);
 
 static inline void
 c4m_module_set_status(c4m_module_compile_ctx *ctx, c4m_module_compile_status status)

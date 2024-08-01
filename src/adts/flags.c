@@ -39,6 +39,28 @@ c4m_flags_copy(const c4m_flags_t *self)
     return result;
 }
 
+c4m_flags_t *
+c4m_flags_invert(c4m_flags_t *self)
+{
+    c4m_flags_t *result = c4m_flags_copy(self);
+
+    for (int i = 0; i < result->alloc_wordlen; i++) {
+        result->contents[i] = ~self->contents[i];
+    }
+
+    if (!result->bit_modulus) {
+        return result;
+    }
+
+    int num_to_clear = 64 - result->bit_modulus;
+    uint64_t mask    = (1ULL << num_to_clear) - 1;
+
+
+    result->contents[result->alloc_wordlen - 1] &= mask;
+
+    return result;
+}
+
 static c4m_utf8_t *
 flags_repr(const c4m_flags_t *self)
 {

@@ -30,7 +30,7 @@ tokens. However, there are some significant items to note:
    identifier is allowed. However, we intend to limit this, so that
    the dollar sign is only available for special symbols provided by
    the language.
-   
+
 2. Literal tokens all may take literal modifiers, that are tokenized
    with the token. That not only includes integer, string and
    character literals, it also includes the closing delimiter for
@@ -40,7 +40,7 @@ tokens. However, there are some significant items to note:
    this case, the modifier will cause the string to be interpreted as
    rich text). Additionally, the following will (pretty soon) create a
    table, setting the first row as a header row:
-   
+
 ```
 [["Col 1", "Col 2"]'h, ["item1", "item2"]]'t
 ```
@@ -145,7 +145,7 @@ The following are current and expected *contextual keywords*:
 | allowed | | |
 | field | | |
 | named | | |
-| singleton | | | 
+| singleton | | |
 | root | | |
 | assert | | |
 | use | | |
@@ -158,12 +158,12 @@ Additionally, type names are all contextual keywords.
 The following are punctuation tokens that will eat one trailing newline:
 
 ```
-+ += - -= -> * *= / /= % %= < <= << <<= > >= >> >>= ! != , . { [ ( & &= | |= ^ ^= = 
++ += - -= -> * *= / /= % %= < <= << <<= > >= >> >>= ! != , . { [ ( & &= | |= ^ ^= =
 ```
 
 The following punctuation tokens do NOT eat a following newline:
 ```
-~ ` : } ] ) 
+~ ` : } ] )
 ```
 
 ### Literal syntax
@@ -345,7 +345,7 @@ bodyItem ::= lockAttr | ifStmt | forStmt | whileStmt | typeOfStmt |
              varStmt | letStmt | globalStmt | constStmt | useStmt
 
 body          ::= '{' docString? (bodyItem? EOS)* '}'
-optionalBody  ::= body | 
+optionalBody  ::= body |
 
 enumStmt     ::= "enum" ID? '{' enumItem (',' enumItem)* '}'
 enumItem     ::= ID (('=' | ':') expression)?
@@ -374,13 +374,13 @@ valueCaseCondition ::= expression (('to'|':') expression)? (',' valueCaseConditi
 caseElseBlock      ::= 'else' (caseBody | body)
 
 caseBody           ::= ':' (bodyItem EOS)*
-                
+
 funcDef     ::= "func" ID formalList -> returnType body
 
 varArgsFormal ::= '*' ID
 formal        ::= ID (':' typeSpec)
 argList       ::= formal (', ' formal)* varArgsFormal?
-formalList    ::= '(' (varArgsFormal | argList | <empty> ) ')' 
+formalList    ::= '(' (varArgsFormal | argList | <empty> ) ')'
 
 varStmt     ::= "var" ("const")? varSymInfo EOS
 letStmt     ::= "let" ("const")? varSymInfo EOS
@@ -418,7 +418,7 @@ fieldHidden      ::= 'hidden' ':' (BOOL | ID) EOS
 fieldRange       ::= 'range ':' (int | ID) ':' (int | ID) EOS
 fieldProps       ::= fieldType | fieldDefault | fieldRequire |
                      fieldChoice | fieldExclusions | fieldLock |
-                     fieldValidator | fieldHidden | fieldRange 
+                     fieldValidator | fieldHidden | fieldRange
 fieldSpec        ::= 'field' ID '{' docString (fieldProps)* '}'
 allow            ::= 'allow' ':' ID (',' ID) EOS
 secRequire       ::= 'require' ':' ID (', ID) EOS
@@ -453,7 +453,7 @@ typespec ::= typeVariable | funcType | objectType | listType | dictType |
              builtinType
 funcType ::= '(' typeSpec? (',' typeSpec)* (',' '*' typeSpec)? ')' returnType |
              '(' '*' typeSpec ')' returnType
-             
+
 returnType   ::= ('->' typeSpec)?
 objectType   ::= "struct" '[' (ID | typeVariable) ']'
 typeTypeSpec ::= "typespec" ('[' typeVariable ']')?
@@ -499,13 +499,13 @@ shlExprRHS    ::= exprStart (shlExpr)*
 notExpr       ::= 'not' expression
 
 expressionStart ::= literal | accessExpr
-                
+
 literal ::= (INT | HEX | FLOAT | STR | CHR | BOOL | bracketLit | tupleLit |
             dictLit) litmod? | OTHERLIT | callbackLit | typeSpec | 'nil'
-               
+
 bracketLit     ::= '[' (expression (',' expression)*)? ']'
 tupleLit       ::= '(' expression (',' expression)+ ')'
-dictLit        ::= '{' (kvPair (',' kvPair)* )? 
+dictLit        ::= '{' (kvPair (',' kvPair)* )?
 kvPair         ::= expression ':' expression
 litMod         ::= '\'' ID   # No space allowed
 callbackLit    ::= 'func' ID typeSpec?
@@ -538,10 +538,9 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - Arg parsing
 - Change $result back to result (or alias?)
 - Libraries (but only the ones Chalk needs)
-- Final mile: specs
 - Final mile: params
 - Doc API.
-- Callbacks
+- Garbage collection: scan registers
 
 # Items for afterward
 - Objects
@@ -553,13 +552,15 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - REPL
 - Keyword arguments
 - 'maybe' types / nil
-- Aspects (before / after / around pattern(sig) when x) 
+- Aspects (before / after / around pattern(sig) when x)
 - Threading
 - Pretty printing w/ type annotations
 - Language server
 - Checks based on PDG
 - Full-program info on unused fields & fns.
+- Some sort of union type.
 
+# Other noted issues to address
 - Need to deal with tuple assignment to attributes.
 - Need to ensure things that must be static consts are actually consts.
 - Enforce No default if there is a type param.
@@ -571,3 +572,7 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - Attr lock applied to non-attrs.
 - Calls via callback, possibly once interpreter stops.
 - Validation post-run.
+- Show source code on errors when available.
+- Revert the GC func for errors.
+- c4m_format_errors() -> c4m_format_compile_errors()
+- Section validation callbacks.

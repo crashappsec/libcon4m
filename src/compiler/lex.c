@@ -288,7 +288,7 @@ fill_lex_error(lex_state_t *state, c4m_compile_error_t code)
 
     c4m_compile_error *err = c4m_new_error(0);
     err->code              = code;
-    err->current_token     = tok;
+    err->loc.current_token = tok;
 
     if (!state->ctx->errors) {
         state->ctx->errors = c4m_list(c4m_type_ref());

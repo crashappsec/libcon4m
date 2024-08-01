@@ -656,3 +656,22 @@ c4m_init_module_from_loc(c4m_compile_ctx *ctx, c4m_str_t *path)
 
     return postprocess_module(ctx, result, path, false, NULL);
 }
+
+
+c4m_utf8_t *
+c4m_format_module_location(c4m_module_compile_ctx *ctx, c4m_token_t *tok)
+{
+    if (!ctx->loaded_from) {
+        ctx->loaded_from = c4m_cstr_format("{}.{}",
+                                           ctx->package,
+                                           ctx->module);
+    }
+
+    if (!tok) {
+        return c4m_cstr_format("[b]{}[/]", ctx->loaded_from);
+    }
+    return c4m_cstr_format("[b]{}:{:n}:{:n}:[/]",
+                           ctx->loaded_from,
+                           c4m_box_i64(tok->line_no),
+                           c4m_box_i64(tok->line_offset + 1));
+}

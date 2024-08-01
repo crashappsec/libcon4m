@@ -35,7 +35,7 @@ format_one_frame(c4m_vmthread_t *tstate, int n)
         c4m_zinstruction_t *i = c4m_list_get(m->instructions, tstate->pc, NULL);
 
         pc      = c4m_box_u64(tstate->pc);
-        modname = tstate->current_module->modname;
+        modname = m->modname;
         line    = c4m_box_u64(i->line_no);
     }
     else {
@@ -218,16 +218,16 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
         tstate->sp->uint = !!((int64_t)(v2 op v1)); \
     } while (0)
 
-static c4m_value_t *
+static c4m_obj_t
 c4m_vm_variable(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 {
     return &tstate->vm->module_allocations[i->module_id][i->arg];
 }
 
 static inline bool
-c4m_value_iszero(c4m_value_t *value)
+c4m_value_iszero(c4m_obj_t value)
 {
-    return 0 == value->obj;
+    return 0 == value;
 }
 
 #if 0 // Will return soon
@@ -287,7 +287,7 @@ c4m_vm_module_enter(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
             bool found;
             hatrack_dict_get(tstate->vm->attrs, p->attr, &found);
             if (!found) {
-                c4m_value_t *value = get_param_value(tstate, p);
+                c4m_obj_t value = get_param_value(tstate, p);
                 c4m_vm_attr_set(tstate,
 				p->attr,
 				value,
@@ -341,22 +341,18 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
     case C4M_BI_TO_STR:
         STACK_REQUIRE_VALUES(1);
 
-        obj = c4m_to_str(tstate->sp->rvalue.obj,
-                         c4m_get_my_type(tstate->sp->rvalue.obj));
+        obj = c4m_to_str(tstate->sp->rvalue,
+                         c4m_get_my_type(tstate->sp->rvalue));
 
-        tstate->sp->rvalue = (c4m_value_t){
-            .obj = obj,
-        };
+        tstate->sp->rvalue = obj;
         return;
     case C4M_BI_REPR:
         STACK_REQUIRE_VALUES(1);
 
-        obj = c4m_repr(tstate->sp->rvalue.obj,
-                       c4m_get_my_type(tstate->sp->rvalue.obj));
+        obj = c4m_repr(tstate->sp->rvalue,
+                       c4m_get_my_type(tstate->sp->rvalue));
 
-        tstate->sp->rvalue = (c4m_value_t){
-            .obj = obj,
-        };
+        tstate->sp->rvalue = obj;
         return;
     case C4M_BI_COERCE:
 #if 0
@@ -369,9 +365,7 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         obj = c4m_coerce(tstate->sp[1].rvalue.obj, i->type_info, t);
 
         ++tstate->sp;
-        tstate->sp->rvalue = (c4m_value_t){
-            .obj       = obj,
-        };
+        tstate->sp->rvalue = obj;
 #endif
         return;
     case C4M_BI_FORMAT:
@@ -385,7 +379,7 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         STACK_REQUIRE_SLOTS(1);
         do {
             uint64_t n;
-            tstate->sp->rvalue.obj = c4m_get_view(tstate->sp->rvalue.obj,
+            tstate->sp->rvalue = c4m_get_view(tstate->sp->rvalue,
                                                   (int64_t *)&n);
             --tstate->sp;
             tstate->sp[0].uint = n;
@@ -395,17 +389,15 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
     case C4M_BI_COPY:
         STACK_REQUIRE_VALUES(1);
 
-        obj = c4m_copy_object(tstate->sp->rvalue.obj);
+        obj = c4m_copy_object(tstate->sp->rvalue);
 
-        tstate->sp->rvalue = (c4m_value_t){
-            .obj = obj,
-        };
+        tstate->sp->rvalue = obj;
         return;
 
         // clang-format off
 #define BINOP_OBJ(_op, _t) \
-    obj = (c4m_obj_t)(uintptr_t)((_t)(uintptr_t)tstate->sp[1].rvalue.obj \
-     _op (_t)(uintptr_t) tstate->sp[0].rvalue.obj)
+    obj = (c4m_obj_t)(uintptr_t)((_t)(uintptr_t)tstate->sp[1].rvalue \
+     _op (_t)(uintptr_t) tstate->sp[0].rvalue)
         // clang-format on
 
 #define BINOP_INTEGERS(_op)       \
@@ -442,105 +434,96 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
     case C4M_BI_ADD:
         STACK_REQUIRE_VALUES(2);
 
-        t = c4m_get_my_type(tstate->sp->rvalue.obj);
+        t = c4m_get_my_type(tstate->sp->rvalue);
         switch (t->typeid) {
             BINOP_INTEGERS(+);
             BINOP_FLOATS(+);
         default:
-            obj = c4m_add(tstate->sp[1].rvalue.obj, tstate->sp[0].rvalue.obj);
+            obj = c4m_add(tstate->sp[1].rvalue, tstate->sp[0].rvalue);
         }
         ++tstate->sp;
-        tstate->sp->rvalue.obj = obj;
+        tstate->sp->rvalue = obj;
         return;
     case C4M_BI_SUB:
         STACK_REQUIRE_VALUES(2);
-        t = c4m_get_my_type(tstate->sp->rvalue.obj);
+        t = c4m_get_my_type(tstate->sp->rvalue);
         switch (t->typeid) {
             BINOP_INTEGERS(-);
             BINOP_FLOATS(-);
         default:
-            obj = c4m_sub(tstate->sp[1].rvalue.obj, tstate->sp[0].rvalue.obj);
+            obj = c4m_sub(tstate->sp[1].rvalue, tstate->sp[0].rvalue);
         }
         ++tstate->sp;
-        tstate->sp->rvalue.obj = obj;
+        tstate->sp->rvalue = obj;
         return;
     case C4M_BI_MUL:
         STACK_REQUIRE_VALUES(2);
-        t = c4m_get_my_type(tstate->sp->rvalue.obj);
+        t = c4m_get_my_type(tstate->sp->rvalue);
         switch (t->typeid) {
             BINOP_INTEGERS(*);
             BINOP_FLOATS(*);
         default:
-            obj = c4m_mul(tstate->sp[1].rvalue.obj, tstate->sp[0].rvalue.obj);
+            obj = c4m_mul(tstate->sp[1].rvalue, tstate->sp[0].rvalue);
         }
         ++tstate->sp;
-        tstate->sp->rvalue.obj = obj;
+        tstate->sp->rvalue = obj;
         return;
     case C4M_BI_DIV:
         STACK_REQUIRE_VALUES(2);
-        t = c4m_get_my_type(tstate->sp->rvalue.obj);
+        t = c4m_get_my_type(tstate->sp->rvalue);
         switch (t->typeid) {
             BINOP_INTEGERS(/);
             BINOP_FLOATS(/);
         default:
-            obj = c4m_div(tstate->sp[1].rvalue.obj, tstate->sp[0].rvalue.obj);
+            obj = c4m_div(tstate->sp[1].rvalue, tstate->sp[0].rvalue);
         }
         ++tstate->sp;
-        tstate->sp->rvalue.obj = obj;
+        tstate->sp->rvalue = obj;
         return;
     case C4M_BI_MOD:
         STACK_REQUIRE_VALUES(2);
-        t = c4m_get_my_type(tstate->sp->rvalue.obj);
+        t = c4m_get_my_type(tstate->sp->rvalue);
         switch (t->typeid) {
             BINOP_INTEGERS(%);
         default:
-            obj = c4m_mod(tstate->sp[1].rvalue.obj, tstate->sp[0].rvalue.obj);
+            obj = c4m_mod(tstate->sp[1].rvalue, tstate->sp[0].rvalue);
         }
         ++tstate->sp;
-        tstate->sp->rvalue.obj = obj;
+        tstate->sp->rvalue = obj;
         return;
     case C4M_BI_EQ:
         STACK_REQUIRE_VALUES(2);
 
         b = c4m_eq(i->type_info,
-                   tstate->sp[1].rvalue.obj,
-                   tstate->sp[0].rvalue.obj);
+                   tstate->sp[1].rvalue,
+                   tstate->sp[0].rvalue);
 
         ++tstate->sp;
-        tstate->sp->rvalue = (c4m_value_t){
-            .obj = (c4m_obj_t)b,
-        };
+        tstate->sp->rvalue = (c4m_obj_t)b;
         return;
     case C4M_BI_LT:
         STACK_REQUIRE_VALUES(2);
 
         b = c4m_lt(i->type_info,
-                   tstate->sp[1].rvalue.obj,
-                   tstate->sp[0].rvalue.obj);
+                   tstate->sp[1].rvalue,
+                   tstate->sp[0].rvalue);
 
         ++tstate->sp;
-        tstate->sp->rvalue = (c4m_value_t){
-            .obj = (c4m_obj_t)b,
-        };
+        tstate->sp->rvalue = (c4m_obj_t)b;
         return;
     case C4M_BI_GT:
         STACK_REQUIRE_VALUES(2);
 
         b = c4m_gt(i->type_info,
-                   tstate->sp[1].rvalue.obj,
-                   tstate->sp[0].rvalue.obj);
+                   tstate->sp[1].rvalue,
+                   tstate->sp[0].rvalue);
 
         ++tstate->sp;
-        tstate->sp->rvalue = (c4m_value_t){
-            .obj = (c4m_obj_t)b,
-        };
+        tstate->sp->rvalue = (c4m_obj_t)b;
         return;
     case C4M_BI_LEN:
         STACK_REQUIRE_VALUES(1);
-
-        tstate->sp->rvalue = (c4m_value_t){
-            .obj = (c4m_obj_t)c4m_len(tstate->sp->rvalue.obj),
-        };
+        tstate->sp->rvalue = (c4m_obj_t)c4m_len(tstate->sp->rvalue);
         return;
     case C4M_BI_INDEX_GET:
         STACK_REQUIRE_VALUES(2);
@@ -548,14 +531,12 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         // container = sp[1]
 
         // get the item type
-        obj = tstate->sp[1].rvalue.obj;
+        obj = tstate->sp[1].rvalue;
         t   = c4m_type_get_param(c4m_get_my_type(obj), -1);
-        obj = c4m_index_get(tstate->sp[1].rvalue.obj, tstate->sp[0].rvalue.obj);
+        obj = c4m_index_get(tstate->sp[1].rvalue, tstate->sp[0].rvalue);
 
         ++tstate->sp;
-        tstate->sp->rvalue = (c4m_value_t){
-            .obj = obj,
-        };
+        tstate->sp->rvalue = obj;
         return;
     case C4M_BI_INDEX_SET:
         STACK_REQUIRE_VALUES(3);
@@ -563,22 +544,22 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         // container = sp[1]
         // value = sp[2]
 
-        c4m_index_set(tstate->sp[2].rvalue.obj,
-                      tstate->sp[0].rvalue.obj,
-                      tstate->sp[1].rvalue.obj);
+        c4m_index_set(tstate->sp[2].rvalue,
+                      tstate->sp[0].rvalue,
+                      tstate->sp[1].rvalue);
 
         tstate->sp += 3;
         return;
     case C4M_BI_SLICE_GET:
         STACK_REQUIRE_VALUES(3);
-        obj = c4m_slice_get(tstate->sp[2].rvalue.obj,
-                            (int64_t)tstate->sp[1].rvalue.obj,
-                            (int64_t)tstate->sp[0].rvalue.obj);
+        obj = c4m_slice_get(tstate->sp[2].rvalue,
+                            (int64_t)tstate->sp[1].rvalue,
+                            (int64_t)tstate->sp[0].rvalue);
 
         tstate->sp += 2;
         // type is already correct on the stack, since we're writing
         // over the container location and this is a slice.
-        tstate->sp->rvalue.obj = obj;
+        tstate->sp->rvalue = obj;
         return;
     case C4M_BI_SLICE_SET:
         STACK_REQUIRE_VALUES(4);
@@ -587,10 +568,10 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         // startIx = sp[1]
         // value = sp[0]
 
-        c4m_slice_set(tstate->sp[3].rvalue.obj,
-                      (int64_t)tstate->sp[2].rvalue.obj,
-                      (int64_t)tstate->sp[1].rvalue.obj,
-                      tstate->sp[0].rvalue.obj);
+        c4m_slice_set(tstate->sp[3].rvalue,
+                      (int64_t)tstate->sp[2].rvalue,
+                      (int64_t)tstate->sp[1].rvalue,
+                      tstate->sp[0].rvalue);
 
         tstate->sp += 4;
         return;
@@ -616,7 +597,7 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
 
             --tstate->sp;
 
-            tstate->sp[0].rvalue.obj = c4m_container_literal(ct, xl, NULL);
+            tstate->sp[0].rvalue = c4m_container_literal(ct, xl, NULL);
         } while (0);
         return;
 
@@ -659,7 +640,7 @@ c4m_vm_0call(c4m_vmthread_t *tstate, c4m_zinstruction_t *i, int64_t ix)
     --tstate->sp;
 
     tstate->sp->vptr = tstate->fp;
-    tstate->fp       = (c4m_stack_value_t *)&tstate->sp->vptr;
+    tstate->fp       = (c4m_value_t *)&tstate->sp->vptr;
 
     c4m_zmodule_info_t *old_module = tstate->current_module;
 
@@ -700,7 +681,7 @@ c4m_vm_call_module(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
     --tstate->sp;
 
     tstate->sp->vptr = tstate->fp;
-    tstate->fp       = (c4m_stack_value_t *)&tstate->sp->vptr;
+    tstate->fp       = (c4m_value_t *)&tstate->sp->vptr;
 
     c4m_zmodule_info_t *old_module = tstate->current_module;
 
@@ -766,12 +747,12 @@ ffi_possible_ret_munge(c4m_vmthread_t *tstate, c4m_type_t *at, c4m_type_t *ft)
 
     if (!c4m_type_is_concrete(at)) {
         if (c4m_type_is_concrete(ft) && c4m_type_is_value_type(ft)) {
-	     tstate->r0.obj = c4m_box_obj((c4m_box_t){.v = tstate->r0.obj}, ft);
+	     tstate->r0 = c4m_box_obj((c4m_box_t){.v = tstate->r0}, ft);
         }
     }
     else {
         if (c4m_type_is_value_type(at) && !c4m_type_is_concrete(ft)) {
-            tstate->r0.obj = c4m_unbox_obj(tstate->r0.obj).v;
+            tstate->r0 = c4m_unbox_obj(tstate->r0).v;
         }
     }
 
@@ -811,7 +792,7 @@ c4m_vm_ffi_call(c4m_vmthread_t     *tstate,
 		n < 63 &&
 		((1 << n) & ffiinfo->str_convert)) {
 
-		c4m_utf8_t *s = (c4m_utf8_t *)tstate->sp[i].rvalue.obj;
+		c4m_utf8_t *s = (c4m_utf8_t *)tstate->sp[i].rvalue;
 		s             = c4m_to_utf8(s);
 		args[n]       = &s->data;
             }
@@ -832,7 +813,7 @@ c4m_vm_ffi_call(c4m_vmthread_t     *tstate,
             }
 
             if (n < 63 && ((1 << n) & ffiinfo->hold_info)) {
-                c4m_gc_add_hold(tstate->sp[i].rvalue.obj);
+                c4m_gc_add_hold(tstate->sp[i].rvalue);
             }
         }
     }
@@ -840,8 +821,8 @@ c4m_vm_ffi_call(c4m_vmthread_t     *tstate,
     ffi_call(&ffiinfo->cif, ffiinfo->fptr, &tstate->r0, args);
 
     if (ffiinfo->str_convert & (1UL << 63)) {
-        char *s        = (char *)tstate->r0.obj;
-        tstate->r0.obj = c4m_new_utf8(s);
+        char *s        = (char *)tstate->r0;
+        tstate->r0 = c4m_new_utf8(s);
     }
 
     if (dynamic_type != NULL) {
@@ -1004,17 +985,15 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZPushConstObj:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
-                *tstate->sp = (c4m_stack_value_t){
+                *tstate->sp = (c4m_value_t){
                     .uint = tstate->vm->const_pool[i->arg].u,
                 };
                 break;
             case C4M_ZPushConstRef:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
-                *tstate->sp = (c4m_stack_value_t){
-                    .rvalue = (c4m_value_t){
-                        .obj = (c4m_obj_t)(tstate->vm->const_pool + i->arg),
-                    },
+                *tstate->sp = (c4m_value_t){
+                    .rvalue = (c4m_obj_t)(tstate->vm->const_pool + i->arg),
                 };
                 break;
             case C4M_ZDeref:
@@ -1024,35 +1003,33 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZPushImm:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
-                *tstate->sp = (c4m_stack_value_t){
-                    .rvalue = (c4m_value_t){
-                        .obj = (c4m_obj_t)i->immediate,
-                    },
+                *tstate->sp = (c4m_value_t){
+                    .rvalue = (c4m_obj_t)i->immediate,
                 };
                 break;
             case C4M_ZPushLocalObj:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
-                tstate->sp->rvalue.obj = tstate->fp[-i->arg].rvalue.obj;
+                tstate->sp->rvalue = tstate->fp[-i->arg].rvalue;
                 break;
             case C4M_ZPushLocalRef:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
-                *tstate->sp = (c4m_stack_value_t){
+                *tstate->sp = (c4m_value_t){
                     .lvalue = &tstate->fp[-i->arg].rvalue,
                 };
                 break;
             case C4M_ZPushStaticObj:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
-                *tstate->sp = (c4m_stack_value_t){
-                    .rvalue = *c4m_vm_variable(tstate, i),
+                *tstate->sp = (c4m_value_t){
+                    .rvalue = *(c4m_obj_t *)c4m_vm_variable(tstate, i),
                 };
                 break;
             case C4M_ZPushStaticRef:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
-                *tstate->sp = (c4m_stack_value_t){
+                *tstate->sp = (c4m_value_t){
                     .lvalue = c4m_vm_variable(tstate, i),
                 };
                 break;
@@ -1068,7 +1045,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 break;
             case C4M_ZJz:
                 STACK_REQUIRE_VALUES(1);
-                if (c4m_value_iszero(&tstate->sp->rvalue)) {
+                if (c4m_value_iszero(tstate->sp->rvalue)) {
                     tstate->pc = i->arg;
                     continue;
                 }
@@ -1076,7 +1053,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 break;
             case C4M_ZJnz:
                 STACK_REQUIRE_VALUES(1);
-                if (!c4m_value_iszero(&tstate->sp->rvalue)) {
+                if (!c4m_value_iszero(tstate->sp->rvalue)) {
                     tstate->pc = i->arg;
                     continue;
                 }
@@ -1254,7 +1231,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZSwap:
                 STACK_REQUIRE_VALUES(2);
                 do {
-                    c4m_stack_value_t tmp = tstate->sp[0];
+                    c4m_value_t tmp = tstate->sp[0];
                     tstate->sp[0]         = tstate->sp[1];
                     tstate->sp[1]         = tmp;
                 } while (0);
@@ -1264,7 +1241,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 do {
                     bool         found = true;
                     c4m_utf8_t  *key   = tstate->sp->vptr;
-                    c4m_value_t *val;
+                    c4m_obj_t    val;
                     uint64_t     flag = i->immediate;
 
                     if (flag) {
@@ -1283,14 +1260,14 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                         tstate->sp[0].vptr = box.v;
                     }
                     else {
-                        *tstate->sp = (c4m_stack_value_t){
+                        *tstate->sp = (c4m_value_t){
                             .lvalue = val,
                         };
                     }
 
                     // Only push the status if it was explicitly requested.
                     if (flag) {
-                        *--tstate->sp = (c4m_stack_value_t){
+                        *--tstate->sp = (c4m_value_t){
                             .uint = found ? 1 : 0,
                         };
                     }
@@ -1331,7 +1308,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 STACK_REQUIRE_SLOTS(2); // Usually 1, except w/ dict.
                 do {
                     uint64_t   obj_len   = tstate->sp->uint;
-                    void     **view_slot = &(tstate->sp + 1)->rvalue.obj;
+                    void     **view_slot = &(tstate->sp + 1)->rvalue;
                     char      *p         = *(char **)view_slot;
                     c4m_box_t *box       = (c4m_box_t *)p;
 
@@ -1365,7 +1342,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                         break;
                     default:
                         do {
-                            uint64_t count  = (uint64_t)(tstate->r1.obj);
+                            uint64_t count  = (uint64_t)(tstate->r1);
                             uint64_t bit_ix = (count - 1) % 64;
                             uint64_t val    = **(uint64_t **)view_slot;
 
@@ -1379,29 +1356,25 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 } while (0);
                 break;
             case C4M_ZStoreImm:
-                *c4m_vm_variable(tstate, i) = (c4m_value_t){
-                    .obj = (c4m_obj_t)i->immediate,
-                };
+                *(c4m_obj_t *)c4m_vm_variable(tstate, i) = (c4m_obj_t)i->immediate;
                 break;
             case C4M_ZPushObjType:
                 // Name is a a bit of a mis-name because it also pops
                 // the object. Should be ZReplaceObjWType
                 STACK_REQUIRE_SLOTS(1);
                 do {
-                    c4m_type_t *type = c4m_get_my_type(tstate->sp->rvalue.obj);
+                    c4m_type_t *type = c4m_get_my_type(tstate->sp->rvalue);
 
-                    *tstate->sp = (c4m_stack_value_t){
-                        .rvalue = (c4m_value_t){
-                            .obj = type,
-                        },
+                    *tstate->sp = (c4m_value_t){
+                        .rvalue = type,
                     };
                 } while (0);
                 break;
             case C4M_ZTypeCmp:
                 STACK_REQUIRE_VALUES(2);
                 do {
-                    c4m_type_t *t1 = tstate->sp[0].rvalue.obj;
-                    c4m_type_t *t2 = tstate->sp[1].rvalue.obj;
+                    c4m_type_t *t1 = tstate->sp[0].rvalue;
+                    c4m_type_t *t2 = tstate->sp[1].rvalue;
 
                     ++tstate->sp;
 
@@ -1474,7 +1447,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZUnsteal:
                 STACK_REQUIRE_VALUES(1);
                 STACK_REQUIRE_SLOTS(1);
-                *(tstate->sp - 1) = (c4m_stack_value_t){
+                *(tstate->sp - 1) = (c4m_value_t){
                     .static_ptr = tstate->sp->static_ptr & 0x07,
                 };
                 tstate->sp->static_ptr &= ~(0x07ULL);
@@ -1559,9 +1532,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     }
 
                     --tstate->sp;
-                    tstate->sp->rvalue = (c4m_value_t){
-                        .obj = obj,
-                    };
+                    tstate->sp->rvalue = obj;
                 } while (0);
                 break;
             case C4M_ZAssignToLoc:
@@ -1571,7 +1542,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 break;
             case C4M_ZAssert:
                 STACK_REQUIRE_VALUES(1);
-                if (!c4m_value_iszero(&tstate->sp->rvalue)) {
+                if (!c4m_value_iszero(tstate->sp->rvalue)) {
                     ++tstate->sp;
                 }
                 else {
@@ -1587,9 +1558,9 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 // This is not threadsafe. It's just for early days.
             case C4M_ZPrint:
                 STACK_REQUIRE_VALUES(1);
-                c4m_print(tstate->sp->rvalue.obj);
+                c4m_print(tstate->sp->rvalue);
                 c4m_stream_write_object(tstate->vm->print_stream,
-                                        tstate->sp->rvalue.obj,
+                                        tstate->sp->rvalue,
                                         false);
                 c4m_stream_putc(tstate->vm->print_stream, '\n');
                 ++tstate->sp;
@@ -1606,7 +1577,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 tstate->sp->rvalue = tstate->r0;
                 break;
             case C4M_Z0R0c00l:
-                tstate->r0.obj = (void *)NULL;
+                tstate->r0 = (void *)NULL;
                 break;
             case C4M_ZPopToR1:
                 STACK_REQUIRE_VALUES(1);
@@ -1643,23 +1614,22 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 c4m_box_t item = {
                     .u64 = tstate->sp->uint,
                 };
-                tstate->sp->rvalue.obj = c4m_box_obj(item, i->type_info);
+                tstate->sp->rvalue = c4m_box_obj(item, i->type_info);
                 break;
             case C4M_ZUnbox:
                 STACK_REQUIRE_VALUES(1);
-                tstate->sp->uint = c4m_unbox_obj(tstate->sp->rvalue.obj).u64;
+                tstate->sp->uint = c4m_unbox_obj(tstate->sp->rvalue).u64;
                 break;
             case C4M_ZUnpack:
                 for (int32_t x = 1; x <= i->arg; ++x) {
-                    *tstate->sp[0].lvalue = (c4m_value_t){
-                        .obj = c4m_tuple_get(tstate->r1.obj, i->arg - x),
-                    };
+                    *tstate->sp[0].lvalue =  c4m_tuple_get(tstate->r1,
+                                                           i->arg - x);
                     ++tstate->sp;
                 }
                 break;
             case C4M_ZBail:
                 STACK_REQUIRE_VALUES(1);
-                C4M_RAISE(tstate->sp->rvalue.obj);
+                C4M_RAISE(tstate->sp->rvalue);
                 break;
             case C4M_ZLockMutex:
                 STACK_REQUIRE_VALUES(1);
@@ -1802,14 +1772,14 @@ void
 c4m_vm_reset(c4m_vm_t *vm)
 {
     int64_t nmodules       = c4m_list_len(vm->obj->module_contents);
-    vm->module_allocations = c4m_gc_array_alloc(c4m_value_t *, nmodules);
+    vm->module_allocations = c4m_gc_array_alloc(c4m_obj_t, nmodules);
 
     for (int64_t n = 0; n < nmodules; ++n) {
         c4m_zmodule_info_t *m = c4m_list_get(vm->obj->module_contents,
                                              n,
                                              NULL);
 
-        vm->module_allocations[n] = c4m_gc_array_alloc(c4m_value_t,
+        vm->module_allocations[n] = c4m_gc_array_alloc(c4m_obj_t,
                                                        m->module_var_size + 8);
     }
 
@@ -1851,10 +1821,10 @@ c4m_vmthread_reset(c4m_vmthread_t *tstate)
     tstate->fp         = tstate->sp;
     tstate->pc         = 0;
     tstate->num_frames = 1;
-    tstate->r0         = (c4m_value_t){};
-    tstate->r1         = (c4m_value_t){};
-    tstate->r2         = (c4m_value_t){};
-    tstate->r3         = (c4m_value_t){};
+    tstate->r0         = NULL;
+    tstate->r1         = NULL;
+    tstate->r2         = NULL;
+    tstate->r3         = NULL;
     tstate->running    = false;
     tstate->error      = false;
 

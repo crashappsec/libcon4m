@@ -370,25 +370,15 @@ typedef struct {
     bool        skip_boxes;
 } c4m_zcallback_t;
 
-// this is an arbitrary value that combines the value itself with its type
-// information. this is needed because we want to keep ints and floats unboxed,
-// but to do that we always need to store the values with type information
-// attached. a boxed int/float should never be stored in a value, but unboxed
-// before storing in the value, because there's otherwise no way to be able to
-// know whether the number value is boxed or not.
-typedef struct c4m_value_t {
-    c4m_obj_t obj;
-} c4m_value_t;
-
 // stack values have no indicator of what's actually stored, instead relying on
 // instructions to assume correctly what's present.
-typedef union c4m_stack_value_t {
+typedef union c4m_value_t {
     void                    *vptr;
     c4m_zcallback_t         *callback;
-    c4m_value_t             *lvalue;
+    c4m_obj_t               *lvalue;
     char                    *cptr;
-    union c4m_stack_value_t *fp;         // saved fp
-    c4m_value_t              rvalue;
+    union c4m_value_t *fp;         // saved fp
+    c4m_obj_t                rvalue;
     uint64_t                 static_ptr; // offset into static_data
     // saved pc / module_id, along with unsigned int values where
     // we don't care about the type field for the operation.
@@ -397,7 +387,7 @@ typedef union c4m_stack_value_t {
     c4m_box_t                box;
     double                   dbl;
     bool                     boolean;
-} c4m_stack_value_t;
+} c4m_value_t;
 
 // Might want to trim a bit out of it, but for right now, an going to not.
 typedef struct c4m_ffi_decl_t c4m_zffi_info_t;
@@ -439,19 +429,19 @@ typedef struct {
     c4m_str_t  *shortdoc;
     c4m_str_t  *longdoc;
     int64_t     offset;
-    c4m_value_t default_value;
+    c4m_obj_t   default_value;
     bool        have_default;
     bool        is_private;
     int32_t     v_fn_ix;
     bool        v_native;
     int32_t     i_fn_ix;
     bool        i_native;
-    c4m_value_t userparam;
+    c4m_obj_t   userparam;
 } c4m_zparam_info_t;
 
 typedef struct {
     c4m_str_t  *modname;
-    c4m_str_t  *authority;
+    c4m_str_t  *full_url;
     c4m_str_t  *path;
     c4m_str_t  *package;
     c4m_str_t  *source;
@@ -493,6 +483,7 @@ typedef struct {
 typedef struct {
     c4m_zinstruction_t *lastset; // (not marshaled)
     void               *contents;
+    c4m_type_t         *type; // Value types will not generally be boxed.
     bool                is_set;
     bool                locked;
     bool                lock_on_write;
@@ -520,7 +511,7 @@ typedef struct {
         uint64_t u;
         void    *p;
     }            *const_pool;
-    c4m_value_t **module_allocations;
+    c4m_obj_t   **module_allocations;
     c4m_dict_t   *attrs;        // string, c4m_attr_contents_t (tspec_ref)
     c4m_set_t    *all_sections; // string
     c4m_list_t   *ffi_info;
@@ -535,10 +526,10 @@ typedef struct {
 
     // sp is the current stack pointer. The stack grows down, so sp starts out
     // as &stack[STACK_SIZE] (stack bottom)
-    c4m_stack_value_t *sp;
+    c4m_value_t *sp;
 
     // fp points to the start of the current frame on the stack.
-    c4m_stack_value_t *fp;
+    c4m_value_t *fp;
 
     // const_base is the base address for constant storage.
     // It's indexed by byte index, thus declared char *.
@@ -559,14 +550,14 @@ typedef struct {
 
     // stack is the base address of the stack for this thread of execution.
     // the stack grows down, so the stack bottom is &stack[STACK_SIZE]
-    c4m_stack_value_t stack[C4M_STACK_SIZE];
+    c4m_value_t stack[C4M_STACK_SIZE];
 
     // General purpose registers.
     // R0 should generally only be used for passing return values.
-    c4m_value_t r0;
-    c4m_value_t r1;
-    c4m_value_t r2;
-    c4m_value_t r3;
+    c4m_obj_t r0;
+    c4m_obj_t r1;
+    c4m_obj_t r2;
+    c4m_obj_t r3;
 
     // pc is the current program counter, which is an index into current_module
     // instructions array.

@@ -61,8 +61,6 @@ if get_option('forkless_tests').enabled()
     c_args = c_args + ['-DC4M_TEST_WITHOUT_FORK']
 endif
 
-
-
 if not get_option('static_ffi_binding').disabled()
   c_args = c_args + ['-DC4M_STATIC_FFI_BINDING']
 endif
@@ -196,6 +194,7 @@ c4m_core = [
     'src/core/vmmarshal.c',
     'src/core/ffi.c',
     'src/core/object.c',
+    'src/core/validation.c',
 ]
 c4m_adts = [
     'src/adts/string.c',

@@ -350,7 +350,7 @@ _raise_err_at_node(parse_ctx          *ctx,
 {
     c4m_compile_error *err = c4m_new_error(0);
     err->code              = code;
-    err->current_token     = n->token;
+    err->loc.current_token = n->token;
     c4m_list_append(ctx->module_ctx->errors, err);
 
     if (bail) {

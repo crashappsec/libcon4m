@@ -878,6 +878,12 @@ hatrack_set_disjunction(hatrack_set_t *set1, hatrack_set_t *set2, hatrack_set_t 
     hatrack_set_disjunction_mmm(set1, mmm_thread_acquire(), set2, ret);
 }
 
+uint64_t
+hatrack_set_len(hatrack_set_t *self)
+{
+    return woolhat_len(&self->woolhat_instance);
+}
+
 static hatrack_hash_t
 hatrack_set_get_hash_value(hatrack_set_t *self, void *key)
 {
