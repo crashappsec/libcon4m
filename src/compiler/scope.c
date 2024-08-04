@@ -14,7 +14,7 @@ char *c4m_symbol_kind_names[C4M_SK_NUM_SYM_KINDS] = {
 };
 // clang-format on
 
-static void
+void
 c4m_sym_gc_bits(uint64_t *bitfield, c4m_symbol_t *sym)
 {
     c4m_mark_raw_to_addr(bitfield, sym, &sym->value);
@@ -26,7 +26,7 @@ c4m_new_symbol()
     return c4m_gc_alloc_mapped(c4m_symbol_t, c4m_sym_gc_bits);
 }
 
-static void
+void
 c4m_scope_gc_bits(uint64_t *bitfield, c4m_scope_t *scope)
 {
     c4m_mark_raw_to_addr(bitfield, scope, &scope->symbols);

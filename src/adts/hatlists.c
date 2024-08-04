@@ -59,60 +59,6 @@ c4m_stack_init(hatstack_t *stack, va_list args)
     hatstack_init(stack, prealloc);
 }
 
-static void
-c4m_flexarray_marshal(flexarray_t  *r,
-                      c4m_stream_t *s,
-                      c4m_dict_t   *memos,
-                      int64_t      *mid)
-{
-    c4m_type_t    *list_type   = c4m_get_my_type(r);
-    c4m_list_t    *type_params = c4m_type_get_params(list_type);
-    c4m_type_t    *item_type   = c4m_list_get(type_params, 0, NULL);
-    c4m_dt_info_t *item_info   = c4m_type_get_data_type_info(item_type);
-    bool           by_val      = item_info->by_value;
-    flex_view_t   *view        = flexarray_view(r);
-    uint64_t       len         = flexarray_view_len(view);
-
-    c4m_marshal_u64(len, s);
-
-    if (by_val) {
-        for (uint64_t i = 0; i < len; i++) {
-            uint64_t n = (uint64_t)flexarray_view_next(view, NULL);
-            c4m_marshal_u64(n, s);
-        }
-    }
-    else {
-        for (uint64_t i = 0; i < len; i++) {
-            c4m_sub_marshal(flexarray_view_next(view, NULL), s, memos, mid);
-        }
-    }
-}
-
-static void
-c4m_flexarray_unmarshal(flexarray_t *r, c4m_stream_t *s, c4m_dict_t *memos)
-{
-    c4m_type_t    *list_type   = c4m_get_my_type(r);
-    c4m_list_t    *type_params = c4m_type_get_params(list_type);
-    c4m_type_t    *item_type   = c4m_list_get(type_params, 0, NULL);
-    c4m_dt_info_t *item_info   = c4m_type_get_data_type_info(item_type);
-    bool           by_val      = item_info->by_value;
-    uint64_t       len         = c4m_unmarshal_u64(s);
-
-    flexarray_init(r, len);
-
-    if (by_val) {
-        for (uint64_t i = 0; i < len; i++) {
-            uint64_t n = c4m_unmarshal_u64(s);
-            flexarray_set(r, i, (void *)n);
-        }
-    }
-    else {
-        for (uint64_t i = 0; i < len; i++) {
-            flexarray_set(r, i, c4m_sub_unmarshal(s, memos));
-        }
-    }
-}
-
 bool
 c4m_flexarray_can_coerce_to(c4m_type_t *my_type, c4m_type_t *dst_type)
 {
@@ -401,8 +347,6 @@ const c4m_vtable_t c4m_flexarray_vtable = {
         [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)c4m_flexarray_init,
         [C4M_BI_FINALIZER]     = (c4m_vtable_entry)flexarray_cleanup,
         [C4M_BI_TO_STR]        = (c4m_vtable_entry)c4m_flexarray_repr,
-        [C4M_BI_MARSHAL]       = (c4m_vtable_entry)c4m_flexarray_marshal,
-        [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_flexarray_unmarshal,
         [C4M_BI_COERCIBLE]     = (c4m_vtable_entry)c4m_flexarray_can_coerce_to,
         [C4M_BI_COERCE]        = (c4m_vtable_entry)c4m_flexarray_coerce_to,
         [C4M_BI_COPY]          = (c4m_vtable_entry)c4m_flexarray_copy,

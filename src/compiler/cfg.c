@@ -8,11 +8,11 @@ typedef struct {
 
 typedef struct {
     c4m_module_compile_ctx *module_ctx;
-    c4m_dict_t           *du_info;
-    c4m_list_t           *sometimes_info;
+    c4m_dict_t             *du_info;
+    c4m_list_t             *sometimes_info;
 } cfg_ctx;
 
-static void
+void
 c4m_cfg_status_gc_bits(uint64_t *bitmap, c4m_cfg_status_t *cfgstatus)
 {
     c4m_mark_raw_to_addr(bitmap, cfgstatus, &cfgstatus->last_use);
@@ -725,7 +725,7 @@ c4m_cfg_analyze(c4m_module_compile_ctx *module_ctx, c4m_dict_t *du_info)
     }
 
     cfg_ctx ctx = {
-        .module_ctx       = module_ctx,
+        .module_ctx     = module_ctx,
         .du_info        = du_info,
         .sometimes_info = NULL,
     };

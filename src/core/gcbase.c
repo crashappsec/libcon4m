@@ -6,6 +6,8 @@ uint64_t                  c4m_page_bytes;
 uint64_t                  c4m_page_modulus;
 uint64_t                  c4m_modulus_mask;
 
+_Atomic(c4m_segment_range_t *) c4m_static_segments = NULL;
+
 #ifdef C4M_GC_STATS
 thread_local uint64_t c4m_total_requested = 0;
 thread_local uint64_t c4m_total_alloced   = 0;
@@ -214,6 +216,28 @@ c4m_initialize_gc()
 
         hatrack_set_init(external_holds, HATRACK_DICT_KEY_TYPE_PTR);
     }
+}
+
+void
+c4m_add_static_segment(void *start, void *end)
+{
+    // Keep this out of the world of the GC, since it's static.
+    c4m_segment_range_t *range    = malloc(sizeof(c4m_segment_range_t));
+    c4m_segment_range_t *expected = atomic_load(&c4m_static_segments);
+
+    range->start = start;
+    range->end   = end;
+
+    do {
+        if (expected) {
+            range->segment_id = expected->segment_id + 1;
+        }
+        else {
+            range->segment_id = 0;
+        }
+
+        range->next = expected;
+    } while (!CAS(&c4m_static_segments, &expected, range));
 }
 
 void

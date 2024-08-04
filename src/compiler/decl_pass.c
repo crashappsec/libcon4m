@@ -72,50 +72,50 @@ c4m_cur_node(c4m_pass1_ctx *ctx)
 
 static void pass_dispatch(c4m_pass1_ctx *ctx);
 
-static void
+void
 c4m_module_param_gc_bits(uint64_t *bitmap, c4m_module_param_info_t *pi)
 {
     c4m_mark_raw_to_addr(bitmap, pi, &pi->default_value);
 }
 
 c4m_module_param_info_t *
-c4m_new_module_param()
+c4m_new_module_param(void)
 {
     return c4m_gc_alloc_mapped(c4m_module_param_info_t,
                                c4m_module_param_gc_bits);
 }
 
-static void
+void
 c4m_sig_info_gc_bits(uint64_t *bitmap, c4m_sig_info_t *si)
 {
     c4m_mark_raw_to_addr(bitmap, si, &si->return_info.type);
 }
 
 c4m_sig_info_t *
-c4m_new_sig_info()
+c4m_new_sig_info(void)
 {
     return c4m_gc_alloc_mapped(c4m_sig_info_t, c4m_sig_info_gc_bits);
 }
 
-static void
+void
 c4m_fn_decl_gc_bits(uint64_t *bitmap, c4m_fn_decl_t *decl)
 {
     c4m_mark_raw_to_addr(bitmap, decl, &decl->cfg);
 }
 
 c4m_fn_decl_t *
-c4m_new_fn_decl()
+c4m_new_fn_decl(void)
 {
     return c4m_gc_alloc_mapped(c4m_fn_decl_t, c4m_fn_decl_gc_bits);
 }
 
 c4m_ffi_decl_t *
-c4m_new_ffi_decl()
+c4m_new_ffi_decl(void)
 {
     return c4m_gc_alloc_mapped(c4m_ffi_decl_t, C4M_GC_SCAN_ALL);
 }
 
-static void
+void
 c4m_module_info_gc_bits(uint64_t *bitmap, c4m_module_info_t *info)
 {
     c4m_mark_raw_to_addr(bitmap, info, &info->specified_uri);
@@ -805,7 +805,7 @@ one_field(c4m_pass1_ctx      *ctx,
     f->name             = name;
     f->declaration_node = tnode;
     f->location_string  = c4m_format_module_location(ctx->module_ctx,
-                                                     pnode->token);
+                                                    pnode->token);
     pnode->extra_info   = f;
 
     if (pnode->short_doc) {
@@ -947,7 +947,7 @@ handle_section_spec(c4m_pass1_ctx *ctx)
 
     section->declaration_node = tnode;
     section->location_string  = c4m_format_module_location(ctx->module_ctx,
-                                                           pnode->token);
+                                                          pnode->token);
 
     if (pnode->short_doc) {
         section->short_doc = c4m_token_raw_content(pnode->short_doc);

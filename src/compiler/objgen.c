@@ -1,6 +1,6 @@
 #include "con4m.h"
 
-static void
+void
 c4m_objfile_gc_bits(uint64_t *bitmap, c4m_zobject_file_t *obj)
 {
     c4m_mark_raw_to_addr(bitmap, obj, &obj->ffi_info);
@@ -8,7 +8,7 @@ c4m_objfile_gc_bits(uint64_t *bitmap, c4m_zobject_file_t *obj)
     *bitmap &= ~1ULL;
 }
 
-static void
+void
 c4m_vm_gc_bits(uint64_t *bitmap, c4m_vm_t *vm)
 {
     c4m_mark_raw_to_addr(bitmap, vm, &vm->ffi_info);
@@ -19,18 +19,15 @@ c4m_new_zobject()
 {
     return c4m_gc_alloc_mapped(c4m_zobject_file_t, c4m_objfile_gc_bits);
 }
-
-// TODO: load const instantiations.
 static void
-c4m_setup_obj(c4m_compile_ctx *cctx, int32_t nc, c4m_zobject_file_t *obj)
+c4m_setup_obj(c4m_compile_ctx *cctx, c4m_zobject_file_t *obj)
 {
-    obj->zero_magic       = 0x0c001dea0c001dea;
-    obj->zc_object_vers   = 0x02;
-    obj->marshaled_consts = cctx->const_data;
-    obj->num_const_objs   = nc;
-    obj->module_contents  = c4m_list(c4m_type_ref());
-    obj->func_info        = c4m_list(c4m_type_ref());
-    obj->ffi_info         = c4m_list(c4m_type_ref());
+    obj->zero_magic      = 0x0c001dea0c001dea;
+    obj->zc_object_vers  = 0x02;
+    obj->module_contents = c4m_list(c4m_type_ref());
+    obj->func_info       = c4m_list(c4m_type_ref());
+    obj->ffi_info        = c4m_list(c4m_type_ref());
+    obj->static_contents = cctx->memory_layout;
 
     if (cctx->final_spec && cctx->final_spec->in_use) {
         obj->attr_spec = cctx->final_spec;
@@ -51,7 +48,7 @@ c4m_new_vm(c4m_compile_ctx *cctx)
 {
     c4m_vm_t *result = c4m_gc_alloc_mapped(c4m_vm_t, c4m_vm_gc_bits);
     result->obj      = c4m_new_zobject();
-    c4m_setup_obj(cctx, cctx->const_instantiation_id, result->obj);
+    c4m_setup_obj(cctx, result->obj);
 
     return result;
 }

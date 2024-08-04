@@ -95,7 +95,7 @@ static const internal_tt_info_t tt_info[] = {
     {"eof", false},
 };
 
-static void
+void
 c4m_token_set_gc_bits(uint64_t *bitfield, void *alloc)
 {
     *bitfield = 0x3f;

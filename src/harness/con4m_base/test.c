@@ -28,6 +28,35 @@ add_static_test_symbols()
                             strndup);
 }
 
+void
+test_automarshal()
+{
+    c4m_utf8_t     *str  = c4m_rich_lit("[h4]Hello, [h6]world!");
+    c4m_base_obj_t *base = ((c4m_base_obj_t *)str) - 1;
+    c4m_alloc_hdr  *hdr  = ((c4m_alloc_hdr *)base) - 1;
+    hdr->cached_hash     = 0xffffffffffffffffULL;
+    hdr->cached_hash <<= 64;
+    hdr->cached_hash |= 0xffffffffffffffffUll;
+    c4m_buf_t *buf      = c4m_automarshal(str);
+    void      *addr     = buf->data;
+    int        dump_len = c4m_buffer_len(buf);
+    c4m_printf("[h2]Here's your temporary test");
+    c4m_print(c4m_hex_dump(addr, dump_len));
+    c4m_printf("[h2]Try unmarshalling LOL:");
+    c4m_utf8_t *ums = c4m_autounmarshal(buf);
+    c4m_mem_ptr p   = {.v = ums};
+    p.object -= 1;
+    p.alloc -= 1;
+    c4m_print(c4m_hex_dump(addr, dump_len));
+    c4m_printf("[h2]If this prints, we win:");
+    c4m_print(ums);
+
+    // c4m_buf_t    *compressed = c4m_buffer_empty();
+    // c4m_stream_t *zstream    = c4m_buffer_outstream(compressed, true);
+
+    // c4m_printf("[h2]Here's your compressed shiznit");
+}
+
 int
 main(int argc, char **argv, char **envp)
 {
@@ -43,6 +72,9 @@ main(int argc, char **argv, char **envp)
     c4m_scan_and_prep_tests();
     c4m_run_expected_value_tests();
     c4m_run_other_test_files();
+
+    test_automarshal();
+
     c4m_report_results_and_exit();
     c4m_unreachable();
     return 0;

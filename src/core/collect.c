@@ -221,6 +221,7 @@ prep_allocation(c4m_alloc_hdr *old, c4m_arena_t *new_arena)
                                    TRACE_DEBUG_ARGS);
     res              = &res[-1];
     res->con4m_obj   = old->con4m_obj;
+    res->type_obj    = old->type_obj;
     res->cached_hash = old->cached_hash;
 
     return res;
@@ -424,7 +425,7 @@ scan_allocation(c4m_collection_ctx *ctx, c4m_alloc_hdr *hdr)
         return;
     }
 
-    uint32_t  numwords    = hdr->alloc_len;
+    uint32_t  numwords    = hdr->alloc_len / sizeof(uint64_t);
     uint32_t  bf_byte_len = ((numwords / 64) + 1) * 8;
     uint64_t *map         = alloca(bf_byte_len);
 

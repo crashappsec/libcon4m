@@ -92,3 +92,6 @@ typedef struct hatrack_set_st c4m_set_t;
 #else
 #error unknown endian
 #endif
+
+#define c4m_likely(x)   __builtin_expect(!!(x), 1)
+#define c4m_unlikely(x) __builtin_expect(!!(x), 0)

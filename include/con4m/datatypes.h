@@ -43,11 +43,6 @@ typedef uint64_t        c4m_size_t;
 typedef struct timespec c4m_duration_t;
 
 typedef c4m_str_t *(*c4m_repr_fn)(c4m_obj_t);
-typedef void (*c4m_marshal_fn)(c4m_obj_t,
-                               c4m_stream_t *,
-                               c4m_dict_t *,
-                               int64_t *);
-typedef void (*c4m_unmarshal_fn)(c4m_obj_t, c4m_stream_t *, c4m_dict_t *);
 typedef c4m_obj_t (*c4m_copy_fn)(c4m_obj_t);
 typedef c4m_obj_t (*c4m_binop_fn)(c4m_obj_t, c4m_obj_t);
 typedef int64_t (*c4m_len_fn)(c4m_obj_t);

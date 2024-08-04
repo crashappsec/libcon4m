@@ -3,8 +3,8 @@
  */
 #include "con4m.h"
 
-static void
-party_gc_bits(uint64_t *bitmap, c4m_party_t *party)
+void
+c4m_party_gc_bits(uint64_t *bitmap, c4m_party_t *party)
 {
     c4m_mark_raw_to_addr(bitmap, party, &party->extra);
 }
@@ -12,7 +12,7 @@ party_gc_bits(uint64_t *bitmap, c4m_party_t *party)
 c4m_party_t *
 c4m_new_party()
 {
-    return c4m_gc_alloc_mapped(c4m_party_t, party_gc_bits);
+    return c4m_gc_alloc_mapped(c4m_party_t, c4m_party_gc_bits);
 }
 
 /* The way we use the below two IO functions assumes that, while they
@@ -442,8 +442,8 @@ c4m_sb_init_party_callback(c4m_switchboard_t *ctx,
     register_loner(ctx, party);
 }
 
-static void
-monitor_gc_bits(uint64_t *bitmap, c4m_monitor_t *monitor)
+void
+c4m_monitor_gc_bits(uint64_t *bitmap, c4m_monitor_t *monitor)
 {
     c4m_mark_raw_to_addr(bitmap, monitor, &monitor->stderr_fd_party);
 }
@@ -451,7 +451,7 @@ monitor_gc_bits(uint64_t *bitmap, c4m_monitor_t *monitor)
 static c4m_monitor_t *
 new_monitor()
 {
-    return c4m_gc_alloc_mapped(c4m_monitor_t, monitor_gc_bits);
+    return c4m_gc_alloc_mapped(c4m_monitor_t, c4m_monitor_gc_bits);
 }
 
 /*
@@ -609,7 +609,7 @@ publish(c4m_switchboard_t *ctx, char *buf, ssize_t len, c4m_party_t *party)
 }
 
 void
-subscription_gc_bits(uint64_t *bitmap, c4m_subscription_t *sub)
+c4m_subscription_gc_bits(uint64_t *bitmap, c4m_subscription_t *sub)
 {
     c4m_mark_raw_to_addr(bitmap, sub, &sub->subscriber);
 }
@@ -617,7 +617,7 @@ subscription_gc_bits(uint64_t *bitmap, c4m_subscription_t *sub)
 static inline c4m_subscription_t *
 new_subscription()
 {
-    return c4m_gc_alloc_mapped(c4m_subscription_t, subscription_gc_bits);
+    return c4m_gc_alloc_mapped(c4m_subscription_t, c4m_subscription_gc_bits);
 }
 
 /*
@@ -1396,7 +1396,7 @@ c4m_sb_default_check_exit_conditions(c4m_switchboard_t *ctx)
 }
 
 void
-process_status_check(c4m_monitor_t *subproc, bool wait_on_exit)
+c4m_subproc_status_check(c4m_monitor_t *subproc, bool wait_on_exit)
 {
     int stat_info;
     int flag;
@@ -1455,7 +1455,7 @@ handle_loop_end(c4m_switchboard_t *ctx)
     c4m_monitor_t *subproc = ctx->pid_watch_list;
 
     while (subproc != NULL) {
-        process_status_check(subproc, false);
+        c4m_subproc_status_check(subproc, false);
         subproc = subproc->next;
     }
 

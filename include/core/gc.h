@@ -97,6 +97,15 @@ extern void         c4m_gc_thread_collect();
 extern bool         c4m_is_read_only_memory(volatile void *);
 extern void         c4m_gc_set_finalize_callback(c4m_system_finalizer_fn);
 
+typedef struct c4m_segment_range_t {
+    void                       *start;
+    void                       *end;
+    struct c4m_segment_range_t *next;
+    int                         segment_id;
+} c4m_segment_range_t;
+
+extern _Atomic(c4m_segment_range_t *) c4m_static_segments;
+
 #ifdef C4M_ADD_ALLOC_LOC_INFO
 extern void _c4m_arena_register_root(c4m_arena_t *,
                                      void *,
@@ -245,6 +254,8 @@ extern void           c4m_gc_register_collect_fns(c4m_gc_hook, c4m_gc_hook);
 extern c4m_alloc_hdr *c4m_find_alloc(void *);
 extern bool           c4m_in_heap(void *);
 extern void           c4m_header_gc_bits(uint64_t *, c4m_base_obj_t *);
+extern void           c4m_add_static_segment(void *, void *);
+// TODO: Keep a list of all heaps.
 
 #ifdef C4M_GC_STATS
 uint64_t c4m_get_alloc_counter();

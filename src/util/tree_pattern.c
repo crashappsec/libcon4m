@@ -149,8 +149,8 @@ merge_captures(c4m_set_t *s1, c4m_set_t *s2)
     return result;
 }
 
-static void
-tpat_gc_bits(uint64_t *bitmap, c4m_tpat_node_t *n)
+void
+c4m_tpat_gc_bits(uint64_t *bitmap, c4m_tpat_node_t *n)
 {
     c4m_mark_raw_to_addr(bitmap, n, &n->contents);
 }
@@ -159,7 +159,7 @@ static inline c4m_tpat_node_t *
 tpat_base(void *contents, int64_t min, int64_t max, bool walk, int64_t capture)
 {
     c4m_tpat_node_t *result = c4m_gc_alloc_mapped(c4m_tpat_node_t,
-                                                  tpat_gc_bits);
+                                                  c4m_tpat_gc_bits);
 
     result->min      = min;
     result->max      = max;

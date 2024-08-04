@@ -56,8 +56,8 @@ c4m_get_module_summary_info(c4m_compile_ctx *ctx)
     return result;
 }
 
-static void
-fcx_gc_bits(uint64_t *bitfield, c4m_module_compile_ctx *ctx)
+void
+c4m_module_ctx_gc_bits(uint64_t *bitfield, c4m_module_compile_ctx *ctx)
 {
     c4m_mark_raw_to_addr(bitfield, ctx, &ctx->extern_decls);
 }
@@ -65,7 +65,7 @@ fcx_gc_bits(uint64_t *bitfield, c4m_module_compile_ctx *ctx)
 c4m_module_compile_ctx *
 c4m_new_module_compile_ctx()
 {
-    return c4m_gc_alloc_mapped(c4m_module_compile_ctx, fcx_gc_bits);
+    return c4m_gc_alloc_mapped(c4m_module_compile_ctx, c4m_module_ctx_gc_bits);
 }
 
 static inline uint64_t
@@ -656,7 +656,6 @@ c4m_init_module_from_loc(c4m_compile_ctx *ctx, c4m_str_t *path)
 
     return postprocess_module(ctx, result, path, false, NULL);
 }
-
 
 c4m_utf8_t *
 c4m_format_module_location(c4m_module_compile_ctx *ctx, c4m_token_t *tok)

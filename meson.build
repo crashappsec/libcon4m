@@ -1,7 +1,8 @@
 project(
     'libcon4m',
     'c',
-    default_options: ['c_std=c2x', 'default_library=static'],
+    default_options: ['c_std=c2x',
+                      'default_library=static'],
     version: '0.1.0',
     license: 'MIT',
 )
@@ -32,6 +33,7 @@ c_args = [
     '-fno-omit-frame-pointer',
     '-DHATRACK_PER_INSTANCE_AUX',
     '-DC4M_MIN_RENDER_WIDTH=' + render_width,
+    '-DC4M_BACKTRACE_SUPPORTED',
 ]
 
 if (host_machine.cpu_family() == 'x86_64' and cc.get_id() == 'clang')
@@ -41,7 +43,7 @@ endif
 if (host_machine.system() == 'darwin')
     using_osx = true
     link_args = ['-target', 'arm64-apple-macos14', '-framework', 'Security']
-
+    
     if not get_option('use_frame_intrinsic').disabled()
         c_args = c_args + ['-DC4M_USE_FRAME_INTRINSIC']
     endif
@@ -63,16 +65,6 @@ endif
 
 if not get_option('static_ffi_binding').disabled()
   c_args = c_args + ['-DC4M_STATIC_FFI_BINDING']
-endif
-
-backtrace = cc.find_library('backtrace')
-
-if backtrace.found()
-    c_args = c_args + ['-DC4M_BACKTRACE_SUPPORTED']
-endif
-
-if get_option('show_preprocessor_config').enabled()
-    c_args = c_args + ['-DC4M_SHOW_PREPROC_CONFIG']
 endif
 
 fpty_code = '''
@@ -188,10 +180,11 @@ c4m_core = [
     'src/core/types.c',
     'src/core/typestore.c',
     'src/core/marshal.c',
+    'src/core/automarshal.c',
+    'src/core/autounmarshal.c',        
     'src/core/literals.c',
     'src/core/attrstore.c',
     'src/core/vm.c',
-    'src/core/vmmarshal.c',
     'src/core/ffi.c',
     'src/core/object.c',
     'src/core/validation.c',
@@ -332,16 +325,27 @@ test_src = [
 ]
 
 threads = dependency('threads')
+
 math = cc.find_library('m', required: false)
 
 openssl  = dependency('openssl')
 unibreak = dependency('libunibreak')
 utf8proc = dependency('libutf8proc')
 libcurl  = dependency('curl', modules: ['CURL::libcurl'])
-ffi      = dependency('libffi')
+ffi      = dependency('libffi',
+                      fallback: ['libffi', 'libffi_dep'])
+backtrace = dependency('backtrace',
+                       fallback: ['libbacktrace', 'libbacktrace_dep'])
+zlib      = dependency('zlib')
 
-deps = [unibreak, utf8proc, threads, ffi, openssl, backtrace, libcurl]
+
+if get_option('show_preprocessor_config').enabled()
+    c_args = c_args + ['-DC4M_SHOW_PREPROC_CONFIG']
+endif
+
+deps = [unibreak, utf8proc, threads, ffi, openssl, backtrace, libcurl, zlib]
 opts = [math]
+
 if using_glibc
     opts = opts + [cc.find_library('atomic')]
 endif

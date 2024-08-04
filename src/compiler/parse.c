@@ -3,28 +3,30 @@
 #include "con4m.h"
 // TODO: clean up stack to set the tree properly when a RAISE happens.
 
-typedef struct checkpoint_t {
-    struct checkpoint_t *prev;
-    char                *fn;
-    jmp_buf              env;
-} checkpoint_t;
+void
+c4m_pnode_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
+{
+    c4m_pnode_t *pnode = (c4m_pnode_t *)alloc->data;
 
-static void
-c4m_checkpoint_gc_bits(uint64_t *bitmap, checkpoint_t *cp)
+    c4m_mark_obj_to_addr(bitfield, alloc, &pnode->type);
+}
+
+void
+c4m_checkpoint_gc_bits(uint64_t *bitmap, c4m_checkpoint_t *cp)
 {
     c4m_mark_raw_to_addr(bitmap, cp, &cp->fn);
 }
 
-static checkpoint_t *
-new_checkpoint()
-{
-    return c4m_gc_alloc_mapped(checkpoint_t, c4m_checkpoint_gc_bits);
-}
-
-static void
+void
 c4m_comment_node_gc_bits(uint64_t *bitmap, c4m_comment_node_t *n)
 {
     *bitmap = 1;
+}
+
+static c4m_checkpoint_t *
+new_checkpoint()
+{
+    return c4m_gc_alloc_mapped(c4m_checkpoint_t, c4m_checkpoint_gc_bits);
 }
 
 static c4m_comment_node_t *
@@ -38,7 +40,7 @@ typedef struct {
     c4m_module_compile_ctx *module_ctx;
     c4m_token_t            *cached_token;
     hatstack_t             *root_stack;
-    checkpoint_t           *jump_state;
+    c4m_checkpoint_t       *jump_state;
     int32_t                 token_ix;
     int32_t                 cache_ix;
     int32_t                 loop_depth;
@@ -97,16 +99,16 @@ c4m_exit_to_checkpoint(parse_ctx  *ctx,
 #define DECLARE_CHECKPOINT() \
     int checkpoint_error = 0;
 
-#define ENTER_CHECKPOINT()                   \
-    if (!checkpoint_error) {                 \
-        checkpoint_t *cp = new_checkpoint(); \
-        cp->prev         = ctx->jump_state;  \
-        cp->fn           = (char *)__func__; \
-        ctx->jump_state  = cp;               \
-        checkpoint_error = setjmp(cp->env);  \
-        if (checkpoint_error != 0) {         \
-            ctx->jump_state = cp->prev;      \
-        }                                    \
+#define ENTER_CHECKPOINT()                       \
+    if (!checkpoint_error) {                     \
+        c4m_checkpoint_t *cp = new_checkpoint(); \
+        cp->prev             = ctx->jump_state;  \
+        cp->fn               = (char *)__func__; \
+        ctx->jump_state      = cp;               \
+        checkpoint_error     = setjmp(cp->env);  \
+        if (checkpoint_error != 0) {             \
+            ctx->jump_state = cp->prev;          \
+        }                                        \
     }
 
 #define CHECKPOINT_STATUS() (checkpoint_error)
@@ -4595,15 +4597,6 @@ c4m_parse_type(c4m_module_compile_ctx *module_ctx)
 
     return true;
 }
-
-static void
-c4m_pnode_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
-{
-    c4m_pnode_t *pnode = (c4m_pnode_t *)alloc->data;
-
-    c4m_mark_obj_to_addr(bitfield, alloc, &pnode->type);
-}
-
 const c4m_vtable_t c4m_parse_node_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {

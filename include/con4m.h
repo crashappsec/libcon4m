@@ -42,9 +42,9 @@
 #include "util/breaks.h"
 #include "io/ansi.h"
 #include "util/hex.h"
-
 #include "util/style.h"
 #include "util/styledb.h"
+#include "util/richlit.h"
 
 // Our grid API.
 #include "adts/grid.h"
@@ -59,10 +59,6 @@
 
 // Stream IO API.
 #include "adts/stream.h"
-
-// Helper functions for object marshal implementations to
-// marshal primitive values.
-#include "core/marshal.h"
 
 // Mixed data type API.
 #include "adts/mixed.h"
@@ -122,3 +118,7 @@
 #include "util/watch.h"
 #include "io/http.h"
 #include "io/file.h"
+
+// Helper functions for object marshal implementations to
+// marshal primitive values.
+#include "core/marshal.h"

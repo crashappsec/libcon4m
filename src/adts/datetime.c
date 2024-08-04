@@ -799,108 +799,6 @@ datetime_init(c4m_date_time_t *self, va_list args)
 #define DT_HAVE_D    32
 #define DT_HAVE_OFF  64
 
-static void
-datetime_marshal(c4m_date_time_t *self,
-                 c4m_stream_t    *s,
-                 c4m_dict_t      *memos,
-                 int64_t         *mid)
-{
-    c4m_marshal_i32(self->dt.tm_sec, s);
-    c4m_marshal_i32(self->dt.tm_min, s);
-    c4m_marshal_i32(self->dt.tm_hour, s);
-    c4m_marshal_i32(self->dt.tm_mday, s);
-    c4m_marshal_i32(self->dt.tm_mon, s);
-    c4m_marshal_i32(self->dt.tm_year, s);
-    c4m_marshal_i32(self->dt.tm_wday, s);
-    c4m_marshal_i32(self->dt.tm_yday, s);
-    c4m_marshal_i32(self->dt.tm_isdst, s);
-    c4m_marshal_i64(self->dt.tm_gmtoff, s);
-    c4m_marshal_cstring((char *)self->dt.tm_zone, s);
-    c4m_marshal_u64(self->fracsec, s);
-
-    int32_t flags = 0;
-
-    if (self->have_time) {
-        flags |= DT_HAVE_TIME;
-    }
-
-    if (self->have_sec) {
-        flags |= DT_HAVE_SEC;
-    }
-
-    if (self->have_frac_sec) {
-        flags |= DT_HAVE_FRAC;
-    }
-
-    if (self->have_month) {
-        flags |= DT_HAVE_MO;
-    }
-
-    if (self->have_year) {
-        flags |= DT_HAVE_Y;
-    }
-
-    if (self->have_day) {
-        flags |= DT_HAVE_D;
-    }
-
-    if (self->have_offset) {
-        flags |= DT_HAVE_OFF;
-    }
-
-    c4m_marshal_i32(flags, s);
-}
-
-static void
-datetime_unmarshal(c4m_date_time_t *self, c4m_stream_t *s, c4m_dict_t *memos)
-{
-    self->dt.tm_sec    = c4m_unmarshal_i32(s);
-    self->dt.tm_min    = c4m_unmarshal_i32(s);
-    self->dt.tm_hour   = c4m_unmarshal_i32(s);
-    self->dt.tm_mday   = c4m_unmarshal_i32(s);
-    self->dt.tm_mon    = c4m_unmarshal_i32(s);
-    self->dt.tm_year   = c4m_unmarshal_i32(s);
-    self->dt.tm_wday   = c4m_unmarshal_i32(s);
-    self->dt.tm_yday   = c4m_unmarshal_i32(s);
-    self->dt.tm_isdst  = c4m_unmarshal_i32(s);
-    self->dt.tm_gmtoff = c4m_unmarshal_i64(s);
-    self->dt.tm_zone   = c4m_unmarshal_cstring(s);
-    self->fracsec      = c4m_unmarshal_u64(s);
-    int32_t flags      = c4m_unmarshal_i32(s);
-
-    if (!flags) {
-        return;
-    }
-
-    if (flags & DT_HAVE_TIME) {
-        self->have_time = true;
-    }
-
-    if (flags & DT_HAVE_SEC) {
-        self->have_sec = true;
-    }
-
-    if (flags & DT_HAVE_FRAC) {
-        self->have_frac_sec = true;
-    }
-
-    if (flags & DT_HAVE_MO) {
-        self->have_month = true;
-    }
-
-    if (flags & DT_HAVE_Y) {
-        self->have_year = true;
-    }
-
-    if (flags & DT_HAVE_D) {
-        self->have_day = true;
-    }
-
-    if (flags & DT_HAVE_OFF) {
-        self->have_offset = true;
-    }
-}
-
 static c4m_str_t *
 datetime_repr(c4m_date_time_t *self)
 {
@@ -1157,8 +1055,6 @@ const c4m_vtable_t c4m_datetime_vtable = {
         [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)datetime_init,
         [C4M_BI_REPR]         = (c4m_vtable_entry)datetime_repr,
         [C4M_BI_FORMAT]       = (c4m_vtable_entry)datetime_format,
-        [C4M_BI_MARSHAL]      = (c4m_vtable_entry)datetime_marshal,
-        [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)datetime_unmarshal,
         [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)datetime_can_coerce_to,
         [C4M_BI_COERCE]       = (c4m_vtable_entry)datetime_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)datetime_lit,
@@ -1174,8 +1070,6 @@ const c4m_vtable_t c4m_date_vtable = {
         [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)datetime_init,
         [C4M_BI_REPR]         = (c4m_vtable_entry)datetime_repr,
         [C4M_BI_FORMAT]       = (c4m_vtable_entry)date_format,
-        [C4M_BI_MARSHAL]      = (c4m_vtable_entry)datetime_marshal,
-        [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)datetime_unmarshal,
         [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)datetime_can_coerce_to,
         [C4M_BI_COERCE]       = (c4m_vtable_entry)datetime_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)date_lit,
@@ -1191,8 +1085,6 @@ const c4m_vtable_t c4m_time_vtable = {
         [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)datetime_init,
         [C4M_BI_REPR]         = (c4m_vtable_entry)datetime_repr,
         [C4M_BI_FORMAT]       = (c4m_vtable_entry)time_format,
-        [C4M_BI_MARSHAL]      = (c4m_vtable_entry)datetime_marshal,
-        [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)datetime_unmarshal,
         [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)datetime_can_coerce_to,
         [C4M_BI_COERCE]       = (c4m_vtable_entry)datetime_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)time_lit,

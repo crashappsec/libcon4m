@@ -154,8 +154,10 @@ c4m_type_universe_t c4m_type_universe;
 c4m_type_t         *c4m_bi_types[C4M_NUM_BUILTIN_DTS] = {
     0,
 };
-static c4m_type_t *type_node_for_list_of_type_objects;
-static int         tspec_len = 0;
+c4m_type_t  *c4m_type_node_for_list_of_type_objects;
+c4m_arena_t *c4m_early_type_arena = NULL;
+
+static int tspec_len = 0;
 
 #ifdef C4M_TYPE_LOG
 
@@ -185,7 +187,8 @@ type_end_log()
 #define type_log(x, y)
 #endif
 
-#define BASE_ALLOC_SZ (sizeof(c4m_alloc_hdr) + sizeof(c4m_base_obj_t))
+#define BASE_OBJ_ALLOC_SZ sizeof(c4m_base_obj_t)
+#define TINFO_SZ          sizeof(c4m_type_info_t)
 
 typedef struct {
     c4m_sha_t  *sha;
@@ -196,13 +199,13 @@ typedef struct {
 static uint64_t            c4m_default_next_typevar(void);
 static c4m_next_typevar_fn next_typevar_fn = c4m_default_next_typevar;
 
-static void
+void
 c4m_type_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
 {
     c4m_set_bit(bitfield, c4m_ptr_diff(alloc, alloc->data));
 }
 
-static void
+void
 c4m_type_info_gc_bits(uint64_t *bitfield, c4m_type_info_t *info)
 {
     c4m_mark_raw_to_addr(bitfield, info, &info->tsi);
@@ -265,21 +268,24 @@ c4m_early_alloc_type(c4m_base_obj_t **bptr)
     tspec = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_TYPESPEC];
 
     if (!tspec_len) {
-        tspec_len = tspec->alloc_len + BASE_ALLOC_SZ;
+        tspec_len = tspec->alloc_len + BASE_OBJ_ALLOC_SZ;
     }
 
-    c4m_alloc_hdr   *hdr    = c4m_rc_alloc(tspec_len);
-    c4m_base_obj_t  *base   = (c4m_base_obj_t *)hdr->data;
-    c4m_type_t      *result = (c4m_type_t *)base->data;
-    c4m_type_info_t *info   = c4m_rc_alloc(sizeof(c4m_type_info_t));
+    c4m_mem_ptr      obj      = (c4m_mem_ptr){.v = c4m_early_alloc(tspec_len)};
+    c4m_mem_ptr      hdr      = (c4m_mem_ptr){.alloc = obj.alloc - 1};
+    c4m_type_t      *result   = (c4m_type_t *)obj.object->data;
+    c4m_mem_ptr      info     = (c4m_mem_ptr){.v = c4m_early_alloc(TINFO_SZ)};
+    c4m_mem_ptr      info_hdr = (c4m_mem_ptr){.alloc = info.alloc - 1};
+    c4m_type_info_t *ti       = info.v;
 
-    *bptr                = base;
-    hdr->con4m_obj       = 1;
-    base->base_data_type = tspec;
-    base->concrete_type  = c4m_bi_types[C4M_T_TYPESPEC];
-    info->items          = NULL;
-    info->base_type      = tspec;
-    result->details      = info;
+    *bptr                      = obj.v;
+    hdr.alloc->con4m_obj       = true;
+    hdr.alloc->type_obj        = true;
+    obj.object->base_data_type = tspec;
+    obj.object->concrete_type  = c4m_bi_types[C4M_T_TYPESPEC];
+    ti->base_type              = tspec;
+    info_hdr.alloc->type_obj   = true; // Mark to have Marshal fix ptrs
+    result->details            = ti;
 
     return result;
 }
@@ -287,21 +293,20 @@ c4m_early_alloc_type(c4m_base_obj_t **bptr)
 static inline c4m_list_t *
 early_type_list()
 {
-    size_t         sz  = BASE_ALLOC_SZ + sizeof(c4m_list_t);
-    c4m_alloc_hdr *hdr = c4m_rc_alloc(sz);
+    size_t      sz     = BASE_OBJ_ALLOC_SZ + sizeof(c4m_list_t);
+    c4m_mem_ptr obj    = (c4m_mem_ptr){.v = c4m_early_alloc(sz)};
+    c4m_mem_ptr hdr    = (c4m_mem_ptr){.alloc = obj.alloc - 1};
+    c4m_list_t *result = (c4m_list_t *)obj.object->data;
 
-    c4m_base_obj_t *base   = (c4m_base_obj_t *)hdr->data;
-    c4m_list_t     *result = (c4m_list_t *)base->data;
-
-    hdr->con4m_obj = 1;
+    hdr.alloc->con4m_obj = true;
 
     // The object we're returning is a list of types, so we need to set the
     // object header.
-    base->base_data_type = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_LIST];
-    base->concrete_type  = type_node_for_list_of_type_objects;
+    obj.object->base_data_type = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_LIST];
+    obj.object->concrete_type  = c4m_type_node_for_list_of_type_objects;
 
     // Create the empty list to hold up to two types.
-    result->data      = c4m_rc_alloc(sizeof(uint64_t *) * 2);
+    result->data      = c4m_early_alloc(sizeof(uint64_t *) * 2);
     result->append_ix = 0;
     result->length    = 2;
 
@@ -321,7 +326,7 @@ setup_list_of_types()
     base->concrete_type        = l;
     l->details->base_type      = base->base_data_type;
 
-    type_node_for_list_of_type_objects = l;
+    c4m_type_node_for_list_of_type_objects = l;
 }
 
 // Since types are represented as a graph, as we 'solve' for type
@@ -527,17 +532,20 @@ internal_add_items_array(c4m_type_t *n)
 {
     // Avoid infinite recursion by manually constructing the list.
     // Similar to the `early_type_list()` call, but uses the GC.
-    size_t          sz    = BASE_ALLOC_SZ + sizeof(c4m_list_t);
-    c4m_alloc_hdr  *hdr   = c4m_gc_raw_alloc(sz, C4M_GC_SCAN_ALL);
-    c4m_base_obj_t *base  = (c4m_base_obj_t *)hdr->data;
-    c4m_list_t     *items = (c4m_list_t *)base->data;
+    size_t      sz  = BASE_OBJ_ALLOC_SZ + sizeof(c4m_list_t);
+    c4m_mem_ptr obj = (c4m_mem_ptr){
+        .v = c4m_gc_raw_alloc(sz, C4M_GC_SCAN_ALL),
+    };
 
-    hdr->con4m_obj       = 1;
-    base->base_data_type = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_XLIST];
-    base->concrete_type  = type_node_for_list_of_type_objects;
-    items->data          = c4m_gc_array_alloc(uint64_t *, 4);
-    items->length        = 4;
-    items->append_ix     = 0;
+    c4m_mem_ptr hdr   = {.alloc = obj.alloc - 1};
+    c4m_list_t *items = (c4m_list_t *)obj.object->data;
+
+    hdr.alloc->con4m_obj       = true;
+    obj.object->base_data_type = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_XLIST];
+    obj.object->concrete_type  = c4m_type_node_for_list_of_type_objects;
+    items->data                = c4m_gc_array_alloc(uint64_t *, 4);
+    items->length              = 4;
+    items->append_ix           = 0;
 
     n->details->items = items;
 }
@@ -546,8 +554,18 @@ static void
 c4m_type_init(c4m_type_t *n, va_list args)
 {
     c4m_builtin_t base_id = va_arg(args, c4m_builtin_t);
+    c4m_mem_ptr   p       = (c4m_mem_ptr){.v = n};
+    c4m_mem_ptr   ti;
 
-    n->details = c4m_gc_alloc_mapped(c4m_type_info_t, c4m_type_info_gc_bits);
+    --p.object; // Back the pointer up by its object header.
+    --p.alloc;  // Now back it up to the beginning of the allocation.
+    p.alloc->type_obj = true;
+
+    ti.v       = c4m_gc_alloc_mapped(c4m_type_info_t, c4m_type_info_gc_bits);
+    n->details = ti.v;
+
+    ti.alloc -= 1;
+    ti.alloc->type_obj = true;
 
     if (base_id == 0) {
         // This short circuit should be used when unmarshaling or
@@ -1646,31 +1664,11 @@ c4m_type_repr(c4m_type_t *t)
     return c4m_internal_type_repr(c4m_type_resolve(t), memos, &n);
 }
 
-extern void        c4m_marshal_compact_type(c4m_type_t *t, c4m_stream_t *s);
-extern c4m_type_t *c4m_unmarshal_compact_type(c4m_stream_t *s);
-
-static void
-c4m_type_marshal(c4m_type_t *n, c4m_stream_t *s, c4m_dict_t *m, int64_t *mid)
-{
-    c4m_marshal_compact_type(n, s);
-}
-
-static void
-c4m_type_unmarshal(c4m_type_t *n, c4m_stream_t *s, c4m_dict_t *m)
-{
-    c4m_type_t *r = c4m_unmarshal_compact_type(s);
-
-    n->details = r->details;
-    n->typeid  = r->typeid;
-}
-
 const c4m_vtable_t c4m_type_spec_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_type_init,
         [C4M_BI_REPR]        = (c4m_vtable_entry)c4m_type_repr,
-        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_type_marshal,
-        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_type_unmarshal,
         [C4M_BI_COPY]        = (c4m_vtable_entry)c4m_type_copy,
         [C4M_BI_GC_MAP]      = (c4m_vtable_entry)c4m_type_set_gc_bits,
         [C4M_BI_FINALIZER]   = NULL,
@@ -1719,12 +1717,15 @@ setup_primitive_types()
 void
 c4m_initialize_global_types()
 {
+    c4m_early_type_arena = c4m_new_arena(1 << 15, NULL);
+    c4m_add_static_segment(c4m_early_type_arena,
+                           c4m_early_type_arena->heap_end);
     c4m_gc_register_root(&c4m_type_universe.store, 1);
     c4m_universe_init(&c4m_type_universe);
 
     setup_primitive_types();
     setup_list_of_types();
-    c4m_calculate_type_hash(type_node_for_list_of_type_objects);
+    c4m_calculate_type_hash(c4m_type_node_for_list_of_type_objects);
 }
 
 #if defined(C4M_GC_STATS) || defined(C4M_DEBUG)

@@ -1,59 +1,5 @@
 #include "con4m.h"
 
-typedef struct {
-    c4m_utf8_t *name;
-    union {
-        c4m_style_t style;
-        c4m_color_t color;
-        int         kw_ix;
-    } contents;
-    uint32_t    flags;
-    c4m_style_t prev_style;
-
-} tag_item_t;
-
-typedef struct fmt_frame_t {
-    struct fmt_frame_t *next;
-    c4m_utf8_t         *raw_contents;
-    int32_t             start;
-    int32_t             end;
-    c4m_style_t         style; // Calculated incremental style from a tag.
-} fmt_frame_t;
-
-typedef struct {
-    fmt_frame_t *start_frame;
-    fmt_frame_t *cur_frame;
-    c4m_list_t  *style_directions;
-    c4m_utf8_t  *style_text;
-    tag_item_t **stack;
-    c4m_utf8_t  *raw;
-    c4m_style_t  cur_style;
-    int          stack_ix;
-} style_ctx;
-
-typedef struct {
-    c4m_utf8_t  *raw;
-    c4m_list_t  *tokens;
-    fmt_frame_t *cur_frame;
-    style_ctx   *style_ctx;
-    c4m_utf8_t  *not_matched;
-    int          num_toks;
-    int          tok_ix;
-    int          num_atoms;
-    bool         negating;
-    bool         at_start;
-    bool         got_percent;
-    c4m_style_t  cur_style;
-} tag_parse_ctx;
-
-#define F_NEG         (1 << 1)
-#define F_BGCOLOR     (1 << 2)
-#define F_STYLE_KW    (1 << 3)
-#define F_STYLE_CELL  (1 << 4)
-#define F_STYLE_COLOR (1 << 5)
-#define F_TAG_START   (1 << 6)
-#define F_POPPED      (1 << 7)
-
 // top: '[' ['/']
 // centity: COLOR ('on' COLOR)
 // style:  WORD
@@ -202,13 +148,13 @@ tokenize_rich_tag(c4m_utf8_t *s)
 }
 
 static inline void
-enter_default_state(tag_parse_ctx *ctx)
+enter_default_state(c4m_tag_parse_ctx *ctx)
 {
     ctx->got_percent = false;
 }
 
 static inline void
-unmatched_check(tag_parse_ctx *ctx)
+unmatched_check(c4m_tag_parse_ctx *ctx)
 {
     if (ctx->not_matched != NULL) {
         c4m_utf8_t *msg = c4m_cstr_format(
@@ -221,7 +167,7 @@ unmatched_check(tag_parse_ctx *ctx)
 }
 
 static inline void
-no_pct_check(tag_parse_ctx *ctx)
+no_pct_check(c4m_tag_parse_ctx *ctx)
 {
     if (ctx->got_percent == true) {
         c4m_utf8_t *msg = c4m_cstr_format(
@@ -232,34 +178,34 @@ no_pct_check(tag_parse_ctx *ctx)
     }
 }
 
-static void
-tag_gc_bits(uint64_t *bitmap, tag_item_t *tag)
+void
+c4m_tag_gc_bits(uint64_t *bitmap, c4m_tag_item_t *tag)
 {
     c4m_mark_raw_to_addr(bitmap, tag, &tag->name);
 }
 
-static void
-frame_gc_bits(uint64_t *bitmap, fmt_frame_t *frame)
+void
+c4m_frame_gc_bits(uint64_t *bitmap, c4m_fmt_frame_t *frame)
 {
     c4m_mark_raw_to_addr(bitmap, frame, &frame->raw_contents);
 }
 
-static inline tag_item_t *
-alloc_tag_item(tag_parse_ctx *ctx)
+static inline c4m_tag_item_t *
+alloc_tag_item(c4m_tag_parse_ctx *ctx)
 {
-    tag_item_t *out = c4m_gc_alloc_mapped(tag_item_t, tag_gc_bits);
-    out->name       = ctx->not_matched;
+    c4m_tag_item_t *out = c4m_gc_alloc_mapped(c4m_tag_item_t, c4m_tag_gc_bits);
+    out->name           = ctx->not_matched;
 
     if (ctx->negating == true) {
-        out->flags |= F_NEG;
+        out->flags |= C4M_F_NEG;
     }
 
     if (ctx->got_percent) {
-        out->flags |= F_BGCOLOR;
+        out->flags |= C4M_F_BGCOLOR;
     }
 
     if (ctx->at_start) {
-        out->flags |= F_TAG_START;
+        out->flags |= C4M_F_TAG_START;
     }
 
     ctx->num_atoms++;
@@ -273,7 +219,7 @@ alloc_tag_item(tag_parse_ctx *ctx)
 }
 
 static inline bool
-try_style_keyword(tag_parse_ctx *ctx)
+try_style_keyword(c4m_tag_parse_ctx *ctx)
 {
     c4m_utf8_t *s = ctx->not_matched;
 
@@ -292,14 +238,14 @@ try_style_keyword(tag_parse_ctx *ctx)
         C4M_RAISE(msg);
     }
 
-    tag_item_t *out     = alloc_tag_item(ctx);
+    c4m_tag_item_t *out = alloc_tag_item(ctx);
     out->contents.kw_ix = n;
-    out->flags |= F_STYLE_KW;
+    out->flags |= C4M_F_STYLE_KW;
     return true;
 }
 
 static inline bool
-try_cell_style(tag_parse_ctx *ctx)
+try_cell_style(c4m_tag_parse_ctx *ctx)
 {
     c4m_utf8_t         *s  = ctx->not_matched;
     c4m_render_style_t *rs = c4m_lookup_cell_style((c4m_to_utf8(s))->data);
@@ -317,15 +263,15 @@ try_cell_style(tag_parse_ctx *ctx)
         C4M_RAISE(msg);
     }
 
-    tag_item_t *out     = alloc_tag_item(ctx);
+    c4m_tag_item_t *out = alloc_tag_item(ctx);
     out->contents.style = c4m_str_style(rs);
-    out->flags |= F_STYLE_CELL;
+    out->flags |= C4M_F_STYLE_CELL;
 
     return true;
 }
 
 static inline bool
-try_color(tag_parse_ctx *ctx)
+try_color(c4m_tag_parse_ctx *ctx)
 {
     c4m_utf8_t *s     = ctx->not_matched;
     c4m_color_t color = c4m_lookup_color(s);
@@ -334,9 +280,9 @@ try_color(tag_parse_ctx *ctx)
         return false;
     }
 
-    tag_item_t *out     = alloc_tag_item(ctx);
+    c4m_tag_item_t *out = alloc_tag_item(ctx);
     out->contents.color = color;
-    out->flags |= F_STYLE_COLOR;
+    out->flags |= C4M_F_STYLE_COLOR;
 
     return true;
 }
@@ -349,7 +295,7 @@ try_color(tag_parse_ctx *ctx)
 // Turn the extracted style block into data that we can then turn into
 // a style.
 static inline void
-internal_parse_style_lit(tag_parse_ctx *ctx)
+internal_parse_style_lit(c4m_tag_parse_ctx *ctx)
 {
     while (ctx->tok_ix < ctx->num_toks) {
         c4m_utf8_t *text = c4m_list_get(ctx->tokens, ctx->tok_ix++, NULL);
@@ -413,12 +359,12 @@ internal_parse_style_lit(tag_parse_ctx *ctx)
 }
 
 static void
-parse_style_lit(style_ctx *ctx)
+parse_style_lit(c4m_style_ctx *ctx)
 {
-    fmt_frame_t *f      = ctx->cur_frame;
-    c4m_list_t  *tokens = tokenize_rich_tag(f->raw_contents);
+    c4m_fmt_frame_t *f      = ctx->cur_frame;
+    c4m_list_t      *tokens = tokenize_rich_tag(f->raw_contents);
 
-    tag_parse_ctx tag_ctx = {
+    c4m_tag_parse_ctx tag_ctx = {
         .tokens      = tokens,
         .cur_frame   = f,
         .style_ctx   = ctx,
@@ -446,15 +392,15 @@ parse_style_lit(style_ctx *ctx)
 
 // Extract the raw text between '[' and ']'.
 static inline void
-c4m_extract_style_blocks(style_ctx *ctx, char *original_input)
+c4m_extract_style_blocks(c4m_style_ctx *ctx, char *original_input)
 {
-    int             n   = strlen(original_input);
-    char           *p   = original_input;
-    char           *end = p + n;
-    c4m_codepoint_t cp;
-    fmt_frame_t    *style_first = NULL;
-    fmt_frame_t    *style_cur   = NULL;
-    fmt_frame_t    *tmp;
+    int              n   = strlen(original_input);
+    char            *p   = original_input;
+    char            *end = p + n;
+    c4m_codepoint_t  cp;
+    c4m_fmt_frame_t *style_first = NULL;
+    c4m_fmt_frame_t *style_cur   = NULL;
+    c4m_fmt_frame_t *tmp;
 
     char *unstyled_string = alloca(n + 1);
     char *tag_text        = alloca(n);
@@ -471,8 +417,8 @@ c4m_extract_style_blocks(style_ctx *ctx, char *original_input)
             case ']':
                 tag_text[tag_ix++] = 0;
                 in_tag             = false;
-                tmp                = c4m_gc_alloc_mapped(fmt_frame_t,
-                                          frame_gc_bits);
+                tmp                = c4m_gc_alloc_mapped(c4m_fmt_frame_t,
+                                          c4m_frame_gc_bits);
                 tmp->start         = unstyled_cp;
                 tmp->raw_contents  = c4m_new_utf8(tag_text);
                 if (style_first == NULL) {
@@ -535,23 +481,23 @@ c4m_extract_style_blocks(style_ctx *ctx, char *original_input)
     ctx->cur_frame               = style_first;
 }
 
-#define OP_EXTRACT (F_STYLE_CELL | F_STYLE_COLOR | F_STYLE_KW)
+#define OP_EXTRACT (C4M_F_STYLE_CELL | C4M_F_STYLE_COLOR | C4M_F_STYLE_KW)
 
 static void
-apply_one_atom(style_ctx *ctx, tag_item_t *atom, uint32_t op)
+apply_one_atom(c4m_style_ctx *ctx, c4m_tag_item_t *atom, uint32_t op)
 {
     atom->prev_style = ctx->cur_style;
-    atom->flags &= ~F_POPPED;
+    atom->flags &= ~C4M_F_POPPED;
 
     ctx->stack[ctx->stack_ix++] = atom;
 
     switch (op) {
-    case F_STYLE_CELL:
+    case C4M_F_STYLE_CELL:
         ctx->cur_style = atom->contents.style;
         return;
 
-    case F_STYLE_COLOR:
-        if (atom->flags & F_BGCOLOR) {
+    case C4M_F_STYLE_COLOR:
+        if (atom->flags & C4M_F_BGCOLOR) {
             ctx->cur_style = c4m_set_bg_color(ctx->cur_style,
                                               atom->contents.color);
         }
@@ -596,19 +542,19 @@ apply_one_atom(style_ctx *ctx, tag_item_t *atom, uint32_t op)
 }
 
 static void
-reapply_styles(style_ctx *ctx, uint32_t flags, c4m_list_t *to_apply)
+reapply_styles(c4m_style_ctx *ctx, uint32_t flags, c4m_list_t *to_apply)
 {
-    int op_kind = flags & (F_STYLE_CELL | F_STYLE_COLOR);
+    int op_kind = flags & (C4M_F_STYLE_CELL | C4M_F_STYLE_COLOR);
 
     while (c4m_list_len(to_apply)) {
-        tag_item_t *top = c4m_list_pop(to_apply);
+        c4m_tag_item_t *top = c4m_list_pop(to_apply);
 
         // If we've popped a color or cell type, we don't want to
         // re-apply any later adds for color or cell.  But if color is
         // set, we only listen if BGCOLOR flags are the same.
 
         if (top->flags & op_kind) {
-            if (!((top->flags & F_BGCOLOR) ^ (flags & F_BGCOLOR))) {
+            if (!((top->flags & C4M_F_BGCOLOR) ^ (flags & C4M_F_BGCOLOR))) {
                 continue;
             }
         }
@@ -620,24 +566,24 @@ reapply_styles(style_ctx *ctx, uint32_t flags, c4m_list_t *to_apply)
 // Take the parsed styles in the string so far, and figure out
 // what style to emit.
 static void
-convert_parse_to_style(style_ctx *ctx)
+convert_parse_to_style(c4m_style_ctx *ctx)
 {
-    tag_item_t *tag_atom;
-    int         n = c4m_list_len(ctx->style_directions);
-    int         op_kind;
+    c4m_tag_item_t *tag_atom;
+    int             n = c4m_list_len(ctx->style_directions);
+    int             op_kind;
 
     ctx->cur_style = 0;
-    ctx->stack     = alloca(sizeof(tag_item_t **) * n);
+    ctx->stack     = alloca(sizeof(c4m_tag_item_t **) * n);
     ctx->stack_ix  = 0;
 
     for (int i = 0; i < n; i++) {
         tag_atom = c4m_list_get(ctx->style_directions, i, NULL);
         // We reuse these atoms, so reset this flag the first time we see it.
-        tag_atom->flags &= ~F_POPPED;
+        tag_atom->flags &= ~C4M_F_POPPED;
 
         op_kind = tag_atom->flags & OP_EXTRACT;
 
-        if (tag_atom->flags & F_NEG) {
+        if (tag_atom->flags & C4M_F_NEG) {
             if (!tag_atom->name) {
                 ctx->cur_style = 0;
                 ctx->stack_ix  = 0;
@@ -657,12 +603,12 @@ convert_parse_to_style(style_ctx *ctx)
                         tag_atom->name);
                     C4M_RAISE(err);
                 }
-                tag_item_t *top = ctx->stack[--ctx->stack_ix];
-                if (top->flags & (F_POPPED | F_NEG)) { // Already popped
+                c4m_tag_item_t *top = ctx->stack[--ctx->stack_ix];
+                if (top->flags & (C4M_F_POPPED | C4M_F_NEG)) { // Already popped
                     continue;
                 }
 
-                top->flags |= F_POPPED;
+                top->flags |= C4M_F_POPPED;
 
                 if (strcmp(top->name->data, tag_atom->name->data)) {
                     c4m_list_append(we_popped, top);
@@ -688,7 +634,7 @@ convert_parse_to_style(style_ctx *ctx)
 c4m_utf8_t *
 c4m_rich_lit(char *instr)
 {
-    style_ctx ctx = {
+    c4m_style_ctx ctx = {
         .raw = c4m_new_utf8(instr),
     };
 

@@ -253,8 +253,8 @@ look_for_sign:
     }
 }
 
-/* static */ void
-fmt_gc_bits(uint64_t *bitmap, c4m_fmt_info_t *fi)
+void
+c4m_fmt_gc_bits(uint64_t *bitmap, c4m_fmt_info_t *fi)
 {
     // If the union is an int, we live dangerously.
     c4m_mark_raw_to_addr(bitmap, fi, &fi->next);
@@ -293,7 +293,7 @@ c4m_extract_format_specifiers(const c4m_str_t *fmt)
                 C4M_CRAISE("Missing } to end format specifier.");
             }
             cur        = c4m_gc_alloc_mapped(c4m_fmt_info_t,
-                                      fmt_gc_bits);
+                                      c4m_fmt_gc_bits);
             cur->start = i + 1;
             cur->end   = n;
 

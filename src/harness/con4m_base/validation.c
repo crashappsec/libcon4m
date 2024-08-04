@@ -15,6 +15,32 @@ line_strip(c4m_str_t *s)
     return c4m_str_join(parts, c4m_new_utf8("\n"));
 }
 
+static void
+show_hex_dump_if_enabled(c4m_utf8_t *expected, c4m_utf8_t *actual)
+{
+#ifdef C4M_HEX_DUMP_ON_TEST_FAIL
+    int elen = c4m_str_byte_len(expected);
+    int alen = c4m_str_byte_len(actual);
+    c4m_printf("[h1]Expected hex:");
+    c4m_print(c4m_hex_dump(expected->data, elen));
+    c4m_printf("[h1]Actual hex:");
+    c4m_print(c4m_hex_dump(actual->data, alen));
+
+    int n = c4m_min(elen, alen);
+
+    for (int i = 0; i < n; i++) {
+        if (expected->data[i] != actual->data[i]) {
+            c4m_printf("First difference at byte: {:x}", c4m_box_u64(i));
+            return;
+        }
+    }
+
+    assert(elen != alen);
+    c4m_printf("First difference at byte: {:x}", c4m_box_u64(n));
+
+#endif
+}
+
 c4m_test_exit_code
 c4m_compare_results(c4m_test_kat    *kat,
                     c4m_compile_ctx *ctx,
@@ -52,10 +78,11 @@ empty_err:
                 c4m_printf(
                     "[red]FAIL[/]: test [i]{}[/]: output mismatch.",
                     kat->path);
-                c4m_printf(
-                    "[h1]Expected output[/]\n{}\n[h1]Actual[/]\n{}\n",
-                    expected,
-                    actual);
+                c4m_printf("[h1]Expected output[/]\n");
+                c4m_print(expected);
+                c4m_printf("[h1]Actual[/]\n");
+                c4m_print(actual);
+                show_hex_dump_if_enabled(expected, actual);
                 return c4m_tec_output_mismatch;
             }
         }

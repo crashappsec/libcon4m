@@ -269,28 +269,6 @@ c4m_buf_to_utf8_string(c4m_buf_t *buffer)
     return result;
 }
 
-static void
-c4m_buffer_marshal(c4m_buf_t    *b,
-                   c4m_stream_t *s,
-                   c4m_dict_t   *memos,
-                   int64_t      *mid)
-{
-    c4m_marshal_u32(b->byte_len, s);
-    c4m_marshal_u32(b->flags, s); // Not currently used btw.
-    c4m_stream_raw_write(s, b->byte_len, b->data);
-}
-
-static void
-c4m_buffer_unmarshal(c4m_buf_t *b, c4m_stream_t *s, c4m_dict_t *memos)
-{
-    b->byte_len = c4m_unmarshal_u32(s);
-    b->flags    = c4m_unmarshal_u32(s); // Not currently used btw.
-    if (b->byte_len) {
-        b->data = c4m_gc_raw_alloc(b->byte_len, NULL);
-        c4m_stream_raw_read(s, b->byte_len, b->data);
-    }
-}
-
 static bool
 buffer_can_coerce_to(c4m_type_t *my_type, c4m_type_t *target_type)
 {
@@ -530,8 +508,8 @@ buffer_view(c4m_buf_t *inbuf, uint64_t *outlen)
 }
 
 // We conservatively scan the data pointer.
-static void
-buffer_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
+void
+c4m_buffer_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
 {
     c4m_mark_raw_to_addr(bitfield, alloc, alloc->data);
 }
@@ -542,8 +520,6 @@ const c4m_vtable_t c4m_buffer_vtable = {
         [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)buffer_init,
         [C4M_BI_REPR]         = (c4m_vtable_entry)buffer_repr,
         [C4M_BI_TO_STR]       = (c4m_vtable_entry)buffer_to_str,
-        [C4M_BI_MARSHAL]      = (c4m_vtable_entry)c4m_buffer_marshal,
-        [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)c4m_buffer_unmarshal,
         [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)buffer_can_coerce_to,
         [C4M_BI_COERCE]       = (c4m_vtable_entry)buffer_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)buffer_lit,
@@ -556,7 +532,7 @@ const c4m_vtable_t c4m_buffer_vtable = {
         [C4M_BI_SLICE_SET]    = (c4m_vtable_entry)buffer_set_slice,
         [C4M_BI_ITEM_TYPE]    = (c4m_vtable_entry)buffer_item_type,
         [C4M_BI_VIEW]         = (c4m_vtable_entry)buffer_view,
-        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)buffer_set_gc_bits,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)c4m_buffer_set_gc_bits,
         NULL,
     },
 };

@@ -19,10 +19,10 @@ typedef struct c4m_type_t {
 } c4m_type_t;
 
 typedef struct c4m_type_info_t {
-    char          *name; // Obj type name or type var name
     c4m_dt_info_t *base_type;
+    char          *name; // Obj type name or type var name
     c4m_list_t    *items;
-    void          *tsi; // Type-specific info.
+    void          *tsi;  // Type-specific info.
     uint64_t       flags;
 } c4m_type_info_t;
 

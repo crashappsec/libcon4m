@@ -20,21 +20,6 @@ box_to_str(c4m_box_t *box)
     return c4m_to_str(box->v, c4m_type_unbox(c4m_get_my_type(box)));
 }
 
-static void
-box_marshal(c4m_box_t    *box,
-            c4m_stream_t *out,
-            c4m_dict_t   *memos,
-            int64_t      *mid)
-{
-    c4m_marshal_u64(box->u64, out);
-}
-
-static void
-box_unmarshal(c4m_box_t *box, c4m_stream_t *in, c4m_dict_t *memos)
-{
-    box->u64 = c4m_unmarshal_u64(in);
-}
-
 static c4m_utf8_t *
 box_format(c4m_box_t *box, c4m_fmt_spec_t *spec)
 {
@@ -58,8 +43,6 @@ const c4m_vtable_t c4m_box_vtable = {
         [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)box_init,
         [C4M_BI_TO_STR]       = (c4m_vtable_entry)box_repr,
         [C4M_BI_REPR]         = (c4m_vtable_entry)box_to_str,
-        [C4M_BI_MARSHAL]      = (c4m_vtable_entry)box_marshal,
-        [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)box_unmarshal,
         [C4M_BI_FORMAT]       = (c4m_vtable_entry)box_format,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)box_from_lit,
         [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_ALL,

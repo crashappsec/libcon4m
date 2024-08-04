@@ -52,9 +52,8 @@ c4m_flags_invert(c4m_flags_t *self)
         return result;
     }
 
-    int num_to_clear = 64 - result->bit_modulus;
-    uint64_t mask    = (1ULL << num_to_clear) - 1;
-
+    int      num_to_clear = 64 - result->bit_modulus;
+    uint64_t mask         = (1ULL << num_to_clear) - 1;
 
     result->contents[result->alloc_wordlen - 1] &= mask;
 
@@ -85,33 +84,6 @@ flags_repr(const c4m_flags_t *self)
     }
 
     return result;
-}
-
-static void
-flags_marshal(const c4m_flags_t *self,
-              c4m_stream_t      *out,
-              c4m_dict_t        *memos,
-              int64_t           *mid)
-{
-    c4m_marshal_i32(self->bit_modulus, out);
-    c4m_marshal_i32(self->alloc_wordlen, out);
-    for (int i = 0; i < self->alloc_wordlen; i++) {
-        c4m_marshal_u64(self->contents[i], out);
-    }
-}
-
-static void
-flags_unmarshal(c4m_flags_t *self, c4m_stream_t *in, c4m_dict_t *memos)
-{
-    self->bit_modulus   = c4m_unmarshal_i32(in);
-    self->alloc_wordlen = c4m_unmarshal_i32(in);
-
-    self->contents = c4m_gc_raw_alloc(sizeof(uint64_t) * self->alloc_wordlen,
-                                      NULL);
-
-    for (int i = 0; i < self->alloc_wordlen; i++) {
-        self->contents[i] = c4m_unmarshal_u64(in);
-    }
 }
 
 static c4m_flags_t *
@@ -442,8 +414,6 @@ const c4m_vtable_t c4m_flags_vtable = {
     .methods     = {
         [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)flags_init,
         [C4M_BI_TO_STR]       = (c4m_vtable_entry)flags_repr,
-        [C4M_BI_MARSHAL]      = (c4m_vtable_entry)flags_marshal,
-        [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)flags_unmarshal,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)flags_lit,
         [C4M_BI_COPY]         = (c4m_vtable_entry)c4m_flags_copy,
         [C4M_BI_ADD]          = (c4m_vtable_entry)c4m_flags_add,

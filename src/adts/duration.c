@@ -485,23 +485,6 @@ duration_repr(c4m_duration_t *ts)
     return repr_ns(ts->tv_nsec);
 }
 
-static void
-duration_marshal(c4m_duration_t *ts,
-                 c4m_stream_t   *s,
-                 c4m_dict_t     *m,
-                 int64_t         d)
-{
-    c4m_marshal_u64(ts->tv_sec, s);
-    c4m_marshal_u64(ts->tv_nsec, s);
-}
-
-static void
-duration_unmarshal(c4m_duration_t *ts, c4m_stream_t *s, c4m_dict_t *m)
-{
-    ts->tv_sec  = c4m_unmarshal_u64(s);
-    ts->tv_nsec = c4m_unmarshal_u64(s);
-}
-
 static bool
 duration_eq(c4m_duration_t *t1, c4m_duration_t *t2)
 {
@@ -595,8 +578,6 @@ const c4m_vtable_t c4m_duration_vtable = {
     .methods     = {
         [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)duration_init,
         [C4M_BI_REPR]         = (c4m_vtable_entry)duration_repr,
-        [C4M_BI_MARSHAL]      = (c4m_vtable_entry)duration_marshal,
-        [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)duration_unmarshal,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)duration_lit,
         [C4M_BI_EQ]           = (c4m_vtable_entry)duration_eq,
         [C4M_BI_LT]           = (c4m_vtable_entry)duration_lt,

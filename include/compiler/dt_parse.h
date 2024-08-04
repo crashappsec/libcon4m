@@ -140,3 +140,9 @@ typedef struct {
     //   (the pnode_t not the tree node) that constitutes the jump target.
     bool                have_value;
 } c4m_pnode_t;
+
+typedef struct c4m_checkpoint_t {
+    struct c4m_checkpoint_t *prev;
+    char                    *fn;
+    jmp_buf                  env;
+} c4m_checkpoint_t;

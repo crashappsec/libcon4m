@@ -122,6 +122,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_buffer_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM,
+        .mutable   = true,
     },
     [C4M_T_UTF32] = {
         .name      = "utf32",
@@ -138,6 +139,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_grid_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
     },
     [C4M_T_LIST] = {
         .name      = "list",
@@ -146,15 +148,16 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_list_vtable,
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
     },
     [C4M_T_TUPLE] = {
         .name      = "tuple",
         .typeid    = C4M_T_TUPLE,
         .alloc_len = sizeof(c4m_tuple_t),
-
-        .vtable  = &c4m_tuple_vtable,
-        .dt_kind = C4M_DT_KIND_tuple,
-        .hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .vtable    = &c4m_tuple_vtable,
+        .dt_kind   = C4M_DT_KIND_tuple,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
     },
     [C4M_T_DICT] = {
         .name      = "dict",
@@ -163,6 +166,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_dict_vtable,
         .dt_kind   = C4M_DT_KIND_dict,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
     },
     [C4M_T_SET] = {
         .name      = "set",
@@ -171,6 +175,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_set_vtable,
         .dt_kind   = C4M_DT_KIND_dict,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
     },
     [C4M_T_TYPESPEC] = {
         .name      = "typespec",
@@ -249,6 +254,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_flags_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
     },
     [C4M_T_CALLBACK] = {
         .name      = "callback",
@@ -265,6 +271,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_queue_vtable,
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
     },
     [C4M_T_RING] = {
         .name      = "Ring",
@@ -273,6 +280,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_ring_vtable,
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
     },
     [C4M_T_LOGRING] = {
         .name      = "Logring",
@@ -281,6 +289,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_logring_vtable,
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
     },
     [C4M_T_STACK] = {
         .name      = "Stack",
@@ -289,6 +298,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_stack_vtable,
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
     },
     [C4M_T_RENDERABLE] = {
         .name      = "Renderable",
@@ -297,6 +307,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_renderable_vtable,
         .dt_kind   = C4M_DT_KIND_internal,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
     },
     [C4M_T_FLIST] = {
         .name      = "Rlist",
@@ -313,6 +324,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_render_style_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
     },
     [C4M_T_SHA] = {
         .name      = "Hash",
@@ -321,6 +333,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_sha_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
     },
     [C4M_T_EXCEPTION] = {
         .name      = "exception",
@@ -337,6 +350,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_tree_vtable,
         .dt_kind   = C4M_DT_KIND_list,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
     },
     [C4M_T_FUNCDEF] = {
         // Non-instantiable.
@@ -393,6 +407,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .typeid    = C4M_T_VM,
         .alloc_len = sizeof(c4m_vm_t),
         .vtable    = &c4m_vm_vtable,
+        .mutable   = true,
     },
     [C4M_T_PARSE_NODE] = {
         .name      = "parse_node",
@@ -428,6 +443,7 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .vtable    = &c4m_basic_http_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
     },
 };
 

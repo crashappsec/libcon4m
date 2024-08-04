@@ -25,37 +25,12 @@ c4m_callback_info_init()
     */
 }
 
-static void
-zcallback_marshal(c4m_zcallback_t *cb,
-                  c4m_stream_t    *s,
-                  c4m_dict_t      *m,
-                  int64_t         *i)
-{
-    c4m_sub_marshal(cb->name, s, m, i);
-    c4m_sub_marshal(cb->tid, s, m, i);
-    c4m_marshal_i64(cb->impl, s);
-    c4m_marshal_i32(cb->mid, s);
-    c4m_marshal_bool(cb->ffi, s);
-    c4m_marshal_bool(cb->skip_boxes, s);
-}
-
-static void
-zcallback_gc_bits(uint64_t *bitmap, c4m_base_obj_t *base)
+void
+c4m_zcallback_gc_bits(uint64_t *bitmap, c4m_base_obj_t *base)
 {
     c4m_zcallback_t *cb = (void *)base->data;
 
     c4m_mark_raw_to_addr(bitmap, base, &cb->tid);
-}
-
-static void
-zcallback_unmarshal(c4m_zcallback_t *cb, c4m_stream_t *s, c4m_dict_t *m)
-{
-    cb->name       = c4m_sub_unmarshal(s, m);
-    cb->tid        = c4m_sub_unmarshal(s, m);
-    cb->impl       = c4m_unmarshal_i64(s);
-    cb->mid        = c4m_unmarshal_i32(s);
-    cb->ffi        = c4m_unmarshal_bool(s);
-    cb->skip_boxes = c4m_unmarshal_bool(s);
 }
 
 static c4m_utf8_t *
@@ -67,10 +42,8 @@ zcallback_repr(c4m_zcallback_t *cb)
 const c4m_vtable_t c4m_callback_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)zcallback_marshal,
-        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)zcallback_unmarshal,
-        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)zcallback_gc_bits,
-        [C4M_BI_REPR]        = (c4m_vtable_entry)zcallback_repr,
-        [C4M_BI_FINALIZER]   = NULL,
+        [C4M_BI_GC_MAP]    = (c4m_vtable_entry)c4m_zcallback_gc_bits,
+        [C4M_BI_REPR]      = (c4m_vtable_entry)zcallback_repr,
+        [C4M_BI_FINALIZER] = NULL,
     },
 };

@@ -25,8 +25,8 @@ exception_init(c4m_exception_t *exception, va_list args)
     exception->code    = error_code;
 }
 
-static void
-exception_gc_bits(uint64_t *bitmap, c4m_base_obj_t *obj)
+void
+c4m_exception_gc_bits(uint64_t *bitmap, c4m_base_obj_t *obj)
 {
     c4m_exception_t *x = (c4m_exception_t *)obj->data;
 
@@ -37,7 +37,7 @@ c4m_exception_t *
 _c4m_alloc_exception(const char *msg, ...)
 {
     c4m_exception_t *ret = c4m_gc_alloc_mapped(c4m_exception_t,
-                                               exception_gc_bits);
+                                               c4m_exception_gc_bits);
     ret->msg             = c4m_new(c4m_type_utf8(),
                        c4m_kw("cstring", c4m_ka(msg)));
 
@@ -48,7 +48,7 @@ c4m_exception_t *
 _c4m_alloc_str_exception(c4m_utf8_t *msg, ...)
 {
     c4m_exception_t *ret = c4m_gc_alloc_mapped(c4m_exception_t,
-                                               exception_gc_bits);
+                                               c4m_exception_gc_bits);
     ret->msg             = msg;
 
     return ret;

@@ -1948,38 +1948,6 @@ c4m_grid_horizontal_flow(c4m_list_t *items,
 
     return res;
 }
-
-static void
-c4m_grid_marshal(c4m_grid_t   *grid,
-                 c4m_stream_t *s,
-                 c4m_dict_t   *memos,
-                 int64_t      *mid)
-{
-    int num_cells = grid->num_rows * grid->num_cols;
-
-    c4m_marshal_u16(grid->num_cols, s);
-    c4m_marshal_u16(grid->num_rows, s);
-    c4m_marshal_u16(grid->spare_rows, s);
-    c4m_marshal_i16(grid->width, s);
-    c4m_marshal_i16(grid->height, s);
-    c4m_marshal_u16(grid->col_cursor, s);
-    c4m_marshal_u16(grid->row_cursor, s);
-    c4m_marshal_i8(grid->header_cols, s);
-    c4m_marshal_i8(grid->header_rows, s);
-    c4m_marshal_i8(grid->stripe, s);
-    c4m_marshal_cstring(grid->td_tag_name, s);
-    c4m_marshal_cstring(grid->th_tag_name, s);
-
-    c4m_sub_marshal(grid->col_props, s, memos, mid);
-    c4m_sub_marshal(grid->row_props, s, memos, mid);
-
-    for (int i = 0; i < num_cells; i++) {
-        c4m_sub_marshal((c4m_renderable_t *)grid->cells[i], s, memos, mid);
-    }
-
-    c4m_sub_marshal(grid->self, s, memos, mid);
-}
-
 static c4m_renderable_t *
 c4m_renderable_copy(c4m_renderable_t *renderable)
 {
@@ -2040,82 +2008,6 @@ c4m_grid_copy(c4m_grid_t *orig)
     result->self = c4m_renderable_copy(orig->self);
 
     return result;
-}
-
-static void
-c4m_grid_unmarshal(c4m_grid_t *grid, c4m_stream_t *s, c4m_dict_t *memos)
-{
-    grid->num_cols    = c4m_unmarshal_u16(s);
-    grid->num_rows    = c4m_unmarshal_u16(s);
-    grid->spare_rows  = c4m_unmarshal_u16(s);
-    grid->width       = c4m_unmarshal_i16(s);
-    grid->height      = c4m_unmarshal_i16(s);
-    grid->col_cursor  = c4m_unmarshal_u16(s);
-    grid->row_cursor  = c4m_unmarshal_u16(s);
-    grid->header_cols = c4m_unmarshal_i8(s);
-    grid->header_rows = c4m_unmarshal_i8(s);
-    grid->stripe      = c4m_unmarshal_i8(s);
-    grid->td_tag_name = c4m_unmarshal_cstring(s);
-    grid->th_tag_name = c4m_unmarshal_cstring(s);
-    grid->col_props   = c4m_sub_unmarshal(s, memos);
-    grid->row_props   = c4m_sub_unmarshal(s, memos);
-
-    size_t num_cells = (grid->num_rows + grid->spare_rows) * grid->num_cols;
-    grid->cells      = c4m_gc_array_alloc(c4m_renderable_t *, num_cells);
-
-    num_cells = grid->num_rows * grid->num_cols;
-
-    for (size_t i = 0; i < num_cells; i++) {
-        grid->cells[i] = c4m_sub_unmarshal(s, memos);
-    }
-
-    grid->self = c4m_sub_unmarshal(s, memos);
-}
-
-extern void
-c4m_style_marshal(c4m_render_style_t *obj,
-                  c4m_stream_t       *s,
-                  c4m_dict_t         *memos,
-                  int64_t            *mid);
-
-static void
-c4m_renderable_marshal(c4m_renderable_t *r,
-                       c4m_stream_t     *s,
-                       c4m_dict_t       *memos,
-                       int64_t          *mid)
-{
-    c4m_sub_marshal(r->raw_item, s, memos, mid);
-    c4m_marshal_cstring(r->container_tag, s);
-    c4m_style_marshal(r->current_style, s, memos, mid);
-    c4m_marshal_u16(r->start_col, s);
-    c4m_marshal_u16(r->start_row, s);
-    c4m_marshal_u16(r->end_col, s);
-    c4m_marshal_u16(r->end_row, s);
-    // We 100% skip the render cache.
-    c4m_marshal_u16(r->render_width, s);
-    c4m_marshal_u16(r->render_height, s);
-}
-
-extern void
-c4m_style_unmarshal(c4m_render_style_t *obj,
-                    c4m_stream_t       *s,
-                    c4m_dict_t         *memos);
-
-static void
-c4m_renderable_unmarshal(c4m_renderable_t *r,
-                         c4m_stream_t     *s,
-                         c4m_dict_t       *memos)
-{
-    r->raw_item            = c4m_sub_unmarshal(s, memos);
-    r->container_tag       = c4m_unmarshal_cstring(s);
-    c4m_render_style_t *rs = c4m_new(c4m_type_render_style());
-    c4m_style_unmarshal(rs, s, memos);
-    r->start_col     = c4m_unmarshal_u16(s);
-    r->start_row     = c4m_unmarshal_u16(s);
-    r->end_col       = c4m_unmarshal_u16(s);
-    r->end_row       = c4m_unmarshal_u16(s);
-    r->render_width  = c4m_unmarshal_u16(s);
-    r->render_height = c4m_unmarshal_u16(s);
 }
 
 // For instantiating w/o varargs.
@@ -2382,14 +2274,14 @@ _c4m_grid_tree(c4m_tree_node_t *tree, ...)
     return result;
 }
 
-static void
+void
 c4m_grid_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
 {
     c4m_grid_t *grid = (c4m_grid_t *)alloc->data;
     c4m_mark_raw_to_addr(bitfield, alloc, &grid->th_tag_name);
 }
 
-static void
+void
 c4m_renderable_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
 {
     c4m_renderable_t *r = (c4m_renderable_t *)alloc->data;
@@ -2455,8 +2347,6 @@ const c4m_vtable_t c4m_grid_vtable = {
     .methods     = {
         [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)grid_init,
         [C4M_BI_TO_STR]        = (c4m_vtable_entry)c4m_grid_to_str,
-        [C4M_BI_MARSHAL]       = (c4m_vtable_entry)c4m_grid_marshal,
-        [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_grid_unmarshal,
         [C4M_BI_GC_MAP]        = (c4m_vtable_entry)c4m_grid_set_gc_bits,
         [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)c4m_to_grid_lit,
         [C4M_BI_COPY]          = (c4m_vtable_entry)c4m_grid_copy,
@@ -2471,8 +2361,6 @@ const c4m_vtable_t c4m_renderable_vtable = {
     .methods     = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)renderable_init,
         [C4M_BI_GC_MAP]      = (c4m_vtable_entry)c4m_renderable_set_gc_bits,
-        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)c4m_renderable_marshal,
-        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)c4m_renderable_unmarshal,
         [C4M_BI_COPY]        = (c4m_vtable_entry)c4m_renderable_copy,
         [C4M_BI_FINALIZER]   = NULL,
     },

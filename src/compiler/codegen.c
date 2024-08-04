@@ -26,11 +26,6 @@ typedef enum {
 } assign_type_t;
 
 typedef struct {
-    c4m_fn_decl_t      *decl;
-    c4m_zinstruction_t *i;
-} call_backpatch_info_t;
-
-typedef struct {
     c4m_compile_ctx        *cctx;
     c4m_module_compile_ctx *fctx;
     c4m_list_t             *instructions;
@@ -51,7 +46,7 @@ typedef struct {
 
 static void gen_one_node(gen_ctx *);
 
-static void
+void
 c4m_zinstr_gc_bits(uint64_t *bitmap, c4m_zinstruction_t *instr)
 {
     c4m_set_bit(bitmap, c4m_ptr_diff(instr, &instr->type_info));
@@ -63,7 +58,7 @@ c4m_new_instruction()
     return c4m_gc_alloc_mapped(c4m_zinstruction_t, c4m_zinstr_gc_bits);
 }
 
-static void
+void
 c4m_zfn_gc_bits(uint64_t *bitmap, c4m_zfn_info_t *fn)
 {
     c4m_mark_raw_to_addr(bitmap, fn, &fn->longdoc);
@@ -75,7 +70,7 @@ c4m_new_zfn()
     return c4m_gc_alloc_mapped(c4m_zfn_info_t, c4m_zfn_gc_bits);
 }
 
-static void
+void
 c4m_zmodule_gc_bits(uint64_t *bitmap, c4m_zmodule_info_t *zm)
 {
     c4m_mark_raw_to_addr(bitmap, zm, &zm->instructions);
@@ -87,7 +82,7 @@ c4m_new_zmodule()
     return c4m_gc_alloc_mapped(c4m_zmodule_info_t, c4m_zmodule_gc_bits);
 }
 
-static void
+void
 c4m_jump_info_gc_bits(uint64_t *bitmap, c4m_jump_info_t *ji)
 {
     c4m_mark_raw_to_addr(bitmap, ji, &ji->to_patch);
@@ -99,16 +94,16 @@ c4m_new_jump_info()
     return c4m_gc_alloc_mapped(c4m_jump_info_t, c4m_jump_info_gc_bits);
 }
 
-static void
-c4m_backpatch_gc_bits(uint64_t *bitmap, call_backpatch_info_t *bp)
+void
+c4m_backpatch_gc_bits(uint64_t *bitmap, c4m_call_backpatch_info_t *bp)
 {
     c4m_mark_raw_to_addr(bitmap, bp, &bp->i);
 }
 
-static call_backpatch_info_t *
+static c4m_call_backpatch_info_t *
 new_backpatch()
 {
-    return c4m_gc_alloc_mapped(call_backpatch_info_t, c4m_backpatch_gc_bits);
+    return c4m_gc_alloc_mapped(c4m_call_backpatch_info_t, c4m_backpatch_gc_bits);
 }
 
 static void
@@ -355,7 +350,7 @@ gen_sym_load_const(gen_ctx *ctx, c4m_symbol_t *sym, bool addressof)
 static inline void
 gen_sym_load_attr(gen_ctx *ctx, c4m_symbol_t *sym, bool addressof)
 {
-    int64_t offset = c4m_layout_string_const(ctx->cctx, sym->name);
+    int64_t offset = c4m_add_static_string(sym->name, ctx->cctx);
 
     if (!addressof) {
         emit(ctx,
@@ -379,7 +374,7 @@ static inline void
 gen_sym_load_attr_and_found(gen_ctx *ctx, c4m_symbol_t *sym, bool skipload)
 {
     int64_t flag   = skipload ? C4M_F_ATTR_SKIP_LOAD : C4M_F_ATTR_PUSH_FOUND;
-    int64_t offset = c4m_layout_string_const(ctx->cctx, sym->name);
+    int64_t offset = c4m_add_static_string(sym->name, ctx->cctx);
 
     emit(ctx,
          C4M_ZPushConstObj,
@@ -488,7 +483,7 @@ gen_sym_store(gen_ctx *ctx, c4m_symbol_t *sym, bool pop_and_lock)
     case C4M_SK_ATTR:
         // Byte offset into the const object arena where the attribute
         // name can be found.
-        arg = c4m_layout_string_const(ctx->cctx, sym->name);
+        arg = c4m_add_static_string(sym->name, ctx->cctx);
         gen_load_const_by_offset(ctx, arg, c4m_type_utf8());
 
         emit(ctx, C4M_ZAssignAttr, c4m_kw("arg", c4m_ka(pop_and_lock)));
@@ -515,7 +510,7 @@ gen_sym_store(gen_ctx *ctx, c4m_symbol_t *sym, bool pop_and_lock)
 static inline void
 gen_load_string(gen_ctx *ctx, c4m_utf8_t *s)
 {
-    int64_t offset = c4m_layout_string_const(ctx->cctx, s);
+    int64_t offset = c4m_add_static_string(s, ctx->cctx);
     emit(ctx, C4M_ZPushStaticObj, c4m_kw("arg", c4m_ka(offset)));
 }
 
@@ -533,7 +528,7 @@ gen_label(gen_ctx *ctx, c4m_utf8_t *s)
         return false;
     }
 
-    int64_t offset = c4m_layout_string_const(ctx->cctx, s);
+    int64_t offset = c4m_add_static_string(s, ctx->cctx);
     emit(ctx, C4M_ZNop, c4m_kw("arg", c4m_ka(1), "immediate", c4m_ka(offset)));
 
     return true;
@@ -726,7 +721,7 @@ gen_native_call(gen_ctx *ctx, c4m_symbol_t *fsym)
          c4m_kw("arg", c4m_ka(target_fn_id), "module_id", target_module));
 
     if (target_fn_id == 0) {
-        call_backpatch_info_t *bp;
+        c4m_call_backpatch_info_t *bp;
 
         bp       = new_backpatch();
         bp->decl = decl;
@@ -1815,7 +1810,7 @@ gen_callback_literal(gen_ctx *ctx)
 {
     c4m_callback_info_t *scb = (c4m_callback_info_t *)ctx->cur_pnode->value;
 
-    int64_t arg = c4m_layout_string_const(ctx->cctx, scb->target_symbol_name);
+    int64_t arg = c4m_add_static_string(scb->target_symbol_name, ctx->cctx);
     gen_load_const_by_offset(ctx, arg, c4m_type_utf8());
 
     if (scb->binding.ffi) {
@@ -1862,8 +1857,8 @@ gen_literal(gen_ctx *ctx)
             // This is only true for containers, which need to be
             // copied since they are mutable, but the const version
             // is... const.
-            if (li->type != NULL) {
-                gen_tcall(ctx, C4M_BI_COPY, c4m_get_my_type(lit));
+            if (c4m_type_is_mutable(t)) {
+                gen_tcall(ctx, C4M_BI_COPY, t);
             }
         }
 
@@ -2577,8 +2572,8 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
 static inline void
 backpatch_calls(gen_ctx *ctx)
 {
-    int                    n = c4m_list_len(ctx->call_backpatches);
-    call_backpatch_info_t *info;
+    int                        n = c4m_list_len(ctx->call_backpatches);
+    c4m_call_backpatch_info_t *info;
 
     for (int i = 0; i < n; i++) {
         info               = c4m_list_get(ctx->call_backpatches, i, NULL);
@@ -2623,7 +2618,5 @@ c4m_internal_codegen(c4m_compile_ctx *cctx, c4m_vm_t *c4m_new_vm)
 
     backpatch_calls(&ctx);
 
-    c4m_new_vm->obj->num_const_objs = cctx->const_instantiation_id;
-    c4m_new_vm->obj->static_data    = cctx->const_data;
-    c4m_new_vm->obj->entrypoint     = cctx->entry_point->local_module_id;
+    c4m_new_vm->obj->entrypoint = cctx->entry_point->local_module_id;
 }

@@ -41,7 +41,7 @@ function log {
 }
 
 function ensure_env_setup {
-    export LIBRARY_PATH=${PWD}/deps/${OS}-${ARCH}/
+    export LIBRARY_PATH=/usr/local/lib:${PWD}/deps/${OS}-${ARCH}/
     log "OS="$(color green ${OS})
     log "ARCH="$(color green ${ARCH})
     log "LIBRARY_PATH="$(color green ${LIBRARY_PATH})

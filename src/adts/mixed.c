@@ -217,35 +217,6 @@ mixed_repr(c4m_mixed_t *mixed)
     return c4m_repr((void *)mixed_as_word(mixed), mixed->held_type);
 }
 
-static void
-mixed_marshal_arts(c4m_mixed_t  *m,
-                   c4m_stream_t *s,
-                   c4m_dict_t   *memos,
-                   int64_t      *mid)
-{
-    c4m_sub_marshal(m->held_type, s, memos, mid);
-
-    if (c4m_type_get_data_type_info(m->held_type)->by_value) {
-        c4m_marshal_i64((int64_t)m->held_value, s);
-    }
-    else {
-        c4m_sub_marshal(m->held_value, s, memos, mid);
-    }
-}
-
-static void
-mixed_unmarshal_arts(c4m_mixed_t *m, c4m_stream_t *s, c4m_dict_t *memos)
-{
-    m->held_type = c4m_sub_unmarshal(s, memos);
-
-    if (c4m_type_get_data_type_info(m->held_type)->by_value) {
-        m->held_value = (void *)c4m_unmarshal_i64(s);
-    }
-    else {
-        m->held_value = c4m_sub_unmarshal(s, memos);
-    }
-}
-
 static c4m_mixed_t *
 mixed_copy(c4m_mixed_t *m)
 {
@@ -271,8 +242,6 @@ const c4m_vtable_t c4m_mixed_vtable = {
     .methods     = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)mixed_init,
         [C4M_BI_REPR]        = (c4m_vtable_entry)mixed_repr,
-        [C4M_BI_MARSHAL]     = (c4m_vtable_entry)mixed_marshal_arts,
-        [C4M_BI_UNMARSHAL]   = (c4m_vtable_entry)mixed_unmarshal_arts,
         [C4M_BI_COPY]        = (c4m_vtable_entry)mixed_copy,
         [C4M_BI_GC_MAP]      = (c4m_vtable_entry)C4M_GC_SCAN_ALL,
         // Explicit because some compilers don't seem to always properly

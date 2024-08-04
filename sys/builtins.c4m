@@ -15,14 +15,6 @@ extern c4m_len(ptr) -> i64 {
 }
 
 /*
-extern c4m_marshal(ptr, ptr) -> void {
-  local: marshal(o: `x, s: stream) -> void
-}
-
-extern c4m_unmarshal_to_type(ptr) -> ptr {
-  local: unmarshal(s: stream, t: typespec) -> `t
-}
-
 extern c4m_wrapper_coerce(ptr, ptr) -> ptr {
   local: coerce(o: `t, t: typespec) -> `v
 }

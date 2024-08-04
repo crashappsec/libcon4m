@@ -44,6 +44,7 @@ typedef struct {
     const uint32_t      alloc_len; // How much space to allocate.
     const c4m_dt_kind_t dt_kind;
     const bool          by_value : 1;
+    const bool          mutable : 1;
     // clang-format on
 } c4m_dt_info_t;
 
@@ -62,6 +63,8 @@ typedef struct {
 // to distinguish whether the object has been freed.
 
 struct c4m_base_obj_t {
+    // This *must* be first, because its position is assumed to be first
+    // when marshaling (we replace the ptr with an index into the array).
     c4m_dt_info_t     *base_data_type;
     struct c4m_type_t *concrete_type;
     // The exposed object data.
@@ -189,5 +192,22 @@ typedef enum : int64_t {
     C4M_T_HTTP,
     C4M_NUM_BUILTIN_DTS,
 } c4m_builtin_t;
+
+// The goal here is to make it easy to change the amount of space
+// associated with common data objects when we're treating them like
+// arrays.
+typedef union {
+    void          **lvalue;
+    void           *v;
+    char           *c;
+    uint8_t        *u8;
+    int32_t        *codepoint;
+    uint32_t       *u32;
+    int64_t        *i64;
+    uint64_t       *u64;
+    c4m_alloc_hdr  *alloc;
+    c4m_base_obj_t *object;
+    uint64_t        nonpointer;
+} c4m_mem_ptr;
 
 #define C4M_T_XLIST C4M_T_LIST

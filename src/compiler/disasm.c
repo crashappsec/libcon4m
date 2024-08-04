@@ -452,11 +452,11 @@ value_to_object(c4m_vm_t *vm, uint64_t offset, c4m_type_t *t)
     }
 
     if (t != NULL && c4m_type_is_value_type(t)) {
-        uint64_t u = (uint64_t)vm->const_pool[offset].p;
+        uint64_t u = vm->obj->static_contents->items[offset].nonpointer;
         return c4m_box_obj((c4m_box_t)u, t);
     }
 
-    return vm->const_pool[offset].p;
+    return vm->obj->static_contents->items[offset].v;
 }
 
 static c4m_utf8_t *

@@ -576,3 +576,10 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - Revert the GC func for errors.
 - c4m_format_errors() -> c4m_format_compile_errors()
 - Section validation callbacks.
+- Randomize typeid on unmarshaling, OR, create a 'universeid'
+- That we also use in the hash.
+
+
+      - Handle all the type stuff on the unmarshal side.
+	
+   

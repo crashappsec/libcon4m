@@ -1,16 +1,22 @@
 #define C4M_USE_INTERNAL_API
 #include "con4m.h"
 
-static void
-cctx_gc_bits(uint64_t *bitfield, c4m_compile_ctx *ctx)
+void
+c4m_cctx_gc_bits(uint64_t *bitfield, c4m_compile_ctx *ctx)
 {
     c4m_mark_raw_to_addr(bitfield, ctx, &ctx->str_map);
+}
+
+void
+c4m_smem_gc_bits(uint64_t *bitfield, c4m_static_memory *mem)
+{
+    c4m_mark_raw_to_addr(bitfield, mem, &mem->items);
 }
 
 c4m_compile_ctx *
 c4m_new_compile_ctx()
 {
-    return c4m_gc_alloc_mapped(c4m_compile_ctx, cctx_gc_bits);
+    return c4m_gc_alloc_mapped(c4m_compile_ctx, c4m_cctx_gc_bits);
 }
 
 static hatrack_hash_t
@@ -32,12 +38,13 @@ c4m_new_compile_context(c4m_str_t *input)
                               c4m_kw("hash", c4m_ka(module_ctx_hash)));
     result->processed     = c4m_new(c4m_type_set(c4m_type_ref()),
                                 c4m_kw("hash", c4m_ka(module_ctx_hash)));
-    result->const_data    = c4m_buffer_empty();
-    result->const_memos   = c4m_alloc_marshal_memos();
-    result->const_memoid  = 1;
     result->instance_map  = c4m_dict(c4m_type_ref(), c4m_type_i64());
     result->str_map       = c4m_dict(c4m_type_utf8(), c4m_type_i64());
-    result->const_stream  = c4m_buffer_outstream(result->const_data, true);
+    result->memory_layout = c4m_gc_alloc_mapped(c4m_static_memory,
+                                                (void *)c4m_smem_gc_bits);
+    result->str_consts    = c4m_dict(c4m_type_utf8(), c4m_type_u64());
+    result->obj_consts    = c4m_dict(c4m_type_ref(), c4m_type_u64());
+    result->value_consts  = c4m_dict(c4m_type_u64(), c4m_type_u64());
 
     if (input != NULL) {
         result->entry_point = c4m_init_module_from_loc(result, input);

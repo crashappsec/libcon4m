@@ -73,7 +73,7 @@ c4m_store_bits(uint64_t     *bitfield,
     }
 }
 
-static void
+void
 c4m_dict_gc_bits_obj(uint64_t       *bitfield,
                      c4m_base_obj_t *alloc)
 {
@@ -81,7 +81,7 @@ c4m_dict_gc_bits_obj(uint64_t       *bitfield,
     c4m_mark_raw_to_addr(bitfield, alloc, &dict->crown_instance.store_current);
 }
 
-static void
+void
 c4m_dict_gc_bits_raw(uint64_t       *bitfield,
                      c4m_base_obj_t *alloc)
 {
@@ -101,7 +101,7 @@ c4m_dict_gc_bits_bucket_base(uint64_t     *bitfield,
     c4m_set_bit(bitfield, c4m_ptr_diff(alloc, &alloc->cleanup_aux));
 }
 
-static void
+void
 c4m_dict_gc_bits_bucket_full(uint64_t     *bitfield,
                              mmm_header_t *alloc)
 {
@@ -109,7 +109,7 @@ c4m_dict_gc_bits_bucket_full(uint64_t     *bitfield,
     c4m_mark_obj_to_addr(bitfield, alloc, &item->value);
 }
 
-static void
+void
 c4m_dict_gc_bits_bucket_key(uint64_t     *bitfield,
                             mmm_header_t *alloc)
 {
@@ -117,7 +117,7 @@ c4m_dict_gc_bits_bucket_key(uint64_t     *bitfield,
     c4m_mark_obj_to_addr(bitfield, alloc, &item->key);
 }
 
-static void
+void
 c4m_dict_gc_bits_bucket_value(uint64_t     *bitfield,
                               mmm_header_t *alloc)
 {
@@ -127,7 +127,7 @@ c4m_dict_gc_bits_bucket_value(uint64_t     *bitfield,
     c4m_set_bit(bitfield, c4m_ptr_diff(alloc, &item->value));
 }
 
-static void
+void
 c4m_dict_gc_bits_bucket_hdr_only(uint64_t     *bitfield,
                                  mmm_header_t *alloc)
 {
@@ -272,127 +272,6 @@ c4m_dict_init(c4m_dict_t *dict, va_list args)
     dict->slow_views = false;
 }
 
-static void
-c4m_dict_marshal(c4m_dict_t   *d,
-                 c4m_stream_t *s,
-                 c4m_dict_t   *memos,
-                 int64_t      *mid)
-{
-    uint64_t    length;
-    c4m_type_t *c4m_dict_type = c4m_get_my_type(d);
-
-    if (c4m_dict_type == NULL) {
-        C4M_CRAISE("Cannot marshal untyped dictionaries.");
-    }
-
-    c4m_list_t          *type_params = c4m_type_get_params(c4m_dict_type);
-    c4m_type_t          *key_type    = c4m_list_get(type_params, 0, NULL);
-    c4m_type_t          *val_type    = c4m_list_get(type_params, 1, NULL);
-    hatrack_dict_item_t *view        = hatrack_dict_items_sort(d, &length);
-    c4m_dt_info_t       *kinfo       = c4m_type_get_data_type_info(key_type);
-    c4m_dt_info_t       *vinfo       = c4m_type_get_data_type_info(val_type);
-    bool                 key_by_val  = kinfo->by_value;
-    bool                 val_by_val  = vinfo->by_value;
-
-    c4m_marshal_u32((uint32_t)length, s);
-
-    // keyhash field is the easiest way to tell whether we're passing by
-    // value of
-
-    for (uint64_t i = 0; i < length; i++) {
-        if (key_by_val) {
-            c4m_marshal_u64((uint64_t)view[i].key, s);
-        }
-        else {
-            c4m_sub_marshal(view[i].key, s, memos, mid);
-        }
-
-        if (val_by_val) {
-            c4m_marshal_u64((uint64_t)view[i].value, s);
-        }
-        else {
-            c4m_sub_marshal(view[i].value, s, memos, mid);
-        }
-    }
-}
-
-static void
-c4m_dict_unmarshal(c4m_dict_t *d, c4m_stream_t *s, c4m_dict_t *memos)
-{
-    uint32_t       length        = c4m_unmarshal_u32(s);
-    c4m_type_t    *c4m_dict_type = c4m_get_my_type(d);
-    c4m_list_t    *type_params   = c4m_type_get_params(c4m_dict_type);
-    c4m_type_t    *key_type      = c4m_list_get(type_params, 0, NULL);
-    c4m_type_t    *val_type      = c4m_list_get(type_params, 1, NULL);
-    c4m_dt_info_t *kinfo         = c4m_type_get_data_type_info(key_type);
-    c4m_dt_info_t *vinfo         = c4m_type_get_data_type_info(val_type);
-    bool           key_by_val    = kinfo->by_value;
-    bool           val_by_val    = vinfo->by_value;
-    void          *aux_fun       = NULL;
-
-    // Set up for proper tracing.
-    hatrack_dict_init(d, kinfo->hash_fn, c4m_store_bits);
-
-    if (c4m_type_requires_gc_scan(key_type)) {
-        if (c4m_type_requires_gc_scan(val_type)) {
-            aux_fun = c4m_dict_gc_bits_bucket_full;
-        }
-        else {
-            aux_fun = c4m_dict_gc_bits_bucket_key;
-        }
-    }
-    else {
-        if (c4m_type_requires_gc_scan(val_type)) {
-            aux_fun = c4m_dict_gc_bits_bucket_value;
-        }
-        else {
-            aux_fun = c4m_dict_gc_bits_bucket_hdr_only;
-        }
-    }
-
-    hatrack_dict_set_aux(d, aux_fun);
-
-    switch (kinfo->hash_fn) {
-    case HATRACK_DICT_KEY_TYPE_OBJ_CUSTOM:
-        // clang-format off
-        hatrack_dict_set_custom_hash(d,
-                                (hatrack_hash_func_t)c4m_custom_string_hash);
-        // clang-format on
-        break;
-    case HATRACK_DICT_KEY_TYPE_OBJ_CSTR:
-        hatrack_dict_set_hash_offset(d, 2 * (int32_t)sizeof(uint64_t));
-        /* fallthrough */
-    case HATRACK_DICT_KEY_TYPE_OBJ_PTR:
-    case HATRACK_DICT_KEY_TYPE_OBJ_INT:
-    case HATRACK_DICT_KEY_TYPE_OBJ_REAL:
-        hatrack_dict_set_cache_offset(d, -2 * (int32_t)sizeof(uint64_t));
-        break;
-    default:
-        // nada.
-    }
-
-    for (uint32_t i = 0; i < length; i++) {
-        void *key;
-        void *val;
-
-        if (key_by_val) {
-            key = (void *)c4m_unmarshal_u64(s);
-        }
-        else {
-            key = c4m_sub_unmarshal(s, memos);
-        }
-
-        if (val_by_val) {
-            val = (void *)c4m_unmarshal_u64(s);
-        }
-        else {
-            val = c4m_sub_unmarshal(s, memos);
-        }
-
-        hatrack_dict_put(d, key, val);
-    }
-}
-
 static c4m_str_t *
 dict_repr(c4m_dict_t *dict)
 {
@@ -519,8 +398,6 @@ const c4m_vtable_t c4m_dict_vtable = {
         [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)c4m_dict_init,
         [C4M_BI_FINALIZER]     = (c4m_vtable_entry)hatrack_dict_cleanup,
         [C4M_BI_TO_STR]        = (c4m_vtable_entry)dict_repr,
-        [C4M_BI_MARSHAL]       = (c4m_vtable_entry)c4m_dict_marshal,
-        [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_dict_unmarshal,
         [C4M_BI_COERCIBLE]     = (c4m_vtable_entry)dict_can_coerce_to,
         [C4M_BI_COERCE]        = (c4m_vtable_entry)dict_coerce_to,
         [C4M_BI_COPY]          = (c4m_vtable_entry)c4m_dict_copy,

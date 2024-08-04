@@ -1,6 +1,33 @@
 #define C4M_USE_INTERNAL_API
 #include "con4m.h"
 
+static uint64_t
+store_static_item(c4m_compile_ctx *ctx, void *value)
+{
+    c4m_static_memory *mem  = ctx->memory_layout;
+    c4m_mem_ptr        item = (c4m_mem_ptr){.v = value};
+    uint64_t           result;
+
+    if (mem->num_items == mem->alloc_len) {
+        c4m_mem_ptr *items;
+
+        items = c4m_gc_array_alloc_mapped(c4m_mem_ptr,
+                                          mem->num_items + getpagesize() / 8,
+                                          c4m_smem_gc_bits);
+        if (mem->num_items) {
+            memcpy(items, mem->items, mem->num_items * 8);
+        }
+
+        mem->alloc_len += getpagesize();
+        mem->items = items;
+    }
+
+    result             = mem->num_items++;
+    mem->items[result] = item;
+
+    return result;
+}
+
 // Note that we do per-module offsets for most static data so that
 // modules are easily relocatable, and so that we can eventually cache
 // the info without having to recompile modules that don't need it.
@@ -8,18 +35,90 @@
 // We'll even potentially be able to hot-reload modules that don't
 // change their APIs or the static layout of existing variables.
 //
-// Global variables go into the heap of the module that defines them.
-// That's why, if we see one that is linked to another symbol, we skip
-// it.
-//
-// Currently, we do NOT do the same thing for constant data; they all
-// go in one place, so that we can easily marshal and unmarshal
-// interdependent bits at compile time (or dynamically if we keep our
-// marshal state around).
-//
-// When we eventually get to caching modules, we'll have to deal with
-// making such things relocatable, but that's a problem for another
-// time.
+// Global variables get a storage slot in the heap of the module that
+// defines them.  That's why, if we see one that is linked to another
+// symbol, we skip it. The actual static pointers are supposed to be
+// 100% constant as far as the runtime is concerned.
+
+uint64_t
+c4m_add_static_object(void *obj, c4m_compile_ctx *ctx)
+{
+    c4m_type_t *t = c4m_get_my_type(obj);
+
+    if (c4m_type_is_string(t)) {
+        return c4m_add_static_string(obj, ctx);
+    }
+
+    bool found = false;
+
+    uint64_t res = (uint64_t)hatrack_dict_get(ctx->obj_consts, obj, &found);
+
+    if (found) {
+        return res;
+    }
+
+    res = store_static_item(ctx, obj);
+    hatrack_dict_put(ctx->obj_consts, obj, (void *)res);
+
+    return res;
+}
+
+uint64_t
+c4m_add_static_string(c4m_str_t *s, c4m_compile_ctx *ctx)
+{
+    // Strings that have style info are currently NOT cached by hash,
+    // because the string hashing algorithm ignores the style info.
+    // So if there's style info, we store it by pointer.
+    //
+    // TODO to change the hashing algorithm; we should take this into
+    // account for sure.
+
+    bool     found = false;
+    uint64_t res;
+
+    s = c4m_to_utf8(s);
+
+    if (s->styling && s->styling->num_entries != 0) {
+        res = (uint64_t)hatrack_dict_get(ctx->obj_consts, s, &found);
+        if (found) {
+            return res;
+        }
+        res = store_static_item(ctx, s);
+        hatrack_dict_put(ctx->obj_consts, s, (void *)res);
+
+        return res;
+    }
+
+    res = (uint64_t)hatrack_dict_get(ctx->str_consts, s, &found);
+
+    if (found) {
+        return res;
+    }
+
+    res = store_static_item(ctx, s);
+    hatrack_dict_put(ctx->obj_consts, s, (void *)res);
+
+    return res;
+}
+
+// This is meant for constant values associated with symbols.
+uint64_t
+c4m_add_value_const(uint64_t val, c4m_compile_ctx *ctx)
+{
+    bool     found = false;
+    uint64_t res   = (uint64_t)hatrack_dict_get(ctx->value_consts,
+                                              (void *)val,
+                                              &found);
+
+    if (found) {
+        return res;
+    }
+
+    res = store_static_item(ctx, (void *)val);
+    hatrack_dict_put(ctx->value_consts, (void *)val, (void *)res);
+
+    return res;
+}
 
 static inline uint64_t
 c4m_layout_static_obj(c4m_module_compile_ctx *ctx, int bytes, int alignment)
@@ -32,33 +131,6 @@ c4m_layout_static_obj(c4m_module_compile_ctx *ctx, int bytes, int alignment)
     return result;
 }
 
-int64_t
-c4m_layout_string_const(c4m_compile_ctx *cctx,
-                        c4m_str_t       *s)
-{
-    int64_t instance_id;
-    bool    found;
-
-    s = c4m_to_utf8(s);
-
-    instance_id = (int64_t)hatrack_dict_get(cctx->str_map, s, &found);
-
-    if (found == false) {
-        c4m_marshal_u8(0, cctx->const_stream);
-        c4m_sub_marshal(s,
-                        cctx->const_stream,
-                        cctx->const_memos,
-                        &cctx->const_memoid);
-
-        instance_id = cctx->const_instantiation_id++;
-
-        hatrack_dict_put(cctx->instance_map, s, (void *)instance_id);
-        hatrack_dict_put(cctx->str_map, s, (void *)instance_id);
-    }
-
-    return instance_id;
-}
-
 uint32_t
 _c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
 {
@@ -67,8 +139,8 @@ _c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
     va_start(args, obj);
 
     c4m_module_compile_ctx *fctx = va_arg(args, c4m_module_compile_ctx *);
-    c4m_tree_node_t      *loc  = NULL;
-    c4m_utf8_t           *name = NULL;
+    c4m_tree_node_t        *loc  = NULL;
+    c4m_utf8_t             *name = NULL;
 
     if (fctx != NULL) {
         loc  = va_arg(args, c4m_tree_node_t *);
@@ -85,61 +157,20 @@ _c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
         return 0;
     }
 
-    bool        found;
-    uint32_t    result;
-    int64_t     id;
-    c4m_str_t  *s;
     c4m_type_t *objtype = c4m_get_my_type(obj);
 
     if (c4m_type_is_box(objtype)) {
-        c4m_marshal_u8(1, cctx->const_stream);
-
-        c4m_marshal_u64(c4m_unbox(obj), cctx->const_stream);
-
-        return cctx->const_instantiation_id++;
+        return c4m_add_value_const(c4m_unbox(obj), cctx);
     }
 
-    switch (objtype->typeid) {
-        // Since the memo hash is by pointer, and we want to cache
-        // strings by value, we add a separate string cache. Currently,
-        // we limit this to strings with no styling information; we'll
-        // have to change the string object hash to include the syling
-        // info to be able to fully memoize this. But it should get
-        // all of the small utility strings!
-
-    case C4M_T_UTF8:
-    case C4M_T_UTF32:
-        s = obj;
-
-        return c4m_layout_string_const(cctx, s);
-    default:
-        break;
-    }
-
-    hatrack_dict_get(cctx->const_memos, obj, &found);
-
-    if (found) {
-        id = (int64_t)hatrack_dict_get(cctx->instance_map, obj, NULL);
-        return (8 * (int32_t)id);
-    }
-
-    c4m_marshal_u8(0, cctx->const_stream);
-    c4m_sub_marshal(obj,
-                    cctx->const_stream,
-                    cctx->const_memos,
-                    &cctx->const_memoid);
-
-    result = cctx->const_instantiation_id++;
-    hatrack_dict_put(cctx->instance_map, obj, (void *)(uint64_t)result);
-
-    return result;
+    return c4m_add_static_object(obj, cctx);
 }
 
 static void
-layout_static(c4m_compile_ctx      *cctx,
+layout_static(c4m_compile_ctx        *cctx,
               c4m_module_compile_ctx *fctx,
-              void                **view,
-              uint64_t              n)
+              void                  **view,
+              uint64_t                n)
 {
     for (unsigned int i = 0; i < n; i++) {
         c4m_symbol_t *my_sym_copy = view[i];
@@ -223,9 +254,8 @@ layout_stack(void **view, uint64_t n)
 
 static void
 layout_func(c4m_module_compile_ctx *ctx,
-            c4m_symbol_t         *sym,
-            int                   i)
-
+            c4m_symbol_t           *sym,
+            int                     i)
 {
     uint64_t       n;
     c4m_fn_decl_t *decl       = sym->value;

@@ -3,6 +3,7 @@
 
 typedef void (*c4m_mem_scan_fn)(uint64_t *, void *);
 
+// This needs to stay in sync w/ c4m_marshaled_hdr
 typedef struct c4m_alloc_hdr {
     // A guard value added to every allocation so that cross-heap
     // memory accesses can scan backwards (if needed) to determine if
@@ -37,8 +38,9 @@ typedef struct c4m_alloc_hdr {
     // Currently using the individual bitfields below, until we
     // add in the multi-threading support.
     // _Atomic uint32_t      flags;
-    uint32_t              alloc_len;
-    uint32_t              request_len;
+
+    uint32_t        alloc_len;
+    uint32_t        request_len;
     //
     // This is a pointer to a sized bitfield. The first word indicates the
     // number of subsequent words in the bitfield. The bits then
@@ -48,17 +50,15 @@ typedef struct c4m_alloc_hdr {
     // If this function exists, it's passed the # of words in the alloc
     // and a pointer to a bitfield that contains that many bits. The
     // bits that correspond to words with pointers should be set.
-    c4m_mem_scan_fn       scan_fn;
+    c4m_mem_scan_fn scan_fn;
 
-#ifdef C4M_FULL_MEMCHECK
+#if defined(C4M_FULL_MEMCHECK)
     uint64_t *end_guard_loc;
 #endif
-
 #if defined(C4M_ADD_ALLOC_LOC_INFO)
     char *alloc_file;
     int   alloc_line;
 #endif
-
     // Set to 'true' if this object requires finalization. This is
     // necessary, even though the arena tracks allocations needing
     // finalization, because resizes could move the pointer.
@@ -69,8 +69,23 @@ typedef struct c4m_alloc_hdr {
     // True if the memory allocation is a direct con4m object with
     // an object header.
     unsigned int con4m_obj : 1;
-
-    __uint128_t cached_hash;
+    // For type objects,  we have an out-of-heap pointer that needs
+    // to survive an unmarshaling, and they're buried enough that
+    // we need to mark the allocations.
+    //
+    // Technically, this bit causes us to treat the first word of our
+    // proper con4m object (i.e., the place where the user's pointer
+    // actually points) as a pointer into the type table when
+    // marshaling.
+    //
+    // Additionally, if the marshaler is processing any con4m object,
+    // and the type field is a base type, it gets special cased, and
+    // totally replaced with a special value that allows us to
+    // restore the right pointer on unmarshal.
+    //
+    // Generally, primitive types don't have to worry about this.
+    unsigned int type_obj  : 1;
+    __uint128_t  cached_hash;
 
     // The actual exposed data. This must be 16-byte aligned!
     alignas(C4M_FORCED_ALIGNMENT) uint64_t data[];

@@ -1,6 +1,6 @@
 #include "con4m.h"
 
-static void
+void
 c4m_cfg_gc_bits(uint64_t *bitmap, c4m_cfg_node_t *cfgnode)
 {
     switch (cfgnode->kind) {

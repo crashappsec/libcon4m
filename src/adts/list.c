@@ -253,57 +253,6 @@ c4m_list_plus(c4m_list_t *l1, c4m_list_t *l2)
     return result;
 }
 
-void
-c4m_list_marshal(c4m_list_t *r, c4m_stream_t *s, c4m_dict_t *memos, int64_t *mid)
-{
-    c4m_type_t    *list_type   = c4m_get_my_type(r);
-    c4m_list_t    *type_params = c4m_type_get_params(list_type);
-    c4m_type_t    *item_type   = c4m_list_get_base(type_params, 0, NULL);
-    c4m_dt_info_t *item_info   = c4m_type_get_data_type_info(item_type);
-    bool           by_val      = item_info->by_value;
-
-    read_start(r);
-    c4m_marshal_i32(r->append_ix, s);
-    c4m_marshal_i32(r->length, s);
-
-    if (by_val) {
-        for (int i = 0; i < r->append_ix; i++) {
-            c4m_marshal_u64((uint64_t)r->data[i], s);
-        }
-    }
-    else {
-        for (int i = 0; i < r->append_ix; i++) {
-            c4m_sub_marshal(r->data[i], s, memos, mid);
-        }
-    }
-    read_end(r);
-}
-
-void
-c4m_list_unmarshal(c4m_list_t *r, c4m_stream_t *s, c4m_dict_t *memos)
-{
-    c4m_type_t    *list_type   = c4m_get_my_type(r);
-    c4m_list_t    *type_params = c4m_type_get_params(list_type);
-    c4m_type_t    *item_type   = c4m_list_get_base(type_params, 0, NULL);
-    c4m_dt_info_t *item_info   = item_type ? c4m_type_get_data_type_info(item_type) : NULL;
-    bool           by_val      = item_info ? item_info->by_value : false;
-
-    r->append_ix = c4m_unmarshal_i32(s);
-    r->length    = c4m_unmarshal_i32(s);
-    r->data      = c4m_gc_array_alloc(int64_t *, r->length);
-
-    if (by_val) {
-        for (int i = 0; i < r->append_ix; i++) {
-            r->data[i] = (void *)c4m_unmarshal_u64(s);
-        }
-    }
-    else {
-        for (int i = 0; i < r->append_ix; i++) {
-            r->data[i] = c4m_sub_unmarshal(s, memos);
-        }
-    }
-}
-
 int64_t
 c4m_list_len(const c4m_list_t *list)
 {
@@ -629,7 +578,7 @@ c4m_to_list_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *litmod)
 
 extern bool c4m_flexarray_can_coerce_to(c4m_type_t *, c4m_type_t *);
 
-static void
+void
 c4m_list_set_gc_bits(uint64_t       *bitfield,
                      c4m_base_obj_t *alloc)
 {
@@ -640,8 +589,6 @@ const c4m_vtable_t c4m_list_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)c4m_list_init,
-        [C4M_BI_MARSHAL]       = (c4m_vtable_entry)c4m_list_marshal,
-        [C4M_BI_UNMARSHAL]     = (c4m_vtable_entry)c4m_list_unmarshal,
         [C4M_BI_COERCIBLE]     = (c4m_vtable_entry)c4m_flexarray_can_coerce_to,
         [C4M_BI_COERCE]        = (c4m_vtable_entry)c4m_list_coerce_to,
         [C4M_BI_COPY]          = (c4m_vtable_entry)c4m_list_copy,

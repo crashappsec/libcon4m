@@ -5,33 +5,33 @@ Basic grid; no casting yet.
 $output:
 Hello, world! Here's emphasis for my table:
 ┏┅┅┅┅┅┅┅┅┅┅┳┅┅┅┅┅┅┅┅┅┳┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┓
-┇Name      ┇Country  ┇City            ┇
+┇   Name   ┇ Country ┇      City      ┇
 ┣┅┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┫
-┇John      ┇USA      ┇NYC             ┇
+┇ John     ┇ USA     ┇ NYC            ┇
 ┣┅┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┫
-┇Brandon   ┇USA      ┇NYC             ┇
+┇ Brandon  ┇ USA     ┇ NYC            ┇
 ┣┅┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┫
-┇Liming    ┇USA      ┇NYC             ┇
+┇ Liming   ┇ USA     ┇ NYC            ┇
 ┣┅┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┫
-┇Miroslav  ┇USA      ┇Lawn Guy Land   ┇
+┇ Miroslav ┇ USA     ┇ Lawn Guy Land  ┇
 ┣┅┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┫
-┇Rich      ┇USA      ┇Providence, RI  ┇
+┇ Rich     ┇ USA     ┇ Providence, RI ┇
 ┣┅┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┫
-┇Matt      ┇USA      ┇Orange          ┇
+┇ Matt     ┇ USA     ┇ Orange         ┇
 ┣┅┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┫
-┇Mark      ┇UK       ┇Brighton        ┇
+┇ Mark     ┇ UK      ┇ Brighton       ┇
 ┣┅┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┫
-┇Hugo      ┇UK       ┇Brighton        ┇
+┇ Hugo     ┇ UK      ┇ Brighton       ┇
 ┣┅┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┫
-┇James     ┇UK       ┇Brighton        ┇
+┇ James    ┇ UK      ┇ Brighton       ┇
 ┣┅┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┫
-┇Max       ┇UK       ┇Brighton        ┇
+┇ Max      ┇ UK      ┇ Brighton       ┇
 ┣┅┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┫
-┇Theo      ┇Greece   ┇Athens          ┇
+┇ Theo     ┇ Greece  ┇ Athens         ┇
 ┣┅┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┫
-┇Thomas    ┇Greece   ┇Athens          ┇
+┇ Thomas   ┇ Greece  ┇ Athens         ┇
 ┣┅┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅╋┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┫
-┇James II  ┇Germany  ┇Berlin          ┇
+┇ James II ┇ Germany ┇ Berlin         ┇
 ┗┅┅┅┅┅┅┅┅┅┅┻┅┅┅┅┅┅┅┅┅┻┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┅┛
 """
 

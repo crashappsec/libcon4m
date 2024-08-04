@@ -159,6 +159,12 @@ c4m_type_get_data_type_info(c4m_type_t *t)
     return t->details->base_type;
 }
 
+static inline bool
+c4m_type_is_mutable(c4m_type_t *t)
+{
+    return c4m_type_get_data_type_info(t)->mutable;
+}
+
 static inline c4m_type_t *
 c4m_get_my_type(const c4m_obj_t user_object)
 {
@@ -650,6 +656,13 @@ c4m_type_is_void(c4m_type_t *t)
 }
 
 static inline bool
+c4m_type_is_string(c4m_type_t *t)
+{
+    t = c4m_type_resolve(t);
+    return t->typeid == C4M_T_UTF8 || t->typeid == C4M_T_UTF32;
+}
+
+static inline bool
 c4m_type_is_value_type(c4m_type_t *t)
 {
     // This should NOT unbox; check c4m_type_is_box() too if needed.
@@ -715,6 +728,22 @@ c4m_type_requires_gc_scan(c4m_type_t *t)
 }
 
 void c4m_set_next_typevar_fn(c4m_next_typevar_fn);
+
+// This is used only in the type system so far.
+extern c4m_arena_t *c4m_early_type_arena;
+
+#if defined(C4M_ADD_ALLOC_LOC_INFO)
+#define c4m_early_alloc(x)                      \
+    c4m_alloc_from_arena(&c4m_early_type_arena, \
+                         (x),                   \
+                         NULL,                  \
+                         NULL,                  \
+                         __FILE__,              \
+                         __LINE__)
+#else
+#define c4m_early_alloc(x) \
+    c4m_alloc_from_arena(&c4m_early_type_arena, (x), NULL, NULL)
+#endif
 
 #ifdef C4M_USE_INTERNAL_API
 extern c4m_grid_t *c4m_format_global_type_environment();

@@ -2,9 +2,9 @@
 
 typedef struct {
     c4m_compile_error_t errorid;
-    alignas(8) char    *name;
-    char               *message;
-    bool                takes_args;
+    alignas(8) char *name;
+    char *message;
+    bool  takes_args;
 } error_info_t;
 
 static error_info_t error_info[] = {
@@ -1464,7 +1464,6 @@ err_format_module_location(c4m_module_compile_ctx *ctx, c4m_compile_error *err)
     return c4m_format_module_location(ctx, err->loc.current_token);
 }
 
-
 c4m_grid_t *
 c4m_format_runtime_errors(c4m_list_t *errors)
 {
@@ -1590,7 +1589,7 @@ c4m_compile_extract_all_error_codes(c4m_compile_ctx *cctx)
     return result;
 }
 
-static void
+void
 c4m_err_set_gc_bits(uint64_t *bitmap, c4m_compile_error *alloc)
 {
     c4m_mark_raw_to_addr(bitmap, alloc, &alloc->msg_parameters);
@@ -1605,33 +1604,33 @@ c4m_new_error(int nargs)
                              (c4m_mem_scan_fn)c4m_err_set_gc_bits);
 }
 
-#define COMMON_ERR_BASE()                                         \
-    va_list arg_counter;                                          \
-    int     num_args = 0;                                         \
-                                                                  \
-    va_copy(arg_counter, args);                                   \
-    while (va_arg(arg_counter, void *) != NULL) {                 \
-        num_args++;                                               \
-    }                                                             \
-    va_end(arg_counter);                                          \
-                                                                  \
-   c4m_compile_error *err = c4m_new_error(num_args);              \
-    err->code             = code;                                 \
-                                                                  \
-    if (num_args) {                                               \
-        for (int i = 0; i < num_args; i++) {                      \
-            err->msg_parameters[i] = va_arg(args, c4m_str_t *);   \
-        }                                                         \
-        err->num_args = num_args;                                 \
-    }                                                             \
-                                                                  \
+#define COMMON_ERR_BASE()                                       \
+    va_list arg_counter;                                        \
+    int     num_args = 0;                                       \
+                                                                \
+    va_copy(arg_counter, args);                                 \
+    while (va_arg(arg_counter, void *) != NULL) {               \
+        num_args++;                                             \
+    }                                                           \
+    va_end(arg_counter);                                        \
+                                                                \
+    c4m_compile_error *err = c4m_new_error(num_args);           \
+    err->code              = code;                              \
+                                                                \
+    if (num_args) {                                             \
+        for (int i = 0; i < num_args; i++) {                    \
+            err->msg_parameters[i] = va_arg(args, c4m_str_t *); \
+        }                                                       \
+        err->num_args = num_args;                               \
+    }                                                           \
+                                                                \
     c4m_list_append(err_list, err)
 
 c4m_compile_error *
-c4m_base_runtime_error(c4m_list_t          *err_list,
-                       c4m_compile_error_t  code,
-                       c4m_utf8_t          *location,
-                       va_list              args)
+c4m_base_runtime_error(c4m_list_t         *err_list,
+                       c4m_compile_error_t code,
+                       c4m_utf8_t         *location,
+                       va_list             args)
 {
     COMMON_ERR_BASE();
 
@@ -1676,7 +1675,6 @@ _c4m_error_from_token(c4m_module_compile_ctx *ctx,
 
     return result;
 }
-
 
 #define c4m_base_err_decl(func_name, severity_value)            \
     c4m_compile_error *                                         \

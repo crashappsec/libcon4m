@@ -1684,7 +1684,7 @@ c4m_str_view(c4m_str_t *s, uint64_t *n)
     return as_u32->data;
 }
 
-static void
+void
 c4m_str_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
 {
     c4m_str_t *s = (c4m_str_t *)alloc->data;

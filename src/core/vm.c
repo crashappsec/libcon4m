@@ -380,7 +380,7 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         do {
             uint64_t n;
             tstate->sp->rvalue = c4m_get_view(tstate->sp->rvalue,
-                                                  (int64_t *)&n);
+                                              (int64_t *)&n);
             --tstate->sp;
             tstate->sp[0].uint = n;
         } while (0);
@@ -747,7 +747,7 @@ ffi_possible_ret_munge(c4m_vmthread_t *tstate, c4m_type_t *at, c4m_type_t *ft)
 
     if (!c4m_type_is_concrete(at)) {
         if (c4m_type_is_concrete(ft) && c4m_type_is_value_type(ft)) {
-	     tstate->r0 = c4m_box_obj((c4m_box_t){.v = tstate->r0}, ft);
+            tstate->r0 = c4m_box_obj((c4m_box_t){.v = tstate->r0}, ft);
         }
     }
     else {
@@ -821,7 +821,7 @@ c4m_vm_ffi_call(c4m_vmthread_t     *tstate,
     ffi_call(&ffiinfo->cif, ffiinfo->fptr, &tstate->r0, args);
 
     if (ffiinfo->str_convert & (1UL << 63)) {
-        char *s        = (char *)tstate->r0;
+        char *s    = (char *)tstate->r0;
         tstate->r0 = c4m_new_utf8(s);
     }
 
@@ -904,6 +904,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
     // after the try block ends.
     c4m_vmthread_t *volatile const tstate = tstate_arg;
     c4m_zcallback_t *cb;
+    c4m_mem_ptr     *static_mem = tstate->vm->obj->static_contents->items;
 
     // This temporary is used to hold popped operands during binary
     // operations.
@@ -981,19 +982,18 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 }
                 tstate->sp -= i->arg;
                 break;
-                // TODO: need to initialize const_storage_base_addr.
             case C4M_ZPushConstObj:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
                 *tstate->sp = (c4m_value_t){
-                    .uint = tstate->vm->const_pool[i->arg].u,
+                    .uint = static_mem[i->arg].nonpointer,
                 };
                 break;
             case C4M_ZPushConstRef:
                 STACK_REQUIRE_SLOTS(1);
                 --tstate->sp;
                 *tstate->sp = (c4m_value_t){
-                    .rvalue = (c4m_obj_t)(tstate->vm->const_pool + i->arg),
+                    .rvalue = (void *)static_mem + i->arg,
                 };
                 break;
             case C4M_ZDeref:
@@ -1232,17 +1232,17 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 STACK_REQUIRE_VALUES(2);
                 do {
                     c4m_value_t tmp = tstate->sp[0];
-                    tstate->sp[0]         = tstate->sp[1];
-                    tstate->sp[1]         = tmp;
+                    tstate->sp[0]   = tstate->sp[1];
+                    tstate->sp[1]   = tmp;
                 } while (0);
                 break;
             case C4M_ZLoadFromAttr:
                 STACK_REQUIRE_VALUES(1);
                 do {
-                    bool         found = true;
-                    c4m_utf8_t  *key   = tstate->sp->vptr;
-                    c4m_obj_t    val;
-                    uint64_t     flag = i->immediate;
+                    bool        found = true;
+                    c4m_utf8_t *key   = tstate->sp->vptr;
+                    c4m_obj_t   val;
+                    uint64_t    flag = i->immediate;
 
                     if (flag) {
                         val = c4m_vm_attr_get(tstate, key, &found);
@@ -1510,26 +1510,12 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
             case C4M_ZSObjNew:
                 STACK_REQUIRE_SLOTS(1);
                 do {
-                    // Nim vm doesn't use the length encoded in the instruction,
-                    // but codegen does include it as i->arg. We'll use it in
-                    // our implementation.
-                    char   *data  = &tstate->vm->obj->static_data->data[i->immediate];
-                    int64_t avail = c4m_buffer_len(tstate->vm->obj->static_data)
-                                  - i->immediate;
-                    if (i->arg > avail) {
-                        C4M_CRAISE("could not unmarshal: invalid length / offset combination");
-                    }
-                    c4m_buf_t *buffer = c4m_new(c4m_type_buffer(),
-                                                c4m_kw("ptr",
-                                                       data,
-                                                       "length",
-                                                       c4m_ka(i->arg)));
+                    c4m_obj_t obj = static_mem[i->immediate].v;
 
-                    c4m_stream_t *stream = c4m_buffer_instream(buffer);
-                    c4m_obj_t    *obj    = c4m_unmarshal(stream);
                     if (NULL == obj) {
                         C4M_CRAISE("could not unmarshal");
                     }
+                    obj = c4m_copy_object(obj);
 
                     --tstate->sp;
                     tstate->sp->rvalue = obj;
@@ -1622,8 +1608,8 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                 break;
             case C4M_ZUnpack:
                 for (int32_t x = 1; x <= i->arg; ++x) {
-                    *tstate->sp[0].lvalue =  c4m_tuple_get(tstate->r1,
-                                                           i->arg - x);
+                    *tstate->sp[0].lvalue = c4m_tuple_get(tstate->r1,
+                                                          i->arg - x);
                     ++tstate->sp;
                 }
                 break;
@@ -1664,42 +1650,6 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
     C4M_TRY_END;
 
     return tstate->error ? -1 : 0;
-}
-
-static void
-c4m_vm_load_const_data(c4m_vm_t *vm)
-{
-    int         nc    = vm->obj->num_const_objs;
-    c4m_dict_t *memos = c4m_alloc_unmarshal_memos();
-    c4m_buf_t  *inbuf = vm->obj->static_data;
-
-    if (!nc) {
-        return;
-    }
-
-    c4m_stream_t *s = c4m_buffer_instream(inbuf);
-
-    c4m_buf_t *outbuf = c4m_buffer_empty();
-
-    typedef union {
-        uint64_t i;
-        void    *p;
-    } cout_t;
-
-    cout_t *ptr = (cout_t *)outbuf->data;
-
-    for (int i = 0; i < nc; i++) {
-        uint8_t value_item = c4m_unmarshal_u8(s);
-
-        if (value_item) {
-            ptr[i].i = c4m_unmarshal_u64(s);
-        }
-        else {
-            ptr[i].p = c4m_sub_unmarshal(s, memos);
-        }
-    }
-
-    vm->const_pool = (void *)ptr;
 }
 
 static inline void
@@ -1758,7 +1708,6 @@ c4m_vm_load_starting_attrs(c4m_vm_t *vm)
 void
 c4m_vm_setup_first_runtime(c4m_vm_t *vm)
 {
-    c4m_vm_load_const_data(vm);
     c4m_vm_setup_ffi(vm);
     c4m_vm_load_starting_attrs(vm);
 
@@ -1789,8 +1738,8 @@ c4m_vm_reset(c4m_vm_t *vm)
     vm->using_attrs  = false;
 }
 
-static void
-vm_gc_bits(uint64_t *bitmap, c4m_vmthread_t *t)
+void
+c4m_vmthread_gc_bits(uint64_t *bitmap, c4m_vmthread_t *t)
 {
     uint64_t diff = c4m_ptr_diff(t, &t->r3);
     for (unsigned int i = 0; i < diff; i++) {
@@ -1803,7 +1752,7 @@ c4m_vmthread_new(c4m_vm_t *vm)
 {
     // c4m_arena_t    *arena  = c4m_internal_stash_heap();
     c4m_vmthread_t *tstate = c4m_gc_alloc_mapped(c4m_vmthread_t,
-                                                 vm_gc_bits);
+                                                 c4m_vmthread_gc_bits);
     tstate->vm             = vm;
 
     c4m_vmthread_reset(tstate);
@@ -1871,8 +1820,6 @@ c4m_vmthread_run(c4m_vmthread_t *tstate)
 const c4m_vtable_t c4m_vm_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
-        [C4M_BI_MARSHAL]   = (c4m_vtable_entry)c4m_vm_marshal,
-        [C4M_BI_UNMARSHAL] = (c4m_vtable_entry)c4m_vm_unmarshal,
-        [C4M_BI_GC_MAP]    = (c4m_vtable_entry)vm_gc_bits,
+        [C4M_BI_GC_MAP] = (c4m_vtable_entry)c4m_vm_gc_bits,
     },
 };

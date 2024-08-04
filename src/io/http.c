@@ -80,7 +80,7 @@ internal_http_send(char *ptr, size_t size, size_t nmemb, c4m_basic_http_t *self)
     return to_return;
 }
 
-static void
+void
 c4m_basic_http_set_gc_bits(uint64_t *bitmap, c4m_basic_http_t *self)
 {
     c4m_mark_raw_to_addr(bitmap, self, &self->errbuf);

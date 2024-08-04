@@ -341,6 +341,12 @@ typedef enum : uint8_t {
 #endif
 } c4m_zop_t;
 
+typedef struct c4m_static_memory {
+    c4m_mem_ptr *items;
+    uint32_t     num_items;
+    uint32_t     alloc_len;
+} c4m_static_memory;
+
 // We'll make the main VM container, c4m_vm_t an object type (C4M_T_VM) so that
 // we can have an entry point into the core marshalling functionality, but we
 // won't make other internal types object types. Only those structs that have a
@@ -373,20 +379,20 @@ typedef struct {
 // stack values have no indicator of what's actually stored, instead relying on
 // instructions to assume correctly what's present.
 typedef union c4m_value_t {
-    void                    *vptr;
-    c4m_zcallback_t         *callback;
-    c4m_obj_t               *lvalue;
-    char                    *cptr;
+    void              *vptr;
+    c4m_zcallback_t   *callback;
+    c4m_obj_t         *lvalue;
+    char              *cptr;
     union c4m_value_t *fp;         // saved fp
-    c4m_obj_t                rvalue;
-    uint64_t                 static_ptr; // offset into static_data
+    c4m_obj_t          rvalue;
+    uint64_t           static_ptr; // offset into static_data
     // saved pc / module_id, along with unsigned int values where
     // we don't care about the type field for the operation.
-    uint64_t                 uint;
-    int64_t                  sint; // signed int values.
-    c4m_box_t                box;
-    double                   dbl;
-    bool                     boolean;
+    uint64_t           uint;
+    int64_t            sint; // signed int values.
+    c4m_box_t          box;
+    double             dbl;
+    bool               boolean;
 } c4m_value_t;
 
 // Might want to trim a bit out of it, but for right now, an going to not.
@@ -461,12 +467,11 @@ typedef struct {
     uint64_t           zero_magic;
     c4m_buf_t         *static_data;
     struct c4m_spec_t *attr_spec;
-    c4m_buf_t         *marshaled_consts;
+    c4m_static_memory *static_contents;
     c4m_list_t        *module_contents; // tspec_ref: c4m_zmodule_info_t
     c4m_list_t        *func_info;       // tspec_ref: c4m_zfn_info_t
     c4m_list_t        *ffi_info;        // tspec_ref: c4m_zffi_info_t
     uint32_t           zc_object_vers;
-    int32_t            num_const_objs;
     int32_t            entrypoint;
     int32_t            next_entrypoint;
 } c4m_zobject_file_t;
@@ -483,7 +488,7 @@ typedef struct {
 typedef struct {
     c4m_zinstruction_t *lastset; // (not marshaled)
     void               *contents;
-    c4m_type_t         *type; // Value types will not generally be boxed.
+    c4m_type_t         *type;    // Value types will not generally be boxed.
     bool                is_set;
     bool                locked;
     bool                lock_on_write;
@@ -504,20 +509,13 @@ typedef struct {
 #endif
 
     c4m_zobject_file_t *obj;
-
-    // The following fields represent saved execution state on top of
-    // the base object file.
-    union {
-        uint64_t u;
-        void    *p;
-    }            *const_pool;
-    c4m_obj_t   **module_allocations;
-    c4m_dict_t   *attrs;        // string, c4m_attr_contents_t (tspec_ref)
-    c4m_set_t    *all_sections; // string
-    c4m_list_t   *ffi_info;
-    int           ffi_info_entries;
-    bool          using_attrs;
-    bool          root_populated;
+    c4m_obj_t         **module_allocations;
+    c4m_dict_t         *attrs;        // string, c4m_attr_contents_t (tspec_ref)
+    c4m_set_t          *all_sections; // string
+    c4m_list_t         *ffi_info;
+    int                 ffi_info_entries;
+    bool                using_attrs;
+    bool                root_populated;
 } c4m_vm_t;
 
 typedef struct {

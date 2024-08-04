@@ -46,34 +46,6 @@ ipaddr_init(c4m_ipaddr_t *obj, va_list args)
     }
 }
 
-// TODO: currently this isn't at all portable across platforms.
-// Too quick and dirty.
-static void
-ipaddr_marshal(c4m_ipaddr_t *obj,
-               c4m_stream_t *s,
-               c4m_dict_t   *memos,
-               int64_t      *mid)
-{
-    c4m_marshal_u32(sizeof(struct sockaddr_in6), s);
-    c4m_stream_raw_write(s, sizeof(struct sockaddr_in6), obj->addr);
-    c4m_marshal_u16(obj->port, s);
-    c4m_marshal_i32(obj->af, s);
-}
-
-static void
-ipaddr_unmarshal(c4m_ipaddr_t *obj, c4m_stream_t *s, c4m_dict_t *memos)
-{
-    uint32_t struct_sz = c4m_unmarshal_u32(s);
-
-    if (struct_sz != sizeof(struct sockaddr_in6)) {
-        C4M_CRAISE("Cannot unmarshal ipaddr on different platform.");
-    }
-
-    c4m_stream_raw_read(s, struct_sz, obj->addr);
-    obj->port = c4m_unmarshal_u16(s);
-    obj->af   = c4m_unmarshal_i32(s);
-}
-
 static c4m_str_t *
 ipaddr_repr(c4m_ipaddr_t *obj)
 {
@@ -120,8 +92,6 @@ const c4m_vtable_t c4m_ipaddr_vtable = {
     .methods     = {
         [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)ipaddr_init,
         [C4M_BI_TO_STR]       = (c4m_vtable_entry)ipaddr_repr,
-        [C4M_BI_MARSHAL]      = (c4m_vtable_entry)ipaddr_marshal,
-        [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)ipaddr_unmarshal,
         [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_NONE,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)ipaddr_lit,
         // Explicit because some compilers don't seem to always properly

@@ -226,18 +226,6 @@ size_init(c4m_size_t *self, va_list args)
     *self = bytes;
 }
 
-static void
-size_marshal(c4m_size_t *self, c4m_stream_t *s, c4m_dict_t *m, int64_t mid)
-{
-    c4m_marshal_u64(*self, s);
-}
-
-static void
-size_unmarshal(c4m_size_t *self, c4m_stream_t *s, c4m_dict_t *memos)
-{
-    *self = c4m_unmarshal_u64(s);
-}
-
 static c4m_str_t *
 size_repr(c4m_size_t *self)
 {
@@ -451,8 +439,6 @@ const c4m_vtable_t c4m_size_vtable = {
     .methods     = {
         [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)size_init,
         [C4M_BI_REPR]         = (c4m_vtable_entry)size_repr,
-        [C4M_BI_MARSHAL]      = (c4m_vtable_entry)size_marshal,
-        [C4M_BI_UNMARSHAL]    = (c4m_vtable_entry)size_unmarshal,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)size_lit,
         [C4M_BI_EQ]           = (c4m_vtable_entry)size_eq,
         [C4M_BI_LT]           = (c4m_vtable_entry)size_lt,

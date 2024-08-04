@@ -281,25 +281,25 @@ c4m_repr_spec(c4m_spec_t *spec)
     return result;
 }
 
-static void
+void
 c4m_spec_gc_bits(uint64_t *bitmap, c4m_spec_t *spec)
 {
     c4m_mark_raw_to_addr(bitmap, spec, &spec->section_specs);
 }
 
-static void
-attr_info_gc_bits(uint64_t *bitmap, c4m_attr_info_t *ai)
+void
+c4m_attr_info_gc_bits(uint64_t *bitmap, c4m_attr_info_t *ai)
 {
     c4m_mark_raw_to_addr(bitmap, ai, &ai->info.field_info);
 }
 
-static void
+void
 c4m_section_gc_bits(uint64_t *bitmap, c4m_spec_section_t *sec)
 {
     c4m_mark_raw_to_addr(bitmap, sec, &sec->validator);
 }
 
-static void
+void
 c4m_spec_field_gc_bits(uint64_t *bitmap, c4m_spec_field_t *field)
 {
     c4m_mark_raw_to_addr(bitmap, field, &field->exclusions);
@@ -342,7 +342,7 @@ c4m_attr_info_t *
 c4m_get_attr_info(c4m_spec_t *spec, c4m_list_t *fqn)
 {
     c4m_attr_info_t *result = c4m_gc_alloc_mapped(c4m_attr_info_t,
-                                                  attr_info_gc_bits);
+                                                  c4m_attr_info_gc_bits);
 
     if (!spec || !spec->root_section || !spec->in_use) {
         result->kind = c4m_attr_user_def_field;
