@@ -465,7 +465,6 @@ typedef struct {
 
 typedef struct {
     uint64_t           zero_magic;
-    c4m_buf_t         *static_data;
     struct c4m_spec_t *attr_spec;
     c4m_static_memory *static_contents;
     c4m_list_t        *module_contents; // tspec_ref: c4m_zmodule_info_t
@@ -528,13 +527,6 @@ typedef struct {
 
     // fp points to the start of the current frame on the stack.
     c4m_value_t *fp;
-
-    // const_base is the base address for constant storage.
-    // It's indexed by byte index, thus declared char *.
-    //
-    // The contents will be instantiated from read-only marshaled storage at
-    // startup, and then will be mprotect()'d.
-    char *const_base;
 
     // current_module is the module to which currently executing instructions
     // belong.

@@ -24,12 +24,6 @@ typedef struct {
     c4m_list_t             *module_ordering;
     c4m_set_t              *backlog;   // Modules we need to process.
     c4m_set_t              *processed; // Modules we've finished with.
-    // Object location, instead of the place to unmarshal it from.
-    // Since we have to unmarshal into writable space, we keep this
-    // data seprately from const data.
-    c4m_dict_t             *instance_map;
-    c4m_dict_t             *str_map;
-    int64_t                 const_memoid; // Must start at 1.
 
     // New static memory implementation.  The object / value bits in
     // the c4m_static_memory struct will be NULL until we actually go
