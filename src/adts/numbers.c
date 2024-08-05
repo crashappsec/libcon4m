@@ -906,7 +906,7 @@ const c4m_vtable_t c4m_u8_type = {
         // Explicit because some compilers don't seem to always properly
         // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
         [C4M_BI_FINALIZER]    = NULL,
-        NULL,
+
     },
 };
 
@@ -920,7 +920,7 @@ const c4m_vtable_t c4m_i8_type = {
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)i8_parse,
         [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_NONE,
         [C4M_BI_FINALIZER]    = NULL,
-        NULL,
+
     },
 };
 
@@ -934,7 +934,7 @@ const c4m_vtable_t c4m_u32_type = {
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)u32_parse,
         [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_NONE,
         [C4M_BI_FINALIZER]    = NULL,
-        NULL,
+
     },
 };
 
@@ -948,7 +948,7 @@ const c4m_vtable_t c4m_i32_type = {
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)i32_parse,
         [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_NONE,
         [C4M_BI_FINALIZER]    = NULL,
-        NULL,
+
     },
 };
 
@@ -962,7 +962,7 @@ const c4m_vtable_t c4m_u64_type = {
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)u64_parse,
         [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_NONE,
         [C4M_BI_FINALIZER]    = NULL,
-        NULL,
+
     },
 };
 
@@ -976,7 +976,7 @@ const c4m_vtable_t c4m_i64_type = {
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)i64_parse,
         [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_NONE,
         [C4M_BI_FINALIZER]    = NULL,
-        NULL,
+
     },
 };
 
@@ -990,7 +990,7 @@ const c4m_vtable_t c4m_bool_type = {
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)bool_parse,
         [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_NONE,
         [C4M_BI_FINALIZER]    = NULL,
-        NULL,
+
     },
 };
 
@@ -1004,6 +1004,6 @@ const c4m_vtable_t c4m_float_type = {
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)f64_parse,
         [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_NONE,
         [C4M_BI_FINALIZER]    = NULL,
-        NULL,
+
     },
 };

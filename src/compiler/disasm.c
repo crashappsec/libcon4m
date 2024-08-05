@@ -407,8 +407,6 @@ init_disasm()
         bi_fn_names[C4M_BI_TO_STR]        = c4m_new_utf8("$str");
         bi_fn_names[C4M_BI_FORMAT]        = c4m_new_utf8("$format");
         bi_fn_names[C4M_BI_FINALIZER]     = c4m_new_utf8("$final");
-        bi_fn_names[C4M_BI_MARSHAL]       = c4m_new_utf8("$marshal");
-        bi_fn_names[C4M_BI_UNMARSHAL]     = c4m_new_utf8("$unmarshal");
         bi_fn_names[C4M_BI_COERCIBLE]     = c4m_new_utf8("$can_cast");
         bi_fn_names[C4M_BI_COERCE]        = c4m_new_utf8("$cast");
         bi_fn_names[C4M_BI_FROM_LITERAL]  = c4m_new_utf8("$parse_literal");

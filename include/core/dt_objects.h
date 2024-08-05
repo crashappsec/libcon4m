@@ -87,8 +87,6 @@ typedef enum {
     C4M_BI_TO_STR,
     C4M_BI_FORMAT,
     C4M_BI_FINALIZER,
-    C4M_BI_MARSHAL,
-    C4M_BI_UNMARSHAL,
     C4M_BI_COERCIBLE,    // Pass 2 types, return coerrced type, or type error.
     C4M_BI_COERCE,       // Actually do the coercion.
     C4M_BI_FROM_LITERAL, // Used to parse a literal.

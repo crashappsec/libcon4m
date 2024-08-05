@@ -614,8 +614,6 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
         // but doing that is going to touch a lot of things, so it should be
         // done later, probably best done in a PR all on its own
     case C4M_BI_CONSTRUCTOR:
-    case C4M_BI_MARSHAL:
-    case C4M_BI_UNMARSHAL:
     case C4M_BI_COERCIBLE:
     case C4M_BI_FROM_LITERAL:
     case C4M_BI_FINALIZER:
