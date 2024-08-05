@@ -1,6 +1,8 @@
 #pragma once
 
 typedef struct hatrack_set_st c4m_set_t;
+typedef uint64_t              c4m_size_t;
+typedef struct timespec       c4m_duration_t;
 
 #include "adts/dt_box.h"
 #include "core/dt_alloc.h"
@@ -36,11 +38,7 @@ typedef struct hatrack_set_st c4m_set_t;
 #include "compiler/dt_nodeinfo.h"
 #include "compiler/dt_specs.h"
 #include "compiler/dt_cfgs.h"
-#include "compiler/dt_module.h"
 #include "compiler/dt_compile.h"
-
-typedef uint64_t        c4m_size_t;
-typedef struct timespec c4m_duration_t;
 
 typedef c4m_str_t *(*c4m_repr_fn)(c4m_obj_t);
 typedef c4m_obj_t (*c4m_copy_fn)(c4m_obj_t);
@@ -63,3 +61,4 @@ typedef c4m_obj_t (*c4m_container_lit_fn)(c4m_type_t *,
 typedef c4m_str_t *(*c4m_format_fn)(c4m_obj_t, c4m_fmt_spec_t *);
 typedef c4m_type_t *(*c4m_ix_item_ty_fn)(c4m_type_t *);
 typedef void *(*c4m_view_fn)(c4m_obj_t, uint64_t *);
+typedef void (*c4m_restore_fn)(c4m_obj_t);

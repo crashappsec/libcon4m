@@ -181,8 +181,8 @@ struct c4m_grid_t {
     // alignment of the grid within the dimensions we're given.
     // Negative widths are possible and will cause us to crop to the
     // dimensions of the drawing space.
-    char              *td_tag_name;
-    char              *th_tag_name;
+    c4m_utf8_t        *td_tag_name;
+    c4m_utf8_t        *th_tag_name;
     int64_t            num_cols;
     int64_t            num_rows;
     uint64_t           spare_rows;

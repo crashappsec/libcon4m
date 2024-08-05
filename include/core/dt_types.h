@@ -7,24 +7,23 @@ typedef uint64_t c4m_type_hash_t;
 typedef struct c4m_type_info_t c4m_type_info_t;
 
 typedef struct {
+    // Bitfield of what container types we might be while inferring.
     uint64_t          *container_options;
+    // Holds known value info when infering containers.
     struct c4m_type_t *value_type;
-    c4m_dict_t        *props; // Object properties. maps prop name to type node.
+    // Object properties. maps prop name to type node.
+    c4m_dict_t        *props;
 } tv_options_t;
 
 typedef struct c4m_type_t {
-    c4m_type_info_t *details;
-    c4m_type_hash_t  fw;
+    tv_options_t    options; // Type-specific info.
+    c4m_utf8_t     *name;
+    c4m_list_t     *items;
+    c4m_builtin_t   base_index;
+    uint64_t        flags;
+    c4m_type_hash_t fw;
     c4m_type_hash_t typeid;
 } c4m_type_t;
-
-typedef struct c4m_type_info_t {
-    c4m_dt_info_t *base_type;
-    char          *name; // Obj type name or type var name
-    c4m_list_t    *items;
-    void          *tsi;  // Type-specific info.
-    uint64_t       flags;
-} c4m_type_info_t;
 
 #define C4M_FN_TY_VARARGS 1
 // 'Locked' means this type node cannot forward, even though it might
@@ -65,8 +64,8 @@ typedef enum {
 
 typedef uint64_t (*c4m_next_typevar_fn)(void);
 
-typedef struct {
-    crown_t          store;
+typedef struct c4m_type_universe_t {
+    c4m_dict_t      *dict;
     _Atomic uint64_t next_typeid;
 } c4m_type_universe_t;
 

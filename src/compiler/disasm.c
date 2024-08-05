@@ -31,16 +31,6 @@ c4m_utf8_t *c4m_instr_utf8_names[256] = {
 
 static c4m_utf8_t *bi_fn_names[C4M_BI_NUM_FUNCS];
 
-void
-show_it()
-{
-    c4m_utf8_t *s = c4m_instr_utf8_names[C4M_ZBox];
-    char       *d = s->data;
-    printf("Showing string. start = %p; data = %p\n", s, d);
-
-    c4m_print(c4m_hex_dump(s, sizeof(c4m_str_t)));
-}
-
 static const c4m_utf8_t *
 get_bool_label(c4m_zop_t op)
 {
@@ -442,26 +432,12 @@ fmt_builtin_fn(int64_t value)
     return c4m_cstr_format("[em]{}[/]", s);
 }
 
-static c4m_obj_t
-value_to_object(c4m_vm_t *vm, uint64_t offset, c4m_type_t *t)
-{
-    if (t != NULL) {
-        t = c4m_type_resolve(t);
-    }
-
-    if (t != NULL && c4m_type_is_value_type(t)) {
-        uint64_t u = vm->obj->static_contents->items[offset].nonpointer;
-        return c4m_box_obj((c4m_box_t)u, t);
-    }
-
-    return vm->obj->static_contents->items[offset].v;
-}
-
 static c4m_utf8_t *
 fmt_arg_or_imm_no_syms(c4m_vm_t *vm, c4m_zinstruction_t *instr, int i, bool imm)
 {
     inst_arg_fmt_t fmt;
     int64_t        value;
+    void          *box;
 
     if (imm) {
         fmt   = inst_info[instr->op].imm_fmt;
@@ -476,35 +452,37 @@ fmt_arg_or_imm_no_syms(c4m_vm_t *vm, c4m_zinstruction_t *instr, int i, bool imm)
     case fmt_unused:
         return c4m_get_space_const();
     case fmt_const_obj:
-        return c4m_cstr_format("{}\n[i]@offset: {:10x}",
-                               c4m_box_i64(value),
-                               c4m_box_i64(value));
+        box = c4m_box_i64(value);
+        return c4m_cstr_format("[em]{}[/]\n(const obj #{})",
+                               vm->obj->static_contents->items[value].v,
+                               box);
     case fmt_const_ptr:
-        return c4m_cstr_format("offset to ptr: {:4x}",
-                               c4m_box_i64(value));
+        box = c4m_box_i64(value);
+        return c4m_cstr_format("offset to ptr: {:4x}", box);
     case fmt_offset:
-        do {
-            int64_t *b = c4m_box_i64(value);
-            return c4m_cstr_format("target @{:10x}", b);
-        } while (false);
+        box = c4m_box_i64(value);
+        return c4m_cstr_format("target @{:10x}", box);
     case fmt_bool:
-        return c4m_cstr_format("{}: {}",
-                               get_bool_label(instr->op),
-                               c4m_box_bool((bool)value));
+        box = c4m_box_bool((bool)value);
+        return c4m_cstr_format("{}: {}", get_bool_label(instr->op), box);
     case fmt_int:
-        return c4m_cstr_format("{}", c4m_box_i64(value));
+        box = c4m_box_i64(value);
+        return c4m_cstr_format("{}", box);
     case fmt_hex:
-        return c4m_cstr_format("{:18x}", c4m_box_i64(value));
+        box = c4m_box_i64(value);
+        return c4m_cstr_format("{:18x}", box);
     case fmt_sym_local:
-        return c4m_cstr_format("sym stack slot offset: {}", c4m_box_i64(value));
+        box = c4m_box_i64(value);
+        return c4m_cstr_format("sym stack slot offset: {}", box);
     case fmt_sym_static:
-        return c4m_cstr_format("static offset: {:4x}",
-                               c4m_box_i64(value));
+        box = c4m_box_i64(value);
+        return c4m_cstr_format("static offset: {:4x}", box);
     case fmt_load_from_attr:
-        return c4m_cstr_format("attr name @{:10x}", c4m_box_i64(value));
+        return c4m_cstr_format("attr [em]{}[/]",
+                               vm->obj->static_contents->items[value].v);
     case fmt_label:
         return c4m_cstr_format("[h2]{}",
-                               value_to_object(vm, value, c4m_type_utf8()));
+                               vm->obj->static_contents->items[value].v);
     case fmt_tcall:
         return c4m_cstr_format("builtin call of [em]{}[/]",
                                fmt_builtin_fn(value));
@@ -559,7 +537,7 @@ fmt_line_no_syms(c4m_zinstruction_t *instr)
 }
 
 c4m_grid_t *
-c4m_disasm(c4m_vm_t *vm, c4m_zmodule_info_t *m)
+c4m_disasm(c4m_vm_t *vm, c4m_module_t *m)
 {
     init_disasm();
 
@@ -569,12 +547,12 @@ c4m_disasm(c4m_vm_t *vm, c4m_zmodule_info_t *m)
                                       "header_rows",
                                       c4m_ka(1),
                                       "container_tag",
-                                      c4m_ka("table2"),
+                                      c4m_ka(c4m_new_utf8("table2")),
                                       "stripe",
                                       c4m_ka(true)));
-
-    c4m_list_t *row = c4m_new_table_row();
-    int64_t     len = c4m_list_len(m->instructions);
+    c4m_utf8_t *snap = c4m_new_utf8("snap");
+    c4m_list_t *row  = c4m_new_table_row();
+    int64_t     len  = c4m_list_len(m->instructions);
     c4m_list_append(row, c4m_new_utf8("Address"));
     c4m_list_append(row, c4m_new_utf8("Instruction"));
     c4m_list_append(row, c4m_new_utf8("Arg"));
@@ -614,12 +592,12 @@ c4m_disasm(c4m_vm_t *vm, c4m_zmodule_info_t *m)
         c4m_grid_add_row(grid, row);
     }
 
-    c4m_set_column_style(grid, 0, "snap");
-    c4m_set_column_style(grid, 1, "snap");
-    c4m_set_column_style(grid, 3, "snap");
-    c4m_set_column_style(grid, 4, "snap");
-    c4m_set_column_style(grid, 5, "snap");
-    c4m_set_column_style(grid, 6, "snap");
+    c4m_set_column_style(grid, 0, snap);
+    c4m_set_column_style(grid, 1, snap);
+    c4m_set_column_style(grid, 3, snap);
+    c4m_set_column_style(grid, 4, snap);
+    c4m_set_column_style(grid, 5, snap);
+    c4m_set_column_style(grid, 6, snap);
 
     return grid;
 }

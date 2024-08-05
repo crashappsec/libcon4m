@@ -108,16 +108,16 @@ c4m_token_type_to_string(c4m_token_kind_t tk)
 }
 
 typedef struct {
-    c4m_module_compile_ctx *ctx;
-    c4m_codepoint_t        *start;
-    c4m_codepoint_t        *end;
-    c4m_codepoint_t        *pos;
-    c4m_codepoint_t        *line_start;
-    c4m_token_t            *last_token;
-    size_t                  token_id;
-    size_t                  line_no;
-    size_t                  cur_tok_line_no;
-    size_t                  cur_tok_offset;
+    c4m_module_t    *ctx;
+    c4m_codepoint_t *start;
+    c4m_codepoint_t *end;
+    c4m_codepoint_t *pos;
+    c4m_codepoint_t *line_start;
+    c4m_token_t     *last_token;
+    size_t           token_id;
+    size_t           line_no;
+    size_t           cur_tok_line_no;
+    size_t           cur_tok_offset;
 } lex_state_t;
 
 // These helpers definitely require us to keep names consistent internally.
@@ -191,7 +191,7 @@ output_token(lex_state_t *state, c4m_token_kind_t kind)
     tok->line_offset  = state->cur_tok_offset;
     state->last_token = tok;
 
-    c4m_list_append(state->ctx->tokens, tok);
+    c4m_list_append(state->ctx->ct->tokens, tok);
 }
 
 static inline void
@@ -281,6 +281,7 @@ fill_lex_error(lex_state_t *state, c4m_compile_error_t code)
 {
     c4m_token_t *tok = c4m_gc_alloc_mapped(c4m_token_t, c4m_token_set_gc_bits);
     tok->kind        = c4m_tt_error;
+    tok->module      = state->ctx;
     tok->start_ptr   = state->start;
     tok->end_ptr     = state->pos;
     tok->line_no     = state->line_no;
@@ -288,13 +289,13 @@ fill_lex_error(lex_state_t *state, c4m_compile_error_t code)
 
     c4m_compile_error *err = c4m_new_error(0);
     err->code              = code;
-    err->loc.current_token = tok;
+    err->loc               = c4m_token_get_location_str(tok);
 
-    if (!state->ctx->errors) {
-        state->ctx->errors = c4m_list(c4m_type_ref());
+    if (!state->ctx->ct->errors) {
+        state->ctx->ct->errors = c4m_list(c4m_type_ref());
     }
 
-    c4m_list_append(state->ctx->errors, err);
+    c4m_list_append(state->ctx->ct->errors, err);
 }
 
 #if 0
@@ -1116,10 +1117,12 @@ line_comment:
 }
 
 bool
-c4m_lex(c4m_module_compile_ctx *ctx, c4m_stream_t *stream)
+c4m_lex(c4m_module_t *ctx, c4m_stream_t *stream)
 {
-    if (ctx->status >= c4m_compile_status_tokenized) {
-        return ctx->fatal_errors;
+    assert(ctx->name);
+
+    if (ctx->ct->status >= c4m_compile_status_tokenized) {
+        return ctx->ct->fatal_errors;
     }
 
     int outkind;
@@ -1163,8 +1166,8 @@ c4m_lex(c4m_module_compile_ctx *ctx, c4m_stream_t *stream)
     }
 
     int len             = c4m_str_codepoint_len(utf32);
-    ctx->raw            = utf32;
-    ctx->tokens         = c4m_new(c4m_type_list(c4m_type_ref()));
+    ctx->source         = utf32;
+    ctx->ct->tokens     = c4m_new(c4m_type_list(c4m_type_ref()));
     lex_info.start      = (c4m_codepoint_t *)utf32->data;
     lex_info.pos        = (c4m_codepoint_t *)utf32->data;
     lex_info.line_start = (c4m_codepoint_t *)utf32->data;
@@ -1182,9 +1185,9 @@ c4m_lex(c4m_module_compile_ctx *ctx, c4m_stream_t *stream)
     }
     C4M_TRY_END;
 
-    ctx->status = c4m_compile_status_tokenized;
+    ctx->ct->status = c4m_compile_status_tokenized;
     c4m_module_set_status(ctx, c4m_compile_status_tokenized);
-    ctx->fatal_errors = error;
+    ctx->ct->fatal_errors = error;
 
     return !error;
 }
@@ -1218,7 +1221,7 @@ c4m_format_one_token(c4m_token_t *tok, c4m_str_t *prefix)
 // them into a default table for now aimed at debugging, and we'll add
 // a facility for styling later.
 c4m_grid_t *
-c4m_format_tokens(c4m_module_compile_ctx *ctx)
+c4m_format_tokens(c4m_module_t *ctx)
 {
     c4m_grid_t *grid = c4m_new(c4m_type_grid(),
                                c4m_kw("start_cols",
@@ -1226,12 +1229,13 @@ c4m_format_tokens(c4m_module_compile_ctx *ctx)
                                       "header_rows",
                                       c4m_ka(1),
                                       "container_tag",
-                                      c4m_ka("table2"),
+                                      c4m_ka(c4m_new_utf8("table2")),
                                       "stripe",
                                       c4m_ka(true)));
 
-    c4m_list_t *row = c4m_new_table_row();
-    int64_t     len = c4m_list_len(ctx->tokens);
+    c4m_list_t *row  = c4m_new_table_row();
+    int64_t     len  = c4m_list_len(ctx->ct->tokens);
+    c4m_utf8_t *snap = c4m_new_utf8("snap");
 
     c4m_list_append(row, c4m_new_utf8("Seq #"));
     c4m_list_append(row, c4m_new_utf8("Type"));
@@ -1241,7 +1245,7 @@ c4m_format_tokens(c4m_module_compile_ctx *ctx)
     c4m_grid_add_row(grid, row);
 
     for (int64_t i = 0; i < len; i++) {
-        c4m_token_t *tok     = c4m_list_get(ctx->tokens, i, NULL);
+        c4m_token_t *tok     = c4m_list_get(ctx->ct->tokens, i, NULL);
         int          info_ix = (int)tok->kind;
 
         row = c4m_new_table_row();
@@ -1266,10 +1270,10 @@ c4m_format_tokens(c4m_module_compile_ctx *ctx)
         c4m_grid_add_row(grid, row);
     }
 
-    c4m_set_column_style(grid, 0, "snap");
-    c4m_set_column_style(grid, 1, "snap");
-    c4m_set_column_style(grid, 2, "snap");
-    c4m_set_column_style(grid, 3, "snap");
+    c4m_set_column_style(grid, 0, snap);
+    c4m_set_column_style(grid, 1, snap);
+    c4m_set_column_style(grid, 2, snap);
+    c4m_set_column_style(grid, 3, snap);
     return grid;
 }
 

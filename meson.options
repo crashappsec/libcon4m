@@ -16,8 +16,8 @@ option(
 option(
     'use_frame_intrinsic',
     type: 'feature',
-    value: 'auto',
-    description: 'Exposed due to linux issues',
+    value: 'disabled',
+    description: 'I do not think this works right.',
 )
 
 option(

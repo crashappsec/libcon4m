@@ -62,7 +62,7 @@ c4m_stack_init(hatstack_t *stack, va_list args)
 bool
 c4m_flexarray_can_coerce_to(c4m_type_t *my_type, c4m_type_t *dst_type)
 {
-    c4m_dt_kind_t base = c4m_type_get_base(dst_type);
+    c4m_dt_kind_t base = c4m_type_get_kind(dst_type);
 
     if (base == (c4m_dt_kind_t)C4M_T_BOOL) {
         return true;
@@ -84,7 +84,7 @@ c4m_flexarray_can_coerce_to(c4m_type_t *my_type, c4m_type_t *dst_type)
 static c4m_obj_t
 c4m_flexarray_coerce_to(flexarray_t *list, c4m_type_t *dst_type)
 {
-    c4m_dt_kind_t base          = c4m_type_get_base(dst_type);
+    c4m_dt_kind_t base          = c4m_type_get_kind(dst_type);
     flex_view_t  *view          = flexarray_view(list);
     int64_t       len           = flexarray_view_len(view);
     c4m_type_t   *src_item_type = c4m_type_get_param(c4m_get_my_type(list), 0);

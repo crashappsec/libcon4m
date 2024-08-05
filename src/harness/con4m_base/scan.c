@@ -122,6 +122,18 @@ extract_errors(c4m_test_kat *kat, int64_t start, int64_t end)
 static void
 try_to_load_kat(c4m_test_kat *kat)
 {
+    int64_t len = c4m_str_codepoint_len(kat->raw_docstring);
+    int64_t nl  = c4m_str_find(kat->raw_docstring, c4m_new_utf8("\n"));
+
+    if (nl != 0) {
+        c4m_str_t *line    = c4m_str_slice(kat->raw_docstring, 0, nl);
+        kat->raw_docstring = c4m_str_slice(kat->raw_docstring, nl, len);
+
+        if (line->data[0] == '#') {
+            kat->save = true;
+        }
+    }
+
     kat->raw_docstring = c4m_to_utf32(c4m_str_strip(kat->raw_docstring));
 
     c4m_utf8_t *output = c4m_new_utf8("$output:");
@@ -188,18 +200,18 @@ fname_sort(const c4m_utf8_t **s1, const c4m_utf8_t **s2)
 static bool
 find_docstring(c4m_test_kat *kat)
 {
-    // In this context, anything with a second doc string counts.
+    c4m_compile_ctx *ctx = c4m_new_compile_context(NULL);
+    c4m_module_t    *m   = c4m_init_module_from_loc(ctx, kat->path);
 
-    c4m_module_compile_ctx *ctx = c4m_new_module_compile_ctx();
-    c4m_stream_t           *s   = c4m_file_instream(kat->path, C4M_T_UTF8);
-
-    c4m_lex(ctx, s);
+    if (!m || !m->ct->tokens) {
+        return false;
+    }
 
     bool have_doc1 = false;
-    int  l         = c4m_list_len(ctx->tokens);
+    int  l         = c4m_list_len(m->ct->tokens);
 
     for (int i = 0; i < l; i++) {
-        c4m_token_t *t = c4m_list_get(ctx->tokens, i, NULL);
+        c4m_token_t *t = c4m_list_get(m->ct->tokens, i, NULL);
 
         switch (t->kind) {
         case c4m_tt_space:

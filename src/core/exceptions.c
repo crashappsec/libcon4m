@@ -26,9 +26,9 @@ exception_init(c4m_exception_t *exception, va_list args)
 }
 
 void
-c4m_exception_gc_bits(uint64_t *bitmap, c4m_base_obj_t *obj)
+c4m_exception_gc_bits(uint64_t *bitmap, void *obj)
 {
-    c4m_exception_t *x = (c4m_exception_t *)obj->data;
+    c4m_exception_t *x = (c4m_exception_t *)obj;
 
     c4m_mark_raw_to_addr(bitmap, obj, &x->previous);
 }
@@ -58,10 +58,12 @@ void
 c4m_default_uncaught_handler(c4m_exception_t *exception)
 {
     c4m_list_t       *empty = c4m_list(c4m_type_utf8());
-    c4m_renderable_t *hdr   = c4m_to_str_renderable(c4m_new_utf8("UNCAUGHT EXCEPTION"), "h1");
-    c4m_renderable_t *row1  = c4m_to_str_renderable(exception->msg, NULL);
-    c4m_list_t       *row2  = c4m_list(c4m_type_utf8());
-    c4m_stream_t     *errf  = c4m_get_stderr();
+    c4m_renderable_t *hdr   = c4m_to_str_renderable(
+        c4m_new_utf8("UNCAUGHT EXCEPTION"),
+        c4m_new_utf8("h1"));
+    c4m_renderable_t *row1 = c4m_to_str_renderable(exception->msg, NULL);
+    c4m_list_t       *row2 = c4m_list(c4m_type_utf8());
+    c4m_stream_t     *errf = c4m_get_stderr();
 
     c4m_list_append(empty, c4m_new_utf8(""));
     c4m_list_append(empty, c4m_new_utf8(""));
@@ -80,11 +82,11 @@ c4m_default_uncaught_handler(c4m_exception_t *exception)
                                      "start_cols",
                                      c4m_ka(2),
                                      "container_tag",
-                                     c4m_ka("flow"),
+                                     c4m_ka(c4m_new_utf8("flow")),
                                      "stripe",
                                      c4m_ka(true)));
 
-    c4m_set_column_style(tbl, 0, "snap");
+    c4m_set_column_style(tbl, 0, c4m_new_utf8("snap"));
     // For the moment, we need to write an empty row then install the span over it.
     c4m_grid_add_row(tbl, empty);
     c4m_grid_add_col_span(tbl, hdr, 0, 0, 2);

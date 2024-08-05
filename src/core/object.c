@@ -13,6 +13,21 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind  = C4M_DT_KIND_nil,
         .by_value = true,
     },
+    [C4M_T_TYPESPEC] = {
+        .name      = "typespec",
+        .typeid    = C4M_T_TYPESPEC,
+        .alloc_len = sizeof(c4m_type_t),
+        .vtable    = &c4m_type_spec_vtable,
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+    },
+    [C4M_T_INTERNAL_TLIST] = {
+        // Used to represent the type of lists of types inside type objects
+        // ONLY. Helps prevent complexity during bootstrapping.
+        .name    = "internal_tlist",
+        .typeid  = C4M_T_INTERNAL_TLIST,
+        .dt_kind = C4M_DT_KIND_internal,
+    },
     // Should only be used for views on bitfields and similar, where
     // the representation is packed bits. These should be 100%
     // castable back and forth in practice, as long as we know about
@@ -176,14 +191,6 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .dt_kind   = C4M_DT_KIND_dict,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
         .mutable   = true,
-    },
-    [C4M_T_TYPESPEC] = {
-        .name      = "typespec",
-        .typeid    = C4M_T_TYPESPEC,
-        .alloc_len = sizeof(c4m_type_t),
-        .vtable    = &c4m_type_spec_vtable,
-        .dt_kind   = C4M_DT_KIND_primitive,
-        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
     },
     [C4M_T_IPV4] = {
         .name      = "IPaddr",
@@ -428,9 +435,81 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     // primitive type they are boxing. We only support boxing of
     // primitivate value types, because there's no need to box
     // anything else.
-    [C4M_T_BOX] = {
+    [C4M_T_BOX_BOOL] = {
         .name      = "box",
-        .typeid    = C4M_T_BOX,
+        .typeid    = C4M_T_BOX_BOOL,
+        .alloc_len = sizeof(c4m_box_t),
+        .dt_kind   = C4M_DT_KIND_box,
+        .vtable    = &c4m_box_vtable,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+    },
+    [C4M_T_BOX_I8] = {
+        .name      = "box",
+        .typeid    = C4M_T_BOX_I8,
+        .alloc_len = sizeof(c4m_box_t),
+        .dt_kind   = C4M_DT_KIND_box,
+        .vtable    = &c4m_box_vtable,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+    },
+    [C4M_T_BOX_BYTE] = {
+        .name      = "box",
+        .typeid    = C4M_T_BOX_BYTE,
+        .alloc_len = sizeof(c4m_box_t),
+        .dt_kind   = C4M_DT_KIND_box,
+        .vtable    = &c4m_box_vtable,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+    },
+    [C4M_T_BOX_I32] = {
+        .name      = "box",
+        .typeid    = C4M_T_BOX_I32,
+        .alloc_len = sizeof(c4m_box_t),
+        .dt_kind   = C4M_DT_KIND_box,
+        .vtable    = &c4m_box_vtable,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+    },
+    [C4M_T_BOX_CHAR] = {
+        .name      = "box",
+        .typeid    = C4M_T_BOX_CHAR,
+        .alloc_len = sizeof(c4m_box_t),
+        .dt_kind   = C4M_DT_KIND_box,
+        .vtable    = &c4m_box_vtable,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+    },
+    [C4M_T_BOX_U32] = {
+        .name      = "box",
+        .typeid    = C4M_T_BOX_U32,
+        .alloc_len = sizeof(c4m_box_t),
+        .dt_kind   = C4M_DT_KIND_box,
+        .vtable    = &c4m_box_vtable,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+    },
+    [C4M_T_BOX_INT] = {
+        .name      = "box",
+        .typeid    = C4M_T_BOX_INT,
+        .alloc_len = sizeof(c4m_box_t),
+        .dt_kind   = C4M_DT_KIND_box,
+        .vtable    = &c4m_box_vtable,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+    },
+    [C4M_T_BOX_UINT] = {
+        .name      = "box",
+        .typeid    = C4M_T_BOX_UINT,
+        .alloc_len = sizeof(c4m_box_t),
+        .dt_kind   = C4M_DT_KIND_box,
+        .vtable    = &c4m_box_vtable,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+    },
+    [C4M_T_BOX_F32] = {
+        .name      = "box",
+        .typeid    = C4M_T_BOX_F32,
+        .alloc_len = sizeof(c4m_box_t),
+        .dt_kind   = C4M_DT_KIND_box,
+        .vtable    = &c4m_box_vtable,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+    },
+    [C4M_T_BOX_F64] = {
+        .name      = "box",
+        .typeid    = C4M_T_BOX_F64,
         .alloc_len = sizeof(c4m_box_t),
         .dt_kind   = C4M_DT_KIND_box,
         .vtable    = &c4m_box_vtable,
@@ -461,11 +540,10 @@ _c4m_new(c4m_type_t *type, ...)
 {
     type = c4m_type_resolve(type);
 
-    c4m_base_obj_t  *obj;
-    c4m_obj_t        result;
+    c4m_obj_t        obj;
     va_list          args;
-    c4m_dt_info_t   *tinfo     = type->details->base_type;
-    uint64_t         alloc_len = tinfo->alloc_len + sizeof(c4m_base_obj_t);
+    c4m_dt_info_t   *tinfo     = c4m_type_get_data_type_info(type);
+    uint64_t         alloc_len = tinfo->alloc_len;
     c4m_vtable_entry init_fn   = tinfo->vtable->methods[C4M_BI_CONSTRUCTOR];
     c4m_vtable_entry scan_fn   = tinfo->vtable->methods[C4M_BI_GC_MAP];
 
@@ -494,10 +572,7 @@ _c4m_new(c4m_type_t *type, ...)
 
     c4m_alloc_hdr *hdr = &((c4m_alloc_hdr *)obj)[-1];
     hdr->con4m_obj     = 1;
-
-    obj->base_data_type = tinfo;
-    obj->concrete_type  = type;
-    result              = obj->data;
+    hdr->type          = type;
 
     switch (tinfo->dt_kind) {
     case C4M_DT_KIND_primitive:
@@ -509,7 +584,7 @@ _c4m_new(c4m_type_t *type, ...)
     case C4M_DT_KIND_box:
         if (init_fn != NULL) {
             va_start(args, type);
-            (*init_fn)(result, args);
+            (*init_fn)(obj, args);
             va_end(args);
         }
         break;
@@ -519,12 +594,12 @@ _c4m_new(c4m_type_t *type, ...)
             "implemented.");
     }
 
-    return result;
+    return obj;
 }
 c4m_str_t *
 c4m_repr(void *item, c4m_type_t *t)
 {
-    uint64_t    x = c4m_type_get_data_type_info(t)->typeid;
+    uint64_t    x = c4m_type_resolve(t)->base_index;
     c4m_repr_fn p;
 
     p = (c4m_repr_fn)c4m_base_type_info[x].vtable->methods[C4M_BI_REPR];
@@ -593,15 +668,44 @@ c4m_to_str(void *item, c4m_type_t *t)
 }
 
 c4m_obj_t
-c4m_copy_object(c4m_obj_t obj)
+c4m_copy(c4m_obj_t obj)
 {
-    c4m_copy_fn ptr = (c4m_copy_fn)c4m_vtable(obj)->methods[C4M_BI_COPY];
+    c4m_obj_t   result;
+    c4m_mem_ptr ptr = {.v = obj};
+    ptr.alloc -= 1;
 
-    if (ptr == NULL) {
+    // If it's a con4m obj, it looks for a copy constructor,
+    // or else returns null.
+    //
+    // If it's in-heap, it makes a deep copy via
+    // automarshal.
+
+    if (c4m_in_heap(obj) && ptr.alloc->guard == c4m_gc_guard) {
+        c4m_copy_fn fn = (c4m_copy_fn)c4m_vtable(obj)->methods[C4M_BI_COPY];
+        if (fn != NULL) {
+            result = (*fn)(obj);
+            c4m_restore(result);
+            return result;
+        }
+        return NULL;
+    }
+
+    if (!c4m_in_heap(obj)) {
         return obj;
     }
 
-    return (*ptr)(obj);
+    return c4m_autounmarshal(c4m_automarshal(obj));
+}
+
+c4m_obj_t
+c4m_shallow(c4m_obj_t obj)
+{
+    c4m_copy_fn fn = (void *)c4m_vtable(obj)->methods[C4M_BI_SHALLOW_COPY];
+
+    if (fn == NULL) {
+        C4M_CRAISE("Object type currently does not have a shallow copy fn.");
+    }
+    return (*fn)(obj);
 }
 
 c4m_obj_t
@@ -778,7 +882,8 @@ c4m_coerce(void *data, c4m_type_t *t1, c4m_type_t *t2)
 
     c4m_dt_info_t *info = c4m_type_get_data_type_info(t1);
     c4m_vtable_t  *vtbl = (c4m_vtable_t *)info->vtable;
-    c4m_coerce_fn  ptr  = (c4m_coerce_fn)vtbl->methods[C4M_BI_COERCE];
+
+    c4m_coerce_fn ptr = (c4m_coerce_fn)vtbl->methods[C4M_BI_COERCE];
 
     if (ptr == NULL) {
         C4M_CRAISE("Invalid conversion between types.");
@@ -959,16 +1064,16 @@ c4m_container_literal(c4m_type_t *t, c4m_list_t *items, c4m_utf8_t *mod)
 }
 
 void
-c4m_finalize_allocation(c4m_base_obj_t *obj)
+c4m_finalize_allocation(c4m_obj_t object)
 {
     c4m_system_finalizer_fn fn;
     return;
 
-    fn = (void *)obj->base_data_type->vtable->methods[C4M_BI_FINALIZER];
+    fn = (void *)c4m_vtable(object)->methods[C4M_BI_FINALIZER];
     if (fn == NULL) {
     }
     assert(fn != NULL);
-    (*fn)(obj->data);
+    (*fn)(object);
 }
 
 void

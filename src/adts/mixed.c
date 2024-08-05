@@ -231,7 +231,7 @@ mixed_copy(c4m_mixed_t *m)
         result->held_value = m->held_value;
     }
     else {
-        result->held_value = c4m_copy_object(m->held_value);
+        result->held_value = c4m_copy(m->held_value);
     }
 
     return result;

@@ -11,11 +11,11 @@ c4m_get_module_summary_info(c4m_compile_ctx *ctx)
                                         "header_rows",
                                         c4m_ka(1),
                                         "container_tag",
-                                        c4m_ka("table2"),
+                                        c4m_ka(c4m_new_utf8("table2")),
                                         "stripe",
                                         c4m_ka(true)));
-
-    c4m_list_t *row = c4m_new_table_row();
+    c4m_utf8_t *snap   = c4m_new_utf8("snap");
+    c4m_list_t *row    = c4m_new_table_row();
 
     c4m_list_append(row, c4m_new_utf8("Module"));
     c4m_list_append(row, c4m_new_utf8("Path"));
@@ -24,22 +24,22 @@ c4m_get_module_summary_info(c4m_compile_ctx *ctx)
     c4m_grid_add_row(result, row);
 
     for (int i = 0; i < n; i++) {
-        c4m_module_compile_ctx *f = c4m_list_get(ctx->module_ordering, i, NULL);
+        c4m_module_t *f = c4m_list_get(ctx->module_ordering, i, NULL);
 
         c4m_utf8_t *spec;
 
         row = c4m_new_table_row();
 
         if (f->package == NULL) {
-            spec = f->module;
+            spec = f->name;
         }
         else {
-            spec = c4m_cstr_format("{}.{}", f->package, f->module);
+            spec = c4m_cstr_format("{}.{}", f->package, f->name);
         }
 
-        c4m_utf8_t *hash = c4m_cstr_format("{:x}", c4m_box_u64(f->module_id));
+        c4m_utf8_t *hash = c4m_cstr_format("{:x}", c4m_box_u64(f->modref));
         c4m_utf8_t *mod  = c4m_cstr_format("{}",
-                                          c4m_box_u64(f->local_module_id));
+                                          c4m_box_u64(f->module_id));
 
         c4m_list_append(row, spec);
         c4m_list_append(row, f->path);
@@ -48,24 +48,29 @@ c4m_get_module_summary_info(c4m_compile_ctx *ctx)
         c4m_grid_add_row(result, row);
     }
 
-    c4m_set_column_style(result, 0, "snap");
-    c4m_set_column_style(result, 1, "snap");
-    c4m_set_column_style(result, 2, "snap");
-    c4m_set_column_style(result, 3, "snap");
+    c4m_set_column_style(result, 0, snap);
+    c4m_set_column_style(result, 1, snap);
+    c4m_set_column_style(result, 2, snap);
+    c4m_set_column_style(result, 3, snap);
 
     return result;
 }
 
 void
-c4m_module_ctx_gc_bits(uint64_t *bitfield, c4m_module_compile_ctx *ctx)
+c4m_module_ctx_gc_bits(uint64_t *bitfield, c4m_module_t *ctx)
 {
-    c4m_mark_raw_to_addr(bitfield, ctx, &ctx->extern_decls);
+    c4m_mark_raw_to_addr(bitfield, ctx, &ctx->long_doc);
 }
 
-c4m_module_compile_ctx *
+c4m_module_t *
 c4m_new_module_compile_ctx()
 {
-    return c4m_gc_alloc_mapped(c4m_module_compile_ctx, c4m_module_ctx_gc_bits);
+    c4m_module_t *res = c4m_gc_alloc_mapped(c4m_module_t,
+                                            c4m_module_ctx_gc_bits);
+
+    res->ct = c4m_gc_alloc_mapped(c4m_ct_module_info_t, C4M_GC_SCAN_ALL);
+
+    return res;
 }
 
 static inline uint64_t
@@ -91,7 +96,7 @@ module_key(c4m_utf8_t *package, c4m_utf8_t *module)
 
 // package is the only string allowed to be null here.
 // fext can also be null, in which case we take in the default values.
-static c4m_module_compile_ctx *
+static c4m_module_t *
 one_lookup_try(c4m_compile_ctx *ctx,
                c4m_str_t       *path,
                c4m_str_t       *module,
@@ -105,17 +110,17 @@ one_lookup_try(c4m_compile_ctx *ctx,
     module = c4m_to_utf8(module);
 
     // First check the cache.
-    uint64_t                key    = module_key(package, module);
-    c4m_module_compile_ctx *result = hatrack_dict_get(ctx->module_cache,
-                                                      (void *)key,
-                                                      NULL);
+    uint64_t      key    = module_key(package, module);
+    c4m_module_t *result = hatrack_dict_get(ctx->module_cache,
+                                            (void *)key,
+                                            NULL);
 
     if (result) {
         return result;
     }
 
     if (!fext) {
-        fext = c4m_set_to_xlist(c4m_get_allowed_file_extensions());
+        fext = c4m_get_allowed_file_extensions();
     }
 
     c4m_list_t *l = c4m_list(c4m_type_utf8());
@@ -160,14 +165,14 @@ one_lookup_try(c4m_compile_ctx *ctx,
         return NULL;
     }
 
-    result              = c4m_new_module_compile_ctx();
-    result->module      = module;
-    result->package     = package;
-    result->path        = path;
-    result->raw         = contents;
-    result->errors      = c4m_list(c4m_type_ref());
-    result->loaded_from = attempt;
-    result->module_id   = key;
+    result             = c4m_new_module_compile_ctx();
+    result->name       = module;
+    result->package    = package;
+    result->path       = path;
+    result->source     = contents;
+    result->ct->errors = c4m_list(c4m_type_ref());
+    result->full_uri   = attempt;
+    result->modref     = key;
 
     c4m_buf_t    *b = c4m_new(c4m_type_buffer(),
                            c4m_kw("length",
@@ -268,7 +273,7 @@ adjust_path_and_package(c4m_str_t **pathp, c4m_str_t **pkgp)
 // Note that the module must have the file extension stripped; the
 // extension can be provided in the list, but if it's not there, the
 // system extensions get searched.
-c4m_module_compile_ctx *
+c4m_module_t *
 c4m_find_module(c4m_compile_ctx *ctx,
                 c4m_str_t       *path,
                 c4m_str_t       *module,
@@ -277,7 +282,7 @@ c4m_find_module(c4m_compile_ctx *ctx,
                 c4m_str_t       *relative_path,
                 c4m_list_t      *fext)
 {
-    c4m_module_compile_ctx *result;
+    c4m_module_t *result;
 
     // If a path was provided, then the package / module need to be
     // fully qualified.
@@ -336,23 +341,23 @@ c4m_find_module(c4m_compile_ctx *ctx,
 }
 
 bool
-c4m_add_module_to_worklist(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
+c4m_add_module_to_worklist(c4m_compile_ctx *cctx, c4m_module_t *fctx)
 {
     return c4m_set_add(cctx->backlog, fctx);
 }
 
-static c4m_module_compile_ctx *
-postprocess_module(c4m_compile_ctx        *cctx,
-                   c4m_module_compile_ctx *fctx,
-                   c4m_utf8_t             *path,
-                   bool                    http_err,
-                   c4m_utf8_t             *errmsg)
+static c4m_module_t *
+postprocess_module(c4m_compile_ctx *cctx,
+                   c4m_module_t    *fctx,
+                   c4m_utf8_t      *path,
+                   bool             http_err,
+                   c4m_utf8_t      *errmsg)
 {
     if (!fctx) {
-        c4m_module_compile_ctx *result = c4m_new_module_compile_ctx();
-        result->path                   = path;
-        result->errors                 = c4m_list(c4m_type_ref());
-        cctx->fatality                 = true;
+        c4m_module_t *result = c4m_new_module_compile_ctx();
+        result->path         = path;
+        result->ct->errors   = c4m_list(c4m_type_ref());
+        cctx->fatality       = true;
 
         hatrack_dict_put(cctx->module_cache, NULL, result);
 
@@ -420,16 +425,16 @@ c4m_package_from_path_prefix(c4m_utf8_t *path, c4m_utf8_t **path_loc)
     return NULL;
 }
 
-static inline c4m_module_compile_ctx *
+static inline c4m_module_t *
 ctx_init_from_web_uri(c4m_compile_ctx *ctx,
                       c4m_utf8_t      *inpath,
                       bool             has_ext,
                       bool             https)
 {
-    c4m_module_compile_ctx *result;
-    c4m_utf8_t             *module;
-    c4m_utf8_t             *package;
-    c4m_utf8_t             *path;
+    c4m_module_t *result;
+    c4m_utf8_t   *module;
+    c4m_utf8_t   *package;
+    c4m_utf8_t   *path;
 
     if (c4m_str_codepoint_len(inpath) <= 8) {
         goto malformed;
@@ -480,7 +485,7 @@ malformed:
     return result;
 }
 
-static c4m_module_compile_ctx *
+static c4m_module_t *
 ctx_init_from_local_file(c4m_compile_ctx *ctx, c4m_str_t *inpath)
 {
     c4m_utf8_t *module;
@@ -510,12 +515,12 @@ ctx_init_from_local_file(c4m_compile_ctx *ctx, c4m_str_t *inpath)
         }
     }
 
-    c4m_module_compile_ctx *result = c4m_find_module(ctx, path, module, package, NULL, NULL, NULL);
+    c4m_module_t *result = c4m_find_module(ctx, path, module, package, NULL, NULL, NULL);
 
     return result;
 }
 
-static c4m_module_compile_ctx *
+static c4m_module_t *
 ctx_init_from_module_spec(c4m_compile_ctx *ctx, c4m_str_t *path)
 {
     c4m_utf8_t *package = NULL;
@@ -533,7 +538,7 @@ ctx_init_from_module_spec(c4m_compile_ctx *ctx, c4m_str_t *path)
     return c4m_find_module(ctx, NULL, module, package, NULL, NULL, NULL);
 }
 
-static c4m_module_compile_ctx *
+static c4m_module_t *
 ctx_init_from_package_spec(c4m_compile_ctx *ctx, c4m_str_t *path)
 {
     path               = c4m_resolve_path(path);
@@ -577,7 +582,7 @@ ctx_init_from_package_spec(c4m_compile_ctx *ctx, c4m_str_t *path)
 static inline bool
 has_c4m_extension(c4m_utf8_t *s)
 {
-    c4m_list_t *exts = c4m_set_to_xlist(c4m_get_allowed_file_extensions());
+    c4m_list_t *exts = c4m_get_allowed_file_extensions();
 
     for (int i = 0; i < c4m_list_len(exts); i++) {
         c4m_utf8_t *ext = c4m_to_utf8(c4m_list_get(exts, i, NULL));
@@ -589,7 +594,7 @@ has_c4m_extension(c4m_utf8_t *s)
     return false;
 }
 
-c4m_module_compile_ctx *
+c4m_module_t *
 c4m_init_module_from_loc(c4m_compile_ctx *ctx, c4m_str_t *path)
 {
     // This function is meant for handling a module spec at the
@@ -630,9 +635,9 @@ c4m_init_module_from_loc(c4m_compile_ctx *ctx, c4m_str_t *path)
     //    relative to that path. Otherwise, we put the package in the
     //    top-level.  In either case, we ensure there is a __init
     //    file.
-    path                                  = c4m_to_utf8(path);
-    c4m_module_compile_ctx *result        = NULL;
-    bool                    has_extension = has_c4m_extension(path);
+    path                        = c4m_to_utf8(path);
+    c4m_module_t *result        = NULL;
+    bool          has_extension = has_c4m_extension(path);
 
     if (c4m_str_starts_with(path, c4m_new_utf8("http:"))) {
         result = ctx_init_from_web_uri(ctx, path, has_extension, false);
@@ -658,19 +663,19 @@ c4m_init_module_from_loc(c4m_compile_ctx *ctx, c4m_str_t *path)
 }
 
 c4m_utf8_t *
-c4m_format_module_location(c4m_module_compile_ctx *ctx, c4m_token_t *tok)
+c4m_format_module_location(c4m_module_t *ctx, c4m_token_t *tok)
 {
-    if (!ctx->loaded_from) {
-        ctx->loaded_from = c4m_cstr_format("{}.{}",
-                                           ctx->package,
-                                           ctx->module);
+    if (!ctx->full_uri) {
+        ctx->full_uri = c4m_cstr_format("{}.{}",
+                                        ctx->package,
+                                        ctx->name);
     }
 
     if (!tok) {
-        return c4m_cstr_format("[b]{}[/]", ctx->loaded_from);
+        return c4m_cstr_format("[b]{}[/]", ctx->full_uri);
     }
     return c4m_cstr_format("[b]{}:{:n}:{:n}:[/]",
-                           ctx->loaded_from,
+                           ctx->full_uri,
                            c4m_box_i64(tok->line_no),
                            c4m_box_i64(tok->line_offset + 1));
 }

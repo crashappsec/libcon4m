@@ -2,8 +2,9 @@
 
 #include "con4m.h"
 
-extern void                c4m_set_style(char *name, c4m_render_style_t *style);
-extern c4m_render_style_t *c4m_lookup_cell_style(char *name);
+extern void                c4m_set_style(c4m_utf8_t *,
+                                         c4m_render_style_t *);
+extern c4m_render_style_t *c4m_lookup_cell_style(c4m_utf8_t *);
 extern void                c4m_install_default_styles();
 
 static inline c4m_render_style_t *
@@ -26,7 +27,7 @@ c4m_str_style(c4m_render_style_t *style)
 }
 
 static inline c4m_style_t
-c4m_lookup_text_style(char *name)
+c4m_lookup_text_style(c4m_utf8_t *name)
 {
     return c4m_str_style(c4m_lookup_cell_style(name));
 }
@@ -334,5 +335,5 @@ c4m_new_render_style()
     return c4m_new(c4m_type_render_style());
 }
 
-extern bool c4m_style_exists(char *name);
+extern bool c4m_style_exists(c4m_utf8_t *name);
 extern void c4m_layer_styles(const c4m_render_style_t *, c4m_render_style_t *);

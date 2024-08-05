@@ -269,8 +269,8 @@ c4m_setup_treematch_patterns()
 }
 
 c4m_obj_t
-c4m_node_to_callback(c4m_module_compile_ctx *ctx,
-                     c4m_tree_node_t        *n)
+c4m_node_to_callback(c4m_module_t    *ctx,
+                     c4m_tree_node_t *n)
 {
     if (!c4m_node_has_type(n, c4m_nt_lit_callback)) {
         return NULL;
@@ -297,9 +297,9 @@ c4m_node_to_callback(c4m_module_compile_ctx *ctx,
 }
 
 c4m_type_t *
-c4m_node_to_type(c4m_module_compile_ctx *ctx,
-                 c4m_tree_node_t        *n,
-                 c4m_dict_t             *type_ctx)
+c4m_node_to_type(c4m_module_t    *ctx,
+                 c4m_tree_node_t *n,
+                 c4m_dict_t      *type_ctx)
 {
     if (type_ctx == NULL) {
         type_ctx = c4m_new(c4m_type_dict(c4m_type_utf8(), c4m_type_ref()));
@@ -318,8 +318,8 @@ c4m_node_to_type(c4m_module_compile_ctx *ctx,
         varname = c4m_node_text(c4m_tree_get_child(n, 0));
         t       = hatrack_dict_get(type_ctx, varname, &found);
         if (!found) {
-            t                = c4m_new_typevar();
-            t->details->name = varname->data;
+            t       = c4m_new_typevar();
+            t->name = varname;
             hatrack_dict_put(type_ctx, varname, t);
         }
         return t;

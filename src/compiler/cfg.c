@@ -7,9 +7,9 @@ typedef struct {
 } c4m_branch_ctx;
 
 typedef struct {
-    c4m_module_compile_ctx *module_ctx;
-    c4m_dict_t             *du_info;
-    c4m_list_t             *sometimes_info;
+    c4m_module_t *module_ctx;
+    c4m_dict_t   *du_info;
+    c4m_list_t   *sometimes_info;
 } cfg_ctx;
 
 void
@@ -133,7 +133,7 @@ cfg_copy_du_info(cfg_ctx        *ctx,
     for (uint64_t i = 0; i < n; i++) {
         c4m_symbol_t *sym = view[i].key;
 
-        if (sym->cfg_kill_node && sym->cfg_kill_node == node) {
+        if (sym->ct->cfg_kill_node && sym->ct->cfg_kill_node == node) {
             continue;
         }
 
@@ -160,7 +160,7 @@ cfg_copy_du_info(cfg_ctx        *ctx,
 static c4m_utf8_t *result_text = NULL;
 
 static void
-check_for_fn_exit_errors(c4m_module_compile_ctx *file, c4m_fn_decl_t *fn_decl)
+check_for_fn_exit_errors(c4m_module_t *file, c4m_fn_decl_t *fn_decl)
 {
     if (result_text == NULL) {
         result_text = c4m_new_utf8("$result");
@@ -718,7 +718,7 @@ cfg_process_node(cfg_ctx *ctx, c4m_cfg_node_t *node, c4m_cfg_node_t *parent)
 //
 //
 void
-c4m_cfg_analyze(c4m_module_compile_ctx *module_ctx, c4m_dict_t *du_info)
+c4m_cfg_analyze(c4m_module_t *module_ctx, c4m_dict_t *du_info)
 {
     if (du_info == NULL) {
         du_info = c4m_new(c4m_type_dict(c4m_type_ref(), c4m_type_ref()));
@@ -740,22 +740,24 @@ c4m_cfg_analyze(c4m_module_compile_ctx *module_ctx, c4m_dict_t *du_info)
         cfg_propogate_def(&ctx, sym, NULL, NULL);
     }
 
-    module_ctx->cfg->liveness_info = du_info;
-    cfg_process_node(&ctx, module_ctx->cfg, NULL);
+    module_ctx->ct->cfg->liveness_info = du_info;
+    cfg_process_node(&ctx, module_ctx->ct->cfg, NULL);
 
-    check_block_for_errors(&ctx, module_ctx->cfg);
-    check_for_module_exit_errors(&ctx, module_ctx->cfg);
+    check_block_for_errors(&ctx, module_ctx->ct->cfg);
+    check_for_module_exit_errors(&ctx, module_ctx->ct->cfg);
 
-    int n = c4m_list_len(module_ctx->fn_def_syms);
+    int n = c4m_list_len(module_ctx->ct->fn_def_syms);
 
-    c4m_cfg_node_t *modexit = module_ctx->cfg->contents.block_entrance.exit_node;
+    c4m_cfg_node_t *modexit = module_ctx->ct->cfg->contents.block_entrance.exit_node;
     c4m_dict_t     *moddefs = modexit->liveness_info;
     c4m_list_t     *stdefs  = modexit->sometimes_live;
 
     for (int i = 0; i < n; i++) {
         ctx.du_info         = moddefs;
         ctx.sometimes_info  = stdefs;
-        c4m_symbol_t  *sym  = c4m_list_get(module_ctx->fn_def_syms, i, NULL);
+        c4m_symbol_t  *sym  = c4m_list_get(module_ctx->ct->fn_def_syms,
+                                         i,
+                                         NULL);
         c4m_fn_decl_t *decl = sym->value;
 
         cfg_process_node(&ctx, decl->cfg, NULL);

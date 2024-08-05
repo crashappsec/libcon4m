@@ -253,7 +253,6 @@ extern void           c4m_get_heap_bounds(uint64_t *, uint64_t *, uint64_t *);
 extern void           c4m_gc_register_collect_fns(c4m_gc_hook, c4m_gc_hook);
 extern c4m_alloc_hdr *c4m_find_alloc(void *);
 extern bool           c4m_in_heap(void *);
-extern void           c4m_header_gc_bits(uint64_t *, c4m_base_obj_t *);
 extern void           c4m_add_static_segment(void *, void *);
 // TODO: Keep a list of all heaps.
 
@@ -303,11 +302,20 @@ static inline void
 c4m_mark_raw_to_addr(uint64_t *bitfield, void *base, void *end)
 {
     uint64_t diff = c4m_ptr_diff(base, end);
-    *bitfield     = (1 << (diff + 1)) - 1;
+
+    do {
+        *bitfield = (1 << (diff + 1)) - 1;
+        diff >>= 6;
+    } while (diff);
 }
 
-static inline void
-c4m_mark_obj_to_addr(uint64_t *bitfield, void *base, void *end)
+static inline c4m_alloc_hdr *
+c4m_object_header(c4m_obj_t o)
 {
-    c4m_mark_raw_to_addr(bitfield, base, end);
+    c4m_mem_ptr p = {.v = o};
+    p.alloc -= 1;
+
+    return p.alloc;
 }
+
+extern void *c4m_raw_arena_alloc(uint64_t, void **, void **);

@@ -299,27 +299,6 @@ _c4m_str_strip(const c4m_str_t *s, ...)
     return c4m_str_slice(as32, start, end);
 }
 
-c4m_str_t *
-c4m_str_copy(const c4m_str_t *s)
-{
-    if (s == NULL) {
-        return NULL;
-    }
-    bool       u8  = c4m_str_is_u8(s);
-    uint64_t   l   = u8 ? s->byte_len : s->codepoints;
-    c4m_str_t *res = c4m_new(u8 ? c4m_type_utf8() : c4m_type_utf32(),
-                             c4m_kw("length", c4m_ka(l)));
-
-    res->codepoints = s->codepoints;
-    if (s->byte_len) {
-        memcpy(res->data, s->data, s->byte_len + 1);
-    }
-    c4m_copy_style_info(s, res);
-    res->byte_len = s->byte_len;
-
-    return res;
-}
-
 c4m_utf32_t *
 c4m_str_concat(const c4m_str_t *p1, const c4m_str_t *p2)
 {
@@ -694,7 +673,7 @@ utf8_init(c4m_utf8_t *s, va_list args)
     }
 
     if (tag != NULL) {
-        c4m_render_style_t *rs = c4m_lookup_cell_style(tag);
+        c4m_render_style_t *rs = c4m_lookup_cell_style(c4m_new_utf8(tag));
         if (rs != NULL) {
             c4m_str_apply_style(s, rs->base_style, replace_style);
         }
@@ -785,7 +764,7 @@ utf32_init(c4m_utf32_t *s, va_list args)
     }
 
     if (tag != NULL) {
-        c4m_render_style_t *rs = c4m_lookup_cell_style(tag);
+        c4m_render_style_t *rs = c4m_lookup_cell_style(c4m_new_utf8(tag));
         if (rs != NULL) {
             c4m_str_apply_style(s, rs->base_style, replace_style);
         }
@@ -1304,55 +1283,6 @@ c4m_str_split(c4m_str_t *str, c4m_str_t *sub)
     return result;
 }
 
-static void
-c4m_string_marshal(c4m_str_t    *s,
-                   c4m_stream_t *out,
-                   c4m_dict_t   *memos,
-                   int64_t      *mid)
-{
-    c4m_marshal_u32(s->codepoints, out);
-    c4m_marshal_u32(s->byte_len, out);
-
-    if (s->styling == NULL) {
-        c4m_marshal_u32(0, out);
-    }
-    else {
-        c4m_marshal_u32((int32_t)s->styling->num_entries, out);
-        for (int i = 0; i < s->styling->num_entries; i++) {
-            c4m_marshal_i32(s->styling->styles[i].start, out);
-            c4m_marshal_i32(s->styling->styles[i].end, out);
-            c4m_marshal_u64(s->styling->styles[i].info, out);
-        }
-    }
-    if (s->byte_len) {
-        c4m_stream_raw_write(out, s->byte_len, s->data);
-    }
-}
-
-static void
-c4m_string_unmarshal(c4m_str_t *s, c4m_stream_t *in, c4m_dict_t *memos)
-{
-    s->codepoints = c4m_unmarshal_u32(in);
-    s->byte_len   = c4m_unmarshal_u32(in);
-
-    int32_t num_styles = c4m_unmarshal_u32(in);
-
-    if (num_styles > 0) {
-        c4m_alloc_styles(s, num_styles);
-    }
-
-    for (int i = 0; i < num_styles; i++) {
-        s->styling->styles[i].start = c4m_unmarshal_i32(in);
-        s->styling->styles[i].end   = c4m_unmarshal_i32(in);
-        s->styling->styles[i].info  = c4m_unmarshal_u64(in);
-    }
-
-    if (s->byte_len) {
-        s->data = c4m_gc_raw_alloc(s->byte_len + 4, NULL);
-        c4m_stream_raw_read(in, s->byte_len, s->data);
-    }
-}
-
 c4m_utf8_t *
 c4m_cstring(char *s, int64_t len)
 {
@@ -1364,7 +1294,7 @@ c4m_utf8_t *
 c4m_rich(c4m_utf8_t *to_copy, c4m_utf8_t *style)
 {
     c4m_utf8_t         *res = c4m_str_copy(to_copy);
-    c4m_render_style_t *rs  = c4m_lookup_cell_style(style->data);
+    c4m_render_style_t *rs  = c4m_lookup_cell_style(c4m_new_utf8(style->data));
 
     if (rs != NULL) {
         c4m_str_apply_style(res, rs->base_style, 0);
@@ -1685,11 +1615,36 @@ c4m_str_view(c4m_str_t *s, uint64_t *n)
 }
 
 void
-c4m_str_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
+c4m_str_set_gc_bits(uint64_t *bitfield, void *alloc)
 {
-    c4m_str_t *s = (c4m_str_t *)alloc->data;
+    c4m_str_t *s = (c4m_str_t *)alloc;
 
-    c4m_mark_obj_to_addr(bitfield, alloc, &s->styling);
+    c4m_mark_raw_to_addr(bitfield, alloc, &s->styling);
+}
+
+c4m_str_t *
+c4m_str_copy(const c4m_str_t *s)
+{
+    c4m_str_t *res;
+
+    if (s->utf32) {
+        res = c4m_new(c4m_type_utf32(),
+                      c4m_kw("length",
+                             c4m_ka(s->codepoints),
+                             "codepoints",
+                             c4m_ka(s->data)));
+    }
+    else {
+        res = c4m_new(c4m_type_utf8(),
+                      c4m_kw("length",
+                             c4m_ka(s->byte_len),
+                             "cstring",
+                             c4m_ka(s->data)));
+    }
+
+    c4m_copy_style_info(s, res);
+
+    return res;
 }
 
 const c4m_vtable_t c4m_u8str_vtable = {
@@ -1726,7 +1681,6 @@ const c4m_vtable_t c4m_u32str_vtable = {
         [C4M_BI_COERCIBLE]    = (c4m_vtable_entry)c4m_str_can_coerce_to,
         [C4M_BI_COERCE]       = (c4m_vtable_entry)c4m_str_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)c4m_str_lit,
-        [C4M_BI_COPY]         = (c4m_vtable_entry)c4m_str_copy,
         [C4M_BI_ADD]          = (c4m_vtable_entry)c4m_str_concat,
         [C4M_BI_LEN]          = (c4m_vtable_entry)c4m_str_codepoint_len,
         [C4M_BI_INDEX_GET]    = (c4m_vtable_entry)c4m_utf32_index,

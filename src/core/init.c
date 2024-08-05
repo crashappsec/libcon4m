@@ -10,9 +10,13 @@ static void
 c4m_register_builtins(void)
 {
     c4m_add_static_function(c4m_new_utf8("c4m_clz"), c4m_clz);
-    c4m_add_static_function(c4m_new_utf8("c4m_gc_remove_hold"),
-                            c4m_gc_remove_hold);
     c4m_add_static_function(c4m_new_utf8("c4m_rand64"), c4m_rand64);
+}
+
+c4m_list_t *
+c4m_get_allowed_file_extensions(void)
+{
+    return c4m_dict_keys(con4m_extensions);
 }
 
 c4m_list_t *
@@ -74,10 +78,10 @@ load_env(c4m_dict_t *environment_vars)
                                          c4m_ka(item)));
         c4m_utf8_t *value = c4m_new_utf8(val);
 
-        c4m_gc_register_root(&environment_vars, 1);
         hatrack_dict_put(environment_vars, key, value);
         assert(hatrack_dict_get(environment_vars, key, NULL) == value);
     }
+    c4m_gc_register_root(&environment_vars, 1);
 }
 
 c4m_utf8_t *
@@ -105,7 +109,7 @@ c4m_environment(void)
 
 static c4m_utf8_t *con4m_root       = NULL;
 c4m_list_t        *con4m_path       = NULL;
-c4m_set_t         *con4m_extensions = NULL;
+c4m_dict_t        *con4m_extensions = NULL;
 
 c4m_utf8_t *
 c4m_con4m_root(void)
@@ -150,17 +154,19 @@ c4m_init_path(void)
 {
     c4m_list_t *parts;
 
-    con4m_extensions = c4m_set(c4m_type_utf8());
+    // Going to have info on the VM type too.
+    con4m_extensions = c4m_dict(c4m_type_utf8(), c4m_type_int());
 
-    c4m_set_add(con4m_extensions, c4m_new_utf8("c4m"));
+    hatrack_dict_add(con4m_extensions, c4m_new_utf8("c4m"), 0);
 
-    c4m_utf8_t *extra = c4m_get_env(c4m_new_utf8("CON4M_EXTENSIONS"));
+    c4m_utf8_t *extra = c4m_get_env(c4m_new_utf8("CON4M_SRC_EXTENSIONS"));
 
     if (extra != NULL) {
         parts = c4m_str_split(extra, c4m_new_utf8(":"));
         for (int i = 0; i < c4m_list_len(parts); i++) {
-            c4m_set_add(con4m_extensions,
-                        c4m_to_utf8(c4m_list_get(parts, i, NULL)));
+            hatrack_dict_put(con4m_extensions,
+                             c4m_to_utf8(c4m_list_get(parts, i, NULL)),
+                             0);
         }
     }
 
@@ -198,7 +204,8 @@ c4m_path_search(c4m_utf8_t *package, c4m_utf8_t *module)
 {
     uint64_t     n_items;
     c4m_utf8_t  *munged     = NULL;
-    c4m_utf8_t **extensions = c4m_set_items_sort(con4m_extensions, &n_items);
+    c4m_utf8_t **extensions = (void *)hatrack_dict_keys_sort(con4m_extensions,
+                                                             &n_items);
 
     if (package != NULL && c4m_str_codepoint_len(package) != 0) {
         c4m_list_t *parts = c4m_str_split(package, c4m_new_utf8("."));
@@ -290,7 +297,7 @@ c4m_add_static_symbols(void)
     FSTAT(c4m_thread_cpu);
     FSTAT(c4m_uptime);
     FSTAT(c4m_program_clock);
-    FSTAT(c4m_copy_object);
+    FSTAT(c4m_copy);
     FSTAT(c4m_get_c_backtrace);
     FSTAT(c4m_lookup_color);
     FSTAT(c4m_to_vga);
@@ -315,20 +322,25 @@ extern void c4m_crash_init();
 __attribute__((constructor)) void
 c4m_init(int argc, char **argv, char **envp)
 {
-    c4m_stashed_argv = argv;
-    c4m_stashed_envp = envp;
+    static int inited = false;
 
-    c4m_backtrace_init(argv[0]);
-    c4m_gc_openssl();
-    c4m_initialize_gc();
-    c4m_gc_register_root(&cached_environment_vars, 1);
-    c4m_gc_register_root(&con4m_root, 1);
-    c4m_gc_register_root(&con4m_path, 1);
-    c4m_gc_register_root(&con4m_extensions, 1);
-    c4m_gc_set_finalize_callback((void *)c4m_finalize_allocation);
-    c4m_initialize_global_types();
-    c4m_crash_init();
-    c4m_initialize_library();
-    c4m_register_builtins();
-    c4m_init_path();
+    if (!inited) {
+        inited           = true;
+        c4m_stashed_argv = argv;
+        c4m_stashed_envp = envp;
+
+        c4m_backtrace_init(argv[0]);
+        c4m_gc_openssl();
+        c4m_initialize_gc();
+        c4m_gc_register_root(&cached_environment_vars, 1);
+        c4m_gc_register_root(&con4m_root, 1);
+        c4m_gc_register_root(&con4m_path, 1);
+        c4m_gc_register_root(&con4m_extensions, 1);
+        c4m_gc_set_finalize_callback((void *)c4m_finalize_allocation);
+        c4m_initialize_global_types();
+        c4m_crash_init();
+        c4m_init_path();
+        c4m_initialize_library();
+        c4m_register_builtins();
+    }
 }

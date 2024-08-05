@@ -1458,12 +1458,6 @@ format_severity(c4m_compile_error *err)
     }
 }
 
-static inline c4m_utf8_t *
-err_format_module_location(c4m_module_compile_ctx *ctx, c4m_compile_error *err)
-{
-    return c4m_format_module_location(ctx, err->loc.current_token);
-}
-
 c4m_grid_t *
 c4m_format_runtime_errors(c4m_list_t *errors)
 {
@@ -1474,9 +1468,9 @@ c4m_format_runtime_errors(c4m_list_t *errors)
 
     c4m_grid_t *table = c4m_new(c4m_type_grid(),
                                 c4m_kw("container_tag",
-                                       c4m_ka("error_grid"),
+                                       c4m_ka(c4m_new_utf8("error_grid")),
                                        "td_tag",
-                                       c4m_ka("tcol"),
+                                       c4m_ka(c4m_new_utf8("tcol")),
                                        "start_cols",
                                        c4m_ka(3),
                                        "header_rows",
@@ -1488,7 +1482,7 @@ c4m_format_runtime_errors(c4m_list_t *errors)
         c4m_utf8_t        *msg = c4m_format_error_message(err, true);
 
         c4m_list_append(row, format_severity(err));
-        c4m_list_append(row, err->loc.runtime_loc);
+        c4m_list_append(row, err->loc);
         c4m_list_append(row, msg);
 
         c4m_grid_add_row(table, row);
@@ -1498,7 +1492,7 @@ c4m_format_runtime_errors(c4m_list_t *errors)
 }
 
 static void
-c4m_format_module_errors(c4m_module_compile_ctx *ctx, c4m_grid_t *table)
+c4m_format_module_errors(c4m_module_t *ctx, c4m_grid_t *table)
 {
     if (error_constant == NULL) {
         error_constant = c4m_rich_lit("[red]error:[/]");
@@ -1509,18 +1503,18 @@ c4m_format_module_errors(c4m_module_compile_ctx *ctx, c4m_grid_t *table)
         c4m_gc_register_root(&info_constant, 1);
     }
 
-    int64_t n = c4m_list_len(ctx->errors);
+    int64_t n = c4m_list_len(ctx->ct->errors);
 
     if (n == 0) {
         return;
     }
 
     for (int i = 0; i < n; i++) {
-        c4m_compile_error *err = c4m_list_get(ctx->errors, i, NULL);
+        c4m_compile_error *err = c4m_list_get(ctx->ct->errors, i, NULL);
         c4m_list_t        *row = c4m_list(c4m_type_utf8());
 
         c4m_list_append(row, format_severity(err));
-        c4m_list_append(row, err_format_module_location(ctx, err));
+        c4m_list_append(row, err->loc);
         c4m_list_append(row, c4m_format_error_message(err, true));
 
         c4m_grid_add_row(table, row);
@@ -1532,24 +1526,25 @@ c4m_format_errors(c4m_compile_ctx *cctx)
 {
     c4m_grid_t *table = c4m_new(c4m_type_grid(),
                                 c4m_kw("container_tag",
-                                       c4m_ka("error_grid"),
+                                       c4m_ka(c4m_new_utf8("error_grid")),
                                        "td_tag",
-                                       c4m_ka("tcol"),
+                                       c4m_ka(c4m_new_utf8("tcol")),
                                        "start_cols",
                                        c4m_ka(3),
                                        "header_rows",
                                        c4m_ka(0)));
 
-    int      n           = 0;
-    uint64_t num_modules = 0;
+    int         n           = 0;
+    uint64_t    num_modules = 0;
+    c4m_utf8_t *snap        = c4m_new_utf8("full_snap");
 
     hatrack_dict_item_t *view = hatrack_dict_items_sort(cctx->module_cache,
                                                         &num_modules);
 
     for (unsigned int i = 0; i < num_modules; i++) {
-        c4m_module_compile_ctx *ctx = view[i].value;
-        if (ctx->errors != NULL) {
-            n += c4m_list_len(ctx->errors);
+        c4m_module_t *ctx = view[i].value;
+        if (ctx->ct->errors != NULL) {
+            n += c4m_list_len(ctx->ct->errors);
             c4m_format_module_errors(ctx, table);
         }
     }
@@ -1558,8 +1553,8 @@ c4m_format_errors(c4m_compile_ctx *cctx)
         return NULL;
     }
 
-    c4m_set_column_style(table, 0, "full_snap");
-    c4m_set_column_style(table, 1, "full_snap");
+    c4m_set_column_style(table, 0, snap);
+    c4m_set_column_style(table, 1, snap);
 
     return table;
 }
@@ -1574,12 +1569,15 @@ c4m_compile_extract_all_error_codes(c4m_compile_ctx *cctx)
     view = hatrack_dict_items_sort(cctx->module_cache, &num_modules);
 
     for (unsigned int i = 0; i < num_modules; i++) {
-        c4m_module_compile_ctx *ctx = view[i].value;
+        c4m_module_t *ctx = view[i].value;
 
-        if (ctx->errors != NULL) {
-            int n = c4m_list_len(ctx->errors);
+        if (!ctx->ct) {
+            continue;
+        }
+        if (ctx->ct->errors != NULL) {
+            int n = c4m_list_len(ctx->ct->errors);
             for (int j = 0; j < n; j++) {
-                c4m_compile_error *err = c4m_list_get(ctx->errors, j, NULL);
+                c4m_compile_error *err = c4m_list_get(ctx->ct->errors, j, NULL);
 
                 c4m_list_append(result, (void *)(uint64_t)err->code);
             }
@@ -1634,8 +1632,8 @@ c4m_base_runtime_error(c4m_list_t         *err_list,
 {
     COMMON_ERR_BASE();
 
-    err->severity        = c4m_err_severity_error;
-    err->loc.runtime_loc = location;
+    err->severity = c4m_err_severity_error;
+    err->loc      = location;
 
     return err;
 }
@@ -1643,63 +1641,64 @@ c4m_base_runtime_error(c4m_list_t         *err_list,
 c4m_compile_error *
 c4m_base_add_error(c4m_list_t         *err_list,
                    c4m_compile_error_t code,
-                   c4m_token_t        *tok,
+                   c4m_utf8_t         *loc,
                    c4m_err_severity_t  severity,
                    va_list             args)
 {
     COMMON_ERR_BASE();
-    err->loc.current_token = tok;
-    err->severity          = severity;
+
+    err->loc      = loc;
+    err->severity = severity;
 
     return err;
 }
 
 c4m_compile_error *
-_c4m_error_from_token(c4m_module_compile_ctx *ctx,
-                      c4m_compile_error_t     code,
-                      c4m_token_t            *tok,
+_c4m_error_from_token(c4m_module_t       *ctx,
+                      c4m_compile_error_t code,
+                      c4m_token_t        *tok,
                       ...)
 {
     c4m_compile_error *result;
 
     va_list args;
     va_start(args, tok);
-    result = c4m_base_add_error(ctx->errors,
+    result = c4m_base_add_error(ctx->ct->errors,
                                 code,
-                                tok,
+                                c4m_token_get_location_str(tok),
                                 c4m_err_severity_error,
                                 args);
     va_end(args);
 
-    ctx->fatal_errors = 1;
+    ctx->ct->fatal_errors = 1;
 
     return result;
 }
 
-#define c4m_base_err_decl(func_name, severity_value)            \
-    c4m_compile_error *                                         \
-    func_name(c4m_module_compile_ctx *ctx,                      \
-              c4m_compile_error_t     code,                     \
-              c4m_tree_node_t        *node,                     \
-              ...)                                              \
-    {                                                           \
-        c4m_compile_error *result;                              \
-        c4m_pnode_t       *pnode = c4m_tree_get_contents(node); \
-                                                                \
-        va_list args;                                           \
-        va_start(args, node);                                   \
-        result = c4m_base_add_error(ctx->errors,                \
-                                    code,                       \
-                                    pnode->token,               \
-                                    severity_value,             \
-                                    args);                      \
-        va_end(args);                                           \
-                                                                \
-        if (severity_value == c4m_err_severity_error) {         \
-            ctx->fatal_errors = 1;                              \
-        }                                                       \
-                                                                \
-        return result;                                          \
+#define c4m_base_err_decl(func_name, severity_value)                          \
+    c4m_compile_error *                                                       \
+    func_name(c4m_module_t       *ctx,                                        \
+              c4m_compile_error_t code,                                       \
+              c4m_tree_node_t    *node,                                       \
+              ...)                                                            \
+    {                                                                         \
+        c4m_compile_error *result;                                            \
+        c4m_pnode_t       *pnode = c4m_tree_get_contents(node);               \
+                                                                              \
+        va_list args;                                                         \
+        va_start(args, node);                                                 \
+        result = c4m_base_add_error(ctx->ct->errors,                          \
+                                    code,                                     \
+                                    c4m_token_get_location_str(pnode->token), \
+                                    severity_value,                           \
+                                    args);                                    \
+        va_end(args);                                                         \
+                                                                              \
+        if (severity_value == c4m_err_severity_error) {                       \
+            ctx->ct->fatal_errors = 1;                                        \
+        }                                                                     \
+                                                                              \
+        return result;                                                        \
     }
 
 c4m_base_err_decl(_c4m_add_error, c4m_err_severity_error);
@@ -1707,22 +1706,34 @@ c4m_base_err_decl(_c4m_add_warning, c4m_err_severity_warning);
 c4m_base_err_decl(_c4m_add_info, c4m_err_severity_info);
 
 void
-_c4m_module_load_error(c4m_module_compile_ctx *ctx, c4m_compile_error_t code, ...)
+_c4m_module_load_error(c4m_module_t       *ctx,
+                       c4m_compile_error_t code,
+                       ...)
 {
     va_list args;
 
     va_start(args, code);
-    c4m_base_add_error(ctx->errors, code, NULL, c4m_err_severity_error, args);
-    ctx->fatal_errors = 1;
+    c4m_base_add_error(ctx->ct->errors,
+                       code,
+                       NULL,
+                       c4m_err_severity_error,
+                       args);
+    ctx->ct->fatal_errors = 1;
     va_end(args);
 }
 
 void
-_c4m_module_load_warn(c4m_module_compile_ctx *ctx, c4m_compile_error_t code, ...)
+_c4m_module_load_warn(c4m_module_t       *ctx,
+                      c4m_compile_error_t code,
+                      ...)
 {
     va_list args;
 
     va_start(args, code);
-    c4m_base_add_error(ctx->errors, code, NULL, c4m_err_severity_warning, args);
+    c4m_base_add_error(ctx->ct->errors,
+                       code,
+                       NULL,
+                       c4m_err_severity_warning,
+                       args);
     va_end(args);
 }

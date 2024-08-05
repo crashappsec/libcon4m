@@ -1,11 +1,10 @@
 #pragma once
-
+#define C4M_GC_SHOW_COLLECT_STACK_TRACES
 // Home of anything remotely configurable. Don't change this file;
 // update the meson config.
 //
 // If it's not in the meson options, then I'd discourage you from even
 // considering changing the value.
-
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer)
 #define __c4m_have_asan__
@@ -98,7 +97,7 @@
 
 #ifndef C4M_DEBUG
 #if defined(C4M_WATCH_SLOTS) || defined(C4M_WATCH_LOG_SZ)
-#warning "Watchpoint compile parameters set, but watchpoints are disabeld"
+#warning "Watchpoint compile parameters set, but watchpoints are disabled"
 #endif // either set
 #else
 #ifndef C4M_WATCH_SLOTS
@@ -140,7 +139,7 @@
 
 #ifndef C4M_DEFAULT_ARENA_SIZE
 // This is the size any test case that prints a thing grows to awfully fast.
-#define C4M_DEFAULT_ARENA_SIZE (1 << 26)
+#define C4M_DEFAULT_ARENA_SIZE (1 << 27)
 #endif
 
 #ifndef C4M_STACK_SIZE
@@ -199,8 +198,8 @@
 #ifndef C4M_GCT_PTR_THREAD
 #define C4M_GCT_PTR_THREAD C4M_GC_DEFAULT_OFF
 #endif
-#ifndef C4M_GCT_MOVED
-#define C4M_GCT_MOVED C4M_GC_DEFAULT_OFF
+#ifndef C4M_GCT_WORKLIST
+#define C4M_GCT_WORKLIST C4M_GC_DEFAULT_ON
 #endif
 #ifndef C4M_GCT_COLLECT
 #define C4M_GCT_COLLECT C4M_GC_DEFAULT_ON
@@ -226,3 +225,9 @@
 #undef C4M_PACKAGE_INIT_MODULE
 #endif
 #define C4M_PACKAGE_INIT_MODULE "__init"
+
+// Current Con4m version info.
+#define C4M_VERS_MAJOR   0x00
+#define C4M_VERS_MINOR   0x02
+#define C4M_VERS_PATCH   0x08
+#define C4M_VERS_PREVIEW 0x00

@@ -11,32 +11,30 @@
 #include "con4m.h"
 
 static thread_local c4m_karg_info_t *kcache[C4M_MAX_KARGS_NESTING_DEPTH];
-static thread_local int              kargs_next_entry = -1;
+static thread_local int              kargs_next_entry = 0;
 
 const int kargs_cache_mod = C4M_MAX_KARGS_NESTING_DEPTH - 1;
+
+static thread_local bool init_kargs = false;
 
 static c4m_karg_info_t *
 c4m_kargs_acquire()
 {
-    if (kargs_next_entry == -1) {
-        kargs_next_entry = 0;
-        int alloc_len    = sizeof(c4m_base_obj_t) + sizeof(c4m_karg_info_t);
-        int arg_len      = C4M_MAX_KEYWORD_SIZE * sizeof(c4m_one_karg_t);
+    if (!init_kargs) {
+        c4m_gc_register_root(kcache, C4M_MAX_KARGS_NESTING_DEPTH);
 
         for (int i = 0; i < C4M_MAX_KARGS_NESTING_DEPTH; i++) {
-            c4m_base_obj_t *record = c4m_rc_alloc(alloc_len);
+            c4m_karg_info_t *karg = c4m_gc_alloc_mapped(c4m_karg_info_t,
+                                                        C4M_GC_SCAN_ALL);
+            c4m_alloc_hdr   *h    = c4m_object_header(karg);
+            h->type               = c4m_type_kargs();
+            h->con4m_obj          = true;
 
-            record->base_data_type = (c4m_dt_info_t *)&c4m_base_type_info[C4M_T_KEYWORD];
-            record->concrete_type  = c4m_type_kargs();
-
-            c4m_karg_info_t *karg = (c4m_karg_info_t *)record->data;
-            karg->args            = c4m_rc_alloc(arg_len);
-            karg->num_provided    = 0;
-            c4m_gc_register_root(karg->args, arg_len / 8);
-
-            kcache[i]        = karg;
-            kargs_next_entry = 0;
+            karg->args = c4m_gc_array_alloc(c4m_one_karg_t,
+                                            C4M_MAX_KEYWORD_SIZE);
+            kcache[i]  = karg;
         }
+        init_kargs = true;
     }
 
     kargs_next_entry &= kargs_cache_mod;

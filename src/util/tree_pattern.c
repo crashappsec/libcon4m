@@ -258,30 +258,38 @@ c4m_tree_match(c4m_tree_node_t *tree,
                c4m_cmp_fn       cmp,
                c4m_list_t     **match_loc)
 {
+#if 0
     search_ctx_t search_state = {
         .tree_cur    = tree,
         .pattern_cur = pat,
         .cmp         = cmp,
         .captures    = NULL,
     };
+#endif
 
-    tpat_debug((&search_state), "start");
+    search_ctx_t *search_state = c4m_gc_alloc_mapped(search_ctx_t, C4M_GC_SCAN_ALL);
+
+    search_state->tree_cur    = tree;
+    search_state->pattern_cur = pat;
+    search_state->cmp         = cmp;
+
+    tpat_debug(search_state, "start");
 
     if (pat->min != 1 && pat->max != 1) {
         C4M_CRAISE("Pattern root must be a single node (non-optional) match.");
     }
 
-    bool result = full_match(&search_state, pat->contents);
+    bool result = full_match(search_state, pat->contents);
 
     if (match_loc != NULL) {
-        *match_loc = c4m_set_to_xlist(search_state.captures);
+        *match_loc = c4m_set_to_xlist(search_state->captures);
     }
 
     if (result) {
-        tpat_debug((&search_state), "end: success!");
+        tpat_debug(search_state, "end: success!");
     }
     else {
-        tpat_debug((&search_state), "end: fail :(");
+        tpat_debug(search_state, "end: fail :(");
     }
     return result;
 }
@@ -317,7 +325,7 @@ count_consecutive_matches(search_ctx_t    *ctx,
     ctx->captures = NULL;
 
     if (captures != NULL) {
-        per_match_captures = c4m_new(c4m_type_list(c4m_type_tree(c4m_type_ref())));
+        per_match_captures = c4m_list(c4m_type_tree(c4m_type_ref()));
         *captures          = per_match_captures;
     }
 
@@ -343,10 +351,10 @@ count_consecutive_matches(search_ctx_t    *ctx,
     }
 
     ctx->captures = saved_captures;
-
     return result;
 }
 
+int debug_flag = false;
 static bool
 kid_match_from(search_ctx_t    *ctx,
                c4m_tree_node_t *parent,
@@ -363,13 +371,13 @@ kid_match_from(search_ctx_t    *ctx,
     // We start by seeing how many sequential matches we can find.
     // The call will limit itself to the pattern's 'max' value,
     // but we check the 'min' field in this function after.
-    num_matches      = count_consecutive_matches(ctx,
+
+    num_matches = count_consecutive_matches(ctx,
                                             parent,
                                             next_child,
                                             contents,
                                             subpattern->max,
                                             &kid_captures);
-
     if (num_matches < subpattern->min) {
         return false;
     }
@@ -401,7 +409,6 @@ kid_match_from(search_ctx_t    *ctx,
 
             ctx->captures = merge_captures(ctx->captures, one_set);
         }
-
         return true;
     }
 
@@ -441,6 +448,11 @@ kid_match_from(search_ctx_t    *ctx,
                            next_child + i,
                            next_pattern,
                            next_contents)) {
+            static int i = 0;
+            if (i++ == 45) {
+                debug_flag = true;
+            }
+
             ctx->captures = merge_captures(ctx->captures, copy);
             if (kid_capture_ix < c4m_list_len(kid_captures)) {
                 c4m_set_t *one_set = c4m_list_get(kid_captures,

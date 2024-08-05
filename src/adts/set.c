@@ -7,7 +7,6 @@ c4m_set_init(c4m_set_t *set, va_list args)
 {
     size_t              hash_fn;
     c4m_type_t         *stype       = c4m_get_my_type(set);
-    bool                using_obj   = true;
     hatrack_hash_func_t custom_hash = NULL;
     c4m_dt_info_t      *info;
 
@@ -16,8 +15,7 @@ c4m_set_init(c4m_set_t *set, va_list args)
 
     switch (info->typeid) {
     case C4M_T_REF:
-        hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR;
-        using_obj = false;
+        hash_fn = HATRACK_DICT_KEY_TYPE_OBJ_PTR;
         break;
     case C4M_T_UTF8:
     case C4M_T_UTF32:
@@ -39,12 +37,7 @@ c4m_set_init(c4m_set_t *set, va_list args)
     else {
         hatrack_set_init(set, hash_fn);
         hatrack_set_set_hash_offset(set, 0);
-        if (using_obj) {
-            hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_OBJ_OFFSET);
-        }
-        else {
-            hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_RAW_OFFSET);
-        }
+        hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_OBJ_OFFSET);
     }
 }
 
@@ -104,10 +97,9 @@ to_set_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *litmod)
 }
 
 void
-c4m_set_set_gc_bits(uint64_t       *bitfield,
-                    c4m_base_obj_t *alloc)
+c4m_set_set_gc_bits(uint64_t *bitfield, void *alloc)
 {
-    c4m_set_bit(bitfield, c4m_ptr_diff(alloc, alloc->data));
+    // TODO: do this up like dicts.
 }
 
 const c4m_vtable_t c4m_set_vtable = {
@@ -117,7 +109,7 @@ const c4m_vtable_t c4m_set_vtable = {
         [C4M_BI_FINALIZER]     = (c4m_vtable_entry)hatrack_set_cleanup,
         [C4M_BI_VIEW]          = (c4m_vtable_entry)hatrack_set_items_sort,
         [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)to_set_lit,
-        [C4M_BI_GC_MAP]        = (c4m_vtable_entry)c4m_set_set_gc_bits,
+        [C4M_BI_GC_MAP]        = (c4m_vtable_entry)C4M_GC_SCAN_ALL,
         NULL,
     },
 };

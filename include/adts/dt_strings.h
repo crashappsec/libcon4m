@@ -8,7 +8,7 @@
  **/
 
 #define C4M_STR_HASH_KEY_POINTER_OFFSET 0
-#define C4M_HASH_CACHE_OBJ_OFFSET       (-4 * (int32_t)sizeof(uint64_t))
+#define C4M_HASH_CACHE_OBJ_OFFSET       (-2 * (int32_t)sizeof(uint64_t))
 #define C4M_HASH_CACHE_RAW_OFFSET       (-2 * (int32_t)sizeof(uint64_t))
 
 typedef struct c4m_str_t {

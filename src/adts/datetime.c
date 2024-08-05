@@ -854,7 +854,7 @@ datetime_lit(c4m_utf8_t          *s,
 static bool
 datetime_can_coerce_to(c4m_type_t *my_type, c4m_type_t *target_type)
 {
-    switch (target_type->details->base_type->typeid) {
+    switch (target_type->base_index) {
     case C4M_T_DATETIME:
     case C4M_T_DATE:
     case C4M_T_TIME:
@@ -880,13 +880,25 @@ datetime_copy(c4m_date_time_t *dt)
     return result;
 }
 
+static inline void
+internal_error()
+{
+    C4M_CRAISE("Internal error (when calling strftime)");
+}
+
 static c4m_utf8_t *
 datetime_format(c4m_date_time_t *dt, c4m_fmt_spec_t *spec)
 {
-    char fmt_str[3] = {'%', 'F', 0};
+    char fmt_str[13] = {'%', 0, 0};
     char buf[1024];
 
     switch (spec->type) {
+    case 0:
+        if (!strftime(buf, 1024, "%F %r %z", &dt->dt)) {
+            internal_error();
+        }
+
+        return c4m_new_utf8(buf);
     case 'A':
     case 'B':
     case 'C':
@@ -929,23 +941,33 @@ datetime_format(c4m_date_time_t *dt, c4m_fmt_spec_t *spec)
     case '+':
         fmt_str[1] = (char)spec->type;
         if (!strftime(buf, 1024, fmt_str, &dt->dt)) {
-            C4M_CRAISE("Internal error (when calling strftime)");
+            internal_error();
         }
 
         return c4m_new_utf8(buf);
 
-    default:
-        C4M_CRAISE("Invalid format specifier for Datetime object");
+    default:;
+        c4m_utf8_t *err = c4m_cstr_format(
+            "Invalid format specifier for Datetime object, hex [em]{:x}",
+            spec->type);
+
+        C4M_RAISE(err);
     }
 }
 
 static c4m_utf8_t *
 date_format(c4m_date_time_t *dt, c4m_fmt_spec_t *spec)
 {
-    char fmt_str[3] = {'%', 'F', 0};
+    char fmt_str[3] = {'%', 0, 0};
     char buf[1024];
 
     switch (spec->type) {
+    case 0:
+        if (!strftime(buf, 1024, "%F", &dt->dt)) {
+            internal_error();
+        }
+
+        return c4m_new_utf8(buf);
     case 'A':
     case 'B':
     case 'C':
@@ -972,23 +994,33 @@ date_format(c4m_date_time_t *dt, c4m_fmt_spec_t *spec)
     case 'y':
         fmt_str[1] = (char)spec->type;
         if (!strftime(buf, 1024, fmt_str, &dt->dt)) {
-            C4M_CRAISE("Internal error (when calling strftime)");
+            internal_error();
         }
 
         return c4m_new_utf8(buf);
 
-    default:
-        C4M_CRAISE("Invalid format specifier for Date object");
+    default:;
+        c4m_utf8_t *err = c4m_cstr_format(
+            "Invalid format specifier for Date object, hex [em]{:x}",
+            spec->type);
+
+        C4M_RAISE(err);
     }
 }
 
 static c4m_utf8_t *
 time_format(c4m_date_time_t *dt, c4m_fmt_spec_t *spec)
 {
-    char fmt_str[3] = {'%', 'F', 0};
+    char fmt_str[3] = {'%', 0};
     char buf[1024];
 
     switch (spec->type) {
+    case 0:
+        if (!strftime(buf, 1024, "%r %z", &dt->dt)) {
+            internal_error();
+        }
+
+        return c4m_new_utf8(buf);
     case 'H':
     case 'I':
     case 'M':
@@ -1007,13 +1039,17 @@ time_format(c4m_date_time_t *dt, c4m_fmt_spec_t *spec)
     case 'z':
         fmt_str[1] = (char)spec->type;
         if (!strftime(buf, 1024, fmt_str, &dt->dt)) {
-            C4M_CRAISE("Internal error (when calling strftime)");
+            internal_error();
         }
 
         return c4m_new_utf8(buf);
 
-    default:
-        C4M_CRAISE("Invalid format specifier for Time object");
+    default:;
+        c4m_utf8_t *err = c4m_cstr_format(
+            "Invalid format specifier for Time object, hex [em]{:x}",
+            spec->type);
+
+        C4M_RAISE(err);
     }
 }
 
@@ -1059,7 +1095,7 @@ const c4m_vtable_t c4m_datetime_vtable = {
         [C4M_BI_COERCE]       = (c4m_vtable_entry)datetime_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)datetime_lit,
         [C4M_BI_COPY]         = (c4m_vtable_entry)datetime_copy,
-        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)c4m_header_gc_bits,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_ALL,
         [C4M_BI_FINALIZER]    = NULL,
     },
 };
@@ -1074,7 +1110,7 @@ const c4m_vtable_t c4m_date_vtable = {
         [C4M_BI_COERCE]       = (c4m_vtable_entry)datetime_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)date_lit,
         [C4M_BI_COPY]         = (c4m_vtable_entry)datetime_copy,
-        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)c4m_header_gc_bits,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_ALL,
         [C4M_BI_FINALIZER]    = NULL,
     },
 };
@@ -1089,7 +1125,8 @@ const c4m_vtable_t c4m_time_vtable = {
         [C4M_BI_COERCE]       = (c4m_vtable_entry)datetime_coerce_to,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)time_lit,
         [C4M_BI_COPY]         = (c4m_vtable_entry)datetime_copy,
-        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)c4m_header_gc_bits,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_ALL,
         [C4M_BI_FINALIZER]    = NULL,
+
     },
 };

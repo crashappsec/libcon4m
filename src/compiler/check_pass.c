@@ -2,40 +2,41 @@
 #include "con4m.h"
 
 typedef struct {
-    c4m_scope_t            *attr_scope;
-    c4m_scope_t            *global_scope;
-    c4m_spec_t             *spec;
-    c4m_compile_ctx        *compile;
-    c4m_module_compile_ctx *module_ctx;
+    c4m_scope_t     *attr_scope;
+    c4m_scope_t     *global_scope;
+    c4m_spec_t      *spec;
+    c4m_compile_ctx *compile;
+    c4m_module_t    *module_ctx;
     // The above get initialized only once when we start processing a module.
     // Everything below this comment gets updated for each function entry too.
-    c4m_scope_t            *local_scope;
-    c4m_tree_node_t        *node;
-    c4m_cfg_node_t         *cfg; // Current control-flow-graph node.
-    c4m_cfg_node_t         *fn_exit_node;
-    c4m_list_t             *func_nodes;
+    c4m_scope_t     *local_scope;
+    c4m_tree_node_t *node;
+    c4m_cfg_node_t  *cfg; // Current control-flow-graph node.
+    c4m_cfg_node_t  *fn_exit_node;
+    c4m_list_t      *func_nodes;
     // Current fn decl object when in a fn. It's NULL in a module context.
-    c4m_fn_decl_t          *fn_decl;
-    c4m_list_t             *current_rhs_uses;
-    c4m_utf8_t             *current_section_prefix;
+    c4m_fn_decl_t   *fn_decl;
+    c4m_list_t      *current_rhs_uses;
+    c4m_utf8_t      *current_section_prefix;
     // The name here is a bit of a misnomer; this is really a jump-target
     // stack for break and continue statements. That does include loop
     // nodes, but it also includes switch() and typeof() nodes, since
     // you can 'break' out of them.
-    c4m_list_t             *loop_stack;
-    c4m_list_t             *deferred_calls;
-    c4m_list_t             *index_rechecks;
-    __uint128_t             du_stack;
-    int                     du_stack_ix;
-    c4m_list_t             *simple_lits_wo_mod;
-    bool                    augmented_assignment;
+    c4m_list_t      *loop_stack;
+    c4m_list_t      *deferred_calls;
+    c4m_list_t      *index_rechecks;
+    __uint128_t      du_stack;
+    int              du_stack_ix;
+    c4m_list_t      *simple_lits_wo_mod;
+    bool             augmented_assignment;
 } pass2_ctx;
 
 static void base_check_pass_dispatch(pass2_ctx *);
 
-static void
-c4m_call_resolution_gc_bits(uint64_t *bitmap, c4m_call_resolution_info_t *ci)
+void
+c4m_call_resolution_gc_bits(uint64_t *bitmap, void *item)
 {
+    c4m_call_resolution_info_t *ci = item;
     c4m_mark_raw_to_addr(bitmap, ci, &ci->resolution);
 }
 
@@ -141,11 +142,11 @@ add_def(pass2_ctx *ctx, c4m_symbol_t *sym, bool finish_flow)
         ctx->current_rhs_uses = NULL;
     }
 
-    if (sym->sym_defs == NULL) {
-        sym->sym_defs = c4m_new(c4m_type_list(c4m_type_ref()));
+    if (sym->ct->sym_defs == NULL) {
+        sym->ct->sym_defs = c4m_new(c4m_type_list(c4m_type_ref()));
     }
 
-    c4m_list_append(sym->sym_defs, ctx->node);
+    c4m_list_append(sym->ct->sym_defs, ctx->node);
 }
 
 static void
@@ -156,11 +157,11 @@ add_use(pass2_ctx *ctx, c4m_symbol_t *sym)
         c4m_list_append(ctx->current_rhs_uses, sym);
     }
 
-    if (sym->sym_uses == NULL) {
-        sym->sym_uses = c4m_new(c4m_type_list(c4m_type_ref()));
+    if (sym->ct->sym_uses == NULL) {
+        sym->ct->sym_uses = c4m_new(c4m_type_list(c4m_type_ref()));
     }
 
-    c4m_list_append(sym->sym_uses, ctx->node);
+    c4m_list_append(sym->ct->sym_uses, ctx->node);
 }
 
 static inline void
@@ -199,7 +200,7 @@ type_check_node_against_sym(pass2_ctx    *ctx,
                       ctx->node,
                       pnode->type,
                       sym->type,
-                      c4m_node_get_loc_str(sym->declaration_node));
+                      c4m_node_get_loc_str(sym->ct->declaration_node));
     }
     else {
         if (base_node_tcheck(ctx, pnode, sym->type)) {
@@ -347,7 +348,7 @@ calculate_container_type(pass2_ctx *ctx, c4m_tree_node_t *n)
         li->num_items = 1;
     }
     else {
-        items = li->type->details->items;
+        items = li->type->items;
         switch (li->st) {
         case ST_List:
             li->num_items = 1;
@@ -457,7 +458,7 @@ setup_polymorphic_fns()
 static void
 add_callback_params(c4m_type_t *callback, c4m_type_t *func_type)
 {
-    c4m_list_t *fnlist = func_type->details->items;
+    c4m_list_t *fnlist = func_type->items;
     c4m_list_t *cblist = c4m_list(c4m_type_typespec());
     int         n      = c4m_list_len(fnlist) - 1;
 
@@ -466,16 +467,16 @@ add_callback_params(c4m_type_t *callback, c4m_type_t *func_type)
         c4m_list_append(cblist, param);
     }
 
-    if (c4m_list_len(callback->details->items)) {
-        c4m_type_t *ret = c4m_list_get(callback->details->items, 0, NULL);
+    if (c4m_list_len(callback->items)) {
+        c4m_type_t *ret = c4m_list_get(callback->items, 0, NULL);
         c4m_list_append(cblist, ret);
     }
     else {
         c4m_list_append(cblist, c4m_new_typevar());
     }
 
-    callback->details->flags &= C4M_FN_MISSING_PARAMS;
-    callback->details->items = cblist;
+    callback->flags &= ~C4M_FN_MISSING_PARAMS;
+    callback->items = cblist;
 }
 
 static c4m_call_resolution_info_t *
@@ -550,7 +551,7 @@ initial_function_resolution(pass2_ctx       *ctx,
     }
 
     c4m_pnode_t *pnode = c4m_get_pnode(call_loc->children[0]);
-    pnode->extra_info = sym;
+    pnode->extra_info  = sym;
 
     switch (sym->kind) {
     case C4M_SK_FUNC:
@@ -605,7 +606,7 @@ initial_function_resolution(pass2_ctx       *ctx,
 
         c4m_type_t *t = c4m_type_resolve(sym->type);
 
-        if (t->details->base_type->typeid != C4M_T_FUNCDEF) {
+        if (t->base_index != C4M_T_FUNCDEF) {
             c4m_add_error(ctx->module_ctx,
                           c4m_err_calling_non_fn,
                           call_loc,
@@ -615,7 +616,7 @@ initial_function_resolution(pass2_ctx       *ctx,
             return NULL;
         }
 
-        if (t->details->flags & C4M_FN_MISSING_PARAMS) {
+        if (t->flags & C4M_FN_MISSING_PARAMS) {
             add_callback_params(t, called_type);
         }
 
@@ -697,7 +698,7 @@ is_def_context(pass2_ctx *ctx)
 }
 
 static c4m_symbol_t *
-sym_lookup(pass2_ctx *ctx, c4m_utf8_t *name)
+sym_lookup(pass2_ctx *ctx, c4m_utf8_t *name, c4m_tree_node_t *node)
 {
     c4m_symbol_t *result;
     c4m_spec_t   *spec = ctx->spec;
@@ -719,16 +720,15 @@ sym_lookup(pass2_ctx *ctx, c4m_utf8_t *name)
         case c4m_attr_field:
             result = hatrack_dict_get(ctx->attr_scope->symbols, name, NULL);
             if (result == NULL) {
-                result             = c4m_add_inferred_symbol(ctx->module_ctx,
+                result = c4m_add_inferred_symbol(ctx->module_ctx,
                                                  ctx->attr_scope,
-                                                 name);
-                result->other_info = attr_info;
-
+                                                 name,
+                                                 node);
                 if (attr_info->kind == c4m_attr_user_def_field) {
                     return result;
                 }
 
-                if (!c4m_list_len(result->sym_defs)) {
+                if (!c4m_list_len(result->ct->sym_defs)) {
                     if (attr_info->info.field_info->default_provided) {
                         add_def(ctx, result, false);
                     }
@@ -813,7 +813,8 @@ sym_lookup(pass2_ctx *ctx, c4m_utf8_t *name)
             if (!result) {
                 result = c4m_add_inferred_symbol(ctx->module_ctx,
                                                  ctx->attr_scope,
-                                                 name);
+                                                 name,
+                                                 node);
             }
 
             return result;
@@ -832,12 +833,13 @@ sym_lookup(pass2_ctx *ctx, c4m_utf8_t *name)
 static c4m_symbol_t *
 lookup_or_add(pass2_ctx *ctx, c4m_utf8_t *name)
 {
-    c4m_symbol_t *result = sym_lookup(ctx, name);
+    c4m_symbol_t *result = sym_lookup(ctx, name, ctx->node);
 
     if (!result) {
         result = c4m_add_inferred_symbol(ctx->module_ctx,
                                          ctx->local_scope,
-                                         name);
+                                         name,
+                                         ctx->node);
     }
 
     if (is_def_context(ctx)) {
@@ -943,7 +945,7 @@ handle_index(pass2_ctx *ctx)
     }
 
     if (c4m_type_is_tvar(container_type)) {
-        tv_options_t *tsi = container_type->details->tsi;
+        tv_options_t *tsi = &container_type->options;
 
         if (tsi->value_type == NULL) {
             tsi->value_type = c4m_new_typevar();
@@ -1143,7 +1145,8 @@ loop_push_ix_var(pass2_ctx *ctx, c4m_loop_info_t *li)
                                         ix_var_name);
     li->loop_ix     = c4m_add_or_replace_symbol(ctx->module_ctx,
                                             ctx->local_scope,
-                                            ix_var_name);
+                                            ix_var_name,
+                                            ctx->node);
 
     li->loop_ix->type = c4m_type_i64();
     li->loop_ix->flags |= C4M_F_USER_IMMUTIBLE | C4M_F_DECLARED_CONST;
@@ -1167,7 +1170,8 @@ loop_push_ix_var(pass2_ctx *ctx, c4m_loop_info_t *li)
 
         li->named_loop_ix       = c4m_add_inferred_symbol(ctx->module_ctx,
                                                     ctx->local_scope,
-                                                    li->label_ix);
+                                                    li->label_ix,
+                                                    ctx->node);
         li->named_loop_ix->type = c4m_type_i64();
         li->named_loop_ix->flags |= C4M_F_USER_IMMUTIBLE | C4M_F_DECLARED_CONST;
 
@@ -1416,10 +1420,11 @@ handle_for(pass2_ctx *ctx)
 
     li->loop_last = c4m_add_or_replace_symbol(ctx->module_ctx,
                                               ctx->local_scope,
-                                              last_var_name);
+                                              last_var_name,
+                                              ctx->node);
     li->loop_last->flags |= C4M_F_USER_IMMUTIBLE | C4M_F_DECLARED_CONST;
-    li->loop_last->type          = c4m_type_i64();
-    li->loop_last->cfg_kill_node = exit;
+    li->loop_last->type              = c4m_type_i64();
+    li->loop_last->ct->cfg_kill_node = exit;
 
     add_def(ctx, li->loop_last, true);
 
@@ -1429,10 +1434,11 @@ handle_for(pass2_ctx *ctx)
         li->label_last            = c4m_to_utf8(new_name);
         li->named_loop_last       = c4m_add_inferred_symbol(ctx->module_ctx,
                                                       ctx->local_scope,
-                                                      li->label_last);
+                                                      li->label_last,
+                                                      ctx->node);
         li->named_loop_last->type = c4m_type_i64();
         li->named_loop_last->flags |= C4M_F_USER_IMMUTIBLE;
-        li->named_loop_last->cfg_kill_node = exit;
+        li->named_loop_last->ct->cfg_kill_node = exit;
 
         add_def(ctx, li->named_loop_last, false);
     }
@@ -1467,12 +1473,13 @@ handle_for(pass2_ctx *ctx)
                                             var1_name);
     li->lvar_1          = c4m_add_or_replace_symbol(ctx->module_ctx,
                                            ctx->local_scope,
-                                           var1_name);
+                                           var1_name,
+                                           ctx->node);
 
-    li->lvar_1->cfg_kill_node    = exit;
-    li->lvar_1->declaration_node = var_node1;
-    c4m_pnode_t *v1pn            = c4m_get_pnode(var_node1);
-    v1pn->type                   = li->lvar_1->type;
+    li->lvar_1->ct->cfg_kill_node    = exit;
+    li->lvar_1->ct->declaration_node = var_node1;
+    c4m_pnode_t *v1pn                = c4m_get_pnode(var_node1);
+    v1pn->type                       = li->lvar_1->type;
     li->lvar_1->flags |= C4M_F_USER_IMMUTIBLE;
 
     if (li->shadowed_lvar_1 != NULL) {
@@ -1485,18 +1492,19 @@ handle_for(pass2_ctx *ctx)
     }
 
     if (var2_name) {
-        li->shadowed_lvar_2          = c4m_symbol_lookup(ctx->local_scope,
+        li->shadowed_lvar_2              = c4m_symbol_lookup(ctx->local_scope,
                                                 NULL,
                                                 NULL,
                                                 NULL,
                                                 var2_name);
-        li->lvar_2                   = c4m_add_or_replace_symbol(ctx->module_ctx,
+        li->lvar_2                       = c4m_add_or_replace_symbol(ctx->module_ctx,
                                                ctx->local_scope,
-                                               var2_name);
-        li->lvar_2->declaration_node = var_node2;
-        li->lvar_2->cfg_kill_node    = exit;
-        c4m_pnode_t *v2pn            = c4m_get_pnode(var_node2);
-        v2pn->type                   = li->lvar_2->type;
+                                               var2_name,
+                                               ctx->node);
+        li->lvar_2->ct->declaration_node = var_node2;
+        li->lvar_2->ct->cfg_kill_node    = exit;
+        c4m_pnode_t *v2pn                = c4m_get_pnode(var_node2);
+        v2pn->type                       = li->lvar_2->type;
 
         li->lvar_2->flags |= C4M_F_USER_IMMUTIBLE;
 
@@ -1611,13 +1619,13 @@ handle_for(pass2_ctx *ctx)
             c4m_remove_set_options(cinfo);
             c4m_remove_tuple_options(cinfo);
 
-            c4m_list_append(cinfo->details->items, li->lvar_1->type);
-            c4m_list_append(cinfo->details->items, li->lvar_2->type);
+            c4m_list_append(cinfo->items, li->lvar_1->type);
+            c4m_list_append(cinfo->items, li->lvar_2->type);
         }
         else {
             c4m_remove_tuple_options(cinfo);
             c4m_remove_dict_options(cinfo);
-            c4m_list_append(cinfo->details->items, li->lvar_1->type);
+            c4m_list_append(cinfo->items, li->lvar_1->type);
         }
 
         merge_or_err(ctx, cinfo, container_pnode->type);
@@ -1651,7 +1659,7 @@ handle_while(pass2_ctx *ctx)
     entrance = c4m_cfg_enter_block(ctx->cfg, n);
     ctx->cfg = entrance;
 
-    li->loop_ix->cfg_kill_node = c4m_cfg_exit_node(entrance);
+    li->loop_ix->ct->cfg_kill_node = c4m_cfg_exit_node(entrance);
 
     ctx->node = n->children[expr_ix++];
     base_check_pass_dispatch(ctx);
@@ -1803,19 +1811,17 @@ handle_typeof_statement(pass2_ctx *ctx)
 
             // Alias absolutely everything except the
             // type. It's the only thing that should change.
-            tmp                   = c4m_add_or_replace_symbol(ctx->module_ctx,
+            tmp                       = c4m_add_or_replace_symbol(ctx->module_ctx,
                                             ctx->local_scope,
-                                            sym->name);
-            tmp->flags            = sym->flags;
-            tmp->kind             = sym->kind;
-            tmp->declaration_node = sym->declaration_node;
-            tmp->path             = sym->path;
-            tmp->value            = sym->value;
-            tmp->my_scope         = sym->my_scope;
-            tmp->other_info       = sym->other_info;
-            tmp->sym_defs         = sym->sym_defs;
-            tmp->sym_uses         = sym->sym_uses;
-            tmp->type             = casetype;
+                                            sym->name,
+                                            ctx->node);
+            tmp->flags                = sym->flags;
+            tmp->kind                 = sym->kind;
+            tmp->ct->declaration_node = sym->ct->declaration_node;
+            tmp->value                = sym->value;
+            tmp->ct->sym_defs         = sym->ct->sym_defs;
+            tmp->ct->sym_uses         = sym->ct->sym_uses;
+            tmp->type                 = casetype;
         }
 
         ctx->node = branch->children[branch->num_kids - 1];
@@ -1833,21 +1839,21 @@ handle_typeof_statement(pass2_ctx *ctx)
 
         ctx->cfg = c4m_cfg_exit_block(ctx->cfg, bstart, ctx->node);
 
-        if (c4m_list_len(tmp->sym_defs) > c4m_list_len(sym->sym_defs)) {
-            for (int k = c4m_list_len(sym->sym_defs);
-                 k < c4m_list_len(tmp->sym_defs);
+        if (c4m_list_len(tmp->ct->sym_defs) > c4m_list_len(sym->ct->sym_defs)) {
+            for (int k = c4m_list_len(sym->ct->sym_defs);
+                 k < c4m_list_len(tmp->ct->sym_defs);
                  k++) {
-                c4m_list_append(sym->sym_defs,
-                                c4m_list_get(tmp->sym_defs, k, NULL));
+                c4m_list_append(sym->ct->sym_defs,
+                                c4m_list_get(tmp->ct->sym_defs, k, NULL));
             }
         }
 
-        if (c4m_list_len(tmp->sym_uses) > c4m_list_len(sym->sym_uses)) {
-            for (int k = c4m_list_len(sym->sym_uses);
-                 k < c4m_list_len(tmp->sym_uses);
+        if (c4m_list_len(tmp->ct->sym_uses) > c4m_list_len(sym->ct->sym_uses)) {
+            for (int k = c4m_list_len(sym->ct->sym_uses);
+                 k < c4m_list_len(tmp->ct->sym_uses);
                  k++) {
-                c4m_list_append(sym->sym_uses,
-                                c4m_list_get(tmp->sym_uses, k, NULL));
+                c4m_list_append(sym->ct->sym_uses,
+                                c4m_list_get(tmp->ct->sym_uses, k, NULL));
             }
         }
         tmp->linked_symbol = sym;
@@ -2089,7 +2095,6 @@ base_handle_assign(pass2_ctx *ctx, bool binop)
     base_check_pass_dispatch(ctx);
     def_use_context_exit(ctx);
 
-    c4m_print_parse_node(saved);
     pnode->type = merge_or_err(ctx,
                                get_pnode_type(saved->children[0]),
                                get_pnode_type(saved->children[1]));
@@ -2227,9 +2232,9 @@ check_literal(pass2_ctx *ctx)
             cb->target_type = c4m_type_fn(c4m_new_typevar(),
                                           c4m_list(c4m_type_typespec()),
                                           false);
-            cb->target_type->details->flags |= C4M_FN_MISSING_PARAMS;
+            cb->target_type->flags |= C4M_FN_MISSING_PARAMS;
         }
-        c4m_list_append(ctx->module_ctx->callback_literals, pnode->value);
+        c4m_list_append(ctx->module_ctx->ct->callback_lits, pnode->value);
         pnode->type = cb->target_type;
 
         break;
@@ -2370,7 +2375,7 @@ handle_var_decl(pass2_ctx *ctx)
             base_check_pass_dispatch(ctx);
             ctx->node = one_name;
             add_def(ctx, sym, true);
-            c4m_pnode_t *pn = c4m_get_pnode(sym->value_node);
+            c4m_pnode_t *pn = c4m_get_pnode(sym->ct->value_node);
             sym->value      = pn->value;
             type_check_node_against_sym(ctx, pn, sym);
         }
@@ -2428,8 +2433,8 @@ process_field(pass2_ctx *ctx, c4m_spec_field_t *field)
 
     if (field->validator) {
         c4m_callback_info_t *cb     = (c4m_callback_info_t *)field->validator;
-        c4m_type_t     *cbtype = cb->target_type;
-        c4m_list_t     *params = c4m_list(c4m_type_typespec());
+        c4m_type_t          *cbtype = cb->target_type;
+        c4m_list_t          *params = c4m_list(c4m_type_typespec());
 
         c4m_list_append(params, c4m_type_utf8());
         c4m_list_append(params, field->tinfo.type);
@@ -2440,14 +2445,14 @@ process_field(pass2_ctx *ctx, c4m_spec_field_t *field)
             cb->target_type = target;
         }
         else {
-          if (!(cbtype->details->flags & C4M_FN_MISSING_PARAMS)) {
+            if (!(cbtype->flags & C4M_FN_MISSING_PARAMS)) {
                 if (c4m_type_is_error(c4m_merge_types(target, cbtype, &warn))) {
                     c4m_add_error(ctx->module_ctx,
                                   c4m_err_validator_inconsistent_field,
                                   cb->decl_loc,
                                   cbtype,
                                   field->tinfo.type);
-                 }
+                }
             }
         }
     }
@@ -2602,7 +2607,7 @@ base_check_pass_dispatch(pass2_ctx *ctx)
 
 #ifdef C4M_DEV
     case c4m_nt_print:
-        c4m_list_append(ctx->module_ctx->print_nodes, ctx->node);
+        c4m_list_append(ctx->module_ctx->ct->print_nodes, ctx->node);
         process_children(ctx);
         break;
 #endif
@@ -2699,7 +2704,7 @@ check_return_type(fn_check_ctx *ctx)
             }
         }
         else {
-            c4m_tree_node_t *first_use = c4m_list_get(ctx->sym->sym_uses,
+            c4m_tree_node_t *first_use = c4m_list_get(ctx->sym->ct->sym_uses,
                                                       0,
                                                       NULL);
             c4m_add_error(ctx->pass_ctx->module_ctx,
@@ -2716,7 +2721,7 @@ check_return_type(fn_check_ctx *ctx)
         if (c4m_type_is_error(cmp_type)) {
             c4m_add_error(ctx->pass_ctx->module_ctx,
                           c4m_err_declared_incompat,
-                          ctx->sym->declaration_node->children[2],
+                          ctx->sym->ct->declaration_node->children[2],
                           decl_type,
                           ctx->sym->type);
             return;
@@ -2724,7 +2729,7 @@ check_return_type(fn_check_ctx *ctx)
         if (c4m_type_cmp_exact(decl_type, cmp_type) != c4m_type_match_exact) {
             c4m_add_error(ctx->pass_ctx->module_ctx,
                           c4m_err_too_general,
-                          ctx->sym->declaration_node->children[2],
+                          ctx->sym->ct->declaration_node->children[2],
                           decl_type,
                           ctx->sym->type);
             return;
@@ -2752,7 +2757,7 @@ check_formal_param(fn_check_ctx *ctx)
     if (ctx->num_uses == 0) {
         c4m_add_warning(ctx->pass_ctx->module_ctx,
                         c4m_warn_unused_param,
-                        ctx->sym->declaration_node,
+                        ctx->sym->ct->declaration_node,
                         ctx->sym->name);
     }
 
@@ -2769,7 +2774,7 @@ check_formal_param(fn_check_ctx *ctx)
         if (c4m_type_is_error(cmp_type)) {
             c4m_add_error(ctx->pass_ctx->module_ctx,
                           c4m_err_declared_incompat,
-                          ctx->sym->declaration_node,
+                          ctx->sym->ct->declaration_node,
                           decl_type,
                           ctx->sym->type);
             return;
@@ -2777,7 +2782,7 @@ check_formal_param(fn_check_ctx *ctx)
         if (c4m_type_cmp_exact(decl_type, cmp_type) != c4m_type_match_exact) {
             c4m_add_error(ctx->pass_ctx->module_ctx,
                           c4m_err_too_general,
-                          ctx->sym->declaration_node,
+                          ctx->sym->ct->declaration_node,
                           decl_type,
                           ctx->sym->type);
             return;
@@ -2809,15 +2814,15 @@ check_user_decl(fn_check_ctx *ctx)
     if (!ctx->num_defs && !ctx->num_uses && warn_on_unused(ctx->sym)) {
         c4m_add_warning(ctx->pass_ctx->module_ctx,
                         c4m_warn_unused_decl,
-                        ctx->sym->declaration_node,
+                        ctx->sym->ct->declaration_node,
                         ctx->sym->name);
         return;
     }
 
     if (ctx->num_defs == 0) {
-        c4m_tree_node_t *loc = ctx->sym->declaration_node;
+        c4m_tree_node_t *loc = ctx->sym->ct->declaration_node;
         if (loc == NULL) {
-            loc = c4m_list_get(ctx->sym->sym_uses, 0, NULL);
+            loc = c4m_list_get(ctx->sym->ct->sym_uses, 0, NULL);
         }
 
         c4m_add_error(ctx->pass_ctx->module_ctx,
@@ -2828,9 +2833,9 @@ check_user_decl(fn_check_ctx *ctx)
     }
 
     if (ctx->num_uses == 0) {
-        c4m_tree_node_t *loc = ctx->sym->declaration_node;
+        c4m_tree_node_t *loc = ctx->sym->ct->declaration_node;
         if (loc == NULL) {
-            loc = c4m_list_get(ctx->sym->sym_defs, 0, NULL);
+            loc = c4m_list_get(ctx->sym->ct->sym_defs, 0, NULL);
         }
 
         c4m_add_warning(ctx->pass_ctx->module_ctx,
@@ -2852,12 +2857,12 @@ check_user_decl(fn_check_ctx *ctx)
             var_kind = c4m_new_utf8("const");
         }
 
-        c4m_tree_node_t *first_def = c4m_list_get(ctx->sym->sym_defs,
+        c4m_tree_node_t *first_def = c4m_list_get(ctx->sym->ct->sym_defs,
                                                   0,
                                                   NULL);
 
         for (int i = 1; i < ctx->num_defs; i++) {
-            c4m_tree_node_t *bad_def = c4m_list_get(ctx->sym->sym_defs,
+            c4m_tree_node_t *bad_def = c4m_list_get(ctx->sym->ct->sym_defs,
                                                     1,
                                                     NULL);
 
@@ -2898,8 +2903,8 @@ check_function(pass2_ctx *ctx, c4m_symbol_t *fn_sym)
         check_ctx.formal   = hatrack_dict_get(formals->symbols,
                                             sym->name,
                                             NULL);
-        check_ctx.num_defs = c4m_list_len(sym->sym_defs);
-        check_ctx.num_uses = c4m_list_len(sym->sym_uses);
+        check_ctx.num_defs = c4m_list_len(sym->ct->sym_defs);
+        check_ctx.num_uses = c4m_list_len(sym->ct->sym_uses);
 
         if (!check_ctx.formal) {
             check_user_decl(&check_ctx);
@@ -2947,17 +2952,19 @@ check_function(pass2_ctx *ctx, c4m_symbol_t *fn_sym)
 static void
 check_module_toplevel(pass2_ctx *ctx)
 {
-    ctx->node            = ctx->module_ctx->parse_tree;
-    ctx->local_scope     = ctx->module_ctx->module_scope;
-    ctx->cfg             = c4m_cfg_enter_block(NULL, ctx->node);
-    ctx->module_ctx->cfg = ctx->cfg;
-    ctx->func_nodes      = c4m_new(c4m_type_list(c4m_type_ref()));
+    ctx->node                = ctx->module_ctx->ct->parse_tree;
+    ctx->local_scope         = ctx->module_ctx->module_scope;
+    ctx->cfg                 = c4m_cfg_enter_block(NULL, ctx->node);
+    ctx->module_ctx->ct->cfg = ctx->cfg;
+    ctx->func_nodes          = c4m_new(c4m_type_list(c4m_type_ref()));
 
     use_context_enter(ctx);
     check_pass_toplevel_dispatch(ctx);
     def_use_context_exit(ctx);
 
-    ctx->cfg = c4m_cfg_exit_block(ctx->cfg, ctx->module_ctx->cfg, ctx->node);
+    ctx->cfg = c4m_cfg_exit_block(ctx->cfg,
+                                  ctx->module_ctx->ct->cfg,
+                                  ctx->node);
 }
 
 static void
@@ -2978,7 +2985,7 @@ process_function_definitions(pass2_ctx *ctx)
         ctx->fn_exit_node = ctx->cfg->contents.block_entrance.exit_node;
         formals           = ctx->fn_decl->signature_info->formals;
 
-        c4m_list_append(ctx->module_ctx->fn_def_syms, sym);
+        c4m_list_append(ctx->module_ctx->ct->fn_def_syms, sym);
 
         view = hatrack_dict_values_sort(ctx->local_scope->symbols, &num_items);
 
@@ -3008,24 +3015,24 @@ process_function_definitions(pass2_ctx *ctx)
 }
 
 static void
-check_module_variable(c4m_module_compile_ctx *ctx, c4m_symbol_t *sym)
+check_module_variable(c4m_module_t *ctx, c4m_symbol_t *sym)
 {
-    int num_defs = c4m_list_len(sym->sym_defs);
-    int num_uses = c4m_list_len(sym->sym_uses);
+    int num_defs = c4m_list_len(sym->ct->sym_defs);
+    int num_uses = c4m_list_len(sym->ct->sym_uses);
 
     if (!num_defs && !num_uses && warn_on_unused(sym)) {
         c4m_add_warning(ctx,
                         c4m_warn_unused_decl,
-                        sym->declaration_node,
+                        sym->ct->declaration_node,
                         sym->name);
         return;
     }
 
     if (num_defs == 0) {
-        c4m_tree_node_t *loc = sym->declaration_node;
+        c4m_tree_node_t *loc = sym->ct->declaration_node;
 
         if (loc == NULL) {
-            loc = c4m_list_get(sym->sym_uses, 0, NULL);
+            loc = c4m_list_get(sym->ct->sym_uses, 0, NULL);
         }
         c4m_add_error(ctx,
                       c4m_err_use_no_def,
@@ -3035,10 +3042,10 @@ check_module_variable(c4m_module_compile_ctx *ctx, c4m_symbol_t *sym)
     }
 
     if (num_uses == 0) {
-        c4m_tree_node_t *loc = sym->declaration_node;
+        c4m_tree_node_t *loc = sym->ct->declaration_node;
 
         if (loc == NULL) {
-            loc = c4m_list_get(sym->sym_defs, 0, NULL);
+            loc = c4m_list_get(sym->ct->sym_defs, 0, NULL);
         }
         c4m_add_warning(ctx,
                         c4m_warn_def_without_use,
@@ -3059,10 +3066,10 @@ check_module_variable(c4m_module_compile_ctx *ctx, c4m_symbol_t *sym)
             var_kind = c4m_new_utf8("const");
         }
 
-        c4m_tree_node_t *first_def = c4m_list_get(sym->sym_defs, 0, NULL);
+        c4m_tree_node_t *first_def = c4m_list_get(sym->ct->sym_defs, 0, NULL);
 
         for (int i = 1; i < num_defs; i++) {
-            c4m_tree_node_t *bad_def = c4m_list_get(sym->sym_defs, 1, NULL);
+            c4m_tree_node_t *bad_def = c4m_list_get(sym->ct->sym_defs, 1, NULL);
 
             c4m_add_error(ctx,
                           c4m_err_single_def,
@@ -3074,16 +3081,16 @@ check_module_variable(c4m_module_compile_ctx *ctx, c4m_symbol_t *sym)
 }
 
 static void
-check_my_global_variable(c4m_module_compile_ctx *ctx, c4m_symbol_t *sym)
+check_my_global_variable(c4m_module_t *ctx, c4m_symbol_t *sym)
 {
-    int num_defs = c4m_list_len(sym->sym_defs);
-    int num_uses = c4m_list_len(sym->sym_uses);
+    int num_defs = c4m_list_len(sym->ct->sym_defs);
+    int num_uses = c4m_list_len(sym->ct->sym_uses);
 
     if (num_defs == 0 && num_uses != 0) {
-        c4m_tree_node_t *loc = sym->declaration_node;
+        c4m_tree_node_t *loc = sym->ct->declaration_node;
 
         if (loc == NULL) {
-            loc = c4m_list_get(sym->sym_uses, 0, NULL);
+            loc = c4m_list_get(sym->ct->sym_uses, 0, NULL);
         }
         c4m_add_error(ctx,
                       c4m_err_use_no_def,
@@ -3093,10 +3100,10 @@ check_my_global_variable(c4m_module_compile_ctx *ctx, c4m_symbol_t *sym)
     }
 
     if (num_uses == 0) {
-        c4m_tree_node_t *loc = sym->declaration_node;
+        c4m_tree_node_t *loc = sym->ct->declaration_node;
 
         if (loc == NULL) {
-            loc = c4m_list_get(sym->sym_defs, 0, NULL);
+            loc = c4m_list_get(sym->ct->sym_defs, 0, NULL);
         }
         c4m_add_info(ctx,
                      c4m_global_def_without_use,
@@ -3117,10 +3124,10 @@ check_my_global_variable(c4m_module_compile_ctx *ctx, c4m_symbol_t *sym)
             var_kind = c4m_new_utf8("const");
         }
 
-        c4m_tree_node_t *first_def = c4m_list_get(sym->sym_defs, 0, NULL);
+        c4m_tree_node_t *first_def = c4m_list_get(sym->ct->sym_defs, 0, NULL);
 
         for (int i = 1; i < num_defs; i++) {
-            c4m_tree_node_t *bad_def = c4m_list_get(sym->sym_defs, 1, NULL);
+            c4m_tree_node_t *bad_def = c4m_list_get(sym->ct->sym_defs, 1, NULL);
 
             c4m_add_error(ctx,
                           c4m_err_single_def,
@@ -3132,26 +3139,26 @@ check_my_global_variable(c4m_module_compile_ctx *ctx, c4m_symbol_t *sym)
 }
 
 static void
-check_used_global_variable(c4m_module_compile_ctx *ctx, c4m_symbol_t *sym)
+check_used_global_variable(c4m_module_t *ctx, c4m_symbol_t *sym)
 {
-    int num_defs = c4m_list_len(sym->sym_defs);
-    int num_uses = c4m_list_len(sym->sym_uses);
+    int num_defs = c4m_list_len(sym->ct->sym_defs);
+    int num_uses = c4m_list_len(sym->ct->sym_uses);
 
     if (!num_uses && warn_on_unused(sym)) {
         c4m_add_warning(ctx,
                         c4m_warn_unused_decl,
-                        sym->declaration_node,
+                        sym->ct->declaration_node,
                         sym->name);
         return;
     }
 
     if (num_defs > 0) {
         if (sym->linked_symbol) {
-            c4m_tree_node_t *first_node = sym->linked_symbol->declaration_node;
+            c4m_tree_node_t *first_node = sym->linked_symbol->ct->declaration_node;
 
             c4m_add_error(ctx,
                           c4m_err_global_remote_def,
-                          sym->declaration_node,
+                          sym->ct->declaration_node,
                           sym->name,
                           c4m_node_get_loc_str(first_node));
         }
@@ -3160,7 +3167,7 @@ check_used_global_variable(c4m_module_compile_ctx *ctx, c4m_symbol_t *sym)
 }
 
 static void
-validate_module_variables(c4m_module_compile_ctx *ctx)
+validate_module_variables(c4m_module_t *ctx)
 {
     uint64_t      n;
     c4m_symbol_t *entry;
@@ -3175,7 +3182,7 @@ validate_module_variables(c4m_module_compile_ctx *ctx)
         }
     }
 
-    view = hatrack_dict_values_sort(ctx->global_scope->symbols, &n);
+    view = hatrack_dict_values_sort(ctx->ct->global_scope->symbols, &n);
 
     for (uint64_t i = 0; i < n; i++) {
         entry = view[i];
@@ -3257,7 +3264,7 @@ process_deferred_lits(pass2_ctx *ctx)
 }
 
 static c4m_list_t *
-module_check_pass(c4m_compile_ctx *cctx, c4m_module_compile_ctx *module_ctx)
+module_check_pass(c4m_compile_ctx *cctx, c4m_module_t *module_ctx)
 {
     // This should be checked before we get here, but belt and suspenders.
     if (c4m_fatal_error_in_module(module_ctx)) {
@@ -3279,7 +3286,7 @@ module_check_pass(c4m_compile_ctx *cctx, c4m_module_compile_ctx *module_ctx)
     };
 
 #ifdef C4M_DEV
-    module_ctx->print_nodes = c4m_list(c4m_type_tree(c4m_type_parse_node()));
+    module_ctx->ct->print_nodes = c4m_list(c4m_type_tree(c4m_type_parse_node()));
 #endif
 
     check_module_toplevel(&ctx);
@@ -3292,12 +3299,12 @@ module_check_pass(c4m_compile_ctx *cctx, c4m_module_compile_ctx *module_ctx)
 }
 
 typedef struct {
-    c4m_module_compile_ctx *mod;
-    c4m_list_t             *deferrals;
+    c4m_module_t *mod;
+    c4m_list_t   *deferrals;
 } defer_info_t;
 
 static void
-scan_for_void_symbols(c4m_module_compile_ctx *f, c4m_scope_t *scope)
+scan_for_void_symbols(c4m_module_t *f, c4m_scope_t *scope)
 {
     uint64_t n;
     void   **view = hatrack_dict_values_sort(scope->symbols, &n);
@@ -3307,7 +3314,7 @@ scan_for_void_symbols(c4m_module_compile_ctx *f, c4m_scope_t *scope)
 
         if (sym->kind == C4M_SK_VARIABLE || sym->kind == C4M_SK_ATTR) {
             if (c4m_type_resolve(sym->type)->typeid == C4M_T_VOID) {
-                c4m_tree_node_t *def = c4m_list_get(sym->sym_defs, 0, NULL);
+                c4m_tree_node_t *def = c4m_list_get(sym->ct->sym_defs, 0, NULL);
                 c4m_add_error(f, c4m_err_assigned_void, def);
             }
         }
@@ -3320,9 +3327,9 @@ process_deferred_calls(c4m_compile_ctx *cctx,
                        int              num_deferrals)
 {
     for (int j = 0; j < num_deferrals; j++) {
-        c4m_module_compile_ctx *f       = info->mod;
-        c4m_list_t             *one_set = info->deferrals;
-        int                     n       = c4m_list_len(one_set);
+        c4m_module_t *f       = info->mod;
+        c4m_list_t   *one_set = info->deferrals;
+        int           n       = c4m_list_len(one_set);
 
         for (int i = 0; i < n; i++) {
             c4m_call_resolution_info_t *info = c4m_list_get(one_set, i, NULL);
@@ -3337,13 +3344,18 @@ process_deferred_calls(c4m_compile_ctx *cctx,
             c4m_type_t  *call_type  = info->sig;
             int          np         = c4m_type_get_num_params(call_type);
             c4m_type_t  *param_type = c4m_type_get_param(call_type, np - 1);
-            c4m_type_t  *merged     = merge_ignore_err(node_type,
+
+            c4m_type_t *merged = merge_ignore_err(node_type,
                                                   param_type);
-            bool         err        = c4m_type_is_error(merged);
+            bool        err    = c4m_type_is_error(merged);
 
             if (!err) {
                 merged = merge_ignore_err(sym_type, call_type);
                 err    = c4m_type_is_error(merged);
+                if (err) {
+                    c4m_printf("Failed unify: {} and {}", sym_type, call_type);
+                    merge_ignore_err(sym_type, call_type);
+                }
             }
 
             if (err) {
@@ -3370,10 +3382,10 @@ process_deferred_calls(c4m_compile_ctx *cctx,
         // types.
 
         scan_for_void_symbols(f, f->module_scope);
-        scan_for_void_symbols(f, f->global_scope);
-        scan_for_void_symbols(f, f->attribute_scope);
+        scan_for_void_symbols(f, f->ct->global_scope);
+        scan_for_void_symbols(f, f->ct->attribute_scope);
 
-        c4m_list_t *fns = f->fn_def_syms;
+        c4m_list_t *fns = f->ct->fn_def_syms;
 
         for (int i = 0; i < c4m_list_len(fns); i++) {
             c4m_symbol_t  *sym  = c4m_list_get(fns, i, NULL);
@@ -3383,8 +3395,8 @@ process_deferred_calls(c4m_compile_ctx *cctx,
         }
 
 #ifdef C4M_DEV
-        for (int i = 0; i < c4m_list_len(f->print_nodes); i++) {
-            c4m_tree_node_t *n = c4m_list_get(f->print_nodes, i, NULL);
+        for (int i = 0; i < c4m_list_len(f->ct->print_nodes); i++) {
+            c4m_tree_node_t *n = c4m_list_get(f->ct->print_nodes, i, NULL);
             if (c4m_type_is_void(get_pnode_type(n))) {
                 c4m_add_error(f, c4m_err_void_print, n);
                 continue;
@@ -3410,19 +3422,19 @@ process_deferred_callbacks(c4m_compile_ctx *cctx)
     c4m_utf8_t *s;
 
     for (int i = 0; i < n; i++) {
-        c4m_module_compile_ctx *f = c4m_list_get(cctx->module_ordering,
-                                                 i,
-                                                 NULL);
-        int                     m = c4m_list_len(f->callback_literals);
+        c4m_module_t *f = c4m_list_get(cctx->module_ordering,
+                                       i,
+                                       NULL);
+        int           m = c4m_list_len(f->ct->callback_lits);
         for (int j = 0; j < m; j++) {
-            c4m_callback_info_t *cb = c4m_list_get(f->callback_literals,
+            c4m_callback_info_t *cb  = c4m_list_get(f->ct->callback_lits,
                                                    j,
                                                    NULL);
             c4m_symbol_t        *sym = c4m_symbol_lookup(NULL,
-                                                         f->module_scope,
-                                                         cctx->final_globals,
-                                                         NULL,
-                                                         cb->target_symbol_name);
+                                                  f->module_scope,
+                                                  cctx->final_globals,
+                                                  NULL,
+                                                  cb->target_symbol_name);
 
             if (!sym) {
                 c4m_add_error(f, c4m_err_callback_no_match, cb->decl_loc);
@@ -3439,9 +3451,9 @@ process_deferred_callbacks(c4m_compile_ctx *cctx)
                 cb->binding.implementation.local_interface = sym->value;
                 break;
             default:;
-                c4m_tree_node_t *l = sym->declaration_node;
+                c4m_tree_node_t *l = sym->ct->declaration_node;
                 if (l == NULL) {
-                    l = c4m_list_get(sym->sym_defs, 0, NULL);
+                    l = c4m_list_get(sym->ct->sym_defs, 0, NULL);
                 }
                 s = c4m_node_get_loc_str(l);
                 c4m_add_error(f, c4m_err_callback_bad_target, cb->decl_loc, s);
@@ -3456,14 +3468,19 @@ process_deferred_callbacks(c4m_compile_ctx *cctx)
                 continue;
             }
 
-            if (lit_type->details->flags & C4M_FN_MISSING_PARAMS) {
+            if (lit_type->flags & C4M_FN_MISSING_PARAMS) {
                 add_callback_params(lit_type, sym_type);
+            }
+
+            static int i = 0;
+            if (++i >= 3) {
+                printf("Break here.\n");
             }
 
             c4m_type_t *merged = merge_ignore_err(sym_type, lit_type);
 
             if (c4m_type_is_error(merged)) {
-                s = c4m_node_get_loc_str(sym->declaration_node);
+                s = c4m_node_get_loc_str(sym->ct->declaration_node);
                 c4m_add_error(f,
                               c4m_err_callback_type_mismatch,
                               cb->decl_loc,
@@ -3484,11 +3501,11 @@ order_ffi_decls(c4m_compile_ctx *cctx)
     int ix = 0;
 
     for (int i = 0; i < n; i++) {
-        c4m_module_compile_ctx *f = c4m_list_get(cctx->module_ordering, i, NULL);
-        int                     m = c4m_list_len(f->extern_decls);
+        c4m_module_t *f = c4m_list_get(cctx->module_ordering, i, NULL);
+        int           m = c4m_list_len(f->ct->extern_decls);
 
         for (int j = 0; j < m; j++) {
-            c4m_symbol_t   *sym  = c4m_list_get(f->extern_decls, j, NULL);
+            c4m_symbol_t   *sym  = c4m_list_get(f->ct->extern_decls, j, NULL);
             c4m_ffi_decl_t *decl = (c4m_ffi_decl_t *)sym->value;
 
             decl->global_ffi_call_ix = ix++;
@@ -3505,17 +3522,17 @@ c4m_check_pass(c4m_compile_ctx *cctx)
     c4m_list_t   *one_deferred;
 
     for (int i = 0; i < n; i++) {
-        c4m_module_compile_ctx *f = c4m_list_get(cctx->module_ordering, i, NULL);
+        c4m_module_t *f = c4m_list_get(cctx->module_ordering, i, NULL);
 
-        if (f->status < c4m_compile_status_code_loaded) {
+        if (f->ct->status < c4m_compile_status_code_loaded) {
             C4M_CRAISE("Cannot check files until after decl scan.");
         }
 
-        if (f->fatal_errors) {
+        if (f->ct->fatal_errors) {
             C4M_CRAISE("Cannot check files that do not properly load.");
         }
 
-        if (f->status >= c4m_compile_status_tree_typed) {
+        if (f->ct->status >= c4m_compile_status_tree_typed) {
             continue;
         }
 
@@ -3537,11 +3554,11 @@ c4m_check_pass(c4m_compile_ctx *cctx)
     process_deferred_callbacks(cctx);
 
     for (int i = 0; i < n; i++) {
-        c4m_module_compile_ctx *f = c4m_list_get(cctx->module_ordering,
-                                                 i,
-                                                 NULL);
+        c4m_module_t *f = c4m_list_get(cctx->module_ordering,
+                                       i,
+                                       NULL);
 
-        if (f->cfg != NULL) {
+        if (f->ct->cfg != NULL) {
             c4m_cfg_analyze(f, NULL);
         }
 

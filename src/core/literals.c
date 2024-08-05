@@ -12,8 +12,6 @@ static uint64_t *set_types;
 static uint64_t *tuple_types;
 static uint64_t *all_container_types;
 
-int DEBUG_ON = 0;
-
 static inline void
 no_more_containers()
 {
@@ -43,7 +41,7 @@ initialize_container_bitfields()
         c4m_gc_register_root(&set_types, 1);
         c4m_gc_register_root(&tuple_types, 1);
         c4m_gc_register_root(&all_container_types, 1);
-        c4m_gc_register_root(&mod_map, ST_MAX);
+        c4m_gc_register_root(mod_map, ST_MAX);
     }
 }
 
@@ -79,7 +77,6 @@ c4m_register_container_type(c4m_builtin_t    bi,
 void
 c4m_register_literal(c4m_lit_syntax_t st, char *mod, c4m_builtin_t bi)
 {
-    DEBUG_ON          = 1;
     c4m_utf8_t *u8mod = c4m_new_utf8(mod);
     if (!hatrack_dict_add(mod_map[st],
                           u8mod,
@@ -116,17 +113,14 @@ c4m_base_type_from_litmod(c4m_lit_syntax_t st, c4m_utf8_t *mod)
     }
     mod = c4m_to_utf8(mod);
 
-    DEBUG_ON = 1;
-    bi       = (c4m_builtin_t)(int64_t)hatrack_dict_get(mod_map[st], mod, &found);
+    bi = (c4m_builtin_t)hatrack_dict_get(mod_map[st], mod, &found);
 
     if (found) {
         return bi;
     }
-    bi       = (c4m_builtin_t)(int64_t)hatrack_dict_get(mod_map[st],
-                                                  c4m_new_utf8("*"),
-                                                  &found);
-    DEBUG_ON = 0;
-
+    bi = (c4m_builtin_t)hatrack_dict_get(mod_map[st],
+                                         c4m_new_utf8("*"),
+                                         &found);
     if (found) {
         return bi;
     }
@@ -301,7 +295,7 @@ c4m_fix_litmod(c4m_token_t *tok, c4m_pnode_t *pnode)
     uint64_t             n;
     c4m_dict_t          *d         = mod_map[tok->syntax];
     c4m_type_t          *t         = c4m_type_resolve(pnode->type);
-    c4m_builtin_t        base_type = c4m_type_get_base_tid(t);
+    c4m_builtin_t        base_type = t->base_index;
     hatrack_dict_item_t *items     = hatrack_dict_items_sort(d, &n);
 
     for (unsigned int i = 0; i < n; i++) {
@@ -336,7 +330,7 @@ c4m_fix_litmod(c4m_token_t *tok, c4m_pnode_t *pnode)
 bool
 c4m_type_has_list_syntax(c4m_type_t *t)
 {
-    uint64_t bi      = t->details->base_type->typeid;
+    uint64_t bi      = t->base_index;
     int      word    = ((int)bi) / 64;
     int      bit     = ((int)bi) % 64;
     uint64_t to_test = 1UL << bit;
@@ -347,7 +341,7 @@ c4m_type_has_list_syntax(c4m_type_t *t)
 bool
 c4m_type_has_dict_syntax(c4m_type_t *t)
 {
-    uint64_t bi      = t->details->base_type->typeid;
+    uint64_t bi      = t->base_index;
     int      word    = ((int)bi) / 64;
     int      bit     = ((int)bi) % 64;
     uint64_t to_test = 1UL << bit;
@@ -358,7 +352,7 @@ c4m_type_has_dict_syntax(c4m_type_t *t)
 bool
 c4m_type_has_set_syntax(c4m_type_t *t)
 {
-    uint64_t bi      = t->details->base_type->typeid;
+    uint64_t bi      = t->base_index;
     int      word    = ((int)bi) / 64;
     int      bit     = ((int)bi) % 64;
     uint64_t to_test = 1UL << bit;
@@ -369,7 +363,7 @@ c4m_type_has_set_syntax(c4m_type_t *t)
 bool
 c4m_type_has_tuple_syntax(c4m_type_t *t)
 {
-    uint64_t bi      = t->details->base_type->typeid;
+    uint64_t bi      = t->base_index;
     int      word    = ((int)bi) / 64;
     int      bit     = ((int)bi) % 64;
     uint64_t to_test = 1UL << bit;
@@ -455,7 +449,7 @@ c4m_get_all_containers_bitfield()
 bool
 c4m_partial_inference(c4m_type_t *t)
 {
-    tv_options_t *tsi = t->details->tsi;
+    tv_options_t *tsi = &t->options;
 
     for (int i = 0; i < container_bitfield_words; i++) {
         if (tsi->container_options[i] ^ all_container_types[i]) {
@@ -477,7 +471,7 @@ c4m_get_no_containers_bitfield()
 bool
 c4m_list_syntax_possible(c4m_type_t *t)
 {
-    tv_options_t *tsi = t->details->tsi;
+    tv_options_t *tsi = &t->options;
 
     for (int i = 0; i < container_bitfield_words; i++) {
         if (tsi->container_options[i] & list_types[i]) {
@@ -491,7 +485,7 @@ c4m_list_syntax_possible(c4m_type_t *t)
 bool
 c4m_dict_syntax_possible(c4m_type_t *t)
 {
-    tv_options_t *tsi = t->details->tsi;
+    tv_options_t *tsi = &t->options;
 
     for (int i = 0; i < container_bitfield_words; i++) {
         if (tsi->container_options[i] & dict_types[i]) {
@@ -505,7 +499,7 @@ c4m_dict_syntax_possible(c4m_type_t *t)
 bool
 c4m_set_syntax_possible(c4m_type_t *t)
 {
-    tv_options_t *tsi = t->details->tsi;
+    tv_options_t *tsi = &t->options;
 
     for (int i = 0; i < container_bitfield_words; i++) {
         if (tsi->container_options[i] & set_types[i]) {
@@ -519,7 +513,7 @@ c4m_set_syntax_possible(c4m_type_t *t)
 bool
 c4m_tuple_syntax_possible(c4m_type_t *t)
 {
-    tv_options_t *tsi = t->details->tsi;
+    tv_options_t *tsi = &t->options;
 
     for (int i = 0; i < container_bitfield_words; i++) {
         if (tsi->container_options[i] & tuple_types[i]) {
@@ -533,7 +527,7 @@ c4m_tuple_syntax_possible(c4m_type_t *t)
 void
 c4m_remove_list_options(c4m_type_t *t)
 {
-    tv_options_t *tsi = t->details->tsi;
+    tv_options_t *tsi = &t->options;
     for (int i = 0; i < container_bitfield_words; i++) {
         tsi->container_options[i] &= ~(list_types[i]);
     }
@@ -542,7 +536,7 @@ c4m_remove_list_options(c4m_type_t *t)
 void
 c4m_remove_set_options(c4m_type_t *t)
 {
-    tv_options_t *tsi = t->details->tsi;
+    tv_options_t *tsi = &t->options;
     for (int i = 0; i < container_bitfield_words; i++) {
         tsi->container_options[i] &= ~(set_types[i]);
     }
@@ -551,7 +545,7 @@ c4m_remove_set_options(c4m_type_t *t)
 void
 c4m_remove_dict_options(c4m_type_t *t)
 {
-    tv_options_t *tsi = t->details->tsi;
+    tv_options_t *tsi = &t->options;
     for (int i = 0; i < container_bitfield_words; i++) {
         tsi->container_options[i] &= ~(dict_types[i]);
     }
@@ -560,7 +554,7 @@ c4m_remove_dict_options(c4m_type_t *t)
 void
 c4m_remove_tuple_options(c4m_type_t *t)
 {
-    tv_options_t *tsi = t->details->tsi;
+    tv_options_t *tsi = &t->options;
     for (int i = 0; i < container_bitfield_words; i++) {
         tsi->container_options[i] &= ~(tuple_types[i]);
     }

@@ -91,7 +91,7 @@ typedef enum {
 } c4m_token_kind_t;
 
 typedef struct {
-    struct c4m_module_compile_ctx *module;
+    struct c4m_module_t *module;
     c4m_codepoint_t             *start_ptr;
     c4m_codepoint_t             *end_ptr;
     c4m_utf8_t                  *literal_modifier;

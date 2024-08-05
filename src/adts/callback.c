@@ -26,9 +26,9 @@ c4m_callback_info_init()
 }
 
 void
-c4m_zcallback_gc_bits(uint64_t *bitmap, c4m_base_obj_t *base)
+c4m_zcallback_gc_bits(uint64_t *bitmap, void *base)
 {
-    c4m_zcallback_t *cb = (void *)base->data;
+    c4m_zcallback_t *cb = (void *)base;
 
     c4m_mark_raw_to_addr(bitmap, base, &cb->tid);
 }

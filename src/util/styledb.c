@@ -150,7 +150,6 @@ const c4m_border_theme_t *c4m_registered_borders = (c4m_border_theme_t *)&border
 
 // Used for border drawing and background (pad color).
 static const c4m_render_style_t default_table = {
-    .name         = "table",
     .borders      = C4M_BORDER_TOP | C4M_BORDER_BOTTOM | C4M_BORDER_LEFT | C4M_BORDER_RIGHT | C4M_INTERIOR_HORIZONTAL | C4M_INTERIOR_VERTICAL,
     .border_theme = (c4m_border_theme_t *)&border_bold_dash,
     .dim_kind     = C4M_DIM_AUTO,
@@ -158,66 +157,56 @@ static const c4m_render_style_t default_table = {
 };
 
 static const c4m_render_style_t col_borders_table = {
-    .name      = "table2",
     .borders   = C4M_BORDER_TOP | C4M_BORDER_BOTTOM | C4M_BORDER_LEFT | C4M_BORDER_RIGHT | C4M_INTERIOR_VERTICAL,
     .dim_kind  = C4M_DIM_AUTO,
     .alignment = C4M_ALIGN_MID_LEFT,
 };
 
 static const c4m_render_style_t default_tr = {
-    .name       = "tr",
     .dim_kind   = C4M_DIM_AUTO,
     .alignment  = C4M_ALIGN_TOP_LEFT,
     .base_style = 0x2f3f3ff8f8fful | C4M_STY_BG | C4M_STY_FG,
 };
 
 static const c4m_render_style_t default_tr_even = {
-    .name       = "tr.even",
     .dim_kind   = C4M_DIM_AUTO,
     .alignment  = C4M_ALIGN_TOP_LEFT,
     .base_style = 0x3f3f3ff8f8fful | C4M_STY_BG | C4M_STY_FG,
 };
 
 static const c4m_render_style_t default_tr_odd = {
-    .name       = "tr.odd",
     .dim_kind   = C4M_DIM_AUTO,
     .alignment  = C4M_ALIGN_TOP_LEFT,
     .base_style = 0x5f5f5ff8f8fful | C4M_STY_BG | C4M_STY_FG,
 };
 
 static const c4m_render_style_t default_th = {
-    .name       = "th",
     .base_style = C4M_STY_UPPER | 0xb3ff00 | C4M_STY_BG | C4M_STY_FG | C4M_STY_BOLD,
     .dim_kind   = C4M_DIM_AUTO,
     .alignment  = C4M_ALIGN_MID_CENTER,
 };
 
 static const c4m_render_style_t default_td = {
-    .name       = "td",
     .base_style = 0,
     .left_pad   = 1,
     .right_pad  = 1,
 };
 
 static const c4m_render_style_t default_tcol = {
-    .name     = "tcol",
     .dim_kind = C4M_DIM_AUTO,
 };
 
 static const c4m_render_style_t default_snap_col = {
-    .name     = "snap",
     .dim_kind = C4M_DIM_FIT_TO_TEXT,
 };
 
 static const c4m_render_style_t default_full_snap_col = {
-    .name      = "full_snap",
     .dim_kind  = C4M_DIM_FIT_TO_TEXT,
     .left_pad  = 0,
     .right_pad = 0,
 };
 
 static const c4m_render_style_t default_list_grid = {
-    .name       = "ul",
     //.base_style = 0x2f3f3ff8f8fful | C4M_STY_BG | C4M_STY_FG,
     .bottom_pad = 1,
     .dim_kind   = C4M_DIM_AUTO,
@@ -225,7 +214,6 @@ static const c4m_render_style_t default_list_grid = {
 };
 
 static const c4m_render_style_t default_ordered_list_grid = {
-    .name       = "ol",
     //.base_style = 0x2f3f3ff8f8fful | C4M_STY_BG | C4M_STY_FG,
     .bottom_pad = 1,
     .dim_kind   = C4M_DIM_AUTO,
@@ -233,7 +221,6 @@ static const c4m_render_style_t default_ordered_list_grid = {
 };
 
 static const c4m_render_style_t default_bullet_column = {
-    .name       = "bullet",
     .dim_kind   = C4M_DIM_ABSOLUTE,
     //.base_style = 0x2f3f3ff8f8fful | C4M_STY_BG | C4M_STY_FG,
     .left_pad   = 1,
@@ -242,7 +229,6 @@ static const c4m_render_style_t default_bullet_column = {
 };
 
 static const c4m_render_style_t default_list_text_column = {
-    .name      = "li",
     //.base_style = 0x2f3f3ff8f8fful | C4M_STY_BG | C4M_STY_FG,
     .dim_kind  = C4M_DIM_AUTO,
     .left_pad  = 1,
@@ -251,7 +237,6 @@ static const c4m_render_style_t default_list_text_column = {
 };
 
 static const c4m_render_style_t default_tree_item = {
-    .name         = "tree_item",
     .base_style   = 0x2f3f3ff8f8fful | C4M_STY_BG | C4M_STY_FG,
     .dim_kind     = C4M_DIM_AUTO,
     .left_pad     = 1,
@@ -261,47 +246,40 @@ static const c4m_render_style_t default_tree_item = {
 };
 
 static const c4m_render_style_t default_h1 = {
-    .name       = "h1",
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_BG | C4M_STY_BOLD | 0x3434340ff2f8eUL,
     .top_pad    = 2,
     .alignment  = C4M_ALIGN_BOTTOM_CENTER,
 };
 
 static const c4m_render_style_t default_h2 = {
-    .name       = "h2",
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_BG | C4M_STY_BOLD | 0x606060b3ff00UL,
     .top_pad    = 1,
     .alignment  = C4M_ALIGN_BOTTOM_CENTER,
 };
 
 static const c4m_render_style_t default_h3 = {
-    .name       = "h3",
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_BG | C4M_STY_BOLD | 0x454545ee82eeUL,
     .top_pad    = 1,
     .alignment  = C4M_ALIGN_BOTTOM_CENTER,
 };
 
 static const c4m_render_style_t default_h4 = {
-    .name       = "h4",
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_BG | C4M_STY_UL | (0xff2f8eUL << 24),
     .alignment  = C4M_ALIGN_BOTTOM_LEFT,
 
 };
 
 static const c4m_render_style_t default_h5 = {
-    .name       = "h5",
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_BG | C4M_STY_UL | (0xb3ff00UL << 24),
     .alignment  = C4M_ALIGN_BOTTOM_LEFT,
 };
 
 static const c4m_render_style_t default_h6 = {
-    .name       = "h6",
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_BG | C4M_STY_UL | (0xee82eeUL << 24),
     .alignment  = C4M_ALIGN_BOTTOM_LEFT,
 };
 
 static const c4m_render_style_t default_flow = {
-    .name       = "flow",
     .base_style = 0x2f3f3ff8f8fful | C4M_STY_BG | C4M_STY_FG,
     .left_pad   = 1,
     .right_pad  = 1,
@@ -309,7 +287,6 @@ static const c4m_render_style_t default_flow = {
 };
 
 static const c4m_render_style_t default_error_grid = {
-    .name       = "error_grid",
     .base_style = 0x2f3f3ff8f8fful | C4M_STY_FG,
     .left_pad   = 0,
     .right_pad  = 0,
@@ -317,12 +294,10 @@ static const c4m_render_style_t default_error_grid = {
 };
 
 static const c4m_render_style_t default_em = {
-    .name       = "em",
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_ITALIC | 0x0ff2f8eUL,
 };
 
 static const c4m_render_style_t default_callout_cell = {
-    .name         = "callout_cell",
     .top_pad      = 1,
     .bottom_pad   = 1,
     .left_pad     = 0,
@@ -333,7 +308,6 @@ static const c4m_render_style_t default_callout_cell = {
 };
 
 static const c4m_render_style_t default_callout = {
-    .name       = "callout",
     .base_style = C4M_STY_ITALIC | C4M_STY_FG | C4M_STY_BG | C4M_STY_BOLD | 0xff2f8eb3ff00UL,
     .top_pad    = 2,
     .bottom_pad = 2,
@@ -352,27 +326,27 @@ static inline void
 init_style_db()
 {
     if (style_dictionary == NULL) {
-        style_dictionary = c4m_dict(c4m_type_utf8(), c4m_type_ref());
         c4m_gc_register_root(&style_dictionary, 1);
+        style_dictionary = c4m_dict(c4m_type_utf8(), c4m_type_ref());
     }
 }
 
 void
-c4m_set_style(char *name, c4m_render_style_t *style)
+c4m_set_style(c4m_utf8_t *name, c4m_render_style_t *style)
 {
     init_style_db();
-    hatrack_dict_put(style_dictionary, c4m_new_utf8(name), style);
+    hatrack_dict_put(style_dictionary, name, style);
 }
 
 // Returns a COPY of the style so that it doesn't get accidentially
 // changed by reference.
 c4m_render_style_t *
-c4m_lookup_cell_style(char *name)
+c4m_lookup_cell_style(c4m_utf8_t *name)
 {
     init_style_db();
 
     c4m_render_style_t *entry = hatrack_dict_get(style_dictionary,
-                                                 c4m_new_utf8(name),
+                                                 name,
                                                  NULL);
 
     if (!entry) {
@@ -439,7 +413,7 @@ c4m_style_init(c4m_render_style_t *style, va_list args)
     c4m_kw_ptr("border_theme", border_theme);
     c4m_kw_ptr("tag", tag);
 
-    style->name     = tag;
+    style->name     = c4m_new_utf8(tag);
     // Use basic math to make sure overlaping cell sizing strategies
     // aren't requested in one call.
     int32_t sz_test = width_pct + flex_units + min_size + max_size + fit_text;
@@ -544,7 +518,7 @@ c4m_style_init(c4m_render_style_t *style, va_list args)
     }
 
     if (tag != NULL) {
-        c4m_set_style(tag, style);
+        c4m_set_style(c4m_new_utf8(tag), style);
     }
 }
 
@@ -638,51 +612,59 @@ c4m_layer_styles(const c4m_render_style_t *base, c4m_render_style_t *cur)
 }
 
 bool
-c4m_style_exists(char *name)
+c4m_style_exists(c4m_utf8_t *name)
 {
     if (name == NULL) {
         return 0;
     }
 
-    c4m_utf8_t *s = c4m_new_utf8(name);
-
     init_style_db();
-    return hatrack_dict_get(style_dictionary, s, NULL) != NULL;
+    return hatrack_dict_get(style_dictionary, name, NULL) != NULL;
+}
+
+static void
+static_style(char *name, c4m_render_style_t *s)
+{
+    c4m_render_style_t *copy = c4m_gc_alloc_mapped(c4m_render_style_t,
+                                                   c4m_rs_gc_bits);
+
+    memcpy(copy, s, sizeof(c4m_render_style_t));
+    copy->name = c4m_new_utf8(name);
+
+    c4m_set_style(copy->name, copy);
 }
 
 void
 c4m_install_default_styles()
 {
-    init_style_db();
-
-    c4m_set_style("table", (c4m_render_style_t *)&default_table);
-    c4m_set_style("table2", (c4m_render_style_t *)&col_borders_table);
-    c4m_set_style("tr", (c4m_render_style_t *)&default_tr);
-    c4m_set_style("tr.even", (c4m_render_style_t *)&default_tr_even);
-    c4m_set_style("tr.odd", (c4m_render_style_t *)&default_tr_odd);
-    c4m_set_style("td", (c4m_render_style_t *)&default_td);
-    c4m_set_style("text", (c4m_render_style_t *)&default_td);
-    c4m_set_style("th", (c4m_render_style_t *)&default_th);
-    c4m_set_style("tcol", (c4m_render_style_t *)&default_tcol);
-    c4m_set_style("snap", (c4m_render_style_t *)&default_snap_col);
-    c4m_set_style("full_snap", (c4m_render_style_t *)&default_full_snap_col);
-    c4m_set_style("ul", (c4m_render_style_t *)&default_list_grid);
-    c4m_set_style("ol", (c4m_render_style_t *)&default_ordered_list_grid);
-    c4m_set_style("bullet", (c4m_render_style_t *)&default_bullet_column);
-    c4m_set_style("li", (c4m_render_style_t *)&default_list_text_column);
-    c4m_set_style("tree_item", (c4m_render_style_t *)&default_tree_item);
-    c4m_set_style("h1", (c4m_render_style_t *)&default_h1);
-    c4m_set_style("h2", (c4m_render_style_t *)&default_h2);
-    c4m_set_style("h3", (c4m_render_style_t *)&default_h3);
-    c4m_set_style("h4", (c4m_render_style_t *)&default_h4);
-    c4m_set_style("h5", (c4m_render_style_t *)&default_h5);
-    c4m_set_style("h6", (c4m_render_style_t *)&default_h6);
-    c4m_set_style("table", (c4m_render_style_t *)&default_table);
-    c4m_set_style("flow", (c4m_render_style_t *)&default_flow);
-    c4m_set_style("error_grid", (c4m_render_style_t *)&default_error_grid);
-    c4m_set_style("em", (c4m_render_style_t *)&default_em);
-    c4m_set_style("callout_cell", (c4m_render_style_t *)&default_callout_cell);
-    c4m_set_style("callout", (c4m_render_style_t *)&default_callout);
+    static_style("table", (c4m_render_style_t *)&default_table);
+    static_style("table2", (c4m_render_style_t *)&col_borders_table);
+    static_style("tr", (c4m_render_style_t *)&default_tr);
+    static_style("tr.even", (c4m_render_style_t *)&default_tr_even);
+    static_style("tr.odd", (c4m_render_style_t *)&default_tr_odd);
+    static_style("td", (c4m_render_style_t *)&default_td);
+    static_style("text", (c4m_render_style_t *)&default_td);
+    static_style("th", (c4m_render_style_t *)&default_th);
+    static_style("tcol", (c4m_render_style_t *)&default_tcol);
+    static_style("snap", (c4m_render_style_t *)&default_snap_col);
+    static_style("full_snap", (c4m_render_style_t *)&default_full_snap_col);
+    static_style("ul", (c4m_render_style_t *)&default_list_grid);
+    static_style("ol", (c4m_render_style_t *)&default_ordered_list_grid);
+    static_style("bullet", (c4m_render_style_t *)&default_bullet_column);
+    static_style("li", (c4m_render_style_t *)&default_list_text_column);
+    static_style("tree_item", (c4m_render_style_t *)&default_tree_item);
+    static_style("h1", (c4m_render_style_t *)&default_h1);
+    static_style("h2", (c4m_render_style_t *)&default_h2);
+    static_style("h3", (c4m_render_style_t *)&default_h3);
+    static_style("h4", (c4m_render_style_t *)&default_h4);
+    static_style("h5", (c4m_render_style_t *)&default_h5);
+    static_style("h6", (c4m_render_style_t *)&default_h6);
+    static_style("table", (c4m_render_style_t *)&default_table);
+    static_style("flow", (c4m_render_style_t *)&default_flow);
+    static_style("error_grid", (c4m_render_style_t *)&default_error_grid);
+    static_style("em", (c4m_render_style_t *)&default_em);
+    static_style("callout_cell", (c4m_render_style_t *)&default_callout_cell);
+    static_style("callout", (c4m_render_style_t *)&default_callout);
 }
 
 const c4m_vtable_t c4m_render_style_vtable = {

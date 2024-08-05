@@ -80,22 +80,34 @@ c4m_remove_all_container_options(c4m_type_t *t)
 extern c4m_type_exact_result_t
 c4m_type_cmp_exact(c4m_type_t *, c4m_type_t *);
 
-static inline c4m_dt_kind_t
-c4m_type_get_base(c4m_type_t *n)
+static inline c4m_dt_info_t *
+c4m_internal_type_base(c4m_type_t *n)
 {
-    return c4m_type_resolve(n)->details->base_type->dt_kind;
+    return (c4m_dt_info_t *)&c4m_base_type_info[n->base_index];
+}
+
+static inline char *
+c4m_internal_type_name(c4m_type_t *n)
+{
+    return (char *)c4m_base_type_info[n->base_index].name;
+}
+
+static inline c4m_dt_kind_t
+c4m_type_get_kind(c4m_type_t *n)
+{
+    return c4m_internal_type_base(c4m_type_resolve(n))->dt_kind;
 }
 
 static inline c4m_list_t *
 c4m_type_get_params(c4m_type_t *n)
 {
-    return c4m_type_resolve(n)->details->items;
+    return c4m_type_resolve(n)->items;
 }
 
 static inline int
 c4m_type_get_num_params(c4m_type_t *n)
 {
-    return c4m_list_len(c4m_type_resolve(n)->details->items);
+    return c4m_list_len(c4m_type_resolve(n)->items);
 }
 
 static inline bool
@@ -113,32 +125,32 @@ c4m_type_is_ref(c4m_type_t *n)
 static inline bool
 c4m_type_is_locked(c4m_type_t *t)
 {
-    return c4m_type_resolve(t)->details->flags & C4M_FN_TY_LOCK;
+    return c4m_type_resolve(t)->flags & C4M_FN_TY_LOCK;
 }
 
 static inline bool
 c4m_type_is_tuple(c4m_type_t *t)
 {
-    return c4m_type_get_base(t) == C4M_DT_KIND_tuple;
+    return c4m_type_get_kind(t) == C4M_DT_KIND_tuple;
 }
 
 static inline void
 c4m_type_lock(c4m_type_t *t)
 {
-    c4m_type_resolve(t)->details->flags |= C4M_FN_TY_LOCK;
+    c4m_type_resolve(t)->flags |= C4M_FN_TY_LOCK;
 }
 
 static inline void
 c4m_type_unlock(c4m_type_t *t)
 {
-    t->details->flags &= ~C4M_FN_TY_LOCK;
+    t->flags &= ~C4M_FN_TY_LOCK;
 }
 
 static inline c4m_type_t *
 c4m_type_get_param(c4m_type_t *t, int i)
 {
-    if (t && t->details) {
-        return c4m_list_get(t->details->items, i, NULL);
+    if (t && t) {
+        return c4m_list_get(t->items, i, NULL);
     }
     else {
         return NULL;
@@ -155,8 +167,7 @@ static inline c4m_dt_info_t *
 c4m_type_get_data_type_info(c4m_type_t *t)
 {
     t = c4m_type_resolve(t);
-
-    return t->details->base_type;
+    return c4m_internal_type_base(t);
 }
 
 static inline bool
@@ -165,24 +176,10 @@ c4m_type_is_mutable(c4m_type_t *t)
     return c4m_type_get_data_type_info(t)->mutable;
 }
 
-static inline c4m_type_t *
-c4m_get_my_type(const c4m_obj_t user_object)
-{
-    c4m_base_obj_t *hdr = c4m_object_header(user_object);
-
-    return hdr->concrete_type;
-}
-
 static inline int64_t
 c4m_get_base_type_id(const c4m_obj_t obj)
 {
-    return c4m_type_get_data_type_info(c4m_get_my_type(obj))->typeid;
-}
-
-static inline c4m_builtin_t
-c4m_type_get_base_tid(c4m_type_t *n)
-{
-    return n->details->base_type->typeid;
+    return c4m_get_my_type(obj)->base_index;
 }
 
 extern c4m_type_t *c4m_bi_types[C4M_NUM_BUILTIN_DTS];
@@ -470,20 +467,16 @@ c4m_merge_types(c4m_type_t *t1, c4m_type_t *t2, int *warning)
 static inline c4m_type_t *
 c4m_type_any_list(c4m_type_t *item_type)
 {
-    c4m_type_t   *result = c4m_new(c4m_type_typespec(),
+    c4m_type_t *result                = c4m_new(c4m_type_typespec(),
                                  C4M_T_GENERIC);
-    tv_options_t *tsi    = c4m_gc_alloc_mapped(tv_options_t,
-                                            C4M_GC_SCAN_ALL);
-
-    result->details->tsi   = tsi;
-    tsi->container_options = c4m_get_list_bitfield();
-    result->details->items = c4m_list(c4m_type_typespec());
+    result->options.container_options = c4m_get_list_bitfield();
+    result->items                     = c4m_list(c4m_type_typespec());
 
     if (item_type == NULL) {
         item_type = c4m_new_typevar();
     }
 
-    c4m_list_append(result->details->items, item_type);
+    c4m_list_append(result->items, item_type);
 
     return result;
 }
@@ -491,13 +484,11 @@ c4m_type_any_list(c4m_type_t *item_type)
 static inline c4m_type_t *
 c4m_type_any_dict(c4m_type_t *key, c4m_type_t *value)
 {
-    c4m_type_t   *result = c4m_new(c4m_type_typespec(),
+    c4m_type_t *result = c4m_new(c4m_type_typespec(),
                                  C4M_T_GENERIC);
-    tv_options_t *tsi    = c4m_gc_alloc_mapped(tv_options_t, C4M_GC_SCAN_ALL);
 
-    result->details->tsi   = tsi;
-    tsi->container_options = c4m_get_dict_bitfield();
-    result->details->items = c4m_new(c4m_type_list(c4m_type_typespec()));
+    result->options.container_options = c4m_get_dict_bitfield();
+    result->items                     = c4m_new(c4m_type_list(c4m_type_typespec()));
 
     if (key == NULL) {
         key = c4m_new_typevar();
@@ -507,8 +498,8 @@ c4m_type_any_dict(c4m_type_t *key, c4m_type_t *value)
         value = c4m_new_typevar();
     }
 
-    c4m_list_append(result->details->items, key);
-    c4m_list_append(result->details->items, value);
+    c4m_list_append(result->items, key);
+    c4m_list_append(result->items, value);
 
     return result;
 }
@@ -516,20 +507,16 @@ c4m_type_any_dict(c4m_type_t *key, c4m_type_t *value)
 static inline c4m_type_t *
 c4m_type_any_set(c4m_type_t *item_type)
 {
-    c4m_type_t   *result = c4m_new(c4m_type_typespec(),
+    c4m_type_t *result                = c4m_new(c4m_type_typespec(),
                                  C4M_T_GENERIC);
-    tv_options_t *tsi    = c4m_gc_alloc_mapped(tv_options_t,
-                                            C4M_GC_SCAN_ALL);
-
-    result->details->tsi   = tsi;
-    tsi->container_options = c4m_get_set_bitfield();
-    result->details->items = c4m_new(c4m_type_list(c4m_type_typespec()));
+    result->options.container_options = c4m_get_set_bitfield();
+    result->items                     = c4m_new(c4m_type_list(c4m_type_typespec()));
 
     if (item_type == NULL) {
         item_type = c4m_new_typevar();
     }
 
-    c4m_list_append(result->details->items, item_type);
+    c4m_list_append(result->items, item_type);
 
     return result;
 }
@@ -565,13 +552,50 @@ static inline bool
 c4m_type_is_box(c4m_type_t *t)
 {
     t = c4m_type_resolve(t);
-    return t->details->base_type->typeid == C4M_T_BOX;
+    switch (t->base_index) {
+    case C4M_T_BOX_BOOL:
+    case C4M_T_BOX_I8:
+    case C4M_T_BOX_BYTE:
+    case C4M_T_BOX_I32:
+    case C4M_T_BOX_CHAR:
+    case C4M_T_BOX_U32:
+    case C4M_T_BOX_INT:
+    case C4M_T_BOX_UINT:
+    case C4M_T_BOX_F32:
+    case C4M_T_BOX_F64:
+        return true;
+    default:
+        return false;
+    }
 }
 
 static inline c4m_type_t *
 c4m_type_unbox(c4m_type_t *t)
 {
-    return (c4m_type_t *)t->details->tsi;
+    switch (t->base_index) {
+    case C4M_T_BOX_BOOL:
+        return c4m_bi_types[C4M_T_BOOL];
+    case C4M_T_BOX_I8:
+        return c4m_bi_types[C4M_T_I8];
+    case C4M_T_BOX_BYTE:
+        return c4m_bi_types[C4M_T_BYTE];
+    case C4M_T_BOX_I32:
+        return c4m_bi_types[C4M_T_I32];
+    case C4M_T_BOX_CHAR:
+        return c4m_bi_types[C4M_T_CHAR];
+    case C4M_T_BOX_U32:
+        return c4m_bi_types[C4M_T_U32];
+    case C4M_T_BOX_INT:
+        return c4m_bi_types[C4M_T_INT];
+    case C4M_T_BOX_UINT:
+        return c4m_bi_types[C4M_T_UINT];
+    case C4M_T_BOX_F32:
+        return c4m_bi_types[C4M_T_F32];
+    case C4M_T_BOX_F64:
+        return c4m_bi_types[C4M_T_F64];
+    default:
+        return t;
+    }
 }
 
 static inline bool
@@ -581,10 +605,7 @@ c4m_type_is_int_type(c4m_type_t *t)
         return false;
     }
 
-    t = c4m_type_resolve(t);
-    if (t->typeid == C4M_T_BOX) {
-        t = (c4m_type_t *)t->details->tsi;
-    }
+    t = c4m_type_unbox(c4m_type_resolve(t));
 
     switch (t->typeid) {
     case C4M_T_I8:
@@ -607,10 +628,7 @@ c4m_type_is_float_type(c4m_type_t *t)
         return false;
     }
 
-    t = c4m_type_resolve(t);
-    if (t->typeid == C4M_T_BOX) {
-        t = (c4m_type_t *)t->details->tsi;
-    }
+    t = c4m_type_unbox(c4m_type_resolve(t));
 
     switch (t->typeid) {
     case C4M_T_F64:
@@ -628,7 +646,7 @@ c4m_type_is_signed(c4m_type_t *t)
         return false;
     }
 
-    t = c4m_type_resolve(t);
+    t = c4m_type_unbox(c4m_type_resolve(t));
 
     switch (t->typeid) {
     case C4M_T_I8:
@@ -645,7 +663,7 @@ static inline bool
 c4m_type_is_tvar(c4m_type_t *t)
 {
     t = c4m_type_resolve(t);
-    return (c4m_type_get_base(t) == C4M_DT_KIND_type_var);
+    return (c4m_type_get_kind(t) == C4M_DT_KIND_type_var);
 }
 
 static inline bool
@@ -709,9 +727,9 @@ c4m_resolve_and_unbox(c4m_type_t *t)
 static inline bool
 c4m_obj_is_int_type(const c4m_obj_t *obj)
 {
-    c4m_base_obj_t *base = (c4m_base_obj_t *)c4m_object_header(obj);
+    c4m_type_t *t = c4m_get_my_type((c4m_obj_t *)obj);
 
-    return c4m_type_is_int_type(c4m_resolve_and_unbox(base->concrete_type));
+    return c4m_type_is_int_type(c4m_resolve_and_unbox(t));
 }
 
 static inline bool
@@ -729,24 +747,8 @@ c4m_type_requires_gc_scan(c4m_type_t *t)
 
 void c4m_set_next_typevar_fn(c4m_next_typevar_fn);
 
-// This is used only in the type system so far.
-extern c4m_arena_t *c4m_early_type_arena;
-
-#if defined(C4M_ADD_ALLOC_LOC_INFO)
-#define c4m_early_alloc(x)                      \
-    c4m_alloc_from_arena(&c4m_early_type_arena, \
-                         (x),                   \
-                         NULL,                  \
-                         NULL,                  \
-                         __FILE__,              \
-                         __LINE__)
-#else
-#define c4m_early_alloc(x) \
-    c4m_alloc_from_arena(&c4m_early_type_arena, (x), NULL, NULL)
-#endif
-
 #ifdef C4M_USE_INTERNAL_API
-extern c4m_grid_t *c4m_format_global_type_environment();
+extern c4m_grid_t *c4m_format_global_type_environment(c4m_type_universe_t *);
 extern void        c4m_clean_environment();
 
 #ifdef C4M_TYPE_LOG

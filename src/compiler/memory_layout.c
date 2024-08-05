@@ -13,7 +13,7 @@ store_static_item(c4m_compile_ctx *ctx, void *value)
 
         items = c4m_gc_array_alloc_mapped(c4m_mem_ptr,
                                           mem->num_items + getpagesize() / 8,
-                                          c4m_smem_gc_bits);
+                                          C4M_GC_SCAN_ALL);
         if (mem->num_items) {
             memcpy(items, mem->items, mem->num_items * 8);
         }
@@ -121,12 +121,12 @@ c4m_add_value_const(uint64_t val, c4m_compile_ctx *ctx)
 }
 
 static inline uint64_t
-c4m_layout_static_obj(c4m_module_compile_ctx *ctx, int bytes, int alignment)
+c4m_layout_static_obj(c4m_module_t *ctx, int bytes, int alignment)
 {
-    uint64_t result = c4m_round_up_to_given_power_of_2(alignment,
-                                                       ctx->static_size);
+    int      l      = ctx->static_size + bytes;
+    uint64_t result = c4m_round_up_to_given_power_of_2(alignment, l);
 
-    ctx->static_size = result + bytes;
+    ctx->static_size += result;
 
     return result;
 }
@@ -138,9 +138,9 @@ _c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
 
     va_start(args, obj);
 
-    c4m_module_compile_ctx *fctx = va_arg(args, c4m_module_compile_ctx *);
-    c4m_tree_node_t        *loc  = NULL;
-    c4m_utf8_t             *name = NULL;
+    c4m_module_t    *fctx = va_arg(args, c4m_module_t *);
+    c4m_tree_node_t *loc  = NULL;
+    c4m_utf8_t      *name = NULL;
 
     if (fctx != NULL) {
         loc  = va_arg(args, c4m_tree_node_t *);
@@ -167,10 +167,10 @@ _c4m_layout_const_obj(c4m_compile_ctx *cctx, c4m_obj_t obj, ...)
 }
 
 static void
-layout_static(c4m_compile_ctx        *cctx,
-              c4m_module_compile_ctx *fctx,
-              void                  **view,
-              uint64_t                n)
+layout_static(c4m_compile_ctx *cctx,
+              c4m_module_t    *fctx,
+              void           **view,
+              uint64_t         n)
 {
     for (unsigned int i = 0; i < n; i++) {
         c4m_symbol_t *my_sym_copy = view[i];
@@ -183,7 +183,7 @@ layout_static(c4m_compile_ctx        *cctx,
         }
         // We go ahead and add this to all symbols, but it's only
         // used for static allocations of non-const variables.
-        sym->local_module_id = fctx->local_module_id;
+        sym->local_module_id = fctx->module_id;
 
         switch (sym->kind) {
         case C4M_SK_ENUM_VAL:
@@ -191,7 +191,7 @@ layout_static(c4m_compile_ctx        *cctx,
                 sym->static_offset = c4m_layout_const_obj(cctx,
                                                           sym->value,
                                                           fctx,
-                                                          sym->declaration_node,
+                                                          sym->ct->declaration_node,
                                                           sym->name);
             }
             break;
@@ -202,7 +202,7 @@ layout_static(c4m_compile_ctx        *cctx,
                 sym->static_offset = c4m_layout_const_obj(cctx,
                                                           sym->value,
                                                           fctx,
-                                                          sym->declaration_node,
+                                                          sym->ct->declaration_node,
                                                           sym->name);
                 break;
             }
@@ -253,9 +253,9 @@ layout_stack(void **view, uint64_t n)
 }
 
 static void
-layout_func(c4m_module_compile_ctx *ctx,
-            c4m_symbol_t           *sym,
-            int                     i)
+layout_func(c4m_module_t *ctx,
+            c4m_symbol_t *sym,
+            int           i)
 {
     uint64_t       n;
     c4m_fn_decl_t *decl       = sym->value;
@@ -279,7 +279,7 @@ layout_func(c4m_module_compile_ctx *ctx,
 }
 
 void
-c4m_layout_module_symbols(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
+c4m_layout_module_symbols(c4m_compile_ctx *cctx, c4m_module_t *fctx)
 {
     uint64_t n;
 
@@ -307,16 +307,16 @@ c4m_layout_module_symbols(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
     // 0, but it controls where the next variable is stored.
     c4m_layout_static_obj(fctx, (pix + 7) / 8, 8);
 
-    view = hatrack_dict_values_sort(fctx->global_scope->symbols, &n);
+    view = hatrack_dict_values_sort(fctx->ct->global_scope->symbols, &n);
     layout_static(cctx, fctx, view, n);
 
     view = hatrack_dict_values_sort(fctx->module_scope->symbols, &n);
     layout_static(cctx, fctx, view, n);
 
-    n = c4m_list_len(fctx->fn_def_syms);
+    n = c4m_list_len(fctx->ct->fn_def_syms);
 
     for (unsigned int i = 0; i < n; i++) {
-        c4m_symbol_t *sym = c4m_list_get(fctx->fn_def_syms, i, NULL);
+        c4m_symbol_t *sym = c4m_list_get(fctx->ct->fn_def_syms, i, NULL);
         layout_func(fctx, sym, i);
     }
 }

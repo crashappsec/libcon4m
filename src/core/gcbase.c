@@ -1,10 +1,10 @@
 #include "con4m.h"
 
-uint64_t                  c4m_gc_guard     = 0;
-thread_local c4m_arena_t *c4m_current_heap = NULL;
-uint64_t                  c4m_page_bytes;
-uint64_t                  c4m_page_modulus;
-uint64_t                  c4m_modulus_mask;
+uint64_t     c4m_gc_guard     = 0;
+c4m_arena_t *c4m_current_heap = NULL;
+uint64_t     c4m_page_bytes;
+uint64_t     c4m_page_modulus;
+uint64_t     c4m_modulus_mask;
 
 _Atomic(c4m_segment_range_t *) c4m_static_segments = NULL;
 
@@ -35,7 +35,7 @@ struct c4m_pthread {
 bool
 c4m_in_heap(void *p)
 {
-    return p > ((void *)c4m_current_heap) && p < (void *)c4m_current_heap->heap_end;
+    return p >= ((void *)c4m_current_heap->data) && p < (void *)c4m_current_heap->heap_end;
 }
 
 void
@@ -44,30 +44,6 @@ c4m_get_heap_bounds(uint64_t *start, uint64_t *next, uint64_t *end)
     *start = (uint64_t)c4m_current_heap;
     *next  = (uint64_t)c4m_current_heap->next_alloc;
     *end   = (uint64_t)c4m_current_heap->heap_end;
-}
-
-void
-c4m_get_stack_scan_region(uint64_t *top, uint64_t *bottom)
-{
-    pthread_t self = pthread_self();
-
-    *bottom = (uint64_t)__builtin_frame_address(0);
-
-#if defined(__linux__)
-    pthread_attr_t attrs;
-    size_t         size;
-    uint64_t       addr;
-
-    pthread_getattr_np(self, &attrs);
-    pthread_attr_getstack(&attrs, (void **)&addr, &size);
-
-    *top = (uint64_t)addr;
-
-#elif defined(__APPLE__) || defined(BSD)
-    // Apple at least has no way to get the thread's attr struct that
-    // I can find. But it does provide an API to get at the same data.
-    *top = *bottom - pthread_get_stacksize_np(self);
-#endif
 }
 
 void
@@ -318,31 +294,34 @@ c4m_internal_set_heap(c4m_arena_t *heap)
     c4m_current_heap = heap;
 }
 
-static void *
-raw_arena_alloc(uint64_t len, void **end)
+void *
+c4m_raw_arena_alloc(uint64_t len, void **end, void **accounting)
 {
-    // Add two guard pages to sandwich the alloc.
-    size_t total_len  = (size_t)(c4m_page_bytes * 2 + len);
-    char  *full_alloc = mmap(NULL,
+    // Add two guard pages to sandwich the alloc, and a
+    // page at the front for accounting.
+    size_t total_len = (size_t)(c4m_page_bytes * 3 + len);
+
+    char *full_alloc = mmap(NULL,
                             total_len,
                             PROT_READ | PROT_WRITE,
                             MAP_PRIVATE | MAP_ANON,
                             0,
                             0);
 
-    char *ret   = full_alloc + c4m_page_bytes;
-    char *guard = full_alloc + total_len - c4m_page_bytes;
+    char *guard1 = full_alloc + c4m_page_bytes;
+    char *ret    = guard1 + c4m_page_bytes;
+    char *guard2 = full_alloc + total_len - c4m_page_bytes;
 
-    mprotect(full_alloc, c4m_page_bytes, PROT_NONE);
-    mprotect(guard, c4m_page_bytes, PROT_NONE);
+    mprotect(guard1, c4m_page_bytes, PROT_NONE);
+    mprotect(guard2, c4m_page_bytes, PROT_NONE);
 
-    *end = guard;
+    *end        = guard2;
+    *accounting = full_alloc;
 
     c4m_gc_trace(C4M_GCT_MMAP,
-                 "arena:mmap:@%p-@%p (%p):%llu",
+                 "arena:mmap:@%p-@%p:%llu",
                  full_alloc,
                  full_alloc + total_len,
-                 guard,
                  len);
 
     ASAN_POISON_MEMORY_REGION(((c4m_arena_t *)ret)->data, len);
@@ -365,19 +344,17 @@ c4m_new_arena(size_t num_words, hatrack_zarray_t *roots)
     }
 
     void        *arena_end;
-    c4m_arena_t *new_arena = raw_arena_alloc(allocation, &arena_end);
+    void        *aux;
+    c4m_arena_t *new_arena = c4m_raw_arena_alloc(allocation, &arena_end, &aux);
 
-    new_arena->next_alloc = (c4m_alloc_hdr *)new_arena->data;
-    new_arena->heap_end   = arena_end;
+    new_arena->next_alloc   = (c4m_alloc_hdr *)new_arena->data;
+    new_arena->heap_end     = arena_end;
+    new_arena->roots        = roots;
+    new_arena->history      = aux;
+    new_arena->history->cur = 0;
 
-    // new_arena->late_mutations = calloc(sizeof(queue_t), 1);
+    pthread_mutex_init(&new_arena->lock, NULL);
 
-    // c4m_gc_trace("******** alloc late mutations dict: %p\n",
-    //              new_arena->late_mutations);
-
-    // queue_init(new_arena->late_mutations);
-
-    new_arena->roots = roots;
     return new_arena;
 }
 
@@ -444,7 +421,7 @@ c4m_gc_resize(void *ptr, size_t len)
                                         hdr->scan_fn,
                                         (bool)hdr->finalize TRACE_DEBUG_ARGS);
     if (len > 0) {
-        size_t bytes = ((size_t)(hdr->next_addr - hdr->data)) * 8;
+        size_t bytes = ((char *)hdr->next_addr) - (char *)hdr->data;
         memcpy(result, ptr, c4m_min(len, bytes));
     }
 
@@ -504,7 +481,6 @@ _c4m_arena_register_root(c4m_arena_t *arena, void *ptr, uint64_t len)
 #endif
 {
     // Len is measured in 64 bit words and must be at least 1.
-
     c4m_gc_root_info_t *ri;
     hatrack_zarray_new_cell(arena->roots, (void *)&ri);
     ri->num_items = len;
@@ -650,25 +626,31 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
 #endif
 
 #ifdef C4M_FULL_MEMCHECK
-    len += 8; // Ensure room for sentinel.
+    len += 8;
 #endif
     c4m_arena_t *arena = *arena_ptr;
+
+    pthread_mutex_lock(&arena->lock);
 
     // Round up to aligned length.
     len = c4m_round_up_to_given_power_of_2(C4M_FORCED_ALIGNMENT, len);
 
-    size_t         wordlen = len / 8;
-    c4m_alloc_hdr *raw     = arena->next_alloc;
-    c4m_alloc_hdr *next    = (c4m_alloc_hdr *)&(raw->data[wordlen]);
+    c4m_alloc_hdr *raw = arena->next_alloc;
+    char          *p   = (char *)raw;
+    raw->next_addr     = p + len;
 
-    if (((uint64_t *)next) > arena->heap_end) {
+    if (raw->next_addr >= (char *)arena->heap_end) {
+        pthread_mutex_unlock(&arena->lock);
         arena      = c4m_collect_arena(arena);
         *arena_ptr = arena;
 
-        raw  = arena->next_alloc;
-        next = (c4m_alloc_hdr *)&(raw->data[wordlen]);
-        if (((uint64_t *)next) > arena->heap_end) {
+        pthread_mutex_lock(&arena->lock);
+        raw            = (c4m_alloc_hdr *)arena->next_alloc;
+        p              = (char *)raw;
+        raw->next_addr = p + len;
+        if (raw->next_addr > (char *)arena->heap_end) {
             arena->grow_next = true;
+            pthread_mutex_unlock(&arena->lock);
 #if defined(C4M_ADD_ALLOC_LOC_INFO)
             return c4m_alloc_from_arena(arena_ptr,
                                         len,
@@ -682,22 +664,15 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
         }
     }
 
-    if (len > arena->largest_alloc) {
-        arena->largest_alloc = len;
-    }
-
-    ASAN_UNPOISON_MEMORY_REGION(raw, ((char *)next - (char *)raw));
     arena->alloc_count++;
-    arena->next_alloc = next;
+    arena->next_alloc = (c4m_alloc_hdr *)raw->next_addr;
     raw->guard        = c4m_gc_guard;
-    raw->arena        = arena;
-    raw->next_addr    = (uint64_t *)arena->next_alloc;
     raw->alloc_len    = len;
     raw->request_len  = orig_len;
     raw->scan_fn      = scan_fn;
 
 #ifdef C4M_FULL_MEMCHECK
-    uint64_t *end_guard_addr = &raw->data[wordlen - 2];
+    uint64_t *end_guard_addr = ((uint64_t *)raw->next_addr) - 1;
 
     c4m_shadow_alloc_t *record = c4m_rc_alloc(sizeof(c4m_shadow_alloc_t));
     record->start              = raw;
@@ -749,7 +724,7 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
 
 #ifdef C4M_GC_STATS
     c4m_total_requested += orig_len;
-    c4m_total_alloced += wordlen * 8;
+    c4m_total_alloced += len;
 
     raw->alloc_file = file;
     raw->alloc_line = line;
@@ -780,12 +755,23 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
         arena->to_finalize = record;
     }
 
+    arena->history->ring[arena->history->cur++] = raw->data;
+
+    if (arena->history->cur == C4M_ALLOC_HISTORY_SIZE) {
+        arena->history->cur = 0;
+    }
+
+    pthread_mutex_unlock(&arena->lock);
+
     assert(raw != NULL);
     return (void *)(raw->data);
 }
 
 void
-c4m_header_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
+c4m_header_gc_bits(uint64_t *bitfield, void *alloc)
 {
-    c4m_mark_obj_to_addr(bitfield, alloc, &alloc->concrete_type);
+    c4m_mem_ptr p = {.v = alloc};
+    --p.alloc;
+
+    c4m_mark_raw_to_addr(bitfield, alloc, &p.alloc->type);
 }

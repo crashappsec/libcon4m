@@ -82,7 +82,8 @@
 // Yes we use cryptographic hashes internally for type IDing.
 #include "crypto/sha.h"
 
-// Virtual machine for running con4m code
+// The core runtime
+#include "core/module.h"
 #include "core/vm.h"
 
 // Bitfields.
@@ -98,7 +99,7 @@
 
 // The compiler.
 #include "compiler/ast_utils.h"
-#include "compiler/module.h"
+#include "compiler/rtmodule.h"
 #include "compiler/compile.h"
 #include "compiler/errors.h"
 #include "compiler/lex.h"

@@ -1,97 +1,37 @@
 #include "con4m.h"
 
 typedef struct {
-    void    *ptr;
-    uint64_t op;
-} worklist_item;
+    c4m_alloc_hdr *new_hdr;
+    c4m_alloc_hdr *old_hdr;
+    int            ix;
+} worklist_item_t;
 
 typedef struct {
-    uint64_t      write_ix;
-    uint64_t      read_ix;
-    uint64_t      ring_size;
-    uint64_t      mod;
-    uint64_t      alloc_len;
-    worklist_item items[];
+    uint64_t        write_ix;
+    uint64_t        read_ix;
+    worklist_item_t items[];
 } worklist_t;
 
 typedef struct {
-    c4m_arena_t *from_space;
-    c4m_arena_t *to_space;
-    void        *fromspc_start;
-    void        *fromspc_end;
-    worklist_t  *worklist;
-    int          reached_allocs;
-    int          copied_allocs;
+    c4m_arena_t   *from_space;
+    c4m_arena_t   *to_space;
+    void          *fromspc_start;
+    void          *fromspc_end;
+    c4m_alloc_hdr *next_to_record;
+    worklist_t    *worklist;
+    int            reached_allocs;
+    int            copied_allocs;
+    bool           stack_scanning;
 } c4m_collection_ctx;
 
 #define GC_OP_FW   0
 #define GC_OP_COPY 1
 
-static void process_worklist(c4m_collection_ctx *);
-
-static worklist_t *
-c4m_alloc_collection_worklist(c4m_arena_t *fromspace)
-{
-    int n = (1 << (64 - __builtin_clzll(fromspace->largest_alloc)));
-
-    int alloc_len = n * sizeof(worklist_item) + sizeof(worklist_t);
-    alloc_len     = c4m_round_up_to_given_power_of_2(getpagesize(),
-                                                 alloc_len);
-
-    worklist_t *result = mmap(NULL,
-                              alloc_len,
-                              PROT_READ | PROT_WRITE,
-                              MAP_PRIVATE | MAP_ANON,
-                              0,
-                              0);
-    result->write_ix   = 0;
-    result->read_ix    = 0;
-    result->ring_size  = n;
-    result->mod        = n - 1;
-    result->alloc_len  = alloc_len;
-
-    return result;
-}
-
-static inline void
-c4m_wl_write(c4m_collection_ctx *ctx, void *ptr, uint64_t op)
-{
-    worklist_t *wl = ctx->worklist;
-
-    if ((wl->write_ix - wl->read_ix) == wl->ring_size) {
-        process_worklist(ctx);
-    }
-
-    wl->items[wl->write_ix++ & wl->mod] = (worklist_item){.ptr = ptr,
-                                                          .op  = op};
-}
-
-static inline void *
-c4m_wl_read(c4m_collection_ctx *ctx, uint64_t *op)
-{
-    worklist_t *wl = ctx->worklist;
-
-    if (wl->write_ix == wl->read_ix) {
-        return NULL;
-    }
-
-    worklist_item item = wl->items[wl->read_ix++ & wl->mod];
-
-    *op = item.op;
-    return item.ptr;
-}
-
-static inline void
-c4m_free_collection_worklist(worklist_t *wl)
-{
-    munmap(wl, wl->alloc_len);
-}
-
 // In gcbase.c, but not directly exported.
-extern thread_local c4m_arena_t *c4m_current_heap;
-extern uint64_t                  c4m_page_bytes;
-extern uint64_t                  c4m_page_modulus;
-extern uint64_t                  c4m_modulus_mask;
+extern c4m_arena_t *c4m_current_heap;
+extern uint64_t     c4m_page_bytes;
+extern uint64_t     c4m_page_modulus;
+extern uint64_t     c4m_modulus_mask;
 
 static c4m_system_finalizer_fn system_finalizer = NULL;
 
@@ -113,7 +53,7 @@ extern thread_local uint32_t c4m_total_allocs;
 uint64_t
 c4m_get_alloc_counter()
 {
-    return c4m_total_allocs - c4m_current_heap->starting_counter;
+    return c4m_current_heap->alloc_count;
 }
 #endif
 
@@ -199,40 +139,14 @@ run_post_collect_hooks()
     }
 }
 
-static c4m_alloc_hdr *
-prep_allocation(c4m_alloc_hdr *old, c4m_arena_t *new_arena)
-{
-    c4m_alloc_hdr *res;
-    c4m_arena_t   *arena = new_arena;
-
-#if defined(C4M_ADD_ALLOC_LOC_INFO)
-#define TRACE_DEBUG_ARGS , debug_file, debug_ln
-
-    char *debug_file = old->alloc_file;
-    int   debug_ln   = old->alloc_line;
-#else
-#define TRACE_DEBUG_ARGS
-#endif
-
-    res              = c4m_alloc_from_arena(&arena,
-                               old->request_len,
-                               old->scan_fn,
-                               (bool)old->finalize
-                                   TRACE_DEBUG_ARGS);
-    res              = &res[-1];
-    res->con4m_obj   = old->con4m_obj;
-    res->type_obj    = old->type_obj;
-    res->cached_hash = old->cached_hash;
-
-    return res;
-}
-
 static void
 migrate_finalizers(c4m_arena_t *old, c4m_arena_t *new)
 {
     c4m_finalizer_info_t *cur = old->to_finalize;
     c4m_finalizer_info_t *next;
 
+    // For the moment, we might have issues w/ finalizers.
+    return;
     while (cur != NULL) {
         c4m_alloc_hdr *alloc = cur->allocation;
         next                 = cur->next;
@@ -266,22 +180,96 @@ value_in_fromspace(c4m_collection_ctx *ctx, void *ptr)
     return true;
 }
 
-static inline bool
-value_in_allocation(c4m_alloc_hdr *hdr, void *ptr)
+static inline char *
+name_alloc(c4m_alloc_hdr *alloc)
 {
-    if (ptr > (void *)hdr && ptr < (void *)hdr->next_addr) {
-        c4m_gc_trace(C4M_GCT_PTR_TEST,
-                     "In alloc (ptr @%p alloc @%p) == true",
-                     ptr,
-                     hdr);
-        return true;
+    if (!alloc->con4m_obj) {
+        return "raw alloc";
+    }
+    if (!alloc->type) {
+        return "internal structure";
     }
 
-    c4m_gc_trace(C4M_GCT_PTR_TEST,
-                 "In alloc (ptr @%p alloc @%p) == false",
-                 ptr,
-                 hdr);
-    return false;
+    return c4m_internal_type_name(alloc->type);
+}
+
+static void *ptr_relocate(c4m_collection_ctx *, void *);
+
+static inline void *
+possible_relo(c4m_collection_ctx *ctx, void *p)
+{
+    // Must be NULL if it's not in the heap.
+    if (!c4m_in_heap(p)) {
+        return p;
+    }
+
+    return ptr_relocate(ctx, p);
+}
+
+static worklist_item_t *
+next_write_slot(c4m_collection_ctx *ctx)
+{
+    worklist_item_t *result = &ctx->worklist->items[ctx->worklist->write_ix];
+
+    result->ix = ctx->worklist->write_ix++;
+
+    return result;
+}
+
+static inline worklist_item_t *
+next_read_slot(c4m_collection_ctx *ctx)
+{
+    return &ctx->worklist->items[ctx->worklist->read_ix++];
+}
+
+static inline void
+fill_new_hdr(c4m_collection_ctx *ctx, c4m_alloc_hdr *old, c4m_alloc_hdr *new)
+{
+    // The old alloc might have debug padding, so we don't strictly
+    // use 'alloc_len' because it hides that.
+
+    char *raw = (char *)new;
+
+    ctx->next_to_record = (void *)(raw + old->alloc_len);
+    ctx->reached_allocs = ctx->reached_allocs + 1;
+    new->guard          = old->guard;
+    new->next_addr      = (char *)ctx->next_to_record;
+    new->alloc_len      = old->alloc_len;
+    new->request_len    = old->request_len;
+    new->scan_fn        = old->scan_fn;
+    new->finalize       = old->finalize;
+    new->con4m_obj      = old->con4m_obj;
+    new->cached_hash    = old->cached_hash;
+    new->type           = possible_relo(ctx, old->type);
+
+#if defined(C4M_FULL_MEMCHECK)
+    new->end_guard_loc = ((uint64_t *)new->next_addr) - 2;
+#endif
+#if defined(C4M_ADD_ALLOC_LOC_INFO)
+    new->alloc_file = old->alloc_file;
+    new->alloc_line = old->alloc_line;
+#endif
+}
+
+static c4m_alloc_hdr *
+get_new_header(c4m_collection_ctx *ctx, c4m_alloc_hdr *old)
+{
+    c4m_alloc_hdr *new    = ctx->next_to_record;
+    worklist_item_t *item = next_write_slot(ctx);
+
+    item->new_hdr = new;
+    item->old_hdr = old;
+    old->fw_addr  = new;
+
+    c4m_gc_trace(C4M_GCT_SCAN_PTR,
+                 "Marking header @%p, to move to %p. Write ix = %d",
+                 old,
+                 old->fw_addr,
+                 item->ix);
+
+    fill_new_hdr(ctx, old, new);
+
+    return new;
 }
 
 // We perhaps should instead keep a binary range tree or k-d tree to
@@ -295,299 +283,168 @@ value_in_allocation(c4m_alloc_hdr *hdr, void *ptr)
 //    when walking a tree.
 //
 // 3. Get fancier if there's data showing we need to do so.
-
-static inline c4m_alloc_hdr *
-get_header(c4m_collection_ctx *ctx, void *ptr)
+static void *
+ptr_relocate(c4m_collection_ctx *ctx, void *ptr)
 {
-    // This assumes we've already checked that the pointer is in the heap,
-    // so we don't check the front. Worst case with a corrupted heap, we'll
-    // hit our guard page.
-
-    // Align the pointer.
+    // Align the pointer for scanning back to the header.
+    // It should be aligned, but people do the craziest things.
     void **p = (void **)(((uint64_t)ptr) & ~0x0000000000000007);
+    p        = (void **)(((c4m_alloc_hdr *)p) - 1);
 
-    while (*(uint64_t *)p != c4m_gc_guard) {
-        --p;
+    while ((*(uint64_t *)p) != c4m_gc_guard) {
+        p--;
     }
 
-    c4m_alloc_hdr *result = (c4m_alloc_hdr *)p;
+    c4m_gc_trace(C4M_GCT_SCAN_PTR, "Header @%p for ptr @%p", p, ptr);
 
-#if defined(C4M_ADD_ALLOC_LOC_INFO) && (C4M_GCT_OBJ != 0)
-    if (result->con4m_obj) {
-        c4m_base_obj_t *obj = (c4m_base_obj_t *)result->data;
+    c4m_alloc_hdr *hdr = (c4m_alloc_hdr *)p;
+    c4m_alloc_hdr *fw  = hdr->fw_addr;
 
-        c4m_gc_trace(C4M_GCT_OBJ,
-                     "object identified @%p (hdr @%p); type=%s (%s:%d)",
-                     obj,
-                     result,
-                     obj->base_data_type->name,
-                     result->alloc_file,
-                     result->alloc_line);
+    if (fw == NULL) {
+        fw = get_new_header(ctx, hdr);
     }
     else {
-        c4m_gc_trace(C4M_GCT_ALLOC_FOUND,
-                     "found alloc @%p, end @%p, obj len = %d, total len = %d",
-                     result,
-                     result->next_addr,
-                     (int)(((char *)result->next_addr) - (char *)result->data),
-                     (int)(((char *)result->next_addr) - (char *)result));
+        c4m_gc_trace(C4M_GCT_SCAN_PTR, "Existing forward @%p -> %p", hdr, fw);
     }
-#endif
+
+    ptrdiff_t offset = ((char *)ptr) - (char *)hdr->data;
+    char     *result = ((char *)fw->data) + offset;
+
+    assert(result - (char *)fw == ((char *)ptr) - (char *)hdr);
 
     return result;
 }
 
-static inline void
-add_copy_to_worklist(c4m_collection_ctx *ctx, c4m_alloc_hdr *hdr)
+static void
+move_range_unsafely(c4m_collection_ctx *ctx, worklist_item_t *item)
 {
-    c4m_gc_trace(C4M_GCT_SCAN_PTR,
-                 "Added copy instruction to worklist for %p (%s:%d)",
-                 hdr,
-                 hdr->alloc_file,
-                 hdr->alloc_line);
+    // Unsafely because we aren't being specific about what's a pointer
+    // and what isn't, so we might be transforming data into dangling ptrs.
 
-    c4m_wl_write(ctx, hdr, GC_OP_COPY);
-}
+    uint64_t *p   = item->old_hdr->data;
+    uint64_t *end = (uint64_t *)item->old_hdr->next_addr;
+    uint64_t *dst = item->new_hdr->data;
 
-static inline void
-add_forward_to_worklist(c4m_collection_ctx *ctx, void **addr)
-{
-    c4m_gc_trace(C4M_GCT_SCAN_PTR,
-                 "Added pointer %p to worklist to forward.",
-                 addr);
+    c4m_gc_trace(C4M_GCT_WORKLIST,
+                 "Move (%ld): %p-%p -> %p",
+                 ctx->worklist->read_ix,
+                 p,
+                 end,
+                 dst);
 
-    c4m_wl_write(ctx, addr, GC_OP_FW);
-}
+    while (p < end) {
+        uint64_t value = *p++;
 
-static inline void
-update_pointer(c4m_alloc_hdr *oldalloc, void *oldptr, void **loc_to_update)
-{
-    c4m_alloc_hdr *newalloc = oldalloc->fw_addr;
-    ptrdiff_t      diff     = ((char *)oldptr) - ((char *)oldalloc);
-    char          *newval   = ((char *)newalloc) + diff;
-
-    *loc_to_update = newval;
-
-    c4m_gc_trace(C4M_GCT_MOVE,
-                 "replace pointer @%p: %p->%p (%ld vs %ld)",
-                 loc_to_update,
-                 oldptr,
-                 newval,
-                 ((char *)oldptr) - (char *)oldalloc->data,
-                 newval - (char *)newalloc->data);
-}
-
-static inline void
-scan_allocation(c4m_collection_ctx *ctx, c4m_alloc_hdr *hdr)
-{
-    void          **p       = (void **)hdr->data;
-    void          **end     = (void **)hdr->next_addr;
-    c4m_mem_scan_fn scanner = hdr->scan_fn;
-    void           *contents;
-
-#ifdef C4M_USE_GC_HOOKS
-    if ((void *)scanner == C4M_GC_SCAN_ALL) {
-#else
-    if ((void *)scanner != C4M_GC_SCAN_NONE) {
-#endif
-        while (p < end) {
-            ASAN_UNPOISON_MEMORY_REGION(p, 8);
-            contents = *p;
-
-            // We haven't copied anything yet.
-            //
-            // This allocation cannot copy until any pointers it contains
-            // are scanned, and have *their* initial allocations set up.
-            //
-            // So we go through looking for pointers into the old heap.
-            // If the pointers are self-referential, we can just update
-            // them.
-            //
-            // Otherwise, if the allocation add the location that the
-            // pointer lives in the old heap to the worklist.
-
-            if (value_in_fromspace(ctx, contents)) {
-                if (value_in_allocation(hdr, contents)) {
-                    update_pointer(hdr, contents, p);
-                }
-                else {
-                    add_forward_to_worklist(ctx, p);
-                }
-            }
-
-            p++;
+        if (value_in_fromspace(ctx, (void *)value)) {
+            *dst = (uint64_t)ptr_relocate(ctx, (void *)value);
         }
-
-        return;
-    }
-
-    if ((void *)scanner == C4M_GC_SCAN_NONE) {
-        return;
-    }
-
-    uint32_t  numwords    = hdr->alloc_len / sizeof(uint64_t);
-    uint32_t  bf_byte_len = ((numwords / 64) + 1) * 8;
-    uint64_t *map         = alloca(bf_byte_len);
-
-    memset(map, 0, bf_byte_len);
-
-    if (hdr->con4m_obj) {
-        map[0] = C4M_HEADER_SCAN_CONST;
-    }
-
-    (*scanner)(map, hdr->data);
-
-    int last_cell = numwords / 64;
-
-    for (int i = 0; i <= last_cell; i++) {
-        uint64_t w = map[i];
-        while (w) {
-            int ix = 63 - __builtin_clzll(w);
-            w &= ~(1ULL << ix);
-            void **loc = &p[ix];
-            contents   = *loc;
-
-            if (value_in_fromspace(ctx, contents)) {
-                if (value_in_allocation(hdr, contents)) {
-                    update_pointer(hdr, contents, loc);
-                }
-                else {
-                    add_forward_to_worklist(ctx, loc);
-                }
-            }
+        else {
+            *dst = value;
         }
-        p += 64;
+        dst++;
     }
-
-    return;
 }
 
 static void
-forward_one_allocation(c4m_collection_ctx *ctx, void **ptr_loc)
+one_worklist_item(c4m_collection_ctx *ctx)
 {
-    void          *ptr = *ptr_loc;
-    c4m_alloc_hdr *hdr = get_header(ctx, ptr);
+    worklist_item_t *item = next_read_slot(ctx);
+    c4m_alloc_hdr *new    = item->new_hdr;
+    c4m_alloc_hdr *old    = item->old_hdr;
 
-    if (hdr->fw_addr) {
-        c4m_gc_trace(C4M_GCT_PTR_TO_MOVE,
-                     "ptr %p (@%p; %s:%d) needs to move; tospace record @%p",
-                     ptr,
-                     ptr_loc,
-                     hdr->alloc_file,
-                     hdr->alloc_line,
-                     hdr->fw_addr);
+    c4m_gc_trace(C4M_GCT_WORKLIST, "process item: %d", ctx->worklist->read_ix);
 
-        update_pointer(hdr, ptr, ptr_loc);
+    if (C4M_GC_SCAN_NONE == (void *)item->new_hdr->scan_fn) {
+        size_t copy_len = ((char *)old->next_addr) - (char *)old->data;
+
+        memcpy(new->data, old->data, copy_len);
+
+        ctx->copied_allocs++;
         return;
     }
 
-    hdr->fw_addr = prep_allocation(hdr, ctx->to_space);
-    ctx->reached_allocs++;
-    c4m_gc_trace(C4M_GCT_PTR_TO_MOVE,
-                 "ptr %p (@%p; %s:%d) needs to move; NEW RECORD ADDED (@%p)",
-                 ptr,
-                 ptr_loc,
-                 hdr->alloc_file,
-                 hdr->alloc_line,
-                 hdr->fw_addr);
+    if (C4M_GC_SCAN_ALL == (void *)item->new_hdr->scan_fn) {
+        move_range_unsafely(ctx, item);
+        ctx->copied_allocs++;
 
-    update_pointer(hdr, ptr, ptr_loc);
-    scan_allocation(ctx, hdr);
-    // We can copy this item once any pointers inside it can be relocated.
-    add_copy_to_worklist(ctx, hdr);
+        return;
+    }
+
+    // Start simple, will get this back up in a bit.
+    uint32_t  numwords    = item->new_hdr->alloc_len / 8;
+    uint32_t  bf_byte_len = ((numwords / 64) + 1) * 8;
+    uint64_t *map         = malloc(bf_byte_len);
+    uint64_t *map_copy    = map;
+
+    memset(map, 0, bf_byte_len);
+
+    // TODO: Probably this should point at the OLD location?
+    // Tho would be messy w/ marshal.
+    (*item->new_hdr->scan_fn)(map, item->old_hdr->data);
+
+    uint32_t  scan_ix = 0;
+    uint64_t  value;
+    uint64_t *p   = item->old_hdr->data;
+    uint64_t *end = (uint64_t *)item->old_hdr->next_addr;
+    uint64_t *dst = item->new_hdr->data;
+
+    while (p < end) {
+        value = *p++;
+
+        if (((*map) & (1 << scan_ix++)) && value_in_fromspace(ctx, (void *)value)) {
+            *dst++ = (uint64_t)ptr_relocate(ctx, (void *)value);
+        }
+        else {
+            *dst++ = value;
+        }
+
+        if (c4m_unlikely(scan_ix == 64)) {
+            ++map;
+            scan_ix = 0;
+        }
+    }
+    ctx->copied_allocs++;
+    free(map_copy);
 }
 
 static void
 process_worklist(c4m_collection_ctx *ctx)
 {
-    // The worklist contains one of two things:
-    //
-    // 1. Pointers to cells in allocations we've already started to
-    //    copy.  Those cells contain a pointer somewhere else into the
-    //    heap, but not it's own allocation.
-    //
-    // 2. An instruction to COPY an allocation's data to its new home.
-    //    This only gets issued after any pointers inside our
-    //    allocation are guaranteed to have been updated, so that
-    //    we don't copy pointers into the old heap on accident.
-    //
-    // For #1, the allocation in question may already be forwarded,
-    // but if not, it will get added to the worklist immediately,
-    // causing the to-space memory to be allocated, allowing us to
-    // update the pointer.
+    c4m_gc_trace(C4M_GCT_WORKLIST,
+                 "list start: %d - %d",
+                 ctx->worklist->read_ix,
+                 ctx->worklist->write_ix);
 
-    uint64_t op;
-
-    void **p = c4m_wl_read(ctx, &op);
-
-    while (p != (void **)NULL) {
-        if (op == GC_OP_FW) {
-            forward_one_allocation(ctx, p);
-        }
-        else {
-            c4m_alloc_hdr *src = (c4m_alloc_hdr *)p;
-            c4m_alloc_hdr *dst = src->fw_addr;
-
-            memcpy(dst->data, src->data, src->alloc_len);
-
-#ifdef C4M_FULL_MEMCHECK
-            // We just wiped the back guard with the memcpy.
-            *dst->end_guard_loc = c4m_end_guard;
-#endif
-            ctx->copied_allocs++;
-            c4m_gc_trace(C4M_GCT_MOVED,
-                         "%d words moved from %p to %p "
-                         "(hdrs: %p to %p; %s:%d)\n",
-                         src->alloc_len,
-                         src->data,
-                         dst->data,
-                         src,
-                         dst,
-                         dst->alloc_file,
-                         dst->alloc_line);
-        }
-        p = c4m_wl_read(ctx, &op);
+    while (ctx->worklist->read_ix != ctx->worklist->write_ix) {
+        one_worklist_item(ctx);
     }
+
+    c4m_gc_trace(C4M_GCT_WORKLIST,
+                 "@end: %d - dx",
+                 ctx->worklist->read_ix,
+                 ctx->worklist->write_ix);
 }
 
-// This is only used for roots, not for memory allocations.
-//
-// That's because memory allocations have a hook to help us figure out which cells
-// of the allocation may contain pointers.
 static void
-scan_range_for_allocs(c4m_collection_ctx *ctx, void **start, int num)
+scan_external_range(c4m_collection_ctx *ctx, uint64_t *p, int num_words)
 {
-    for (int i = 0; i < num; i++) {
+    for (int i = 0; i < num_words; i++) {
+        uint64_t value = *p;
+
 #ifdef HAS_ADDRESS_SANITIZER
-        if (__asan_addr_is_in_fake_stack(__asan_get_current_fake_stack(), start)) {
-            start++;
+        if (__asan_addr_is_in_fake_stack(__asan_get_current_fake_stack(),
+                                         value)) {
+            p++;
             continue;
         }
 #endif
-        if (value_in_fromspace(ctx, *start)) {
-            forward_one_allocation(ctx, start);
-        }
-        start++;
-    }
-    process_worklist(ctx);
-}
 
-#ifdef C4M_PARANOID_STACK_SCAN
-static void
-scan_stack_for_allocs(c4m_collection_ctx *ctx, void **start, int num)
-{
-    char *p = (char *)start;
-
-    for (int i = 0; i < num; i++) {
-        if (value_in_fromspace(ctx, *start)) {
-            forward_one_allocation(ctx, start);
+        if (value_in_fromspace(ctx, (void *)value)) {
+            *p = (uint64_t)ptr_relocate(ctx, (void *)value);
         }
         p++;
-        start = (void **)p;
     }
-    process_worklist(ctx);
 }
-#endif
 
 static void
 scan_roots(c4m_collection_ctx *ctx)
@@ -604,57 +461,47 @@ scan_roots(c4m_collection_ctx *ctx)
                      (uint32_t)ri->num_items,
                      ri->file,
                      ri->line);
-        scan_range_for_allocs(ctx, ri->ptr, ri->num_items);
+        scan_external_range(ctx, ri->ptr, ri->num_items);
         c4m_gc_trace(C4M_GCT_SCAN,
                      "Root scan end: %p (%d item(s)) (%s:%d)",
                      ri->ptr,
                      (uint32_t)ri->num_items,
                      ri->file,
                      ri->line);
+        process_worklist(ctx);
     }
 }
 
-static inline void
+static void
 raw_trace(c4m_collection_ctx *ctx)
 {
-    c4m_arena_t      *cur   = ctx->from_space;
-    c4m_arena_t      *stash = (void *)~(uint64_t)cur;
-    uint64_t          len   = cur->heap_end - (uint64_t *)cur;
-    hatrack_zarray_t *r     = cur->roots;
-    uint64_t         *stack_top;
-    uint64_t         *stack_bottom;
+    c4m_arena_t *cur = ctx->from_space;
+    uint64_t    *stack_top;
+    uint64_t    *stack_bottom;
 
-    if (cur->grow_next) {
-        len <<= 1;
-    }
-
-    ctx->to_space = c4m_new_arena((size_t)len, r);
-
-    ASAN_UNPOISON_MEMORY_REGION(
-        ctx->to_space,
-        (((char *)ctx->to_space->heap_end) - (char *)ctx->to_space->data));
-
-    ctx->worklist = c4m_alloc_collection_worklist(cur);
     c4m_get_stack_scan_region((uint64_t *)&stack_top,
                               (uint64_t *)&stack_bottom);
 
-    ctx->fromspc_start = ctx->from_space->data;
-    ctx->fromspc_end   = ctx->from_space->heap_end;
+    scan_external_range(ctx, (uint64_t *)&c4m_bi_types[2], 1);
+    process_worklist(ctx);
+    scan_external_range(ctx, (uint64_t *)&c4m_bi_types[0], C4M_NUM_BUILTIN_DTS);
+    process_worklist(ctx);
 
+    /*    scan_external_range(ctx,
+                            (uint64_t *)&ctx->from_space->history->ring[0],
+                            C4M_ALLOC_HISTORY_SIZE);
+                            process_worklist(ctx);*/
     scan_roots(ctx);
+
     c4m_gc_trace(C4M_GCT_SCAN,
                  "Stack scan start: %p to %p (%lu item(s))",
                  stack_top,
                  stack_bottom,
                  stack_bottom - stack_top);
 
-#ifdef C4M_PARANOID_STACK_SCAN
-    scan_stack_for_allocs(ctx, (void **)stack_top, stack_bottom - stack_top);
-#else
-    scan_range_for_allocs(ctx, (void **)stack_top, stack_bottom - stack_top);
-#endif
-
-    ctx->from_space = (void *)~(uint64_t)stash;
+    ctx->stack_scanning = true;
+    scan_external_range(ctx, stack_top, stack_bottom - stack_top);
+    process_worklist(ctx);
 
     c4m_gc_trace(C4M_GCT_SCAN,
                  "Stack scan end: %p to %p (%lu item(s))",
@@ -665,25 +512,11 @@ raw_trace(c4m_collection_ctx *ctx)
     if (system_finalizer != NULL) {
         migrate_finalizers(cur, ctx->to_space);
     }
-
-    ASAN_UNPOISON_MEMORY_REGION(
-        ctx->to_space->next_alloc,
-        (((char *)ctx->to_space->heap_end) - (char *)ctx->to_space->next_alloc));
 }
 
 #ifdef C4M_FULL_MEMCHECK
 
 extern uint64_t c4m_end_guard;
-
-static inline char *
-name_alloc(c4m_alloc_hdr *alloc)
-{
-    if (!alloc->con4m_obj) {
-        return "raw alloc";
-    }
-    c4m_base_obj_t *base = (c4m_base_obj_t *)alloc->data;
-    return (char *)base->base_data_type->name;
-}
 
 void
 _c4m_memcheck_raw_alloc(void *a, char *file, int line)
@@ -731,8 +564,7 @@ _c4m_memcheck_object(c4m_obj_t o, char *file, int line)
         abort();
     }
 
-    c4m_base_obj_t *b = &((c4m_base_obj_t *)o)[-1];
-    c4m_alloc_hdr  *h = &((c4m_alloc_hdr *)b)[-1];
+    c4m_alloc_hdr *h = c4m_object_header(o);
 
     if (h->guard != c4m_gc_guard) {
         fprintf(stderr, "\n%s:%d: ", file, line);
@@ -795,10 +627,6 @@ c4m_alloc_display_rear_guard_error(c4m_alloc_hdr *hdr,
                                    int            line,
                                    bool           bail)
 {
-    if (hdr->con4m_obj) {
-        len -= sizeof(c4m_base_obj_t);
-    }
-
     fprintf(stderr,
             "%s @%p overflowed. It was allocated to %d bytes, and had its "
             "end guard at %p.\n"
@@ -829,10 +657,15 @@ show_next_allocs(c4m_shadow_alloc_t *a)
 {
 #ifdef C4M_SHOW_NEXT_ALLOCS
     int n = C4M_SHOW_NEXT_ALLOCS;
-    printf("Next allocs:\n");
+    fprintf(stderr, "Next allocs:\n");
 
     while (a && n) {
-        printf("%s:%d (@%p; %d bytes)\n", a->file, a->line, a->start, a->len);
+        fprintf(stderr,
+                "%s:%d (@%p; %d bytes)\n",
+                a->file,
+                a->line,
+                a->start,
+                a->len);
         a = a->next;
         n -= 1;
     }
@@ -936,169 +769,198 @@ memcheck_delete_old_records(c4m_arena_t *from_space)
 
 #endif
 
-c4m_arena_t *
-c4m_collect_arena(c4m_arena_t *from_space)
-{
-    c4m_collection_ctx ctx = {
-        .from_space     = from_space,
-        .reached_allocs = 0,
-        .copied_allocs  = 0,
-    };
-
 #ifdef C4M_GC_STATS
-    c4m_arena_t *old_arena = ctx.from_space;
-
-    uint64_t old_used, old_free, old_total, live, available, new_total;
-
-    c4m_gc_heap_stats(&old_used, &old_free, &old_total);
-
-    uint64_t stashed_counter  = c4m_total_allocs;
-    uint64_t stashed_alloced  = c4m_total_alloced;
-    uint64_t stashed_requests = c4m_total_requested;
-    uint64_t start_counter    = c4m_current_heap->starting_counter;
-    uint64_t start_records    = c4m_current_heap->legacy_count;
-    uint64_t prev_new_allocs  = stashed_counter - start_counter;
-    uint64_t prev_start_bytes = c4m_current_heap->start_size;
-    uint64_t prev_used_mem    = old_used - prev_start_bytes;
-    uint64_t old_num_records  = start_records + prev_new_allocs;
-
-    uint64_t num_migrations;
-
-    c4m_total_allocs    = 0;
-    c4m_total_alloced   = 0;
-    c4m_total_requested = 0;
+#define PREP_STATS()                                                    \
+    c4m_arena_t *old_arena = (void *)ctx->from_space;                   \
+                                                                        \
+    uint64_t old_used, old_free, old_total, live, available, new_total; \
+                                                                        \
+    c4m_gc_heap_stats(&old_used, &old_free, &old_total);                \
+                                                                        \
+    uint64_t prev_new_allocs  = c4m_total_allocs;                       \
+    uint64_t prev_start_bytes = ctx->from_space->start_size;            \
+    uint64_t prev_used_mem    = old_used - prev_start_bytes;            \
+    uint64_t copy_count       = ctx->from_space->num_transferred;       \
+    uint64_t old_num_records  = c4m_total_alloced + copy_count;         \
+                                                                        \
+    uint64_t num_migrations;                                            \
+                                                                        \
     c4m_total_collects++;
 
+#define SHOW_STATS()                                                           \
+    const int mb   = 0x100000;                                                 \
+    num_migrations = ctx->copied_allocs;                                       \
+    c4m_gc_heap_stats(&live, &available, &new_total);                          \
+                                                                               \
+    c4m_current_heap->legacy_count    = num_migrations;                        \
+    c4m_current_heap->num_transferred = num_migrations;                        \
+    c4m_current_heap->start_size      = live / 8;                              \
+                                                                               \
+    c4m_total_garbage_words += (old_used - live) / 8;                          \
+    c4m_total_size += (old_total / 8);                                         \
+                                                                               \
+    if (!c4m_gc_show_heap_stats_on) {                                          \
+        return ctx->to_space;                                                  \
+    }                                                                          \
+                                                                               \
+    c4m_printf("\n[h1 u]****Heap Stats****\n");                                \
+                                                                               \
+    c4m_printf(                                                                \
+        "[h2]Pre-collection heap[i] @{:x}:",                                   \
+        c4m_box_u64((uint64_t)old_arena));                                     \
+                                                                               \
+    c4m_printf("[em]{:,}[/] mb used of [em]{:,}[/] mb; ([em]{:,}[/] mb free)", \
+               c4m_box_u64(old_used / mb),                                     \
+               c4m_box_u64(old_total / mb),                                    \
+               c4m_box_u64(old_free / mb));                                    \
+                                                                               \
+    c4m_printf(                                                                \
+        "[em]{:,}[/] records, [em]{:,}[/] "                                    \
+        "migrated; [em]{:,}[/] new. ([em]{:,}[/] mb)\n",                       \
+        c4m_box_u64(old_num_records),                                          \
+        c4m_box_u64(num_migrations),                                           \
+        c4m_box_u64(prev_new_allocs),                                          \
+        c4m_box_u64(prev_used_mem / mb));                                      \
+                                                                               \
+    c4m_printf(                                                                \
+        "[h2]Post collection heap [i]@{:x}: ",                                 \
+        c4m_box_u64((uint64_t)c4m_current_heap));                              \
+                                                                               \
+    c4m_printf(                                                                \
+        "[em]{:,}[/] mb used of [em]{:,}[/] mb; "                              \
+        "([b i]{:,}[/] mb free, [b i]{:,}[/] mb collected)",                   \
+        c4m_box_u64(live / mb),                                                \
+        c4m_box_u64(new_total / mb),                                           \
+        c4m_box_u64(available / mb),                                           \
+        c4m_box_u64((old_used - live) / mb));                                  \
+                                                                               \
+    c4m_printf("Copied [em]{:,}[/] records; Trashed [em]{:,}[/]",              \
+               c4m_box_u64(num_migrations),                                    \
+               c4m_box_u64(old_num_records - num_migrations));                 \
+                                                                               \
+    c4m_printf("[h2]Totals[/h2]\n[b]Total requests:[/] [em]{:,}[/] mb ",       \
+               c4m_box_u64(c4m_total_requested / mb));                         \
+                                                                               \
+    c4m_printf("[b]Total alloced:[/] [em]{:,}[/] mb",                          \
+               c4m_box_u64(c4m_total_alloced / mb));                           \
+                                                                               \
+    c4m_printf("[b]Total allocs:[/] [em]{:,}[/]",                              \
+               c4m_box_u64(c4m_total_allocs));                                 \
+                                                                               \
+    c4m_printf("[b]Total collects:[/] [em]{:,}",                               \
+               c4m_box_u64(c4m_total_collects));                               \
+                                                                               \
+    double      u = c4m_total_garbage_words * (double)100.0;                   \
+    c4m_utf8_t *gstr;                                                          \
+                                                                               \
+    u    = u / (double)(c4m_total_size);                                       \
+    gstr = c4m_cstr_format("{}", c4m_box_double(u));                           \
+    gstr = c4m_str_slice(gstr, 0, 5);                                          \
+                                                                               \
+    c4m_printf("[b]Collect utilization[/]: [em]{}%[/] [i]garbage",             \
+               gstr);                                                          \
+                                                                               \
+    c4m_printf("[b]Average allocation size:[/] [em]{:,}[/] bytes",             \
+               c4m_box_u64(c4m_total_alloced / c4m_total_allocs))
+#else
+#define PREP_STATS()
+#define SHOW_STATS()
 #endif
 
-    ASAN_UNPOISON_MEMORY_REGION(
-        from_space,
-        (((char *)ctx.from_space->heap_end) - (char *)ctx.from_space->data));
-
 #if defined(C4M_GC_FULL_TRACE) && C4M_GCT_COLLECT != 0
-    c4m_gc_trace(C4M_GCT_COLLECT,
-                 "=========== COLLECT START; arena @%p",
-                 c4m_current_heap);
-    raw_trace(&ctx);
-    c4m_gc_trace(C4M_GCT_COLLECT,
-                 "=========== COLLECT END; arena @%p\n",
-                 c4m_current_heap);
+#define RUN_CORE_TRACE(x)                                \
+    c4m_gc_trace(C4M_GCT_COLLECT,                        \
+                 "=========== COLLECT START; arena @%p", \
+                 c4m_current_heap);                      \
+    raw_trace(x);                                        \
+    c4m_gc_trace(C4M_GCT_COLLECT,                        \
+                 "=========== COLLECT END; arena @%p\n", \
+                 c4m_current_heap)
 #else
-    raw_trace(&ctx);
+#define RUN_CORE_TRACE(x) raw_trace(x)
 #endif
 
 #ifdef C4M_FULL_MEMCHECK
-    memcheck_validate_old_records(old_arena);
-    memcheck_delete_old_records(old_arena);
+#define MEMCHECK_OLD_HEAP(x)          \
+    memcheck_validate_old_records(x); \
+    memcheck_delete_old_records(x)
+#else
+#define MEMCHECK_OLD_HEAP(x)
 #endif
 
-    uint64_t start = (uint64_t)ctx.to_space;
-    uint64_t end   = (uint64_t)ctx.to_space->heap_end;
-    uint64_t where = (uint64_t)ctx.to_space->next_alloc;
+c4m_arena_t *
+c4m_collect_arena(c4m_arena_t *from_space)
+{
+#ifdef C4M_GC_SHOW_COLLECT_STACK_TRACES
+    printf(
+        "+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n"
+        "Initiating garbage collection.\n Current stack: \n\n");
+    c4m_static_c_backtrace();
+    printf(
+        "+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n");
+#endif
+
+    c4m_collection_ctx *ctx;
+    void               *worklist_end;
+    worklist_t         *worklist;
+    const int           hdr_sz = sizeof(c4m_alloc_hdr) / 8;
+    uint64_t            len    = from_space->heap_end - (uint64_t *)from_space;
+
+    worklist = c4m_raw_arena_alloc(len * 8, &worklist_end, (void **)&ctx);
+
+    if (from_space->grow_next) {
+        len <<= 1;
+    }
+
+    ctx->from_space     = from_space;
+    ctx->to_space       = c4m_new_arena(len, from_space->roots);
+    ctx->worklist       = worklist;
+    ctx->next_to_record = ctx->to_space->next_alloc;
+    ctx->fromspc_start  = ctx->from_space->data;
+    ctx->fromspc_end    = ctx->from_space->heap_end;
+    ctx->fromspc_start += hdr_sz;
+    ctx->fromspc_end -= hdr_sz;
+
+    PREP_STATS();
+
+    RUN_CORE_TRACE(ctx);
+
+    ctx->to_space->next_alloc  = ctx->next_to_record;
+    ctx->to_space->alloc_count = ctx->copied_allocs;
+    assert(ctx->copied_allocs == ctx->reached_allocs);
+
+    MEMCHECK_OLD_HEAP(ctx->from_space);
+
+    uint64_t start = (uint64_t)ctx->to_space;
+    uint64_t end   = (uint64_t)ctx->to_space->heap_end;
     uint64_t total = end - start;
+    uint64_t where = (uint64_t)ctx->to_space->next_alloc;
     uint64_t inuse = where - start;
 
     if (((total + (total >> 1)) >> 4) < inuse) {
-        ctx.to_space->grow_next = true;
+        ctx->to_space->grow_next = true;
     }
 
     run_post_collect_hooks();
 
-    c4m_delete_arena(ctx.from_space);
-
     // Free the worklist.
-    c4m_gc_trace(C4M_GCT_MUNMAP, "worklist: del @%p", ctx.worklist);
-    c4m_free_collection_worklist(ctx.worklist);
+    c4m_gc_trace(C4M_GCT_MUNMAP,
+                 "worklist: del @%p (used %lld items)",
+                 ctx->worklist,
+                 ctx->worklist->write_ix);
 
-#ifdef C4M_GC_STATS
-    const int mb        = 0x100000;
-    num_migrations      = c4m_total_allocs;
-    c4m_total_allocs    = stashed_counter;
-    c4m_total_alloced   = stashed_alloced;
-    c4m_total_requested = stashed_requests;
-
-    c4m_current_heap = ctx.to_space;
-
-    c4m_gc_heap_stats(&live, &available, &new_total);
-
-    c4m_current_heap->legacy_count     = num_migrations;
-    c4m_current_heap->starting_counter = stashed_counter;
-    c4m_current_heap->start_size       = live / 8;
-
-    c4m_total_garbage_words += (old_used - live) / 8;
-    c4m_total_size += (old_total / 8);
-
-    if (!c4m_gc_show_heap_stats_on) {
-        return ctx.to_space;
+    if (ctx->from_space == c4m_current_heap) {
+        c4m_current_heap = ctx->to_space;
     }
 
-    c4m_printf("\n[h1 u]****Heap Stats****\n");
+    c4m_arena_t *result = ctx->to_space;
+    SHOW_STATS();
 
-    c4m_printf(
-        "[h2]Pre-collection heap[i] @{:x}:",
-        c4m_box_u64((uint64_t)old_arena));
+    pthread_mutex_unlock(&ctx->from_space->lock);
+    c4m_delete_arena(ctx->from_space);
+    c4m_delete_arena((void *)ctx->worklist);
 
-    c4m_printf("[em]{:,}[/] mb used of [em]{:,}[/] mb; ([em]{:,}[/] mb free)",
-               c4m_box_u64(old_used / mb),
-               c4m_box_u64(old_total / mb),
-               c4m_box_u64(old_free / mb));
-
-    c4m_printf(
-        "[em]{:,}[/] records, [em]{:,}[/] "
-        "migrated; [em]{:,}[/] new. ([em]{:,}[/] mb)\n",
-        c4m_box_u64(old_num_records),
-        c4m_box_u64(start_records),
-        c4m_box_u64(prev_new_allocs),
-        c4m_box_u64(prev_used_mem / mb));
-
-    c4m_printf(
-        "[h2]Post collection heap [i]@{:x}: ",
-        c4m_box_u64((uint64_t)c4m_current_heap));
-
-    c4m_printf(
-        "[em]{:,}[/] mb used of [em]{:,}[/] mb; "
-        "([b i]{:,}[/] mb free, [b i]{:,}[/] mb collected)",
-        c4m_box_u64(live / mb),
-        c4m_box_u64(new_total / mb),
-        c4m_box_u64(available / mb),
-        c4m_box_u64((old_used - live) / mb));
-
-    c4m_printf("Copied [em]{:,}[/] records; Trashed [em]{:,}[/]",
-               c4m_box_u64(num_migrations),
-               c4m_box_u64(old_num_records - num_migrations));
-
-    c4m_printf("[h2]Totals[/h2]\n[b]Total requests:[/] [em]{:,}[/] mb ",
-               c4m_box_u64(c4m_total_requested / mb));
-
-    c4m_printf("[b]Total alloced:[/] [em]{:,}[/] mb",
-               c4m_box_u64(c4m_total_alloced / mb));
-
-    c4m_printf("[b]Total allocs:[/] [em]{:,}[/]",
-               c4m_box_u64(c4m_total_allocs));
-
-    c4m_printf("[b]Total collects:[/] [em]{:,}",
-               c4m_box_u64(c4m_total_collects));
-
-    double      u = c4m_total_garbage_words * (double)100.0;
-    c4m_utf8_t *gstr;
-
-    // Precision isn't implemented on floats yet.
-    u    = u / (double)(c4m_total_size);
-    gstr = c4m_cstr_format("{}", c4m_box_double(u));
-    gstr = c4m_str_slice(gstr, 0, 5);
-
-    c4m_printf("[b]Collect utilization[/]: [em]{}%[/] [i]garbage",
-               gstr);
-
-    c4m_printf("[b]Average allocation size:[/] [em]{:,}[/] bytes",
-               c4m_box_u64(c4m_total_alloced / c4m_total_allocs));
-
-#ifdef C4M_GC_SHOW_COLLECT_STACK_TRACES
-    c4m_print_c_backtrace();
-#endif
-
-#endif
-    return ctx.to_space;
+    return result;
 }
 
 void

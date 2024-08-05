@@ -147,11 +147,9 @@ c4m_tree_walk(c4m_tree_node_t *t, c4m_walker_fn callback)
 }
 
 void
-c4m_tree_node_set_gc_bits(uint64_t       *bitfield,
-                          c4m_base_obj_t *alloc)
-
+c4m_tree_node_set_gc_bits(uint64_t *bitfield, void *alloc)
 {
-    c4m_tree_node_t *n = (c4m_tree_node_t *)alloc->data;
+    c4m_tree_node_t *n = (c4m_tree_node_t *)alloc;
     c4m_mark_raw_to_addr(bitfield, alloc, &n->contents);
 }
 

@@ -23,9 +23,11 @@ execute_test(c4m_test_kat *kat)
                                               "start_cols",
                                               c4m_ka(1),
                                               "container_tag",
-                                              c4m_ka("flow")));
+                                              c4m_ka(c4m_new_utf8("flow"))));
         c4m_utf8_t *s        = c4m_new_utf8("Error Output");
-        c4m_grid_add_row(err_grid, c4m_to_str_renderable(s, "h2"));
+        c4m_grid_add_row(err_grid,
+                         c4m_to_str_renderable(s,
+                                               c4m_new_utf8("h2")));
         c4m_grid_add_row(err_grid, err_output);
         c4m_print(err_grid);
     }
@@ -39,11 +41,12 @@ execute_test(c4m_test_kat *kat)
         return c4m_tec_no_compile;
     }
 
-    c4m_vm_t *vm = c4m_generate_code(ctx);
+    c4m_vm_t *vm = c4m_vm_new(ctx);
+    c4m_generate_code(ctx, vm);
 
     if (c4m_dev_mode) {
-        int                 n = vm->obj->entrypoint;
-        c4m_zmodule_info_t *m = c4m_list_get(vm->obj->module_contents, n, NULL);
+        int           n = vm->entry_point;
+        c4m_module_t *m = c4m_list_get(vm->obj->module_contents, n, NULL);
 
         c4m_show_dev_disasm(vm, m);
     }
@@ -52,6 +55,16 @@ execute_test(c4m_test_kat *kat)
     c4m_vmthread_t *thread = c4m_vmthread_new(vm);
     c4m_vmthread_run(thread);
     c4m_printf("[h6]****PROGRAM EXECUTION FINISHED*****[/]\n");
+
+    if (kat->save) {
+        c4m_printf("\n[h3]Saving VM state.");
+        c4m_buf_t *b = c4m_vm_save(vm);
+        c4m_printf("[h4]Great success!");
+        c4m_printf("[h3]Re-running.");
+        c4m_vmthread_t *thread = c4m_vmthread_new(vm);
+        c4m_vmthread_run(thread);
+    }
+
     // TODO: We need to mark unlocked types with sub-variables at some point,
     // so they don't get clobbered.
     //
@@ -60,7 +73,7 @@ execute_test(c4m_test_kat *kat)
     // c4m_clean_environment();
     // c4m_print(c4m_format_global_type_environment());
     if (kat->is_test) {
-        return c4m_compare_results(kat, ctx, vm->print_buf);
+        return c4m_compare_results(kat, ctx, vm->run_state->print_buf);
     }
 
     return c4m_tec_success;

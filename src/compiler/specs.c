@@ -56,7 +56,7 @@ c4m_grid_repr_section(c4m_spec_section_t *section)
                                         "start_cols",
                                         c4m_ka(1),
                                         "container_tag",
-                                        c4m_ka("flow")));
+                                        c4m_ka(c4m_new_utf8("flow"))));
 
     if (section->name) {
         c4m_grid_add_row(result,
@@ -103,10 +103,10 @@ c4m_grid_repr_section(c4m_spec_section_t *section)
                              "start_cols",
                              c4m_ka(n),
                              "container_tag",
-                             c4m_ka("table")));
+                             c4m_ka(c4m_new_utf8("table"))));
 
         s = c4m_new_utf8("Required Subsections");
-        r = c4m_to_str_renderable(s, "h3");
+        r = c4m_to_str_renderable(s, c4m_new_utf8("h3"));
 
         // tmp dummy row.
         c4m_grid_add_row(one, c4m_list(c4m_type_utf8()));
@@ -129,10 +129,10 @@ c4m_grid_repr_section(c4m_spec_section_t *section)
                              "start_cols",
                              c4m_ka(n),
                              "container_tag",
-                             c4m_ka("table")));
+                             c4m_ka(c4m_new_utf8("table"))));
 
         s = c4m_new_utf8("Allowed Subsections");
-        r = c4m_to_str_renderable(s, "h3");
+        r = c4m_to_str_renderable(s, c4m_new_utf8("h3"));
 
         c4m_grid_add_row(one, c4m_list(c4m_type_utf8()));
         c4m_grid_add_col_span(one, r, 0, 0, n);
@@ -157,13 +157,13 @@ c4m_grid_repr_section(c4m_spec_section_t *section)
                          "start_rows",
                          c4m_ka(2),
                          "th_tag",
-                         c4m_ka("h2"),
+                         c4m_ka(c4m_new_utf8("h2")),
                          "stripe",
                          c4m_ka(true),
                          "container_tag",
-                         c4m_ka("table2")));
+                         c4m_ka(c4m_new_utf8("table2"))));
     s   = c4m_new_utf8("FIELD SPECIFICATIONS");
-    r   = c4m_to_str_renderable(s, "h3");
+    r   = c4m_to_str_renderable(s, c4m_new_utf8("h3"));
 
     c4m_grid_add_row(one, c4m_list(c4m_type_utf8()));
     c4m_grid_add_col_span(one, r, 0, 0, 7);
@@ -243,7 +243,7 @@ c4m_repr_spec(c4m_spec_t *spec)
                                         "start_cols",
                                         c4m_ka(1),
                                         "container_tag",
-                                        c4m_ka("flow")));
+                                        c4m_ka(c4m_new_utf8("flow"))));
 
     if (spec->short_doc) {
         c4m_grid_add_row(result, spec->short_doc);
@@ -252,7 +252,7 @@ c4m_repr_spec(c4m_spec_t *spec)
         c4m_grid_add_row(result,
                          c4m_to_str_renderable(
                              c4m_new_utf8("Configuration Specification"),
-                             "h2"));
+                             c4m_new_utf8("h2")));
     }
     if (spec->long_doc) {
         c4m_grid_add_row(result, spec->long_doc);

@@ -23,6 +23,13 @@ c4m_list_init(c4m_list_t *list, va_list args)
     }
 }
 
+static void
+c4m_list_restore(c4m_list_t *list)
+{
+    list->dont_acquire = false;
+    pthread_rwlock_init(&list->lock, NULL);
+}
+
 void
 c4m_list_resize(c4m_list_t *list, size_t len)
 {
@@ -306,7 +313,7 @@ c4m_list_coerce_to(c4m_list_t *list, c4m_type_t *dst_type)
     read_start(list);
 
     c4m_obj_t     result;
-    c4m_dt_kind_t base          = c4m_type_get_base(dst_type);
+    c4m_dt_kind_t base          = c4m_type_get_kind(dst_type);
     c4m_type_t   *src_item_type = c4m_type_get_param(c4m_get_my_type(list), 0);
     c4m_type_t   *dst_item_type = c4m_type_get_param(dst_type, 0);
     int64_t       len           = c4m_list_len(list);
@@ -353,14 +360,13 @@ c4m_list_copy(c4m_list_t *list)
 {
     read_start(list);
 
-    int64_t     len       = c4m_list_len(list);
-    c4m_type_t *my_type   = c4m_get_my_type((c4m_obj_t)list);
-    c4m_type_t *item_type = c4m_type_get_param(my_type, 0);
-    c4m_list_t *res       = c4m_new(my_type, c4m_kw("length", c4m_ka(len)));
+    int64_t     len     = c4m_list_len(list);
+    c4m_type_t *my_type = c4m_get_my_type((c4m_obj_t)list);
+    c4m_list_t *res     = c4m_new(my_type, c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {
         c4m_obj_t item = c4m_list_get_base(list, i, NULL);
-        c4m_list_set(res, i, c4m_copy_object_of_type(item, item_type));
+        c4m_list_set(res, i, c4m_copy(item));
     }
 
     read_end(list);
@@ -571,18 +577,19 @@ c4m_list_view(c4m_list_t *list, uint64_t *n)
 static c4m_list_t *
 c4m_to_list_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *litmod)
 {
-    c4m_base_obj_t *hdr = c4m_object_header((c4m_obj_t)items);
-    hdr->concrete_type  = objtype;
+    c4m_mem_ptr p = {.v = items};
+    p.alloc -= 1;
+
+    p.alloc->type = objtype;
     return items;
 }
 
 extern bool c4m_flexarray_can_coerce_to(c4m_type_t *, c4m_type_t *);
 
 void
-c4m_list_set_gc_bits(uint64_t       *bitfield,
-                     c4m_base_obj_t *alloc)
+c4m_list_set_gc_bits(uint64_t *bitfield, void *alloc)
 {
-    c4m_set_bit(bitfield, c4m_ptr_diff(alloc, alloc->data));
+    // TODO: Do this up like dicts.
 }
 
 const c4m_vtable_t c4m_list_vtable = {
@@ -592,6 +599,7 @@ const c4m_vtable_t c4m_list_vtable = {
         [C4M_BI_COERCIBLE]     = (c4m_vtable_entry)c4m_flexarray_can_coerce_to,
         [C4M_BI_COERCE]        = (c4m_vtable_entry)c4m_list_coerce_to,
         [C4M_BI_COPY]          = (c4m_vtable_entry)c4m_list_copy,
+        [C4M_BI_SHALLOW_COPY]  = (c4m_vtable_entry)c4m_list_shallow_copy,
         [C4M_BI_ADD]           = (c4m_vtable_entry)c4m_list_plus,
         [C4M_BI_LEN]           = (c4m_vtable_entry)c4m_list_len,
         [C4M_BI_INDEX_GET]     = (c4m_vtable_entry)c4m_list_safe_get,
@@ -601,7 +609,8 @@ const c4m_vtable_t c4m_list_vtable = {
         [C4M_BI_VIEW]          = (c4m_vtable_entry)c4m_list_view,
         [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)c4m_to_list_lit,
         [C4M_BI_REPR]          = (c4m_vtable_entry)c4m_list_repr,
-        [C4M_BI_GC_MAP]        = (c4m_vtable_entry)c4m_list_set_gc_bits,
+        [C4M_BI_GC_MAP]        = (c4m_vtable_entry)C4M_GC_SCAN_ALL,
+        [C4M_BI_RESTORE]       = (c4m_vtable_entry)c4m_list_restore,
         // Explicit because some compilers don't seem to always properly
         // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
         [C4M_BI_FINALIZER]     = NULL,

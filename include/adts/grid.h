@@ -7,22 +7,22 @@ c4m_cell_address(c4m_grid_t *g, int row, int col)
     return &g->cells[g->num_cols * row + col];
 }
 
-static inline char *
+static inline c4m_utf8_t *
 c4m_get_th_tag(c4m_grid_t *g)
 {
     if (g->th_tag_name != NULL) {
         return g->th_tag_name;
     }
-    return "th";
+    return c4m_new_utf8("th");
 }
 
-static inline char *
+static inline c4m_utf8_t *
 c4m_get_td_tag(c4m_grid_t *g)
 {
     if (g->td_tag_name != NULL) {
         return g->td_tag_name;
     }
-    return "td";
+    return c4m_new_utf8("td");
 }
 void c4m_grid_set_all_contents(c4m_grid_t *, c4m_list_t *);
 
@@ -39,8 +39,8 @@ extern void         c4m_set_column_props(c4m_grid_t *,
 extern void         c4m_row_column_props(c4m_grid_t *,
                                          int,
                                          c4m_render_style_t *);
-extern void         c4m_set_column_style(c4m_grid_t *, int, char *);
-extern void         c4m_set_row_style(c4m_grid_t *, int, char *);
+extern void         c4m_set_column_style(c4m_grid_t *, int, c4m_utf8_t *);
+extern void         c4m_set_row_style(c4m_grid_t *, int, c4m_utf8_t *);
 
 #define c4m_grid_render(g, ...)    _c4m_grid_render(g, C4M_VA(__VA_ARGS__))
 #define c4m_ordered_list(l, ...)   _c4m_ordered_list(l, C4M_VA(__VA_ARGS__))
@@ -55,7 +55,7 @@ c4m_grid_add_col_span(c4m_grid_t       *grid,
                       int64_t           num_cols);
 
 static inline c4m_renderable_t *
-c4m_to_str_renderable(c4m_str_t *s, char *tag)
+c4m_to_str_renderable(c4m_str_t *s, c4m_utf8_t *tag)
 {
     return c4m_new(c4m_type_renderable(),
                    c4m_kw("obj", c4m_ka(s), "tag", c4m_ka(tag)));
@@ -68,23 +68,30 @@ c4m_grid_blend_color(c4m_style_t style1, c4m_style_t style2)
     return ((style1 & ~C4M_STY_CLEAR_FG) + (style2 & ~C4M_STY_CLEAR_FG)) >> 1;
 }
 
-extern void        c4m_apply_container_style(c4m_renderable_t *, char *);
+extern void        c4m_apply_container_style(c4m_renderable_t *, c4m_utf8_t *);
 extern bool        c4m_install_renderable(c4m_grid_t *,
                                           c4m_renderable_t *,
                                           int,
                                           int,
                                           int,
                                           int);
-extern void        c4m_apply_container_style(c4m_renderable_t *, char *);
+extern void        c4m_apply_container_style(c4m_renderable_t *, c4m_utf8_t *);
 extern void        c4m_grid_expand_columns(c4m_grid_t *, uint64_t);
 extern void        c4m_grid_expand_rows(c4m_grid_t *, uint64_t);
 extern void        c4m_grid_add_row(c4m_grid_t *, c4m_obj_t);
-extern c4m_grid_t *c4m_grid(int, int, char *, char *, char *, int, int, int);
+extern c4m_grid_t *c4m_grid(int,
+                            int,
+                            c4m_utf8_t *,
+                            c4m_utf8_t *,
+                            c4m_utf8_t *,
+                            int,
+                            int,
+                            int);
 extern c4m_grid_t *c4m_grid_horizontal_flow(c4m_list_t *,
                                             uint64_t,
                                             uint64_t,
-                                            char *,
-                                            char *);
+                                            c4m_utf8_t *,
+                                            c4m_utf8_t *);
 
 extern void c4m_grid_set_cell_contents(c4m_grid_t *, int, int, c4m_obj_t);
 

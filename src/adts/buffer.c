@@ -480,6 +480,10 @@ buffer_lit(c4m_utf8_t          *su8,
     return c4m_new(c4m_type_buffer(), c4m_kw("raw", c4m_ka(s)));
 }
 
+// NOTE: this function is currently of the utmost importance.
+// We cannot use automarshal to marshal / unmarshal arbitrary
+// buffers, because autounmarshal might try to copy the buffer
+// passed into it. So this one *has* to be manual.
 static c4m_buf_t *
 buffer_copy(c4m_buf_t *inbuf)
 {
@@ -509,9 +513,11 @@ buffer_view(c4m_buf_t *inbuf, uint64_t *outlen)
 
 // We conservatively scan the data pointer.
 void
-c4m_buffer_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
+c4m_buffer_set_gc_bits(uint64_t *bitfield, void *alloc)
 {
-    c4m_mark_raw_to_addr(bitfield, alloc, alloc->data);
+    c4m_buf_t *buf = (c4m_buf_t *)alloc;
+
+    c4m_mark_raw_to_addr(bitfield, buf, buf->data);
 }
 
 const c4m_vtable_t c4m_buffer_vtable = {

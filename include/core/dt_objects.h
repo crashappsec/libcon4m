@@ -1,8 +1,7 @@
 #pragma once
 #include "con4m.h"
 
-typedef struct c4m_base_obj_t c4m_base_obj_t;
-typedef void                 *c4m_obj_t;
+typedef void *c4m_obj_t;
 
 typedef enum {
     C4M_DT_KIND_nil,
@@ -48,29 +47,6 @@ typedef struct {
     // clang-format on
 } c4m_dt_info_t;
 
-// Below, c4m_obj_t is the *internal* object type.
-//
-// For most uses, we use `c4m_obj_t`, which is a promise that there's a
-// c4m_obj_t header behind the pointer.  Since generic objects will
-// always get passed around by pointer, we skip the '*' whenever using
-// c4m_obj_t.
-//
-// This header is used for any allocations of non-primitive c4m
-// types, in case we need to do dynamic type checking or dynamic
-// dispatch.
-//
-// Note that I expect to steal a bit from the `base_data_type` pointer
-// to distinguish whether the object has been freed.
-
-struct c4m_base_obj_t {
-    // This *must* be first, because its position is assumed to be first
-    // when marshaling (we replace the ptr with an index into the array).
-    c4m_dt_info_t     *base_data_type;
-    struct c4m_type_t *concrete_type;
-    // The exposed object data.
-    uint64_t           data[];
-};
-
 // A lot of these are placeholders; most are implemented in the
 // current Nim runtime, but some aren't. Particularly, the destructor
 // isn't even implemented here yet-- we are NOT yet recording freed
@@ -90,7 +66,9 @@ typedef enum {
     C4M_BI_COERCIBLE,    // Pass 2 types, return coerrced type, or type error.
     C4M_BI_COERCE,       // Actually do the coercion.
     C4M_BI_FROM_LITERAL, // Used to parse a literal.
-    C4M_BI_COPY,         // If not used, defaults to marshal / unmarshal
+    C4M_BI_COPY,
+    C4M_BI_SHALLOW_COPY,
+    C4M_BI_RESTORE,
     // __ functions. With primitive numeric types the compiler knows
     // to generate the proper underlying code, so don't need them.
     // But any higher-level stuff that want to overload the op, they do.
@@ -139,6 +117,8 @@ typedef enum : uint8_t {
 typedef enum : int64_t {
     C4M_T_ERROR = 0,
     C4M_T_VOID,
+    C4M_T_TYPESPEC,
+    C4M_T_INTERNAL_TLIST,
     C4M_T_BOOL,
     C4M_T_I8,
     C4M_T_BYTE,
@@ -157,7 +137,6 @@ typedef enum : int64_t {
     C4M_T_TUPLE,
     C4M_T_DICT,
     C4M_T_SET,
-    C4M_T_TYPESPEC,
     C4M_T_IPV4,
     C4M_T_IPV6,
     C4M_T_DURATION,
@@ -186,26 +165,18 @@ typedef enum : int64_t {
     C4M_T_VM,
     C4M_T_PARSE_NODE,
     C4M_T_BIT,
-    C4M_T_BOX,
+    C4M_T_BOX_BOOL,
+    C4M_T_BOX_I8,
+    C4M_T_BOX_BYTE,
+    C4M_T_BOX_I32,
+    C4M_T_BOX_CHAR,
+    C4M_T_BOX_U32,
+    C4M_T_BOX_INT,
+    C4M_T_BOX_UINT,
+    C4M_T_BOX_F32,
+    C4M_T_BOX_F64,
     C4M_T_HTTP,
     C4M_NUM_BUILTIN_DTS,
 } c4m_builtin_t;
-
-// The goal here is to make it easy to change the amount of space
-// associated with common data objects when we're treating them like
-// arrays.
-typedef union {
-    void          **lvalue;
-    void           *v;
-    char           *c;
-    uint8_t        *u8;
-    int32_t        *codepoint;
-    uint32_t       *u32;
-    int64_t        *i64;
-    uint64_t       *u64;
-    c4m_alloc_hdr  *alloc;
-    c4m_base_obj_t *object;
-    uint64_t        nonpointer;
-} c4m_mem_ptr;
 
 #define C4M_T_XLIST C4M_T_LIST

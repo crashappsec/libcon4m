@@ -26,22 +26,22 @@ typedef enum {
 } assign_type_t;
 
 typedef struct {
-    c4m_compile_ctx        *cctx;
-    c4m_module_compile_ctx *fctx;
-    c4m_list_t             *instructions;
-    c4m_tree_node_t        *cur_node;
-    c4m_pnode_t            *cur_pnode;
-    c4m_zmodule_info_t     *cur_module;
-    c4m_list_t             *call_backpatches;
-    target_info_t          *target_info;
-    c4m_symbol_t           *retsym;
-    int                     instruction_counter;
-    int                     current_stack_offset;
-    int                     max_stack_size;
-    int                     module_patch_loc;
-    bool                    lvalue;
-    assign_type_t           assign_method;
-    bool                    attr_lock;
+    c4m_compile_ctx *cctx;
+    c4m_module_t    *fctx;
+    c4m_list_t      *instructions;
+    c4m_tree_node_t *cur_node;
+    c4m_pnode_t     *cur_pnode;
+    c4m_module_t    *cur_module;
+    c4m_list_t      *call_backpatches;
+    target_info_t   *target_info;
+    c4m_symbol_t    *retsym;
+    int              instruction_counter;
+    int              current_stack_offset;
+    int              max_stack_size;
+    int              module_patch_loc;
+    bool             lvalue;
+    assign_type_t    assign_method;
+    bool             attr_lock;
 } gen_ctx;
 
 static void gen_one_node(gen_ctx *);
@@ -55,7 +55,8 @@ c4m_zinstr_gc_bits(uint64_t *bitmap, c4m_zinstruction_t *instr)
 c4m_zinstruction_t *
 c4m_new_instruction()
 {
-    return c4m_gc_alloc_mapped(c4m_zinstruction_t, c4m_zinstr_gc_bits);
+    // TODO: fixme
+    return c4m_gc_alloc_mapped(c4m_zinstruction_t, C4M_GC_SCAN_ALL);
 }
 
 void
@@ -68,18 +69,6 @@ c4m_zfn_info_t *
 c4m_new_zfn()
 {
     return c4m_gc_alloc_mapped(c4m_zfn_info_t, c4m_zfn_gc_bits);
-}
-
-void
-c4m_zmodule_gc_bits(uint64_t *bitmap, c4m_zmodule_info_t *zm)
-{
-    c4m_mark_raw_to_addr(bitmap, zm, &zm->instructions);
-}
-
-c4m_zmodule_info_t *
-c4m_new_zmodule()
-{
-    return c4m_gc_alloc_mapped(c4m_zmodule_info_t, c4m_zmodule_gc_bits);
 }
 
 void
@@ -116,7 +105,7 @@ _emit(gen_ctx *ctx, int32_t op32, ...)
     c4m_zop_t            op        = (c4m_zop_t)(op32);
     int64_t              arg       = 0;
     int64_t              immediate = 0;
-    int64_t              module_id = ctx->fctx->local_module_id;
+    int64_t              module_id = ctx->fctx->module_id;
 
     c4m_kw_int64("immediate", immediate);
     c4m_kw_int64("arg", arg);
@@ -130,7 +119,7 @@ _emit(gen_ctx *ctx, int32_t op32, ...)
     instr->line_no            = c4m_node_get_line_number(ctx->cur_node);
     instr->arg                = (int64_t)arg;
     instr->immediate          = immediate;
-    instr->type_info          = type;
+    instr->type_info          = type ? c4m_type_resolve(type) : NULL;
 
     if (instrptr != NULL) {
         *instrptr = instr;
@@ -1169,11 +1158,11 @@ gen_switch(gen_ctx *ctx)
 static inline bool
 gen_index_var_init(gen_ctx *ctx, c4m_loop_info_t *li)
 {
-    if (li->loop_ix && c4m_list_len(li->loop_ix->sym_uses) > 0) {
+    if (li->loop_ix && c4m_list_len(li->loop_ix->ct->sym_uses) > 0) {
         li->gen_ix = 1;
         set_stack_offset(ctx, li->loop_ix);
     }
-    if (li->named_loop_ix && c4m_list_len(li->named_loop_ix->sym_uses) > 0) {
+    if (li->named_loop_ix && c4m_list_len(li->named_loop_ix->ct->sym_uses) > 0) {
         li->gen_named_ix = 1;
         if (!li->gen_ix) {
             set_stack_offset(ctx, li->named_loop_ix);
@@ -1199,10 +1188,10 @@ gen_len_var_init(gen_ctx *ctx, c4m_loop_info_t *li)
 {
     c4m_symbol_t *sym = NULL;
 
-    if (li->loop_last && c4m_list_len(li->loop_last->sym_uses) > 0) {
+    if (li->loop_last && c4m_list_len(li->loop_last->ct->sym_uses) > 0) {
         sym = li->loop_last;
     }
-    if (li->named_loop_last && c4m_list_len(li->named_loop_last->sym_uses) > 0) {
+    if (li->named_loop_last && c4m_list_len(li->named_loop_last->ct->sym_uses) > 0) {
         if (sym != NULL) {
             assert(sym == li->named_loop_last);
         }
@@ -1294,10 +1283,10 @@ gen_ranged_for(gen_ctx *ctx, c4m_loop_info_t *li)
     bool calc_last       = false;
     bool calc_named_last = false;
 
-    if (li->loop_last && c4m_list_len(li->loop_last->sym_uses) > 0) {
+    if (li->loop_last && c4m_list_len(li->loop_last->ct->sym_uses) > 0) {
         calc_last = true;
     }
-    if (li->named_loop_last && c4m_list_len(li->named_loop_last->sym_uses) > 0) {
+    if (li->named_loop_last && c4m_list_len(li->named_loop_last->ct->sym_uses) > 0) {
         calc_named_last = true;
     }
     if (calc_last || calc_named_last) {
@@ -1873,7 +1862,7 @@ gen_literal(gen_ctx *ctx)
     }
 
     // We need to convert each set of items into a tuple object.
-    c4m_type_t *ttype = c4m_type_tuple_from_xlist(li->type->details->items);
+    c4m_type_t *ttype = c4m_type_tuple_from_xlist(li->type->items);
 
     for (int i = 0; i < n->num_kids;) {
         for (int j = 0; j < li->num_items; j++) {
@@ -1977,7 +1966,7 @@ handle_attribute:
 }
 
 #define BINOP_ASSIGN_GEN(ctx, op, t)                           \
-    if (c4m_type_get_base(t) == C4M_DT_KIND_primitive) {       \
+    if (c4m_type_get_kind(t) == C4M_DT_KIND_primitive) {       \
         if (c4m_type_is_int_type(t)) {                         \
             gen_int_binary_op(ctx, op, c4m_type_is_signed(t)); \
         }                                                      \
@@ -2184,12 +2173,12 @@ gen_lock(gen_ctx *ctx)
 static inline void
 gen_use(gen_ctx *ctx)
 {
-    c4m_module_compile_ctx *tocall;
+    c4m_module_t *tocall;
 
-    tocall = (c4m_module_compile_ctx *)ctx->cur_pnode->value;
+    tocall = (c4m_module_t *)ctx->cur_pnode->value;
     emit(ctx,
          C4M_ZCallModule,
-         c4m_kw("module_id", c4m_ka(tocall->local_module_id)));
+         c4m_kw("module_id", c4m_ka(tocall->module_id)));
 }
 
 static inline void
@@ -2394,14 +2383,15 @@ gen_return_once_memo(gen_ctx *ctx, c4m_fn_decl_t *decl)
 }
 
 static void
-gen_function(gen_ctx            *ctx,
-             c4m_symbol_t       *sym,
-             c4m_zmodule_info_t *module,
-             c4m_vm_t           *vm)
+gen_function(gen_ctx      *ctx,
+             c4m_symbol_t *sym,
+             c4m_module_t *module,
+             c4m_vm_t     *vm)
 {
-    c4m_fn_decl_t *decl             = sym->value;
-    int            n                = sym->declaration_node->num_kids;
-    ctx->cur_node                   = sym->declaration_node->children[n - 1];
+    c4m_fn_decl_t *decl = sym->value;
+    int            n    = sym->ct->declaration_node->num_kids;
+    ctx->cur_node       = sym->ct->declaration_node->children[n - 1];
+
     c4m_zfn_info_t *fn_info_for_obj = c4m_new_zfn();
 
     ctx->retsym = hatrack_dict_get(decl->signature_info->fn_scope->symbols,
@@ -2494,31 +2484,19 @@ gen_function(gen_ctx            *ctx,
 static void
 gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
 {
-    c4m_zmodule_info_t *module = c4m_new_zmodule();
-
-    ctx->fctx->module_object  = module;
-    ctx->cur_node             = ctx->fctx->parse_tree;
+    c4m_module_t *module      = ctx->fctx;
+    ctx->cur_node             = module->ct->parse_tree;
     ctx->instructions         = c4m_list(c4m_type_ref());
     ctx->cur_pnode            = c4m_get_pnode(ctx->cur_node);
     ctx->cur_module           = module;
     ctx->target_info          = NULL;
     ctx->retsym               = NULL;
     ctx->instruction_counter  = 0;
-    ctx->current_stack_offset = ctx->fctx->static_size / sizeof(uint64_t);
-    ctx->max_stack_size       = ctx->fctx->static_size;
+    ctx->current_stack_offset = 0;
+    ctx->max_stack_size       = 0;
     ctx->lvalue               = false;
     ctx->assign_method        = assign_to_mem_slot;
-
-    module->instructions = ctx->instructions;
-    module->full_url     = ctx->fctx->loaded_from;
-    module->module_id    = ctx->fctx->local_module_id;
-    module->module_hash  = ctx->fctx->module_id;
-    module->modname      = ctx->fctx->module;
-    module->path         = ctx->fctx->path;
-    module->package      = ctx->fctx->package;
-    module->source       = c4m_to_utf8(ctx->fctx->raw);
-    module->shortdoc     = c4m_token_raw_content(ctx->cur_pnode->short_doc);
-    module->longdoc      = c4m_token_raw_content(ctx->cur_pnode->long_doc);
+    module->instructions      = ctx->instructions;
 
     // Still to fill in to the zmodule object (need to reshuffle to align):
     // authority/path/provided_path/package/module_id
@@ -2536,10 +2514,7 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
 
     emit(ctx, C4M_ZModuleRet);
 
-    module->module_var_size = ctx->max_stack_size;
-    module->init_size       = ctx->instruction_counter * sizeof(c4m_zinstruction_t);
-
-    c4m_list_t *symlist = ctx->fctx->fn_def_syms;
+    c4m_list_t *symlist = ctx->fctx->ct->fn_def_syms;
     int         n       = c4m_list_len(symlist);
 
     if (n) {
@@ -2551,10 +2526,10 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
         gen_function(ctx, sym, module, vm);
     }
 
-    int l = c4m_list_len(ctx->fctx->extern_decls);
+    int l = c4m_list_len(ctx->fctx->ct->extern_decls);
     if (l != 0) {
         for (int j = 0; j < l; j++) {
-            c4m_symbol_t   *d    = c4m_list_get(ctx->fctx->extern_decls,
+            c4m_symbol_t   *d    = c4m_list_get(ctx->fctx->ct->extern_decls,
                                            j,
                                            NULL);
             c4m_ffi_decl_t *decl = d->value;
@@ -2562,11 +2537,6 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
             c4m_list_append(vm->obj->ffi_info, decl);
         }
     }
-
-    // Version is not used yet.
-    // Init size not done yet.
-    // datasyms not set yet.
-    // Parameters not done yet.
 }
 
 static inline void
@@ -2584,7 +2554,7 @@ backpatch_calls(gen_ctx *ctx)
 }
 
 void
-c4m_internal_codegen(c4m_compile_ctx *cctx, c4m_vm_t *c4m_new_vm)
+c4m_internal_codegen(c4m_compile_ctx *cctx, c4m_vm_t *vm)
 {
     gen_ctx ctx = {
         .cctx             = cctx,
@@ -2592,13 +2562,16 @@ c4m_internal_codegen(c4m_compile_ctx *cctx, c4m_vm_t *c4m_new_vm)
         0,
     };
 
-    int n        = c4m_list_len(cctx->module_ordering);
-    int existing = c4m_list_len(c4m_new_vm->obj->module_contents);
+    int n = c4m_list_len(vm->obj->module_contents);
 
-    for (int i = existing; i < n; i++) {
-        ctx.fctx = c4m_list_get(cctx->module_ordering, i, NULL);
+    for (int i = 0; i < n; i++) {
+        ctx.fctx = c4m_list_get(vm->obj->module_contents, i, NULL);
 
-        if (ctx.fctx->status < c4m_compile_status_tree_typed) {
+        if (ctx.fctx->ct == NULL) {
+            continue; // Already fully compiled.
+        }
+
+        if (ctx.fctx->ct->status < c4m_compile_status_tree_typed) {
             C4M_CRAISE("Cannot call c4m_codegen with untyped modules.");
         }
 
@@ -2606,17 +2579,14 @@ c4m_internal_codegen(c4m_compile_ctx *cctx, c4m_vm_t *c4m_new_vm)
             C4M_CRAISE("Cannot generate code for files with fatal errors.");
         }
 
-        if (ctx.fctx->status >= c4m_compile_status_generated_code) {
+        if (ctx.fctx->ct->status >= c4m_compile_status_generated_code) {
             continue;
         }
 
-        gen_module_code(&ctx, c4m_new_vm);
+        gen_module_code(&ctx, vm);
 
-        ctx.fctx->status = c4m_compile_status_generated_code;
-        c4m_add_module(c4m_new_vm->obj, ctx.fctx->module_object);
+        ctx.fctx->ct->status = c4m_compile_status_generated_code;
     }
 
     backpatch_calls(&ctx);
-
-    c4m_new_vm->obj->entrypoint = cctx->entry_point->local_module_id;
 }

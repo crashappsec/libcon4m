@@ -32,7 +32,7 @@ c4m_unbox_obj(c4m_box_t *box)
         // here.
         //
         // So this shouldn't be necessary, yet here it is.
-        if (t->details->base_type->typeid == C4M_T_BOOL) {
+        if (t->base_index == C4M_T_BOOL) {
             result.u64 = !!box->u64;
         }
         else {
@@ -133,4 +133,14 @@ c4m_box_double(double val)
     c4m_box_t *res = c4m_box_obj(v, c4m_type_f64());
 
     return (double *)res;
+}
+
+static inline void *
+c4m_autobox(c4m_mem_ptr p)
+{
+    if (c4m_in_heap(p.v)) {
+        return p.v;
+    }
+
+    return c4m_box_u64(p.nonpointer);
 }

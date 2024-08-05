@@ -292,18 +292,19 @@ c4m_extract_format_specifiers(const c4m_str_t *fmt)
             if (n == l) {
                 C4M_CRAISE("Missing } to end format specifier.");
             }
-            cur        = c4m_gc_alloc_mapped(c4m_fmt_info_t,
-                                      c4m_fmt_gc_bits);
+            cur = c4m_gc_alloc_mapped(c4m_fmt_info_t, c4m_fmt_gc_bits);
+            assert(cur);
             cur->start = i + 1;
             cur->end   = n;
-
-            if (last == NULL) {
-                top = last = cur;
-            }
-            else {
+            if (last != NULL) {
                 last->next = cur;
                 last       = cur;
             }
+            else {
+                top  = cur;
+                last = cur;
+            }
+
             parse_one_format_spec(fmt, cur);
         }
     }
@@ -592,7 +593,10 @@ c4m_base_format(const c4m_str_t *fmt, int nargs, va_list args)
     c4m_dict_t *dict = c4m_dict(c4m_type_utf8(), c4m_type_ref());
 
     for (int i = 0; i < nargs; i++) {
-        one = va_arg(args, c4m_obj_t);
+        c4m_mem_ptr p;
+
+        p.v = va_arg(args, c4m_obj_t);
+        one = c4m_autobox(p);
 
         c4m_utf8_t *key = c4m_str_from_int(i);
         hatrack_dict_add(dict, key, one);

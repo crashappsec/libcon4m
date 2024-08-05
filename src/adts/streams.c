@@ -812,9 +812,11 @@ c4m_get_stderr()
 }
 
 void
-c4m_stream_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
+c4m_stream_set_gc_bits(uint64_t *bitfield, void *alloc)
 {
-    c4m_set_bit(bitfield, c4m_ptr_diff(alloc, alloc->data));
+    c4m_stream_t *s = alloc;
+
+    c4m_mark_raw_to_addr(bitfield, s, &s->contents.cookie);
 }
 
 const c4m_vtable_t c4m_stream_vtable = {

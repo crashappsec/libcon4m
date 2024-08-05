@@ -55,7 +55,7 @@ c4m_wrapper_arch(void)
 void
 c4m_snap_column(c4m_grid_t *table, int64_t n)
 {
-    c4m_set_column_style(table, n, "snap");
+    c4m_set_column_style(table, n, c4m_new_utf8("snap"));
 }
 
 uint64_t

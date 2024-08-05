@@ -4,11 +4,11 @@
 // TODO: clean up stack to set the tree properly when a RAISE happens.
 
 void
-c4m_pnode_set_gc_bits(uint64_t *bitfield, c4m_base_obj_t *alloc)
+c4m_pnode_set_gc_bits(uint64_t *bitfield, void *alloc)
 {
-    c4m_pnode_t *pnode = (c4m_pnode_t *)alloc->data;
+    c4m_pnode_t *pnode = (c4m_pnode_t *)alloc;
 
-    c4m_mark_obj_to_addr(bitfield, alloc, &pnode->type);
+    c4m_mark_raw_to_addr(bitfield, alloc, &pnode->type);
 }
 
 void
@@ -36,21 +36,21 @@ new_comment_node()
 }
 
 typedef struct {
-    c4m_tree_node_t        *cur;
-    c4m_module_compile_ctx *module_ctx;
-    c4m_token_t            *cached_token;
-    hatstack_t             *root_stack;
-    c4m_checkpoint_t       *jump_state;
-    int32_t                 token_ix;
-    int32_t                 cache_ix;
-    int32_t                 loop_depth;
-    int32_t                 switch_depth;
+    c4m_tree_node_t  *cur;
+    c4m_module_t     *module_ctx;
+    c4m_token_t      *cached_token;
+    hatstack_t       *root_stack;
+    c4m_checkpoint_t *jump_state;
+    int32_t           token_ix;
+    int32_t           cache_ix;
+    int32_t           loop_depth;
+    int32_t           switch_depth;
     // This is used to figure out whether we should allow a newline
     // after a ), ] or }. If we're inside a literal definition, we
     // allow it. If we're in a literal definition context, the newline
     // is okay, otherwise it is not.
-    int32_t                 lit_depth;
-    bool                    in_function;
+    int32_t           lit_depth;
+    bool              in_function;
 } parse_ctx;
 
 #ifdef C4M_PARSE_DEBUG
@@ -271,7 +271,7 @@ _tok_cur(parse_ctx *ctx)
 #endif
 {
     if (!ctx->cached_token || ctx->token_ix != ctx->cache_ix) {
-        ctx->cached_token = c4m_list_get(ctx->module_ctx->tokens,
+        ctx->cached_token = c4m_list_get(ctx->module_ctx->ct->tokens,
                                          ctx->token_ix,
                                          NULL);
         ctx->cache_ix     = ctx->token_ix;
@@ -306,12 +306,12 @@ _add_parse_error(parse_ctx *ctx, c4m_compile_error_t code, ...)
     va_list args;
 
     va_start(args, code);
-    c4m_base_add_error(ctx->module_ctx->errors,
+    c4m_base_add_error(ctx->module_ctx->ct->errors,
                        code,
-                       tok_cur(ctx),
+                       c4m_token_get_location_str(tok_cur(ctx)),
                        c4m_err_severity_error,
                        args);
-    ctx->module_ctx->fatal_errors = 1;
+    ctx->module_ctx->ct->fatal_errors = true;
     va_end(args);
 }
 
@@ -329,12 +329,12 @@ _error_at_node(parse_ctx          *ctx,
     c4m_pnode_t *p = (c4m_pnode_t *)c4m_tree_get_contents(n);
 
     va_start(args, code);
-    c4m_base_add_error(ctx->module_ctx->errors,
+    c4m_base_add_error(ctx->module_ctx->ct->errors,
                        code,
-                       p->token,
+                       c4m_token_get_location_str(p->token),
                        c4m_err_severity_error,
                        args);
-    ctx->module_ctx->fatal_errors = 1;
+    ctx->module_ctx->ct->fatal_errors = true;
     va_end(args);
 }
 
@@ -352,8 +352,8 @@ _raise_err_at_node(parse_ctx          *ctx,
 {
     c4m_compile_error *err = c4m_new_error(0);
     err->code              = code;
-    err->loc.current_token = n->token;
-    c4m_list_append(ctx->module_ctx->errors, err);
+    err->loc               = c4m_token_get_location_str(n->token);
+    c4m_list_append(ctx->module_ctx->ct->errors, err);
 
     if (bail) {
         c4m_exit_to_checkpoint(ctx, '!', f, line, fn);
@@ -446,7 +446,7 @@ previous_token(parse_ctx *ctx)
     c4m_token_t *tok = NULL;
 
     while (i--) {
-        tok = c4m_list_get(ctx->module_ctx->tokens, i, NULL);
+        tok = c4m_list_get(ctx->module_ctx->ct->tokens, i, NULL);
         if (tok->kind != c4m_tt_space) {
             break;
         }
@@ -4502,9 +4502,9 @@ c4m_print_parse_node(c4m_tree_node_t *n)
 }
 
 c4m_grid_t *
-c4m_format_parse_tree(c4m_module_compile_ctx *ctx)
+c4m_format_parse_tree(c4m_module_t *ctx)
 {
-    return c4m_grid_tree(ctx->parse_tree,
+    return c4m_grid_tree(ctx->ct->parse_tree,
                          c4m_kw("converter", c4m_ka(repr_one_node)));
 }
 
@@ -4530,17 +4530,17 @@ prime_tokens(parse_ctx *ctx)
 }
 
 bool
-c4m_parse(c4m_module_compile_ctx *module_ctx)
+c4m_parse(c4m_module_t *module_ctx)
 {
     if (c4m_fatal_error_in_module(module_ctx)) {
         return false;
     }
 
-    if (module_ctx->status >= c4m_compile_status_code_parsed) {
+    if (module_ctx->ct->status >= c4m_compile_status_code_parsed) {
         return c4m_fatal_error_in_module(module_ctx);
     }
 
-    if (module_ctx->status != c4m_compile_status_tokenized) {
+    if (module_ctx->ct->status != c4m_compile_status_tokenized) {
         C4M_CRAISE("Cannot parse files that are not tokenized.");
     }
 
@@ -4555,19 +4555,19 @@ c4m_parse(c4m_module_compile_ctx *module_ctx)
 
     prime_tokens(&ctx);
 
-    module_ctx->parse_tree = module(&ctx);
+    module_ctx->ct->parse_tree = module(&ctx);
 
-    if (module_ctx->parse_tree == NULL) {
-        module_ctx->fatal_errors = 1;
+    if (module_ctx->ct->parse_tree == NULL) {
+        module_ctx->ct->fatal_errors = true;
     }
 
     c4m_module_set_status(module_ctx, c4m_compile_status_code_parsed);
 
-    return module_ctx->fatal_errors != 1;
+    return module_ctx->ct->fatal_errors != true;
 }
 
 bool
-c4m_parse_type(c4m_module_compile_ctx *module_ctx)
+c4m_parse_type(c4m_module_t *module_ctx)
 {
     if (c4m_fatal_error_in_module(module_ctx)) {
         return false;
@@ -4588,12 +4588,12 @@ c4m_parse_type(c4m_module_compile_ctx *module_ctx)
     c4m_tree_node_t *t    = c4m_new(c4m_type_tree(c4m_type_parse_node()),
                                  c4m_kw("contents", c4m_ka(root)));
 
-    ctx.cur                = t;
-    module_ctx->parse_tree = ctx.cur;
+    ctx.cur                    = t;
+    module_ctx->ct->parse_tree = ctx.cur;
 
     type_spec(&ctx);
 
-    module_ctx->parse_tree = module_ctx->parse_tree->children[0];
+    module_ctx->ct->parse_tree = module_ctx->ct->parse_tree->children[0];
 
     return true;
 }

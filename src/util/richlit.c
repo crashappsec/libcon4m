@@ -247,8 +247,7 @@ try_style_keyword(c4m_tag_parse_ctx *ctx)
 static inline bool
 try_cell_style(c4m_tag_parse_ctx *ctx)
 {
-    c4m_utf8_t         *s  = ctx->not_matched;
-    c4m_render_style_t *rs = c4m_lookup_cell_style((c4m_to_utf8(s))->data);
+    c4m_render_style_t *rs = c4m_lookup_cell_style(ctx->not_matched);
 
     if (rs == NULL) {
         return false;
@@ -259,7 +258,7 @@ try_cell_style(c4m_tag_parse_ctx *ctx)
             "When processing rich lit specifier \\[{}\\], expected a "
             "color name after '%', but got a style name ({}).",
             ctx->raw,
-            s);
+            ctx->not_matched);
         C4M_RAISE(msg);
     }
 

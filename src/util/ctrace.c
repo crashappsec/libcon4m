@@ -93,30 +93,30 @@ c4m_bt_static_backtrace(void       *data,
     return 0;
 }
 
-#define backtrace_core(nframes)                       \
-    c4m_trace_grid = c4m_new(c4m_type_grid(),         \
-                             c4m_kw("start_cols",     \
-                                    c4m_ka(3),        \
-                                    "start_rows",     \
-                                    c4m_ka(2),        \
-                                    "header_rows",    \
-                                    c4m_ka(1),        \
-                                    "container_tag",  \
-                                    c4m_ka("table2"), \
-                                    "stripe",         \
-                                    c4m_ka(true)));   \
-                                                      \
-    c4m_list_t *x = c4m_list(c4m_type_utf8());        \
-    c4m_list_append(x, c4m_new_utf8("PC"));           \
-    c4m_list_append(x, c4m_new_utf8("Location"));     \
-    c4m_list_append(x, c4m_new_utf8("Function"));     \
-                                                      \
-    c4m_grid_add_row(c4m_trace_grid, x);              \
-                                                      \
-    c4m_snap_column(c4m_trace_grid, 0);               \
-    c4m_snap_column(c4m_trace_grid, 1);               \
-    c4m_snap_column(c4m_trace_grid, 2);               \
-                                                      \
+#define backtrace_core(nframes)                                     \
+    c4m_trace_grid = c4m_new(c4m_type_grid(),                       \
+                             c4m_kw("start_cols",                   \
+                                    c4m_ka(3),                      \
+                                    "start_rows",                   \
+                                    c4m_ka(2),                      \
+                                    "header_rows",                  \
+                                    c4m_ka(1),                      \
+                                    "container_tag",                \
+                                    c4m_ka(c4m_new_utf8("table2")), \
+                                    "stripe",                       \
+                                    c4m_ka(true)));                 \
+                                                                    \
+    c4m_list_t *x = c4m_list(c4m_type_utf8());                      \
+    c4m_list_append(x, c4m_new_utf8("PC"));                         \
+    c4m_list_append(x, c4m_new_utf8("Location"));                   \
+    c4m_list_append(x, c4m_new_utf8("Function"));                   \
+                                                                    \
+    c4m_grid_add_row(c4m_trace_grid, x);                            \
+                                                                    \
+    c4m_snap_column(c4m_trace_grid, 0);                             \
+    c4m_snap_column(c4m_trace_grid, 1);                             \
+    c4m_snap_column(c4m_trace_grid, 2);                             \
+                                                                    \
     backtrace_full(btstate, nframes, c4m_bt_create_backtrace, c4m_bt_err, NULL);
 
 void

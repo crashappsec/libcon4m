@@ -27,17 +27,18 @@ typedef struct {
     c4m_mem_ptr    end;
     uint64_t       fake_heap_base;
     c4m_alloc_hdr *this_alloc;
+    c4m_list_t    *to_restore;
 
 } c4m_unmarshal_ctx;
 
 typedef struct c4m_marshaled_hdr {
-    uint64_t empty_guard;
-    uint64_t next_offset;
-    uint64_t empty_fw;
-    uint64_t empty_arena;
-    uint32_t alloc_len;
-    uint32_t request_len;
-    uint64_t scan_fn_id; // Only marshaled for non-object types.
+    uint64_t    empty_guard;
+    uint64_t    next_offset;
+    uint64_t    empty_fw;
+    c4m_type_t *type;
+    int64_t     scan_fn_id; // Only marshaled for non-object types.
+    uint32_t    alloc_len;
+    uint32_t    request_len;
 #if defined(C4M_FULL_MEMCHECK)
     uint64_t end_guard_loc;
 #endif
@@ -45,9 +46,9 @@ typedef struct c4m_marshaled_hdr {
     char *alloc_file;
     int   alloc_line;
 #endif
+
     uint32_t    finalize  : 1;
     uint32_t    con4m_obj : 1;
-    uint32_t    type_obj  : 1;
     __uint128_t cached_hash;
     alignas(C4M_FORCED_ALIGNMENT) uint64_t data[];
 } c4m_marshaled_hdr;
@@ -76,26 +77,27 @@ extern int16_t c4m_unmarshal_i16(c4m_stream_t *);
 // we allocate, and they're needed centrally to support auto-marshaling.
 //
 // con4m object types are first here.
-extern void c4m_buffer_set_gc_bits(uint64_t *, c4m_base_obj_t *);
-extern void c4m_zcallback_gc_bits(uint64_t *, c4m_base_obj_t *);
-extern void c4m_dict_gc_bits_obj(uint64_t *, c4m_base_obj_t *);
-extern void c4m_dict_gc_bits_raw(uint64_t *, c4m_base_obj_t *);
-extern void c4m_grid_set_gc_bits(uint64_t *, c4m_base_obj_t *);
-extern void c4m_renderable_set_gc_bits(uint64_t *, c4m_base_obj_t *);
-extern void c4m_list_set_gc_bits(uint64_t *, c4m_base_obj_t *);
-extern void c4m_set_set_gc_bits(uint64_t *, c4m_base_obj_t *);
-extern void c4m_stream_set_gc_bits(uint64_t *, c4m_base_obj_t *);
-extern void c4m_str_set_gc_bits(uint64_t *, c4m_base_obj_t *);
-extern void c4m_tree_node_set_gc_bits(uint64_t *, c4m_base_obj_t *);
-extern void c4m_exception_gc_bits(uint64_t *, c4m_base_obj_t *);
-extern void c4m_type_set_gc_bits(uint64_t *, c4m_base_obj_t *);
-extern void c4m_pnode_set_gc_bits(uint64_t *, c4m_base_obj_t *);
+extern void c4m_buffer_set_gc_bits(uint64_t *, void *);
+extern void c4m_zcallback_gc_bits(uint64_t *, void *);
+extern void c4m_dict_gc_bits_obj(uint64_t *, void *);
+extern void c4m_dict_gc_bits_raw(uint64_t *, void *);
+extern void c4m_grid_set_gc_bits(uint64_t *, void *);
+extern void c4m_renderable_set_gc_bits(uint64_t *, void *);
+extern void c4m_list_set_gc_bits(uint64_t *, void *);
+extern void c4m_set_set_gc_bits(uint64_t *, void *);
+extern void c4m_stream_set_gc_bits(uint64_t *, void *);
+extern void c4m_str_set_gc_bits(uint64_t *, void *);
+extern void c4m_tree_node_set_gc_bits(uint64_t *, void *);
+extern void c4m_exception_gc_bits(uint64_t *, void *);
+extern void c4m_type_set_gc_bits(uint64_t *, void *);
+extern void c4m_pnode_set_gc_bits(uint64_t *, void *);
 
 // Adt / IO related, etc.
 extern void c4m_dict_gc_bits_bucket_full(uint64_t *, mmm_header_t *);
 extern void c4m_dict_gc_bits_bucket_key(uint64_t *, mmm_header_t *);
 extern void c4m_dict_gc_bits_bucket_value(uint64_t *, mmm_header_t *);
 extern void c4m_dict_gc_bits_bucket_hdr_only(uint64_t *, mmm_header_t *);
+extern void c4m_store_bits(uint64_t *, mmm_header_t *);
 extern void c4m_cookie_gc_bits(uint64_t *, c4m_cookie_t *);
 extern void c4m_basic_http_set_gc_bits(uint64_t *, c4m_basic_http_t *);
 extern void c4m_party_gc_bits(uint64_t *, c4m_party_t *);
@@ -109,8 +111,7 @@ extern void c4m_tpat_gc_bits(uint64_t *, c4m_tpat_node_t *);
 // Compiler.
 extern void c4m_cctx_gc_bits(uint64_t *, c4m_compile_ctx *);
 extern void c4m_smem_gc_bits(uint64_t *, c4m_static_memory *);
-extern void c4m_module_ctx_gc_bits(uint64_t *, c4m_module_compile_ctx *);
-extern void c4m_zmodule_gc_bits(uint64_t *, c4m_zmodule_info_t *);
+extern void c4m_module_ctx_gc_bits(uint64_t *, c4m_module_t *);
 extern void c4m_token_set_gc_bits(uint64_t *, void *);
 extern void c4m_checkpoint_gc_bits(uint64_t *, c4m_checkpoint_t *);
 extern void c4m_comment_node_gc_bits(uint64_t *, c4m_comment_node_t *);
@@ -126,16 +127,15 @@ extern void c4m_backpatch_gc_bits(uint64_t *, c4m_call_backpatch_info_t *);
 extern void c4m_module_param_gc_bits(uint64_t *, c4m_module_param_info_t *);
 extern void c4m_sig_info_gc_bits(uint64_t *, c4m_sig_info_t *);
 extern void c4m_fn_decl_gc_bits(uint64_t *, c4m_fn_decl_t *);
-extern void c4m_module_info_gc_bits(uint64_t *, c4m_module_info_t *);
 extern void c4m_err_set_gc_bits(uint64_t *, c4m_compile_error *);
 extern void c4m_objfile_gc_bits(uint64_t *, c4m_zobject_file_t *);
+extern void c4m_call_resolution_gc_bits(uint64_t *, void *);
 
 // Con4m specific runtime stuff
 extern void c4m_spec_gc_bits(uint64_t *, c4m_spec_t *);
 extern void c4m_attr_info_gc_bits(uint64_t *, c4m_attr_info_t *);
 extern void c4m_section_gc_bits(uint64_t *, c4m_spec_section_t *);
 extern void c4m_spec_field_gc_bits(uint64_t *, c4m_spec_field_t *);
-extern void c4m_type_info_gc_bits(uint64_t *, c4m_type_info_t *);
 extern void c4m_vm_gc_bits(uint64_t *, c4m_vm_t *);
 extern void c4m_vmthread_gc_bits(uint64_t *, c4m_vmthread_t *);
 extern void c4m_deferred_cb_gc_bits(uint64_t *, c4m_deferred_cb_t *);
@@ -226,6 +226,9 @@ c4m_find_allocation_record(void *addr)
 
     while (*(uint64_t *)p != c4m_gc_guard) {
         --p;
+        if (!c4m_in_heap(p)) {
+            return NULL;
+        }
     }
 
     return (c4m_alloc_hdr *)p;

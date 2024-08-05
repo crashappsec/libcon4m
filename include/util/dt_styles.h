@@ -85,7 +85,7 @@ typedef uint8_t c4m_border_set_t;
 // Some of the items apply to text, some apply to renderables.
 
 typedef struct {
-    char               *name;
+    struct c4m_str_t   *name;
     c4m_border_theme_t *border_theme;
     c4m_style_t         base_style;
     c4m_color_t         pad_color;
