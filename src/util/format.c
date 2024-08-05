@@ -292,18 +292,19 @@ c4m_extract_format_specifiers(const c4m_str_t *fmt)
             if (n == l) {
                 C4M_CRAISE("Missing } to end format specifier.");
             }
-            cur        = c4m_gc_alloc_mapped(c4m_fmt_info_t,
-                                      c4m_fmt_gc_bits);
+            cur = c4m_gc_alloc_mapped(c4m_fmt_info_t, c4m_fmt_gc_bits);
+            assert(cur);
             cur->start = i + 1;
             cur->end   = n;
-
-            if (last == NULL) {
-                top = last = cur;
-            }
-            else {
+            if (last != NULL) {
                 last->next = cur;
                 last       = cur;
             }
+            else {
+                top  = cur;
+                last = cur;
+            }
+
             parse_one_format_spec(fmt, cur);
         }
     }

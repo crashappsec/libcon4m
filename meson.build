@@ -180,14 +180,14 @@ c4m_core = [
     'src/core/types.c',
     'src/core/typestore.c',
     'src/core/marshal.c',
-    'src/core/automarshal.c',
-    'src/core/autounmarshal.c',        
+    'src/core/unmarshal.c',        
     'src/core/literals.c',
     'src/core/attrstore.c',
     'src/core/vm.c',
     'src/core/ffi.c',
     'src/core/object.c',
     'src/core/validation.c',
+    'src/core/rtsetup.c',
 ]
 c4m_adts = [
     'src/adts/string.c',
@@ -236,7 +236,6 @@ c4m_compiler = [
     'src/compiler/memory_layout.c',
     'src/compiler/codegen.c',
     'src/compiler/disasm.c',
-    'src/compiler/objgen.c',
 ]
 
 c4m_util = [

@@ -37,7 +37,7 @@ typedef struct c4m_marshaled_hdr {
     uint64_t empty_arena;
     uint32_t alloc_len;
     uint32_t request_len;
-    uint64_t scan_fn_id; // Only marshaled for non-object types.
+    int64_t  scan_fn_id; // Only marshaled for non-object types.
 #if defined(C4M_FULL_MEMCHECK)
     uint64_t end_guard_loc;
 #endif
@@ -96,6 +96,7 @@ extern void c4m_dict_gc_bits_bucket_full(uint64_t *, mmm_header_t *);
 extern void c4m_dict_gc_bits_bucket_key(uint64_t *, mmm_header_t *);
 extern void c4m_dict_gc_bits_bucket_value(uint64_t *, mmm_header_t *);
 extern void c4m_dict_gc_bits_bucket_hdr_only(uint64_t *, mmm_header_t *);
+extern void c4m_store_bits(uint64_t *, mmm_header_t *);
 extern void c4m_cookie_gc_bits(uint64_t *, c4m_cookie_t *);
 extern void c4m_basic_http_set_gc_bits(uint64_t *, c4m_basic_http_t *);
 extern void c4m_party_gc_bits(uint64_t *, c4m_party_t *);
@@ -109,8 +110,7 @@ extern void c4m_tpat_gc_bits(uint64_t *, c4m_tpat_node_t *);
 // Compiler.
 extern void c4m_cctx_gc_bits(uint64_t *, c4m_compile_ctx *);
 extern void c4m_smem_gc_bits(uint64_t *, c4m_static_memory *);
-extern void c4m_module_ctx_gc_bits(uint64_t *, c4m_module_compile_ctx *);
-extern void c4m_zmodule_gc_bits(uint64_t *, c4m_zmodule_info_t *);
+extern void c4m_module_ctx_gc_bits(uint64_t *, c4m_module_t *);
 extern void c4m_token_set_gc_bits(uint64_t *, void *);
 extern void c4m_checkpoint_gc_bits(uint64_t *, c4m_checkpoint_t *);
 extern void c4m_comment_node_gc_bits(uint64_t *, c4m_comment_node_t *);
@@ -126,7 +126,6 @@ extern void c4m_backpatch_gc_bits(uint64_t *, c4m_call_backpatch_info_t *);
 extern void c4m_module_param_gc_bits(uint64_t *, c4m_module_param_info_t *);
 extern void c4m_sig_info_gc_bits(uint64_t *, c4m_sig_info_t *);
 extern void c4m_fn_decl_gc_bits(uint64_t *, c4m_fn_decl_t *);
-extern void c4m_module_info_gc_bits(uint64_t *, c4m_module_info_t *);
 extern void c4m_err_set_gc_bits(uint64_t *, c4m_compile_error *);
 extern void c4m_objfile_gc_bits(uint64_t *, c4m_zobject_file_t *);
 

@@ -8,7 +8,6 @@
 
 #include "con4m.h"
 
-
 typedef enum : uint8_t {
     sk_singleton = 0,
     sk_blueprint = 1,
@@ -21,7 +20,7 @@ typedef struct {
     c4m_spec_section_t *section_spec;
     section_kind        kind;
     bool                instantiation;
-}  section_vinfo;
+} section_vinfo;
 
 typedef struct {
     c4m_attr_contents_t *record;
@@ -32,23 +31,22 @@ typedef struct {
     union {
         section_vinfo section;
         field_vinfo   field;
-    }           info;
+    } info;
     c4m_utf8_t *path;
     bool        field;
     bool        checked;
 } spec_node_t;
 
 typedef struct {
-    c4m_dict_t         *attrs;
-    c4m_dict_t         *section_cache;
-    c4m_spec_t         *spec;
-    c4m_list_t         *errors;
-    spec_node_t        *section_tree;
-    c4m_vm_t           *vm;
-    void               *cur;
-    bool                at_object_name;
+    c4m_dict_t  *attrs;
+    c4m_dict_t  *section_cache;
+    c4m_spec_t  *spec;
+    c4m_list_t  *errors;
+    spec_node_t *section_tree;
+    c4m_vm_t    *vm;
+    void        *cur;
+    bool         at_object_name;
 } validation_ctx;
-
 
 static c4m_utf8_t *
 current_path(validation_ctx *ctx)
@@ -77,24 +75,24 @@ static c4m_utf8_t *
 loc_from_attr(validation_ctx *ctx, c4m_attr_contents_t *attr)
 {
     c4m_zinstruction_t *ins = attr->lastset;
-    c4m_zmodule_info_t *mi;
+    c4m_module_t       *mi;
 
     if (!ins) {
-        assert (attr->is_set);
+        assert(attr->is_set);
         return c4m_new_utf8("Pre-execution");
     }
 
     mi = c4m_list_get(ctx->vm->obj->module_contents, ins->module_id, NULL);
 
-    if (mi->full_url) {
+    if (mi->full_uri) {
         return c4m_cstr_format("[b]{}:{:n}:[/]",
-                               mi->full_url,
+                               mi->full_uri,
                                c4m_box_i64(ins->line_no));
     }
 
     return c4m_cstr_format("[b]{}.{}:{:n}:[/]",
                            mi->package,
-                           mi->modname,
+                           mi->name,
                            c4m_box_i64(ins->line_no));
 }
 
@@ -125,7 +123,7 @@ _c4m_validation_error(validation_ctx     *ctx,
                       c4m_utf8_t         *loc,
                       ...)
 {
-    va_list      args;
+    va_list args;
 
     va_start(args, loc);
 
@@ -143,7 +141,6 @@ _c4m_validation_error(validation_ctx     *ctx,
 static spec_node_t *
 spec_node_alloc(validation_ctx *ctx, c4m_utf8_t *path)
 {
-
     spec_node_t   *res  = c4m_gc_alloc_mapped(spec_node_t, C4M_GC_SCAN_ALL);
     section_vinfo *info = &res->info.section;
 
@@ -165,9 +162,9 @@ init_section_node(validation_ctx *ctx,
     // This sets up data structures from the section cache, but does not
     // populate any field information whatsoever.
 
-    spec_node_t             *sec_info;
-    c4m_utf8_t              *full_path;
-    bool                     alloced = false;
+    spec_node_t *sec_info;
+    c4m_utf8_t  *full_path;
+    bool         alloced = false;
 
     if (path == NULL) {
         full_path = section;
@@ -176,11 +173,10 @@ init_section_node(validation_ctx *ctx,
         full_path = c4m_path_simple_join(path, section);
     }
 
-
     sec_info = hatrack_dict_get(ctx->section_cache, full_path, NULL);
 
     if (sec_info == NULL) {
-        alloced  = true;
+        alloced                             = true;
         sec_info                            = spec_node_alloc(ctx, full_path);
         sec_info->info.section.section_spec = (c4m_spec_section_t *)ctx->cur;
 
@@ -216,9 +212,9 @@ init_section_node(validation_ctx *ctx,
 
         if (cur_sec->singleton || ctx->at_object_name) {
             ctx->at_object_name = false;
-            ctx->cur    = hatrack_dict_get(ctx->spec->section_specs,
-                                           next_section,
-                                           NULL);
+            ctx->cur            = hatrack_dict_get(ctx->spec->section_specs,
+                                        next_section,
+                                        NULL);
         }
         else {
             ctx->at_object_name = true;
@@ -242,7 +238,6 @@ init_section_node(validation_ctx *ctx,
 static inline void
 init_one_section(validation_ctx *ctx, c4m_utf8_t *path)
 {
-
     if (!path) {
         ctx->section_tree = init_section_node(ctx,
                                               NULL,
@@ -270,7 +265,7 @@ init_one_section(validation_ctx *ctx, c4m_utf8_t *path)
 static bool
 spec_init_validation(validation_ctx *ctx, c4m_vm_t *runtime)
 {
-    if (!runtime->using_attrs || !runtime->obj->attr_spec) {
+    if (!runtime->obj->using_attrs || !runtime->obj->attr_spec) {
         return false;
     }
 
@@ -311,14 +306,15 @@ mark_required_field(c4m_flags_t *flags, c4m_list_t *req, c4m_utf8_t *name)
 static inline void
 validate_field_contents(validation_ctx     *ctx,
                         spec_node_t        *node,
-                        c4m_spec_section_t *secspec) {
+                        c4m_spec_section_t *secspec)
+{
     uint64_t             num_fields;
     uint64_t             num_specs;
     uint64_t             num_req;
     c4m_dict_t          *fdict    = node->info.section.contained_fields;
     hatrack_dict_item_t *fields   = hatrack_dict_items(fdict, &num_fields);
     c4m_spec_field_t   **fspecs   = (void *)hatrack_dict_values(secspec->fields,
-                                                                &num_specs);
+                                                            &num_specs);
     c4m_flags_t         *reqflags = NULL;
     c4m_list_t          *required = c4m_list(c4m_type_ref());
 
@@ -341,7 +337,6 @@ validate_field_contents(validation_ctx     *ctx,
         c4m_spec_field_t    *fspec  = fnode->info.field.field_spec;
         c4m_attr_contents_t *record = fnode->info.field.record;
         c4m_type_t          *t;
-
 
         if (!record->is_set) {
             continue;
@@ -384,8 +379,8 @@ validate_field_contents(validation_ctx     *ctx,
             }
 
             c4m_spec_field_t *x = hatrack_dict_get(secspec->fields,
-                                                     exclusions[i],
-                                                     NULL);
+                                                   exclusions[i],
+                                                   NULL);
             if (x && x->required) {
                 mark_required_field(reqflags, required, x->name);
             }
@@ -398,7 +393,7 @@ validate_field_contents(validation_ctx     *ctx,
             if (!bud || !bud->info.field.record->is_set) {
                 c4m_validation_error(ctx,
                                      c4m_spec_missing_ptr,
-                                    best_field_loc(ctx, node),
+                                     best_field_loc(ctx, node),
                                      current_path(ctx),
                                      node->info.field.field_spec->name,
                                      fspec->deferred_type_field,
@@ -437,7 +432,8 @@ validate_field_contents(validation_ctx     *ctx,
         }
         else {
             t = c4m_merge_types(c4m_type_copy(fspec->tinfo.type),
-                                record->type, NULL);
+                                record->type,
+                                NULL);
             if (c4m_type_is_error(t)) {
                 c4m_validation_error(ctx,
                                      c4m_spec_field_typecheck,
@@ -565,7 +561,7 @@ validate_subsection_names(validation_ctx *ctx, spec_node_t *node)
 
     // Descend to any non-broken sections to check them.
     for (unsigned int i = 0; i < num_subs; i++) {
-        spec_node_t *sub  = subsecs[i].value;
+        spec_node_t *sub = subsecs[i].value;
         if (sub->checked) {
             continue;
         }
@@ -581,8 +577,8 @@ validate_subsection_names(validation_ctx *ctx, spec_node_t *node)
 static void
 spec_validate_section(validation_ctx *ctx)
 {
-    spec_node_t        *node = (spec_node_t *)ctx->cur;
-    section_vinfo      *info = &node->info.section;
+    spec_node_t   *node = (spec_node_t *)ctx->cur;
+    section_vinfo *info = &node->info.section;
 
     if (info->kind == sk_blueprint) {
         uint64_t             num_fields;
@@ -598,7 +594,6 @@ spec_validate_section(validation_ctx *ctx)
                                  info->section_spec->name,
                                  fields[0].key,
                                  loc_from_attr(ctx, fnode->info.field.record));
-
         }
     }
     else {

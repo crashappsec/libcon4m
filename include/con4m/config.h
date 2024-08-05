@@ -226,3 +226,9 @@
 #undef C4M_PACKAGE_INIT_MODULE
 #endif
 #define C4M_PACKAGE_INIT_MODULE "__init"
+
+// Current Con4m version info.
+#define C4M_VERS_MAJOR   0x00
+#define C4M_VERS_MINOR   0x02
+#define C4M_VERS_PATCH   0x08
+#define C4M_VERS_PREVIEW 0x00

@@ -24,6 +24,9 @@ typedef struct {
     int          copied_allocs;
 } c4m_collection_ctx;
 
+// Temporary until we add register scanning.
+static thread_local c4m_arena_t *lame_duck = NULL;
+
 #define GC_OP_FW   0
 #define GC_OP_COPY 1
 
@@ -1004,7 +1007,11 @@ c4m_collect_arena(c4m_arena_t *from_space)
 
     run_post_collect_hooks();
 
-    c4m_delete_arena(ctx.from_space);
+    // Until we add register scanning, we are keeping one old arena.
+    if (lame_duck != NULL) {
+        c4m_delete_arena(lame_duck);
+    }
+    lame_duck = ctx.from_space;
 
     // Free the worklist.
     c4m_gc_trace(C4M_GCT_MUNMAP, "worklist: del @%p", ctx.worklist);

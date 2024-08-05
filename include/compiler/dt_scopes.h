@@ -43,30 +43,25 @@ typedef enum c4m_scope_kind : int8_t {
     C4M_SCOPE_IMPORTS    = 64,
 } c4m_scope_kind;
 
-// For module entries, the c4m_module_info_t data structure
-// will be in the `value` field of the scope entry.
 typedef struct {
-    c4m_utf8_t *specified_module;
-    c4m_utf8_t *specified_package;
-    c4m_utf8_t *specified_uri;
-} c4m_module_info_t;
+    // Information we throw away after compilation.
+    c4m_tree_node_t *type_decl_node;
+    c4m_tree_node_t *value_node;
+    void            *cfg_kill_node;
+    c4m_tree_node_t *declaration_node;
+    c4m_list_t      *sym_defs;
+    c4m_list_t      *sym_uses;
+} c4m_ct_sym_info_t;
 
 typedef struct c4m_symbol_t {
     // The `value` field gets the proper value for vars and enums, but
     // for other types, it gets a pointer to one of the specific data
     // structures in this file.
-    c4m_tree_node_t     *type_declaration_node;
-    void                *other_info;
-    c4m_list_t          *sym_defs;
-    c4m_list_t          *sym_uses;
+    c4m_ct_sym_info_t   *ct; // Compile-time symbol info.
     struct c4m_symbol_t *linked_symbol;
     c4m_utf8_t          *name;
-    c4m_tree_node_t     *declaration_node;
-    c4m_tree_node_t     *value_node;
-    c4m_utf8_t          *path;
+    c4m_utf8_t          *loc;
     c4m_type_t          *type;
-    struct c4m_scope_t  *my_scope;
-    void                *cfg_kill_node;
     c4m_obj_t            value;
     c4m_symbol_kind      kind;
 

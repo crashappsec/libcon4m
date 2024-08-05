@@ -269,7 +269,7 @@ c4m_setup_treematch_patterns()
 }
 
 c4m_obj_t
-c4m_node_to_callback(c4m_module_compile_ctx *ctx,
+c4m_node_to_callback(c4m_module_t *ctx,
                      c4m_tree_node_t        *n)
 {
     if (!c4m_node_has_type(n, c4m_nt_lit_callback)) {
@@ -297,7 +297,7 @@ c4m_node_to_callback(c4m_module_compile_ctx *ctx,
 }
 
 c4m_type_t *
-c4m_node_to_type(c4m_module_compile_ctx *ctx,
+c4m_node_to_type(c4m_module_t *ctx,
                  c4m_tree_node_t        *n,
                  c4m_dict_t             *type_ctx)
 {

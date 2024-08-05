@@ -11,19 +11,19 @@
 // At the end of compilation, we fill this out and marshal it.
 
 typedef struct {
-    c4m_static_memory      *memory_layout;
-    c4m_dict_t             *str_consts;
-    c4m_dict_t             *obj_consts;
-    c4m_dict_t             *value_consts;
-    c4m_scope_t            *final_attrs;
-    c4m_scope_t            *final_globals;
-    c4m_spec_t             *final_spec;
-    c4m_module_compile_ctx *entry_point;
-    c4m_module_compile_ctx *sys_package;
-    c4m_dict_t             *module_cache;
-    c4m_list_t             *module_ordering;
-    c4m_set_t              *backlog;   // Modules we need to process.
-    c4m_set_t              *processed; // Modules we've finished with.
+    c4m_static_memory   *memory_layout;
+    c4m_dict_t          *str_consts;
+    c4m_dict_t          *obj_consts;
+    c4m_dict_t          *value_consts;
+    c4m_scope_t         *final_attrs;
+    c4m_scope_t         *final_globals;
+    c4m_spec_t          *final_spec;
+    struct c4m_module_t *entry_point;
+    struct c4m_module_t *sys_package;
+    c4m_dict_t          *module_cache;
+    c4m_list_t          *module_ordering;
+    c4m_set_t           *backlog;   // Modules we need to process.
+    c4m_set_t           *processed; // Modules we've finished with.
 
     // New static memory implementation.  The object / value bits in
     // the c4m_static_memory struct will be NULL until we actually go

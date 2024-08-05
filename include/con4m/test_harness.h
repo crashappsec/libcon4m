@@ -24,6 +24,7 @@ typedef struct {
     bool          is_malformed;
     bool          run_ok;    // True if it ran successfully.
     bool          timeout;   // True if failed due to a timeout (not a crash)
+    bool          save;
     bool          stopped;   // Process was suspended via signal.
     int           exit_code; // Exit code of process if successfully run.
     int           signal;
@@ -54,7 +55,7 @@ extern void               c4m_show_err_diffs(c4m_utf8_t *,
                                              c4m_list_t *,
                                              c4m_list_t *);
 extern void               c4m_show_dev_compile_info(c4m_compile_ctx *);
-extern void               c4m_show_dev_disasm(c4m_vm_t *, c4m_zmodule_info_t *);
+extern void               c4m_show_dev_disasm(c4m_vm_t *, c4m_module_t *);
 
 static inline void
 announce_test_start(c4m_test_kat *item)

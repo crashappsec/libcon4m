@@ -58,3 +58,19 @@ c4m_vm_unmarshal(c4m_vm_t *vm, c4m_stream_t *in, c4m_dict_t *memos);
 
 extern c4m_list_t *
 c4m_validate_runtime(c4m_vm_t *vm);
+
+extern c4m_buf_t *c4m_automarshal(void *);
+extern void      *c4m_autounmarshal(c4m_buf_t *);
+
+static inline c4m_buf_t *
+c4m_vm_save(c4m_vm_t *vm)
+{
+    vm->run_state = NULL;
+    return c4m_automarshal(vm);
+}
+
+static inline c4m_vm_t *
+c4m_vm_restore(c4m_buf_t *b)
+{
+    return c4m_autounmarshal(b);
+}

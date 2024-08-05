@@ -53,7 +53,7 @@ c4m_custom_string_hash(c4m_str_t *s)
     return *cache;
 }
 
-static void
+void
 c4m_store_bits(uint64_t     *bitfield,
                mmm_header_t *alloc)
 {

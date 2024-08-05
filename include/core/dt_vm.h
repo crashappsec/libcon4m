@@ -424,70 +424,44 @@ typedef struct {
     int32_t     mid;    // module_id
     int32_t     offset; // offset to start of instructions in module
     int32_t     size;   // Stack frame size.
-    // TODO: This should go in the marshal, and needs startup initing.
-    // Note, its value must always be
     int32_t     static_lock;
 } c4m_zfn_info_t;
 
 typedef struct {
-    c4m_str_t  *attr;
-    c4m_type_t *tid;
-    c4m_str_t  *shortdoc;
-    c4m_str_t  *longdoc;
-    int64_t     offset;
-    c4m_obj_t   default_value;
-    bool        have_default;
-    bool        is_private;
-    int32_t     v_fn_ix;
-    bool        v_native;
-    int32_t     i_fn_ix;
-    bool        i_native;
-    c4m_obj_t   userparam;
-} c4m_zparam_info_t;
-
-typedef struct {
-    c4m_str_t  *modname;
-    c4m_str_t  *full_url;
-    c4m_str_t  *path;
-    c4m_str_t  *package;
-    c4m_str_t  *source;
-    c4m_str_t  *version;
-    c4m_str_t  *shortdoc;
-    c4m_str_t  *longdoc;
-    c4m_dict_t *datasyms;
-    c4m_list_t *parameters;   // tspec_ref: c4m_zparam_info_t
-    c4m_list_t *instructions; // tspec_ref: c4m_zinstruction_t
-    uint64_t    module_hash;
-    int32_t     module_id;    // Internal array index.
-    int32_t     module_var_size;
-    int32_t     init_size;    // size of init code before functions begin
-} c4m_zmodule_info_t;
-
-typedef struct {
-    uint64_t           zero_magic;
     struct c4m_spec_t *attr_spec;
     c4m_static_memory *static_contents;
     c4m_list_t        *module_contents; // tspec_ref: c4m_zmodule_info_t
     c4m_list_t        *func_info;       // tspec_ref: c4m_zfn_info_t
     c4m_list_t        *ffi_info;        // tspec_ref: c4m_zffi_info_t
-    uint32_t           zc_object_vers;
-    int32_t            entrypoint;
-    int32_t            next_entrypoint;
+    int                ffi_info_entries;
+    union {
+        struct {
+            uint8_t zc_object_preview;
+            uint8_t zc_object_patch;
+            uint8_t zc_object_minor;
+            uint8_t zc_object_major;
+        } dotted;
+        uint64_t number;
+    } zc_object_vers;
+    int32_t entrypoint;      // Initial entry point.
+    int32_t next_entrypoint; // Default subsequent entry point.
+    bool    using_attrs;     // Should move into object.
+    bool    root_populated;  // This too.
 } c4m_zobject_file_t;
 
 typedef struct {
-    c4m_zmodule_info_t *call_module;
-    c4m_zmodule_info_t *targetmodule;
-    c4m_zfn_info_t     *targetfunc;
-    int32_t             calllineno;
-    int32_t             targetline;
-    uint32_t            pc;
+    struct c4m_module_t *call_module;
+    struct c4m_module_t *targetmodule;
+    c4m_zfn_info_t      *targetfunc;
+    int32_t              calllineno;
+    int32_t              targetline;
+    uint32_t             pc;
 } c4m_vmframe_t;
 
 typedef struct {
-    c4m_zinstruction_t *lastset; // (not marshaled)
+    c4m_zinstruction_t *lastset;
     void               *contents;
-    c4m_type_t         *type;    // Value types will not generally be boxed.
+    c4m_type_t         *type; // Value types will not generally be boxed.
     bool                is_set;
     bool                locked;
     bool                lock_on_write;
@@ -496,25 +470,25 @@ typedef struct {
 } c4m_attr_contents_t;
 
 typedef struct {
-    c4m_str_t *shortdoc;
-    c4m_str_t *longdoc;
-} c4m_docs_container_t;
-
-// C4M_T_VM
-typedef struct {
+    // The stuff in this struct isn't saved out; it needs to be
+    // reinitialized on each startup.
 #ifdef C4M_DEV
     c4m_buf_t    *print_buf;
     c4m_stream_t *print_stream;
 #endif
+} c4m_zrun_state_t;
 
+// C4M_T_VM
+typedef struct {
     c4m_zobject_file_t *obj;
+    c4m_dict_t         *attrs; // string, c4m_attr_contents_t (tspec_ref)
+    c4m_zrun_state_t   *run_state;
     c4m_obj_t         **module_allocations;
-    c4m_dict_t         *attrs;        // string, c4m_attr_contents_t (tspec_ref)
     c4m_set_t          *all_sections; // string
-    c4m_list_t         *ffi_info;
-    int                 ffi_info_entries;
-    bool                using_attrs;
-    bool                root_populated;
+    c4m_duration_t      creation_time;
+    c4m_duration_t      first_saved_run_time;
+    c4m_duration_t      last_saved_run_time;
+    uint32_t            num_saved_runs;
 } c4m_vm_t;
 
 typedef struct {
@@ -530,7 +504,7 @@ typedef struct {
 
     // current_module is the module to which currently executing instructions
     // belong.
-    c4m_zmodule_info_t *current_module;
+    struct c4m_module_t *current_module;
 
     // The arena this allocation is from.
     c4m_arena_t *thread_arena;

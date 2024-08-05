@@ -65,11 +65,11 @@ populate_defaults(c4m_vmthread_t *tstate, c4m_str_t *key)
         }
     }
 
-    if (!vm->root_populated) {
+    if (!vm->obj->root_populated) {
         populate_one_section(tstate,
                              vm->obj->attr_spec->root_section,
                              c4m_empty_string());
-        vm->root_populated = true;
+        vm->obj->root_populated = true;
     }
     if (ix == -1) {
         return;
@@ -179,8 +179,8 @@ c4m_vm_attr_set(c4m_vmthread_t *tstate,
                 bool            override,
                 bool            internal)
 {
-    c4m_vm_t *vm    = tstate->vm;
-    vm->using_attrs = true;
+    c4m_vm_t *vm         = tstate->vm;
+    vm->obj->using_attrs = true;
 
     if (!internal) {
         populate_defaults(tstate, key);
@@ -211,7 +211,7 @@ c4m_vm_attr_set(c4m_vmthread_t *tstate,
     if (found) {
         bool locked = (old_info->locked
                        || (old_info->module_lock != 0
-                           && old_info->module_lock
+                           && (uint32_t)old_info->module_lock
                                   != tstate->current_module->module_id));
         if (locked) {
             if (!override && old_info->is_set) {
@@ -247,7 +247,8 @@ c4m_vm_attr_set(c4m_vmthread_t *tstate,
         */
     }
 
-    // Don't trigger write lock if we're setting a default (i.e., internal is set).
+    // Don't trigger write lock if we're setting a default (i.e.,
+    // internal is set).
     if (lock && !internal) {
         new_info->locked = true;
     }

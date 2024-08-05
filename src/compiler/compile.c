@@ -20,9 +20,9 @@ c4m_new_compile_ctx()
 }
 
 static hatrack_hash_t
-module_ctx_hash(c4m_module_compile_ctx *ctx)
+module_ctx_hash(c4m_module_t *ctx)
 {
-    return ctx->module_id;
+    return ctx->modref;
 }
 
 c4m_compile_ctx *
@@ -54,6 +54,8 @@ c4m_new_compile_context(c4m_str_t *input)
 
 static c4m_utf8_t *str_to_type_tmp_path = NULL;
 
+// This lives in this module because we invoke the parser; things that
+// invoke the compiler live here.
 c4m_type_t *
 c4m_str_to_type(c4m_utf8_t *str)
 {
@@ -62,12 +64,12 @@ c4m_str_to_type(c4m_utf8_t *str)
         c4m_gc_register_root(&str_to_type_tmp_path, 1);
     }
 
-    c4m_type_t            *result = NULL;
-    c4m_stream_t          *stream = c4m_string_instream(str);
-    c4m_module_compile_ctx ctx    = {
-           .module_id = 0xffffffff,
-           .path      = str_to_type_tmp_path,
-           .module    = str_to_type_tmp_path,
+    c4m_type_t   *result = NULL;
+    c4m_stream_t *stream = c4m_string_instream(str);
+    c4m_module_t  ctx    = {
+            .modref = 0xffffffff,
+            .path   = str_to_type_tmp_path,
+            .name   = str_to_type_tmp_path,
     };
 
     if (c4m_lex(&ctx, stream) != false) {
@@ -76,14 +78,14 @@ c4m_str_to_type(c4m_utf8_t *str)
 
     c4m_stream_close(stream);
 
-    if (ctx.parse_tree != NULL) {
+    if (ctx.ct->parse_tree != NULL) {
         c4m_dict_t *type_ctx = c4m_new(c4m_type_dict(c4m_type_utf8(),
                                                      c4m_type_ref()));
 
-        result = c4m_node_to_type(&ctx, ctx.parse_tree, type_ctx);
+        result = c4m_node_to_type(&ctx, ctx.ct->parse_tree, type_ctx);
     }
 
-    if (ctx.parse_tree == NULL || c4m_fatal_error_in_module(&ctx)) {
+    if (ctx.ct->parse_tree == NULL || c4m_fatal_error_in_module(&ctx)) {
         C4M_CRAISE("Invalid type.");
     }
 
@@ -91,7 +93,7 @@ c4m_str_to_type(c4m_utf8_t *str)
 }
 
 static void
-merge_function_decls(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
+merge_function_decls(c4m_compile_ctx *cctx, c4m_module_t *fctx)
 {
     c4m_scope_t          *scope = fctx->module_scope;
     hatrack_dict_value_t *items;
@@ -118,7 +120,7 @@ merge_function_decls(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
             if (old != new) {
                 c4m_add_warning(fctx,
                                 c4m_warn_cant_export,
-                                new->declaration_node);
+                                new->ct->declaration_node);
             }
         }
     }
@@ -128,7 +130,7 @@ merge_function_decls(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
 static void
 c4m_perform_module_loads(c4m_compile_ctx *ctx)
 {
-    c4m_module_compile_ctx *cur;
+    c4m_module_t *cur;
 
     while (true) {
         cur = c4m_set_any_item(ctx->backlog, NULL);
@@ -136,7 +138,12 @@ c4m_perform_module_loads(c4m_compile_ctx *ctx)
             return;
         }
 
-        if (cur->status < c4m_compile_status_code_loaded) {
+        if (cur->ct == NULL) {
+            // Previously processed from another run.
+            continue;
+        }
+
+        if (cur->ct->status < c4m_compile_status_code_loaded) {
             c4m_parse(cur);
             c4m_module_decl_pass(ctx, cur);
             if (c4m_fatal_error_in_module(cur)) {
@@ -149,7 +156,7 @@ c4m_perform_module_loads(c4m_compile_ctx *ctx)
             }
         }
 
-        if (cur->status < c4m_compile_status_scopes_merged) {
+        if (cur->ct->status < c4m_compile_status_scopes_merged) {
             merge_function_decls(ctx, cur);
             c4m_module_set_status(cur, c4m_compile_status_scopes_merged);
         }
@@ -160,15 +167,15 @@ c4m_perform_module_loads(c4m_compile_ctx *ctx)
 }
 
 typedef struct topologic_search_ctx {
-    c4m_module_compile_ctx *cur;
-    c4m_list_t             *visiting;
-    c4m_compile_ctx        *cctx;
+    c4m_module_t    *cur;
+    c4m_list_t      *visiting;
+    c4m_compile_ctx *cctx;
 } tsearch_ctx;
 
 static void
 topological_order_process(tsearch_ctx *ctx)
 {
-    c4m_module_compile_ctx *cur = ctx->cur;
+    c4m_module_t *cur = ctx->cur;
 
     if (c4m_list_contains(ctx->visiting, cur)) {
         // Cycle. I intend to add an info message here, otherwise
@@ -182,7 +189,7 @@ topological_order_process(tsearch_ctx *ctx)
         return;
     }
 
-    if (cur->imports == NULL || cur->imports->symbols == NULL) {
+    if (cur->ct->imports == NULL || cur->ct->imports->symbols == NULL) {
         c4m_list_append(ctx->cctx->module_ordering, cur);
         return;
     }
@@ -190,14 +197,15 @@ topological_order_process(tsearch_ctx *ctx)
     c4m_list_append(ctx->visiting, cur);
 
     uint64_t              num_imports;
-    hatrack_dict_value_t *imports = hatrack_dict_values(cur->imports->symbols,
-                                                        &num_imports);
+    hatrack_dict_value_t *imports;
+
+    imports = hatrack_dict_values(cur->ct->imports->symbols, &num_imports);
 
     for (uint64_t i = 0; i < num_imports; i++) {
-        c4m_symbol_t           *sym  = imports[i];
-        c4m_tree_node_t        *n    = sym->declaration_node;
-        c4m_pnode_t            *pn   = c4m_tree_get_contents(n);
-        c4m_module_compile_ctx *next = (c4m_module_compile_ctx *)pn->value;
+        c4m_symbol_t    *sym  = imports[i];
+        c4m_tree_node_t *n    = sym->ct->declaration_node;
+        c4m_pnode_t     *pn   = c4m_tree_get_contents(n);
+        c4m_module_t    *next = (c4m_module_t *)pn->value;
 
         if (next != cur) {
             ctx->cur = next;
@@ -232,9 +240,10 @@ build_topological_ordering(c4m_compile_ctx *cctx)
         .cctx     = cctx,
     };
 
-    cctx->module_ordering = c4m_new(c4m_type_list(c4m_type_ref()));
-
-    topological_order_process(&search_state);
+    if (!cctx->module_ordering) {
+        cctx->module_ordering = c4m_new(c4m_type_list(c4m_type_ref()));
+        topological_order_process(&search_state);
+    }
 
     if (cctx->entry_point) {
         search_state.cur = cctx->entry_point;
@@ -243,10 +252,10 @@ build_topological_ordering(c4m_compile_ctx *cctx)
 }
 
 static void
-merge_one_plain_scope(c4m_compile_ctx        *cctx,
-                      c4m_module_compile_ctx *fctx,
-                      c4m_scope_t            *local,
-                      c4m_scope_t            *global)
+merge_one_plain_scope(c4m_compile_ctx *cctx,
+                      c4m_module_t    *fctx,
+                      c4m_scope_t     *local,
+                      c4m_scope_t     *global)
 
 {
     uint64_t              num_symbols;
@@ -262,7 +271,7 @@ merge_one_plain_scope(c4m_compile_ctx        *cctx,
         if (hatrack_dict_add(global->symbols,
                              new_sym->name,
                              new_sym)) {
-            new_sym->local_module_id = fctx->local_module_id;
+            new_sym->local_module_id = fctx->module_id;
             continue;
         }
 
@@ -279,9 +288,9 @@ merge_one_plain_scope(c4m_compile_ctx        *cctx,
 }
 
 static void
-merge_one_confspec(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
+merge_one_confspec(c4m_compile_ctx *cctx, c4m_module_t *fctx)
 {
-    if (fctx->local_confspecs == NULL) {
+    if (fctx->ct->local_specs == NULL) {
         return;
     }
 
@@ -291,13 +300,13 @@ merge_one_confspec(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
     c4m_dict_t           *fspecs = cctx->final_spec->section_specs;
     hatrack_dict_value_t *sections;
 
-    sections = hatrack_dict_values(fctx->local_confspecs->section_specs,
+    sections = hatrack_dict_values(fctx->ct->local_specs->section_specs,
                                    &num_sections);
 
     if (num_sections && cctx->final_spec->locked) {
         c4m_add_error(fctx,
                       c4m_err_spec_locked,
-                      fctx->local_confspecs->declaration_node);
+                      fctx->ct->local_specs->declaration_node);
         cctx->fatality = true;
     }
 
@@ -318,7 +327,7 @@ merge_one_confspec(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
         cctx->fatality = true;
     }
 
-    c4m_spec_section_t *root_adds = fctx->local_confspecs->root_section;
+    c4m_spec_section_t *root_adds = fctx->ct->local_specs->root_section;
     c4m_spec_section_t *true_root = cctx->final_spec->root_section;
     uint64_t            num_fields;
 
@@ -414,21 +423,27 @@ merge_one_confspec(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
 }
 
 static void
-merge_var_scope(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
+merge_var_scope(c4m_compile_ctx *cctx, c4m_module_t *fctx)
 {
-    merge_one_plain_scope(cctx, fctx, fctx->global_scope, cctx->final_globals);
+    merge_one_plain_scope(cctx,
+                          fctx,
+                          fctx->ct->global_scope,
+                          cctx->final_globals);
 }
 
 static void
-merge_attrs(c4m_compile_ctx *cctx, c4m_module_compile_ctx *fctx)
+merge_attrs(c4m_compile_ctx *cctx, c4m_module_t *fctx)
 {
-    merge_one_plain_scope(cctx, fctx, fctx->attribute_scope, cctx->final_attrs);
+    merge_one_plain_scope(cctx,
+                          fctx,
+                          fctx->ct->attribute_scope,
+                          cctx->final_attrs);
 }
 
 static void
 merge_global_info(c4m_compile_ctx *cctx)
 {
-    c4m_module_compile_ctx *fctx = NULL;
+    c4m_module_t *fctx = NULL;
 
     build_topological_ordering(cctx);
 
@@ -437,9 +452,11 @@ merge_global_info(c4m_compile_ctx *cctx)
     for (uint64_t i = 0; i < mod_len; i++) {
         fctx = c4m_list_get(cctx->module_ordering, i, NULL);
 
-        assert(fctx->local_module_id == 0 || fctx->local_module_id == i);
+        if (!fctx->ct) {
+            continue;
+        }
 
-        fctx->local_module_id = i;
+        fctx->module_id = i;
         merge_one_confspec(cctx, fctx);
         merge_var_scope(cctx, fctx);
         merge_attrs(cctx, fctx);
@@ -478,10 +495,12 @@ c4m_compile_from_entry_point(c4m_str_t *entry)
     }
 
     c4m_perform_module_loads(result);
+
     if (result->fatality) {
         return result;
     }
     merge_global_info(result);
+
     if (result->fatality) {
         return result;
     }
@@ -494,19 +513,22 @@ c4m_compile_from_entry_point(c4m_str_t *entry)
     return result;
 }
 
-c4m_vm_t *
-c4m_generate_code(c4m_compile_ctx *ctx)
-{
-    c4m_vm_t *result = c4m_new_vm(ctx);
+extern void c4m_setup_new_module_allocations(c4m_compile_ctx *, c4m_vm_t *);
 
-    c4m_vm_reset(result);
-    c4m_internal_codegen(ctx, result);
-    c4m_vm_setup_first_runtime(result);
+bool
+c4m_generate_code(c4m_compile_ctx *ctx, c4m_vm_t *vm)
+{
+    vm->obj->module_contents = ctx->module_ordering;
+
+    c4m_internal_codegen(ctx, vm);
 
     if (ctx->fatality) {
-        return NULL;
+        return false;
     }
 
-    c4m_vm_reset(result);
-    return result;
+    c4m_setup_new_module_allocations(ctx, vm);
+
+    return true;
+
+    c4m_vm_remove_compile_time_data(vm);
 }

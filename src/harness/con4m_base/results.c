@@ -55,19 +55,19 @@ c4m_show_dev_compile_info(c4m_compile_ctx *ctx)
     }
 
     c4m_printf("[h2]Module Source Code for {}", ctx->entry_point->path);
-    c4m_print(ctx->entry_point->raw);
+    c4m_print(ctx->entry_point->source);
     c4m_printf("[h2]Module Tokens for {}", ctx->entry_point->path);
     c4m_print(c4m_format_tokens(ctx->entry_point));
-    if (ctx->entry_point->parse_tree) {
+    if (ctx->entry_point->ct->parse_tree) {
         c4m_print(c4m_format_parse_tree(ctx->entry_point));
     }
-    if (ctx->entry_point->cfg) {
+    if (ctx->entry_point->ct->cfg) {
         c4m_printf("[h1]Toplevel CFG for {}", ctx->entry_point->path);
-        c4m_print(c4m_cfg_repr(ctx->entry_point->cfg));
+        c4m_print(c4m_cfg_repr(ctx->entry_point->ct->cfg));
     }
 
-    for (int j = 0; j < c4m_list_len(ctx->entry_point->fn_def_syms); j++) {
-        c4m_symbol_t  *sym  = c4m_list_get(ctx->entry_point->fn_def_syms,
+    for (int j = 0; j < c4m_list_len(ctx->entry_point->ct->fn_def_syms); j++) {
+        c4m_symbol_t  *sym  = c4m_list_get(ctx->entry_point->ct->fn_def_syms,
                                          j,
                                          NULL);
         c4m_fn_decl_t *decl = sym->value;
@@ -90,7 +90,7 @@ c4m_show_dev_compile_info(c4m_compile_ctx *ctx)
 }
 
 void
-c4m_show_dev_disasm(c4m_vm_t *vm, c4m_zmodule_info_t *m)
+c4m_show_dev_disasm(c4m_vm_t *vm, c4m_module_t *m)
 {
     c4m_grid_t *g = c4m_disasm(vm, m);
     c4m_print(g);

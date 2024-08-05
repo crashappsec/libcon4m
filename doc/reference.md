@@ -534,10 +534,8 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 ```
 
 # Features to re-add from old con4m
-- VM save restore
 - Arg parsing
 - Change $result back to result (or alias?)
-- Libraries (but only the ones Chalk needs)
 - Final mile: params
 - Doc API.
 - Garbage collection: scan registers

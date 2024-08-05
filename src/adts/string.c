@@ -1304,55 +1304,6 @@ c4m_str_split(c4m_str_t *str, c4m_str_t *sub)
     return result;
 }
 
-static void
-c4m_string_marshal(c4m_str_t    *s,
-                   c4m_stream_t *out,
-                   c4m_dict_t   *memos,
-                   int64_t      *mid)
-{
-    c4m_marshal_u32(s->codepoints, out);
-    c4m_marshal_u32(s->byte_len, out);
-
-    if (s->styling == NULL) {
-        c4m_marshal_u32(0, out);
-    }
-    else {
-        c4m_marshal_u32((int32_t)s->styling->num_entries, out);
-        for (int i = 0; i < s->styling->num_entries; i++) {
-            c4m_marshal_i32(s->styling->styles[i].start, out);
-            c4m_marshal_i32(s->styling->styles[i].end, out);
-            c4m_marshal_u64(s->styling->styles[i].info, out);
-        }
-    }
-    if (s->byte_len) {
-        c4m_stream_raw_write(out, s->byte_len, s->data);
-    }
-}
-
-static void
-c4m_string_unmarshal(c4m_str_t *s, c4m_stream_t *in, c4m_dict_t *memos)
-{
-    s->codepoints = c4m_unmarshal_u32(in);
-    s->byte_len   = c4m_unmarshal_u32(in);
-
-    int32_t num_styles = c4m_unmarshal_u32(in);
-
-    if (num_styles > 0) {
-        c4m_alloc_styles(s, num_styles);
-    }
-
-    for (int i = 0; i < num_styles; i++) {
-        s->styling->styles[i].start = c4m_unmarshal_i32(in);
-        s->styling->styles[i].end   = c4m_unmarshal_i32(in);
-        s->styling->styles[i].info  = c4m_unmarshal_u64(in);
-    }
-
-    if (s->byte_len) {
-        s->data = c4m_gc_raw_alloc(s->byte_len + 4, NULL);
-        c4m_stream_raw_read(in, s->byte_len, s->data);
-    }
-}
-
 c4m_utf8_t *
 c4m_cstring(char *s, int64_t len)
 {

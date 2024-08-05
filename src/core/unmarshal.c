@@ -14,6 +14,7 @@ const void           *c4m_builtin_gc_bit_fns[] = {
     c4m_zcallback_gc_bits,
     c4m_dict_gc_bits_obj,
     c4m_dict_gc_bits_raw,
+    c4m_store_bits,
     c4m_grid_set_gc_bits,
     c4m_renderable_set_gc_bits,
     c4m_list_set_gc_bits,
@@ -39,7 +40,6 @@ const void           *c4m_builtin_gc_bit_fns[] = {
     c4m_tpat_gc_bits,
     c4m_cctx_gc_bits,
     c4m_module_ctx_gc_bits,
-    c4m_zmodule_gc_bits,
     c4m_token_set_gc_bits,
     c4m_checkpoint_gc_bits,
     c4m_comment_node_gc_bits,
@@ -54,7 +54,6 @@ const void           *c4m_builtin_gc_bit_fns[] = {
     c4m_module_param_gc_bits,
     c4m_sig_info_gc_bits,
     c4m_fn_decl_gc_bits,
-    c4m_module_info_gc_bits,
     c4m_err_set_gc_bits,
     c4m_objfile_gc_bits,
     c4m_spec_gc_bits,
@@ -295,16 +294,11 @@ process_pointer_location(c4m_unmarshal_ctx *ctx, c4m_mem_ptr ptr)
 }
 
 static inline void
-process_all_words(c4m_unmarshal_ctx *ctx, c4m_alloc_hdr *hdr)
+process_all_words(c4m_unmarshal_ctx *ctx,
+                  c4m_alloc_hdr     *hdr,
+                  c4m_mem_ptr        cur,
+                  c4m_mem_ptr        end)
 {
-    c4m_mem_ptr cur = (c4m_mem_ptr){.v = hdr->data};
-    c4m_mem_ptr end = (c4m_mem_ptr){.v = hdr->next_addr};
-
-    if (hdr->con4m_obj || hdr->type_obj) {
-        replace_type_base(ctx, cur);
-        cur.u64++;
-    }
-
     while (cur.u64 < end.u64) {
         process_pointer_location(ctx, cur);
         cur.u64++;
@@ -312,19 +306,14 @@ process_all_words(c4m_unmarshal_ctx *ctx, c4m_alloc_hdr *hdr)
 }
 
 static inline void
-process_one_record(c4m_unmarshal_ctx *ctx, c4m_alloc_hdr *hdr)
-{
-    process_all_words(ctx, hdr);
-}
-
-#if 0
-static inline void
-process_marked_addresses(c4m_unmarshal_ctx *ctx, c4m_alloc_hdr *hdr)
+process_marked_addresses(c4m_unmarshal_ctx *ctx,
+                         c4m_alloc_hdr     *hdr)
 {
     c4m_mem_scan_fn scanner     = hdr->scan_fn;
     uint32_t        numwords    = hdr->alloc_len / 8;
     uint32_t        bf_byte_len = ((numwords / 64) + 1) * sizeof(uint64_t);
     uint64_t       *map         = alloca(bf_byte_len);
+    c4m_mem_ptr     base        = (c4m_mem_ptr){.v = hdr->data};
 
     memset(map, 0, bf_byte_len);
 
@@ -335,20 +324,7 @@ process_marked_addresses(c4m_unmarshal_ctx *ctx, c4m_alloc_hdr *hdr)
     (*scanner)(map, hdr->data);
 
     int         last_cell = numwords / 64;
-    c4m_mem_ptr base      = (c4m_mem_ptr){.v = hdr->data};
     c4m_mem_ptr p;
-
-    if (hdr->con4m_obj || hdr->type_obj) {
-        p.u64 = base.u64;
-        replace_type_base(ctx, p);
-        map[0] &= ~1;
-    }
-
-    if (hdr->con4m_obj) {
-        p.u64 = base.u64 + 1;
-        process_pointer_location(ctx, p);
-        map[0] &= ~2;
-    }
 
     for (int i = 0; i <= last_cell; i++) {
         uint64_t w = map[i];
@@ -361,7 +337,33 @@ process_marked_addresses(c4m_unmarshal_ctx *ctx, c4m_alloc_hdr *hdr)
         }
     }
 }
-#endif
+
+static inline void
+process_one_record(c4m_unmarshal_ctx *ctx, c4m_alloc_hdr *hdr)
+{
+    // This generally will re-process the header, but it's not
+    // worth the twisting of the logic to deal with it.
+
+    c4m_mem_ptr cur = (c4m_mem_ptr){.v = hdr->data};
+    c4m_mem_ptr end = (c4m_mem_ptr){.v = hdr->next_addr};
+
+    if (hdr->con4m_obj || hdr->type_obj) {
+        replace_type_base(ctx, cur);
+        cur.u64++;
+    }
+    if (hdr->scan_fn == (void *)C4M_GC_SCAN_NONE) {
+        if (hdr->con4m_obj) {
+            process_pointer_location(ctx, cur);
+        }
+        return;
+    }
+
+    if (hdr->scan_fn == (void *)C4M_GC_SCAN_ALL) {
+        process_all_words(ctx, hdr, cur, end);
+    }
+
+    process_marked_addresses(ctx, hdr);
+}
 
 static inline void
 finish_unmarshaling(c4m_unmarshal_ctx *ctx, c4m_buf_t *buf, c4m_alloc_hdr *hdr)
@@ -476,33 +478,6 @@ c4m_autounmarshal(c4m_buf_t *buf)
     finish_unmarshaling(&ctx, buf, (c4m_alloc_hdr *)mhdr);
 
     return result;
-
-#if 0 // For now, process everything.
-    while (ctx.cur.c + sizeof(c4m_alloc_hdr) < ctx.end.c) {
-        c4m_marshaled_hdr *mhdr = validate_record(&ctx);
-        // TODO: If it's a type object, install the static pointer.
-        // TODO: Prefix stuff to make it clear if it's in marshal or unmarshal.
-
-        // Advance to the end of the alloc.
-        ctx.cur.v = mhdr;
-        ctx.cur.alloc += 1;
-
-        if (mhdr->scan_fn_id == (uint64_t)C4M_GC_SCAN_ALL) {
-            process_all_words(&ctx, (c4m_alloc_hdr *)mhdr);
-        }
-        else {
-            if (mhdr->scan_fn_id != (uint64_t)C4M_GC_SCAN_NONE) {
-                process_marked_addresses(&ctx, (c4m_alloc_hdr *)mhdr);
-            }
-        }
-        process_all_words(&ctx, (c4m_alloc_hdr *)mhdr);
-
-        if (no_more_records(&ctx)) {
-        }
-
-        process_all_words(&ctx, mhdr);
-    }
-#endif
 }
 
 void *
