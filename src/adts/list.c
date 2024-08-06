@@ -353,14 +353,13 @@ c4m_list_copy(c4m_list_t *list)
 {
     read_start(list);
 
-    int64_t     len       = c4m_list_len(list);
-    c4m_type_t *my_type   = c4m_get_my_type((c4m_obj_t)list);
-    c4m_type_t *item_type = c4m_type_get_param(my_type, 0);
-    c4m_list_t *res       = c4m_new(my_type, c4m_kw("length", c4m_ka(len)));
+    int64_t     len     = c4m_list_len(list);
+    c4m_type_t *my_type = c4m_get_my_type((c4m_obj_t)list);
+    c4m_list_t *res     = c4m_new(my_type, c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {
         c4m_obj_t item = c4m_list_get_base(list, i, NULL);
-        c4m_list_set(res, i, c4m_copy_object_of_type(item, item_type));
+        c4m_list_set(res, i, c4m_copy(item));
     }
 
     read_end(list);

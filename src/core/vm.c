@@ -389,7 +389,7 @@ c4m_vm_tcall(c4m_vmthread_t *tstate, c4m_zinstruction_t *i)
     case C4M_BI_COPY:
         STACK_REQUIRE_VALUES(1);
 
-        obj = c4m_copy_object(tstate->sp->rvalue);
+        obj = c4m_copy(tstate->sp->rvalue);
 
         tstate->sp->rvalue = obj;
         return;
@@ -1513,7 +1513,7 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                     if (NULL == obj) {
                         C4M_CRAISE("could not unmarshal");
                     }
-                    obj = c4m_copy_object(obj);
+                    obj = c4m_copy(obj);
 
                     --tstate->sp;
                     tstate->sp->rvalue = obj;

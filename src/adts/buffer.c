@@ -480,6 +480,10 @@ buffer_lit(c4m_utf8_t          *su8,
     return c4m_new(c4m_type_buffer(), c4m_kw("raw", c4m_ka(s)));
 }
 
+// NOTE: this function is currently of the utmost importance.
+// We cannot use automarshal to marshal / unmarshal arbitrary
+// buffers, because autounmarshal might try to copy the buffer
+// passed into it. So this one *has* to be manual.
 static c4m_buf_t *
 buffer_copy(c4m_buf_t *inbuf)
 {

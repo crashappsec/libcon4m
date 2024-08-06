@@ -124,14 +124,11 @@ c4m_flexarray_copy(flexarray_t *list)
     int64_t      len  = flexarray_view_len(view);
     c4m_type_t  *myty = c4m_get_my_type(list);
 
-    flexarray_t *res    = c4m_new(myty, c4m_kw("length", c4m_ka(len)));
-    c4m_type_t  *itemty = c4m_type_get_param(myty, 0);
-
-    // itemty = c4m_resolve_type(itemty);
+    flexarray_t *res = c4m_new(myty, c4m_kw("length", c4m_ka(len)));
 
     for (int i = 0; i < len; i++) {
         c4m_obj_t item = flexarray_view_next(view, NULL);
-        flexarray_set(res, i, c4m_copy_object_of_type(item, itemty));
+        flexarray_set(res, i, c4m_copy(item));
     }
 
     return res;

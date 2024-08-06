@@ -437,7 +437,7 @@ c4m_autounmarshal(c4m_buf_t *buf)
     c4m_alloc_hdr *hdr = c4m_find_allocation_record(buf->data);
 
     if (!c4m_in_heap(buf->data) || ((char *)hdr->data) != buf->data) {
-        buf = c4m_copy_object(buf);
+        buf = c4m_copy(buf);
         hdr = c4m_find_allocation_record(buf->data);
     }
 

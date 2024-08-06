@@ -20,8 +20,9 @@ extern c4m_wrapper_coerce(ptr, ptr) -> ptr {
 }
 */
 
-extern c4m_copy_object(ptr) -> ptr {
+extern c4m_copy(ptr) -> ptr {
   local: copy(o: `t) -> `t
+  box_values: false  
 }
 
 extern c4m_get_c_backtrace() -> ptr {

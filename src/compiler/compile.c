@@ -513,6 +513,14 @@ c4m_compile_from_entry_point(c4m_str_t *entry)
     return result;
 }
 
+c4m_compile_ctx *
+c4m_add_second_entry_point(c4m_vm_t *vm, c4m_str_t *entry)
+{
+    // TODO-- check that the module is there, and compile it in if not.
+    // Add the second entry point string.
+    //
+}
+
 extern void c4m_setup_new_module_allocations(c4m_compile_ctx *, c4m_vm_t *);
 
 bool

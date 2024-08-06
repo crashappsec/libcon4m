@@ -593,31 +593,35 @@ c4m_to_str(void *item, c4m_type_t *t)
 }
 
 c4m_obj_t
-c4m_copy_object(c4m_obj_t obj)
+c4m_copy(c4m_obj_t obj)
 {
-    c4m_copy_fn ptr = (c4m_copy_fn)c4m_vtable(obj)->methods[C4M_BI_COPY];
+    // This will copy anything.
+    //
+    // If it's an in-heap pointer, it looks for a copy constructor.
+    // If it's out of heap, it assumes it's a value, and returns it.
+    //
+    // Otherwise, it makes a deep copy via automarshal.
 
-    if (ptr == NULL) {
+    if (!c4m_in_heap(obj)) {
         return obj;
     }
 
-    return (*ptr)(obj);
-}
+    c4m_mem_ptr ptr = {.v = obj};
 
-c4m_obj_t
-c4m_copy_object_of_type(c4m_obj_t obj, c4m_type_t *t)
-{
-    if (c4m_type_is_value_type(t)) {
-        return obj;
+    ptr.alloc -= 1;
+
+    if (ptr.alloc->guard != c4m_gc_guard) {
+        // It's an actual object.
+        // See if there's a constructor.
+
+        c4m_copy_fn fn = (c4m_copy_fn)c4m_vtable(obj)->methods[C4M_BI_COPY];
+
+        if (fn != NULL) {
+            return (*fn)(obj);
+        }
     }
 
-    c4m_copy_fn ptr = (c4m_copy_fn)c4m_vtable(obj)->methods[C4M_BI_COPY];
-
-    if (ptr == NULL) {
-        C4M_CRAISE("Copying for this object type not currently supported.");
-    }
-
-    return (*ptr)(obj);
+    return c4m_autounmarshal(c4m_automarshal(obj));
 }
 
 c4m_obj_t

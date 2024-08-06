@@ -417,7 +417,6 @@ typedef struct {
     //
     // At run-time, the type will always need to be concrete.
     c4m_list_t *sym_types; // tspec_ref: c4m_zsymbol_t
-
     c4m_type_t *tid;
     c4m_str_t  *shortdoc;
     c4m_str_t  *longdoc;
@@ -429,6 +428,7 @@ typedef struct {
 
 typedef struct {
     struct c4m_spec_t *attr_spec;
+    struct c4m_spec_t *rp_spec;         // Restore point spec
     c4m_static_memory *static_contents;
     c4m_list_t        *module_contents; // tspec_ref: c4m_zmodule_info_t
     c4m_list_t        *func_info;       // tspec_ref: c4m_zfn_info_t
@@ -443,10 +443,11 @@ typedef struct {
         } dotted;
         uint64_t number;
     } zc_object_vers;
-    int32_t entrypoint;      // Initial entry point.
-    int32_t next_entrypoint; // Default subsequent entry point.
-    bool    using_attrs;     // Should move into object.
-    bool    root_populated;  // This too.
+    int32_t first_entry;    // Initial entry point.
+    int32_t default_entry;  // If different from the 1st entry, the reset pt.
+    int32_t orig_modcount;  // Original len of module_contents
+    bool    using_attrs;    // Should move into object.
+    bool    root_populated; // This too.
 } c4m_zobject_file_t;
 
 typedef struct {
@@ -482,13 +483,16 @@ typedef struct {
 typedef struct {
     c4m_zobject_file_t *obj;
     c4m_dict_t         *attrs; // string, c4m_attr_contents_t (tspec_ref)
+    c4m_dict_t         *rp_attrs;
     c4m_zrun_state_t   *run_state;
     c4m_obj_t         **module_allocations;
-    c4m_set_t          *all_sections; // string
+    c4m_set_t          *all_sections;    // string
+    c4m_set_t          *rp_all_sections; // string
     c4m_duration_t      creation_time;
     c4m_duration_t      first_saved_run_time;
     c4m_duration_t      last_saved_run_time;
     uint32_t            num_saved_runs;
+    int32_t             entry_point;
 } c4m_vm_t;
 
 typedef struct {

@@ -108,13 +108,64 @@ c4m_setup_new_module_allocations(c4m_compile_ctx *cctx, c4m_vm_t *vm)
     vm->module_allocations = new_allocs;
 }
 
+static void
+reset_point_stash(c4m_vm_t *vm)
+{
+    // At the reset point, we make a copy of any spec, so that if we
+    // add more specs on, but want to wipe out those modules we can.
+    if (vm->obj->attr_spec) {
+        vm->obj->rp_spec = c4m_copy(vm->obj->attr_spec);
+    }
+
+    if (vm->attrs) {
+        vm->rp_attrs = c4m_copy(vm->attrs);
+    }
+
+    if (vm->all_sections) {
+        vm->all_sections = c4m_copy(vm->all_sections);
+    }
+
+    // Stash off which modules are OG.
+    vm->obj->orig_modcount = c4m_list_len(vm->obj->module_contents);
+}
+
+static void
+c4m_first_run(c4m_vm_t *vm)
+{
+    // The first run can be used to run a bunch of initialization code
+    // in con4m that only ever runs once statically (or, again, if a
+    // VM reset occurs).
+    //
+    // If that's not going to occur, we stash reset-point info
+    // now, instead of at the end.
+    if (vm->obj->default_entry == vm->obj->first_entry) {
+        reset_point_stash(vm);
+    }
+    else {
+        vm->entry_point = vm->obj->default_entry;
+    }
+}
+
+c4m_buf_t *
+c4m_vm_save(c4m_vm_t *vm)
+{
+    // Any future runs should reset to this point, if it's our first
+    // run, and the original entry point !=
+    if (vm->num_saved_runs == 1) {
+        if (vm->obj->default_entry != vm->obj->first_entry) {
+            reset_point_stash(vm);
+        }
+    }
+
+    vm->run_state = NULL;
+    return c4m_automarshal(vm);
+}
+
 void
 c4m_vm_global_run_state_init(c4m_vm_t *vm)
 {
     // Global, meaning for all threads. But this is one time execution
     // state setup.
-    //
-    // This doesn't do much.
 
     vm->run_state = c4m_gc_alloc_mapped(c4m_zrun_state_t,
                                         c4m_zrun_state_gc_bits);
@@ -126,6 +177,7 @@ c4m_vm_global_run_state_init(c4m_vm_t *vm)
     // use this during the run, and if it doesn't get saved, then it'll
     // automatically reset.
     if (!vm->num_saved_runs++) {
+        c4m_first_run(vm);
         vm->first_saved_run_time = vm->last_saved_run_time;
     }
 
@@ -162,12 +214,25 @@ c4m_vm_new(c4m_compile_ctx *cctx)
         vm->obj->attr_spec = cctx->final_spec;
     }
 
-    vm->attrs         = c4m_new(c4m_type_dict(c4m_type_utf8(),
-                                      c4m_type_ref()));
+    vm->attrs         = c4m_dict(c4m_type_utf8(), c4m_type_ref());
     vm->all_sections  = c4m_new(c4m_type_set(c4m_type_utf8()));
     vm->creation_time = *c4m_now();
 
     return vm;
+}
+
+void
+c4m_vm_reset(c4m_vm_t *vm)
+{
+    vm->module_allocations   = NULL;
+    vm->num_saved_runs       = 0;
+    vm->attrs                = vm->rp_attrs;
+    vm->all_sections         = vm->rp_all_sections;
+    vm->obj->attr_spec       = vm->obj->rp_spec;
+    vm->obj->module_contents = c4m_list_get_slice(vm->obj->module_contents,
+                                                  0,
+                                                  vm->obj->orig_modcount);
+    vm->entry_point          = vm->obj->default_entry;
 }
 
 void
@@ -214,7 +279,7 @@ c4m_vmthread_reset(c4m_vmthread_t *tstate)
     tstate->error      = false;
 
     tstate->current_module = c4m_list_get(tstate->vm->obj->module_contents,
-                                          tstate->vm->obj->entrypoint,
+                                          tstate->vm->entry_point,
                                           NULL);
 }
 

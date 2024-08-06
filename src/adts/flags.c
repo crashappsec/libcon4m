@@ -27,22 +27,9 @@ flags_init(c4m_flags_t *self, va_list args)
 }
 
 c4m_flags_t *
-c4m_flags_copy(const c4m_flags_t *self)
-{
-    c4m_flags_t *result = c4m_new(c4m_type_flags(),
-                                  c4m_kw("length", c4m_ka(self->num_flags)));
-
-    for (int i = 0; i < result->alloc_wordlen; i++) {
-        result->contents[i] = self->contents[i];
-    }
-
-    return result;
-}
-
-c4m_flags_t *
 c4m_flags_invert(c4m_flags_t *self)
 {
-    c4m_flags_t *result = c4m_flags_copy(self);
+    c4m_flags_t *result = c4m_copy(self);
 
     for (int i = 0; i < result->alloc_wordlen; i++) {
         result->contents[i] = ~self->contents[i];
@@ -403,7 +390,7 @@ flags_item_type(c4m_obj_t ignore)
 static inline void *
 flags_view(c4m_flags_t *self, uint64_t *n)
 {
-    c4m_flags_t *copy = c4m_flags_copy(self);
+    c4m_flags_t *copy = c4m_copy(self);
     *n                = copy->num_flags;
 
     return copy;
@@ -415,7 +402,6 @@ const c4m_vtable_t c4m_flags_vtable = {
         [C4M_BI_CONSTRUCTOR]  = (c4m_vtable_entry)flags_init,
         [C4M_BI_TO_STR]       = (c4m_vtable_entry)flags_repr,
         [C4M_BI_FROM_LITERAL] = (c4m_vtable_entry)flags_lit,
-        [C4M_BI_COPY]         = (c4m_vtable_entry)c4m_flags_copy,
         [C4M_BI_ADD]          = (c4m_vtable_entry)c4m_flags_add,
         [C4M_BI_SUB]          = (c4m_vtable_entry)c4m_flags_sub,
         [C4M_BI_EQ]           = (c4m_vtable_entry)c4m_flags_eq, // EQ

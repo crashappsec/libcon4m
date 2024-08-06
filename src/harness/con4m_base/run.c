@@ -43,7 +43,7 @@ execute_test(c4m_test_kat *kat)
     c4m_generate_code(ctx, vm);
 
     if (c4m_dev_mode) {
-        int           n = vm->obj->entrypoint;
+        int           n = vm->entry_point;
         c4m_module_t *m = c4m_list_get(vm->obj->module_contents, n, NULL);
 
         c4m_show_dev_disasm(vm, m);

@@ -290,7 +290,7 @@ c4m_add_static_symbols(void)
     FSTAT(c4m_thread_cpu);
     FSTAT(c4m_uptime);
     FSTAT(c4m_program_clock);
-    FSTAT(c4m_copy_object);
+    FSTAT(c4m_copy);
     FSTAT(c4m_get_c_backtrace);
     FSTAT(c4m_lookup_color);
     FSTAT(c4m_to_vga);

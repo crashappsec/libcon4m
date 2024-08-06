@@ -2589,6 +2589,8 @@ c4m_internal_codegen(c4m_compile_ctx *cctx, c4m_vm_t *vm)
 
     backpatch_calls(&ctx);
 
-    vm->obj->entrypoint      = cctx->entry_point->module_id;
+    vm->obj->first_entry     = cctx->entry_point->module_id;
+    vm->obj->default_entry   = cctx->entry_point->module_id;
+    vm->entry_point          = cctx->entry_point->module_id;
     vm->obj->static_contents = cctx->memory_layout;
 }

@@ -217,32 +217,11 @@ mixed_repr(c4m_mixed_t *mixed)
     return c4m_repr((void *)mixed_as_word(mixed), mixed->held_type);
 }
 
-static c4m_mixed_t *
-mixed_copy(c4m_mixed_t *m)
-{
-    c4m_mixed_t *result = c4m_new(c4m_type_mixed());
-
-    // Types are concrete whenever there is a value, so we don't need to
-    // call copy, but we do it anyway.
-
-    result->held_type = c4m_type_copy(m->held_type);
-
-    if (c4m_type_get_data_type_info(m->held_type)->by_value) {
-        result->held_value = m->held_value;
-    }
-    else {
-        result->held_value = c4m_copy_object(m->held_value);
-    }
-
-    return result;
-}
-
 const c4m_vtable_t c4m_mixed_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {
         [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)mixed_init,
         [C4M_BI_REPR]        = (c4m_vtable_entry)mixed_repr,
-        [C4M_BI_COPY]        = (c4m_vtable_entry)mixed_copy,
         [C4M_BI_GC_MAP]      = (c4m_vtable_entry)C4M_GC_SCAN_ALL,
         // Explicit because some compilers don't seem to always properly
         // zero it (Was sometimes crashing on a `c4m_stream_t` on my mac).
