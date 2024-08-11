@@ -838,6 +838,12 @@ gen_ret(gen_ctx *ctx)
         gen_kids(ctx);
         emit(ctx, C4M_ZPopToR0);
     }
+    else {
+        if (ctx->retsym) {
+            gen_sym_load(ctx, ctx->retsym, false);
+            emit(ctx, C4M_ZPopToR0);
+        }
+    }
 
     emit(ctx, C4M_ZRet);
 }
@@ -2463,6 +2469,12 @@ gen_function(gen_ctx      *ctx,
              C4M_ZUnlockMutex,
              c4m_kw("arg", c4m_ka(decl->sc_lock_offset)));
     }
+
+    if (ctx->retsym) {
+        gen_sym_load(ctx, ctx->retsym, false);
+        emit(ctx, C4M_ZPopToR0);
+    }
+
     emit(ctx, C4M_ZRet);
 
     // The actual backpatching of the needed frame size.

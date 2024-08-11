@@ -535,10 +535,9 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 
 # Features to re-add from old con4m
 - Arg parsing
-- Change $result back to result (or alias?)
 - Final mile: params
 - Doc API.
-- Garbage collection: scan registers
+- Garbage collection: scan registers (well, not really a re-add...)
 
 # Items for afterward
 - Objects
@@ -565,19 +564,16 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - After the check pass, enforce constants.
 - Warning on exclusions that are not defined fields.
 - Default provided + lock should not lock.
-- Type pointer + validator should be workable.
 - Lock w/o attr being set should be compile-time error where possible.
 - Attr lock applied to non-attrs.
 - Calls via callback, possibly once interpreter stops.
 - Validation post-run.
 - Show source code on errors when available.
-- Revert the GC func for errors.
+- Get all the GC bit functions done / working.
 - c4m_format_errors() -> c4m_format_compile_errors()
 - Section validation callbacks.
 - Randomize typeid on unmarshaling, OR, create a 'universeid'
 - That we also use in the hash.
-
-
-      - Handle all the type stuff on the unmarshal side.
+- Disallow '$' for user defined vars?
 	
    

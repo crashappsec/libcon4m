@@ -1003,19 +1003,7 @@ line_comment:
             TOK(c4m_tt_semi);
             continue;
         case ':':
-            /*  if (peek(state) == '=') {
-                advance(state);
-                TOK(c4m_tt_assign);
-                state->start           = state->pos;
-                state->cur_tok_line_no = state->line_no;
-                state->cur_tok_offset  = state->start - state->line_start;
-                scan_unquoted_literal(state);
-            }
-            else {
-            */
             TOK(c4m_tt_colon);
-            // skip_optional_newline(state);
-            //             }
             continue;
         case '=':
             if (peek(state) == '=') {
@@ -1286,6 +1274,10 @@ c4m_token_raw_content(c4m_token_t *tok)
 
     if (!tok->text) {
         capture_lit_text(tok);
+    }
+
+    if (!strcmp(tok->text->data, "result")) {
+        return c4m_new_utf8("$result");
     }
 
     return tok->text;
