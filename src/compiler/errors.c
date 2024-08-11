@@ -1599,7 +1599,7 @@ c4m_new_error(int nargs)
     return c4m_gc_flex_alloc(c4m_compile_error,
                              void *,
                              nargs,
-                             (c4m_mem_scan_fn)c4m_err_set_gc_bits);
+                             C4M_GC_SCAN_ALL);
 }
 
 #define COMMON_ERR_BASE()                                       \

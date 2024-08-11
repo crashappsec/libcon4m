@@ -524,6 +524,9 @@ column_text_width(c4m_grid_t *grid, int col)
         if (!cell || cell->start_row != i || cell->start_col != col || cell->end_col != col + 1) {
             continue;
         }
+        if (!cell || !cell->raw_item) {
+            continue;
+        }
         switch (c4m_base_type(cell->raw_item)) {
         case C4M_T_UTF8:
         case C4M_T_UTF32:
@@ -904,12 +907,16 @@ str_render_cell(c4m_grid_t       *grid,
 
 // Renders to the exact width, and via the height. For now, we're just going
 // to handle text objects, and then sub-grids.
-static inline uint16_t
+static uint16_t
 render_to_cache(c4m_grid_t       *grid,
                 c4m_renderable_t *cell,
                 int16_t           width,
                 int16_t           height)
 {
+    if (!cell || !cell->raw_item) {
+        return 0;
+    }
+
     switch (c4m_base_type(cell->raw_item)) {
     case C4M_T_UTF8:
     case C4M_T_UTF32: {

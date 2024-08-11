@@ -303,10 +303,11 @@ c4m_mark_raw_to_addr(uint64_t *bitfield, void *base, void *end)
 {
     uint64_t diff = c4m_ptr_diff(base, end);
 
-    do {
-        *bitfield = (1 << (diff + 1)) - 1;
-        diff >>= 6;
-    } while (diff);
+    while (diff >= 64) {
+        *bitfield++ = ~0ULL;
+        diff -= 64;
+    }
+    *bitfield = (1ULL << (diff + 1)) - 1;
 }
 
 static inline c4m_alloc_hdr *

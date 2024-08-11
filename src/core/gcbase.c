@@ -324,8 +324,6 @@ c4m_raw_arena_alloc(uint64_t len, void **end, void **accounting)
                  full_alloc + total_len,
                  len);
 
-    ASAN_POISON_MEMORY_REGION(((c4m_arena_t *)ret)->data, len);
-
     return ret;
 }
 

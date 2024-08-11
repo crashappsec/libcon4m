@@ -670,6 +670,9 @@ c4m_to_str(void *item, c4m_type_t *t)
 c4m_obj_t
 c4m_copy(c4m_obj_t obj)
 {
+    if (!c4m_in_heap(obj)) {
+        return obj;
+    }
     c4m_obj_t   result;
     c4m_mem_ptr ptr = {.v = obj};
     ptr.alloc -= 1;
@@ -680,7 +683,7 @@ c4m_copy(c4m_obj_t obj)
     // If it's in-heap, it makes a deep copy via
     // automarshal.
 
-    if (c4m_in_heap(obj) && ptr.alloc->guard == c4m_gc_guard) {
+    if (ptr.alloc->guard == c4m_gc_guard) {
         c4m_copy_fn fn = (c4m_copy_fn)c4m_vtable(obj)->methods[C4M_BI_COPY];
         if (fn != NULL) {
             result = (*fn)(obj);
