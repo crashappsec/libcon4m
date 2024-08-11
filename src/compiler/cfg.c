@@ -746,7 +746,7 @@ c4m_cfg_analyze(c4m_module_t *module_ctx, c4m_dict_t *du_info)
     check_block_for_errors(&ctx, module_ctx->ct->cfg);
     check_for_module_exit_errors(&ctx, module_ctx->ct->cfg);
 
-    int n = c4m_list_len(module_ctx->ct->fn_def_syms);
+    int n = c4m_list_len(module_ctx->fn_def_syms);
 
     c4m_cfg_node_t *modexit = module_ctx->ct->cfg->contents.block_entrance.exit_node;
     c4m_dict_t     *moddefs = modexit->liveness_info;
@@ -755,7 +755,7 @@ c4m_cfg_analyze(c4m_module_t *module_ctx, c4m_dict_t *du_info)
     for (int i = 0; i < n; i++) {
         ctx.du_info         = moddefs;
         ctx.sometimes_info  = stdefs;
-        c4m_symbol_t  *sym  = c4m_list_get(module_ctx->ct->fn_def_syms,
+        c4m_symbol_t  *sym  = c4m_list_get(module_ctx->fn_def_syms,
                                          i,
                                          NULL);
         c4m_fn_decl_t *decl = sym->value;

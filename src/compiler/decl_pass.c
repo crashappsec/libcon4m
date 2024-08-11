@@ -1444,7 +1444,7 @@ next_alloc:
         sym->value = (void *)info;
     }
 
-    c4m_list_append(ctx->module_ctx->ct->extern_decls, sym);
+    c4m_list_append(ctx->module_ctx->extern_decls, sym);
 }
 
 static c4m_list_t *
@@ -1646,9 +1646,9 @@ c4m_module_decl_pass(c4m_compile_ctx *cctx, c4m_module_t *module_ctx)
 
     module_ctx->parameters        = c4m_new(c4m_type_dict(c4m_type_utf8(),
                                                    c4m_type_ref()));
-    module_ctx->ct->fn_def_syms   = c4m_new(c4m_type_list(c4m_type_ref()));
+    module_ctx->fn_def_syms       = c4m_new(c4m_type_list(c4m_type_ref()));
     module_ctx->ct->callback_lits = c4m_new(c4m_type_list(c4m_type_ref()));
-    module_ctx->ct->extern_decls  = c4m_new(c4m_type_list(c4m_type_ref()));
+    module_ctx->extern_decls      = c4m_new(c4m_type_list(c4m_type_ref()));
 
     ctx.cur->static_scope = module_ctx->module_scope;
     ctx.static_scope      = module_ctx->module_scope;

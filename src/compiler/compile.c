@@ -531,12 +531,13 @@ c4m_incremental_module(c4m_vm_t         *vm,
     ctx->final_spec      = vm->obj->attr_spec;
     ctx->module_ordering = vm->obj->module_contents;
     ctx->memory_layout   = vm->obj->static_contents;
-    ctx->module_cache    = cache[C4M_CCACHE_CUR_MODULES];
-    ctx->final_attrs     = cache[C4M_CCACHE_CUR_ASCOPE];
-    ctx->final_globals   = cache[C4M_CCACHE_CUR_GSCOPE];
-    ctx->str_consts      = cache[C4M_CCACHE_CUR_SCONSTS];
-    ctx->obj_consts      = cache[C4M_CCACHE_CUR_OCONSTS];
-    ctx->value_consts    = cache[C4M_CCACHE_CUR_VCONSTS];
+
+    ctx->module_cache  = cache[C4M_CCACHE_CUR_MODULES];
+    ctx->final_attrs   = cache[C4M_CCACHE_CUR_ASCOPE];
+    ctx->final_globals = cache[C4M_CCACHE_CUR_GSCOPE];
+    ctx->str_consts    = cache[C4M_CCACHE_CUR_SCONSTS];
+    ctx->obj_consts    = cache[C4M_CCACHE_CUR_OCONSTS];
+    ctx->value_consts  = cache[C4M_CCACHE_CUR_VCONSTS];
 
     ctx->backlog   = c4m_new(c4m_type_set(c4m_type_ref()),
                            c4m_kw("hash", c4m_ka(module_ctx_hash)));
@@ -548,6 +549,12 @@ c4m_incremental_module(c4m_vm_t         *vm,
     }
 
     c4m_module_t *module = c4m_init_module_from_loc(ctx, location);
+    c4m_module_t *sys;
+
+    // This is only the entry point for the incremental add, used to
+    // compute a partial ordering. Should prob do some renaming, since
+    // this is not the permanant entry point in the VM.
+    ctx->entry_point = module;
 
     c4m_add_module_to_worklist(ctx, module);
 
@@ -555,13 +562,15 @@ c4m_incremental_module(c4m_vm_t         *vm,
         return false;
     }
 
-    ctx->sys_package = c4m_find_module(ctx,
-                                       c4m_con4m_root(),
-                                       c4m_new_utf8(C4M_PACKAGE_INIT_MODULE),
-                                       c4m_new_utf8("sys"),
-                                       NULL,
-                                       NULL,
-                                       NULL);
+    sys = c4m_find_module(ctx,
+                          c4m_con4m_root(),
+                          c4m_new_utf8(C4M_PACKAGE_INIT_MODULE),
+                          c4m_new_utf8("sys"),
+                          NULL,
+                          NULL,
+                          NULL);
+
+    ctx->sys_package = sys;
 
     c4m_perform_module_loads(ctx);
 
@@ -583,6 +592,10 @@ c4m_incremental_module(c4m_vm_t         *vm,
 
     c4m_internal_codegen(ctx, vm);
     c4m_setup_new_module_allocations(ctx, vm);
+
+    if (new_entry) {
+        vm->entry_point = module->module_id;
+    }
 
     return true;
     // We don't need to copy back into the CCACHE; we got refs for
@@ -606,20 +619,23 @@ c4m_generate_code(c4m_compile_ctx *ctx, c4m_vm_t *vm)
 
     c4m_setup_new_module_allocations(ctx, vm);
 
-    vm->obj->ccache[C4M_CCACHE_ORIG_ASCOPE]  = ctx->final_attrs;
-    vm->obj->ccache[C4M_CCACHE_CUR_ASCOPE]   = c4m_scope_copy(ctx->final_attrs);
-    vm->obj->ccache[C4M_CCACHE_ORIG_GSCOPE]  = ctx->final_globals;
-    vm->obj->ccache[C4M_CCACHE_CUR_GSCOPE]   = c4m_scope_copy(ctx->final_globals);
-    vm->obj->ccache[C4M_CCACHE_ORIG_SCONSTS] = ctx->str_consts;
-    vm->obj->ccache[C4M_CCACHE_CUR_SCONSTS]  = c4m_shallow(ctx->str_consts);
-    vm->obj->ccache[C4M_CCACHE_ORIG_OCONSTS] = ctx->obj_consts;
-    vm->obj->ccache[C4M_CCACHE_CUR_OCONSTS]  = c4m_shallow(ctx->obj_consts);
-    vm->obj->ccache[C4M_CCACHE_ORIG_VCONSTS] = ctx->value_consts;
-    vm->obj->ccache[C4M_CCACHE_CUR_VCONSTS]  = c4m_shallow(ctx->value_consts);
-    vm->obj->ccache[C4M_CCACHE_ORIG_SPEC]    = ctx->final_spec;
-    vm->obj->ccache[C4M_CCACHE_ORIG_SORT]    = c4m_shallow(ctx->module_ordering);
-    vm->obj->ccache[C4M_CCACHE_ORIG_MODULES] = ctx->module_cache;
-    vm->obj->ccache[C4M_CCACHE_ORIG_STATIC]  = ctx->memory_layout;
+    void **cache = vm->obj->ccache;
+
+    cache[C4M_CCACHE_ORIG_ASCOPE]  = ctx->final_attrs;
+    cache[C4M_CCACHE_CUR_ASCOPE]   = c4m_scope_copy(ctx->final_attrs);
+    cache[C4M_CCACHE_ORIG_GSCOPE]  = ctx->final_globals;
+    cache[C4M_CCACHE_CUR_GSCOPE]   = c4m_scope_copy(ctx->final_globals);
+    cache[C4M_CCACHE_ORIG_SCONSTS] = ctx->str_consts;
+    cache[C4M_CCACHE_CUR_SCONSTS]  = c4m_shallow(ctx->str_consts);
+    cache[C4M_CCACHE_ORIG_OCONSTS] = ctx->obj_consts;
+    cache[C4M_CCACHE_CUR_OCONSTS]  = c4m_shallow(ctx->obj_consts);
+    cache[C4M_CCACHE_ORIG_VCONSTS] = ctx->value_consts;
+    cache[C4M_CCACHE_CUR_VCONSTS]  = c4m_shallow(ctx->value_consts);
+    cache[C4M_CCACHE_ORIG_SPEC]    = ctx->final_spec;
+    cache[C4M_CCACHE_ORIG_SORT]    = c4m_shallow(ctx->module_ordering);
+    cache[C4M_CCACHE_ORIG_MODULES] = ctx->module_cache;
+    cache[C4M_CCACHE_CUR_MODULES]  = c4m_shallow(ctx->module_cache);
+    cache[C4M_CCACHE_ORIG_STATIC]  = ctx->memory_layout;
 
     // Attrs and sects don't get saved to the cache until after we run.
     return true;

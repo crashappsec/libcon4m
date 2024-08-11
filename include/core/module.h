@@ -19,13 +19,15 @@ typedef struct c4m_module_t {
     c4m_str_t                   *path;         // Fully qualified path
     c4m_str_t                   *package;      // Package name.
     c4m_str_t                   *full_uri;     // Abs path / URL if found.
-    c4m_utf32_t                 *source;       // raw contents before lex pass.
-    c4m_scope_t                 *module_scope; // Symbols used w/ module scope
+    c4m_utf32_t                 *source;       // raw src before lex pass.
+    c4m_scope_t                 *module_scope; // Symbols w/ module scope
+    c4m_list_t                  *fn_def_syms;  // Cache of fns defined.
+    c4m_list_t                  *extern_decls;
     c4m_list_t                  *instructions;
     c4m_dict_t                  *parameters;
     c4m_utf8_t                  *short_doc;
     c4m_utf8_t                  *long_doc;
-    uint64_t                     modref;    // A unique ref for  module w/o src
+    uint64_t                     modref;    // unique ref w/o src
     int32_t                      static_size;
     uint32_t                     module_id; // Index in object file.
 } c4m_module_t;

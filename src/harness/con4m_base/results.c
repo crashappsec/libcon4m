@@ -66,8 +66,8 @@ c4m_show_dev_compile_info(c4m_compile_ctx *ctx)
         c4m_print(c4m_cfg_repr(ctx->entry_point->ct->cfg));
     }
 
-    for (int j = 0; j < c4m_list_len(ctx->entry_point->ct->fn_def_syms); j++) {
-        c4m_symbol_t  *sym  = c4m_list_get(ctx->entry_point->ct->fn_def_syms,
+    for (int j = 0; j < c4m_list_len(ctx->entry_point->fn_def_syms); j++) {
+        c4m_symbol_t  *sym  = c4m_list_get(ctx->entry_point->fn_def_syms,
                                          j,
                                          NULL);
         c4m_fn_decl_t *decl = sym->value;

@@ -241,7 +241,7 @@ u8_parse(c4m_utf8_t          *s,
     UNSIGNED_PARSE(0xff, u8);
 }
 
-c4m_obj_t
+static c4m_obj_t
 i32_parse(c4m_utf8_t          *s,
           c4m_lit_syntax_t     st,
           c4m_utf8_t          *litmod,
@@ -250,7 +250,7 @@ i32_parse(c4m_utf8_t          *s,
     SIGNED_PARSE(0x80000000, 0x7fffffff, i32);
 }
 
-c4m_obj_t
+static c4m_obj_t
 u32_parse(c4m_utf8_t          *s,
           c4m_lit_syntax_t     st,
           c4m_utf8_t          *litmod,
@@ -259,7 +259,7 @@ u32_parse(c4m_utf8_t          *s,
     UNSIGNED_PARSE(0xffffffff, u32);
 }
 
-c4m_obj_t
+static c4m_obj_t
 i64_parse(c4m_utf8_t          *s,
           c4m_lit_syntax_t     st,
           c4m_utf8_t          *litmod,
@@ -268,7 +268,7 @@ i64_parse(c4m_utf8_t          *s,
     SIGNED_PARSE(0x8000000000000000, 0x7fffffffffffffff, i64);
 }
 
-c4m_obj_t
+static c4m_obj_t
 u64_parse(c4m_utf8_t          *s,
           c4m_lit_syntax_t     st,
           c4m_utf8_t          *litmod,
@@ -280,7 +280,7 @@ u64_parse(c4m_utf8_t          *s,
 static c4m_obj_t false_lit = NULL;
 static c4m_obj_t true_lit  = NULL;
 
-c4m_obj_t
+static c4m_obj_t
 bool_parse(c4m_utf8_t          *u8,
            c4m_lit_syntax_t     st,
            c4m_utf8_t          *litmod,

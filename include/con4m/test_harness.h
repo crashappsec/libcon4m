@@ -14,10 +14,12 @@ typedef enum {
 typedef struct {
     c4m_utf8_t   *path;
     c4m_str_t    *raw_docstring;
+    c4m_str_t    *second_entry;
     c4m_utf8_t   *expected_output;
     c4m_list_t   *expected_errors;
     struct rusage usage;
     int           case_number;
+    int           second_entry_executions;
     bool          ignore_output;
     bool          is_hex;
     bool          is_test;

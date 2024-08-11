@@ -313,10 +313,10 @@ c4m_layout_module_symbols(c4m_compile_ctx *cctx, c4m_module_t *fctx)
     view = hatrack_dict_values_sort(fctx->module_scope->symbols, &n);
     layout_static(cctx, fctx, view, n);
 
-    n = c4m_list_len(fctx->ct->fn_def_syms);
+    n = c4m_list_len(fctx->fn_def_syms);
 
     for (unsigned int i = 0; i < n; i++) {
-        c4m_symbol_t *sym = c4m_list_get(fctx->ct->fn_def_syms, i, NULL);
+        c4m_symbol_t *sym = c4m_list_get(fctx->fn_def_syms, i, NULL);
         layout_func(fctx, sym, i);
     }
 }

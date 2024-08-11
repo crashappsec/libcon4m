@@ -2985,7 +2985,7 @@ process_function_definitions(pass2_ctx *ctx)
         ctx->fn_exit_node = ctx->cfg->contents.block_entrance.exit_node;
         formals           = ctx->fn_decl->signature_info->formals;
 
-        c4m_list_append(ctx->module_ctx->ct->fn_def_syms, sym);
+        c4m_list_append(ctx->module_ctx->fn_def_syms, sym);
 
         view = hatrack_dict_values_sort(ctx->local_scope->symbols, &num_items);
 
@@ -3385,7 +3385,7 @@ process_deferred_calls(c4m_compile_ctx *cctx,
         scan_for_void_symbols(f, f->ct->global_scope);
         scan_for_void_symbols(f, f->ct->attribute_scope);
 
-        c4m_list_t *fns = f->ct->fn_def_syms;
+        c4m_list_t *fns = f->fn_def_syms;
 
         for (int i = 0; i < c4m_list_len(fns); i++) {
             c4m_symbol_t  *sym  = c4m_list_get(fns, i, NULL);
@@ -3425,7 +3425,10 @@ process_deferred_callbacks(c4m_compile_ctx *cctx)
         c4m_module_t *f = c4m_list_get(cctx->module_ordering,
                                        i,
                                        NULL);
-        int           m = c4m_list_len(f->ct->callback_lits);
+        if (f->ct == NULL) {
+            continue;
+        }
+        int m = c4m_list_len(f->ct->callback_lits);
         for (int j = 0; j < m; j++) {
             c4m_callback_info_t *cb  = c4m_list_get(f->ct->callback_lits,
                                                    j,
@@ -3502,10 +3505,10 @@ order_ffi_decls(c4m_compile_ctx *cctx)
 
     for (int i = 0; i < n; i++) {
         c4m_module_t *f = c4m_list_get(cctx->module_ordering, i, NULL);
-        int           m = c4m_list_len(f->ct->extern_decls);
+        int           m = c4m_list_len(f->extern_decls);
 
         for (int j = 0; j < m; j++) {
-            c4m_symbol_t   *sym  = c4m_list_get(f->ct->extern_decls, j, NULL);
+            c4m_symbol_t   *sym  = c4m_list_get(f->extern_decls, j, NULL);
             c4m_ffi_decl_t *decl = (c4m_ffi_decl_t *)sym->value;
 
             decl->global_ffi_call_ix = ix++;
@@ -3523,6 +3526,12 @@ c4m_check_pass(c4m_compile_ctx *cctx)
 
     for (int i = 0; i < n; i++) {
         c4m_module_t *f = c4m_list_get(cctx->module_ordering, i, NULL);
+
+        if (f->ct == NULL) {
+            // This module has already been fully compiled, and is being loaded
+            // from the object file.
+            continue;
+        }
 
         if (f->ct->status < c4m_compile_status_code_loaded) {
             C4M_CRAISE("Cannot check files until after decl scan.");
@@ -3557,7 +3566,9 @@ c4m_check_pass(c4m_compile_ctx *cctx)
         c4m_module_t *f = c4m_list_get(cctx->module_ordering,
                                        i,
                                        NULL);
-
+        if (!f->ct) {
+            continue;
+        }
         if (f->ct->cfg != NULL) {
             c4m_cfg_analyze(f, NULL);
         }

@@ -2514,7 +2514,7 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
 
     emit(ctx, C4M_ZModuleRet);
 
-    c4m_list_t *symlist = ctx->fctx->ct->fn_def_syms;
+    c4m_list_t *symlist = ctx->fctx->fn_def_syms;
     int         n       = c4m_list_len(symlist);
 
     if (n) {
@@ -2526,10 +2526,10 @@ gen_module_code(gen_ctx *ctx, c4m_vm_t *vm)
         gen_function(ctx, sym, module, vm);
     }
 
-    int l = c4m_list_len(ctx->fctx->ct->extern_decls);
+    int l = c4m_list_len(ctx->fctx->extern_decls);
     if (l != 0) {
         for (int j = 0; j < l; j++) {
-            c4m_symbol_t   *d    = c4m_list_get(ctx->fctx->ct->extern_decls,
+            c4m_symbol_t   *d    = c4m_list_get(ctx->fctx->extern_decls,
                                            j,
                                            NULL);
             c4m_ffi_decl_t *decl = d->value;

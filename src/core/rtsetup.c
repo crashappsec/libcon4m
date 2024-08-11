@@ -109,7 +109,8 @@ c4m_setup_new_module_allocations(c4m_compile_ctx *cctx, c4m_vm_t *vm)
                                        i,
                                        NULL);
 
-        new_allocs[i] = c4m_gc_array_alloc(c4m_obj_t, m->static_size + 8);
+        new_allocs[i] = c4m_gc_array_alloc(c4m_obj_t,
+                                           (m->static_size + 1) * 8);
     }
 
     vm->module_allocations = new_allocs;
@@ -179,8 +180,8 @@ c4m_vm_new(c4m_compile_ctx *cctx)
 {
     c4m_vm_t *vm = c4m_gc_alloc_mapped(c4m_vm_t, c4m_vm_gc_bits);
 
-    // c4m_objfile_gc_bits);
-    vm->obj = c4m_gc_alloc_mapped(c4m_zobject_file_t, C4M_GC_SCAN_ALL);
+    vm->obj = c4m_gc_alloc_mapped(c4m_zobject_file_t,
+                                  c4m_objfile_gc_bits);
 
     vm->obj->con4m_version   = c4m_current_version;
     vm->obj->module_contents = c4m_list(c4m_type_ref());

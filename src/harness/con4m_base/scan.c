@@ -120,6 +120,43 @@ extract_errors(c4m_test_kat *kat, int64_t start, int64_t end)
 }
 
 static void
+parse_vm_instructions(c4m_test_kat *kat, c4m_utf32_t *line)
+{
+    kat->save = true;
+    line      = c4m_str_strip(line);
+    int n     = c4m_str_codepoint_len(line);
+
+    if (n == 1) {
+        return;
+    }
+
+    line   = c4m_str_slice(line, 1, n--);
+    int ix = c4m_str_find(line, c4m_utf32_repeat(':', 1));
+
+    if (ix != -1) {
+        kat->second_entry = c4m_str_strip(c4m_str_slice(line, 0, ix));
+        kat->second_entry = c4m_to_utf8(kat->second_entry);
+        line              = c4m_str_strip(c4m_str_slice(line, ix + 1, n));
+        line              = c4m_to_utf8(line);
+
+        bool                neg;
+        c4m_compile_error_t err;
+
+        __uint128_t num_exes = c4m_raw_int_parse(line, &err, &neg);
+
+        if (neg || err != c4m_err_no_error || num_exes > 1 << 16) {
+            C4M_CRAISE("Invalid numerical value for # of executions.");
+        }
+        else {
+            kat->second_entry_executions = (int)num_exes;
+        }
+    }
+    else {
+        kat->second_entry = c4m_to_utf8(line);
+    }
+}
+
+static void
 try_to_load_kat(c4m_test_kat *kat)
 {
     int64_t len = c4m_str_codepoint_len(kat->raw_docstring);
@@ -130,7 +167,7 @@ try_to_load_kat(c4m_test_kat *kat)
         kat->raw_docstring = c4m_str_slice(kat->raw_docstring, nl, len);
 
         if (line->data[0] == '#') {
-            kat->save = true;
+            parse_vm_instructions(kat, line);
         }
     }
 

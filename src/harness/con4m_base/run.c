@@ -59,10 +59,32 @@ execute_test(c4m_test_kat *kat)
     if (kat->save) {
         c4m_printf("\n[h3]Saving VM state.");
         c4m_buf_t *b = c4m_vm_save(vm);
-        c4m_printf("[h4]Great success!");
+        c4m_printf("[h4]First run saved.");
+
+        if (kat->second_entry != NULL) {
+            c4m_utf8_t *test_dir;
+            c4m_utf8_t *s;
+
+            test_dir = c4m_get_env(c4m_new_utf8("CON4M_TEST_DIR"));
+
+            if (test_dir == NULL) {
+                test_dir = c4m_cstr_format("{}/tests/", c4m_con4m_root());
+            }
+            else {
+                test_dir = c4m_resolve_path(test_dir);
+            }
+
+            s = c4m_path_simple_join(test_dir, kat->second_entry);
+            c4m_compile_ctx *rc_ctx;
+            if (!c4m_incremental_module(vm, s, true, &rc_ctx)) {
+                c4m_printf("[h3]**Incremental module add failed.**");
+            }
+        }
+
         c4m_printf("[h3]Re-running.");
         c4m_vmthread_t *thread = c4m_vmthread_new(vm);
         c4m_vmthread_run(thread);
+        c4m_printf("[h3]Finished re-running.");
     }
 
     // TODO: We need to mark unlocked types with sub-variables at some point,

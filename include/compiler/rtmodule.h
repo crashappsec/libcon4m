@@ -23,16 +23,14 @@ typedef struct c4m_ct_module_info_t {
 #endif
     // Information we always throw away after compilation. Things like
     // source code where we might want to keep it don't live here.
-    c4m_list_t               *tokens;          // xlist of x4m_token_t objects;
+    c4m_list_t               *tokens;          // xlist: c4m_token_t
     c4m_tree_node_t          *parse_tree;
-    c4m_list_t               *errors;          // an xlist of c4m_compile_errors
-    c4m_scope_t              *global_scope;    // Symbols used w/ global scope
+    c4m_list_t               *errors;          // xlist: c4m_compile_error
+    c4m_scope_t              *global_scope;    // Symbols w/ global scope
     c4m_scope_t              *attribute_scope; // Declared or used attrs
     c4m_scope_t              *imports;         // via 'use' statements.
     c4m_cfg_node_t           *cfg;             // CFG for the module top-level.
-    c4m_list_t               *fn_def_syms;     // Cache of fns defined.
     c4m_list_t               *callback_lits;
-    c4m_list_t               *extern_decls;
     c4m_spec_t               *local_specs;
     c4m_module_compile_status status;
     unsigned int              fatal_errors : 1;
