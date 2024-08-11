@@ -327,23 +327,47 @@ threads = dependency('threads')
 
 math = cc.find_library('m', required: false)
 
-openssl  = dependency('openssl')
+
 unibreak = dependency('libunibreak')
 utf8proc = dependency('libutf8proc')
-libcurl  = dependency('curl', modules: ['CURL::libcurl'])
-ffi      = dependency('libffi',
-                      fallback: ['libffi', 'libffi_dep'])
-backtrace = dependency('backtrace',
+
+libcurl = cc.find_library('curl', required: false)
+if not libcurl.found()
+  libcurl  = dependency('libcurl', fallback: ['curl'])
+endif
+
+crypto = cc.find_library('crypto')
+ssl = cc.find_library('ssl')
+
+if not crypto.found()
+    openssl  = dependency('openssl', fallback: ['openssl'])
+endif
+
+ffi = cc.find_library('ffi')
+if not ffi.found()
+    ffi      = dependency('libffi',
+                          fallback: ['libffi', 'libffi_dep'])
+endif
+
+backtrace = cc.find_library('backtrace')
+if not backtrace.found()
+    backtrace = dependency('backtrace',
                        fallback: ['libbacktrace', 'libbacktrace_dep'])
-zlib      = dependency('zlib')
+endif
+
+#zlib = cc.find_library('z')
+
+#if not zlib.found()
+#    zlib      = dependency('zlib')
+#endif    
 
 
 if get_option('show_preprocessor_config').enabled()
     c_args = c_args + ['-DC4M_SHOW_PREPROC_CONFIG']
 endif
 
-deps = [unibreak, utf8proc, threads, ffi, openssl, backtrace, libcurl, zlib]
-opts = [math]
+deps = [unibreak, utf8proc, threads, ffi, backtrace, libcurl, ssl]
+opts = [math, crypto]
 
 if using_glibc
     opts = opts + [cc.find_library('atomic')]

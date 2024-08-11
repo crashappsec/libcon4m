@@ -199,7 +199,7 @@ setup_header(c4m_unmarshal_ctx *ctx, c4m_marshaled_hdr *marshaled_hdr)
     hdr->next_addr = (void *)next;
     hdr->scan_fn   = lookup_scan_fn(hdr->scan_fn);
     if (hdr->type) {
-        hdr->type = (void *)translate_pointer(ctx, hdr->type);
+        hdr->type = (void *)translate_pointer(ctx, (uint64_t)hdr->type);
     }
 
 #if defined(C4M_FULL_MEMCHECK)

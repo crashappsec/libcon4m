@@ -289,7 +289,7 @@ automarshal_scan_and_copy_possible_pointers(c4m_marshal_ctx *ctx,
 {
     uint64_t  n   = ctx->cur->header->alloc_len - sizeof(c4m_alloc_hdr);
     uint64_t *p   = ctx->cur->data;
-    uint64_t *end = ((char *)p) + n;
+    uint64_t *end = (uint64_t *)(((char *)p) + n);
 
     while (p < end) {
         write_one_word((void *)*p, ctx, false);
@@ -302,7 +302,7 @@ automarshal_scan_and_copy_values(c4m_marshal_ctx *ctx, c4m_alloc_hdr *h)
 {
     uint64_t  n   = ctx->cur->header->alloc_len - sizeof(c4m_alloc_hdr);
     uint64_t *p   = ctx->cur->data;
-    uint64_t *end = ((char *)p) + n;
+    uint64_t *end = (uint64_t *)(((char *)p) + n);
 
     while (p < end) {
         write_one_word((void *)*p, ctx, true);
@@ -346,7 +346,6 @@ automarshal_scan_and_copy_via_bitmap(c4m_marshal_ctx *ctx,
 static inline void
 automarshal_one_allocation(c4m_marshal_ctx *ctx)
 {
-    static int     i = 0;
     c4m_alloc_hdr *h = ctx->cur->header;
     char          *p = (char *)h;
 

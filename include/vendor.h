@@ -4,5 +4,5 @@
 #include "vendor/utf8proc.h"
 #include "vendor/md4c.h"
 #include "vendor/backtrace.h"
-#include "vendor/zlib.h"
+//#include "vendor/zlib.h"
 #include <curl/curl.h>
