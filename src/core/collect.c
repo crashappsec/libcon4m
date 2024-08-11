@@ -180,6 +180,7 @@ value_in_fromspace(c4m_collection_ctx *ctx, void *ptr)
     return true;
 }
 
+#ifdef C4M_FULL_MEMCHECK
 static inline char *
 name_alloc(c4m_alloc_hdr *alloc)
 {
@@ -192,6 +193,7 @@ name_alloc(c4m_alloc_hdr *alloc)
 
     return c4m_internal_type_name(alloc->type);
 }
+#endif
 
 static void *ptr_relocate(c4m_collection_ctx *, void *);
 
