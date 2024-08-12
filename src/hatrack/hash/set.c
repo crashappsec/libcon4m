@@ -254,7 +254,7 @@ hatrack_set_items_base(hatrack_set_t *self, mmm_thread_t *thread, uint64_t *num,
     view = woolhat_view_epoch(&self->woolhat_instance, num, epoch);
     ret  = hatrack_malloc(sizeof(void *) * *num);
 
-    if (sort) {
+    if (sort && view != NULL) {
         qsort(view,
               *num,
               sizeof(hatrack_set_view_t),
