@@ -1224,6 +1224,7 @@ c4m_format_tokens(c4m_module_t *ctx)
     c4m_list_t *row  = c4m_new_table_row();
     int64_t     len  = c4m_list_len(ctx->ct->tokens);
     c4m_utf8_t *snap = c4m_new_utf8("snap");
+    c4m_utf8_t *flex = c4m_new_utf8("flex");
 
     c4m_list_append(row, c4m_new_utf8("Seq #"));
     c4m_list_append(row, c4m_new_utf8("Type"));
@@ -1262,6 +1263,7 @@ c4m_format_tokens(c4m_module_t *ctx)
     c4m_set_column_style(grid, 1, snap);
     c4m_set_column_style(grid, 2, snap);
     c4m_set_column_style(grid, 3, snap);
+    c4m_set_column_style(grid, 4, flex);
     return grid;
 }
 

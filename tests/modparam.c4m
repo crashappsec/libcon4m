@@ -1,7 +1,9 @@
-"Super crashy"
+"""
+Initial test for module parameters.
+"""
 """
 $output:
-IDFK
+Required parameter example.two didn't have a value when entering module /Users/viega/dev/libcon4m.
 """
 
 func value_provider() {
@@ -15,7 +17,7 @@ func example_checker(x) {
   if (x % 2) != 0 {
     result = "Parameter value must be even."
   }
-  elif (y % 7) != 3 {
+  elif (x % 7) != 3 {
     result = "I guess"
   }
   else {
@@ -35,8 +37,6 @@ parameter example.two {
   "Also this."
   validator: func example_checker(int) -> string
 }
-
-# Neither of these should happen.
 
 print(example1)
 print(example.two)

@@ -213,10 +213,14 @@ static const c4m_render_style_t default_td = {
 static const c4m_render_style_t default_tcol = {
     .dim_kind     = C4M_DIM_AUTO,
     .weight_width = 10,
+    .left_pad     = 1,
+    .right_pad    = 1,
 };
 
 static const c4m_render_style_t default_snap_col = {
     .dim_kind     = C4M_DIM_FIT_TO_TEXT,
+    .left_pad     = 1,
+    .right_pad    = 1,
     .weight_width = 10,
 };
 
@@ -224,6 +228,14 @@ static const c4m_render_style_t default_full_snap_col = {
     .dim_kind     = C4M_DIM_FIT_TO_TEXT,
     .left_pad     = 1,
     .right_pad    = 1,
+    .weight_width = 10,
+};
+
+static const c4m_render_style_t default_flex_col = {
+    .dim_kind     = C4M_DIM_FLEX_UNITS,
+    .left_pad     = 1,
+    .right_pad    = 1,
+    .dims.units   = 1,
     .weight_width = 10,
 };
 
@@ -357,6 +369,7 @@ static const c4m_render_style_t default_error_grid = {
 static const c4m_render_style_t default_em = {
     .base_style   = C4M_STY_ITALIC | C4M_STY_FG | 0xff2f8eULL,
     .weight_flags = 10,
+    .weight_fg    = 20,
 };
 
 static const c4m_render_style_t default_callout_cell = {
@@ -735,6 +748,7 @@ c4m_install_default_styles()
     static_style("tcol", (c4m_render_style_t *)&default_tcol);
     static_style("snap", (c4m_render_style_t *)&default_snap_col);
     static_style("full_snap", (c4m_render_style_t *)&default_full_snap_col);
+    static_style("flex", (c4m_render_style_t *)&default_flex_col);
     static_style("ul", (c4m_render_style_t *)&default_list_grid);
     static_style("ol", (c4m_render_style_t *)&default_ordered_list_grid);
     static_style("bullet", (c4m_render_style_t *)&default_bullet_column);

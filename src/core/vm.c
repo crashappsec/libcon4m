@@ -116,10 +116,10 @@ c4m_vm_exception(c4m_vmthread_t *tstate, c4m_exception_t *exc)
 {
     c4m_stream_t *f      = c4m_get_stderr();
     c4m_grid_t   *bt     = c4m_get_backtrace(tstate);
-    c4m_utf8_t   *to_out = c4m_cstr_format(
-        "[h2]Fatal Exception:[/] [h5]{}[/]\n"
-          "[h6]Con4m Trace:[/]",
-        c4m_exception_get_message(exc));
+    c4m_utf8_t   *to_out = c4m_rich_lit("[h2]Fatal Exception:[/] ");
+
+    to_out = c4m_str_concat(to_out, c4m_exception_get_message(exc));
+    to_out = c4m_str_concat(to_out, c4m_rich_lit("\n[h6]Con4m Trace:[/]"));
 
 #if defined(C4M_DEBUG) && defined(C4M_BACKTRACE_SUPPORTED)
     int16_t  tmp;
@@ -1240,11 +1240,11 @@ c4m_vm_runloop(c4m_vmthread_t *tstate_arg)
                         val = c4m_vm_attr_get(tstate, key, NULL);
                     }
 
-                    // If we didn't pass the reference to `found`, then
-                    // an exception gets thrown if the attr doesn't exist,
-                    // which is why `found` is true by default.
-
-                    if (c4m_type_is_value_type(i->type_info)) {
+                    // If we didn't pass the reference to `found`,
+                    // then an exception generally gets thrown if the
+                    // attr doesn't exist, which is why `found` is
+                    // true by default.
+                    if (found && c4m_type_is_value_type(i->type_info)) {
                         c4m_box_t box      = c4m_unbox_obj((c4m_box_t *)val);
                         tstate->sp[0].vptr = box.v;
                     }

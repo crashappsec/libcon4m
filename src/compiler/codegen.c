@@ -500,7 +500,7 @@ static inline void
 gen_load_string(gen_ctx *ctx, c4m_utf8_t *s)
 {
     int64_t offset = c4m_add_static_string(s, ctx->cctx);
-    emit(ctx, C4M_ZPushStaticObj, c4m_kw("arg", c4m_ka(offset)));
+    emit(ctx, C4M_ZPushConstObj, c4m_kw("arg", c4m_ka(offset)));
 }
 
 static void
@@ -866,10 +866,12 @@ gen_param_via_callback(gen_ctx                 *ctx,
 static inline void
 gen_param_bail_if_missing(gen_ctx *ctx, c4m_symbol_t *sym)
 {
-    C4M_STATIC_ASCII_STR(fmt, "Parameter {} wasn't set on entering module {}");
-    // TODO; do the format at runtime.
-    c4m_utf8_t *error_msg = c4m_str_format(fmt, sym->name, ctx->fctx->path);
-    GEN_JNZ(gen_bail(ctx, error_msg));
+    c4m_utf8_t *err = c4m_cstr_format(
+        "Required parameter [em]{}[/] didn't have a value when "
+        "entering module [em]{}[/].",
+        sym->name,
+        ctx->fctx->path);
+    GEN_JNZ(gen_bail(ctx, err));
 }
 
 static inline uint64_t

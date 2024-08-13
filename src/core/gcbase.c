@@ -624,7 +624,7 @@ c4m_alloc_from_arena(c4m_arena_t   **arena_ptr,
 #endif
 
 #ifdef C4M_FULL_MEMCHECK
-    len += 8;
+    len += 16;
 #endif
     c4m_arena_t *arena = *arena_ptr;
 

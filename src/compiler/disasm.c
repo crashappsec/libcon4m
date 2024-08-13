@@ -551,6 +551,7 @@ c4m_disasm(c4m_vm_t *vm, c4m_module_t *m)
                                       "stripe",
                                       c4m_ka(true)));
     c4m_utf8_t *snap = c4m_new_utf8("snap");
+    c4m_utf8_t *flex = c4m_new_utf8("flex");
     c4m_list_t *row  = c4m_new_table_row();
     int64_t     len  = c4m_list_len(m->instructions);
     c4m_list_append(row, c4m_new_utf8("Address"));
@@ -594,6 +595,7 @@ c4m_disasm(c4m_vm_t *vm, c4m_module_t *m)
 
     c4m_set_column_style(grid, 0, snap);
     c4m_set_column_style(grid, 1, snap);
+    c4m_set_column_style(grid, 2, flex);
     c4m_set_column_style(grid, 3, snap);
     c4m_set_column_style(grid, 4, snap);
     c4m_set_column_style(grid, 5, snap);

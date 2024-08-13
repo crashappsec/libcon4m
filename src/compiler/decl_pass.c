@@ -695,8 +695,8 @@ handle_param_block(c4m_pass1_ctx *ctx)
         }
     }
 
-    pnode->extra_info   = sym;
     prop->linked_symbol = sym;
+    pnode->extra_info   = prop;
 }
 
 static void

@@ -2461,17 +2461,6 @@ process_field(pass2_ctx *ctx, c4m_spec_field_t *field)
 }
 
 static void
-check_module_parameter(pass2_ctx *ctx)
-{
-    c4m_tree_node_t *cur   = ctx->node;
-    c4m_pnode_t     *pnode = c4m_get_pnode(cur);
-    c4m_symbol_t    *sym   = pnode->extra_info;
-
-    printf("TODO\n");
-    // add_def(ctx, sym, true);
-}
-
-static void
 process_staticly_defined_item(pass2_ctx *ctx)
 {
     c4m_tree_node_t *cur   = ctx->node;
@@ -2504,6 +2493,31 @@ process_staticly_defined_item(pass2_ctx *ctx)
             process_field(ctx, field);
         }
         return;
+    }
+}
+
+static void
+check_module_parameter(pass2_ctx *ctx)
+{
+    c4m_tree_node_t         *cur   = ctx->node;
+    c4m_pnode_t             *pnode = c4m_get_pnode(cur);
+    c4m_module_param_info_t *param = pnode->extra_info;
+    c4m_symbol_t            *sym   = param->linked_symbol;
+
+    add_def(ctx, sym, true);
+    if (param->default_value != NULL) {
+        ctx->node              = param->default_value;
+        c4m_pnode_t *val_pnode = c4m_get_pnode(ctx->node);
+        check_literal(ctx);
+        void *val = val_pnode->value;
+
+        if (merge_or_ret_ignore_err(c4m_get_my_type(val), sym->type)) {
+            C4M_CRAISE("Add an error here.");
+        }
+        else {
+            param->default_value = val;
+            param->have_default  = true;
+        }
     }
 }
 
