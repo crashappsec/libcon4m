@@ -365,6 +365,7 @@ one_worklist_item(c4m_collection_ctx *ctx)
         return;
     }
 
+#ifdef C4M_SCAN_FNS
     if (C4M_GC_SCAN_ALL == (void *)item->new_hdr->scan_fn) {
         move_range_unsafely(ctx, item);
         ctx->copied_allocs++;
@@ -407,6 +408,10 @@ one_worklist_item(c4m_collection_ctx *ctx)
     }
     ctx->copied_allocs++;
     free(map_copy);
+#else
+    move_range_unsafely(ctx, item);
+    ctx->copied_allocs++;
+#endif
 }
 
 static void

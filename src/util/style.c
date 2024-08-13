@@ -7,11 +7,11 @@ c4m_apply_bg_color(c4m_style_t style, c4m_utf8_t *name)
 {
     int64_t color = (int64_t)c4m_lookup_color(name);
 
-    if (color & ~0xffffffUL) {
-        return style;
-    }
+    style &= C4M_STY_CLEAR_BG;
+    style |= C4M_STY_BG;
+    style |= (color << C4M_BG_SHIFT);
 
-    return (style & C4M_STY_CLEAR_BG) | (color << 24) | C4M_STY_BG;
+    return style;
 }
 
 c4m_style_t
@@ -19,11 +19,11 @@ c4m_apply_fg_color(c4m_style_t style, c4m_utf8_t *name)
 {
     int64_t color = (int64_t)c4m_lookup_color(name);
 
-    if (color & ~0xffffffUL) {
-        return style;
-    }
+    style &= C4M_STY_CLEAR_FG;
+    style |= C4M_STY_FG;
+    style |= color;
 
-    return (style & C4M_STY_CLEAR_FG) | color | C4M_STY_FG;
+    return style;
 }
 void
 c4m_style_gaps(c4m_str_t *s, c4m_style_t gapstyle)
@@ -99,10 +99,10 @@ c4m_str_layer_style(c4m_str_t  *s,
     c4m_style_t turn_off = ~(subtractions & ~C4M_STY_CLEAR_FLAGS);
 
     if (additions & C4M_STY_FG) {
-        turn_off |= ~C4M_STY_CLEAR_FG;
+        turn_off |= C4M_STY_FG_BITS;
     }
     if (additions & C4M_STY_BG) {
-        turn_off |= ~C4M_STY_CLEAR_BG;
+        turn_off |= C4M_STY_BG_BITS;
     }
 
     for (int i = 0; i < s->styling->num_entries; i++) {

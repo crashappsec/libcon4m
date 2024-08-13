@@ -585,6 +585,7 @@ handle_param_block(c4m_pass1_ctx *ctx)
     c4m_tree_node_t         *root      = c4m_cur_node(ctx);
     c4m_pnode_t             *pnode     = c4m_get_pnode(root);
     c4m_tree_node_t         *name_node = c4m_tree_get_child(root, 0);
+    c4m_pnode_t             *name_pn   = c4m_get_pnode(name_node);
     c4m_utf8_t              *sym_name  = c4m_node_text(name_node);
     c4m_utf8_t              *dot       = c4m_new_utf8(".");
     int                      nkids     = c4m_tree_get_number_children(root);
@@ -599,7 +600,7 @@ handle_param_block(c4m_pass1_ctx *ctx)
         }
     }
 
-    if (pnode->kind == c4m_nt_member) {
+    if (name_pn->kind == c4m_nt_member) {
         attr            = true;
         int num_members = c4m_tree_get_number_children(name_node);
 
@@ -609,6 +610,7 @@ handle_param_block(c4m_pass1_ctx *ctx)
                                       c4m_node_text(
                                           c4m_tree_get_child(name_node, i)));
         }
+        sym_name = c4m_to_utf8(sym_name);
     }
     else {
         attr = false;
@@ -692,6 +694,9 @@ handle_param_block(c4m_pass1_ctx *ctx)
                               false);
         }
     }
+
+    pnode->extra_info   = sym;
+    prop->linked_symbol = sym;
 }
 
 static void

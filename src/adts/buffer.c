@@ -538,7 +538,7 @@ const c4m_vtable_t c4m_buffer_vtable = {
         [C4M_BI_SLICE_SET]    = (c4m_vtable_entry)buffer_set_slice,
         [C4M_BI_ITEM_TYPE]    = (c4m_vtable_entry)buffer_item_type,
         [C4M_BI_VIEW]         = (c4m_vtable_entry)buffer_view,
-        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)c4m_buffer_set_gc_bits,
+        [C4M_BI_GC_MAP]       = (c4m_vtable_entry)C4M_GC_SCAN_ALL,
         NULL,
     },
 };

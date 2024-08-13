@@ -136,6 +136,7 @@ set_node_type(pass2_ctx *ctx, c4m_tree_node_t *node, c4m_type_t *type)
 static void
 add_def(pass2_ctx *ctx, c4m_symbol_t *sym, bool finish_flow)
 {
+    assert(sym != NULL);
     ctx->cfg = c4m_cfg_add_def(ctx->cfg, ctx->node, sym, ctx->current_rhs_uses);
 
     if (finish_flow) {
@@ -152,6 +153,7 @@ add_def(pass2_ctx *ctx, c4m_symbol_t *sym, bool finish_flow)
 static void
 add_use(pass2_ctx *ctx, c4m_symbol_t *sym)
 {
+    assert(sym != NULL);
     ctx->cfg = c4m_cfg_add_use(ctx->cfg, ctx->node, sym);
     if (ctx->current_rhs_uses) {
         c4m_list_append(ctx->current_rhs_uses, sym);
@@ -2459,6 +2461,17 @@ process_field(pass2_ctx *ctx, c4m_spec_field_t *field)
 }
 
 static void
+check_module_parameter(pass2_ctx *ctx)
+{
+    c4m_tree_node_t *cur   = ctx->node;
+    c4m_pnode_t     *pnode = c4m_get_pnode(cur);
+    c4m_symbol_t    *sym   = pnode->extra_info;
+
+    printf("TODO\n");
+    // add_def(ctx, sym, true);
+}
+
+static void
 process_staticly_defined_item(pass2_ctx *ctx)
 {
     c4m_tree_node_t *cur   = ctx->node;
@@ -2652,12 +2665,14 @@ check_pass_toplevel_dispatch(pass2_ctx *ctx)
     case c4m_nt_variable_decls:
         handle_var_decl(ctx);
         return;
+    case c4m_nt_param_block:
+        check_module_parameter(ctx);
+        return;
     case c4m_nt_func_def:
         c4m_list_append(ctx->func_nodes, ctx->node);
         return;
     case c4m_nt_enum:
     case c4m_nt_global_enum:
-    case c4m_nt_param_block:
     case c4m_nt_extern_block:
     case c4m_nt_use:
         // Absolutely 0 to do for these until we generate code.
@@ -3473,11 +3488,6 @@ process_deferred_callbacks(c4m_compile_ctx *cctx)
 
             if (lit_type->flags & C4M_FN_MISSING_PARAMS) {
                 add_callback_params(lit_type, sym_type);
-            }
-
-            static int i = 0;
-            if (++i >= 3) {
-                printf("Break here.\n");
             }
 
             c4m_type_t *merged = merge_ignore_err(sym_type, lit_type);

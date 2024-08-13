@@ -4453,7 +4453,7 @@ repr_one_node(c4m_pnode_t *one)
     c4m_utf8_t       *name = c4m_new_utf8(info->name);
     c4m_utf8_t       *xtra;
     c4m_utf8_t       *doc;
-    char             *fmt = "[h1]{}[/] [h2]{}[/] [h3]{}[/]";
+    char             *fmt = "[h1]{}[/][h2]{}[/][h3]{}[/] ";
 
     if (info->show_contents && one->token != NULL) {
         c4m_utf8_t *token_text = c4m_token_raw_content(one->token);
@@ -4489,7 +4489,7 @@ repr_one_node(c4m_pnode_t *one)
             t = c4m_type_unbox(t);
         }
 
-        result = c4m_str_concat(result, c4m_cstr_format("[h6]{}", t));
+        result = c4m_str_concat(result, c4m_cstr_format("[h3]{}[/] ", t));
     }
 
     return result;

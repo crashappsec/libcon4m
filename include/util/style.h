@@ -3,25 +3,31 @@
 #include "con4m.h"
 
 // Flags in the style `info` bitfield.
-#define C4M_STY_FG          (0x0002000000000000UL)
-#define C4M_STY_BG          (0x0004000000000000UL)
-#define C4M_STY_BOLD        (0x0008000000000000UL)
-#define C4M_STY_ITALIC      (0x0010000000000000UL)
-#define C4M_STY_ST          (0x0020000000000000UL)
-#define C4M_STY_UL          (0x0040000000000000UL)
-#define C4M_STY_UUL         (0x0080000000000000UL)
-#define C4M_STY_REV         (0x0100000000000000UL)
-#define C4M_STY_LOWER       (0x0200000000000000UL)
-#define C4M_STY_UPPER       (0x0400000000000000UL)
-#define C4M_STY_TITLE       (C4M_STY_UPPER | C4M_STY_LOWER)
-#define C4M_STY_BAD         (0xffffffffffffffffUL)
-#define C4M_STY_CLEAR_FG    (0xffffffffff000000UL)
-#define C4M_STY_CLEAR_BG    (0xffff000000ffffffUL)
-#define C4M_STY_CLEAR_FLAGS (0x0000ffffffffffffUL)
 
-#define C4M_OFFSET_BG_RED   40
-#define C4M_OFFSET_BG_GREEN 32
-#define C4M_OFFSET_BG_BLUE  24
+#define C4M_STY_BOLD         (0x1ULL << 63)
+#define C4M_STY_ITALIC       (0x1ULL << 62)
+#define C4M_STY_ST           (0x1ULL << 61)
+#define C4M_STY_UL           (0x1ULL << 60)
+#define C4M_STY_UUL          (0x1ULL << 59)
+#define C4M_STY_REV          (0x1ULL << 58)
+#define C4M_STY_PROTECT_CASE (0x1ULL << 57)
+#define C4M_STY_BG           (0x1ULL << 56)
+#define C4M_STY_LOWER        (0x1ULL << 30)
+#define C4M_STY_UPPER        (0x1ULL << 29)
+#define C4M_STY_FG           (0x1ULL << 24)
+
+#define C4M_STY_TITLE       (C4M_STY_UPPER | C4M_STY_LOWER)
+#define C4M_STY_BAD         (0xffffffffffffffffULL)
+#define C4M_STY_FG_BITS     (0x0ffffffULL)
+#define C4M_BG_SHIFT        32ULL
+#define C4M_STY_BG_BITS     (C4M_STY_FG_BITS << C4M_BG_SHIFT)
+#define C4M_STY_CLEAR_FG    ~C4M_STY_FG_BITS
+#define C4M_STY_CLEAR_BG    ~C4M_STY_BG_BITS
+#define C4M_STY_CLEAR_FLAGS (C4M_STY_FG_BITS | C4M_STY_BG_BITS)
+
+#define C4M_OFFSET_BG_RED   48
+#define C4M_OFFSET_BG_GREEN 40
+#define C4M_OFFSET_BG_BLUE  32
 #define C4M_OFFSET_FG_RED   16
 #define C4M_OFFSET_FG_GREEN 8
 #define C4M_OFFSET_FG_BLUE  0
@@ -65,13 +71,13 @@ c4m_style_debug(char *prefix, const c4m_str_t *p)
 static inline size_t
 c4m_style_size(uint64_t num_entries)
 {
-    return sizeof(c4m_style_info_t) + (sizeof(c4m_style_entry_t) * num_entries);
+    return sizeof(c4m_style_info_t) + (sizeof(c4m_style_entry_t) * (num_entries + 1));
 }
 
 static inline size_t
 c4m_alloc_style_len(c4m_str_t *s)
 {
-    return sizeof(c4m_style_info_t) + s->styling->num_entries * sizeof(c4m_style_entry_t);
+    return sizeof(c4m_style_info_t) + (s->styling->num_entries + 1) * sizeof(c4m_style_entry_t);
 }
 
 static inline int64_t
@@ -89,15 +95,15 @@ c4m_alloc_styles(c4m_str_t *s, int n)
     if (n <= 0) {
         s->styling              = c4m_gc_flex_alloc(c4m_style_info_t,
                                        c4m_style_entry_t,
-                                       0,
-                                       NULL);
+                                       1,
+                                       C4M_GC_SCAN_ALL);
         s->styling->num_entries = 0;
     }
     else {
         s->styling              = c4m_gc_flex_alloc(c4m_style_info_t,
                                        c4m_style_entry_t,
-                                       n,
-                                       NULL);
+                                       n + 1,
+                                       C4M_GC_SCAN_ALL);
         s->styling->num_entries = n;
     }
 }
@@ -170,13 +176,21 @@ c4m_str_apply_style(c4m_str_t *s, c4m_style_t style, bool replace)
 static inline c4m_style_t
 c4m_set_bg_color(c4m_style_t style, c4m_color_t color)
 {
-    return (style & C4M_STY_CLEAR_BG) | C4M_STY_BG | ((uint64_t)color) << 24;
+    style &= C4M_STY_CLEAR_BG;
+    style |= C4M_STY_BG;
+    style |= (((uint64_t)color) << C4M_BG_SHIFT);
+
+    return style;
 }
 
 static inline c4m_style_t
 c4m_set_fg_color(c4m_style_t style, c4m_color_t color)
 {
-    return (style & C4M_STY_CLEAR_FG) | C4M_STY_FG | (uint64_t)color;
+    style &= C4M_STY_CLEAR_FG;
+    style |= C4M_STY_FG;
+    style |= color;
+
+    return style;
 }
 
 extern c4m_style_t default_style;
@@ -304,7 +318,7 @@ static inline c4m_style_t
 c4m_remove_all_color(c4m_style_t style)
 {
     // This should mainly constant fold down to a single AND.
-    return ((uint64_t)style) & (C4M_STY_CLEAR_FG & C4M_STY_CLEAR_BG & ~(C4M_STY_FG | C4M_STY_BG));
+    return style & ~(C4M_STY_FG_BITS | C4M_STY_BG_BITS);
 }
 
 // After the slice, remove dead styles.

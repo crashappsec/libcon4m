@@ -91,10 +91,12 @@ ansi_render_style_start(uint64_t info, c4m_stream_t *outstream)
     if (info & C4M_STY_FG) {
         remaining &= ~C4M_STY_FG;
 
+        uint64_t tmp = info & C4M_STY_FG_BITS;
+
         if (c4m_use_truecolor()) {
-            uint8_t r = (uint8_t)((info & ~C4M_STY_CLEAR_FG) >> C4M_OFFSET_FG_RED);
-            uint8_t g = (uint8_t)((info & ~C4M_STY_CLEAR_FG) >> C4M_OFFSET_FG_GREEN);
-            uint8_t b = (uint8_t)((info & ~C4M_STY_CLEAR_FG) >> C4M_OFFSET_FG_BLUE);
+            uint8_t r = (uint8_t)((tmp & ~C4M_STY_CLEAR_FG) >> C4M_OFFSET_FG_RED) & 0xff;
+            uint8_t g = (uint8_t)((tmp & ~C4M_STY_CLEAR_FG) >> C4M_OFFSET_FG_GREEN) & 0xff;
+            uint8_t b = (uint8_t)((tmp & ~C4M_STY_CLEAR_FG) >> C4M_OFFSET_FG_BLUE) & 0xff;
             c4m_stream_puts(outstream, "38;2;");
             c4m_stream_puti(outstream, r);
             c4m_stream_putc(outstream, ';');
@@ -104,7 +106,7 @@ ansi_render_style_start(uint64_t info, c4m_stream_t *outstream)
         }
         else {
             c4m_stream_puts(outstream, "38;5;");
-            int32_t color = (int32_t)(info & ~(C4M_STY_CLEAR_FG));
+            int32_t color = (int32_t)(tmp & ~(C4M_STY_CLEAR_FG));
             c4m_stream_puti(outstream, c4m_to_vga(color));
         }
         if (remaining) {
@@ -113,12 +115,14 @@ ansi_render_style_start(uint64_t info, c4m_stream_t *outstream)
     }
 
     if (info & C4M_STY_BG) {
-        info &= ~C4M_STY_BG;
+        remaining &= ~C4M_STY_BG;
+
+        uint64_t tmp = info & C4M_STY_BG_BITS;
 
         if (c4m_use_truecolor()) {
-            uint8_t r = (uint8_t)((info & ~C4M_STY_CLEAR_BG) >> C4M_OFFSET_BG_RED);
-            uint8_t g = (uint8_t)((info & ~C4M_STY_CLEAR_BG) >> C4M_OFFSET_BG_GREEN);
-            uint8_t b = (uint8_t)((info & ~C4M_STY_CLEAR_BG) >> C4M_OFFSET_BG_BLUE);
+            uint8_t r = (uint8_t)((tmp & ~C4M_STY_CLEAR_BG) >> C4M_OFFSET_BG_RED) & 0xff;
+            uint8_t g = (uint8_t)((tmp & ~C4M_STY_CLEAR_BG) >> C4M_OFFSET_BG_GREEN) & 0xff;
+            uint8_t b = (uint8_t)((tmp & ~C4M_STY_CLEAR_BG) >> C4M_OFFSET_BG_BLUE) & 0xff;
             c4m_stream_puts(outstream, "48;2;");
             c4m_stream_puti(outstream, r);
             c4m_stream_putc(outstream, ';');
@@ -128,8 +132,8 @@ ansi_render_style_start(uint64_t info, c4m_stream_t *outstream)
         }
         else {
             c4m_stream_puts(outstream, "38;5;");
-            int32_t toand = (int32_t) ~(C4M_STY_CLEAR_BG) >> C4M_OFFSET_BG_BLUE;
-            c4m_stream_puti(outstream, c4m_to_vga(info & toand));
+            int32_t toand = (int32_t)C4M_STY_BG_BITS >> C4M_OFFSET_BG_BLUE;
+            c4m_stream_puti(outstream, c4m_to_vga(tmp & toand));
         }
     }
     c4m_stream_putc(outstream, 'm');

@@ -23,6 +23,7 @@ grid_style(c4m_grid_t *grid)
             c4m_new_utf8("table"));
     }
 
+    assert(c4m_in_heap(grid->self->current_style));
     return grid->self->current_style;
 }
 
@@ -31,7 +32,7 @@ c4m_apply_container_style(c4m_renderable_t *item, c4m_utf8_t *tag)
 
 {
     c4m_render_style_t *tag_style = c4m_lookup_cell_style(tag);
-    if (!tag_style) {
+    if (!tag_style || tag_style->base_style == C4M_STY_BAD) {
         return;
     }
 
@@ -39,7 +40,8 @@ c4m_apply_container_style(c4m_renderable_t *item, c4m_utf8_t *tag)
         item->current_style = tag_style;
     }
     else {
-        c4m_layer_styles(tag_style, item->current_style);
+        item->current_style = c4m_layer_styles(tag_style,
+                                               item->current_style);
     }
 }
 
@@ -73,7 +75,7 @@ pad_lines_vertically(c4m_render_style_t *gs,
     c4m_list_t  *res;
 
     if (len == 0) {
-        pad = get_styled_pad(width, c4m_get_pad_style(gs));
+        pad = get_styled_pad(width, c4m_style_get_pad_color(gs));
     }
     else {
         pad            = c4m_utf32_repeat(' ', width);
@@ -814,12 +816,21 @@ pad_and_style_line(c4m_grid_t       *grid,
         }
     }
 
-    c4m_style_t  cell_style = cell->current_style->base_style;
-    c4m_style_t  lpad_style = c4m_get_pad_style(cell->current_style);
+    c4m_style_t cell_style = cell->current_style->base_style;
+    c4m_style_t lpad_style = c4m_style_get_pad_color(
+        cell->current_style);
     c4m_style_t  rpad_style = lpad_style;
     c4m_utf32_t *copy       = c4m_str_copy(line);
 
     c4m_style_gaps(copy, cell_style);
+
+    // Temporarily force in the cell's background if there is one.
+    // Eventually should make this configurable.
+    if (cell_style & C4M_STY_BG) {
+        c4m_str_layer_style(copy,
+                            cell_style & (C4M_STY_BG | C4M_STY_BG_BITS),
+                            0);
+    }
 
     int last_style = copy->styling->num_entries - 1;
 
@@ -839,14 +850,16 @@ str_render_cell(c4m_grid_t       *grid,
                 int16_t           width,
                 int16_t           height)
 {
-    c4m_render_style_t *col_style = get_col_props(grid, cell->start_col);
-    c4m_render_style_t *row_style = get_row_props(grid, cell->start_row);
-    c4m_render_style_t *cs        = c4m_copy_render_style(cell->current_style);
-    c4m_list_t         *res       = c4m_new(c4m_type_list(c4m_type_utf32()));
+    c4m_render_style_t *col_style = get_col_props(grid,
+                                                  cell->start_col);
+    c4m_render_style_t *row_style = get_row_props(grid,
+                                                  cell->start_row);
+    c4m_render_style_t *cs        = c4m_layer_styles(col_style,
+                                              row_style);
+    c4m_list_t         *res       = c4m_new(
+        c4m_type_list(c4m_type_utf32()));
 
-    c4m_layer_styles(col_style, cs);
-    c4m_layer_styles(row_style, cs);
-
+    cs                  = c4m_layer_styles(cs, cell->current_style);
     cell->current_style = cs;
 
     int               pad      = cs->left_pad + cs->right_pad;
@@ -891,7 +904,7 @@ str_render_cell(c4m_grid_t       *grid,
         if (i == (line_starts->num_breaks - 1)) {
             int b = line_starts->breaks[i];
             line  = c4m_str_slice(s, b, c4m_str_codepoint_len(s));
-            line  = c4m_str_strip(line);
+            // line  = c4m_str_strip(line);
             c4m_list_append(res, pad_and_style_line(grid, cell, width, line));
         }
     }
@@ -913,10 +926,6 @@ render_to_cache(c4m_grid_t       *grid,
                 int16_t           width,
                 int16_t           height)
 {
-    if (!cell || !cell->raw_item) {
-        return 0;
-    }
-
     switch (c4m_base_type(cell->raw_item)) {
     case C4M_T_UTF8:
     case C4M_T_UTF32: {
@@ -983,7 +992,8 @@ grid_pre_render(c4m_grid_t *grid, int16_t *col_widths)
             c4m_renderable_t *cell = *c4m_cell_address(grid, i, j);
 
             if (cell == NULL) {
-                continue;
+                grid_add_blank_cell(grid, i, j, col_widths[j], 1);
+                cell = *c4m_cell_address(grid, i, j);
             }
 
             if (cell->start_row != i || cell->start_col != j) {
@@ -1044,7 +1054,8 @@ grid_add_top_pad(c4m_grid_t *grid, c4m_list_t *lines, int16_t width)
         return;
     }
 
-    c4m_utf32_t *pad = get_styled_pad(width, c4m_get_pad_style(gs));
+    c4m_utf32_t *pad = get_styled_pad(width,
+                                      c4m_style_get_pad_color(gs));
 
     for (int i = 0; i < top; i++) {
         c4m_list_append(lines, pad);
@@ -1061,7 +1072,8 @@ grid_add_bottom_pad(c4m_grid_t *grid, c4m_list_t *lines, int16_t width)
         return;
     }
 
-    c4m_utf32_t *pad = get_styled_pad(width, c4m_get_pad_style(gs));
+    c4m_utf32_t *pad = get_styled_pad(width,
+                                      c4m_style_get_pad_color(gs));
 
     for (int i = 0; i < bottom; i++) {
         c4m_list_append(lines, pad);
@@ -1107,7 +1119,7 @@ grid_add_top_border(c4m_grid_t *grid, c4m_list_t *lines, int16_t *col_widths)
         return;
     }
 
-    draw_chars = c4m_get_border_theme(gs);
+    draw_chars = c4m_style_get_border_theme(gs);
 
     for (int i = 0; i < grid->num_cols; i++) {
         border_width += col_widths[i];
@@ -1157,7 +1169,7 @@ grid_add_top_border(c4m_grid_t *grid, c4m_list_t *lines, int16_t *col_widths)
 
     c4m_str_set_style(s, c4m_str_style(gs));
 
-    pad_color = c4m_get_pad_style(gs);
+    pad_color = c4m_style_get_pad_color(gs);
     lpad      = get_styled_pad(gs->left_pad, pad_color);
     rpad      = get_styled_pad(gs->right_pad, pad_color);
 
@@ -1181,7 +1193,7 @@ grid_add_bottom_border(c4m_grid_t *grid,
         return;
     }
 
-    draw_chars = c4m_get_border_theme(gs);
+    draw_chars = c4m_style_get_border_theme(gs);
 
     for (int i = 0; i < grid->num_cols; i++) {
         border_width += col_widths[i];
@@ -1231,7 +1243,7 @@ grid_add_bottom_border(c4m_grid_t *grid,
 
     c4m_str_set_style(s, c4m_str_style(gs));
 
-    pad_color = c4m_get_pad_style(gs);
+    pad_color = c4m_style_get_pad_color(gs);
     lpad      = get_styled_pad(gs->left_pad, pad_color);
     rpad      = get_styled_pad(gs->right_pad, pad_color);
 
@@ -1256,7 +1268,7 @@ grid_add_horizontal_rule(c4m_grid_t *grid,
         return;
     }
 
-    draw_chars = c4m_get_border_theme(gs);
+    draw_chars = c4m_style_get_border_theme(gs);
 
     for (int i = 0; i < grid->num_cols; i++) {
         border_width += col_widths[i];
@@ -1314,7 +1326,7 @@ grid_add_horizontal_rule(c4m_grid_t *grid,
 
     c4m_str_set_style(s, c4m_str_style(gs));
 
-    pad_color = c4m_get_pad_style(gs);
+    pad_color = c4m_style_get_pad_color(gs);
     lpad      = get_styled_pad(gs->left_pad, pad_color);
     rpad      = get_styled_pad(gs->right_pad, pad_color);
 
@@ -1330,7 +1342,8 @@ grid_add_left_pad(c4m_grid_t *grid, int height)
     c4m_utf32_t        *lpad = c4m_empty_string();
 
     if (gs->left_pad > 0) {
-        lpad = get_styled_pad(gs->left_pad, c4m_get_pad_style(gs));
+        lpad = get_styled_pad(gs->left_pad,
+                              c4m_style_get_pad_color(gs));
     }
 
     for (int i = 0; i < height; i++) {
@@ -1349,7 +1362,8 @@ grid_add_right_pad(c4m_grid_t *grid, c4m_list_t *lines)
         return;
     }
 
-    c4m_utf32_t *rpad = get_styled_pad(gs->right_pad, c4m_get_pad_style(gs));
+    c4m_utf32_t *rpad = get_styled_pad(gs->right_pad,
+                                       c4m_style_get_pad_color(gs));
 
     for (int i = 0; i < c4m_list_len(lines); i++) {
         c4m_utf32_t *s = c4m_to_utf32(c4m_list_get(lines, i, NULL));
@@ -1367,7 +1381,7 @@ add_vertical_bar(c4m_grid_t      *grid,
         return;
     }
 
-    c4m_border_theme_t *border_theme = c4m_get_border_theme(gs);
+    c4m_border_theme_t *border_theme = c4m_style_get_border_theme(gs);
     c4m_style_t         border_color = c4m_str_style(gs);
     c4m_utf32_t        *bar;
 
@@ -1431,7 +1445,7 @@ align_and_crop_grid_line(c4m_grid_t *grid, c4m_utf32_t *line, int32_t width)
 {
     c4m_render_style_t *gs        = grid_style(grid);
     c4m_alignment_t     align     = gs->alignment;
-    c4m_style_t         pad_style = c4m_get_pad_style(gs);
+    c4m_style_t         pad_style = c4m_style_get_pad_color(gs);
 
     // Called on one grid line if we need to align or crop it.
     int32_t      diff = width - c4m_str_render_len(line);
@@ -1520,12 +1534,15 @@ grid_add_cell_contents(c4m_grid_t *grid,
 
     if (cell->end_col - cell->start_col == 1 && cell->end_row - cell->start_row == 1) {
         for (i = 0; i < c4m_list_len(lines); i++) {
-            c4m_utf32_t *s     = c4m_to_utf32(c4m_list_get(lines, i, NULL));
-            c4m_utf32_t *piece = c4m_to_utf32(c4m_list_get(cell->render_cache,
-                                                           i,
-                                                           NULL));
+            c4m_utf32_t *s = c4m_to_utf32(
+                c4m_list_get(lines, i, NULL));
+            c4m_utf32_t *piece = c4m_to_utf32(
+                c4m_list_get(cell->render_cache,
+                             i,
+                             NULL));
             if (i < grid->num_cols && !c4m_str_codepoint_len(piece)) {
-                c4m_style_t pad_style = c4m_get_pad_style(grid_style(grid));
+                c4m_style_t pad_style = c4m_style_get_pad_color(
+                    grid_style(grid));
                 if (col_widths[i] < 0) {
                     col_widths[i] = 0;
                 }
@@ -1723,8 +1740,12 @@ c4m_grid_set_cell_contents(c4m_grid_t *g, int row, int col, c4m_obj_t item)
             c4m_obj_t sub = item->raw_item;
 
             if (c4m_base_type(sub) == C4M_T_GRID) {
-                c4m_layer_styles(g->self->current_style,
-                                 ((c4m_grid_t *)sub)->self->current_style);
+                c4m_render_style_t *sty;
+
+                sty = c4m_layer_styles(((c4m_grid_t *)sub)->self->current_style,
+                                       g->self->current_style);
+
+                ((c4m_grid_t *)sub)->self->current_style = sty;
             }
         }
 
@@ -1752,7 +1773,7 @@ c4m_grid_set_cell_contents(c4m_grid_t *g, int row, int col, c4m_obj_t item)
     }
 
     if (g && g->self && cell) {
-        c4m_layer_styles(g->self->current_style, cell->current_style);
+        cell->current_style = c4m_layer_styles(g->self->current_style, cell->current_style);
     }
     c4m_install_renderable(g, cell, row, row + 1, col, col + 1);
     if (row >= g->row_cursor) {
@@ -2083,7 +2104,8 @@ build_tree_output(c4m_tree_node_t *node, tree_fmt_t *info, bool last)
 
             if (ix != -1) {
                 line = c4m_str_slice(line, 0, ix);
-                line = c4m_str_concat(line, c4m_utf32_repeat(0x2026, 1));
+                line = c4m_str_concat(line,
+                                      c4m_utf32_repeat(0x2026, 1));
             }
         }
     }
@@ -2093,7 +2115,8 @@ build_tree_output(c4m_tree_node_t *node, tree_fmt_t *info, bool last)
 
     if (!info->root) {
         info->pad_ix += info->vpad + info->ipad + 1;
-        info->padstr = c4m_gc_array_value_alloc(c4m_codepoint_t, info->pad_ix);
+        info->padstr = c4m_gc_array_value_alloc(c4m_codepoint_t,
+                                                info->pad_ix);
         for (i = 0; i < last_len; i++) {
             if (prev_pad[i] == info->tchar || prev_pad[i] == info->vchar) {
                 info->padstr[i] = info->vchar;

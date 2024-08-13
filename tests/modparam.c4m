@@ -1,4 +1,8 @@
 "Super crashy"
+"""
+$output:
+IDFK
+"""
 
 func value_provider() {
   "Provide a value."
@@ -35,5 +39,5 @@ parameter example.two {
 # Neither of these should happen.
 
 print(example1)
-print(example2)
+print(example.two)
 

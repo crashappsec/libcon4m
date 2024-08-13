@@ -195,6 +195,8 @@ struct c4m_grid_t {
     int8_t             header_cols;
     int8_t             header_rows;
     int8_t             stripe;
+    int8_t             text_bg_priority;
+    int8_t             text_fg_priority;
 };
 
 #define C4M_GRID_TERMINAL_DIM  ((int64_t) - 1)

@@ -244,7 +244,7 @@ build_topological_ordering(c4m_compile_ctx *cctx)
     };
 
     if (!cctx->module_ordering) {
-        cctx->module_ordering = c4m_new(c4m_type_list(c4m_type_ref()));
+        cctx->module_ordering = c4m_list(c4m_type_ref());
         topological_order_process(&search_state);
     }
 

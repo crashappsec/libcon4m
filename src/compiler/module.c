@@ -66,7 +66,8 @@ c4m_module_t *
 c4m_new_module_compile_ctx()
 {
     c4m_module_t *res = c4m_gc_alloc_mapped(c4m_module_t,
-                                            c4m_module_ctx_gc_bits);
+                                            C4M_GC_SCAN_ALL);
+    // c4m_module_ctx_gc_bits);
 
     res->ct = c4m_gc_alloc_mapped(c4m_ct_module_info_t, C4M_GC_SCAN_ALL);
 

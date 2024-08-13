@@ -87,8 +87,8 @@ typedef uint8_t c4m_border_set_t;
 typedef struct {
     struct c4m_str_t   *name;
     c4m_border_theme_t *border_theme;
-    c4m_style_t         base_style;
     c4m_color_t         pad_color;
+    c4m_style_t         base_style;
 
     union {
         float    percent;
@@ -101,6 +101,13 @@ typedef struct {
     int8_t left_pad;
     int8_t right_pad;
     int8_t wrap;
+
+    int weight_fg;
+    int weight_bg;
+    int weight_flags;
+    int weight_align;
+    int weight_width;
+    int weight_borders;
 
     // Eventually we'll add more in like z-ordering and transparency.
     c4m_alignment_t    alignment     : 7;

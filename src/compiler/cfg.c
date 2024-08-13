@@ -27,6 +27,7 @@ c4m_new_cfg_status()
 static c4m_symbol_t *
 follow_sym_links(c4m_symbol_t *sym)
 {
+    assert(sym != NULL);
     while (sym->linked_symbol != NULL) {
         sym = sym->linked_symbol;
     }
@@ -56,6 +57,7 @@ cfg_propogate_def(cfg_ctx        *ctx,
     }
     // TODO, make use of the data flow information. For now, we're just going
     // to drop it on the floor. Note that this
+
     sym = follow_sym_links(sym);
 
     c4m_cfg_status_t *new = c4m_new_cfg_status();
