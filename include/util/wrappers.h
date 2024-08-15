@@ -2,6 +2,7 @@
 
 #include "con4m.h"
 
+extern int64_t     c4m_high(void);
 extern c4m_utf32_t *c4m_wrapper_join(c4m_list_t *, const c4m_str_t *);
 extern c4m_str_t   *c4m_wrapper_hostname(void);
 extern c4m_str_t   *c4m_wrapper_os(void);

@@ -63,3 +63,9 @@ c4m_clz(uint64_t n)
 {
     return __builtin_clzll(n);
 }
+
+int64_t
+c4m_high(void)
+{
+    return INT64_MAX;
+}

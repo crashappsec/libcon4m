@@ -277,11 +277,14 @@ c4m_add_static_symbols(void)
     FSTAT(c4m_str_lower);
     FSTAT(c4m_str_split);
     FSTAT(c4m_str_pad);
+    FSTAT(c4m_str_starts_with);
+    FSTAT(c4m_str_ends_with);
     FSTAT(c4m_wrapper_hostname);
     FSTAT(c4m_wrapper_os);
     FSTAT(c4m_wrapper_arch);
     FSTAT(c4m_wrapper_repr);
     FSTAT(c4m_wrapper_to_str);
+    FSTAT(c4m_high);
     FSTAT(c4m_len);
     FSTAT(c4m_snap_column);
     FSTAT(c4m_now);
