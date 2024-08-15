@@ -6,12 +6,14 @@ $output:
 "Hello, world!"
 Hello, world!
 13
+9223372036854775807
 """
 
 x = "[h1]Hello, world!"'r
 print(repr(x))
 print(str(x))
 print(len(x))
+print(high())
 # Test these manually for now.
 # print(osname())
 # print(arch())

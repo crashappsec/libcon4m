@@ -282,6 +282,7 @@ c4m_add_static_symbols(void)
     FSTAT(c4m_wrapper_arch);
     FSTAT(c4m_wrapper_repr);
     FSTAT(c4m_wrapper_to_str);
+    FSTAT(c4m_high);
     FSTAT(c4m_len);
     FSTAT(c4m_snap_column);
     FSTAT(c4m_now);

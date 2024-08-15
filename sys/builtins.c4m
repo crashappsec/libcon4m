@@ -10,6 +10,10 @@ extern c4m_wrapper_arch() -> ptr {
   local: arch() -> string
 }
 
+extern c4m_high() -> i64 {
+  local: high() -> int
+}
+
 extern c4m_len(ptr) -> i64 {
   local: len(s: `x) -> int
 }
