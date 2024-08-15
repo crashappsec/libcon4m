@@ -7,6 +7,10 @@ $output:
 Hello, world!
 13
 9223372036854775807
+true
+false
+true
+false
 """
 
 x = "[h1]Hello, world!"'r
@@ -17,3 +21,7 @@ print(high())
 # Test these manually for now.
 # print(osname())
 # print(arch())
+print(starts_with("foo", "f"))
+print(starts_with("foo", "z"))
+print(ends_with("foo", "o"))
+print(ends_with("foo", "z"))

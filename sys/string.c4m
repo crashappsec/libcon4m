@@ -26,3 +26,10 @@ extern c4m_wrapper_to_str(ptr) -> ptr {
   local: str(s: `x) -> string       
 }
 
+extern c4m_str_starts_with(ptr, ptr) -> ptr {
+  local: starts_with(s1: string, s2: string) -> bool
+}
+
+extern c4m_str_ends_with(ptr, ptr) -> ptr {
+  local: ends_with(s1: string, s2: string) -> bool
+}

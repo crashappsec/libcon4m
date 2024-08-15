@@ -277,6 +277,8 @@ c4m_add_static_symbols(void)
     FSTAT(c4m_str_lower);
     FSTAT(c4m_str_split);
     FSTAT(c4m_str_pad);
+    FSTAT(c4m_str_starts_with);
+    FSTAT(c4m_str_ends_with);
     FSTAT(c4m_wrapper_hostname);
     FSTAT(c4m_wrapper_os);
     FSTAT(c4m_wrapper_arch);
