@@ -139,7 +139,7 @@
 
 #ifndef C4M_DEFAULT_ARENA_SIZE
 // This is the size any test case that prints a thing grows to awfully fast.
-#define C4M_DEFAULT_ARENA_SIZE (1 << 24)
+#define C4M_DEFAULT_ARENA_SIZE (1 << 26)
 #endif
 
 #ifndef C4M_STACK_SIZE

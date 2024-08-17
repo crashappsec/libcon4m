@@ -1920,6 +1920,25 @@ c4m_grid_flow(uint64_t items, ...)
 }
 
 c4m_grid_t *
+c4m_grid_flow_from_list(c4m_list_t *items)
+{
+    c4m_grid_t *res = c4m_new(c4m_type_grid(),
+                              c4m_kw("start_rows",
+                                     c4m_ka(items),
+                                     "start_cols",
+                                     c4m_ka(1),
+                                     "container_tag",
+                                     c4m_ka(c4m_new_utf8("flow"))));
+    int         l   = c4m_list_len(items);
+
+    for (int i = 0; i < l; i++) {
+        c4m_grid_set_cell_contents(res, i, 0, c4m_list_get(items, i, NULL));
+    }
+
+    return res;
+}
+
+c4m_grid_t *
 c4m_callout(c4m_str_t *s)
 {
     c4m_renderable_t *r   = c4m_to_str_renderable(s, c4m_new_utf8("callout"));
@@ -1932,6 +1951,24 @@ c4m_callout(c4m_str_t *s)
                                      c4m_ka(c4m_new_utf8("callout_cell"))));
     c4m_grid_set_cell_contents(res, 0, 0, r);
     c4m_set_column_style(res, 0, c4m_new_utf8("callout_cell"));
+
+    return res;
+}
+
+c4m_grid_t *
+c4m_new_cell(c4m_str_t *s, c4m_utf8_t *style)
+{
+    c4m_renderable_t *r   = c4m_to_str_renderable(s, style);
+    c4m_grid_t       *res = c4m_new(c4m_type_grid(),
+                              c4m_kw("start_rows",
+                                     c4m_ka(1),
+                                     "start_cols",
+                                     c4m_ka(1),
+                                     "container_tag",
+                                     c4m_ka(c4m_new_utf8("flow"))));
+    c4m_grid_set_cell_contents(res, 0, 0, r);
+    c4m_set_column_style(res, 0, c4m_new_utf8("flow"));
+
     return res;
 }
 

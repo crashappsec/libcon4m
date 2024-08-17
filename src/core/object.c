@@ -524,6 +524,51 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
         .mutable   = true,
     },
+    [C4M_T_PARSER] = {
+        .name      = "Parser",
+        .typeid    = C4M_T_PARSER,
+        .alloc_len = sizeof(c4m_parser_t),
+        .vtable    = &c4m_parser_vtable,
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
+    },
+    [C4M_T_GRAMMAR] = {
+        .name      = "Grammar",
+        .typeid    = C4M_T_GRAMMAR,
+        .alloc_len = sizeof(c4m_grammar_t),
+        .vtable    = &c4m_grammar_vtable,
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
+    },
+    [C4M_T_TERMINAL] = {
+        .name      = "Terminal",
+        .typeid    = C4M_T_TERMINAL,
+        .alloc_len = sizeof(c4m_terminal_t),
+        .vtable    = &c4m_terminal_vtable,
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
+    },
+    [C4M_T_RULESET] = {
+        .name      = "Ruleset",
+        .typeid    = C4M_T_RULESET,
+        .alloc_len = sizeof(c4m_nonterm_t),
+        .vtable    = &c4m_nonterm_vtable,
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
+    },
+    [C4M_T_FOREST] = {
+        .name      = "Forest",
+        .typeid    = C4M_T_FOREST,
+        .alloc_len = sizeof(c4m_forest_item_t),
+        .vtable    = &c4m_forest_vtable,
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
+    },
 };
 
 extern int TMP_DEBUG;
@@ -703,6 +748,10 @@ c4m_copy(c4m_obj_t obj)
 c4m_obj_t
 c4m_shallow(c4m_obj_t obj)
 {
+    if (!c4m_in_heap(obj)) {
+        return obj;
+    }
+
     c4m_copy_fn fn = (void *)c4m_vtable(obj)->methods[C4M_BI_SHALLOW_COPY];
 
     if (fn == NULL) {

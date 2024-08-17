@@ -549,7 +549,7 @@ c4m_list_contains(c4m_list_t *list, c4m_obj_t item)
     return false;
 }
 
-static void *
+void *
 c4m_list_view(c4m_list_t *list, uint64_t *n)
 {
     read_start(list);
@@ -574,6 +574,27 @@ c4m_list_view(c4m_list_t *list, uint64_t *n)
 
     return view;
 }
+
+void
+c4m_list_reverse(c4m_list_t *l)
+{
+    lock_list(l);
+
+    int64_t **start = l->data;
+    int64_t **end   = &l->data[l->append_ix - 1];
+    int64_t  *swap;
+
+    while (start < end) {
+        swap   = *end;
+        *end   = *start;
+        *start = swap;
+        start++;
+        end--;
+    }
+
+    unlock_list(l);
+}
+
 static c4m_list_t *
 c4m_to_list_lit(c4m_type_t *objtype, c4m_list_t *items, c4m_utf8_t *litmod)
 {

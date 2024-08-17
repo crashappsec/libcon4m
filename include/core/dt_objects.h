@@ -176,6 +176,11 @@ typedef enum : int64_t {
     C4M_T_BOX_F32,
     C4M_T_BOX_F64,
     C4M_T_HTTP,
+    C4M_T_PARSER,
+    C4M_T_GRAMMAR,
+    C4M_T_TERMINAL,
+    C4M_T_RULESET,
+    C4M_T_FOREST,
     C4M_NUM_BUILTIN_DTS,
 } c4m_builtin_t;
 

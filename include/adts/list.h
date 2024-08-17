@@ -25,3 +25,5 @@ extern c4m_list_t *c4m_list_copy(c4m_list_t *);
 extern c4m_list_t *c4m_list_shallow_copy(c4m_list_t *);
 extern void        c4m_list_sort(c4m_list_t *, c4m_sort_fn);
 extern void        c4m_list_resize(c4m_list_t *, size_t);
+extern void       *c4m_list_view(c4m_list_t *, uint64_t *);
+extern void        c4m_list_reverse(c4m_list_t *);

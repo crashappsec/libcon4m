@@ -2,7 +2,7 @@
 
 #include "con4m.h"
 
-extern c4m_list_t     *c4m_tree_children(c4m_tree_node_t *);
+extern c4m_list_t      *c4m_tree_children(c4m_tree_node_t *);
 extern c4m_tree_node_t *c4m_tree_get_child(c4m_tree_node_t *, int64_t);
 extern c4m_tree_node_t *c4m_tree_add_node(c4m_tree_node_t *, void *);
 extern c4m_tree_node_t *c4m_tree_prepend_node(c4m_tree_node_t *, void *);
@@ -39,4 +39,10 @@ c4m_tree(c4m_str_t *s)
 {
     return c4m_new(c4m_type_tree(c4m_type_utf32()),
                    c4m_kw("contents", c4m_ka(s)));
+}
+
+static inline c4m_tree_node_t *
+c4m_new_tree_node(c4m_type_t *t, void *node)
+{
+    return c4m_new(c4m_type_tree(t), c4m_kw("contents", c4m_ka(node)));
 }

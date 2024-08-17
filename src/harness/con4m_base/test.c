@@ -55,6 +55,77 @@ test_automarshal()
 }
 #endif
 
+void
+test_parsing()
+{
+    c4m_grammar_t *grammar = c4m_new(c4m_type_grammar());
+    c4m_pitem_t   *add     = c4m_pitem_nonterm_raw(grammar,
+                                             c4m_new_utf8("Add"));
+    c4m_pitem_t   *mul     = c4m_pitem_nonterm_raw(grammar,
+                                             c4m_new_utf8("Mul"));
+    c4m_pitem_t   *paren   = c4m_pitem_nonterm_raw(grammar,
+                                               c4m_new_utf8("Paren"));
+    c4m_pitem_t   *digit   = c4m_pitem_builtin_raw(C4M_P_BIC_DIGIT);
+    c4m_nonterm_t *nt_a    = c4m_pitem_get_ruleset(grammar, add);
+    c4m_nonterm_t *nt_m    = c4m_pitem_get_ruleset(grammar, mul);
+    c4m_nonterm_t *nt_p    = c4m_pitem_get_ruleset(grammar, paren);
+    c4m_list_t    *rule1a  = c4m_list(c4m_type_ref());
+    c4m_list_t    *rule1b  = c4m_list(c4m_type_ref());
+    c4m_list_t    *rule2a  = c4m_list(c4m_type_ref());
+    c4m_list_t    *rule2b  = c4m_list(c4m_type_ref());
+    c4m_list_t    *rule3a  = c4m_list(c4m_type_ref());
+    c4m_list_t    *rule3b  = c4m_list(c4m_type_ref());
+    c4m_list_t    *plmi    = c4m_list(c4m_type_ref());
+    c4m_list_t    *mudv    = c4m_list(c4m_type_ref());
+    c4m_list_t    *lgrp    = c4m_list(c4m_type_ref());
+
+    c4m_list_append(plmi, c4m_pitem_terminal_cp('+'));
+    c4m_list_append(plmi, c4m_pitem_terminal_cp('-'));
+    c4m_list_append(mudv, c4m_pitem_terminal_cp('*'));
+    c4m_list_append(mudv, c4m_pitem_terminal_cp('/'));
+
+    // Add -> Add [+-] Mul
+    c4m_list_append(rule1a, add);
+    c4m_list_append(rule1a, c4m_pitem_choice_raw(grammar, plmi));
+    c4m_list_append(rule1a, mul);
+
+    // Add -> Mul
+    c4m_list_append(rule1b, mul);
+
+    // Mul -> Mul [*/] Paren
+    c4m_list_append(rule2a, mul);
+    c4m_list_append(rule2a, c4m_pitem_choice_raw(grammar, mudv));
+    c4m_list_append(rule2a, paren);
+
+    // Mul -> Paren
+    c4m_list_append(rule2b, paren);
+
+    // Paren '(' Add ')'
+    c4m_list_append(rule3a, c4m_pitem_terminal_cp('('));
+    c4m_list_append(rule3a, add);
+    c4m_list_append(rule3a, c4m_pitem_terminal_cp(')'));
+
+    // Paren -> [0-9]+
+    c4m_list_append(lgrp, digit);
+    c4m_list_append(rule3b, c4m_group_items(grammar, lgrp, 1, 0));
+
+    c4m_ruleset_add_rule(grammar, nt_a, rule1a);
+    c4m_ruleset_add_rule(grammar, nt_a, rule1b);
+    c4m_ruleset_add_rule(grammar, nt_m, rule2a);
+    c4m_ruleset_add_rule(grammar, nt_m, rule2b);
+    c4m_ruleset_add_rule(grammar, nt_p, rule3a);
+    c4m_ruleset_add_rule(grammar, nt_p, rule3b);
+    c4m_print(c4m_grammar_to_grid(grammar));
+
+    c4m_parser_t *parser = c4m_new(c4m_type_parser(), grammar);
+
+    c4m_parse_string(parser, c4m_new_utf8("1+(2*3-4321)"), NULL);
+    c4m_print(c4m_parse_to_grid(parser, true));
+    c4m_tree_node_t *forest = c4m_parse_get_parses(parser);
+
+    c4m_print(c4m_forest_format(forest));
+}
+
 int
 main(int argc, char **argv, char **envp)
 {
@@ -70,6 +141,8 @@ main(int argc, char **argv, char **envp)
     c4m_scan_and_prep_tests();
     c4m_run_expected_value_tests();
     c4m_run_other_test_files();
+
+    test_parsing();
 
     c4m_report_results_and_exit();
     c4m_unreachable();

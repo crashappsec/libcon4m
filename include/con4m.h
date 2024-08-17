@@ -123,3 +123,5 @@
 // Helper functions for object marshal implementations to
 // marshal primitive values.
 #include "core/marshal.h"
+
+#include "util/parsing.h" // generic parser via Earley parsing.

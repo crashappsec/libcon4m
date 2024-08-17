@@ -449,6 +449,36 @@ c4m_type_http()
 }
 
 static inline c4m_type_t *
+c4m_type_parser()
+{
+    return c4m_bi_types[C4M_T_PARSER];
+}
+
+static inline c4m_type_t *
+c4m_type_grammar()
+{
+    return c4m_bi_types[C4M_T_GRAMMAR];
+}
+
+static inline c4m_type_t *
+c4m_type_terminal()
+{
+    return c4m_bi_types[C4M_T_TERMINAL];
+}
+
+static inline c4m_type_t *
+c4m_type_ruleset()
+{
+    return c4m_bi_types[C4M_T_RULESET];
+}
+
+static inline c4m_type_t *
+c4m_type_forest()
+{
+    return c4m_bi_types[C4M_T_FOREST];
+}
+
+static inline c4m_type_t *
 c4m_merge_types(c4m_type_t *t1, c4m_type_t *t2, int *warning)
 {
     c4m_type_t *result = c4m_unify(t1, t2);
