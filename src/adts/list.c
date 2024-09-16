@@ -36,6 +36,7 @@ c4m_list_resize(c4m_list_t *list, size_t len)
     if (!list->dont_acquire) {
         pthread_rwlock_wrlock(&list->lock);
     }
+
     int64_t **old = list->data;
     int64_t **new = c4m_gc_array_alloc(uint64_t *, len);
 
@@ -280,19 +281,20 @@ c4m_list_repr(c4m_list_t *list)
 {
     read_start(list);
 
-    c4m_type_t *list_type   = c4m_get_my_type(list);
-    c4m_list_t *type_params = c4m_type_get_params(list_type);
-    c4m_type_t *item_type   = c4m_list_get_base(type_params, 0, NULL);
-    int64_t     len         = c4m_list_len(list);
-    c4m_list_t *items       = c4m_new(c4m_type_list(c4m_type_utf32()));
+    int64_t     len   = c4m_list_len(list);
+    c4m_list_t *items = c4m_new(c4m_type_list(c4m_type_utf32()));
 
     for (int i = 0; i < len; i++) {
-        bool  err  = false;
-        void *item = c4m_list_get_base(list, i, &err);
+        bool       err  = false;
+        void      *item = c4m_list_get_base(list, i, &err);
+        c4m_str_t *s;
+
         if (err) {
             continue;
         }
-        c4m_str_t *s = c4m_repr(item, item_type);
+
+        s = c4m_repr(item, c4m_get_my_type(item));
+
         c4m_list_append(items, s);
     }
 
@@ -522,6 +524,44 @@ c4m_list_set_slice(c4m_list_t *list,
 
     read_end(new);
     unlock_list(list);
+}
+
+bool
+c4m_list_remove(c4m_list_t *list, int64_t index)
+{
+    lock_list(list);
+    int64_t nitems = list->append_ix;
+
+    if (index < 0) {
+        index += nitems;
+    }
+    else {
+        if (index >= nitems) {
+            unlock_list(list);
+            return false;
+        }
+    }
+    if (index < 0) {
+        unlock_list(list);
+        return false;
+    }
+
+    --list->append_ix;
+
+    if (index + 1 == nitems) {
+        unlock_list(list);
+        return true;
+    }
+
+    char *end     = (char *)&list->data[nitems];
+    char *dst     = (char *)&list->data[index];
+    char *src     = (char *)&list->data[index + 1];
+    int   bytelen = end - src;
+
+    memmove(dst, src, bytelen);
+    unlock_list(list);
+
+    return true;
 }
 
 bool

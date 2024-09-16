@@ -268,6 +268,20 @@ i64_parse(c4m_utf8_t          *s,
     SIGNED_PARSE(0x8000000000000000, 0x7fffffffffffffff, i64);
 }
 
+bool
+c4m_parse_int64(c4m_utf8_t *s, int64_t *out)
+{
+    c4m_compile_error_t err = c4m_err_no_error;
+
+    int64_t *res = i64_parse(s, ST_Base10, NULL, &err);
+
+    if (err != c4m_err_no_error) {
+        return false;
+    }
+    *out = *res;
+    return true;
+}
+
 static c4m_obj_t
 u64_parse(c4m_utf8_t          *s,
           c4m_lit_syntax_t     st,
@@ -343,6 +357,20 @@ f64_parse(c4m_utf8_t          *s,
         return NULL;
     }
     return c4m_box_double(d);
+}
+
+bool
+c4m_parse_double(c4m_utf8_t *s, double *out)
+{
+    c4m_compile_error_t err;
+
+    double *res = f64_parse(s, ST_Float, NULL, &err);
+
+    if (err != c4m_err_no_error) {
+        return false;
+    }
+    *out = *res;
+    return true;
 }
 
 static c4m_str_t *true_repr  = NULL;

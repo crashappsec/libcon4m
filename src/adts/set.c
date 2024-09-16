@@ -36,7 +36,7 @@ c4m_set_init(c4m_set_t *set, va_list args)
     }
     else {
         hatrack_set_init(set, hash_fn);
-        hatrack_set_set_hash_offset(set, 0);
+        hatrack_set_set_hash_offset(set, C4M_STR_HASH_KEY_POINTER_OFFSET);
         hatrack_set_set_cache_offset(set, C4M_HASH_CACHE_OBJ_OFFSET);
     }
 }
@@ -73,7 +73,6 @@ c4m_set_to_xlist(c4m_set_t *s)
     void      **items     = (void **)hatrack_set_items_sort(s, &count);
 
     for (uint64_t i = 0; i < count; i++) {
-        assert(items[i] != NULL);
         c4m_list_append(result, items[i]);
     }
 
@@ -107,6 +106,7 @@ const c4m_vtable_t c4m_set_vtable = {
     .methods     = {
         [C4M_BI_CONSTRUCTOR]   = (c4m_vtable_entry)c4m_set_init,
         [C4M_BI_FINALIZER]     = (c4m_vtable_entry)hatrack_set_cleanup,
+        [C4M_BI_SHALLOW_COPY]  = (c4m_vtable_entry)c4m_set_shallow_copy,
         [C4M_BI_VIEW]          = (c4m_vtable_entry)hatrack_set_items_sort,
         [C4M_BI_CONTAINER_LIT] = (c4m_vtable_entry)to_set_lit,
         [C4M_BI_GC_MAP]        = (c4m_vtable_entry)C4M_GC_SCAN_ALL,

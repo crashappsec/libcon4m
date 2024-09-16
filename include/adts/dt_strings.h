@@ -14,8 +14,8 @@
 typedef struct c4m_str_t {
     char             *data;
     c4m_style_info_t *styling;
-    int32_t           byte_len;
-    int32_t           codepoints : 31;
+    int64_t           byte_len;
+    int64_t           codepoints : 32;
     unsigned int      utf32      : 1;
 } c4m_str_t;
 

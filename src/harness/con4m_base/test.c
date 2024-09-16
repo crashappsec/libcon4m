@@ -56,7 +56,7 @@ test_automarshal()
 #endif
 
 void
-test_parsing()
+test_parsing(void)
 {
     c4m_grammar_t *grammar = c4m_new(c4m_type_grammar());
     c4m_pitem_t   *add     = c4m_pitem_nonterm_raw(grammar,
@@ -115,15 +115,316 @@ test_parsing()
     c4m_ruleset_add_rule(grammar, nt_m, rule2b);
     c4m_ruleset_add_rule(grammar, nt_p, rule3a);
     c4m_ruleset_add_rule(grammar, nt_p, rule3b);
-    c4m_print(c4m_grammar_to_grid(grammar));
+    c4m_print(c4m_grammar_format(grammar));
 
     c4m_parser_t *parser = c4m_new(c4m_type_parser(), grammar);
 
-    c4m_parse_string(parser, c4m_new_utf8("1+(2*3-4321)"), NULL);
-    c4m_print(c4m_parse_to_grid(parser, true));
-    c4m_tree_node_t *forest = c4m_parse_get_parses(parser);
+    // c4m_parse_string(parser, c4m_new_utf8(" 1"), NULL);
+    // c4m_parse_string(parser, c4m_new_utf8("1+2"), NULL);
+    // c4m_parse_string(parser, c4m_new_utf8("21"), NULL);
+    //    c4m_parse_string(parser, c4m_new_utf8("(1+2)"), NULL);
+    //    c4m_parse_string(parser, c4m_new_utf8("1+(2+3)"), NULL);
+    //    c4m_parse_string(parser, c4m_new_utf8("1+(2*3+4567)"), NULL);
+    c4m_parse_string(parser, c4m_new_utf8(" (1)"), NULL);
+    // c4m_print(c4m_parse_to_grid(parser, true));
+    c4m_grid_t *to_print = c4m_forest_format(parser);
 
-    c4m_print(c4m_forest_format(forest));
+    //    c4m_print(to_print);
+}
+
+static void
+show_gopt_results(c4m_list_t *all_parses)
+{
+    int num_parses = c4m_list_len(all_parses);
+    c4m_printf("[em]{}[/] successful parses.", num_parses);
+
+    for (int i = 0; i < num_parses; i++) {
+        c4m_gopt_result_t *res = c4m_list_get(all_parses, i, NULL);
+        c4m_printf("[h2]Parse {} Command:[/] [em]{}", i + 1, res->cmd);
+        int64_t n;
+
+        c4m_utf8_t **arg_keys = hatrack_dict_keys_sort(res->args, &n);
+        bool         got_args = false;
+
+        for (int i = 0; i < n; i++) {
+            c4m_utf8_t *s    = arg_keys[i];
+            c4m_list_t *args = hatrack_dict_get(res->args, arg_keys[i], NULL);
+
+            if (args != NULL && c4m_list_len(args)) {
+                got_args = true;
+
+                if (!c4m_str_codepoint_len(s)) {
+                    s = c4m_new_utf8("Root chalk command");
+                }
+
+                c4m_obj_t obj = c4m_clean_internal_list(args);
+
+                c4m_printf("[h3]{} args for [reverse]{}[/]: [em]{}[/]",
+                           c4m_list_len(args),
+                           s,
+                           obj);
+            }
+        }
+        if (!got_args) {
+            c4m_printf("[h4]No subcommands took arguments.");
+        }
+
+        int64_t *flag_info = hatrack_dict_keys_sort(res->flags, &n);
+        for (int i = 0; i < n; i++) {
+            int64_t          key    = flag_info[i];
+            c4m_rt_option_t *option = hatrack_dict_get(res->flags,
+                                                       (void *)key,
+                                                       NULL);
+            c4m_printf("[h3]Flag {}: [/] {}",
+                       option->spec->name,
+                       option->value);
+        }
+    }
+}
+
+static void
+_gopt_test(c4m_gopt_ctx *gopt, c4m_list_t *args)
+{
+    c4m_list_t *res;
+
+    c4m_printf("[h1]Run command: chalk {}", args);
+    res = c4m_gopt_parse(gopt, c4m_new_utf8("chalk"), args);
+    show_gopt_results(res);
+}
+
+#define gopt_test(g, ...)                       \
+    {                                           \
+        c4m_list_t *l = c4m_c_map(__VA_ARGS__); \
+        _gopt_test(g, l);                       \
+    }
+
+c4m_gopt_ctx *
+setup_gopt_test(void)
+{
+    c4m_gopt_ctx   *gopt  = c4m_new(c4m_type_gopt_parser(),
+                                 C4M_TOPLEVEL_IS_ARGV0);
+    c4m_gopt_cspec *chalk = c4m_new(c4m_type_gopt_command(),
+                                    c4m_kw("context", c4m_ka(gopt)));
+
+    c4m_new(c4m_type_gopt_option(),
+            c4m_kw("name",
+                   c4m_new_utf8("color"),
+                   "linked_command",
+                   chalk,
+                   "opt_type",
+                   C4M_GOAT_BOOL_T_DEFAULT));
+
+    c4m_new(c4m_type_gopt_option(),
+            c4m_kw("name",
+                   c4m_new_utf8("no-color"),
+                   "linked_command",
+                   chalk,
+                   "opt_type",
+                   C4M_GOAT_BOOL_F_DEFAULT));
+
+    c4m_new(c4m_type_gopt_option(),
+            c4m_kw("name",
+                   c4m_new_utf8("testflag"),
+                   "linked_command",
+                   chalk,
+                   "opt_type",
+                   C4M_GOAT_WORD,
+                   "max_args",
+                   c4m_ka(0)));
+
+    c4m_gopt_cspec *insert = c4m_new(c4m_type_gopt_command(),
+                                     c4m_kw("context",
+                                            c4m_ka(gopt),
+                                            "name",
+                                            c4m_ka(c4m_new_utf8("insert")),
+                                            "parent",
+                                            c4m_ka(chalk)));
+
+    c4m_gopt_add_subcommand(insert, c4m_new_utf8("(STR)*"));
+
+    c4m_gopt_cspec *extract = c4m_new(c4m_type_gopt_command(),
+                                      c4m_kw("context",
+                                             c4m_ka(gopt),
+                                             "name",
+                                             c4m_ka(c4m_new_utf8("extract")),
+                                             "parent",
+                                             c4m_ka(chalk)));
+    c4m_gopt_add_subcommand(extract, c4m_new_utf8("(str str)*"));
+    // c4m_gopt_add_subcommand(extract, c4m_new_utf8("(STR)*"));
+
+    c4m_gopt_cspec *images     = c4m_new(c4m_type_gopt_command(),
+                                     c4m_kw("context",
+                                            c4m_ka(gopt),
+                                            "name",
+                                            c4m_ka(c4m_new_utf8("images")),
+                                            "parent",
+                                            c4m_ka(extract)));
+    c4m_gopt_cspec *containers = c4m_new(c4m_type_gopt_command(),
+                                         c4m_kw("context",
+                                                c4m_ka(gopt),
+                                                "name",
+                                                c4m_ka(c4m_new_utf8("containers")),
+                                                "parent",
+                                                c4m_ka(extract)));
+
+    c4m_gopt_cspec *extract_all = c4m_new(c4m_type_gopt_command(),
+                                          c4m_kw("context",
+                                                 c4m_ka(gopt),
+                                                 "name",
+                                                 c4m_ka(c4m_new_utf8("all")),
+                                                 "parent",
+                                                 c4m_ka(extract)));
+    c4m_gopt_add_subcommand(extract_all, c4m_new_utf8("(str)*"));
+
+    c4m_gopt_cspec *del = c4m_new(c4m_type_gopt_command(),
+                                  c4m_kw("context",
+                                         c4m_ka(gopt),
+                                         "name",
+                                         c4m_ka(c4m_new_utf8("delete")),
+                                         "parent",
+                                         c4m_ka(chalk)));
+    c4m_gopt_add_subcommand(del, c4m_new_utf8("(str)*"));
+
+    c4m_gopt_cspec *env = c4m_new(c4m_type_gopt_command(),
+                                  c4m_kw("context",
+                                         c4m_ka(gopt),
+                                         "name",
+                                         c4m_ka(c4m_new_utf8("env")),
+                                         "parent",
+                                         c4m_ka(chalk)));
+    c4m_gopt_add_subcommand(env, c4m_new_utf8("(str)*"));
+
+    c4m_gopt_cspec *exec = c4m_new(c4m_type_gopt_command(),
+                                   c4m_kw("context",
+                                          c4m_ka(gopt),
+                                          "name",
+                                          c4m_ka(c4m_new_utf8("exec")),
+                                          "bad_opt_passthrough",
+                                          c4m_ka(true),
+                                          "parent",
+                                          c4m_ka(chalk)));
+    c4m_gopt_add_subcommand(exec, c4m_new_utf8("(str)*"));
+
+    c4m_gopt_cspec *config = c4m_new(c4m_type_gopt_command(),
+                                     c4m_kw("context",
+                                            c4m_ka(gopt),
+                                            "name",
+                                            c4m_ka(c4m_new_utf8("config")),
+                                            "parent",
+                                            c4m_ka(chalk)));
+
+    c4m_gopt_cspec *dump = c4m_new(c4m_type_gopt_command(),
+                                   c4m_kw("context",
+                                          c4m_ka(gopt),
+                                          "name",
+                                          c4m_ka(c4m_new_utf8("dump")),
+                                          "parent",
+                                          c4m_ka(chalk)));
+    c4m_gopt_add_subcommand(dump, c4m_new_utf8("(str)?"));
+
+    c4m_gopt_cspec *params = c4m_new(c4m_type_gopt_command(),
+                                     c4m_kw("context",
+                                            c4m_ka(gopt),
+                                            "name",
+                                            c4m_ka(c4m_new_utf8("params")),
+                                            "parent",
+                                            c4m_ka(dump)));
+
+    c4m_gopt_cspec *cache    = c4m_new(c4m_type_gopt_command(),
+                                    c4m_kw("context",
+                                           c4m_ka(gopt),
+                                           "name",
+                                           c4m_ka(c4m_new_utf8("cache")),
+                                           "parent",
+                                           c4m_ka(dump)));
+    c4m_gopt_cspec *dump_all = c4m_new(c4m_type_gopt_command(),
+                                       c4m_kw("context",
+                                              c4m_ka(gopt),
+                                              "name",
+                                              c4m_ka(c4m_new_utf8("all")),
+                                              "parent",
+                                              c4m_ka(dump)));
+    c4m_gopt_cspec *load     = c4m_new(c4m_type_gopt_command(),
+                                   c4m_kw("context",
+                                          c4m_ka(gopt),
+                                          "name",
+                                          c4m_ka(c4m_new_utf8("load")),
+                                          "parent",
+                                          c4m_ka(chalk)));
+    c4m_gopt_add_subcommand(load, c4m_new_utf8("(str)?"));
+
+    c4m_gopt_cspec *version = c4m_new(c4m_type_gopt_command(),
+                                      c4m_kw("context",
+                                             c4m_ka(gopt),
+                                             "name",
+                                             c4m_ka(c4m_new_utf8("version")),
+                                             "parent",
+                                             c4m_ka(chalk)));
+
+    c4m_gopt_cspec *docker = c4m_new(c4m_type_gopt_command(),
+                                     c4m_kw("context",
+                                            c4m_ka(gopt),
+                                            "name",
+                                            c4m_ka(c4m_new_utf8("docker")),
+                                            "parent",
+                                            c4m_ka(chalk)));
+    c4m_gopt_add_subcommand(docker, c4m_new_utf8("raw"));
+
+    c4m_gopt_cspec *setup = c4m_new(c4m_type_gopt_command(),
+                                    c4m_kw("context",
+                                           c4m_ka(gopt),
+                                           "name",
+                                           c4m_ka(c4m_new_utf8("setup")),
+                                           "parent",
+                                           c4m_ka(chalk)));
+
+    c4m_gopt_cspec *docgen = c4m_new(c4m_type_gopt_command(),
+                                     c4m_kw("context",
+                                            c4m_ka(gopt),
+                                            "name",
+                                            c4m_ka(c4m_new_utf8("docgen")),
+                                            "parent",
+                                            c4m_ka(chalk)));
+    c4m_gopt_cspec *__     = c4m_new(c4m_type_gopt_command(),
+                                 c4m_kw("context",
+                                        c4m_ka(gopt),
+                                        "name",
+                                        c4m_ka(c4m_new_utf8("__")),
+                                        "parent",
+                                        c4m_ka(chalk)));
+
+    c4m_gopt_cspec *numtest = c4m_new(c4m_type_gopt_command(),
+                                      c4m_kw("context",
+                                             c4m_ka(gopt),
+                                             "name",
+                                             c4m_ka(c4m_new_utf8("num")),
+                                             "parent",
+                                             c4m_ka(chalk)));
+    c4m_gopt_add_subcommand(numtest, c4m_new_utf8("(float int) *"));
+
+    return gopt;
+}
+
+void
+test_getopt(void)
+{
+    c4m_gopt_ctx *gopt = setup_gopt_test();
+
+    gopt_test(gopt, "--color", "False", "version");
+    gopt_test(gopt, "--color", "f", "--color", "False", "version");
+    gopt_test(gopt, "extract", "foo", "--color=", "true", "bar", "bleep", "74");
+    gopt_test(gopt, "extract", "foo", "--color", "true");
+    gopt_test(gopt, "load", "foo", "--color", "true");
+    gopt_test(gopt, "--color", "load", "foo");
+    gopt_test(gopt, "--color", "num", "1209238", "37");
+    gopt_test(gopt,
+              "--color",
+              "extract",
+              "--no-color",
+              "containers",
+              "--testflag=x,y ",
+              ",z");
+    c4m_print(c4m_grammar_format(gopt->grammar));
 }
 
 int
@@ -143,6 +444,7 @@ main(int argc, char **argv, char **envp)
     c4m_run_other_test_files();
 
     test_parsing();
+    //    test_getopt();
 
     c4m_report_results_and_exit();
     c4m_unreachable();

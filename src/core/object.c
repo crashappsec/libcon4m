@@ -1,5 +1,19 @@
 #include "con4m.h"
 
+static c4m_utf8_t *
+nil_repr(void *ignored)
+{
+    return c4m_new_utf8("0");
+}
+
+static const c4m_vtable_t c4m_type_nil_vtable = {
+    .num_entries = C4M_BI_NUM_FUNCS,
+    .methods     = {
+        [C4M_BI_REPR] = (c4m_vtable_entry)nil_repr,
+    },
+
+};
+
 const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
     [C4M_T_ERROR] = {
         .name     = "error",
@@ -11,6 +25,13 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .name     = "void",
         .typeid   = C4M_T_VOID,
         .dt_kind  = C4M_DT_KIND_nil,
+        .by_value = true,
+    },
+    [C4M_T_NIL] = {
+        .name     = "nil",
+        .typeid   = C4M_T_NIL,
+        .vtable   = &c4m_type_nil_vtable,
+        .dt_kind  = C4M_DT_KIND_primitive,
         .by_value = true,
     },
     [C4M_T_TYPESPEC] = {
@@ -376,11 +397,32 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         //
         // Once we add proper references to the language, we might split
         // out such internal references, IDK.
-        .name      = "ref",
+        .name      = "memref",
         .alloc_len = sizeof(void *),
         .typeid    = C4M_T_REF,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_PTR,
+    },
+    [C4M_T_TRUE_REF] = {
+        // Language-level references, which point to either another object,
+        // or someplace IN-HEAP.
+        //
+        // It's parameterized by what it holds.
+        .name      = "ref",
+        .alloc_len = sizeof(void *),
+        .typeid    = C4M_T_TRUE_REF,
+        .dt_kind   = C4M_DT_KIND_type_var,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_PTR,
+    },
+    // This is just for when internal memory gets
+    // exposed to the outside; we'll assign refs to it this type.
+    [C4M_T_INTERNAL] = {
+        .name      = "internal",
+        .alloc_len = sizeof(void *),
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_PTR,
+        .by_value  = true,
+
     },
     [C4M_T_GENERIC] = {
         // This is meant for runtime sum types. It's lightly used
@@ -560,15 +602,34 @@ const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS] = {
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
         .mutable   = true,
     },
-    [C4M_T_FOREST] = {
-        .name      = "Forest",
-        .typeid    = C4M_T_FOREST,
-        .alloc_len = sizeof(c4m_forest_item_t),
-        .vtable    = &c4m_forest_vtable,
+    [C4M_T_GOPT_PARSER] = {
+        .name      = "Getopt_parser",
+        .typeid    = C4M_T_GOPT_PARSER,
+        .alloc_len = sizeof(c4m_gopt_ctx),
+        .vtable    = &c4m_gopt_parser_vtable,
         .dt_kind   = C4M_DT_KIND_primitive,
         .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
         .mutable   = true,
     },
+    [C4M_T_GOPT_COMMAND] = {
+        .name      = "Getopt_command",
+        .typeid    = C4M_T_GOPT_COMMAND,
+        .alloc_len = sizeof(c4m_gopt_cspec),
+        .vtable    = &c4m_gopt_command_vtable,
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
+    },
+    [C4M_T_GOPT_OPTION] = {
+        .name      = "Getopt_option",
+        .typeid    = C4M_T_GOPT_OPTION,
+        .alloc_len = sizeof(c4m_goption_t),
+        .vtable    = &c4m_gopt_option_vtable,
+        .dt_kind   = C4M_DT_KIND_primitive,
+        .hash_fn   = HATRACK_DICT_KEY_TYPE_OBJ_PTR,
+        .mutable   = true,
+    },
+
 };
 
 extern int TMP_DEBUG;
@@ -1132,4 +1193,51 @@ void
 c4m_scan_header_only(uint64_t *bitfield, int n)
 {
     *bitfield = C4M_HEADER_SCAN_CONST;
+}
+
+void *
+c4m_autobox(void *ptr)
+{
+    if (!c4m_in_heap(ptr)) {
+        return c4m_box_i64((int64_t)ptr);
+    }
+
+    c4m_alloc_hdr *h = ptr;
+    --h;
+
+    if (h->guard != c4m_gc_guard) {
+        // It's a pointer to the middle of some data structure.
+        // TODO here is to check.
+        //
+        // to see if it seems to be a pointer to something else,
+        // and if so, we should wrap it as a reference.
+
+        void **result = c4m_new(c4m_type_ref());
+        *result       = ptr;
+        return result;
+    }
+    else {
+        return ptr;
+    }
+
+    return ptr;
+}
+
+c4m_type_t *
+c4m_get_my_type(c4m_obj_t user_object)
+{
+    if (c4m_in_heap(user_object)) {
+        c4m_mem_ptr p = (c4m_mem_ptr){.v = user_object};
+        p.alloc -= 1;
+        if (p.alloc->guard == c4m_gc_guard) {
+            return p.alloc->type;
+        }
+        else {
+            return c4m_type_internal();
+        }
+    }
+    if (user_object == NULL) {
+        return c4m_type_nil();
+    }
+    return c4m_type_i64();
 }

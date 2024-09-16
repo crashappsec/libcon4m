@@ -36,6 +36,7 @@ extern c4m_utf32_t        *c4m_str_lower(c4m_str_t *);
 extern c4m_utf32_t        *c4m_title_case(c4m_str_t *);
 extern c4m_str_t          *c4m_str_pad(c4m_str_t *, int64_t);
 extern c4m_utf8_t         *c4m_str_to_hex(c4m_str_t *, bool);
+extern c4m_list_t         *_c4m_c_map(char *, ...);
 
 // This is in richlit.c
 extern c4m_utf8_t *c4m_rich_lit(char *);
@@ -45,6 +46,7 @@ extern c4m_utf8_t *c4m_rich_lit(char *);
 #define c4m_str_join(l, s, ...)     _c4m_str_join(l, s, C4M_VA(__VA_ARGS__))
 #define c4m_str_find(str, sub, ...) _c4m_str_find(str, sub, C4M_VA(__VA_ARGS__))
 #define c4m_str_rfind(a, b, ...)    _c4m_str_rfind(a, b, C4M_VA(__VA_ARGS__))
+#define c4m_c_map(s, ...)           _c4m_c_map(s, C4M_VA(__VA_ARGS__))
 
 extern const c4m_utf8_t *c4m_empty_string_const;
 extern const c4m_utf8_t *c4m_newline_const;

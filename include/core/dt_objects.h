@@ -117,6 +117,7 @@ typedef enum : uint8_t {
 typedef enum : int64_t {
     C4M_T_ERROR = 0,
     C4M_T_VOID,
+    C4M_T_NIL,
     C4M_T_TYPESPEC,
     C4M_T_INTERNAL_TLIST,
     C4M_T_BOOL,
@@ -158,10 +159,12 @@ typedef enum : int64_t {
     C4M_T_EXCEPTION,
     C4M_T_TREE,
     C4M_T_FUNCDEF,
-    C4M_T_REF,     // A managed pointer.
-    C4M_T_GENERIC, // If instantiated, instantiates a 'mixed' object.
-    C4M_T_STREAM,  // streaming IO interface.
-    C4M_T_KEYWORD, // Keyword arg object for internal use.
+    C4M_T_REF,      // A managed pointer.
+    C4M_T_TRUE_REF, // A managed pointer.
+    C4M_T_INTERNAL, // Some internal datastructure we don't intend to expose.
+    C4M_T_GENERIC,  // If instantiated, instantiates a 'mixed' object.
+    C4M_T_STREAM,   // streaming IO interface.
+    C4M_T_KEYWORD,  // Keyword arg object for internal use.
     C4M_T_VM,
     C4M_T_PARSE_NODE,
     C4M_T_BIT,
@@ -180,7 +183,9 @@ typedef enum : int64_t {
     C4M_T_GRAMMAR,
     C4M_T_TERMINAL,
     C4M_T_RULESET,
-    C4M_T_FOREST,
+    C4M_T_GOPT_PARSER,
+    C4M_T_GOPT_COMMAND,
+    C4M_T_GOPT_OPTION,
     C4M_NUM_BUILTIN_DTS,
 } c4m_builtin_t;
 

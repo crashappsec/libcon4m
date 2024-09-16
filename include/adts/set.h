@@ -2,7 +2,7 @@
 
 #include "con4m.h"
 
-extern c4m_set_t   *c4m_set_shallow_copy(c4m_set_t *);
+extern c4m_set_t  *c4m_set_shallow_copy(c4m_set_t *);
 extern c4m_list_t *c4m_set_to_xlist(c4m_set_t *);
 
 #define c4m_set_contains    hatrack_set_contains
@@ -28,6 +28,12 @@ c4m_set_difference(c4m_set_t *s1, c4m_set_t *s2)
 static inline c4m_set_t *
 c4m_set_union(c4m_set_t *s1, c4m_set_t *s2)
 {
+    if (!s1) {
+        return s2;
+    }
+    if (!s2) {
+        return s1;
+    }
     c4m_set_t *result = c4m_new(c4m_get_my_type(s1));
     hatrack_set_union(s1, s2, result);
     return result;

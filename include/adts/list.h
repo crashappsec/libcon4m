@@ -9,6 +9,7 @@ extern void        c4m_list_append(c4m_list_t *list, void *item);
 extern void        c4m_list_add_if_unique(c4m_list_t *list,
                                           void       *item,
                                           bool (*fn)(void *, void *));
+extern bool        c4m_list_remove(c4m_list_t *list, int64_t);
 extern void       *c4m_list_pop(c4m_list_t *list);
 extern void        c4m_list_plus_eq(c4m_list_t *, c4m_list_t *);
 extern c4m_list_t *c4m_list_plus(c4m_list_t *, c4m_list_t *);

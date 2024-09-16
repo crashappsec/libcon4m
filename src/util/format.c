@@ -392,6 +392,7 @@ lookup_arg_strings(c4m_fmt_info_t *specs, c4m_dict_t *args)
 
             C4M_RAISE(err);
         }
+
         c4m_vtable_t *vtable = c4m_vtable(obj);
         c4m_format_fn fn     = (c4m_format_fn)vtable->methods[C4M_BI_FORMAT];
         c4m_utf8_t   *s;
@@ -596,7 +597,7 @@ c4m_base_format(const c4m_str_t *fmt, int nargs, va_list args)
         c4m_mem_ptr p;
 
         p.v = va_arg(args, c4m_obj_t);
-        one = c4m_autobox(p);
+        one = c4m_autobox(p.v);
 
         c4m_utf8_t *key = c4m_str_from_int(i);
         hatrack_dict_add(dict, key, one);

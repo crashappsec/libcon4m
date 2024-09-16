@@ -76,8 +76,8 @@ typedef struct c4m_ffi_decl_t {
     uint8_t                external_return_type;
     bool                   skip_boxes;
     c4m_zffi_cif           cif;
-    int                    num_ext_params;
-    int                    global_ffi_call_ix;
+    int64_t                num_ext_params;
+    int64_t                global_ffi_call_ix;
 } c4m_ffi_decl_t;
 
 extern c4m_ffi_type ffi_type_void;

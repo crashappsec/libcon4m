@@ -911,6 +911,10 @@ hatrack_set_get_hash_value(hatrack_set_t *self, void *key)
         break;
     }
 
+    if (!key) {
+        return hash_pointer(key);
+    }
+
     offset = self->hash_info.offsets.cache_offset;
 
     if (offset != (int32_t)HATRACK_DICT_NO_CACHE) {

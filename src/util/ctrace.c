@@ -136,7 +136,7 @@ c4m_backtrace_init(char *fname)
 c4m_grid_t *
 c4m_get_c_backtrace(int skips)
 {
-    backtrace_core(skips + 1);
+    backtrace_core(skips);
     return c4m_trace_grid;
 }
 

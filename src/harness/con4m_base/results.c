@@ -59,7 +59,7 @@ c4m_show_dev_compile_info(c4m_compile_ctx *ctx)
     c4m_printf("[h2]Module Tokens for {}", ctx->entry_point->path);
     c4m_print(c4m_format_tokens(ctx->entry_point));
     if (ctx->entry_point->ct->parse_tree) {
-        c4m_print(c4m_format_parse_tree(ctx->entry_point));
+        c4m_print(c4m_format_ptree(ctx->entry_point));
     }
     if (ctx->entry_point->ct->cfg) {
         c4m_printf("[h1]Toplevel CFG for {}", ctx->entry_point->path);

@@ -534,13 +534,14 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 ```
 
 # Features to re-add from old con4m
-- Arg parsing
 - Final mile: params
 - Doc API.
 - Garbage collection: scan registers (well, not really a re-add...)
 
+
 # Items for afterward
 - Objects
+- BNF parsing
 - Folding
 - Casting
 - Mixed
@@ -558,6 +559,9 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - Some sort of union type.
 
 # Other noted issues to address
+- Accept arbitrary characters in the getopts spec.
+
+
 - Need to deal with tuple assignment to attributes.
 - Need to ensure things that must be static consts are actually consts.
 - Enforce No default if there is a type param.
@@ -575,5 +579,6 @@ EOS ::= '\n' | ';' <<or, if followed by a '}' or line comment, then ''>>
 - Randomize typeid on unmarshaling, OR, create a 'universeid'
 - That we also use in the hash.
 - Disallow '$' for user defined vars?
+- TODO: more error checking on option carnality via aliases.
 	
    

@@ -125,6 +125,62 @@ tuple_set_gc_bits(uint64_t       *bitfield,
 }
 */
 
+void *
+c4m_clean_internal_list(c4m_list_t *l)
+{
+    // The goal here is to take an internal list and convert it into one
+    // of the following:
+    //
+    // 1. A single object if there was one item.
+    // 2. A list of the item type if all the items are the same.
+    // 3. An appropriate tuple type otherwise.
+
+    int len = c4m_list_len(l);
+
+    switch (len) {
+    case 0:
+        return NULL;
+    case 1:
+        return c4m_autobox(c4m_list_get(l, 0, NULL));
+    default:
+        break;
+    }
+
+    c4m_list_t *items = c4m_list(c4m_type_internal());
+
+    for (int i = 0; i < len; i++) {
+        void *item = c4m_autobox(c4m_list_get(l, i, NULL));
+        if (c4m_type_is_list(c4m_get_my_type(item))) {
+            item = c4m_clean_internal_list(item);
+        }
+        c4m_list_append(items, item);
+    }
+
+    c4m_list_t *tup_types      = c4m_list(c4m_type_typespec());
+    c4m_type_t *li_type        = c4m_new_typevar();
+    bool        requires_tuple = false;
+
+    for (int i = 0; i < len; i++) {
+        c4m_type_t *t = c4m_get_my_type(c4m_list_get(items, i, NULL));
+        if (!requires_tuple) {
+            if (c4m_type_is_error(c4m_unify(li_type, t))) {
+                requires_tuple = true;
+            }
+        }
+        c4m_list_append(tup_types, t);
+    }
+
+    if (!requires_tuple) {
+        c4m_type_t *res_type = c4m_type_resolve(c4m_get_my_type(items));
+        res_type->items      = c4m_type_resolve(li_type)->items;
+
+        return items;
+    }
+
+    return c4m_new(c4m_type_tuple_from_xlist(tup_types),
+                   c4m_kw("contents", c4m_ka(items)));
+}
+
 const c4m_vtable_t c4m_tuple_vtable = {
     .num_entries = C4M_BI_NUM_FUNCS,
     .methods     = {

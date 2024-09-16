@@ -5,16 +5,13 @@
 // in object.c
 extern const c4m_dt_info_t c4m_base_type_info[C4M_NUM_BUILTIN_DTS];
 
-extern c4m_type_t *c4m_type_resolve(c4m_type_t *);
-extern c4m_utf8_t *c4m_new_utf8(char *);
+extern c4m_type_t        *c4m_type_resolve(c4m_type_t *);
+extern c4m_utf8_t        *c4m_new_utf8(char *);
+static inline c4m_type_t *c4m_type_internal();
+static inline c4m_type_t *c4m_type_void();
+static inline c4m_type_t *c4m_type_i64();
 
-static inline c4m_type_t *
-c4m_get_my_type(c4m_obj_t user_object)
-{
-    c4m_mem_ptr p = (c4m_mem_ptr){.v = user_object};
-    p.alloc -= 1;
-    return p.alloc->type;
-}
+extern c4m_type_t *c4m_get_my_type(c4m_obj_t);
 
 static inline c4m_dt_info_t *
 c4m_object_type_info(c4m_obj_t user_object)
@@ -70,6 +67,12 @@ c4m_restore(c4m_obj_t user_object)
     }
 }
 
+static inline bool
+c4m_is_null(void *n)
+{
+    return (n == NULL) && !c4m_in_heap(n);
+}
+
 extern void c4m_scan_header_only(uint64_t *, int);
 
 #if defined(C4M_GC_STATS) || defined(C4M_DEBUG)
@@ -111,6 +114,7 @@ extern c4m_obj_t   c4m_container_literal(c4m_type_t *,
                                          c4m_utf8_t *);
 extern void        c4m_finalize_allocation(void *);
 extern c4m_obj_t   c4m_shallow(c4m_obj_t);
+extern void       *c4m_autobox(void *);
 
 extern const c4m_vtable_t c4m_i8_type;
 extern const c4m_vtable_t c4m_u8_type;
@@ -158,4 +162,6 @@ extern const c4m_vtable_t c4m_grammar_rule_vtable;
 extern const c4m_vtable_t c4m_terminal_vtable;
 extern const c4m_vtable_t c4m_nonterm_vtable;
 extern const c4m_vtable_t c4m_parser_vtable;
-extern const c4m_vtable_t c4m_forest_vtable;
+extern const c4m_vtable_t c4m_gopt_parser_vtable;
+extern const c4m_vtable_t c4m_gopt_command_vtable;
+extern const c4m_vtable_t c4m_gopt_option_vtable;

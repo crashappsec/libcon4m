@@ -4,8 +4,8 @@
 typedef uint64_t c4m_style_t;
 
 typedef struct {
-    int32_t     start;
-    int32_t     end;
+    int64_t     start;
+    int64_t     end;
     c4m_style_t info; // 16 bits of flags, 24 bits bg color, 24 bits fg color
 } c4m_style_entry_t;
 

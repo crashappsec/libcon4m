@@ -1590,10 +1590,26 @@ c4m_u8_map(c4m_list_t *inlist)
 {
     int len = c4m_list_len(inlist);
 
-    c4m_list_t *result = c4m_new(c4m_type_list(c4m_type_utf8()));
+    c4m_list_t *result = c4m_list(c4m_type_utf8());
 
     for (int i = 0; i < len; i++) {
         c4m_list_append(result, c4m_to_utf8(c4m_list_get(inlist, i, NULL)));
+    }
+
+    return result;
+}
+
+c4m_list_t *
+_c4m_c_map(char *s, ...)
+{
+    c4m_list_t *result = c4m_list(c4m_type_utf8());
+    va_list     args;
+
+    va_start(args, s);
+
+    while (s != NULL) {
+        c4m_list_append(result, c4m_new_utf8(s));
+        s = va_arg(args, char *);
     }
 
     return result;

@@ -255,7 +255,11 @@ c4m_util = [
     'src/util/ctrace.c',
     'src/util/static_config.c',
     'src/util/segv.c',
+    'src/util/grammar.c',    
     'src/util/parsing.c',
+    'src/util/parse_tree.c',
+    'src/util/parse_repr.c',
+    'src/util/getopt.c',    
 ]
 
 c4m_crypto = ['src/crypto/sha.c']

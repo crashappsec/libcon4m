@@ -134,6 +134,18 @@ c4m_type_is_tuple(c4m_type_t *t)
     return c4m_type_get_kind(t) == C4M_DT_KIND_tuple;
 }
 
+static inline bool
+c4m_type_is_list(c4m_type_t *t)
+{
+    return c4m_type_resolve(t)->base_index == C4M_T_LIST;
+}
+
+static inline bool
+c4m_type_is_set(c4m_type_t *t)
+{
+    return c4m_type_resolve(t)->base_index == C4M_T_SET;
+}
+
 static inline void
 c4m_type_lock(c4m_type_t *t)
 {
@@ -149,7 +161,7 @@ c4m_type_unlock(c4m_type_t *t)
 static inline c4m_type_t *
 c4m_type_get_param(c4m_type_t *t, int i)
 {
-    if (t && t) {
+    if (t && t->items) {
         return c4m_list_get(t->items, i, NULL);
     }
     else {
@@ -200,6 +212,12 @@ static inline c4m_type_t *
 c4m_type_void()
 {
     return c4m_bi_types[C4M_T_VOID];
+}
+
+static inline c4m_type_t *
+c4m_type_nil()
+{
+    return c4m_bi_types[C4M_T_NIL];
 }
 
 static inline c4m_type_t *
@@ -419,6 +437,18 @@ c4m_type_ref()
 }
 
 static inline c4m_type_t *
+c4m_type_true_ref()
+{
+    return c4m_bi_types[C4M_T_TRUE_REF];
+}
+
+static inline c4m_type_t *
+c4m_type_internal()
+{
+    return c4m_bi_types[C4M_T_INTERNAL];
+}
+
+static inline c4m_type_t *
 c4m_type_stream()
 {
     return c4m_bi_types[C4M_T_STREAM];
@@ -473,9 +503,21 @@ c4m_type_ruleset()
 }
 
 static inline c4m_type_t *
-c4m_type_forest()
+c4m_type_gopt_parser()
 {
-    return c4m_bi_types[C4M_T_FOREST];
+    return c4m_bi_types[C4M_T_GOPT_PARSER];
+}
+
+static inline c4m_type_t *
+c4m_type_gopt_command()
+{
+    return c4m_bi_types[C4M_T_GOPT_COMMAND];
+}
+
+static inline c4m_type_t *
+c4m_type_gopt_option()
+{
+    return c4m_bi_types[C4M_T_GOPT_OPTION];
 }
 
 static inline c4m_type_t *
@@ -698,6 +740,13 @@ c4m_type_is_tvar(c4m_type_t *t)
 
 static inline bool
 c4m_type_is_void(c4m_type_t *t)
+{
+    t = c4m_type_resolve(t);
+    return t->typeid == C4M_T_VOID;
+}
+
+static inline bool
+c4m_type_is_nil(c4m_type_t *t)
 {
     t = c4m_type_resolve(t);
     return t->typeid == C4M_T_VOID;

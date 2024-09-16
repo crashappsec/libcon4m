@@ -17,7 +17,9 @@ tree_node_init(c4m_tree_node_t *t, va_list args)
 void
 c4m_tree_adopt_node(c4m_tree_node_t *t, c4m_tree_node_t *kid)
 {
-    kid->parent = t;
+    if (!kid->parent) {
+        kid->parent = t;
+    }
 
     if (t->num_kids == t->alloced_kids) {
         t->alloced_kids *= 2;
@@ -28,6 +30,7 @@ c4m_tree_adopt_node(c4m_tree_node_t *t, c4m_tree_node_t *kid)
         }
         t->children = new_kids;
     }
+
     t->children[t->num_kids++] = kid;
 }
 
@@ -134,16 +137,65 @@ c4m_tree_str_transform(c4m_tree_node_t *t, c4m_str_t *(*fn)(void *))
     return result;
 }
 
-void
-c4m_tree_walk(c4m_tree_node_t *t, c4m_walker_fn callback)
+typedef struct {
+    c4m_dict_t   *memos;
+    c4m_walker_fn callback;
+    c4m_walker_fn cycle_cb;
+    void         *thunk;
+    uint64_t      depth;
+} walk_ctx;
+
+static void
+internal_walker(walk_ctx *ctx, c4m_tree_node_t *cur)
 {
-    int64_t num_kids = c4m_tree_get_number_children(t);
-
-    (*callback)(t);
-
-    for (int64_t i = 0; i < num_kids; i++) {
-        c4m_tree_walk(c4m_tree_get_child(t, i), callback);
+    if (cur == NULL) {
+        return;
     }
+
+    // Do not walk the same node twice if there's a cycle, unless
+    // a callback overrides.
+    if (!hatrack_dict_add(ctx->memos, cur, NULL)) {
+        if (ctx->cycle_cb) {
+            (*ctx->cycle_cb)(cur, ctx->depth, ctx->thunk);
+        }
+
+        return;
+    }
+
+    // Callback returns 'true' to tell us to descend into children.
+    if (!(*ctx->callback)(cur, ctx->depth, ctx->thunk)) {
+        return;
+    }
+    ctx->depth++;
+    for (int64_t i = 0; i < cur->num_kids; i++) {
+        internal_walker(ctx, cur->children[i]);
+    }
+    --ctx->depth;
+
+    hatrack_dict_remove(ctx->memos, cur);
+}
+
+void
+c4m_tree_walk_with_cycles(c4m_tree_node_t *root,
+                          c4m_walker_fn    cb1,
+                          c4m_walker_fn    cb2,
+                          void            *thunk)
+{
+    walk_ctx ctx = {
+        .memos    = c4m_dict(c4m_type_ref(), c4m_type_ref()),
+        .callback = cb1,
+        .cycle_cb = cb2,
+        .thunk    = thunk,
+        .depth    = 0,
+    };
+
+    internal_walker(&ctx, root);
+}
+
+void
+c4m_tree_walk(c4m_tree_node_t *root, c4m_walker_fn callback, void *thunk)
+{
+    c4m_tree_walk_with_cycles(root, callback, NULL, thunk);
 }
 
 void

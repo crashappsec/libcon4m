@@ -131,6 +131,12 @@ HATRACK_EXTERN hatrack_dict_key_t   *hatrack_dict_keys_nosort  (hatrack_dict_t *
 HATRACK_EXTERN hatrack_dict_value_t *hatrack_dict_values_nosort(hatrack_dict_t *, uint64_t *);
 HATRACK_EXTERN hatrack_dict_item_t  *hatrack_dict_items_nosort (hatrack_dict_t *, uint64_t *);
 
+static inline uint64_t
+hatrack_dict_len(hatrack_dict_t *dict)
+{
+    return crown_len(&dict->crown_instance);
+}
+
 #ifdef HATRACK_PER_INSTANCE_AUX
 static inline void
 hatrack_dict_set_aux(hatrack_dict_t *dict, void *aux)

@@ -3,7 +3,7 @@
 
 extern bool        c4m_parse(c4m_module_t *);
 extern bool        c4m_parse_type(c4m_module_t *);
-extern c4m_grid_t *c4m_format_parse_tree(c4m_module_t *);
+extern c4m_grid_t *c4m_format_ptree(c4m_module_t *);
 extern void        c4m_print_parse_node(c4m_tree_node_t *);
 extern c4m_utf8_t *c4m_node_type_name(c4m_node_kind_t);
 

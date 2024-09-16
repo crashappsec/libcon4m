@@ -10,4 +10,4 @@ typedef struct c4m_tree_node_t {
     int32_t                  num_kids;
 } c4m_tree_node_t;
 
-typedef void (*c4m_walker_fn)(c4m_tree_node_t *);
+typedef bool (*c4m_walker_fn)(c4m_tree_node_t *, int64_t, void *);

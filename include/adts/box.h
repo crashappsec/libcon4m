@@ -135,12 +135,6 @@ c4m_box_double(double val)
     return (double *)res;
 }
 
-static inline void *
-c4m_autobox(c4m_mem_ptr p)
-{
-    if (c4m_in_heap(p.v)) {
-        return p.v;
-    }
-
-    return c4m_box_u64(p.nonpointer);
-}
+// in numbers.c
+extern bool c4m_parse_int64(c4m_utf8_t *, int64_t *);
+extern bool c4m_parse_double(c4m_utf8_t *, double *);

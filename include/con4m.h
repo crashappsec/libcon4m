@@ -125,3 +125,4 @@
 #include "core/marshal.h"
 
 #include "util/parsing.h" // generic parser via Earley parsing.
+#include "util/gopt.h"    // Getopt parsing.

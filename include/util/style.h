@@ -57,7 +57,7 @@ c4m_style_debug(char *prefix, const c4m_str_t *p)
     }
     for (int i = 0; i < p->styling->num_entries; i++) {
         c4m_style_entry_t entry = p->styling->styles[i];
-        printf("%d: %llx (%d:%d)\n",
+        printf("%d: %llx (%lld:%lld)\n",
                i + 1,
                (long long)p->styling->styles[i].info,
                entry.start,

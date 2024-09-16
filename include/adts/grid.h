@@ -33,6 +33,7 @@ extern c4m_utf32_t *c4m_grid_to_str(c4m_grid_t *);
 extern c4m_grid_t  *_c4m_ordered_list(c4m_list_t *, ...);
 extern c4m_grid_t  *_c4m_unordered_list(c4m_list_t *, ...);
 extern c4m_grid_t  *_c4m_grid_tree(c4m_tree_node_t *, ...);
+extern c4m_grid_t  *_c4m_grid_tree_new(c4m_tree_node_t *, ...);
 extern c4m_list_t  *_c4m_grid_render(c4m_grid_t *, ...);
 extern void         c4m_set_column_props(c4m_grid_t *,
                                          int,
@@ -47,6 +48,7 @@ extern void         c4m_set_row_style(c4m_grid_t *, int, c4m_utf8_t *);
 #define c4m_ordered_list(l, ...)   _c4m_ordered_list(l, C4M_VA(__VA_ARGS__))
 #define c4m_unordered_list(l, ...) _c4m_unordered_list(l, C4M_VA(__VA_ARGS__))
 #define c4m_grid_tree(t, ...)      _c4m_grid_tree(t, C4M_VA(__VA_ARGS__))
+#define c4m_grid_tree_new(t, ...)  _c4m_grid_tree_new(t, C4M_VA(__VA_ARGS__))
 
 void
 c4m_grid_add_col_span(c4m_grid_t       *grid,
@@ -127,11 +129,16 @@ c4m_grid_stripe_rows(c4m_grid_t *grid)
     grid->stripe = 1;
 }
 
-#ifdef C4M_USE_INTERNAL_API
-
 static inline c4m_list_t *
 c4m_new_table_row()
 {
     return c4m_new(c4m_type_list(c4m_type_utf32()));
 }
-#endif
+
+extern void _c4m_print(c4m_obj_t, ...);
+
+static inline void
+c4m_debug_callout(char *s)
+{
+    _c4m_print(c4m_callout(c4m_new_utf8(s)), 0);
+}

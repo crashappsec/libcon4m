@@ -1,650 +1,149 @@
+// The Earley algorithm is only a *recognizer*; it doesn't build parse
+// trees. I haven't found anything comprehensible that talks about how
+// to build trees from Earley's algorthm, but here's my attempt to
+// describe may algorithm.
+//
+// Every earley state with a dot at the front gets a node in the tree
+// when we create it, corresponding to a new non-terminal node in the
+// tree.
+//
+// As we process one rule, any state associated with that rule, at the
+// same place in the parse, will have a link to the node it's working
+// to fill (the `start_item` field).
+//
+// As we generate Earley states, we:
+//
+// (a) Generate new non-terminal nodes when we predict a new rule. For
+//     any state where the cursor is at the beginning, we will
+//     generate a node that we can find in that state. Sibling states
+//     will have a link back to the node where the cursor is at the
+//     front of the rule, via the 'start_item' field.
+//
+// (b) Link nodes associated with the rules we're processing to the
+//     children they can cause to create ('predict').
+//
+// (c) Create nodes for tokens when we scan them.
+//
+// Multiple states can 'predict' the same node; we handle this by
+// allowing every node to have multiple parents, and multiple links to
+// multiple children.
+//
+// Note that, since the Earley algorithm is essentially trying every
+// possible parse in parallel, a lot of the information in the graph
+// that results from the above is essentially junk. For that reason,
+// the links aren't kept in the actual tree during the Earley
+// algorithm running, they're kept in the Early item (which is
+// basically a record for each state in what is essentially a big
+// state machine).
+//
+// In the Early record, the downward link from parent to child is
+// implicit (basically self-evident once you understand the
+// algorithm). Instead, we record the links back from the children in
+// the graph to parents at the given Earley state. When we come back
+// to draw lines in the final tree, we will need to know which child
+// we are in that link. Note, if empty strings are allowed in a
+// production (in lingo, parts of the rule are 'nullable'), it's
+// possible we can have the same parent node from one state, through
+// multiple links. In that case, we will definitely end up with
+// multiple Earley states linked; the cursor position in the linked
+// state tells us which edge in the graph we're supposed to follow.
+//
+// The thing to note here is that the cursor position is key to the
+// graph action we take. If we're at the very beginning, we create a
+// new node when we create the state.
+//
+// As we 'scan' past parts of the rule, we 'move' the cursor in rules,
+// knowing that in some possible partial parse, there are going to be
+// sub-nodes; either this is a token scan, or a scan of a
+// non-terminal, which leads to more 'prediction'; in both cases we
+// end up creating children nodes. So if the rule moves the cursor, it
+// represents a link to a child node; we only add *new* nodes for
+// scans when scanning a terminal (a raw token).
+//
+// But it's when we get to the END of a rule (completion) that we get
+// the indication that these nodes we're creating actually are valid
+// for at least a subtree.  Anything that doesn't end with a
+// completion is garbage.
+//
+// In fact, valid parses must have a completion in the very final
+// state, where the 'start_item' associated with it is in state 0
+// somewhere (and must be our start production).
+//
+// So, when we're done, we can proceed as follows:
+//
+// 1. Identify all valid end states.
+//
+// 2. Follow the chain to identify parent subtrees, knowing that those
+//    nodes are definitely 'good'.
+//
+// 3. Work backwords looking at the chain of events to find the other
+//    'good' subtrees.
+//
+// #3 is the hard thing. I've done this a number of ways; the most
+// straightforward thing is to work backwards up the earley state
+// chart to create all possible valid subtrees, and then come back and
+// see where it makes sense to link them up. That essentially means,
+// we make a second pass that gets rid of a big bunch of the junk and
+// makes it easy to fix up the forest of trees in a third pass.
+//
+// However, the more proper way is to identify where we need to
+// complete subtrees, and then recursively apply the algorithm. To
+// that end, we keep track of the 'prior scan' state. That way, we can
+// find the top of a sub-tree; the bottom of it will be found
+// somewhere in the Earley state above ours. This is obvious how to do
+// when we scan a token, since there's no chance for ambiguity, and no
+// cascades of completions.
+//
+// But it's actually simple even for non-terminals; whenever the
+// cursor advances, that's a scan, and we should reset the value when
+// we tell the function that copies an earley state to move the
+// cursor. (Other times, it propogates the existing value).
+//
+// In all cases, ambiguity is not our friend; nodes may be part of
+// multiple subtrees. To that end, during this tree construction
+// phase, we keep a worklist of tasks to perform.  The tree building
+// actually lives in parse_tree.c though!
+//
+// Also, I added my own notion of groups that's a bit more higher
+// level than just generating raw BNF. This mostly works like regular
+// non-terminals, except we keep a little bit of extra info around on
+// the minimum and maximum number of matches we accept; if we hit the
+// maximum, we currently stop predicting new items. Conversely, if
+// there is a minimum we have not hit, then we refuse to 'complete'
+// the top-level group. In between, whenever we get to the end of a
+// group item, we will both predict a new group item AND complete the
+// group.
+//
+// The group implementation basically uses anonymous non-terminals
+// (right now they get a random id every time they are expanded;
+// perhaps should make them unique per grammar). The major difference
+// is we do a bit of accounting per above.
+//
+// Another thing: the grammar API can transform grammar rules to do
+// error detection automatically (an algorithm by Aho). Basically
+// here, we add in productions that match mistakes, but assign those
+// mistakes a 'penalty'.
+//
+// The parser adds the rule to states as it parses. But as we parse
+// and build the the final tree, we stop working on things where the
+// penalty is too high (we have to keep this low to avoid an
+// exponential explosion of work).
+//
+// Currently, the error transformations only get applied to terminals
+// within non-terminal rules.
+
 #define C4M_USE_INTERNAL_API
-#define GROUP_ID 1 << 26
 #include "con4m.h"
 
-#if defined(C4M_EARLEY_DEBUG_VERBOSE) && !defined(C4M_EARLEY_DEBUG)
-#define C4M_EARLEY_DEBUG
-static c4m_grid_t *get_parse_state(c4m_parser_t *parser, bool next);
-#endif
-
-static c4m_utf8_t *repr_rule(c4m_grammar_t *, c4m_list_t *, int);
-static c4m_list_t *repr_earley_item(c4m_parser_t      *parser,
-                                    c4m_earley_item_t *cur,
-                                    int                id);
-static c4m_utf8_t *repr_nonterm(c4m_grammar_t *grammar, int64_t id);
-
-static inline c4m_earley_state_t *
-new_earley_state(int id)
-{
-    c4m_earley_state_t *result;
-
-    result = c4m_gc_alloc_mapped(c4m_earley_state_t, C4M_GC_SCAN_ALL);
-
-    // List of c4m_earley_item_t objects.
-    result->items = c4m_list(c4m_type_ref());
-    result->id    = id;
-
-    return result;
-}
-
-static inline void
-internal_reset(c4m_parser_t *parser)
-{
-    parser->states           = c4m_list(c4m_type_ref());
-    parser->position         = 0;
-    parser->start            = -1; // Use default start.
-    parser->current_state    = new_earley_state(0);
-    parser->next_state       = NULL;
-    parser->user_context     = NULL;
-    parser->token_cache      = NULL;
-    parser->run              = false;
-    parser->current_line     = 1;
-    parser->current_column   = 0;
-    parser->preloaded_tokens = false;
-    // Leave the tokenizer if any, and ignore_escaped_newlines.
-
-    c4m_list_append(parser->states, parser->current_state);
-}
-
-static void
-c4m_parser_init(c4m_parser_t *parser, va_list args)
-{
-    parser->grammar = va_arg(args, c4m_grammar_t *);
-    internal_reset(parser);
-}
-
-static void
-c4m_forest_init(c4m_forest_item_t *f, va_list args)
-{
-    f->kind = va_arg(args, c4m_forest_node_kind);
-    switch (f->kind) {
-    case C4M_FOREST_ROOT:
-    case C4M_FOREST_NONTERM:
-    case C4M_FOREST_GROUP_TOP:
-    case C4M_FOREST_GROUP_ITEM:
-        f->kids = c4m_list(c4m_type_forest());
-        break;
-    default:
-        break;
-    }
-}
-
-static void
-c4m_grammar_init(c4m_grammar_t *grammar, va_list args)
-{
-    grammar->named_terms  = c4m_list(c4m_type_terminal());
-    grammar->rules        = c4m_list(c4m_type_ruleset());
-    grammar->rule_map     = c4m_dict(c4m_type_utf8(), c4m_type_u64());
-    grammar->terminal_map = c4m_dict(c4m_type_utf8(), c4m_type_u64());
-}
-
-static void
-c4m_terminal_init(c4m_terminal_t *terminal, va_list args)
-{
-    bool found;
-
-    c4m_grammar_t *grammar = va_arg(args, c4m_grammar_t *);
-    terminal->value        = va_arg(args, c4m_utf8_t *);
-
-    // Special-case single character terminals to their codepoint.
-    if (c4m_str_codepoint_len(terminal->value) == 1) {
-        terminal->id = (int64_t)c4m_index(terminal->value, 0);
-        return;
-    }
-
-    terminal->id = (int64_t)hatrack_dict_get(grammar->terminal_map,
-                                             terminal->value,
-                                             &found);
-
-    if (!found) {
-        int64_t n = c4m_list_len(grammar->named_terms);
-        c4m_list_append(grammar->named_terms, terminal);
-
-        // If there's a race condition, we may not get the slot we
-        // think we're getting. And it's slightly possible we might
-        // add the same terminal twice in parallel, in which case we
-        // accept there might be a redundant item in the list.
-        while (true) {
-            c4m_terminal_t *t = c4m_list_get(grammar->named_terms, n, NULL);
-
-            if (t == terminal || c4m_str_eq(t->value, terminal->value)) {
-                n += C4M_START_TOK_ID;
-                terminal->id = n;
-                hatrack_dict_add(grammar->terminal_map, terminal->value, (void *)n);
-                return;
-            }
-            n++;
-        }
-    }
-}
-
-static void
-c4m_nonterm_init(c4m_nonterm_t *nonterm, va_list args)
-{
-    // With non-terminal addition, we have a similar race condition
-    // with terminals. Here, however, we are going to stick rule state in
-    // the objects, so we need to error if there are dupe rule names,
-    // since we cannot currently bait-and-switch the object on the
-    // call to c4m_new() (though that's a good feature to add).
-    //
-    // Note that a name of NULL indicates an anonymous node, which we
-    // don't add to the dictionary, but we do add to the list.
-
-    bool           found;
-    c4m_utf8_t    *err;
-    int64_t        n;
-    c4m_grammar_t *grammar = va_arg(args, c4m_grammar_t *);
-    nonterm->name          = va_arg(args, c4m_utf8_t *);
-    nonterm->rules         = c4m_list(c4m_type_ref()); // c4m_pitem_t is internal.
-
-    if (nonterm->name == NULL) {
-        // Anonymous / inline rule.
-        n = c4m_list_len(grammar->rules);
-        c4m_list_append(grammar->rules, nonterm);
-        while (true) {
-            c4m_nonterm_t *nt = c4m_list_get(grammar->rules, n, NULL);
-
-            if (nt == nonterm) {
-                nonterm->id = n;
-                return;
-            }
-
-            n++;
-        }
-    }
-
-    hatrack_dict_get(grammar->rule_map, nonterm->name, &found);
-
-    if (found) {
-bail:
-        err = c4m_cstr_format("Duplicate ruleset name: [em]{}[/]",
-                              nonterm->name);
-        C4M_RAISE(err);
-    }
-
-    n = c4m_list_len(grammar->rules);
-    c4m_list_append(grammar->rules, nonterm);
-
-    // If there's a race condition, we may not get the slot we
-    // think we're getting. And it's slightly possible we might
-    // add the same terminal twice in parallel, in which case we
-    // accept there might be a redundant item in the list.
-    while (true) {
-        c4m_nonterm_t *nt = c4m_list_get(grammar->rules, n, NULL);
-
-        if (nt == nonterm) {
-            hatrack_dict_add(grammar->rule_map, nonterm->name, (void *)n);
-            nonterm->id = n;
-
-            return;
-        }
-        if (c4m_str_eq(nt->name, nonterm->name)) {
-            goto bail;
-        }
-
-        n++;
-    }
-}
-
-// First, the core parsing algorithm needs to know when rules can
-// match the empty string (i.e., be nullable), so we can determine if
-// parse rules can match the empty string.
-//
-// An individual production in a rule set is nullable if every
-// component in it is nullable.
-//
-// We explicitly skip over direct recursion, and detect indirect
-// recursion.  In such cases, the correct thing to do is skip.
-//
-// Consider a production like:
-//
-// A ::= B A | 'eof'
-//
-// Certainly there could be a subrule that doesn't recurse may
-// be nullable. But in this case, the rule basically says, "A
-// is a list of B's, followed by 'eof'". For this directly
-// recursive rule, the 'eof' branch is not nullable, but the
-// left branch is obviously nullable iff B is
-// nullable. Recursing on A does not give us any additional
-// information.
-
-static bool c4m_is_nullable_pitem(c4m_grammar_t *, c4m_pitem_t *, c4m_list_t *);
-static bool
-c4m_calculate_is_nullable_nt(c4m_grammar_t *,
-                             int64_t,
-                             c4m_list_t *);
-
-static bool
-check_stack_for_nt(c4m_list_t *stack, int64_t ruleset)
-{
-    // Return true if 'ruleset' is in the stack, false otherwise.
-
-    int64_t len = c4m_list_len(stack);
-    for (int64_t i = 0; i < len; i++) {
-        if (ruleset == (int64_t)c4m_list_get(stack, i, NULL)) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-static bool
-c4m_is_nullable_rule(c4m_grammar_t *grammar,
-                     c4m_list_t    *rule,
-                     c4m_list_t    *stack)
-{
-    c4m_pitem_t *item = c4m_list_get(rule, 0, NULL);
-
-    if (!c4m_is_nullable_pitem(grammar, item, stack)) {
-        if (item->kind == C4M_P_NT) {
-            if (check_stack_for_nt(stack, item->contents.nonterm)) {
-                return false;
-            }
-
-            // If it's  a NT, we need to update judgement on the sub-item.
-            return c4m_calculate_is_nullable_nt(grammar,
-                                                item->contents.nonterm,
-                                                stack);
-        }
-    }
-    return false;
-}
-
-static c4m_nonterm_t *
-get_nonterm(c4m_grammar_t *grammar, int64_t id)
-{
-    c4m_nonterm_t *nt = c4m_list_get(grammar->rules, id, NULL);
-
-    if (!nt) {
-        C4M_RAISE(c4m_cstr_format(
-            "Invalid parse ruleset ID [em]{}[/] found (mixing "
-            "rules from a different grammar?",
-            id));
-    }
-
-    return nt;
-}
-
-c4m_nonterm_t *
-c4m_pitem_get_ruleset(c4m_grammar_t *g, c4m_pitem_t *pi)
-{
-    return get_nonterm(g, pi->contents.nonterm);
-}
-
-// When we add a new subrule, we go ahead and re-compute nullability for
-// any used non-terminals. That's not optimal, but whatever.
-static bool
-c4m_calculate_is_nullable_nt(c4m_grammar_t *grammar,
-                             int64_t        nt_id,
-                             c4m_list_t    *stack)
-{
-    // Per above, do not allow ourselves to recurse. We simply claim
-    // to be nullable in that case.
-    if (stack && check_stack_for_nt(stack, nt_id)) {
-        return true;
-    }
-    else {
-        c4m_list_append(stack, (void *)nt_id);
-    }
-
-    // A non-terminal is nullable if any of its individual rules are
-    // nullable.
-    c4m_list_t    *cur_rule;
-    bool           found_any_rule = false;
-    int64_t        i              = 0;
-    c4m_nonterm_t *nt             = get_nonterm(grammar, nt_id);
-
-    cur_rule = c4m_list_get(nt->rules, i++, NULL);
-
-    while (cur_rule) {
-        found_any_rule = true;
-        if (c4m_is_nullable_rule(grammar, cur_rule, stack)) {
-            nt->nullable = true;
-            c4m_list_pop(stack);
-            return true;
-        }
-        cur_rule = c4m_list_get(nt->rules, i++, NULL);
-    }
-
-    // If we got to the end of the list, either it was an empty production,
-    // in which case this is nullable (and found_any_rule is true).
-    //
-    // Otherwise, no rules were nullable, so the rule set
-    // (non-terminal) is not nullable.
-    nt->nullable = !(found_any_rule);
-    c4m_list_pop(stack);
-
-    return nt->nullable;
-}
-
-static bool
-c4m_is_nullable_pitem(c4m_grammar_t *grammar,
-                      c4m_pitem_t   *item,
-                      c4m_list_t    *stack)
-{
-    // There's not a tremendous value in caching nullable here; it is
-    // best cached in the non-terminal node. We recompute only when
-    // adding rules.
-
-    switch (item->kind) {
-    case C4M_P_NULL:
-        return true;
-    case C4M_P_GROUP:
-        if (item->contents.group->min == 0) {
-            return true;
-        }
-        return c4m_is_nullable_rule(grammar,
-                                    item->contents.group->items,
-                                    stack);
-    case C4M_P_NT:
-        return c4m_calculate_is_nullable_nt(grammar,
-                                            item->contents.nonterm,
-                                            stack);
-    default:
-        return false;
-    }
-}
-
-static inline c4m_pitem_t *
-new_pitem(c4m_pitem_kind kind)
-{
-    c4m_pitem_t *result = c4m_gc_alloc_mapped(c4m_pitem_t, C4M_GC_SCAN_ALL);
-
-    result->kind = kind;
-
-    return result;
-}
-
-c4m_pitem_t *
-c4m_pitem_terminal_raw(c4m_grammar_t *p, c4m_utf8_t *name)
-{
-    c4m_pitem_t    *result    = new_pitem(C4M_P_TERMINAL);
-    c4m_terminal_t *tok       = c4m_new(c4m_type_terminal(), p, name);
-    result->contents.terminal = tok->id;
-
-    return result;
-}
-
-c4m_pitem_t *
-c4m_pitem_terminal_cp(c4m_codepoint_t cp)
-{
-    c4m_pitem_t *result       = new_pitem(C4M_P_TERMINAL);
-    result->contents.terminal = cp;
-
-    return result;
-}
-
-c4m_pitem_t *
-c4m_pitem_nonterm_raw(c4m_grammar_t *p, c4m_utf8_t *name)
-{
-    c4m_pitem_t   *result    = new_pitem(C4M_P_NT);
-    c4m_nonterm_t *nt        = c4m_new(c4m_type_ruleset(), p, name);
-    result->contents.nonterm = nt->id;
-
-    return result;
-}
-
-c4m_pitem_t *
-c4m_pitem_choice_raw(c4m_grammar_t *p, c4m_list_t *choices)
-{
-    c4m_pitem_t *result    = new_pitem(C4M_P_SET);
-    result->contents.items = choices;
-
-    return result;
-}
-
-c4m_pitem_t *
-c4m_pitem_any_terminal_raw(c4m_grammar_t *p)
-{
-    c4m_pitem_t *result = new_pitem(C4M_P_ANY);
-
-    return result;
-}
-
-c4m_pitem_t *
-c4m_pitem_builtin_raw(c4m_bi_class_t class)
-{
-    // Builtin character classes.
-    c4m_pitem_t *result    = new_pitem(C4M_P_BI_CLASS);
-    result->contents.class = class;
-
-    return result;
-}
-
-void
-c4m_ruleset_add_empty_rule(c4m_nonterm_t *nonterm)
-{
-    // Not bothering to check for dupes.
-    c4m_pitem_t *item = new_pitem(C4M_P_NULL);
-    c4m_list_append(nonterm->rules, item);
-
-    // The empty rule always makes the whole production nullable, no
-    // need to recurse.
-    nonterm->nullable = true;
-}
-
-void
-c4m_grammar_set_default_start(c4m_grammar_t *grammar, c4m_nonterm_t *nt)
-{
-    grammar->default_start = nt->id;
-}
-
-// This creates an anonymous non-terminal, and adds the contained
-// pitems as a rule. This allows us to easily model grouping rhs
-// pieces in parentheses. For instance:
-//
-// x ::= dont_repeat (foo bar)+ also_no_repeats
-//
-// By creating an anonymous rule (say, ANON1) and rewriting the
-// grammar as:
-//
-// x ::= dont_repeat ANON1+ also_no_repeats
-// ANON1 ::= foo bar
-
-c4m_pitem_t *
-c4m_group_items(c4m_grammar_t *p, c4m_list_t *pitems, int min, int max)
-{
-    c4m_rule_group_t *group = c4m_gc_alloc_mapped(c4m_rule_group_t,
-                                                  C4M_GC_SCAN_ALL);
-
-    group->items = pitems;
-    group->min   = min;
-    group->max   = max;
-
-    c4m_pitem_t *result    = new_pitem(C4M_P_GROUP);
-    result->contents.group = group;
-
-    return result;
-}
-
-void
-c4m_ruleset_add_rule(c4m_grammar_t *g, c4m_nonterm_t *ruleset, c4m_list_t *items)
-{
-    c4m_list_append(ruleset->rules, items);
-
-    c4m_calculate_is_nullable_nt(g, ruleset->id, c4m_list(c4m_type_u64()));
-}
-
-int64_t
-c4m_token_stream_codepoints(c4m_parser_t *parser, void **token_info)
-{
-    c4m_utf32_t     *str = (c4m_utf32_t *)parser->user_context;
-    c4m_codepoint_t *p   = (c4m_codepoint_t *)str->data;
-
-    if (parser->position >= str->codepoints) {
-        return C4M_TOK_EOF;
-    }
-
-    return (int64_t)p[parser->position];
-}
-
-// In this variation, we have already done, say, a 'lex' pass, and
-// have a list of string objects that we need to match against;
-// we are passed strings only, and can pass user-defined info
-// if needed.
-int64_t
-c4m_token_stream_strings(c4m_parser_t *parser, void **token_info)
-{
-    c4m_list_t *list  = (c4m_list_t *)parser->user_context;
-    c4m_str_t  *value = c4m_list_get(list, parser->position, NULL);
-
-    if (!value) {
-        return C4M_TOK_EOF;
-    }
-
-    // If it's a one-character string, the token ID is the codepoint.
-    // doesn't matter if we registered it or not.
-    if (value->codepoints == 1) {
-        value = c4m_to_utf32(value);
-
-        return ((c4m_codepoint_t *)value->data)[0];
-    }
-
-    // Next, check to see if we registered the token, meaning it is an
-    // explicitly named terminal symbol somewhere in the grammar.
-    //
-    // Since any registered tokens are non-zero, we can test for that to
-    // determine if it's registered, instead of passing a bool.
-    c4m_utf8_t *u8 = c4m_to_utf8(value);
-    int64_t     n  = (int64_t)hatrack_dict_get(parser->grammar->terminal_map,
-                                          u8,
-                                          NULL);
-
-    parser->token_cache = u8;
-
-    if (n) {
-        return (int64_t)n;
-    }
-
-    return C4M_TOK_OTHER;
-}
-
-static inline int
-count_newlines(c4m_parser_t *parser, c4m_str_t *tok_value, int *last_index)
-{
-    c4m_utf32_t     *v      = c4m_to_utf32(tok_value);
-    c4m_codepoint_t *p      = (c4m_codepoint_t *)v->data;
-    int              result = 0;
-
-    for (int i = 0; i < v->codepoints; i++) {
-        switch (p[i]) {
-        case '\\':
-            if (parser->ignore_escaped_newlines) {
-                i++;
-                continue;
-            }
-            else {
-                continue;
-            }
-        case '\n':
-            *last_index = i;
-            result++;
-        }
-    }
-
-    return result;
-}
-
-static void
-parser_load_token(c4m_parser_t *parser)
-{
-    c4m_earley_state_t *state = parser->current_state;
-
-    // Load the token for the *current* state; do NOT advance the
-    // state. The current state object is expected to be initialized.
-    //
-    // If we were handed a list of c4m_token_info_t objects instead of
-    // a callback, then we load info from a list store in token_cache,
-    // reusing those token objects, until / unless we need to add an
-    // EOF.
-
-    if (parser->preloaded_tokens) {
-        c4m_list_t *toks = (c4m_list_t *)parser->token_cache;
-        bool        found;
-
-        state->token = c4m_list_get(toks, parser->position, &found);
-
-        if (!found) {
-            state->token = c4m_gc_alloc_mapped(c4m_token_info_t,
-                                               C4M_GC_SCAN_ALL);
-
-            state->token->tid = C4M_TOK_EOF;
-        }
-
-        state->token->index = state->id;
-
-        return;
-    }
-
-    // In this branch, we don't have a pre-existing list of tokens. We
-    // are either processing a single string as characters, or
-    // processing a list of strings.
-    //
-    // We get the next token generically across those via an internal
-    // callback.  Unlike the above case, the token_cache is used to
-    // stash the literal value when needed.
-
-    c4m_token_info_t *tok = c4m_gc_alloc_mapped(c4m_token_info_t,
-                                                C4M_GC_SCAN_ALL);
-
-    state->token = tok;
-
-    // Clear this to make sure we don't accidentally reuse.
-    parser->token_cache = NULL;
-    tok->tid            = (*parser->tokenizer)(parser, &tok->user_info);
-    tok->line           = parser->current_line;
-    tok->column         = parser->current_column;
-    tok->index          = state->id;
-
-    if (tok->tid == C4M_TOK_EOF) {
-        return;
-    }
-    if (tok->tid == C4M_TOK_OTHER) {
-        tok->value = parser->token_cache;
-    }
-    else {
-        if (tok->tid < C4M_START_TOK_ID) {
-            tok->value = c4m_utf8_repeat(tok->tid, 1);
-        }
-        else {
-            c4m_terminal_t *ti = c4m_list_get(parser->grammar->named_terms,
-                                              tok->tid - C4M_START_TOK_ID,
-                                              0);
-            if (ti->value) {
-                tok->value = ti->value;
-            }
-            else {
-                tok->value = parser->token_cache;
-            }
-        }
-    }
-
-    // If we have no value string associated with the token, then we
-    // assume it's an invisible token of some sort, and are done.
-    if (!tok->value || !tok->value->codepoints) {
-        return;
-    }
-
-    // Otherwise, we assume the value should be used in advancing the
-    // line / column info we keep. This is basically calculating the
-    // END position of the token, which we will insert into the next
-    // token.
-    int last_nl_ix;
-    int nl_count = count_newlines(parser, tok->value, &last_nl_ix);
-
-    if (nl_count) {
-        parser->current_line += nl_count;
-        parser->current_column = c4m_str_codepoint_len(tok->value - (last_nl_ix + 1));
-    }
-    else {
-        parser->current_column += tok->value->codepoints;
-    }
-}
+static inline void set_next_action(c4m_parser_t *, c4m_earley_item_t *);
 
 static inline bool
 are_dupes(c4m_earley_item_t *old, c4m_earley_item_t *new)
 {
+    if (old->estate_id != new->estate_id) {
+        return false;
+    }
+
     if (old->ruleset_id != new->ruleset_id) {
         return false;
     }
@@ -661,70 +160,67 @@ are_dupes(c4m_earley_item_t *old, c4m_earley_item_t *new)
         return false;
     }
 
-    if (old->ginfo != new->ginfo) {
+    if (old->group != new->group) {
+        return false;
+    }
+
+    if (old->double_dot != new->double_dot) {
+        return false;
+    }
+
+    if (old->penalty != new->penalty) {
         return false;
     }
 
     return true;
 }
 
-static inline void
-merge_parents(c4m_earley_item_t *keeper, c4m_earley_item_t *tmpone)
+static inline c4m_earley_item_t *
+search_for_existing_state(c4m_earley_state_t *s, c4m_earley_item_t *ei, int n)
 {
-    int n = c4m_list_len(tmpone->possible_parents);
-
     for (int i = 0; i < n; i++) {
-        c4m_earley_item_t *c = c4m_list_get(tmpone->possible_parents, i, NULL);
-        if (c != keeper) {
-            c4m_list_append(keeper->possible_parents, c);
+        c4m_earley_item_t *existing = c4m_list_get(s->items, i, NULL);
+
+        if (are_dupes(existing, ei)) {
+            return existing;
         }
     }
+
+    return NULL;
 }
 
-static bool
-add_item_if_not_dupe(c4m_parser_t       *p,
-                     c4m_earley_state_t *state,
-                     c4m_earley_item_t *new)
+static void
+add_item(c4m_parser_t *p, c4m_earley_item_t **newptr, bool next_state)
 {
-    int n = c4m_list_len(state->items);
+    // The state we use for duping could also be hashed to avoid the
+    // state scan if that ever were an issue.
+    c4m_earley_state_t *state = next_state ? p->next_state : p->current_state;
+    c4m_earley_item_t *new    = *newptr;
+    int n                     = c4m_list_len(state->items);
+    new->estate_id            = state->id;
+    new->eitem_index          = n;
 
-    new->estate_id   = state->id;
-    new->eitem_index = n;
-
-    for (int i = 0; i < n; i++) {
-        c4m_earley_item_t *old = c4m_list_get(state->items, i, NULL);
-
-        if (are_dupes(old, new)) {
-#if defined(C4M_EARLEY_DEBUG_VERBOSE)
-            c4m_printf("[h5]Actually no, it's a dupe.");
-#endif
-            merge_parents(old, new);
-            return false;
-        }
+    if (new->penalty >= C4M_MAX_PARSE_PENALTY) {
+        return;
     }
 
+    c4m_earley_item_t *existing = search_for_existing_state(state, new, n);
+
+    if (existing) {
+        *newptr = existing;
+        return;
+    }
     c4m_list_append(state->items, new);
-#if defined(C4M_EARLEY_DEBUG_VERBOSE)
-    if (state == p->current_state) {
-        c4m_printf("[h2]Appended to current state ({}), which is now:[/]\n",
-                   p->position);
-        c4m_print(get_parse_state(p, false));
-    }
-    else {
-        c4m_printf("[h2]Appended to next state ({}), which is now:[/]\n",
-                   p->position + 1);
-        c4m_print(get_parse_state(p, true));
-    }
-#endif
-
-    return true;
+    set_next_action(p, new);
 }
 
-static c4m_earley_item_t *
+static inline c4m_earley_item_t *
 new_earley_item(void)
 {
     c4m_earley_item_t *res = c4m_gc_alloc_mapped(c4m_earley_item_t,
                                                  C4M_GC_SCAN_ALL);
+    res->starts            = c4m_set(c4m_type_ref());
+    res->predictions       = c4m_set(c4m_type_ref());
 
     return res;
 }
@@ -736,16 +232,16 @@ copy_earley_item(c4m_parser_t *p, c4m_earley_item_t *old, bool bump_cursor)
 {
     c4m_earley_item_t *new = new_earley_item();
     new->start_item        = old->start_item;
-    new->start_state       = old->start_state;
     new->rule              = old->rule;
     new->ruleset_id        = old->ruleset_id;
     new->rule_index        = old->rule_index;
     new->cursor            = old->cursor;
-    new->ginfo             = old->ginfo;
+    new->group             = old->group;
     new->match_ct          = old->match_ct;
+    new->penalty           = old->penalty;
 
     if (bump_cursor) {
-        new->cursor++;
+        new->cursor        = new->cursor + 1;
         new->previous_scan = old;
     }
     else {
@@ -755,156 +251,227 @@ copy_earley_item(c4m_parser_t *p, c4m_earley_item_t *old, bool bump_cursor)
     return new;
 }
 
-// Only returns non-null if n is 1, in which case it returns the
-// earley item it created. This is because for groups only, we want to
-// populate the `group` field, and it felt slightly less messy than
-// the extra parameter.
-static c4m_earley_item_t *
-base_add_ruleset(c4m_parser_t      *p,
-                 int64_t            id,
-                 c4m_list_t       **rules,
-                 int64_t            n,
-                 c4m_earley_item_t *parent_node)
+static inline void
+set_next_action(c4m_parser_t *p, c4m_earley_item_t *ei)
 {
-    c4m_earley_state_t *s = p->current_state;
+    // At it's core, this is about the cursor position and what's to
+    // the right of the cursor.
+    if (ei->cursor == c4m_list_len(ei->rule)) {
+        if (ei->group) {
+            if (ei->start_item->double_dot) {
+                ei->op = C4M_EO_COMPLETE_G;
+            }
+            else {
+                ei->op = C4M_EO_COMPLETE_I;
+            }
+            return;
+        }
+        ei->op = C4M_EO_COMPLETE_N;
+        return;
+    }
+
+    // The only other case where the double dot shows up is already
+    // handled above. Since we already grabbed the group and expanded
+    // it, looking at the next pitem isn't the right thing here
+    // anyway.
+    if (ei->double_dot) {
+        ei->op = C4M_EO_PREDICT_I;
+        return;
+    }
+
+    c4m_pitem_t *next = c4m_list_get(ei->rule, ei->cursor, NULL);
+
+    switch (next->kind) {
+    case C4M_P_NULL:
+        ei->op = C4M_EO_SCAN_NULL;
+        return;
+    case C4M_P_TERMINAL:
+        ei->op = C4M_EO_SCAN_TOKEN;
+        return;
+    case C4M_P_ANY:
+        ei->op = C4M_EO_SCAN_ANY;
+        return;
+    case C4M_P_BI_CLASS:
+        ei->op = C4M_EO_SCAN_CLASS;
+        return;
+    case C4M_P_SET:
+        ei->op = C4M_EO_SCAN_SET;
+        return;
+    case C4M_P_NT:
+        ei->op = C4M_EO_PREDICT_NT;
+        return;
+    case C4M_P_GROUP:
+        ei->op = C4M_EO_PREDICT_G;
+        return;
+    default:
+        c4m_unreachable();
+    }
+}
+
+static void
+predict_nt(c4m_parser_t      *p,
+           int64_t            id,
+           c4m_list_t        *rules,
+           c4m_earley_item_t *predicted_by,
+           int                penalty)
+{
+    // Since 'predicted_by' is effectively a parent link, when we are
+    // predicting subsequent group items, the caller will pass in the
+    // state associated with the group top. We currently don't cache
+    // it; we follow the previous_scan back until there isn't one to
+    // find the first match node in the group, and pass in its parent
+    // (If there's more than one production that, in the face of
+    // ambiguity, can generate the same group in the same place, we
+    // always generate unique groups; every group prediction gets a
+    // random ID toensure uniqueness.
+    //
+    // This is something I might go back on, because in the face of
+    // ambiguity, it could amplify worst-case performance. But it also
+    // makes life a lot easier until I prove I need to do it.
+
+    int n = c4m_list_len(rules);
 
     for (int64_t i = 0; i < n; i++) {
-        c4m_earley_item_t *item = new_earley_item();
-        item->ruleset_id        = id;
-        item->rule_index        = i;
-        item->rule              = rules[i];
-        item->match_ct          = 0;
-        item->start_state       = s;
-        item->start_item        = item;
-        item->possible_parents  = c4m_list(c4m_type_ref());
-        item->creation_item     = parent_node;
+        c4m_earley_item_t *ei = new_earley_item();
+        ei->estate_id         = p->position;
+        ei->ruleset_id        = id;
+        ei->rule_index        = i;
+        ei->rule              = c4m_list_get(rules, i, NULL);
+        ei->start_item        = ei;
+        ei->penalty           = penalty;
+        ei->cursor            = 0;
 
-        if (parent_node && parent_node != item) {
-            c4m_list_append(item->possible_parents, parent_node);
+        if (predicted_by) {
+            ei->penalty += predicted_by->penalty;
         }
+        // If this item already exists in the same state, we'll get
+        // back the old item; the rest of the stuff is redundant.
+        add_item(p, &ei, false);
 
-        add_item_if_not_dupe(p, s, item);
-        if (n == 1) {
-            // Meant for groups; non-group just ignores.
-            return item;
+        // Only time predicted_by doesn't exist is during the
+        // setup / loading of the start non-terminal. But recursive rules
+        // that directly predict themselves don't count as creating themselves.
+        if (predicted_by && predicted_by != ei) {
+            // The first one of these only gets set when entering a new rule.
+            // The second gets set any time a state gets created.
+            hatrack_set_put(ei->starts, predicted_by);
+            hatrack_set_put(predicted_by->predictions, ei);
         }
     }
-    return NULL;
 }
 
 static inline void
-add_ruleset_to_state(c4m_parser_t      *p,
-                     c4m_nonterm_t     *nt,
-                     c4m_earley_item_t *parent_node)
+predict_group(c4m_parser_t *p, c4m_earley_item_t *predictor)
 {
-    int64_t      n;
-    c4m_list_t **rules = c4m_list_view(nt->rules, (uint64_t *)&n);
+    c4m_pitem_t      *next = c4m_list_get(predictor->rule,
+                                     predictor->cursor,
+                                     NULL);
+    c4m_rule_group_t *g    = next->contents.group;
 
-    base_add_ruleset(p, nt->id, rules, n, parent_node);
+    c4m_earley_item_t *ei = new_earley_item();
+    ei->estate_id         = p->position;
+    ei->group             = g;
+    ei->rule              = g->items;
+    ei->ruleset_id        = c4m_rand32();
+    ei->double_dot        = true;
+    ei->cursor            = 0;
+    ei->start_item        = ei;
+
+    add_item(p, &ei, false);
+
+    if (predictor && predictor != ei) {
+        hatrack_set_put(ei->starts, predictor);
+        hatrack_set_put(predictor->predictions, ei);
+    }
 }
 
-static void
-add_group_to_state(c4m_parser_t      *p,
-                   c4m_rule_group_t  *group,
-                   c4m_earley_item_t *from_node)
+static inline void
+predict_group_item(c4m_parser_t      *p,
+                   c4m_earley_item_t *top,
+                   c4m_earley_item_t *prev,
+                   int                count)
 {
-    c4m_earley_item_t *item;
+    // `top` is always a group top, and `prev` is the previous scan,
+    // if any.
+    c4m_earley_item_t *ei = copy_earley_item(p, top, false);
 
-    item        = base_add_ruleset(p, GROUP_ID, &group->items, 1, from_node);
-    item->ginfo = c4m_gc_alloc_mapped(c4m_egroup_info_t, C4M_GC_SCAN_ALL);
+    // We'll know we're the first item if double_dot is set in the predictor.
+    ei->double_dot    = false;
+    ei->previous_scan = prev;
+    ei->cursor        = 0;
+    ei->start_item    = ei;
+    ei->match_ct      = count;
 
-    item->ginfo->group           = group;
-    item->ginfo->prev_item_start = NULL;
-    item->ginfo->prev_item_end   = NULL;
-    item->ginfo->true_start      = item;
-}
-
-static void
-enter_next_state(c4m_parser_t *parser)
-{
-    // If next_state is NULL, then we skip advancing the state, because
-    // we're really going from -1 into 0.
-    if (parser->next_state != NULL) {
-        parser->position++;
-        parser->current_state = parser->next_state;
+    add_item(p, &ei, false); // Add our item prediction to the same state.
+    if (top != ei) {
+        hatrack_set_put(ei->starts, top);
+        hatrack_set_put(top->predictions, ei);
     }
-    else {
-        // Load the start ruleset.
-        c4m_grammar_t *grammar = parser->grammar;
-        int            ix      = parser->start;
-        c4m_nonterm_t *start   = get_nonterm(grammar, ix);
-
-        parser->cur_item_index = C4M_IX_START_OF_PROGRAM;
-        add_ruleset_to_state(parser, start, NULL);
-    }
-
-    parser->next_state = new_earley_state(c4m_list_len(parser->states));
-    c4m_list_append(parser->states, parser->next_state);
-
-    parser_load_token(parser);
 }
 
 static inline bool
 is_nullable(c4m_parser_t *parser, int64_t nonterm_id)
 {
-    c4m_nonterm_t *nt = get_nonterm(parser->grammar, nonterm_id);
+    c4m_nonterm_t *nt = c4m_get_nonterm(parser->grammar, nonterm_id);
 
     return nt->nullable;
 }
 
-static void
+static inline void
 try_nullable_prediction(c4m_parser_t      *parser,
-                        c4m_earley_item_t *old,
-                        c4m_pitem_t       *next)
+                        c4m_earley_item_t *ei)
 {
-    if (next->kind != C4M_P_NT) {
-        return;
-    }
+    // This is perhaps the most unintuitive thing in all of the Earley
+    // algorithm once you understand it (and even then it wasn't part
+    // of the original algorithm, someone else came up with it).
+    //
+    // The purpose here is to more easily handle rules like x: FOO BAR
+    // when FOO can accept the empty string; this basically just
+    // copies the state and advances the cursor, then adds it to this
+    // state, so that we'll give the current character a chance with
+    // the second term in the production.
+    //
+    // That's why this doesn't follow the main 'predict' logic; it's a
+    // shortcut that is mostly just copying.
+    //
+    // Note that passing 'true' to add_earley item advances the
+    // cursor for us.
+    //
+    // The only accounting we track here is the 'creator'; the tree
+    // building algorithm will be able to see when such a prediction
+    // was part of a valid subtree and it can generate the empty
+    // string token for us.
+    //
+    // We don't even need to update the state ID, since this will always
+    // have been added by an item in our exact same state.
+
+    c4m_pitem_t *next = c4m_list_get(ei->rule, ei->cursor, NULL);
+
     if (!is_nullable(parser, next->contents.nonterm)) {
         return;
     }
+    c4m_earley_item_t *new = copy_earley_item(parser, ei, true);
 
-    c4m_earley_item_t *new = copy_earley_item(parser, old, true);
-    new->creation_item     = old;
-    add_item_if_not_dupe(parser, parser->current_state, new);
+    // Add the item to the CURRENT state.
+    add_item(parser, &new, false);
 }
 
-static inline bool
-is_non_terminal(c4m_pitem_t *pitem)
+static inline void
+non_nullable_prediction(c4m_parser_t *parser, c4m_earley_item_t *ei)
 {
-    switch (pitem->kind) {
-    case C4M_P_NT:
-    case C4M_P_GROUP:
-        return true;
-    default:
-        return false;
-    }
-}
+    c4m_pitem_t   *next = c4m_list_get(ei->rule, ei->cursor, NULL);
+    c4m_nonterm_t *nt   = c4m_get_nonterm(parser->grammar,
+                                        next->contents.nonterm);
 
-static void
-non_nullable_prediction(c4m_parser_t      *parser,
-                        c4m_earley_item_t *old,
-                        c4m_pitem_t       *next)
-{
-    if (next->kind == C4M_P_NULL) {
-        return;
+    // If a non-terminal manages to get added with no rules, and
+    // we didn't add a null production up front, we're doing it now,
+    // just because it's easier if we can keep the precondition of the
+    // rules being fully populated with items.
+    if (!c4m_list_len(nt->rules)) {
+        c4m_ruleset_add_empty_rule(nt);
     }
 
-    if (next->kind == C4M_P_GROUP) {
-#if defined(C4M_EARLEY_DEBUG_VERBOSE)
-        c4m_printf("[i]Predict a new group.");
-#endif
-        add_group_to_state(parser, next->contents.group, old);
-    }
-
-    else {
-        c4m_nonterm_t *nt = get_nonterm(parser->grammar, next->contents.nonterm);
-#if defined(C4M_EARLEY_DEBUG_VERBOSE)
-        c4m_printf("[i]Predict {}.",
-                   repr_nonterm(parser->grammar, next->contents.nonterm));
-#endif
-        add_ruleset_to_state(parser, nt, old);
-    }
+    predict_nt(parser, nt->id, nt->rules, ei, nt->penalty);
 }
 
 static bool
@@ -952,229 +519,343 @@ char_in_class(c4m_codepoint_t cp, c4m_bi_class_t class)
 
     c4m_unreachable();
 }
+
 static inline bool
-can_scan_one(c4m_codepoint_t cp, c4m_pitem_t *to_match)
+matches_set(c4m_parser_t *parser, c4m_codepoint_t cp, c4m_list_t *set_items)
 {
-    switch (to_match->kind) {
-    case C4M_P_ANY:
-        return true;
-    case C4M_P_GROUP:
-        // Groups are effectively anonymous non-terminals; they
-
-        // get predicted first, then their pieces scanned.
-        return false;
-    case C4M_P_TERMINAL:
-        return cp == (int32_t)to_match->contents.terminal;
-    case C4M_P_BI_CLASS:
-        return char_in_class(cp, to_match->contents.class);
-    default:
-        c4m_unreachable();
-    }
-}
-
-static void
-scan(c4m_parser_t *parser, c4m_earley_item_t *eitem, c4m_pitem_t *to_match)
-{
-    c4m_pitem_t *sub;
-    switch (to_match->kind) {
-    case C4M_P_ANY:
-        break;
-    case C4M_P_TERMINAL:
-    case C4M_P_BI_CLASS:
-        if (can_scan_one(parser->current_state->token->tid, to_match)) {
-            break;
-        }
-#if defined(C4M_EARLEY_DEBUG_VERBOSE)
-        c4m_printf("[i]SCAN FAILED.");
-#endif
-        return;
-    case C4M_P_GROUP:
-#if defined(C4M_EARLEY_DEBUG_VERBOSE)
-        c4m_printf("[i]SCAN FAILED.");
-#endif
-        return;
-    case C4M_P_SET:
-        for (int i = 0; i < c4m_list_len(to_match->contents.items); i++) {
-            sub = c4m_list_get(to_match->contents.items, i, NULL);
-
-            switch (sub->kind) {
-            case C4M_P_TERMINAL:
-            case C4M_P_ANY:
-            case C4M_P_BI_CLASS:
-                if (can_scan_one(parser->current_state->token->tid, sub)) {
-                    goto success;
-                }
-                continue;
-            default:
-                C4M_CRAISE("Invalid item in custom character class.");
-            }
-            break;
-        }
-#if defined(C4M_EARLEY_DEBUG_VERBOSE)
-        c4m_printf("[i]SCAN FAILED.");
-#endif
-        return;
-    default:
-        c4m_unreachable();
-    }
-
-success:;
-    // Now create the successor state.
-    c4m_earley_item_t *copy = copy_earley_item(parser, eitem, true);
-    copy->creation_item     = eitem;
-
-#if defined(C4M_EARLEY_DEBUG_VERBOSE)
-    c4m_printf("[em]Successful scan; add successor rule.");
-#endif
-    add_item_if_not_dupe(parser, parser->next_state, copy);
-}
-static void
-cascade_completions(c4m_parser_t      *parser,
-                    c4m_earley_item_t *end_item,
-                    c4m_earley_item_t *creator)
-{
-    c4m_list_t        *parents = end_item->start_item->possible_parents;
-    c4m_earley_item_t *parent;
-    int                n = c4m_list_len(parents);
+    // Return true if there's a match.
+    int n = c4m_list_len(set_items);
 
     for (int i = 0; i < n; i++) {
-        parent = c4m_list_get(parents, i, NULL);
-        if (!parent) {
+        c4m_pitem_t *sub = c4m_list_get(set_items, i, NULL);
+
+        switch (sub->kind) {
+        case C4M_P_ANY:
+            return true;
+        case C4M_P_TERMINAL:
+            if (cp == (int32_t)sub->contents.terminal) {
+                return true;
+            }
             continue;
+        case C4M_P_BI_CLASS:
+            if (char_in_class(cp, sub->contents.class)) {
+                return true;
+            }
+            continue;
+        default:
+            c4m_unreachable();
         }
-        // Copy the parent. Then, advance the dot and add to our current state.
-        parent                = copy_earley_item(parser, parent, true);
-        parent->creation_item = creator;
-        add_item_if_not_dupe(parser, parser->current_state, parent);
-    }
-}
-
-static void
-complete_group(c4m_parser_t *parser, c4m_earley_item_t *eitem)
-{
-    c4m_earley_item_t *copy;
-    c4m_rule_group_t  *group = eitem->ginfo->group;
-
-    eitem->match_ct++;
-
-    // Assuming we haven't hit the max instances for the group, we
-    // predict a new successor of the group items. Later, if we've hit
-    // the minimum, we will also complete the group.
-
-    // If max is 0 / -1 it means 'no max'.
-    if (group->max <= 0 || group->max > eitem->match_ct) {
-        // False since we want to reset the location to the start of rule
-        copy                          = copy_earley_item(parser, eitem, false);
-        copy->start_item              = copy;
-        copy->cursor                  = 0;
-        copy->ginfo                   = c4m_gc_alloc_mapped(c4m_egroup_info_t,
-                                          C4M_GC_SCAN_ALL);
-        copy->ginfo->true_start       = eitem->ginfo->true_start;
-        copy->ginfo->prev_item_end    = eitem;
-        copy->ginfo->prev_item_start  = eitem->start_item;
-        eitem->ginfo->next_item_start = copy;
-        copy->ginfo->group            = group;
-        copy->creation_item           = eitem;
-
-#if defined(C4M_EARLEY_DEBUG_VERBOSE)
-        c4m_printf("[em]Adding item for possible next iteration.");
-#endif
-        add_item_if_not_dupe(parser, parser->current_state, copy);
     }
 
-    // If we haven't hit the minimum number of iterations for this
-    // rule, then we don't have a full completion of the group,
-    // just a partial one, so don't add the full completion.
-    if (eitem->ginfo->group->min > eitem->match_ct) {
-#if defined(C4M_EARLEY_DEBUG_VERBOSE)
-        c4m_printf("[i]Cannot complete; minimum not met.");
-#endif
-        return;
-    }
-
-#if defined(C4M_EARLEY_DEBUG_VERBOSE)
-    c4m_printf("[em]Add the group successor.");
-#endif
-    cascade_completions(parser, eitem->ginfo->true_start, eitem);
+    return false;
 }
 
 static inline void
-complete(c4m_parser_t *parser, c4m_earley_item_t *eitem)
+handle_token_scan(c4m_parser_t *parser, c4m_earley_item_t *ei)
 {
-    // If it's a grouping where there's a min / max associated with
-    // it, we want to only push the same rule if we haven't hit the
-    // minimum.
-    //
-    // And, if haven't hit the max, we re-push our rule from
-    // the beginning.
+    c4m_earley_item_t *copy = copy_earley_item(parser, ei, true);
+    copy->starts            = ei->starts;
+    copy->penalty           = ei->penalty;
+    add_item(parser, &copy, true);
+}
 
-    if (eitem->ginfo != NULL) {
-        complete_group(parser, eitem);
+#if 0
+static inline void
+scan_penalty(c4m_parser_t *parser, c4m_earley_item_t *ei)
+{
+    if (ei->penalty >= C4M_MAX_PARSE_PENALTY) {
         return;
     }
 
-    cascade_completions(parser, eitem, eitem);
+    c4m_earley_item_t *copy = copy_earley_item(parser, ei, false);
+
+    add_item(parser, &copy, true);
+    copy->penalty++;
+
+    if (copy->cursor == 0) {
+        copy->start_item = copy;
+	copy->starts            = old->starts;
+
+        c4m_list_t *starts = c4m_set_to_xlist(ei->starts);
+
+        for (int i = 0; i < c4m_list_len(starts); i++) {
+            c4m_earley_item_t *ei = c4m_list_get(starts, i, NULL);
+            hatrack_set_add(ei->predictions, copy);
+        }
+    }
+
+    copy->previous_scan = ei->previous_scan;
+}
+#endif
+
+static inline void
+scan_null(c4m_parser_t *parser, c4m_earley_item_t *ei)
+{
+    // Every other scan advances the state when it adds an item; this
+    // one does not.
+    c4m_earley_item_t *copy = copy_earley_item(parser, ei, true);
+    copy->starts            = ei->starts;
+
+    add_item(parser, &copy, false);
+}
+
+static inline void
+scan_class(c4m_parser_t *parser, c4m_earley_item_t *ei)
+{
+    c4m_codepoint_t cp   = parser->current_state->token->tid;
+    c4m_pitem_t    *next = c4m_list_get(ei->rule, ei->cursor, NULL);
+
+    if (char_in_class(cp, next->contents.class)) {
+        handle_token_scan(parser, ei);
+    }
+}
+
+static inline void
+scan_terminal(c4m_parser_t *parser, c4m_earley_item_t *ei)
+{
+    c4m_codepoint_t cp   = parser->current_state->token->tid;
+    c4m_pitem_t    *next = c4m_list_get(ei->rule, ei->cursor, NULL);
+
+    if (cp == next->contents.terminal) {
+        handle_token_scan(parser, ei);
+    }
+}
+
+static inline void
+scan_set(c4m_parser_t *parser, c4m_earley_item_t *ei)
+{
+    c4m_codepoint_t cp   = parser->current_state->token->tid;
+    c4m_pitem_t    *next = c4m_list_get(ei->rule, ei->cursor, NULL);
+
+    if (matches_set(parser, cp, next->contents.items)) {
+        handle_token_scan(parser, ei);
+    }
+}
+
+static void
+complete_base(c4m_parser_t      *parser,
+              c4m_earley_item_t *ei,
+              bool               dbl_dot,
+              int                match_value,
+              int                demerits)
+{
+    uint64_t            n;
+    c4m_earley_item_t **parents = hatrack_set_items_sort(ei->starts, &n);
+    c4m_earley_item_t  *parent;
+    c4m_earley_item_t  *copy;
+
+    // If multiple nodes would have created this one, do the same for
+    // all of them.
+    for (uint64_t i = 0; i < n; i++) {
+        // Copy the parent. Then, advance the dot and add to our
+        // current state.  The default for setting the parent is wrong
+        // for this use of copy (every other use is copying a
+        // sibling), so we need to reset it too.
+        parent           = parents[i];
+        copy             = copy_earley_item(parser, parent, true);
+        copy->starts     = parent->starts;
+        copy->penalty    = ei->penalty + parent->start_item->penalty + demerits;
+        copy->start_item = parent->start_item;
+        copy->completors = c4m_set(c4m_type_ref());
+
+        if (dbl_dot) {
+            copy->double_dot = true;
+            copy->cursor     = c4m_list_len(copy->rule);
+        }
+
+        if (copy->group) {
+            copy->match_ct = match_value;
+        }
+
+        add_item(parser, &copy, false);
+        if (parent == copy) {
+            return;
+        }
+
+        if (match_value) {
+            copy->double_dot = true;
+        }
+
+        if (!copy->completors) {
+            copy->completors = c4m_set(c4m_type_ref());
+        }
+        hatrack_set_add(copy->completors, ei);
+        hatrack_set_put(copy->starts, parent);
+    }
+}
+
+static inline void
+complete_nt_or_group(c4m_parser_t *parser, c4m_earley_item_t *ei)
+{
+    complete_base(parser, ei, false, 0, 0);
+}
+
+static inline void
+complete_group_item(c4m_parser_t *parser, c4m_earley_item_t *ei)
+{
+    // The group item completing should add a state to complete the
+    // group start as one might suspect, but it also should predict
+    // the next group item.
+    //
+    // Note that if we've already predicted enough items that the
+    // penalty exceeds our max, we skip predicting altogether. The
+    // same can be said for the completion of the group itself; when
+    // we hit that limit, we do not predict completion. The same thing
+    // happens if we haven't come close enough to a minimum number of
+    // matches.
+    //
+    // Note that, before we reach the minimum threshold, items get no
+    // penalty, only completions.
+
+    bool predict_item       = true;
+    bool complete_group     = true;
+    int  match_min          = ei->group->min;
+    int  match_max          = ei->group->max;
+    int  new_match_ct       = ++ei->match_ct;
+    int  completion_penalty = 0;
+    int  prediction_penalty = 0;
+
+    if (new_match_ct < match_min) {
+        completion_penalty = match_min - new_match_ct;
+        if (completion_penalty > C4M_MAX_PARSE_PENALTY) {
+            complete_group = false;
+        }
+    }
+    else {
+        if (match_max && new_match_ct > match_max) {
+            prediction_penalty = new_match_ct - match_max;
+
+            if (prediction_penalty >= C4M_MAX_PARSE_PENALTY) {
+                // We still complete the group this one last time.
+                predict_item = false;
+            }
+        }
+    }
+
+    if (predict_item) {
+        c4m_list_t *starts = c4m_set_to_xlist(ei->starts);
+
+        for (int i = 0; i < c4m_list_len(starts); i++) {
+            c4m_earley_item_t *start = c4m_list_get(starts, i, NULL);
+            predict_group_item(parser, start, ei, new_match_ct);
+        }
+    }
+
+    if (complete_group) {
+        // Propogates up the new match count to the group completion
+        // for the sake of convenience.
+        complete_base(parser, ei, true, new_match_ct, completion_penalty);
+    }
+}
+
+static inline void
+add_subtree_info(c4m_earley_item_t *ei)
+{
+    if (!ei->cursor) {
+        if (!ei->group) {
+            ei->subtree_info = C4M_SI_NT_RULE_START;
+            return;
+        }
+        if (ei->double_dot) {
+            ei->subtree_info = C4M_SI_GROUP_START;
+            return;
+        }
+        ei->subtree_info = C4M_SI_GROUP_ITEM_START;
+        return;
+    }
+
+    if (ei->cursor != c4m_list_len(ei->rule)) {
+        return;
+    }
+
+    if (!ei->group) {
+        ei->subtree_info = C4M_SI_NT_RULE_END;
+        return;
+    }
+    if (ei->double_dot) {
+        ei->subtree_info = C4M_SI_GROUP_END;
+        return;
+    }
+    ei->subtree_info = C4M_SI_GROUP_ITEM_END;
+    return;
 }
 
 static void
 process_current_state(c4m_parser_t *parser)
 {
-    int                i     = 0;
-    c4m_earley_item_t *eitem = c4m_list_get(parser->current_state->items,
-                                            i,
-                                            NULL);
-#if defined(C4M_EARLEY_DEBUG)
-    c4m_token_info_t *tok = parser->current_state->token;
-    c4m_printf("[h4]Entering state {} w/ {} starting items; tok = [b u i]{}",
-               parser->position,
-               c4m_list_len(parser->current_state->items),
-               tok ? tok->value : c4m_new_utf8("n/a"));
-    c4m_print(get_parse_state(parser, false));
-#endif
+    int                i  = 0;
+    c4m_earley_item_t *ei = c4m_list_get(parser->current_state->items, i, NULL);
 
-    // We expect to add to the list while processing it.
-    while (eitem != NULL) {
-#if defined(C4M_EARLEY_DEBUG_VERBOSE)
-        c4m_printf("Process item {}: {}",
-                   i,
-                   repr_rule(parser->grammar,
-                             eitem->rule,
-                             eitem->cursor));
-#endif
+    while (ei != NULL) {
         parser->cur_item_index = i;
 
-        int item_len    = c4m_list_len(eitem->rule);
-        int loc_in_rule = eitem->cursor;
+        add_subtree_info(ei);
 
-        if (item_len > loc_in_rule) {
-            c4m_pitem_t *next = c4m_list_get(eitem->rule, loc_in_rule, NULL);
-            if (is_non_terminal(next)) {
-#if defined(C4M_EARLEY_DEBUG_VERBOSE)
-                c4m_printf("[h5]Action is: Predict.");
-#endif
-                eitem->op = C4M_EO_PREDICT;
-                try_nullable_prediction(parser, eitem, next);
-                non_nullable_prediction(parser, eitem, next);
-            }
-            else {
-#if defined(C4M_EARLEY_DEBUG_VERBOSE)
-                c4m_printf("[h5]Action is: Scan for [em]{}",
-                           parser->current_state->token->value);
-#endif
-                eitem->op = C4M_EO_SCAN;
-                scan(parser, eitem, next);
-            }
+        switch (ei->op) {
+        case C4M_EO_PREDICT_NT:
+            try_nullable_prediction(parser, ei);
+            non_nullable_prediction(parser, ei);
+            break;
+        // Called for the first group item.
+        case C4M_EO_PREDICT_G:
+            predict_group(parser, ei);
+            break;
+        case C4M_EO_PREDICT_I:
+            predict_group_item(parser, ei, NULL, 0);
+            break;
+        case C4M_EO_SCAN_TOKEN:
+            scan_terminal(parser, ei);
+            break;
+        case C4M_EO_SCAN_NULL:
+            scan_null(parser, ei);
+            break;
+        case C4M_EO_SCAN_ANY:
+            handle_token_scan(parser, ei);
+            break;
+        case C4M_EO_SCAN_CLASS:
+            scan_class(parser, ei);
+            break;
+        case C4M_EO_SCAN_SET:
+            scan_set(parser, ei);
+            break;
+        case C4M_EO_COMPLETE_N:
+            complete_nt_or_group(parser, ei);
+            break;
+        case C4M_EO_COMPLETE_G:
+            complete_nt_or_group(parser, ei);
+            break;
+        case C4M_EO_COMPLETE_I:
+            complete_group_item(parser, ei);
+            break;
         }
-        else {
-#if defined(C4M_EARLEY_DEBUG_VERBOSE)
-            c4m_printf("[h5]Action is: Complete.");
-#endif
-            eitem->op = C4M_EO_COMPLETE;
-            complete(parser, eitem);
-        }
-
-        eitem = c4m_list_get(parser->current_state->items, ++i, NULL);
+        ei = c4m_list_get(parser->current_state->items, ++i, NULL);
     }
+}
+
+static void
+enter_next_state(c4m_parser_t *parser)
+{
+    // If next_state is NULL, then we skip advancing the state, because
+    // we're really going from -1 into 0.
+    if (parser->next_state != NULL) {
+        parser->position++;
+        parser->current_state = parser->next_state;
+    }
+    else {
+        // Load the start ruleset.
+        c4m_grammar_t *grammar = parser->grammar;
+        int            ix      = parser->start;
+        c4m_nonterm_t *start   = c4m_get_nonterm(grammar, ix);
+
+        parser->cur_item_index = C4M_IX_START_OF_PROGRAM;
+        predict_nt(parser, start->id, start->rules, NULL, 0);
+    }
+
+    assert(parser->position == c4m_list_len(parser->states) - 1);
+    parser->next_state = c4m_new_earley_state(c4m_list_len(parser->states));
+    c4m_list_append(parser->states, parser->next_state);
+
+    c4m_parser_load_token(parser);
 }
 
 static void
@@ -1183,10 +864,6 @@ run_parsing_mainloop(c4m_parser_t *parser)
     do {
         enter_next_state(parser);
         process_current_state(parser);
-#if defined(C4M_EARLEY_DEBUG)
-        c4m_printf("[h4]At the end of processing this state:");
-        c4m_print(get_parse_state(parser, false));
-#endif
     } while (parser->current_state->token->tid != C4M_TOK_EOF);
 }
 
@@ -1213,633 +890,10 @@ internal_parse(c4m_parser_t *parser, c4m_nonterm_t *start)
     }
 
     run_parsing_mainloop(parser);
-}
+    c4m_print(c4m_repr_state_table(parser, true));
 
-static c4m_utf8_t *
-repr_term(c4m_grammar_t *grammar, int64_t id)
-{
-    bool found;
-
-    if (id < C4M_START_TOK_ID) {
-        if (c4m_codepoint_is_printable(id)) {
-            return c4m_cstr_format("'{}'",
-                                   c4m_utf8_repeat((c4m_codepoint_t)id, 1));
-        }
-        return c4m_cstr_format("'U+{:h}'", id);
-    }
-
-    id -= C4M_START_TOK_ID;
-    c4m_terminal_t *t = c4m_list_get(grammar->named_terms, id, &found);
-
-    if (!found) {
-        C4M_CRAISE(
-            "Invalid parse token ID found (mixing "
-            "rules from a different grammar?");
-    }
-
-    return c4m_cstr_format("'{}'", t->value);
-}
-
-static c4m_utf8_t *
-repr_nonterm(c4m_grammar_t *grammar, int64_t id)
-{
-    if (id == GROUP_ID) {
-        return c4m_cstr_format("[em]»group«");
-    }
-
-    c4m_nonterm_t *nt   = get_nonterm(grammar, id);
-    c4m_utf8_t    *null = nt->nullable ? c4m_new_utf8("∅")
-                                       : c4m_new_utf8("");
-
-    if (id == grammar->default_start) {
-        return c4m_cstr_format("{}[yellow i]{}", null, nt->name);
-    }
-    return c4m_cstr_format("{}[em]{}", null, nt->name);
-}
-
-static c4m_utf8_t *
-repr_group(c4m_grammar_t *g, c4m_rule_group_t *group)
-{
-    c4m_utf8_t *base;
-
-    base = repr_rule(g, group->items, -1);
-
-    if (group->min == 1 && group->max == 1) {
-        return c4m_cstr_format("([aqua]{}[/])", base);
-    }
-
-    if (group->min == 0 && group->max == 1) {
-        return c4m_cstr_format("([aqua]{}[/])?", base);
-    }
-
-    if (group->max < 1 && group->min <= 1) {
-        if (group->min == 0) {
-            return c4m_cstr_format("([aqua]{}[/])*", base);
-        }
-        else {
-            return c4m_cstr_format("([aqua]{}[/])+",
-                                   base);
-        }
-    }
-    else {
-        return c4m_cstr_format("({}){}{}, {}]",
-                               base,
-                               c4m_new_utf8("["),
-                               group->min,
-                               group->max);
-    }
-}
-
-static c4m_utf8_t *
-repr_item(c4m_grammar_t *g, c4m_pitem_t *item)
-{
-    switch (item->kind) {
-    case C4M_P_NULL:
-        return c4m_new_utf8("ε");
-    case C4M_P_GROUP:
-        return repr_group(g, item->contents.group);
-    case C4M_P_NT:
-        return repr_nonterm(g, item->contents.nonterm);
-    case C4M_P_TERMINAL:
-        return repr_term(g, item->contents.terminal);
-    case C4M_P_ANY:
-        return c4m_new_utf8("«Any»");
-    case C4M_P_BI_CLASS:
-        switch (item->contents.class) {
-        case C4M_P_BIC_ID_START:
-            return c4m_new_utf8("«IdStart»");
-        case C4M_P_BIC_ID_CONTINUE:
-            return c4m_new_utf8("«IdContinue»");
-        case C4M_P_BIC_C4M_ID_START:
-            return c4m_new_utf8("«C4mIdStart»");
-        case C4M_P_BIC_C4M_ID_CONTINUE:
-            return c4m_new_utf8("«C4mIdContinue»");
-        case C4M_P_BIC_DIGIT:
-            return c4m_new_utf8("«Digit»");
-        case C4M_P_BIC_ANY_DIGIT:
-            return c4m_new_utf8("«UDigit»");
-        case C4M_P_BIC_UPPER:
-            return c4m_new_utf8("«Upper»");
-        case C4M_P_BIC_UPPER_ASCII:
-            return c4m_new_utf8("«AsciiUpper»");
-        case C4M_P_BIC_LOWER:
-            return c4m_new_utf8("«Lower»");
-        case C4M_P_BIC_LOWER_ASCII:
-            return c4m_new_utf8("«AsciiLower»");
-        case C4M_P_BIC_SPACE:
-            return c4m_new_utf8("«WhiteSpace»");
-        }
-    case C4M_P_SET:;
-        c4m_list_t *l = c4m_list(c4m_type_utf8());
-        int         n = c4m_list_len(item->contents.items);
-
-        for (int i = 0; i < n; i++) {
-            c4m_list_append(l,
-                            repr_item(g,
-                                      c4m_list_get(item->contents.items,
-                                                   i,
-                                                   NULL)));
-        }
-
-        return c4m_cstr_format("{}{}]",
-                               c4m_new_utf8("["),
-                               c4m_str_join(l, c4m_new_utf8("|")));
-    }
-}
-
-// This could be called both stand-alone when printing out a grammar, and
-// when printing out Earley states. In the former case, the dot should never
-// show up (nor should the iteration count, but that's handled elsewhere).
-//
-// To that end, if dot_location is negative, we assume we're printing
-// a grammar.
-
-static c4m_utf8_t *
-repr_rule(c4m_grammar_t *g, c4m_list_t *items, int dot_location)
-{
-    c4m_list_t *pieces = c4m_list(c4m_type_utf8());
-    int         n      = c4m_list_len(items);
-
-    for (int i = 0; i < n; i++) {
-        if (i == dot_location) {
-            c4m_list_append(pieces, c4m_new_utf8("•"));
-        }
-
-        c4m_pitem_t *item = c4m_list_get(items, i, NULL);
-        c4m_list_append(pieces, repr_item(g, item));
-    }
-
-    if (n == dot_location) {
-        c4m_list_append(pieces, c4m_new_utf8("•"));
-    }
-
-    return c4m_str_join(pieces, c4m_new_utf8(" "));
-}
-
-// This returns a list of table elements.
-static c4m_list_t *
-repr_earley_item(c4m_parser_t *parser, c4m_earley_item_t *cur, int id)
-{
-    c4m_list_t    *result = c4m_list(c4m_type_utf8());
-    c4m_grammar_t *g      = parser->grammar;
-
-    c4m_list_append(result, c4m_str_from_int(id));
-
-    c4m_utf8_t *nt   = repr_nonterm(g, cur->ruleset_id);
-    c4m_utf8_t *rule = repr_rule(g, cur->rule, cur->cursor);
-    c4m_utf8_t *full = c4m_cstr_format("{} ⟶  {}", nt, rule);
-
-    c4m_list_append(result, full);
-
-    if (cur->ginfo) {
-        c4m_list_append(result, c4m_str_from_int(cur->match_ct));
-    }
-    else {
-        c4m_list_append(result, c4m_new_utf8(" "));
-    }
-
-    c4m_utf8_t *links;
-
-    if (cur->creation_item != NULL) {
-        links = c4m_cstr_format("[i]Creator:[/] {}:{} ",
-                                cur->creation_item->estate_id,
-                                cur->creation_item->eitem_index);
-    }
-    else {
-        links = c4m_rich_lit("[i]Creator:[/] «Root» ");
-    }
-
-    c4m_list_t *pp = cur->start_item->possible_parents;
-
-    if (pp) {
-        c4m_list_t *rents = c4m_list(c4m_type_utf8());
-        int         n     = c4m_list_len(pp);
-
-        for (int i = 0; i < n; i++) {
-            c4m_earley_item_t *o = c4m_list_get(pp, i, NULL);
-            c4m_utf8_t        *s;
-
-            if (o == NULL) {
-                s = c4m_new_utf8("«Root»");
-            }
-            else {
-                s = c4m_cstr_format("{}:{}", o->estate_id, o->eitem_index);
-            }
-            c4m_list_append(rents, s);
-        }
-
-        c4m_utf8_t *rent_str;
-
-        if (n == 0) {
-            rent_str = c4m_new_utf8("«Root»");
-        }
-        else {
-            rent_str = c4m_str_join(rents, c4m_new_utf8(", "));
-        }
-
-        rent_str = c4m_cstr_format("[i]Parents:[/] {}", rent_str);
-
-        links = c4m_str_concat(links, rent_str);
-    }
-
-    if (cur->ginfo && cur->ginfo->prev_item_start != NULL) {
-        c4m_utf8_t *prev;
-
-        prev  = c4m_cstr_format("[i]Prev item:[/] {}:{}",
-                               cur->ginfo->prev_item_start->estate_id,
-                               cur->ginfo->prev_item_start->eitem_index);
-        links = c4m_str_concat(links, prev);
-    }
-
-    if (cur->previous_scan) {
-        c4m_utf8_t *scan;
-        scan  = c4m_cstr_format("[i]Prior scan:[/] {}:{} ",
-                               cur->previous_scan->estate_id,
-                               cur->previous_scan->eitem_index);
-        links = c4m_str_concat(scan, links);
-    }
-
-    c4m_list_append(result, c4m_to_utf8(links));
-
-    switch (cur->op) {
-    case C4M_EO_PREDICT:
-        c4m_list_append(result, c4m_new_utf8("P"));
-        break;
-    case C4M_EO_SCAN:
-        c4m_list_append(result, c4m_new_utf8("S"));
-        break;
-
-    case C4M_EO_COMPLETE:
-        c4m_list_append(result, c4m_new_utf8("C"));
-        break;
-    }
-
-    return result;
-}
-
-#ifdef C4M_EARLEY_DEBUG
-static c4m_grid_t *
-get_parse_state(c4m_parser_t *parser, bool next)
-{
-    c4m_grid_t *grid = c4m_new(c4m_type_grid(),
-                               c4m_kw("start_cols",
-                                      c4m_ka(4),
-                                      "header_rows",
-                                      c4m_ka(1),
-                                      "container_tag",
-                                      c4m_ka(c4m_new_utf8("table2")),
-                                      "stripe",
-                                      c4m_ka(true)));
-
-    c4m_utf8_t *snap = c4m_new_utf8("snap");
-    c4m_utf8_t *flex = c4m_new_utf8("flex");
-    c4m_list_t *hdr  = c4m_new_table_row();
-
-    c4m_list_append(hdr, c4m_rich_lit("[th]#"));
-    c4m_list_append(hdr, c4m_rich_lit("[th]Rule State"));
-    c4m_list_append(hdr, c4m_rich_lit("[th]Matches"));
-    c4m_list_append(hdr, c4m_rich_lit("[th]Links"));
-
-    c4m_grid_add_row(grid, hdr);
-
-    c4m_set_column_style(grid, 0, snap);
-    c4m_set_column_style(grid, 1, flex);
-    c4m_set_column_style(grid, 2, snap);
-    c4m_set_column_style(grid, 3, flex);
-
-    c4m_earley_state_t *s = next ? parser->next_state : parser->current_state;
-
-    int n = c4m_list_len(s->items);
-
-    for (int i = 0; i < n; i++) {
-        c4m_grid_add_row(grid,
-                         repr_earley_item(parser,
-                                          c4m_list_get(s->items, i, NULL),
-                                          i));
-    }
-
-    return grid;
-}
-#endif
-
-c4m_grid_t *
-c4m_parse_to_grid(c4m_parser_t *parser, bool show_all)
-{
-    c4m_grid_t *grid = c4m_new(c4m_type_grid(),
-                               c4m_kw("start_cols",
-                                      c4m_ka(show_all ? 5 : 4),
-                                      "header_rows",
-                                      c4m_ka(0),
-                                      "container_tag",
-                                      c4m_ka(c4m_new_utf8("table2")),
-                                      "stripe",
-                                      c4m_ka(true)));
-
-    c4m_utf8_t *snap = c4m_new_utf8("snap");
-    c4m_utf8_t *flex = c4m_new_utf8("flex");
-    // c4m_list_t *row;
-    c4m_list_t *hdr  = c4m_new_table_row();
-    c4m_list_t *row;
-
-    c4m_list_append(hdr, c4m_rich_lit("[th]#"));
-    c4m_list_append(hdr, c4m_rich_lit("[th]Rule State"));
-    c4m_list_append(hdr, c4m_rich_lit("[th]Matches"));
-    c4m_list_append(hdr, c4m_rich_lit("[th]Links"));
-
-    if (show_all) {
-        c4m_list_append(hdr, c4m_rich_lit("[th]Op"));
-    }
-
-    int n = c4m_list_len(parser->states) - 1;
-
-    for (int i = 0; i < n; i++) {
-        c4m_earley_state_t *s = c4m_list_get(parser->states, i, NULL);
-        c4m_utf8_t         *desc;
-
-        if (i + 1 == n) {
-            desc = c4m_cstr_format("[em]State {}[/] (End)", i);
-        }
-        else {
-            desc = c4m_cstr_format(
-                "[em u]State [reverse]{}[/reverse] "
-                "Input: [reverse]{}[/reverse][em u] [/]",
-                i,
-                s->token->value);
-        }
-
-        c4m_list_t *l = c4m_new_table_row();
-        c4m_list_append(l, c4m_new_utf8(""));
-        c4m_list_append(l, desc);
-
-        c4m_grid_add_row(grid, l);
-
-        int m = c4m_list_len(s->items);
-
-        c4m_grid_add_row(grid, hdr);
-
-        for (int j = 0; j < m; j++) {
-            c4m_earley_item_t *item = c4m_list_get(s->items, j, NULL);
-
-            if (show_all || item->op == C4M_EO_COMPLETE) {
-                row = repr_earley_item(parser, item, j);
-                c4m_grid_add_row(grid, row);
-            }
-        }
-    }
-
-    c4m_set_column_style(grid, 0, snap);
-    c4m_set_column_style(grid, 1, flex);
-    c4m_set_column_style(grid, 2, snap);
-    c4m_set_column_style(grid, 3, flex);
-    c4m_set_column_style(grid, 4, snap);
-
-    return grid;
-}
-
-static c4m_list_t *
-repr_one_grammar_nt(c4m_grammar_t *grammar, int ix)
-{
-    c4m_list_t    *row;
-    c4m_list_t    *res   = c4m_list(c4m_type_utf8());
-    c4m_nonterm_t *nt    = get_nonterm(grammar, ix);
-    int            n     = c4m_list_len(nt->rules);
-    c4m_utf8_t    *lhs   = repr_nonterm(grammar, ix);
-    c4m_utf8_t    *arrow = c4m_rich_lit("[yellow]⟶ ");
-    c4m_utf8_t    *rhs;
-
-    for (int i = 0; i < n; i++) {
-        row = c4m_new_table_row();
-        rhs = repr_rule(grammar, c4m_list_get(nt->rules, i, NULL), -1);
-        c4m_list_append(row, lhs);
-        c4m_list_append(row, arrow);
-        c4m_list_append(row, rhs);
-        c4m_list_append(res, row);
-    }
-
-    return res;
-}
-
-c4m_grid_t *
-c4m_grammar_to_grid(c4m_grammar_t *grammar)
-{
-    int32_t     n    = (int32_t)c4m_list_len(grammar->rules);
-    c4m_list_t *l    = repr_one_grammar_nt(grammar, grammar->default_start);
-    c4m_grid_t *grid = c4m_new(c4m_type_grid(),
-                               c4m_kw("start_cols",
-                                      c4m_ka(3),
-                                      "header_rows",
-                                      c4m_ka(0),
-                                      "container_tag",
-                                      c4m_ka(c4m_new_utf8("flow"))));
-    c4m_utf8_t *snap = c4m_new_utf8("snap");
-    c4m_set_column_style(grid, 0, snap);
-    c4m_set_column_style(grid, 1, snap);
-    c4m_set_column_style(grid, 2, snap);
-
-    c4m_grid_add_rows(grid, l);
-
-    for (int32_t i = 0; i < n; i++) {
-        if (i != grammar->default_start) {
-            c4m_nonterm_t *nt = get_nonterm(grammar, i);
-            if (!nt->name) {
-                continue;
-            }
-            l = repr_one_grammar_nt(grammar, i);
-            c4m_grid_add_rows(grid, l);
-        }
-    }
-
-    return grid;
-}
-
-static c4m_forest_item_t *extract_group(c4m_parser_t *, c4m_earley_item_t *);
-static c4m_forest_item_t *extract_nt_node(c4m_parser_t *, c4m_earley_item_t *);
-
-static c4m_forest_item_t *
-gather_last_match(c4m_parser_t *p, c4m_earley_item_t *item)
-{
-    c4m_forest_item_t *res;
-
-    c4m_pitem_t *pi = c4m_list_get(item->rule, item->cursor - 1, NULL);
-
-    switch (pi->kind) {
-    case C4M_P_NULL:
-        res     = c4m_new(c4m_type_forest(), C4M_FOREST_TERM);
-        res->id = C4M_EMPTY_STRING_NODE;
-        break;
-    case C4M_P_TERMINAL:
-    case C4M_P_ANY:
-    case C4M_P_BI_CLASS:
-    case C4M_P_SET:
-        res                       = c4m_new(c4m_type_forest(), C4M_FOREST_TERM);
-        c4m_earley_item_t  *scan  = item->previous_scan->creation_item;
-        c4m_earley_state_t *state = c4m_list_get(p->states,
-                                                 scan->estate_id,
-                                                 NULL);
-        res->info.token           = state->token;
-        break;
-    case C4M_P_GROUP:
-        return extract_group(p, item->creation_item);
-    case C4M_P_NT:
-        return extract_nt_node(p, item->creation_item);
-    }
-    return res;
-}
-
-static c4m_forest_item_t *
-extract_group(c4m_parser_t *p, c4m_earley_item_t *item)
-{
-    c4m_forest_item_t *res = c4m_new(c4m_type_forest(), C4M_FOREST_GROUP_TOP);
-    c4m_forest_item_t *node;
-    int                grouplen;
-
-    grouplen       = c4m_len(item->rule);
-    res->info.name = repr_group(p->grammar, item->ginfo->group);
-
-    while (item) {
-        node            = c4m_new(c4m_type_forest(), C4M_FOREST_GROUP_ITEM);
-        node->info.name = c4m_cstr_format("#{}", item->match_ct);
-
-        for (int i = 0; i < grouplen; i++) {
-            c4m_list_append(node->kids, gather_last_match(p, item));
-            if (i + 1 != grouplen) {
-                item = item->previous_scan;
-            }
-        }
-        c4m_list_reverse(node->kids);
-        c4m_list_append(res->kids, node);
-
-        item = item->ginfo->prev_item_end;
-    }
-
-    c4m_list_reverse(res->kids);
-
-    return res;
-}
-
-static c4m_forest_item_t *
-extract_nt_node(c4m_parser_t *p, c4m_earley_item_t *item)
-{
-    int                n   = c4m_len(item->rule);
-    c4m_forest_item_t *res = c4m_new(c4m_type_forest(), C4M_FOREST_NONTERM);
-
-    res->info.name = repr_nonterm(p->grammar, item->ruleset_id);
-    res->id        = item->ruleset_id;
-
-    while (n--) {
-        c4m_list_append(res->kids, gather_last_match(p, item));
-        item = item->previous_scan;
-    }
-
-    c4m_list_reverse(res->kids);
-
-    return res;
-}
-
-static c4m_tree_node_t *
-forest_wrap(c4m_forest_item_t *node)
-{
-    c4m_tree_node_t *result = c4m_new_tree_node(c4m_type_forest(), node);
-    int              n      = c4m_len(node->kids);
-
-    for (int i = 0; i < n; i++) {
-        c4m_forest_item_t *kid = c4m_list_get(node->kids, i, NULL);
-        c4m_tree_adopt_node(result, forest_wrap(kid));
-    }
-
-    return result;
-}
-
-c4m_tree_node_t *
-c4m_parse_get_parses(c4m_parser_t *parser)
-{
-    c4m_forest_item_t *root = c4m_new(c4m_type_forest(), C4M_FOREST_ROOT);
-    root->info.name         = c4m_new_utf8("«Valid Parses»");
-    root->id                = C4M_FOREST_ROOT_NODE;
-
-    c4m_list_t *items = parser->current_state->items;
-
-    int n = c4m_list_len(items);
-
-    for (int i = 0; i < n; i++) {
-        c4m_earley_item_t *item = c4m_list_get(items, i, NULL);
-
-        if (item->op != C4M_EO_COMPLETE) {
-            continue;
-        }
-        if (item->ruleset_id != parser->start) {
-            continue;
-        }
-        if (item->start_item->estate_id != 0) {
-            continue;
-        }
-
-        c4m_list_append(root->kids, extract_nt_node(parser, item));
-    }
-
-    return forest_wrap(root);
-}
-
-static c4m_utf8_t *
-repr_fnode(c4m_forest_item_t *f)
-{
-    switch (f->kind) {
-    case C4M_FOREST_TERM:
-        if (f->id == C4M_EMPTY_STRING_NODE) {
-            return c4m_rich_lit("[h3]ε[/]");
-        }
-        c4m_token_info_t *tok = f->info.token;
-        return c4m_cstr_format("[h3]{}[/] [i](tok #{}; line #{}; col #{})[/]",
-                               tok->value,
-                               tok->index,
-                               tok->line,
-                               tok->column);
-
-    default:
-        return c4m_cstr_format("[h2]{}[/] ", f->info.name);
-    }
-}
-
-static inline c4m_grid_t *
-format_one_parse(c4m_tree_node_t *t)
-{
-    return c4m_grid_tree(t, c4m_kw("converter", c4m_ka(repr_fnode)));
-}
-
-c4m_grid_t *
-c4m_forest_format(c4m_tree_node_t *f)
-{
-    if (!f || !f->num_kids) {
-        return c4m_callout(c4m_new_utf8("No valid parses."));
-    }
-
-    c4m_forest_item_t *top = c4m_tree_get_contents(f);
-
-    if (top->id != C4M_FOREST_ROOT_NODE) {
-        return format_one_parse(f);
-    }
-
-    if (f->num_kids == 1) {
-        return format_one_parse(f->children[0]);
-    }
-
-    c4m_list_t *glist = c4m_list(c4m_type_grid());
-    c4m_grid_t *cur;
-
-    cur = c4m_new_cell(c4m_cstr_format("Ambiguous parse; {} trees returned.",
-                                       f->num_kids),
-                       c4m_new_utf8("h1"));
-
-    c4m_list_append(glist, cur);
-
-    for (int i = 0; i < f->num_kids; i++) {
-        cur = c4m_new_cell(c4m_cstr_format("Parse #{} of {}", i, f->num_kids),
-                           c4m_new_utf8("h4"));
-        c4m_list_append(glist, cur);
-        c4m_list_append(glist, format_one_parse(f->children[i]));
-    }
-
-    return c4m_grid_flow_from_list(glist);
+    c4m_list_t *parses  = c4m_find_all_trees(parser);
+    parser->parse_trees = parses;
 }
 
 void
@@ -1847,16 +901,19 @@ c4m_parse_token_list(c4m_parser_t  *parser,
                      c4m_list_t    *toks,
                      c4m_nonterm_t *start)
 {
-    internal_reset(parser);
-    parser->token_cache = toks;
-    parser->tokenizer   = NULL;
+    c4m_parser_reset(parser);
+    parser->preloaded_tokens = true;
+    parser->token_cache      = toks;
+    parser->tokenizer        = NULL;
     internal_parse(parser, start);
 }
 
 void
 c4m_parse_string(c4m_parser_t *parser, c4m_str_t *s, c4m_nonterm_t *start)
 {
-    internal_reset(parser);
+    c4m_utf8_t *dbg = c4m_cstr_format("Test input: {}", s);
+    c4m_print(c4m_callout(dbg));
+    c4m_parser_reset(parser);
     parser->user_context = c4m_to_utf32(s);
     parser->tokenizer    = c4m_token_stream_codepoints;
     internal_parse(parser, start);
@@ -1867,48 +924,8 @@ c4m_parse_string_list(c4m_parser_t  *parser,
                       c4m_list_t    *items,
                       c4m_nonterm_t *start)
 {
-    internal_reset(parser);
+    c4m_parser_reset(parser);
     parser->user_context = items;
     parser->tokenizer    = c4m_token_stream_strings;
     internal_parse(parser, start);
 }
-
-const c4m_vtable_t c4m_parser_vtable = {
-    .num_entries = C4M_BI_NUM_FUNCS,
-    .methods     = {
-        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_parser_init,
-        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)C4M_GC_SCAN_ALL,
-    },
-};
-
-const c4m_vtable_t c4m_grammar_vtable = {
-    .num_entries = C4M_BI_NUM_FUNCS,
-    .methods     = {
-        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_grammar_init,
-        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)C4M_GC_SCAN_ALL,
-    },
-};
-
-const c4m_vtable_t c4m_terminal_vtable = {
-    .num_entries = C4M_BI_NUM_FUNCS,
-    .methods     = {
-        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_terminal_init,
-        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)C4M_GC_SCAN_ALL,
-    },
-};
-
-const c4m_vtable_t c4m_nonterm_vtable = {
-    .num_entries = C4M_BI_NUM_FUNCS,
-    .methods     = {
-        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_nonterm_init,
-        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)C4M_GC_SCAN_ALL,
-    },
-};
-
-const c4m_vtable_t c4m_forest_vtable = {
-    .num_entries = C4M_BI_NUM_FUNCS,
-    .methods     = {
-        [C4M_BI_CONSTRUCTOR] = (c4m_vtable_entry)c4m_forest_init,
-        [C4M_BI_GC_MAP]      = (c4m_vtable_entry)C4M_GC_SCAN_ALL,
-    },
-};

@@ -4502,7 +4502,7 @@ c4m_print_parse_node(c4m_tree_node_t *n)
 }
 
 c4m_grid_t *
-c4m_format_parse_tree(c4m_module_t *ctx)
+c4m_format_ptree(c4m_module_t *ctx)
 {
     return c4m_grid_tree(ctx->ct->parse_tree,
                          c4m_kw("converter", c4m_ka(repr_one_node)));

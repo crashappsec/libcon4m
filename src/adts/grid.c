@@ -1924,7 +1924,7 @@ c4m_grid_flow_from_list(c4m_list_t *items)
 {
     c4m_grid_t *res = c4m_new(c4m_type_grid(),
                               c4m_kw("start_rows",
-                                     c4m_ka(items),
+                                     c4m_ka(c4m_list_len(items)),
                                      "start_cols",
                                      c4m_ka(1),
                                      "container_tag",
@@ -1932,7 +1932,8 @@ c4m_grid_flow_from_list(c4m_list_t *items)
     int         l   = c4m_list_len(items);
 
     for (int i = 0; i < l; i++) {
-        c4m_grid_set_cell_contents(res, i, 0, c4m_list_get(items, i, NULL));
+        void *item = c4m_list_get(items, i, NULL);
+        c4m_grid_set_cell_contents(res, i, 0, item);
     }
 
     return res;
@@ -2109,6 +2110,10 @@ typedef struct {
     c4m_utf8_t      *tag;
     c4m_codepoint_t *padstr;
     c4m_grid_t      *grid;
+    void            *callback;
+    void            *thunk;
+    c4m_set_t       *to_collapse;
+    c4m_list_t      *state_stack;
     c4m_utf8_t      *nl;
     c4m_codepoint_t  pad;
     c4m_codepoint_t  tchar;
@@ -2119,9 +2124,230 @@ typedef struct {
     int              ipad;
     int              no_nl;
     c4m_style_t      style;
-    int              pad_ix;
+    int              depth; // Previous depth.
+    int64_t          pad_ix;
+    int64_t          done_at_this_depth;
+    int64_t          total_at_this_depth;
     bool             root;
+    bool             cycle;
 } tree_fmt_t;
+
+typedef struct {
+    c4m_utf8_t     *tag;
+    c4m_grid_t     *grid;
+    void           *callback;
+    void           *thunk;
+    c4m_utf8_t     *nl;
+    c4m_set_t      *to_collapse;
+    c4m_list_t     *depth_positions;
+    c4m_list_t     *depth_totals;
+    c4m_dict_t     *cycle_nodes;
+    c4m_codepoint_t pad;
+    c4m_codepoint_t tchar;
+    c4m_codepoint_t lchar;
+    c4m_codepoint_t hchar;
+    c4m_codepoint_t vchar;
+    int             vpad;
+    int             ipad;
+    int             no_nl;
+    c4m_style_t     style;
+    bool            cycle;
+    bool            at_start;
+    bool            show_cycles;
+} tree_fmt_new_t;
+
+typedef c4m_utf8_t *(*thunk_cb)(void *, void *);
+typedef c4m_utf8_t *(*thunkless_cb)(void *);
+
+static c4m_str_t *
+build_grid_tree_pad(tree_fmt_new_t *ctx)
+{
+    int depth = c4m_list_len(ctx->depth_positions);
+
+    if (depth == 1) {
+        return c4m_new_utf8("");
+    }
+
+    int              num_cps = (depth - 1) * (ctx->vpad + 1) + ctx->ipad;
+    c4m_codepoint_t *arr     = alloca(num_cps * sizeof(c4m_codepoint_t));
+    c4m_codepoint_t *p       = arr;
+    int64_t          pos;
+    int64_t          tot;
+
+    // Because we treat the root specially, start this at 1, not 0.
+    for (int i = 1; i < depth - 1; i++) {
+        pos = (int64_t)c4m_list_get(ctx->depth_positions, i, NULL);
+        tot = (int64_t)c4m_list_get(ctx->depth_totals, i, NULL);
+
+        if (pos == tot) {
+            *p++ = ctx->pad;
+        }
+        else {
+            *p++ = ctx->vchar;
+        }
+        for (int j = 0; j < ctx->vpad; j++) {
+            *p++ = ctx->pad;
+        }
+    }
+
+    pos = (int64_t)c4m_list_get(ctx->depth_positions, depth - 1, NULL);
+    tot = (int64_t)c4m_list_get(ctx->depth_totals, depth - 1, NULL);
+
+    if (pos == tot) {
+        *p++ = ctx->lchar;
+    }
+    else {
+        *p++ = ctx->tchar;
+    }
+
+    for (int i = ctx->ipad; i < ctx->vpad; i++) {
+        *p++ = ctx->hchar;
+    }
+
+    for (int i = 0; i < ctx->ipad; i++) {
+        *p++ = ctx->pad;
+    }
+
+    c4m_utf32_t *pad = c4m_new(c4m_type_utf32(),
+                               c4m_kw("length",
+                                      c4m_ka((int64_t)(p - arr)),
+                                      "codepoints",
+                                      c4m_ka(arr)));
+    c4m_str_set_style(pad, ctx->style);
+
+    return pad;
+}
+
+static inline void
+reset_builder_ctx(tree_fmt_new_t *ctx)
+{
+    ctx->depth_positions = c4m_list(c4m_type_int());
+    ctx->depth_totals    = c4m_list(c4m_type_int());
+    ctx->cycle           = false;
+    ctx->at_start        = true;
+}
+
+static bool
+new_tree_builder(c4m_tree_node_t *node, int depth, tree_fmt_new_t *ctx)
+{
+    int64_t    my_position;
+    int64_t    total_in_group;
+    c4m_str_t *repr;
+    bool       result   = true;
+    void      *contents = c4m_tree_get_contents(node);
+
+    if (!ctx->depth_positions) {
+        reset_builder_ctx(ctx);
+    }
+
+    if (ctx->at_start) {
+        my_position    = 1;
+        total_in_group = 1;
+        ctx->at_start  = false;
+    }
+    else {
+        my_position    = (int64_t)c4m_list_pop(ctx->depth_positions) + 1;
+        total_in_group = (int64_t)c4m_list_pop(ctx->depth_totals);
+    }
+
+    c4m_list_append(ctx->depth_positions, (void *)my_position);
+    c4m_list_append(ctx->depth_totals, (void *)total_in_group);
+
+    if (ctx->to_collapse && c4m_set_contains(ctx->to_collapse, node)) {
+        result = false;
+    }
+
+    if (ctx->thunk) {
+        repr = (*(thunk_cb)ctx->callback)(contents, ctx->thunk);
+    }
+
+    else {
+        repr = (*(thunkless_cb)ctx->callback)(contents);
+    }
+
+    if (!repr) {
+        // Note that we can still descend, we'll just hide the node.
+        goto on_exit;
+    }
+
+    if (ctx->cycle) {
+        // repr = c4m_str_concat(repr, c4m_cstr_format("[h6] (CYCLES)[/] "));
+        repr = c4m_cstr_format("{} [h6](CYCLE #{})[/] ",
+                               repr,
+                               hatrack_dict_get(ctx->cycle_nodes, node, NULL));
+    }
+
+    if (ctx->no_nl) {
+        int64_t ix = c4m_str_find(repr, ctx->nl);
+
+        if (ix != -1) {
+            repr = c4m_str_slice(repr, 0, ix);
+            repr = c4m_str_concat(repr, c4m_utf32_repeat(0x2026, 1));
+        }
+    }
+    else {
+        repr = c4m_utf32_repeat(0x2026, 1);
+    }
+
+    repr = c4m_str_concat(build_grid_tree_pad(ctx), repr);
+
+    c4m_style_gaps(repr, ctx->style);
+    c4m_renderable_t *item = c4m_to_str_renderable(repr, ctx->tag);
+    c4m_grid_add_row(ctx->grid, item);
+
+on_exit:
+
+    if (my_position == total_in_group) {
+        if (ctx->cycle || !node->num_kids) {
+            // If we call no children and are last at our level,
+            // we have to clean up the stack, removing all levels that are
+            // 'done'.
+
+            int n = c4m_list_len(ctx->depth_positions);
+
+            while (n--) {
+                my_position    = (int64_t)c4m_list_pop(ctx->depth_positions);
+                total_in_group = (int64_t)c4m_list_pop(ctx->depth_totals);
+                if (my_position != total_in_group) {
+                    c4m_list_append(ctx->depth_positions, (void *)my_position);
+                    c4m_list_append(ctx->depth_totals, (void *)total_in_group);
+                    break;
+                }
+            }
+        }
+    }
+
+    if (node->num_kids && !ctx->cycle) {
+        c4m_list_append(ctx->depth_positions, (void *)0ULL);
+        c4m_list_append(ctx->depth_totals, (void *)(int64_t)node->num_kids);
+    }
+
+    return result;
+}
+
+static bool
+grid_cycle_callback(c4m_tree_node_t *node, int depth, tree_fmt_new_t *ctx)
+{
+    if (ctx->show_cycles) {
+        return false;
+    }
+
+    if (!ctx->cycle_nodes) {
+        ctx->cycle_nodes = c4m_dict(c4m_type_ref(), c4m_type_int());
+    }
+
+    if (!hatrack_dict_get(ctx->cycle_nodes, node, NULL)) {
+        hatrack_dict_put(ctx->cycle_nodes,
+                         node,
+                         (void *)hatrack_dict_len(ctx->cycle_nodes) + 1);
+    }
+
+    ctx->cycle = true;
+    new_tree_builder(node, depth, ctx);
+    ctx->cycle = false;
+
+    return false;
+}
 
 static void
 build_tree_output(c4m_tree_node_t *node, tree_fmt_t *info, bool last)
@@ -2264,6 +2490,102 @@ c4m_set_row_style(c4m_grid_t *grid, int row, c4m_utf8_t *tag)
     }
 
     c4m_set_row_props(grid, row, style);
+}
+
+c4m_grid_t *
+_c4m_grid_tree_new(c4m_tree_node_t *tree, ...)
+{
+    c4m_codepoint_t pad      = ' ';
+    c4m_codepoint_t tchar    = 0x251c;
+    c4m_codepoint_t lchar    = 0x2514;
+    c4m_codepoint_t hchar    = 0x2500;
+    c4m_codepoint_t vchar    = 0x2502;
+    int32_t         vpad     = 2;
+    int32_t         ipad     = 1;
+    bool            no_nl    = true;
+    c4m_utf8_t     *tag      = c4m_new_utf8("tree_item");
+    void           *callback = NULL;
+    void           *thunk    = NULL;
+
+    c4m_karg_only_init(tree);
+    c4m_kw_codepoint("pad", pad);
+    c4m_kw_codepoint("t_char", tchar);
+    c4m_kw_codepoint("l_char", lchar);
+    c4m_kw_codepoint("h_char", hchar);
+    c4m_kw_codepoint("v_char", vchar);
+    c4m_kw_int32("vpad", vpad);
+    c4m_kw_int32("ipad", ipad);
+    c4m_kw_bool("truncate_at_newline", no_nl);
+    c4m_kw_ptr("style_tag", tag);
+    c4m_kw_ptr("callback", callback);
+    c4m_kw_ptr("user_data", thunk);
+
+    if (callback == NULL) {
+        C4M_CRAISE(
+            "Must provide a callback for providing a "
+            "representation.");
+    }
+
+    if (vpad < 1) {
+        vpad = 1;
+    }
+    if (ipad < 0) {
+        ipad = 1;
+    }
+
+    c4m_grid_t *result = c4m_new(c4m_type_grid(),
+                                 c4m_kw("container_tag",
+                                        c4m_ka(c4m_new_utf8("flow")),
+                                        "td_tag",
+                                        c4m_ka(tag)));
+
+    tree_fmt_new_t fmt_info = {
+        .pad      = pad,
+        .tchar    = tchar,
+        .lchar    = lchar,
+        .hchar    = hchar,
+        .vchar    = vchar,
+        .vpad     = vpad,
+        .ipad     = ipad,
+        .no_nl    = no_nl,
+        .style    = c4m_str_style(c4m_lookup_cell_style(tag)),
+        .tag      = tag,
+        .grid     = result,
+        .nl       = c4m_utf8_repeat('\n', 1),
+        .callback = callback,
+        .thunk    = thunk,
+    };
+
+    c4m_tree_walk_with_cycles(tree,
+                              (c4m_walker_fn)new_tree_builder,
+                              (c4m_walker_fn)grid_cycle_callback,
+                              &fmt_info);
+
+    fmt_info.show_cycles = true;
+
+    if (fmt_info.cycle_nodes != NULL) {
+        uint64_t          n;
+        c4m_tree_node_t **nodes = (void *)hatrack_dict_keys_sort(
+            fmt_info.cycle_nodes,
+            &n);
+        fmt_info.cycle_nodes = NULL;
+
+        for (uint64_t i = 0; i < n; i++) {
+            reset_builder_ctx(&fmt_info);
+
+            c4m_str_t *s = c4m_cstr_format("[h1]Rooted from Cycle {}: ", i + 1);
+            c4m_style_gaps(s, fmt_info.style);
+
+            c4m_renderable_t *item = c4m_to_str_renderable(s, fmt_info.tag);
+            c4m_grid_add_row(fmt_info.grid, item);
+            c4m_tree_walk_with_cycles(nodes[i],
+                                      (c4m_walker_fn)new_tree_builder,
+                                      NULL,
+                                      &fmt_info);
+        }
+    }
+
+    return result;
 }
 
 // This currently expects a tree[utf8] or tree[utf32].  Eventually

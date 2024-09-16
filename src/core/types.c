@@ -1457,13 +1457,21 @@ internal_repr_container(c4m_type_t *type,
                             c4m_kw("cstring",
                                    c4m_ka(c4m_internal_type_name(type)))));
     c4m_list_append(to_join, c4m_get_lbrak_const());
+
+    int n = type->items ? 0 : c4m_list_len(type->items);
+
     goto first_loop_start;
 
     for (; i < num_types; i++) {
         c4m_list_append(to_join, c4m_get_comma_const());
 
 first_loop_start:
-        subnode = c4m_list_get(type->items, i, NULL);
+        if (i >= n) {
+            subnode = c4m_new_typevar();
+        }
+        else {
+            subnode = c4m_list_get(type->items, i, NULL);
+        }
 
         substr = c4m_internal_type_repr(subnode, memos, nexttv);
 
@@ -1745,8 +1753,7 @@ c4m_type_t *
 c4m_type_tuple(int64_t nitems, ...)
 {
     va_list     args;
-    c4m_type_t *result = c4m_new(c4m_type_typespec(),
-                                 C4M_T_TUPLE);
+    c4m_type_t *result = c4m_new(c4m_type_typespec(), C4M_T_TUPLE);
     c4m_list_t *items  = result->items;
 
     va_start(args, nitems);
@@ -1768,8 +1775,7 @@ c4m_type_tuple(int64_t nitems, ...)
 c4m_type_t *
 c4m_type_tuple_from_xlist(c4m_list_t *items)
 {
-    c4m_type_t *result = c4m_new(c4m_type_typespec(),
-                                 C4M_T_TUPLE);
+    c4m_type_t *result = c4m_new(c4m_type_typespec(), C4M_T_TUPLE);
 
     result->items = items;
 
