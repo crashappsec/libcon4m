@@ -187,7 +187,7 @@ typedef enum : int64_t {
     C4M_GTNT_OTHER,
     C4M_GTNT_OPT_JUNK_MULTI,
     C4M_GTNT_OPT_JUNK_SOLO,
-    C4M_GTNT_CMD_TOP,
+    C4M_GTNT_CMD_NAME,
     C4M_GTNT_CMD_RULE,
     C4M_GTNT_OPTION_RULE,
     C4M_GTNT_FLOAT_NT,
@@ -223,7 +223,7 @@ typedef struct c4m_goption_t {
 typedef struct c4m_gopt_cspec {
     struct c4m_gopt_ctx   *context;
     struct c4m_gopt_cspec *parent;
-    c4m_nonterm_t         *top_nt;
+    c4m_nonterm_t         *name_nt;
     c4m_nonterm_t         *rule_nt;
     c4m_utf8_t            *name;
     int64_t                token_id;
@@ -262,7 +262,6 @@ typedef struct c4m_gopt_ctx {
     c4m_nonterm_t *nt_word;
     c4m_nonterm_t *nt_bool;
     c4m_nonterm_t *nt_eq;
-    c4m_nonterm_t *nt_oeq;
     c4m_nonterm_t *nt_opts;
     c4m_nonterm_t *nt_1opt;
     int64_t        default_command;
@@ -270,6 +269,7 @@ typedef struct c4m_gopt_ctx {
     // See the global flags array above.
     uint32_t       options;
     bool           finalized;
+    bool           show_debug;
 } c4m_gopt_ctx;
 
 typedef struct c4m_gopt_cmd_rule {
@@ -293,13 +293,14 @@ typedef struct {
 } c4m_gopt_lex_state;
 
 typedef struct {
+    c4m_utf8_t *cmd;
     c4m_dict_t *flags;
     c4m_dict_t *args;
     c4m_list_t *errors;
-    c4m_utf8_t *cmd;
 } c4m_gopt_result_t;
 
 typedef struct {
+    c4m_list_t      *flag_nodes;
     c4m_gopt_cspec  *cur_cmd;
     c4m_dict_t      *flags;
     c4m_dict_t      *args;
@@ -312,10 +313,10 @@ typedef struct {
 } c4m_gopt_extraction_ctx;
 
 typedef struct {
+    c4m_utf8_t    *cmd;
+    c4m_goption_t *spec;
     c4m_obj_t      value;
     int            n; // Number of items stored.
-    c4m_goption_t *spec;
-    c4m_utf8_t    *cmd;
 } c4m_rt_option_t;
 
 extern c4m_list_t *c4m_gopt_parse(c4m_gopt_ctx *, c4m_str_t *, c4m_list_t *);
@@ -343,3 +344,19 @@ c4m_gopt_rule_optional_word()
                          C4M_GOG_RPAREN,
                          C4M_GOG_OPT);
 }
+#ifdef C4M_USE_INTERNAL_API
+void c4m_gopt_tokenize(c4m_gopt_ctx *, c4m_utf8_t *, c4m_list_t *);
+void c4m_gopt_finalize(c4m_gopt_ctx *);
+
+static inline bool
+c4m_gctx_gflag_is_set(c4m_gopt_ctx *ctx, uint32_t flag)
+{
+    return (bool)ctx->options & flag;
+}
+
+static inline bool
+c4m_gopt_gflag_is_set(c4m_gopt_lex_state *state, uint32_t flag)
+{
+    return c4m_gctx_gflag_is_set(state->gctx, flag);
+}
+#endif

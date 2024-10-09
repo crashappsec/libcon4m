@@ -50,15 +50,14 @@ typedef enum {
 typedef enum {
     C4M_EO_PREDICT_NT,
     C4M_EO_PREDICT_G,
-    C4M_EO_PREDICT_I,
-    C4M_EO_SCAN_NULL,
+    C4M_EO_FIRST_GROUP_ITEM,
     C4M_EO_SCAN_TOKEN,
     C4M_EO_SCAN_ANY,
+    C4M_EO_SCAN_NULL,
     C4M_EO_SCAN_CLASS,
     C4M_EO_SCAN_SET,
     C4M_EO_COMPLETE_N,
-    C4M_EO_COMPLETE_I,
-    C4M_EO_COMPLETE_G,
+    C4M_EO_ITEM_END,
 } c4m_earley_op;
 
 // For my own sanity, this will map individual earley items to the
@@ -78,11 +77,11 @@ typedef enum {
 
 typedef struct c4m_terminal_t     c4m_terminal_t;
 typedef struct c4m_nonterm_t      c4m_nonterm_t;
+typedef struct c4m_parse_rule_t   c4m_parse_rule_t;
 typedef struct c4m_rule_group_t   c4m_rule_group_t;
 typedef struct c4m_pitem_t        c4m_pitem_t;
 typedef struct c4m_token_info_t   c4m_token_info_t;
 typedef struct c4m_parser_t       c4m_parser_t;
-typedef struct c4m_egroup_info_t  c4m_egroup_info_t;
 typedef struct c4m_earley_item_t  c4m_earley_item_t;
 typedef struct c4m_grammar_t      c4m_grammar_t;
 typedef struct c4m_earley_state_t c4m_earley_state_t;
@@ -96,23 +95,41 @@ struct c4m_terminal_t {
 
 struct c4m_nonterm_t {
     c4m_utf8_t *name;
-    c4m_list_t *rules; // A list of c4m_prule_t objects;
+    c4m_list_t *rules; // A list of c4m_parse_rule_t objects;
     void       *user_data;
     int64_t     id;
-    int         penalty;
+    bool        group_nt;
+    bool        empty_is_error;
+    bool        error_nulled;
+    bool        start_nt;
+    bool        finalized;
     bool        nullable;
 };
 
+struct c4m_parse_rule_t {
+    c4m_nonterm_t    *nt;
+    c4m_list_t       *contents;
+    int32_t           cost;
+    // For penalty rules. We track the original rule so that we can
+    // more easily reconstruct the intended tree structure.
+    c4m_parse_rule_t *link;
+    // Used when creating error rules; it denotes that the nonterminal
+    // would be nullable if we allow a token omission, and that we
+    // generated rules for single token omission that respect that
+    // fact (done to avoid cycles).
+    bool              penalty_rule;
+};
+
 struct c4m_rule_group_t {
-    c4m_list_t *items;
-    int32_t     min;
-    int32_t     max;
-    int32_t     gid;
+    c4m_nonterm_t *contents;
+    int32_t        min;
+    int32_t        max;
+    int32_t        gid;
 };
 
 struct c4m_pitem_t {
-    c4m_utf8_t   *s;
     c4m_parser_t *parser;
+    c4m_utf8_t   *s; // cached repr. Should go away I think.
 
     union {
         c4m_list_t       *items; // c4m_pitem_t's
@@ -141,9 +158,12 @@ struct c4m_parse_node_t {
     int32_t  start;
     int32_t  end;
     uint32_t penalty;
+    uint16_t penalty_location;
     bool     token;
     bool     group_item;
     bool     group_top;
+    bool     missing;
+    bool     bad_prefix;
 
     union {
         c4m_token_info_t *token;
@@ -159,13 +179,9 @@ struct c4m_earley_item_t {
     // hold more than one item when pointing in this direction, part
     // of why it's easier to build the graph backwards.
     c4m_earley_item_t *previous_scan;
-    // This one only gets set for states that are starts of rules.  It
-    // holds a cache that holds in-progress subtrees during the
-    // tree-building process.
-    c4m_dict_t        *tree_cache;
     // This basically represents all potential parent nodes in the tree
     // above the node we're currently processing.
-    c4m_set_t         *starts;
+    c4m_set_t         *parent_states;
     // Any item we predict, if we predicted. This basically tracks
     // subgraph starts, and the next one tracks subgraph ends.
     c4m_set_t         *predictions;
@@ -174,12 +190,12 @@ struct c4m_earley_item_t {
     // derrivations for a non-terminal when we have an ambiguous
     // grammar.
     c4m_set_t         *completors;
-    // If we predict a null, we want to track that for tree-building,
-    // to make sure we add an empty string as an option at this spot.
     // A pointer to the actual rule contents we represent.
-    c4m_list_t        *rule;
+    c4m_parse_rule_t  *rule;
     // Static info about the current group.
     c4m_rule_group_t  *group;
+    // The Earley state associated with a group.
+    c4m_earley_item_t *group_top;
     // Used to cache info related to the state during tree-building.
     c4m_dict_t        *cache;
     // The `rule_id` is the non-terminal we pulled the rule from.
@@ -191,6 +207,11 @@ struct c4m_earley_item_t {
     int32_t            rule_index;
     // Which item in the rule are we to process (the 'dot')?
     int32_t            cursor;
+    // The next few items are to help us distinguish when we need to
+    // create unique states, or when we can share them.
+    int32_t            predictor_ruleset_id;
+    int32_t            predictor_rule_index;
+    int32_t            predictor_cursor;
     // If we're a group item, how many have we matched?
     int32_t            match_ct;
     // Thhe next two fields is the recognizer's state machine
@@ -205,9 +226,25 @@ struct c4m_earley_item_t {
     // index into that state in which we live.
     int32_t            estate_id;
     int32_t            eitem_index;
-    // This tracks any penalty the grammar associates with this rule, so
-    // that we can apply it during graph building.
-    int                penalty;
+    // These tracks penalties the grammar associates with this rule.
+    // Current 'total' associated with an earley state.
+    // This will just be a sub of the components below.
+    uint32_t           penalty;
+    // Anything added to this state, or prior sibling states, via a
+    // completion. In the case of groups, the individual items inside
+    // a group take sub-penalties from their elements; they are
+    // propogated up to the group node, but
+    uint32_t           sub_penalties;
+    // Anything produced from SELECTING the current rule, including
+    // any inherited penalty. This should be constant for every item
+    // in a rule, and should be 0 for group items.
+    uint32_t           my_penalty;
+    // Anything associated with too few or too many matches. This
+    // really is meant to disambiguate item starts only based on the
+    // penalty we would assess; during group completion, the proper
+    // group penalty gets calculated, instead of propogating it
+    // throughout the group item.
+    uint32_t           group_penalty;
 
     // In the classic Earley algorithm, this operation to perform on a
     // state is not selected when we generate the state; it's
@@ -264,6 +301,13 @@ struct c4m_earley_item_t {
     // randomly assigned an ID right now. I'll probably change that and
     // assign them hidden non-terminal IDs statically.
     bool               double_dot;
+    // When predicting a non-terminal, if this is true, we should
+    // additionally perform a 'null' prediction.
+    // Currently, this skirts the whole penalty / cost system, so is
+    // explicitly not done with error productions, which must match
+    // a null pitem.
+    bool               null_prediction;
+    bool               no_reprocessing;
     // This strictly isn't necessary, but it's been a nice helper for
     // me.  The basic idea is that subtrees span from a start item to
     // an end item. The start item will result from a prediction (in
@@ -284,14 +328,20 @@ struct c4m_earley_item_t {
 };
 
 struct c4m_grammar_t {
-    c4m_list_t  *named_terms;
-    c4m_list_t  *rules;
-    c4m_dict_t  *rule_map;
-    c4m_dict_t  *terminal_map;
-    c4m_dict_t  *penalty_map;
-    c4m_pitem_t *penalty;
-    c4m_pitem_t *penalty_empty;
-    int32_t      default_start;
+    c4m_list_t *named_terms; // I think this is unneeded
+    c4m_list_t *rules;
+    c4m_list_t *nt_list;
+    c4m_dict_t *nt_map;
+    c4m_dict_t *terminal_map; // Registered non-unicode token types.
+    int32_t     default_start;
+    uint32_t    max_penalty;
+    bool        long_err_prefix;
+    bool        hide_penalty_rewrites;
+    bool        hide_groups;
+    int         suspend_penalty_hiding;
+    bool        suspend_group_hiding;
+    bool        error_rules;
+    bool        finalized;
 };
 
 struct c4m_earley_state_t {
@@ -318,14 +368,13 @@ typedef int64_t (*c4m_tokenizer_fn)(c4m_parser_t *, void **);
 struct c4m_parser_t {
     c4m_grammar_t      *grammar;
     c4m_list_t         *states;
-    c4m_list_t         *roots;
     c4m_earley_state_t *current_state;
     c4m_earley_state_t *next_state;
     void               *user_context;
+    c4m_dict_t         *debug_highlights;
     // The tokenization callback should set this if the token ID
     // returned isn't recognized, or if the value wasn't otherwise set
     // when initializing the corresponding non-terminal.
-    c4m_list_t         *parse_trees;
     void               *token_cache;
     c4m_tokenizer_fn    tokenizer;
     bool                run;
@@ -333,10 +382,10 @@ struct c4m_parser_t {
     int32_t             position;       // Absolute pos in tok stream
     int32_t             current_line;   // 1-indexed.
     int32_t             current_column; // 0-indexed.
-    int32_t             cur_item_index; // Current ix in inner loop.
     int32_t             fnode_count;    // Next unique node ID
     bool                ignore_escaped_newlines;
     bool                preloaded_tokens;
+    bool                show_debug;
 };
 
 // Any registered terminals that we give IDs will be strings. If the
@@ -349,26 +398,23 @@ struct c4m_parser_t {
 // tokenize a string into single codepoints... we don't have to
 // register or translate anything.
 
-#define C4M_START_TOK_ID       0x40000000
-#define C4M_TOK_OTHER          -3
-#define C4M_TOK_IGNORED        -2 // Passthrough tokens, like whitespace.
-#define C4M_TOK_EOF            -1
-#define C4M_EMPTY_STRING       -126
-#define C4M_GID_SHOW_GROUP_LHS -255
-
+#define C4M_START_TOK_ID        0x40000000
+#define C4M_TOK_OTHER           -3
+#define C4M_TOK_IGNORED         -2 // Passthrough tokens, like whitespace.
+#define C4M_TOK_EOF             -1
+#define C4M_EMPTY_STRING        -126
+#define C4M_GID_SHOW_GROUP_LHS  -255
+#define C4M_ERROR_NODE_ID       -254
 #define C4M_IX_START_OF_PROGRAM -1
 
 extern c4m_pitem_t *c4m_group_items(c4m_grammar_t *p,
                                     c4m_list_t    *pitems,
                                     int            min,
                                     int            max);
-// Does not try to do automatic error recovery.
-extern void         c4m_ruleset_raw_add_rule(c4m_grammar_t *,
-                                             c4m_nonterm_t *,
-                                             c4m_list_t *);
 extern void         c4m_ruleset_add_rule(c4m_grammar_t *,
                                          c4m_nonterm_t *,
-                                         c4m_list_t *);
+                                         c4m_list_t *,
+                                         int);
 extern void         c4m_parser_set_default_start(c4m_grammar_t *,
                                                  c4m_nonterm_t *);
 extern void         c4m_internal_parse(c4m_parser_t *, c4m_nonterm_t *);
@@ -386,7 +432,7 @@ extern c4m_nonterm_t *c4m_pitem_get_ruleset(c4m_grammar_t *, c4m_pitem_t *);
 
 extern c4m_grid_t *c4m_grammar_to_grid(c4m_grammar_t *);
 extern c4m_grid_t *c4m_parse_state_format(c4m_parser_t *, bool);
-extern c4m_grid_t *c4m_forest_format(c4m_parser_t *);
+extern c4m_grid_t *c4m_forest_format(c4m_list_t *);
 extern c4m_utf8_t *c4m_repr_token_info(c4m_token_info_t *);
 extern int64_t     c4m_token_stream_codepoints(c4m_parser_t *, void **);
 extern int64_t     c4m_token_stream_strings(c4m_parser_t *, void **);
@@ -395,6 +441,7 @@ extern c4m_grid_t *c4m_format_parse_state(c4m_parser_t *, bool);
 extern c4m_grid_t *c4m_grammar_format(c4m_grammar_t *);
 extern void        c4m_parser_reset(c4m_parser_t *);
 extern c4m_utf8_t *c4m_repr_parse_node(c4m_parse_node_t *);
+extern c4m_list_t *c4m_parse_get_parses(c4m_parser_t *);
 
 static inline c4m_pitem_t *
 c4m_new_pitem(c4m_pitem_kind kind)
@@ -495,20 +542,6 @@ c4m_pitem_builtin_raw(c4m_bi_class_t class)
 }
 
 static inline void
-c4m_ruleset_add_empty_rule(c4m_nonterm_t *nonterm)
-{
-    // Not bothering to check for dupes.
-    c4m_pitem_t *item = c4m_new_pitem(C4M_P_NULL);
-    c4m_list_t  *rule = c4m_list(c4m_type_ref());
-    c4m_list_append(rule, item);
-    c4m_list_append(nonterm->rules, rule);
-
-    // The empty rule always makes the whole production nullable, no
-    // need to recurse.
-    nonterm->nullable = true;
-}
-
-static inline void
 c4m_grammar_set_default_start(c4m_grammar_t *grammar, c4m_nonterm_t *nt)
 {
     grammar->default_start = nt->id;
@@ -526,12 +559,6 @@ c4m_terminal_set_user_data(c4m_terminal_t *term, void *data)
     term->user_data = data;
 }
 
-static inline c4m_list_t *
-c4m_parse_get_parses(c4m_parser_t *parser)
-{
-    return parser->parse_trees;
-}
-
 static inline c4m_grid_t *
 c4m_parse_tree_format(c4m_tree_node_t *t)
 {
@@ -544,7 +571,7 @@ c4m_parse_get_user_data(c4m_grammar_t *g, c4m_parse_node_t *node)
 {
     int64_t id;
 
-    if (!node || node->group_item) {
+    if (!node) {
         return NULL;
     }
 
@@ -566,14 +593,22 @@ c4m_parse_get_user_data(c4m_grammar_t *g, c4m_parse_node_t *node)
 
     id = node->id;
 
-    c4m_nonterm_t *nt = c4m_list_get(g->rules, id, NULL);
+    if (id < 0 || id > c4m_list_len(g->rules)) {
+        return NULL;
+    }
+
+    c4m_nonterm_t *nt = c4m_list_get(g->nt_list, id, NULL);
+
+    if (!nt) {
+        return NULL;
+    }
+
     return nt->user_data;
 }
 
 #ifdef C4M_USE_INTERNAL_API
-#define C4M_GROUP_ID 1 << 28
-
-#define C4M_MAX_PARSE_PENALTY 2
+#define C4M_GROUP_ID                  1 << 28
+#define C4M_DEFAULT_MAX_PARSE_PENALTY 2
 
 extern c4m_nonterm_t *c4m_get_nonterm(c4m_grammar_t *, int64_t);
 extern c4m_utf8_t    *c4m_repr_rule(c4m_grammar_t *, c4m_list_t *, int);
@@ -586,10 +621,13 @@ extern c4m_utf8_t    *c4m_repr_term(c4m_grammar_t *, int64_t);
 extern c4m_utf8_t    *c4m_repr_rule(c4m_grammar_t *, c4m_list_t *, int);
 extern c4m_utf8_t    *c4m_repr_token_info(c4m_token_info_t *);
 extern c4m_grid_t    *c4m_repr_state_table(c4m_parser_t *, bool);
-extern c4m_list_t    *c4m_find_all_trees(c4m_parser_t *);
 extern void           c4m_parser_load_token(c4m_parser_t *);
 extern c4m_grid_t    *c4m_get_parse_state(c4m_parser_t *, bool);
-extern void           c4m_print_states(c4m_parser_t *, c4m_list_t *);
+extern c4m_utf8_t    *c4m_parse_repr_item(c4m_grammar_t *, c4m_pitem_t *);
+extern void           c4m_prep_first_parse(c4m_grammar_t *);
+extern bool           c4m_is_nullable_pitem(c4m_grammar_t *,
+                                            c4m_pitem_t *,
+                                            c4m_list_t *);
 
 static inline bool
 c4m_is_non_terminal(c4m_pitem_t *pitem)
@@ -617,4 +655,25 @@ c4m_new_earley_state(int id)
     return result;
 }
 
+static inline bool
+c4m_hide_groups(c4m_grammar_t *g)
+{
+    return g->hide_groups && !g->suspend_group_hiding;
+}
+
+static inline bool
+c4m_hide_penalties(c4m_grammar_t *g)
+{
+    return g->hide_penalty_rewrites & !g->suspend_penalty_hiding;
+}
+
 #endif
+
+extern void        c4m_add_debug_highlight(c4m_parser_t *, int32_t, int32_t);
+extern c4m_list_t *c4m_clean_trees(c4m_parser_t *, c4m_list_t *);
+
+static inline c4m_terminal_t *
+c4m_get_terminal(c4m_grammar_t *g, int64_t id)
+{
+    return c4m_list_get(g->named_terms, id - C4M_START_TOK_ID, NULL);
+}

@@ -1,71 +1,48 @@
 // The Earley algorithm is only a *recognizer*; it doesn't build parse
-// trees. I haven't found anything comprehensible that talks about how
-// to build trees from Earley's algorthm, but here's my attempt to
-// describe may algorithm.
+// trees; we don't use the same approach for parse trees as a lot of
+// people here, because:
 //
-// Every earley state with a dot at the front gets a node in the tree
-// when we create it, corresponding to a new non-terminal node in the
-// tree.
+// 1. I don't like the representation for sparse, packed forests; it's
+//    hard for mere mortals to work with them;
+// 2. I have a 'set' abstraction and am not afraid to use it, so I can
+//    keep precise track of n:m mappings between states, and do not
+//    have to go back and pick all related states.
 //
-// As we process one rule, any state associated with that rule, at the
-// same place in the parse, will have a link to the node it's working
-// to fill (the `start_item` field).
+// Also, right now, I'm not generating nodes as I parse; it's all
+// moved to post-parse; see parse_tree.c.
 //
-// As we generate Earley states, we:
+// But we do collect the relationships betweeen states here that will
+// help us generate the tree.
 //
-// (a) Generate new non-terminal nodes when we predict a new rule. For
-//     any state where the cursor is at the beginning, we will
-//     generate a node that we can find in that state. Sibling states
-//     will have a link back to the node where the cursor is at the
-//     front of the rule, via the 'start_item' field.
+// For non-terminals, we basically track nodes based on two Earley
+// states. Consider A rule like:
 //
-// (b) Link nodes associated with the rules we're processing to the
-//     children they can cause to create ('predict').
+//   Paren  ⟶   '(' Add ')'
 //
-// (c) Create nodes for tokens when we scan them.
+// When we start processing the `Add` during a scan, we are processing
+// an Earley state associated with the above `Paren` rule. It will
+// generate one or more new states. Some or all of those states may
+// eventually lead to completions. The pairing of 'Add' start states
+// with the associated completion state represents a node of type Add
+// (of which, in an ambiguous grammar, there could be many valid
+// spans). Any such node gets parented to the 2nd item in the Paren
+// rule from which it spawned. But, the Paren rule too can be
+// ambiguous, so will have the potential to have multiple start / end
+// items.
 //
-// Multiple states can 'predict' the same node; we handle this by
-// allowing every node to have multiple parents, and multiple links to
-// multiple children.
+// To make our lives easier, we explicitly record all predictions made
+// directly from an earley state (generally there can be only one, but
+// the way I handle groups, subsequent potential items are also
+// considered prodictions of the top of the group). We also keep
+// backlinks in Earley states to who predicted us.
 //
-// Note that, since the Earley algorithm is essentially trying every
-// possible parse in parallel, a lot of the information in the graph
-// that results from the above is essentially junk. For that reason,
-// the links aren't kept in the actual tree during the Earley
-// algorithm running, they're kept in the Early item (which is
-// basically a record for each state in what is essentially a big
-// state machine).
+// All of this gets more complex when we may need to accept an empty
+// match. For that reason, we do NOT allow empty rules or empty string
+// matches in the grammar. The only `nullable` rules we allow are for
+// groups, where we allow things to match 0 items. That constraint
+// helps make null processing much easier to get correct.
 //
-// In the Early record, the downward link from parent to child is
-// implicit (basically self-evident once you understand the
-// algorithm). Instead, we record the links back from the children in
-// the graph to parents at the given Earley state. When we come back
-// to draw lines in the final tree, we will need to know which child
-// we are in that link. Note, if empty strings are allowed in a
-// production (in lingo, parts of the rule are 'nullable'), it's
-// possible we can have the same parent node from one state, through
-// multiple links. In that case, we will definitely end up with
-// multiple Earley states linked; the cursor position in the linked
-// state tells us which edge in the graph we're supposed to follow.
-//
-// The thing to note here is that the cursor position is key to the
-// graph action we take. If we're at the very beginning, we create a
-// new node when we create the state.
-//
-// As we 'scan' past parts of the rule, we 'move' the cursor in rules,
-// knowing that in some possible partial parse, there are going to be
-// sub-nodes; either this is a token scan, or a scan of a
-// non-terminal, which leads to more 'prediction'; in both cases we
-// end up creating children nodes. So if the rule moves the cursor, it
-// represents a link to a child node; we only add *new* nodes for
-// scans when scanning a terminal (a raw token).
-//
-// But it's when we get to the END of a rule (completion) that we get
-// the indication that these nodes we're creating actually are valid
-// for at least a subtree.  Anything that doesn't end with a
-// completion is garbage.
-//
-// In fact, valid parses must have a completion in the very final
+// Valid parses must have a completion in the very final
 // state, where the 'start_item' associated with it is in state 0
 // somewhere (and must be our start production).
 //
@@ -79,12 +56,7 @@
 // 3. Work backwords looking at the chain of events to find the other
 //    'good' subtrees.
 //
-// #3 is the hard thing. I've done this a number of ways; the most
-// straightforward thing is to work backwards up the earley state
-// chart to create all possible valid subtrees, and then come back and
-// see where it makes sense to link them up. That essentially means,
-// we make a second pass that gets rid of a big bunch of the junk and
-// makes it easy to fix up the forest of trees in a third pass.
+// #3 is the hard thing.
 //
 // However, the more proper way is to identify where we need to
 // complete subtrees, and then recursively apply the algorithm. To
@@ -92,85 +64,289 @@
 // find the top of a sub-tree; the bottom of it will be found
 // somewhere in the Earley state above ours. This is obvious how to do
 // when we scan a token, since there's no chance for ambiguity, and no
-// cascades of completions.
+// cascades of completions. Getting this to work does require us to be
+// able to disambiguate in the face of conflicting previous scans,
+// which is why it is incredibly helpful not to allow null scans.
 //
-// But it's actually simple even for non-terminals; whenever the
-// cursor advances, that's a scan, and we should reset the value when
-// we tell the function that copies an earley state to move the
-// cursor. (Other times, it propogates the existing value).
+// Again, building trees from the states though is actually handled in
+// parse_tree.c.
 //
-// In all cases, ambiguity is not our friend; nodes may be part of
-// multiple subtrees. To that end, during this tree construction
-// phase, we keep a worklist of tasks to perform.  The tree building
-// actually lives in parse_tree.c though!
+// The group feature obviously can be directly mapped to BNF, but
+// I wanted to be able to handle [m, n] matches without having to
+// do crazy grammar expansion. Therefore, I made groups basically
+// a first-class part of the algorithm.
 //
-// Also, I added my own notion of groups that's a bit more higher
-// level than just generating raw BNF. This mostly works like regular
-// non-terminals, except we keep a little bit of extra info around on
-// the minimum and maximum number of matches we accept; if we hit the
-// maximum, we currently stop predicting new items. Conversely, if
-// there is a minimum we have not hit, then we refuse to 'complete'
-// the top-level group. In between, whenever we get to the end of a
-// group item, we will both predict a new group item AND complete the
-// group.
+// They mostly works like regular non-terminals, except we keep a
+// little bit of extra info around on the minimum and maximum number
+// of matches we accept; if we hit the maximum, we currently keep
+// predicting new items, but with a penalty. Conversely, if there is a
+// minimum we have not hit, then we penalize 'completing' the
+// top-level group. In between, whenever we get to the end of a group
+// item, we will both predict a new group item AND complete the
+// group. If the penalty gets too high, we stop that branch of our
+// parse state.
+//
+// To handle 0-length matches, the first time we predict a group, we
+// also immediately complete it.
 //
 // The group implementation basically uses anonymous non-terminals
-// (right now they get a random id every time they are expanded;
-// perhaps should make them unique per grammar). The major difference
-// is we do a bit of accounting per above.
+// The only majordifference is we do a bit of accounting per above.
 //
-// Another thing: the grammar API can transform grammar rules to do
-// error detection automatically (an algorithm by Aho). Basically
-// here, we add in productions that match mistakes, but assign those
-// mistakes a 'penalty'.
+// The grammar API can transform grammar rules to do error detection
+// automatically (an algorithm by Aho). Basically here, we add in
+// productions that match mistakes, but assign those mistakes a
+// 'penalty'.
 //
-// The parser adds the rule to states as it parses. But as we parse
-// and build the the final tree, we stop working on things where the
-// penalty is too high (we have to keep this low to avoid an
-// exponential explosion of work).
+// Since the Aho approach requires adding empty-string matches when
+// something is omitted, I actually end up doing something slightly
+// different. For instance, Aho would convert:
 //
-// Currently, the error transformations only get applied to terminals
-// within non-terminal rules.
+// Paren ⟶ '(' Add ')'
+//
+// To something like:
+//
+// Paren ⟶ Term_Lparen Add Term_Rparen
+// Term_Lparen ⟶ '(' | <<Any> '(' | ε
+// Term_Rparen ⟶ ')' | <<Any> ')' | ε
+//
+// And then would assess a penalty when selecting anything other than
+// the bare token. Instead, I currently do something a bit
+// weaker. Basically, the idea is you can transform a grammar to
+// remove empty string matches (as long as your grammar doesn't accept an
+// empty input, but that can also just be special cased).
+//
+// For instance, something like:
+//
+// Add ⟶ Add Term_Plus Mul
+// Term_Plus ⟶ '+' | <<Any> '+' | ε
+//
+// Can be rewritten as:
+// Add ⟶ Add '+' Mul
+// Add ⟶ Add <<Any> '+' Mul
+// Add ⟶ Add Mul
+//
+// Where the second two items are assessed a penalty.
+//
+// That's effectively what I'm doing (the rewrite is done in
+// grammar.c), however:
+//
+// 1. I do some folding for ambiguity; such a penalty rule could end
+//    up having the same structure as an existing rule, in which case
+//    I don't add it.
+//
+// 2. If you've got rules with many tokens in a single, creating the
+//    set of resulting rules is exponential. While that's both
+//    precomputation, and not really done in any practical grammar
+//    (meaning, some insane number of tokens), I don't particularly love
+//    it.
+//
+// There are easy ways to rectify this, like rewriting the grammar
+// into a normal form, where it would contain no more than 1 terminal
+// and no more than 2 items. However, I don't do that right now,
+// because I want the trees that people get to match the grammar as
+// they wrote it, and making that mapping is less straightforward.
+//
+// So for the time being, I'm weakining the matching. Aho's algorithm
+// clearly would produce a tree for the 'Paren' rule above if both
+// parens are accientally omitted. However, I only produce rules that
+// allow for a single omission.
+//
+// As an example, I *could* translate the Paren rule into the following:
+// Paren ⟶ '(' Add ')'
+// Paren ⟶  Add ')' # 1 omission
+// Paren ⟶ '(' Add # 1 omission
+// Paren ⟶ <<Any>> '(' Add ')' # 1 junk item
+// Paren ⟶ '(' Add <<Any>> ')' # 1 junk item
+// Paren ⟶ <<Any>> '(' Add <<Any>> ')' # 2 junk items.
+// Paren ⟶  Add  # 2 omissions
+//
+// That would be equivolent to the Aho approach, where I properly
+// remove nulls from the grammar.
+//
+// HOWEVER, I do NOT generate the last two rules; I only generate ones
+// where there is one error captured.
+//
+// Therefore, the error recovery here isn't quite as good. BUT, it
+// does have the big advantage of avoiding a bunch of unnecessary
+// Earley state explosion. Frankly, that's a real-world problem that
+// led me to this compromise.
+//
+// I've tried to make the penalty logic as clear as possible. But the
+// idea is, penalty rules (and group misses) add penalty. We consider
+// the penalty both when propogating down / up, but we do not
+// double-count penalties (e.g., adding for a non-terminal on the way
+// down and the way up).
+//
+// There's also a parallel notion called 'COST' which can be used for
+// precedence. This is orthogonal to penalties really, but it works
+// the same way. Items with lower costs are more desirable than higher
+// cost items, just like lower penalties are more desirable than
+// higher ones.
+//
+// However, no matter how high costs get, something with no penalty is
+// in some sense 'correct' and 'allowed', so a completion with 1000
+// cost, and 0 penalties is accepted over an otherwise equal
+// completion with 0 cost and 1 penalty.
 
 #define C4M_USE_INTERNAL_API
+#define C4M_PARSE_DEBUG
+
 #include "con4m.h"
 
-static inline void set_next_action(c4m_parser_t *, c4m_earley_item_t *);
+static inline c4m_pitem_t *
+get_rule_pitem(c4m_parse_rule_t *r, int i)
+{
+    return c4m_list_get(r->contents, i, NULL);
+}
+
+static inline c4m_pitem_t *
+get_ei_pitem(c4m_earley_item_t *ei, int i)
+{
+    return get_rule_pitem(ei->rule, i);
+}
+
+static inline int
+ei_rule_len(c4m_earley_item_t *ei)
+{
+    return c4m_list_len(ei->rule->contents);
+}
+
+static inline void
+set_subtree_info(c4m_parser_t *p, c4m_earley_item_t *ei)
+{
+    c4m_earley_item_t *start = ei->start_item;
+
+    if (!ei->cursor) {
+        if (start->group) {
+            if (start->double_dot) {
+                ei->subtree_info = C4M_SI_GROUP_START;
+            }
+            else {
+                ei->subtree_info = C4M_SI_GROUP_ITEM_START;
+            }
+        }
+        else {
+            ei->subtree_info = C4M_SI_NT_RULE_START;
+        }
+    }
+
+    if (ei->cursor == ei_rule_len(start)) {
+        if (start->group) {
+            if (start->double_dot) {
+                ei->subtree_info = C4M_SI_GROUP_END;
+                ei->double_dot   = true;
+            }
+            else {
+                ei->subtree_info = C4M_SI_GROUP_ITEM_END;
+            }
+        }
+        else {
+            ei->subtree_info = C4M_SI_NT_RULE_END;
+        }
+    }
+}
+
+static inline void
+set_next_action(c4m_parser_t *p, c4m_earley_item_t *ei)
+{
+    c4m_earley_item_t *start = ei->start_item;
+
+    if (ei->cursor == ei_rule_len(start)) {
+        switch (ei->subtree_info) {
+        case C4M_SI_GROUP_END:
+        case C4M_SI_NT_RULE_END:
+            ei->op = C4M_EO_COMPLETE_N;
+            return;
+        default:
+            ei->op = C4M_EO_ITEM_END;
+            return;
+        }
+    }
+
+    if (!ei->cursor && ei->double_dot) {
+        ei->op = C4M_EO_FIRST_GROUP_ITEM;
+        return;
+    }
+
+    c4m_pitem_t *next = get_ei_pitem(ei->start_item, ei->cursor);
+
+    switch (next->kind) {
+    case C4M_P_TERMINAL:
+        ei->op = C4M_EO_SCAN_TOKEN;
+        return;
+    case C4M_P_ANY:
+        ei->op = C4M_EO_SCAN_ANY;
+        return;
+    case C4M_P_BI_CLASS:
+        ei->op = C4M_EO_SCAN_CLASS;
+        return;
+    case C4M_P_SET:
+        ei->op = C4M_EO_SCAN_SET;
+        return;
+    case C4M_P_NT:
+        if (c4m_is_nullable_pitem(p->grammar, next, c4m_list(c4m_type_ref()))) {
+            ei->null_prediction = true;
+        }
+        ei->op = C4M_EO_PREDICT_NT;
+        return;
+    case C4M_P_GROUP:
+        ei->op = C4M_EO_PREDICT_G;
+        return;
+    case C4M_P_NULL:
+        ei->op = C4M_EO_SCAN_NULL;
+        return;
+    default:
+        c4m_unreachable();
+    }
+}
+
+#if 0
+        printf("prop_check_ei of property " #prop " (%p vs %p)\n", \
+               old->prop,                                          \
+               new->prop);
+#endif
+
+#define prop_check_ei(prop)                                              \
+    if (((void *)(int64_t)old->prop) != ((void *)(int64_t) new->prop)) { \
+        return false;                                                    \
+    }
+#define prop_check_start(prop)  \
+    if (os->prop != ns->prop) { \
+        return false;           \
+    }
 
 static inline bool
 are_dupes(c4m_earley_item_t *old, c4m_earley_item_t *new)
 {
-    if (old->estate_id != new->estate_id) {
-        return false;
+    c4m_earley_item_t *os = old->start_item;
+    c4m_earley_item_t *ns = new->start_item;
+
+    // If we're not the original prediction in a rule, then if the
+    // links to the start items are different, we want separate items.
+
+    if (os && ns && os != old) {
+        if (ns != os) {
+            return false;
+        }
     }
 
-    if (old->ruleset_id != new->ruleset_id) {
-        return false;
+    if (os && os != old) {
+        prop_check_start(previous_scan);
+        prop_check_start(rule);
+        prop_check_start(cursor);
+        prop_check_start(group);
+        prop_check_start(group_top);
+        prop_check_start(double_dot);
+        prop_check_start(null_prediction);
     }
 
-    if (old->rule_index != new->rule_index) {
-        return false;
-    }
-
-    if (old->cursor != new->cursor) {
-        return false;
-    }
-
-    if (old->match_ct != new->match_ct) {
-        return false;
-    }
-
-    if (old->group != new->group) {
-        return false;
-    }
-
-    if (old->double_dot != new->double_dot) {
-        return false;
-    }
-
-    if (old->penalty != new->penalty) {
-        return false;
-    }
+    prop_check_ei(previous_scan);
+    prop_check_ei(cursor);
+    prop_check_ei(group);
+    prop_check_ei(group_top);
+    prop_check_ei(double_dot);
+    prop_check_ei(rule);
+    prop_check_ei(null_prediction);
 
     return true;
 }
@@ -189,292 +365,403 @@ search_for_existing_state(c4m_earley_state_t *s, c4m_earley_item_t *ei, int n)
     return NULL;
 }
 
-static void
-add_item(c4m_parser_t *p, c4m_earley_item_t **newptr, bool next_state)
+static inline void
+calculate_group_end_penalties(c4m_earley_item_t *ei)
 {
-    // The state we use for duping could also be hashed to avoid the
-    // state scan if that ever were an issue.
-    c4m_earley_state_t *state = next_state ? p->next_state : p->current_state;
-    c4m_earley_item_t *new    = *newptr;
-    int n                     = c4m_list_len(state->items);
-    new->estate_id            = state->id;
-    new->eitem_index          = n;
+    // We don't track penalties for not meeting the minimum when
+    // setting items, and we don't propogate the penalty we calculated
+    // when predicting the group. So we calculate the correct value
+    // here.
 
-    if (new->penalty >= C4M_MAX_PARSE_PENALTY) {
+    int match_min    = ei->group->min;
+    int match_max    = ei->group->max;
+    int new_match_ct = ei->match_ct;
+
+    if (new_match_ct < match_min) {
+        ei->group_penalty = new_match_ct - match_min;
+    }
+    else {
+        if (match_max && new_match_ct > match_max) {
+            ei->group_penalty = (match_max - new_match_ct);
+        }
+    }
+
+    ei->penalty = ei->group_penalty + ei->my_penalty + ei->sub_penalties;
+}
+
+static void
+add_item(c4m_parser_t       *p,
+         c4m_earley_item_t  *from_state,
+         c4m_earley_item_t **newptr,
+         bool                next_state)
+{
+    c4m_earley_item_t *new = *newptr;
+
+    if (new->group &&new->cursor == c4m_list_len(new->rule->contents)) {
+        if (new->group->min < new->match_ct) {
+            calculate_group_end_penalties(new);
+        }
+    }
+
+    if (new->penalty > p->grammar->max_penalty) {
         return;
     }
 
+    assert(new->rule);
+    // The state we use for duping could also be hashed to avoid the
+    // state scan if that ever were an issue.
+    c4m_earley_state_t *state   = next_state ? p->next_state : p->current_state;
+    int                 n       = c4m_list_len(state->items);
+    new->estate_id              = state->id;
+    new->eitem_index            = n;
     c4m_earley_item_t *existing = search_for_existing_state(state, new, n);
 
     if (existing) {
+        if (new->penalty < existing->penalty) {
+            existing->completors    = new->completors;
+            existing->penalty       = new->penalty;
+            existing->sub_penalties = new->sub_penalties;
+            existing->my_penalty    = new->penalty;
+            existing->group_penalty = new->group_penalty;
+            existing->previous_scan = new->previous_scan;
+            existing->predictions   = new->predictions;
+        }
+        else {
+            if (new->penalty > existing->penalty) {
+                // This will effectively abandon the state; the penalty is too
+                // high.
+                return;
+            }
+            existing->completors = c4m_set_union(existing->completors,
+                                                 new->completors);
+        }
+
         *newptr = existing;
         return;
     }
     c4m_list_append(state->items, new);
+    set_subtree_info(p, new);
     set_next_action(p, new);
 }
 
 static inline c4m_earley_item_t *
 new_earley_item(void)
 {
-    c4m_earley_item_t *res = c4m_gc_alloc_mapped(c4m_earley_item_t,
-                                                 C4M_GC_SCAN_ALL);
-    res->starts            = c4m_set(c4m_type_ref());
-    res->predictions       = c4m_set(c4m_type_ref());
-
-    return res;
-}
-
-// For scans and completions we want to mostly keep the state from the
-// earley item that spawned us.
-static c4m_earley_item_t *
-copy_earley_item(c4m_parser_t *p, c4m_earley_item_t *old, bool bump_cursor)
-{
-    c4m_earley_item_t *new = new_earley_item();
-    new->start_item        = old->start_item;
-    new->rule              = old->rule;
-    new->ruleset_id        = old->ruleset_id;
-    new->rule_index        = old->rule_index;
-    new->cursor            = old->cursor;
-    new->group             = old->group;
-    new->match_ct          = old->match_ct;
-    new->penalty           = old->penalty;
-
-    if (bump_cursor) {
-        new->cursor        = new->cursor + 1;
-        new->previous_scan = old;
-    }
-    else {
-        new->previous_scan = old->previous_scan;
-    }
-
-    return new;
-}
-
-static inline void
-set_next_action(c4m_parser_t *p, c4m_earley_item_t *ei)
-{
-    // At it's core, this is about the cursor position and what's to
-    // the right of the cursor.
-    if (ei->cursor == c4m_list_len(ei->rule)) {
-        if (ei->group) {
-            if (ei->start_item->double_dot) {
-                ei->op = C4M_EO_COMPLETE_G;
-            }
-            else {
-                ei->op = C4M_EO_COMPLETE_I;
-            }
-            return;
-        }
-        ei->op = C4M_EO_COMPLETE_N;
-        return;
-    }
-
-    // The only other case where the double dot shows up is already
-    // handled above. Since we already grabbed the group and expanded
-    // it, looking at the next pitem isn't the right thing here
-    // anyway.
-    if (ei->double_dot) {
-        ei->op = C4M_EO_PREDICT_I;
-        return;
-    }
-
-    c4m_pitem_t *next = c4m_list_get(ei->rule, ei->cursor, NULL);
-
-    switch (next->kind) {
-    case C4M_P_NULL:
-        ei->op = C4M_EO_SCAN_NULL;
-        return;
-    case C4M_P_TERMINAL:
-        ei->op = C4M_EO_SCAN_TOKEN;
-        return;
-    case C4M_P_ANY:
-        ei->op = C4M_EO_SCAN_ANY;
-        return;
-    case C4M_P_BI_CLASS:
-        ei->op = C4M_EO_SCAN_CLASS;
-        return;
-    case C4M_P_SET:
-        ei->op = C4M_EO_SCAN_SET;
-        return;
-    case C4M_P_NT:
-        ei->op = C4M_EO_PREDICT_NT;
-        return;
-    case C4M_P_GROUP:
-        ei->op = C4M_EO_PREDICT_G;
-        return;
-    default:
-        c4m_unreachable();
-    }
+    return c4m_gc_alloc_mapped(c4m_earley_item_t, C4M_GC_SCAN_ALL);
 }
 
 static void
-predict_nt(c4m_parser_t      *p,
-           int64_t            id,
-           c4m_list_t        *rules,
-           c4m_earley_item_t *predicted_by,
-           int                penalty)
+terminal_scan(c4m_parser_t *p, c4m_earley_item_t *old, bool not_null)
 {
-    // Since 'predicted_by' is effectively a parent link, when we are
-    // predicting subsequent group items, the caller will pass in the
-    // state associated with the group top. We currently don't cache
-    // it; we follow the previous_scan back until there isn't one to
-    // find the first match node in the group, and pass in its parent
-    // (If there's more than one production that, in the face of
-    // ambiguity, can generate the same group in the same place, we
-    // always generate unique groups; every group prediction gets a
-    // random ID toensure uniqueness.
-    //
-    // This is something I might go back on, because in the face of
-    // ambiguity, it could amplify worst-case performance. But it also
-    // makes life a lot easier until I prove I need to do it.
+    c4m_earley_item_t *new   = new_earley_item();
+    c4m_earley_item_t *start = old->start_item;
+    new->start_item          = start;
+    new->cursor              = old->cursor + 1;
+    new->parent_states       = old->parent_states;
+    new->penalty             = old->penalty;
+    new->sub_penalties       = old->sub_penalties;
+    new->my_penalty          = old->my_penalty;
+    new->previous_scan       = old;
+    new->rule                = old->rule;
 
-    int n = c4m_list_len(rules);
+    old->no_reprocessing = true;
+    add_item(p, NULL, &new, not_null);
+}
+
+static void
+register_prediction(c4m_earley_item_t *predictor, c4m_earley_item_t *predicted)
+{
+    if (!predictor) {
+        return;
+    }
+    if (!predictor->predictions) {
+        predictor->predictions = c4m_set(c4m_type_ref());
+    }
+    if (!predicted->parent_states) {
+        predicted->parent_states = c4m_set(c4m_type_ref());
+    }
+    hatrack_set_add(predictor->predictions, predicted);
+    hatrack_set_add(predicted->parent_states, predictor);
+}
+
+static void
+add_one_nt_prediction(c4m_parser_t      *p,
+                      c4m_earley_item_t *predictor,
+                      c4m_nonterm_t     *nt,
+                      int                rule_ix)
+{
+    c4m_earley_item_t *ei = new_earley_item();
+    ei->ruleset_id        = nt->id;
+    ei->rule              = c4m_list_get(nt->rules, rule_ix, NULL);
+    ei->rule_index        = rule_ix;
+    ei->start_item        = ei;
+
+    if (predictor) {
+        c4m_earley_item_t *prestart = predictor->start_item;
+        ei->predictor_ruleset_id    = prestart->ruleset_id;
+        ei->predictor_rule_index    = prestart->rule_index;
+        ei->predictor_cursor        = prestart->cursor;
+    }
+
+    if (ei->rule->penalty_rule) {
+        ei->my_penalty += 1;
+    }
+
+    ei->penalty = ei->my_penalty;
+
+    add_item(p, predictor, &ei, false);
+    register_prediction(predictor, ei);
+}
+
+static c4m_earley_item_t *
+add_one_group_prediction(c4m_parser_t *p, c4m_earley_item_t *predictor)
+{
+    // There are never penalties when predicting a group.
+
+    c4m_earley_item_t *ps   = predictor->start_item;
+    c4m_pitem_t       *next = get_ei_pitem(ps, predictor->cursor);
+    c4m_rule_group_t  *g    = next->contents.group;
+    c4m_earley_item_t *gei  = new_earley_item();
+    gei->start_item         = gei;
+    gei->cursor             = 0;
+    gei->double_dot         = true;
+    gei->group              = g;
+    gei->ruleset_id         = g->gid;
+    gei->rule               = c4m_list_get(g->contents->rules, 0, NULL);
+
+    assert(gei->rule);
+
+    gei->predictor_ruleset_id = ps->ruleset_id;
+    gei->predictor_rule_index = ps->rule_index;
+    gei->predictor_cursor     = ps->cursor;
+
+    add_item(p, predictor, &gei, false);
+    register_prediction(predictor, gei);
+
+    return gei;
+}
+
+static void
+add_first_group_item(c4m_parser_t *p, c4m_earley_item_t *gei)
+{
+    // We don't deal with penalties for a regex being too short until
+    // completion time. So the first item doesn't need any penalty
+    // accounting.
+    c4m_earley_item_t *ei = new_earley_item();
+    ei->start_item        = ei;
+    ei->cursor            = 0;
+    ei->rule              = c4m_list_get(gei->group->contents->rules, 0, NULL);
+    ei->ruleset_id        = gei->group->gid;
+    ei->rule_index        = 0;
+    ei->match_ct          = 0;
+    ei->group             = gei->group;
+    ei->group_top         = gei;
+    ei->double_dot        = false;
+
+    assert(gei);
+
+    ei->predictor_ruleset_id = ei->group_top->ruleset_id;
+    ei->predictor_rule_index = ei->group_top->rule_index;
+    ei->predictor_cursor     = ei->group_top->cursor;
+
+    add_item(p, gei, &ei, false);
+
+    register_prediction(gei, ei);
+}
+
+static void
+empty_group_completion(c4m_parser_t *p, c4m_earley_item_t *gei)
+{
+    if (!gei->group->min) {
+        c4m_earley_item_t *gend = new_earley_item();
+        gend->start_item        = gei;
+        gend->cursor            = c4m_list_len(gei->rule->contents);
+        gend->double_dot        = true;
+        gend->group             = gei->group;
+        gend->ruleset_id        = gei->group->gid;
+        gend->rule              = gei->rule;
+        gend->match_ct          = 0;
+        gend->parent_states     = gei->parent_states;
+
+        add_item(p, gei, &gend, false);
+    }
+
+    gei->no_reprocessing = true;
+}
+
+static void
+add_next_group_item(c4m_parser_t      *p,
+                    c4m_earley_item_t *last_end)
+{
+    c4m_earley_item_t *ei         = new_earley_item();
+    c4m_earley_item_t *last_start = last_end->start_item;
+
+    last_end->no_reprocessing = true;
+
+    ei->start_item    = ei;
+    ei->cursor        = 0;
+    ei->previous_scan = last_end;
+    ei->rule          = last_start->rule;
+    ei->ruleset_id    = last_start->ruleset_id;
+    ei->parent_states = c4m_shallow(last_start->parent_states);
+    ei->group_top     = last_start->group_top;
+    ei->match_ct      = last_end->match_ct;
+    ei->group         = last_start->group;
+    ei->my_penalty    = last_end->my_penalty;
+    ei->sub_penalties = last_end->sub_penalties;
+
+    /*
+    if (last_end->start_item->estate_id == p->current_state->id) {
+              return;
+              }
+    */
+
+    int max_items = ei->group_top->group->max;
+
+    assert(ei->group_top);
+
+    ei->predictor_ruleset_id = ei->group_top->ruleset_id;
+    ei->predictor_rule_index = ei->group_top->rule_index;
+    ei->predictor_cursor     = ei->group_top->cursor;
+
+    // Again, items only track penalties if / when we exceed the max;
+    // min is handled at completion.
+
+    if (max_items && ei->match_ct > max_items) {
+        ei->group_penalty = ei->match_ct - max_items;
+    }
+
+    // The group penalty will disappear after the lead item, and come
+    // back when we complete the group.
+    ei->penalty = ei->group_penalty + ei->my_penalty + ei->sub_penalties;
+
+    add_item(p, last_end, &ei, false);
+
+    if (!ei->completors) {
+        ei->completors = c4m_set(c4m_type_ref());
+    }
+
+    hatrack_set_put(ei->completors, ei->group_top);
+    register_prediction(ei->group_top, ei);
+}
+
+static void
+add_one_completion(c4m_parser_t      *p,
+                   c4m_earley_item_t *cur,
+                   c4m_earley_item_t *parent_ei)
+{
+    // The node we're producing will map to the end of a single tree
+    // node started by the the parent EI, but also the beginning of
+    // the next node. So we advance the scan pointer.
+
+    c4m_earley_item_t *ei           = new_earley_item();
+    c4m_earley_item_t *parent_start = parent_ei->start_item;
+
+    ei->start_item    = parent_start;
+    ei->cursor        = parent_ei->cursor + 1;
+    ei->previous_scan = parent_ei;
+    ei->group_top     = parent_ei->group_top;
+    // The new items inherits penalty data from two places; any
+    // sibling in its rule (which we are calling 'parent' here because
+    // it's the parent node we're bumping back up to), and the item
+    // that causes the completion (cur).  Fort the completion, we
+    // inherit ALL penalties ascribed to that node. The result for all
+    // of those inputs goes into sub_penalties.
+    // Also, we subtract out the inherited penalty at this point; it
+    // *should* be the same as cur-penalty making it a waste, but
+    // as I massage things I want the extra assurance.
+    ei->my_penalty    = parent_ei->my_penalty;
+    ei->sub_penalties = parent_ei->sub_penalties + cur->penalty;
+    ei->penalty       = ei->sub_penalties + ei->my_penalty + ei->group_penalty;
+    ei->rule          = parent_start->rule;
+
+    if (ei->group_top) {
+        ei->match_ct = parent_start->match_ct;
+    }
+
+    if (ei->penalty < cur->penalty) {
+        ei->penalty = cur->penalty;
+    }
+
+    // Don't allow empty group items.
+    if (ei->group_top && ei->start_item->estate_id == p->current_state->id) {
+        return;
+    }
+
+    ei->parent_states = c4m_shallow(parent_ei->parent_states);
+
+    add_item(p, cur, &ei, false);
+
+    if (!ei->completors) {
+        ei->completors = c4m_set(c4m_type_ref());
+    }
+    hatrack_set_put(ei->completors, cur);
+    parent_ei->no_reprocessing = true;
+}
+
+static c4m_earley_item_t *
+add_group_completion(c4m_parser_t      *p,
+                     c4m_earley_item_t *cur)
+{
+    c4m_earley_item_t *ei     = new_earley_item();
+    c4m_earley_item_t *istart = cur->start_item;
+    c4m_earley_item_t *gstart = istart->group_top;
+
+    assert(gstart);
+
+    ei->start_item    = gstart;
+    ei->rule          = gstart->rule;
+    ei->cursor        = c4m_list_len(ei->rule->contents);
+    ei->match_ct      = cur->match_ct;
+    ei->group         = gstart->group;
+    ei->double_dot    = true;
+    ei->completors    = c4m_set(c4m_type_ref());
+    ei->parent_states = gstart->parent_states;
+
+    calculate_group_end_penalties(ei);
+    ei->penalty += cur->my_penalty + cur->sub_penalties;
+
+    add_item(p, cur, &ei, false);
+
+    hatrack_set_put(ei->completors, cur);
+    cur->no_reprocessing = true;
+    return ei;
+}
+
+static inline void
+predict_nt(c4m_parser_t *p, c4m_nonterm_t *nt, c4m_earley_item_t *ei)
+{
+    int n = c4m_list_len(nt->rules);
+
+    assert(c4m_list_len(nt->rules));
 
     for (int64_t i = 0; i < n; i++) {
-        c4m_earley_item_t *ei = new_earley_item();
-        ei->estate_id         = p->position;
-        ei->ruleset_id        = id;
-        ei->rule_index        = i;
-        ei->rule              = c4m_list_get(rules, i, NULL);
-        ei->start_item        = ei;
-        ei->penalty           = penalty;
-        ei->cursor            = 0;
-
-        if (predicted_by) {
-            ei->penalty += predicted_by->penalty;
-        }
-        // If this item already exists in the same state, we'll get
-        // back the old item; the rest of the stuff is redundant.
-        add_item(p, &ei, false);
-
-        // Only time predicted_by doesn't exist is during the
-        // setup / loading of the start non-terminal. But recursive rules
-        // that directly predict themselves don't count as creating themselves.
-        if (predicted_by && predicted_by != ei) {
-            // The first one of these only gets set when entering a new rule.
-            // The second gets set any time a state gets created.
-            hatrack_set_put(ei->starts, predicted_by);
-            hatrack_set_put(predicted_by->predictions, ei);
-        }
+        add_one_nt_prediction(p, ei, nt, i);
     }
+}
+
+static inline void
+predict_nt_via_ei(c4m_parser_t *p, c4m_earley_item_t *ei)
+{
+    c4m_earley_item_t *s  = ei->start_item;
+    c4m_pitem_t       *nx = get_ei_pitem(s, ei->cursor);
+    c4m_nonterm_t     *nt = c4m_get_nonterm(p->grammar, nx->contents.nonterm);
+
+    if (ei->null_prediction) {
+        terminal_scan(p, ei, true);
+    }
+
+    predict_nt(p, nt, ei);
 }
 
 static inline void
 predict_group(c4m_parser_t *p, c4m_earley_item_t *predictor)
 {
-    c4m_pitem_t      *next = c4m_list_get(predictor->rule,
-                                     predictor->cursor,
-                                     NULL);
-    c4m_rule_group_t *g    = next->contents.group;
-
-    c4m_earley_item_t *ei = new_earley_item();
-    ei->estate_id         = p->position;
-    ei->group             = g;
-    ei->rule              = g->items;
-    ei->ruleset_id        = c4m_rand32();
-    ei->double_dot        = true;
-    ei->cursor            = 0;
-    ei->start_item        = ei;
-
-    add_item(p, &ei, false);
-
-    if (predictor && predictor != ei) {
-        hatrack_set_put(ei->starts, predictor);
-        hatrack_set_put(predictor->predictions, ei);
-    }
+    c4m_earley_item_t *gei = add_one_group_prediction(p, predictor);
+    add_first_group_item(p, gei);
 }
 
-static inline void
-predict_group_item(c4m_parser_t      *p,
-                   c4m_earley_item_t *top,
-                   c4m_earley_item_t *prev,
-                   int                count)
-{
-    // `top` is always a group top, and `prev` is the previous scan,
-    // if any.
-    c4m_earley_item_t *ei = copy_earley_item(p, top, false);
-
-    // We'll know we're the first item if double_dot is set in the predictor.
-    ei->double_dot    = false;
-    ei->previous_scan = prev;
-    ei->cursor        = 0;
-    ei->start_item    = ei;
-    ei->match_ct      = count;
-
-    add_item(p, &ei, false); // Add our item prediction to the same state.
-    if (top != ei) {
-        hatrack_set_put(ei->starts, top);
-        hatrack_set_put(top->predictions, ei);
-    }
-}
-
-static inline bool
-is_nullable(c4m_parser_t *parser, int64_t nonterm_id)
-{
-    c4m_nonterm_t *nt = c4m_get_nonterm(parser->grammar, nonterm_id);
-
-    return nt->nullable;
-}
-
-static inline void
-try_nullable_prediction(c4m_parser_t      *parser,
-                        c4m_earley_item_t *ei)
-{
-    // This is perhaps the most unintuitive thing in all of the Earley
-    // algorithm once you understand it (and even then it wasn't part
-    // of the original algorithm, someone else came up with it).
-    //
-    // The purpose here is to more easily handle rules like x: FOO BAR
-    // when FOO can accept the empty string; this basically just
-    // copies the state and advances the cursor, then adds it to this
-    // state, so that we'll give the current character a chance with
-    // the second term in the production.
-    //
-    // That's why this doesn't follow the main 'predict' logic; it's a
-    // shortcut that is mostly just copying.
-    //
-    // Note that passing 'true' to add_earley item advances the
-    // cursor for us.
-    //
-    // The only accounting we track here is the 'creator'; the tree
-    // building algorithm will be able to see when such a prediction
-    // was part of a valid subtree and it can generate the empty
-    // string token for us.
-    //
-    // We don't even need to update the state ID, since this will always
-    // have been added by an item in our exact same state.
-
-    c4m_pitem_t *next = c4m_list_get(ei->rule, ei->cursor, NULL);
-
-    if (!is_nullable(parser, next->contents.nonterm)) {
-        return;
-    }
-    c4m_earley_item_t *new = copy_earley_item(parser, ei, true);
-
-    // Add the item to the CURRENT state.
-    add_item(parser, &new, false);
-}
-
-static inline void
-non_nullable_prediction(c4m_parser_t *parser, c4m_earley_item_t *ei)
-{
-    c4m_pitem_t   *next = c4m_list_get(ei->rule, ei->cursor, NULL);
-    c4m_nonterm_t *nt   = c4m_get_nonterm(parser->grammar,
-                                        next->contents.nonterm);
-
-    // If a non-terminal manages to get added with no rules, and
-    // we didn't add a null production up front, we're doing it now,
-    // just because it's easier if we can keep the precondition of the
-    // rules being fully populated with items.
-    if (!c4m_list_len(nt->rules)) {
-        c4m_ruleset_add_empty_rule(nt);
-    }
-
-    predict_nt(parser, nt->id, nt->rules, ei, nt->penalty);
-}
-
-static bool
+bool
 char_in_class(c4m_codepoint_t cp, c4m_bi_class_t class)
 {
     if (!c4m_codepoint_valid(cp)) {
@@ -551,62 +838,13 @@ matches_set(c4m_parser_t *parser, c4m_codepoint_t cp, c4m_list_t *set_items)
 }
 
 static inline void
-handle_token_scan(c4m_parser_t *parser, c4m_earley_item_t *ei)
-{
-    c4m_earley_item_t *copy = copy_earley_item(parser, ei, true);
-    copy->starts            = ei->starts;
-    copy->penalty           = ei->penalty;
-    add_item(parser, &copy, true);
-}
-
-#if 0
-static inline void
-scan_penalty(c4m_parser_t *parser, c4m_earley_item_t *ei)
-{
-    if (ei->penalty >= C4M_MAX_PARSE_PENALTY) {
-        return;
-    }
-
-    c4m_earley_item_t *copy = copy_earley_item(parser, ei, false);
-
-    add_item(parser, &copy, true);
-    copy->penalty++;
-
-    if (copy->cursor == 0) {
-        copy->start_item = copy;
-	copy->starts            = old->starts;
-
-        c4m_list_t *starts = c4m_set_to_xlist(ei->starts);
-
-        for (int i = 0; i < c4m_list_len(starts); i++) {
-            c4m_earley_item_t *ei = c4m_list_get(starts, i, NULL);
-            hatrack_set_add(ei->predictions, copy);
-        }
-    }
-
-    copy->previous_scan = ei->previous_scan;
-}
-#endif
-
-static inline void
-scan_null(c4m_parser_t *parser, c4m_earley_item_t *ei)
-{
-    // Every other scan advances the state when it adds an item; this
-    // one does not.
-    c4m_earley_item_t *copy = copy_earley_item(parser, ei, true);
-    copy->starts            = ei->starts;
-
-    add_item(parser, &copy, false);
-}
-
-static inline void
 scan_class(c4m_parser_t *parser, c4m_earley_item_t *ei)
 {
     c4m_codepoint_t cp   = parser->current_state->token->tid;
-    c4m_pitem_t    *next = c4m_list_get(ei->rule, ei->cursor, NULL);
+    c4m_pitem_t    *next = get_ei_pitem(ei->start_item, ei->cursor);
 
     if (char_in_class(cp, next->contents.class)) {
-        handle_token_scan(parser, ei);
+        terminal_scan(parser, ei, true);
     }
 }
 
@@ -614,10 +852,10 @@ static inline void
 scan_terminal(c4m_parser_t *parser, c4m_earley_item_t *ei)
 {
     c4m_codepoint_t cp   = parser->current_state->token->tid;
-    c4m_pitem_t    *next = c4m_list_get(ei->rule, ei->cursor, NULL);
+    c4m_pitem_t    *next = get_ei_pitem(ei->start_item, ei->cursor);
 
     if (cp == next->contents.terminal) {
-        handle_token_scan(parser, ei);
+        terminal_scan(parser, ei, true);
     }
 }
 
@@ -625,192 +863,165 @@ static inline void
 scan_set(c4m_parser_t *parser, c4m_earley_item_t *ei)
 {
     c4m_codepoint_t cp   = parser->current_state->token->tid;
-    c4m_pitem_t    *next = c4m_list_get(ei->rule, ei->cursor, NULL);
+    c4m_pitem_t    *next = get_ei_pitem(ei->start_item, ei->cursor);
 
     if (matches_set(parser, cp, next->contents.items)) {
-        handle_token_scan(parser, ei);
+        terminal_scan(parser, ei, true);
     }
 }
 
 static void
-complete_base(c4m_parser_t      *parser,
-              c4m_earley_item_t *ei,
-              bool               dbl_dot,
-              int                match_value,
-              int                demerits)
-{
-    uint64_t            n;
-    c4m_earley_item_t **parents = hatrack_set_items_sort(ei->starts, &n);
-    c4m_earley_item_t  *parent;
-    c4m_earley_item_t  *copy;
-
-    // If multiple nodes would have created this one, do the same for
-    // all of them.
-    for (uint64_t i = 0; i < n; i++) {
-        // Copy the parent. Then, advance the dot and add to our
-        // current state.  The default for setting the parent is wrong
-        // for this use of copy (every other use is copying a
-        // sibling), so we need to reset it too.
-        parent           = parents[i];
-        copy             = copy_earley_item(parser, parent, true);
-        copy->starts     = parent->starts;
-        copy->penalty    = ei->penalty + parent->start_item->penalty + demerits;
-        copy->start_item = parent->start_item;
-        copy->completors = c4m_set(c4m_type_ref());
-
-        if (dbl_dot) {
-            copy->double_dot = true;
-            copy->cursor     = c4m_list_len(copy->rule);
-        }
-
-        if (copy->group) {
-            copy->match_ct = match_value;
-        }
-
-        add_item(parser, &copy, false);
-        if (parent == copy) {
-            return;
-        }
-
-        if (match_value) {
-            copy->double_dot = true;
-        }
-
-        if (!copy->completors) {
-            copy->completors = c4m_set(c4m_type_ref());
-        }
-        hatrack_set_add(copy->completors, ei);
-        hatrack_set_put(copy->starts, parent);
-    }
-}
-
-static inline void
-complete_nt_or_group(c4m_parser_t *parser, c4m_earley_item_t *ei)
-{
-    complete_base(parser, ei, false, 0, 0);
-}
-
-static inline void
 complete_group_item(c4m_parser_t *parser, c4m_earley_item_t *ei)
 {
-    // The group item completing should add a state to complete the
-    // group start as one might suspect, but it also should predict
-    // the next group item.
-    //
-    // Note that if we've already predicted enough items that the
-    // penalty exceeds our max, we skip predicting altogether. The
-    // same can be said for the completion of the group itself; when
-    // we hit that limit, we do not predict completion. The same thing
-    // happens if we haven't come close enough to a minimum number of
-    // matches.
-    //
-    // Note that, before we reach the minimum threshold, items get no
-    // penalty, only completions.
+    ei->match_ct++;
+    add_next_group_item(parser, ei);
+}
 
-    bool predict_item       = true;
-    bool complete_group     = true;
-    int  match_min          = ei->group->min;
-    int  match_max          = ei->group->max;
-    int  new_match_ct       = ++ei->match_ct;
-    int  completion_penalty = 0;
-    int  prediction_penalty = 0;
+static void
+complete(c4m_parser_t *parser, c4m_earley_item_t *ei)
+{
+    uint64_t            n;
+    c4m_set_t          *start_set = ei->start_item->parent_states;
+    c4m_earley_item_t **parents   = hatrack_set_items_sort(start_set, &n);
 
-    if (new_match_ct < match_min) {
-        completion_penalty = match_min - new_match_ct;
-        if (completion_penalty > C4M_MAX_PARSE_PENALTY) {
-            complete_group = false;
-        }
-    }
-    else {
-        if (match_max && new_match_ct > match_max) {
-            prediction_penalty = new_match_ct - match_max;
-
-            if (prediction_penalty >= C4M_MAX_PARSE_PENALTY) {
-                // We still complete the group this one last time.
-                predict_item = false;
-            }
-        }
-    }
-
-    if (predict_item) {
-        c4m_list_t *starts = c4m_set_to_xlist(ei->starts);
-
-        for (int i = 0; i < c4m_list_len(starts); i++) {
-            c4m_earley_item_t *start = c4m_list_get(starts, i, NULL);
-            predict_group_item(parser, start, ei, new_match_ct);
-        }
-    }
-
-    if (complete_group) {
-        // Propogates up the new match count to the group completion
-        // for the sake of convenience.
-        complete_base(parser, ei, true, new_match_ct, completion_penalty);
+    for (uint64_t i = 0; i < n; i++) {
+        add_one_completion(parser, ei, parents[i]);
     }
 }
 
 static inline void
-add_subtree_info(c4m_earley_item_t *ei)
-{
-    if (!ei->cursor) {
-        if (!ei->group) {
-            ei->subtree_info = C4M_SI_NT_RULE_START;
-            return;
-        }
-        if (ei->double_dot) {
-            ei->subtree_info = C4M_SI_GROUP_START;
-            return;
-        }
-        ei->subtree_info = C4M_SI_GROUP_ITEM_START;
-        return;
-    }
-
-    if (ei->cursor != c4m_list_len(ei->rule)) {
-        return;
-    }
-
-    if (!ei->group) {
-        ei->subtree_info = C4M_SI_NT_RULE_END;
-        return;
-    }
-    if (ei->double_dot) {
-        ei->subtree_info = C4M_SI_GROUP_END;
-        return;
-    }
-    ei->subtree_info = C4M_SI_GROUP_ITEM_END;
-    return;
-}
-
-static void
-process_current_state(c4m_parser_t *parser)
+run_state_predictions(c4m_parser_t *parser)
 {
     int                i  = 0;
     c4m_earley_item_t *ei = c4m_list_get(parser->current_state->items, i, NULL);
 
     while (ei != NULL) {
-        parser->cur_item_index = i;
+        if (!ei->no_reprocessing) {
+            switch (ei->op) {
+            case C4M_EO_PREDICT_NT:
+                predict_nt_via_ei(parser, ei);
+                break;
+            case C4M_EO_PREDICT_G:
+                predict_group(parser, ei);
+                ei->no_reprocessing = true;
+                break;
+            case C4M_EO_FIRST_GROUP_ITEM:
+                // EI should be the double dot; Generate the first item
+                // under it, and possibly a completion.
+                add_first_group_item(parser, ei);
+                empty_group_completion(parser, ei);
+                break;
+            default:
+                break;
+            }
+        }
+        ei = c4m_list_get(parser->current_state->items, ++i, NULL);
+    }
+}
 
-        add_subtree_info(ei);
+static inline void
+run_state_scans(c4m_parser_t *parser)
+{
+    int                i  = 0;
+    c4m_earley_item_t *ei = c4m_list_get(parser->current_state->items, i, NULL);
 
+    while (ei != NULL) {
+        if (!ei->no_reprocessing) {
+            switch (ei->op) {
+            case C4M_EO_SCAN_TOKEN:
+                scan_terminal(parser, ei);
+                break;
+            case C4M_EO_SCAN_ANY:
+                terminal_scan(parser, ei, true);
+                break;
+            case C4M_EO_SCAN_NULL:
+                terminal_scan(parser, ei, false);
+                break;
+            case C4M_EO_SCAN_CLASS:
+                scan_class(parser, ei);
+                break;
+            case C4M_EO_SCAN_SET:
+                scan_set(parser, ei);
+                break;
+            default:
+                break;
+            }
+        }
+        ei = c4m_list_get(parser->current_state->items, ++i, NULL);
+    }
+}
+
+static inline void
+run_state_completions(c4m_parser_t *parser)
+{
+    int                i  = 0;
+    c4m_earley_item_t *ei = c4m_list_get(parser->current_state->items, i, NULL);
+
+    while (ei != NULL) {
+        if (!ei->no_reprocessing) {
+            switch (ei->op) {
+            case C4M_EO_COMPLETE_N:
+                complete(parser, ei);
+                break;
+            case C4M_EO_ITEM_END:
+                complete_group_item(parser, ei);
+                add_group_completion(parser, ei);
+                break;
+            default:
+                break;
+            }
+        }
+        ei = c4m_list_get(parser->current_state->items, ++i, NULL);
+    }
+}
+
+static void
+process_current_state(c4m_parser_t *parser)
+{
+    int prev = c4m_list_len(parser->current_state->items);
+    int cur;
+
+    while (true) {
+        run_state_completions(parser);
+        run_state_predictions(parser);
+        run_state_scans(parser);
+        cur = c4m_list_len(parser->current_state->items);
+        if (cur == prev) {
+            break;
+        }
+
+        prev = cur;
+    }
+}
+
+static void
+process_current_state_old(c4m_parser_t *parser)
+{
+    int                i  = 0;
+    c4m_earley_item_t *ei = c4m_list_get(parser->current_state->items, i, NULL);
+
+    while (ei != NULL) {
         switch (ei->op) {
         case C4M_EO_PREDICT_NT:
-            try_nullable_prediction(parser, ei);
-            non_nullable_prediction(parser, ei);
+            predict_nt_via_ei(parser, ei);
             break;
-        // Called for the first group item.
         case C4M_EO_PREDICT_G:
             predict_group(parser, ei);
             break;
-        case C4M_EO_PREDICT_I:
-            predict_group_item(parser, ei, NULL, 0);
+        case C4M_EO_FIRST_GROUP_ITEM:
+            // EI should be the double dot; Generate the first item
+            // under it, and possibly a completion.
+            add_first_group_item(parser, ei);
+            empty_group_completion(parser, ei);
             break;
         case C4M_EO_SCAN_TOKEN:
             scan_terminal(parser, ei);
             break;
-        case C4M_EO_SCAN_NULL:
-            scan_null(parser, ei);
-            break;
         case C4M_EO_SCAN_ANY:
-            handle_token_scan(parser, ei);
+            terminal_scan(parser, ei, true);
+            break;
+        case C4M_EO_SCAN_NULL:
+            terminal_scan(parser, ei, false);
             break;
         case C4M_EO_SCAN_CLASS:
             scan_class(parser, ei);
@@ -819,13 +1030,11 @@ process_current_state(c4m_parser_t *parser)
             scan_set(parser, ei);
             break;
         case C4M_EO_COMPLETE_N:
-            complete_nt_or_group(parser, ei);
+            complete(parser, ei);
             break;
-        case C4M_EO_COMPLETE_G:
-            complete_nt_or_group(parser, ei);
-            break;
-        case C4M_EO_COMPLETE_I:
+        case C4M_EO_ITEM_END:
             complete_group_item(parser, ei);
+            add_group_completion(parser, ei);
             break;
         }
         ei = c4m_list_get(parser->current_state->items, ++i, NULL);
@@ -837,6 +1046,7 @@ enter_next_state(c4m_parser_t *parser)
 {
     // If next_state is NULL, then we skip advancing the state, because
     // we're really going from -1 into 0.
+
     if (parser->next_state != NULL) {
         parser->position++;
         parser->current_state = parser->next_state;
@@ -847,8 +1057,7 @@ enter_next_state(c4m_parser_t *parser)
         int            ix      = parser->start;
         c4m_nonterm_t *start   = c4m_get_nonterm(grammar, ix);
 
-        parser->cur_item_index = C4M_IX_START_OF_PROGRAM;
-        predict_nt(parser, start->id, start->rules, NULL, 0);
+        predict_nt(parser, start, NULL);
     }
 
     assert(parser->position == c4m_list_len(parser->states) - 1);
@@ -874,6 +1083,8 @@ internal_parse(c4m_parser_t *parser, c4m_nonterm_t *start)
         C4M_CRAISE("Call to parse before grammar is set.");
     }
 
+    c4m_prep_first_parse(parser->grammar);
+
     if (parser->run) {
         C4M_CRAISE("Attempt to re-run parser w/o resetting state.");
     }
@@ -890,10 +1101,10 @@ internal_parse(c4m_parser_t *parser, c4m_nonterm_t *start)
     }
 
     run_parsing_mainloop(parser);
-    c4m_print(c4m_repr_state_table(parser, true));
 
-    c4m_list_t *parses  = c4m_find_all_trees(parser);
-    parser->parse_trees = parses;
+    if (parser->show_debug) {
+        c4m_print(c4m_repr_state_table(parser, true));
+    }
 }
 
 void
@@ -911,8 +1122,6 @@ c4m_parse_token_list(c4m_parser_t  *parser,
 void
 c4m_parse_string(c4m_parser_t *parser, c4m_str_t *s, c4m_nonterm_t *start)
 {
-    c4m_utf8_t *dbg = c4m_cstr_format("Test input: {}", s);
-    c4m_print(c4m_callout(dbg));
     c4m_parser_reset(parser);
     parser->user_context = c4m_to_utf32(s);
     parser->tokenizer    = c4m_token_stream_codepoints;

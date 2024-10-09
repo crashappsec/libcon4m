@@ -10,7 +10,7 @@
 // long as you properly reset between uses.
 //
 //
-// Everything here assumes single threaded access to data structures
+// Everything assumes single threaded access to data structures
 // in this API.
 //
 // There's also a little bit of code in here for automatic
@@ -21,7 +21,6 @@ void
 c4m_parser_reset(c4m_parser_t *parser)
 {
     parser->states           = c4m_list(c4m_type_ref());
-    parser->roots            = c4m_list(c4m_type_ref());
     parser->position         = 0;
     parser->start            = -1; // Use default start.
     parser->current_state    = c4m_new_earley_state(0);
@@ -47,11 +46,29 @@ c4m_parser_init(c4m_parser_t *parser, va_list args)
 static void
 c4m_grammar_init(c4m_grammar_t *grammar, va_list args)
 {
-    grammar->named_terms  = c4m_list(c4m_type_terminal());
-    grammar->rules        = c4m_list(c4m_type_ruleset());
-    grammar->rule_map     = c4m_dict(c4m_type_utf8(), c4m_type_u64());
-    grammar->terminal_map = c4m_dict(c4m_type_utf8(), c4m_type_u64());
-    grammar->penalty_map  = c4m_dict(c4m_type_u64(), c4m_type_u64());
+    int32_t max_penalty         = C4M_DEFAULT_MAX_PARSE_PENALTY;
+    bool    detect_errors       = true;
+    bool    hide_error_rewrites = false;
+    bool    hide_group_rewrites = false;
+    bool    long_err_prefix     = false;
+
+    c4m_karg_va_init(args);
+    c4m_kw_int32("max_penalty", max_penalty);
+    c4m_kw_bool("detect_errors", detect_errors);
+    c4m_kw_bool("hide_error_rewrites", hide_error_rewrites);
+    c4m_kw_bool("hide_group_rewrites", hide_group_rewrites);
+    c4m_kw_bool("long_err_prefix", long_err_prefix);
+
+    grammar->named_terms           = c4m_list(c4m_type_terminal());
+    grammar->rules                 = c4m_list(c4m_type_ref());
+    grammar->nt_list               = c4m_list(c4m_type_ruleset());
+    grammar->nt_map                = c4m_dict(c4m_type_utf8(), c4m_type_u64());
+    grammar->terminal_map          = c4m_dict(c4m_type_utf8(), c4m_type_u64());
+    grammar->error_rules           = detect_errors;
+    grammar->max_penalty           = max_penalty;
+    grammar->hide_penalty_rewrites = hide_error_rewrites;
+    grammar->hide_groups           = hide_group_rewrites;
+    grammar->long_err_prefix       = long_err_prefix;
 }
 
 static void
@@ -106,21 +123,23 @@ c4m_nonterm_init(c4m_nonterm_t *nonterm, va_list args)
     // call to c4m_new() (though that's a good feature to add).
     //
     // Note that a name of NULL indicates an anonymous node, which we
-    // don't add to the dictionary, but we do add to the list.
+    // don't add to the dictionary, but we do add to the list. This is
+    // used for groups.
 
     bool           found;
     c4m_utf8_t    *err;
     int64_t        n;
     c4m_grammar_t *grammar = va_arg(args, c4m_grammar_t *);
     nonterm->name          = va_arg(args, c4m_utf8_t *);
-    nonterm->rules         = c4m_list(c4m_type_ref()); // c4m_pitem_t is internal.
+    nonterm->rules         = c4m_list(c4m_type_ref());
 
     if (nonterm->name == NULL) {
         // Anonymous / inline rule.
-        n = c4m_list_len(grammar->rules);
-        c4m_list_append(grammar->rules, nonterm);
+        n = c4m_list_len(grammar->nt_list);
+        c4m_list_append(grammar->nt_list, nonterm);
+
         while (true) {
-            c4m_nonterm_t *nt = c4m_list_get(grammar->rules, n, NULL);
+            c4m_nonterm_t *nt = c4m_list_get(grammar->nt_list, n, NULL);
 
             if (nt == nonterm) {
                 nonterm->id = n;
@@ -131,7 +150,7 @@ c4m_nonterm_init(c4m_nonterm_t *nonterm, va_list args)
         }
     }
 
-    hatrack_dict_get(grammar->rule_map, nonterm->name, &found);
+    hatrack_dict_get(grammar->nt_map, nonterm->name, &found);
 
     if (found) {
 bail:
@@ -140,58 +159,32 @@ bail:
         C4M_RAISE(err);
     }
 
-    n = c4m_list_len(grammar->rules);
-    c4m_list_append(grammar->rules, nonterm);
+    n = c4m_list_len(grammar->nt_list);
+    c4m_list_append(grammar->nt_list, nonterm);
 
     // If there's a race condition, we may not get the slot we
     // think we're getting. And it's slightly possible we might
     // add the same terminal twice in parallel, in which case we
     // accept there might be a redundant item in the list.
     while (true) {
-        c4m_nonterm_t *nt = c4m_list_get(grammar->rules, n, NULL);
+        c4m_nonterm_t *nt = c4m_list_get(grammar->nt_list, n, NULL);
+        if (!nt) {
+            return;
+        }
 
         if (nt == nonterm) {
-            hatrack_dict_put(grammar->rule_map, nonterm->name, (void *)n);
+            hatrack_dict_put(grammar->nt_map, nonterm->name, (void *)n);
             nonterm->id = n;
 
             return;
         }
-        if (c4m_str_eq(nt->name, nonterm->name)) {
+        if (nt->name && c4m_str_eq(nt->name, nonterm->name)) {
             goto bail;
         }
     }
 }
 
-// First, the core parsing algorithm needs to know when rules can
-// match the empty string (i.e., be nullable), so we can determine if
-// parse rules can match the empty string.
-//
-// An individual production in a rule set is nullable if every
-// component in it is nullable.
-//
-// We explicitly skip over direct recursion, and detect indirect
-// recursion.  In such cases, the correct thing to do is skip.
-//
-// Consider a production like:
-//
-// A ::= B A | 'eof'
-//
-// Certainly there could be a subrule that doesn't recurse may
-// be nullable. But in this case, the rule basically says, "A
-// is a list of B's, followed by 'eof'". For this directly
-// recursive rule, the 'eof' branch is not nullable, but the
-// left branch is obviously nullable iff B is
-// nullable. Recursing on A does not give us any additional
-// information.
-
-static bool c4m_is_nullable_pitem(c4m_grammar_t *,
-                                  c4m_pitem_t *,
-                                  c4m_list_t *);
-
-static bool
-c4m_calculate_is_nullable_nt(c4m_grammar_t *,
-                             int64_t,
-                             c4m_list_t *);
+static bool is_nullable_rule(c4m_grammar_t *, c4m_parse_rule_t *, c4m_list_t *);
 
 static bool
 check_stack_for_nt(c4m_list_t *stack, int64_t ruleset)
@@ -208,58 +201,21 @@ check_stack_for_nt(c4m_list_t *stack, int64_t ruleset)
     return false;
 }
 
+static inline void
+finalize_nullable(c4m_nonterm_t *nt, bool value)
+{
+    nt->nullable  = value;
+    nt->finalized = true;
+
+    if (nt->nullable && nt->group_nt) {
+        C4M_CRAISE("Attempt to add a group where the group item can be empty.");
+    }
+}
+
 static bool
-c4m_is_nullable_rule(c4m_grammar_t *grammar,
-                     c4m_list_t    *rule,
-                     c4m_list_t    *stack)
+is_nullable_nt(c4m_grammar_t *g, int64_t nt_id, c4m_list_t *stack)
 {
-    if (c4m_list_len(rule) == 0) {
-        return true;
-    }
-
-    c4m_pitem_t *item = c4m_list_get(rule, 0, NULL);
-
-    if (!c4m_is_nullable_pitem(grammar, item, stack)) {
-        if (item->kind == C4M_P_NT) {
-            if (check_stack_for_nt(stack, item->contents.nonterm)) {
-                return false;
-            }
-
-            // If it's  a NT, we need to update judgement on the sub-item.
-            return c4m_calculate_is_nullable_nt(grammar,
-                                                item->contents.nonterm,
-                                                stack);
-        }
-    }
-    return true;
-}
-
-c4m_nonterm_t *
-c4m_get_nonterm(c4m_grammar_t *grammar, int64_t id)
-{
-    if (id > c4m_list_len(grammar->rules) || id < 0) {
-        return NULL;
-    }
-
-    c4m_nonterm_t *nt = c4m_list_get(grammar->rules, id, NULL);
-
-    return nt;
-}
-
-c4m_nonterm_t *
-c4m_pitem_get_ruleset(c4m_grammar_t *g, c4m_pitem_t *pi)
-{
-    return c4m_get_nonterm(g, pi->contents.nonterm);
-}
-
-// When we add a new subrule, we go ahead and re-compute nullability for
-// any used non-terminals. That's not optimal, but whatever.
-static bool
-c4m_calculate_is_nullable_nt(c4m_grammar_t *grammar,
-                             int64_t        nt_id,
-                             c4m_list_t    *stack)
-{
-    // Per above, do not allow ourselves to recurse. We simply claim
+    // do not allow ourselves to recurse. We simply claim
     // to be nullable in that case.
     if (stack && check_stack_for_nt(stack, nt_id)) {
         return true;
@@ -268,22 +224,29 @@ c4m_calculate_is_nullable_nt(c4m_grammar_t *grammar,
         c4m_list_append(stack, (void *)nt_id);
     }
 
+    c4m_nonterm_t *nt = c4m_get_nonterm(g, nt_id);
+
+    if (nt->finalized) {
+        return nt->nullable;
+    }
+
     // A non-terminal is nullable if any of its individual rules are
     // nullable.
-    c4m_list_t    *cur_rule;
-    bool           found_any_rule = false;
-    int64_t        i              = 0;
-    c4m_nonterm_t *nt             = c4m_get_nonterm(grammar, nt_id);
+    c4m_parse_rule_t *cur_rule;
+    bool              found_any_rule = false;
+    int64_t           i              = 0;
 
     if (c4m_list_len(nt->rules) == 0) {
+        finalize_nullable(nt, true);
         return true;
     }
+
     cur_rule = c4m_list_get(nt->rules, i++, NULL);
 
     while (cur_rule) {
         found_any_rule = true;
-        if (c4m_is_nullable_rule(grammar, cur_rule, stack)) {
-            nt->nullable = true;
+        if (is_nullable_rule(g, cur_rule, stack)) {
+            finalize_nullable(nt, true);
             c4m_list_pop(stack);
             return true;
         }
@@ -295,13 +258,47 @@ c4m_calculate_is_nullable_nt(c4m_grammar_t *grammar,
     //
     // Otherwise, no rules were nullable, so the rule set
     // (non-terminal) is not nullable.
-    nt->nullable = !(found_any_rule);
+    finalize_nullable(nt, !(found_any_rule));
     c4m_list_pop(stack);
 
     return nt->nullable;
 }
 
+// This is true if we can skip over the ENTIRE item.
+// When we're looking at a rule like:
+//
+// A -> . B C
+// We want to check to see if we can advance the dot past B, so we need
+// to know that there is SOME rule that could cause us to skip B.
+//
+// So we need to check that B's rules are nullable, to see it we can advance
+// A's rule one dot.
+
 static bool
+is_nullable_rule(c4m_grammar_t *g, c4m_parse_rule_t *rule, c4m_list_t *stack)
+{
+    int n = c4m_list_len(rule->contents);
+
+    for (int i = 0; i < n; i++) {
+        c4m_pitem_t *item = c4m_list_get(rule->contents, i, NULL);
+
+        if (!c4m_is_nullable_pitem(g, item, stack)) {
+            return false;
+        }
+
+        if (item->kind == C4M_P_NT) {
+            if (check_stack_for_nt(stack, item->contents.nonterm)) {
+                return false;
+            }
+
+            return is_nullable_nt(g, item->contents.nonterm, stack);
+        }
+    }
+
+    return false;
+}
+
+bool
 c4m_is_nullable_pitem(c4m_grammar_t *grammar,
                       c4m_pitem_t   *item,
                       c4m_list_t    *stack)
@@ -314,19 +311,32 @@ c4m_is_nullable_pitem(c4m_grammar_t *grammar,
     case C4M_P_NULL:
         return true;
     case C4M_P_GROUP:
-        if (item->contents.group->min == 0) {
-            return true;
-        }
-        return c4m_is_nullable_rule(grammar,
-                                    item->contents.group->items,
-                                    stack);
+        // Groups MUST not be nullable, except by specifying 0 matches.
+        // We assume here this constraint is checked elsewhere.
+        return item->contents.group->min == 0;
     case C4M_P_NT:
-        return c4m_calculate_is_nullable_nt(grammar,
-                                            item->contents.nonterm,
-                                            stack);
+        return is_nullable_nt(grammar, item->contents.nonterm, stack);
     default:
         return false;
     }
+}
+
+c4m_nonterm_t *
+c4m_get_nonterm(c4m_grammar_t *grammar, int64_t id)
+{
+    if (id > c4m_list_len(grammar->nt_list) || id < 0) {
+        return NULL;
+    }
+
+    c4m_nonterm_t *nt = c4m_list_get(grammar->nt_list, id, NULL);
+
+    return nt;
+}
+
+c4m_nonterm_t *
+c4m_pitem_get_ruleset(c4m_grammar_t *g, c4m_pitem_t *pi)
+{
+    return c4m_get_nonterm(g, pi->contents.nonterm);
 }
 
 // This creates an anonymous non-terminal, and adds the contained
@@ -342,15 +352,23 @@ c4m_is_nullable_pitem(c4m_grammar_t *grammar,
 // ANON1 ::= foo bar
 
 c4m_pitem_t *
-c4m_group_items(c4m_grammar_t *p, c4m_list_t *pitems, int min, int max)
+c4m_group_items(c4m_grammar_t *g, c4m_list_t *pitems, int min, int max)
 {
     c4m_rule_group_t *group = c4m_gc_alloc_mapped(c4m_rule_group_t,
                                                   C4M_GC_SCAN_ALL);
 
-    group->gid   = c4m_rand32();
-    group->items = pitems;
-    group->min   = min;
-    group->max   = max;
+    group->gid               = c4m_rand16();
+    c4m_utf8_t    *tmp_name  = c4m_cstr_format("$$group_nt_{}", group->gid);
+    c4m_pitem_t   *tmp_nt_pi = c4m_pitem_nonterm_raw(g, tmp_name);
+    c4m_nonterm_t *nt        = c4m_pitem_get_ruleset(g, tmp_nt_pi);
+
+    nt->group_nt = true;
+
+    c4m_ruleset_add_rule(g, nt, pitems, 0);
+
+    group->contents = nt;
+    group->min      = min;
+    group->max      = max;
 
     c4m_pitem_t *result    = c4m_new_pitem(C4M_P_GROUP);
     result->contents.group = group;
@@ -358,150 +376,242 @@ c4m_group_items(c4m_grammar_t *p, c4m_list_t *pitems, int min, int max)
     return result;
 }
 
-void
-c4m_ruleset_raw_add_rule(c4m_grammar_t *g,
-                         c4m_nonterm_t *ruleset,
-                         c4m_list_t    *items)
-{
-    c4m_list_append(ruleset->rules, items);
+static const char *errstr =
+    "The null string and truly empty productions are not allowed. "
+    "However, you can use group match operators like '?' and '*' that "
+    "may accept zero items for the same effect.";
 
-    c4m_calculate_is_nullable_nt(g, ruleset->id, c4m_list(c4m_type_u64()));
+static inline bool
+pitems_eq(c4m_pitem_t *p1, c4m_pitem_t *p2)
+{
+    if (p1->kind != p2->kind) {
+        return false;
+    }
+
+    switch (p1->kind) {
+    case C4M_P_NULL:
+    case C4M_P_ANY:
+        return true;
+    case C4M_P_TERMINAL:
+        return p1->contents.terminal == p2->contents.terminal;
+    case C4M_P_BI_CLASS:
+        return p1->contents.class == p2->contents.class;
+    case C4M_P_SET:
+        if (c4m_len(p1->contents.items) != c4m_len(p2->contents.items)) {
+            return false;
+        }
+        for (int i = 0; i < c4m_list_len(p1->contents.items); i++) {
+            c4m_pitem_t *sub1 = c4m_list_get(p1->contents.items, i, NULL);
+            c4m_pitem_t *sub2 = c4m_list_get(p2->contents.items, i, NULL);
+            if (!pitems_eq(sub1, sub2)) {
+                return false;
+            }
+        }
+        return true;
+    case C4M_P_NT:
+        return p1->contents.nonterm == p2->contents.nonterm;
+    case C4M_P_GROUP:
+        return p1->contents.group == p2->contents.group;
+    }
 }
 
-// We're going to automatically rewrite used terminals into
-// non-terminal productions that:
-//
-// 1. Accept the null value with a penalty of '1'.
-//
-// 2. Accept prefixes of any length, where the penalty goes up by 1
-//    for any letter accepted.
-//
-//
-// Basically, we'll have a magic production
-// $$penalty: $$penalty |
-//
-// And a version of the empty string that penalizes for matching.
-//
-// Any non-terminal 'n' will get re-written to a corresponding 'nt_prod':
-//
-// nt_prod : n | $$penalty n | $$penalty_ε
-//
-// That should be the short and long of it.
-
-static c4m_pitem_t *
-add_penalty_rule(c4m_grammar_t *g, int64_t key, c4m_pitem_t *term)
+static bool
+rule_exists(c4m_nonterm_t *nt, c4m_parse_rule_t *new)
 {
-    c4m_utf8_t *name = c4m_cstr_format("$$terminal_{}", key);
+    int n = c4m_list_len(nt->rules);
+    int l = c4m_list_len(new->contents);
 
-    c4m_nonterm_t *nt_sub = c4m_new(c4m_type_ruleset(), g, name);
-    c4m_pitem_t   *result = c4m_pitem_from_nt(nt_sub);
-    c4m_list_t    *rule   = c4m_list(c4m_type_ref());
+    for (int i = 0; i < n; i++) {
+        c4m_parse_rule_t *old = c4m_list_get(nt->rules, i, NULL);
+        if (c4m_list_len(old->contents) != l) {
+            continue;
+        }
+        for (int j = 0; j < l; j++) {
+            c4m_pitem_t *pi_old = c4m_list_get(old->contents, j, NULL);
+            c4m_pitem_t *pi_new = c4m_list_get(new->contents, j, NULL);
+            if (!pitems_eq(pi_old, pi_new)) {
+                goto next;
+            }
+        }
+        return true;
 
-    c4m_list_append(rule, term);
-    c4m_list_append(nt_sub->rules, rule);
+next:;
+    }
 
-    rule = c4m_list(c4m_type_ref());
-    c4m_list_append(rule, g->penalty);
-    c4m_list_append(rule, term);
-    c4m_list_append(nt_sub->rules, rule);
-
-    rule = c4m_list(c4m_type_ref());
-    c4m_list_append(rule, g->penalty_empty);
-    c4m_list_append(nt_sub->rules, rule);
-    c4m_calculate_is_nullable_nt(g, nt_sub->id, c4m_list(c4m_type_u64()));
-
-    hatrack_dict_put(g->penalty_map, (void *)key, result);
-
-    return result;
+    return false;
 }
 
-static void
-initialize_penalty(c4m_grammar_t *g)
+static c4m_parse_rule_t *
+ruleset_add_rule_internal(c4m_grammar_t    *g,
+                          c4m_nonterm_t    *ruleset,
+                          c4m_list_t       *items,
+                          int               cost,
+                          c4m_parse_rule_t *penalty)
 {
-    c4m_utf8_t    *name       = c4m_new_utf8("$$penalty");
-    c4m_utf8_t    *name2      = c4m_new_utf8("$$penalty_ε");
-    c4m_list_t    *rule       = c4m_list(c4m_type_ref());
-    c4m_nonterm_t *nt_penalty = c4m_new(c4m_type_ruleset(), g, name);
-    c4m_nonterm_t *nt_pempty  = c4m_new(c4m_type_ruleset(), g, name2);
+    if (g->finalized) {
+        C4M_CRAISE("Cannot modify grammar after first parse w/o a reset.");
+    }
 
-    g->penalty       = c4m_pitem_from_nt(nt_penalty);
-    g->penalty_empty = c4m_pitem_from_nt(nt_pempty);
+    if (!c4m_list_len(items)) {
+        C4M_CRAISE(errstr);
+    }
 
-    c4m_list_append(rule, g->penalty);
-    c4m_list_append(rule, c4m_pitem_any_terminal_raw(g));
-    c4m_list_append(nt_penalty->rules, rule);
+    c4m_parse_rule_t *rule = c4m_gc_alloc_mapped(c4m_parse_rule_t,
+                                                 C4M_GC_SCAN_ALL);
+    rule->nt               = ruleset;
+    rule->contents         = items;
+    rule->cost             = cost;
+    rule->penalty_rule     = penalty ? true : false;
+    rule->link             = penalty;
 
-    rule = c4m_list(c4m_type_ref());
-    c4m_list_append(rule, c4m_pitem_any_terminal_raw(g));
-    c4m_list_append(nt_penalty->rules, rule);
+    if (rule_exists(ruleset, rule)) {
+        return NULL;
+    }
 
-    c4m_ruleset_add_empty_rule(nt_pempty);
+    c4m_list_append(ruleset->rules, rule);
+    c4m_list_append(g->rules, rule);
 
-    nt_penalty->penalty = 1;
-    nt_pempty->penalty  = 1;
-    nt_pempty->nullable = true;
+    return rule;
 }
 
 void
 c4m_ruleset_add_rule(c4m_grammar_t *g,
-                     c4m_nonterm_t *ruleset,
-                     c4m_list_t    *items)
+                     c4m_nonterm_t *nt,
+                     c4m_list_t    *items,
+                     int            cost)
 {
-#if 0
-    c4m_ruleset_raw_add_rule(g, ruleset, items);
+    ruleset_add_rule_internal(g, nt, items, cost, NULL);
 }
-void
-c4m_ruleset_tmp_not_add_rule(c4m_grammar_t *g,
-                             c4m_nonterm_t *ruleset,
-                             c4m_list_t    *items)
+
+static inline void
+create_one_error_rule_set(c4m_grammar_t *g, int rule_ix)
+
 {
-#endif
+    // We're only going to handle single-token errors in these rules for now;
+    // it could be useful to create all possible error rules in many cases,
+    // especially with things like matching parens, but single rules with
+    // dozens of tokens would pose a problem, and dealing with that would
+    // over-complicate. Single-token detection is good enough.
 
-    if (g->penalty == NULL) {
-        initialize_penalty(g);
-    }
-
-    int         n     = c4m_list_len(items);
-    c4m_list_t *xform = c4m_list(c4m_type_ref());
+    c4m_parse_rule_t *cur    = c4m_list_get(g->rules, rule_ix, NULL);
+    int               n      = c4m_list_len(cur->contents);
+    c4m_list_t       *l      = cur->contents;
+    int               tok_ct = 0;
+    c4m_pitem_t      *pi;
 
     for (int i = 0; i < n; i++) {
-        c4m_pitem_t *item = c4m_list_get(items, i, NULL);
-        int64_t      lookup_key;
+        pi = c4m_list_get(l, i, NULL);
 
-        switch (item->kind) {
-        case C4M_P_NULL:
-        case C4M_P_NT:
-        case C4M_P_GROUP:
-            c4m_list_append(xform, item);
-            goto next_iteration;
-        case C4M_P_TERMINAL:
-            lookup_key = item->contents.terminal;
-            break;
-        case C4M_P_ANY:
-            lookup_key = C4M_START_TOK_ID - 1;
-            break;
-        case C4M_P_BI_CLASS:
-            lookup_key = (C4M_START_TOK_ID / 2) + item->contents.class;
-            break;
-        case C4M_P_SET:
-            lookup_key = c4m_rand64() & ~(1ULL << 63);
-            break;
+        if (c4m_is_non_terminal(pi)) {
+            continue;
         }
+        tok_ct++;
 
-        c4m_pitem_t *sub = hatrack_dict_get(g->penalty_map,
-                                            (void *)lookup_key,
-                                            NULL);
+        c4m_utf8_t    *name   = c4m_cstr_format("$term-{}-{}-{}",
+                                           cur->nt->name,
+                                           rule_ix,
+                                           tok_ct);
+        c4m_pitem_t   *pi_err = c4m_pitem_nonterm_raw(g, name);
+        c4m_nonterm_t *nt_err = c4m_pitem_get_ruleset(g, pi_err);
+        c4m_list_t    *r      = c4m_list(c4m_type_ref());
 
-        if (!sub) {
-            sub = add_penalty_rule(g, lookup_key, item);
-        }
+        c4m_list_append(r, pi);
+        c4m_parse_rule_t *ok = ruleset_add_rule_internal(g, nt_err, r, 0, NULL);
 
-        c4m_list_append(xform, sub);
-next_iteration:
-        continue;
+        r = c4m_list(c4m_type_ref());
+        c4m_list_append(r, c4m_new_pitem(C4M_P_NULL));
+        ruleset_add_rule_internal(g, nt_err, r, 0, ok);
+
+        r = c4m_list(c4m_type_ref());
+        c4m_list_append(r, c4m_new_pitem(C4M_P_ANY));
+        c4m_list_append(r, pi);
+        ruleset_add_rule_internal(g, nt_err, r, 0, ok);
+
+        c4m_list_set(l, i, pi_err);
+    }
+}
+
+static int
+cmp_rules_for_display_ordering(c4m_parse_rule_t **p1, c4m_parse_rule_t **p2)
+{
+    c4m_parse_rule_t *r1 = *p1;
+    c4m_parse_rule_t *r2 = *p2;
+
+    if (r1->nt && !r2->nt) {
+        return -1;
     }
 
-    c4m_ruleset_raw_add_rule(g, ruleset, xform);
+    if (!r1->nt && r2->nt) {
+        return 1;
+    }
+
+    if (r1->nt) {
+        int name_cmp = strcmp(r1->nt->name->data, r2->nt->name->data);
+
+        if (name_cmp) {
+            if (r1->nt->start_nt) {
+                return -1;
+            }
+            if (r2->nt->start_nt) {
+                return 1;
+            }
+
+            return name_cmp;
+        }
+    }
+
+    if (r1->penalty_rule != r2->penalty_rule) {
+        if (r1->penalty_rule) {
+            return 1;
+        }
+        return -1;
+    }
+
+    int l1 = c4m_list_len(r1->contents);
+    int l2 = c4m_list_len(r2->contents);
+
+    if (l1 != l2) {
+        return l2 - l1;
+    }
+
+    return r1->cost - r2->cost;
+}
+
+void
+c4m_prep_first_parse(c4m_grammar_t *g)
+{
+    if (g->finalized) {
+        return;
+    }
+
+    int n = c4m_list_len(g->nt_list);
+
+    // Calculate nullability *before* we add in error rules.
+    //
+    // If we see 'nullable' set in a rule, we'll proactively advance
+    // the cursor without expanding it or including the penalty /
+    // cost, so we don't want to do this with token ellision errors.
+    //
+    // Those are forced to match explicitly.
+
+    for (int i = 0; i < n; i++) {
+        is_nullable_nt(g, i, c4m_list(c4m_type_u64()));
+    }
+
+    if (g->error_rules) {
+        n = c4m_list_len(g->rules);
+
+        for (int i = 0; i < n; i++) {
+            create_one_error_rule_set(g, i);
+        }
+    }
+
+    c4m_nonterm_t *start = c4m_get_nonterm(g, g->default_start);
+    start->start_nt      = true;
+
+    c4m_list_sort(g->rules, (c4m_sort_fn)cmp_rules_for_display_ordering);
+
+    g->finalized = true;
 }
 
 int64_t
@@ -582,6 +692,29 @@ count_newlines(c4m_parser_t *parser, c4m_str_t *tok_value, int *last_index)
     }
 
     return result;
+}
+
+void
+c4m_add_debug_highlight(c4m_parser_t *parser, int32_t eid, int32_t ix)
+{
+    if (!parser->debug_highlights) {
+        parser->debug_highlights = c4m_dict(c4m_type_int(),
+                                            c4m_type_set(c4m_type_int()));
+    }
+
+    int64_t key   = eid;
+    int64_t value = ix;
+
+    c4m_set_t *s = hatrack_dict_get(parser->debug_highlights,
+                                    (void *)key,
+                                    NULL);
+
+    if (!s) {
+        s = c4m_set(c4m_type_int());
+        hatrack_dict_put(parser->debug_highlights, (void *)key, s);
+    }
+
+    hatrack_set_put(s, (void *)value);
 }
 
 void

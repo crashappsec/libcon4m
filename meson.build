@@ -259,7 +259,9 @@ c4m_util = [
     'src/util/parsing.c',
     'src/util/parse_tree.c',
     'src/util/parse_repr.c',
-    'src/util/getopt.c',    
+    'src/util/getopt.c',
+    'src/util/getopt_tokenize.c',
+    'src/util/getopt_parse.c',
 ]
 
 c4m_crypto = ['src/crypto/sha.c']

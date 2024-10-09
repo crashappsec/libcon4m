@@ -55,10 +55,28 @@ test_automarshal()
 }
 #endif
 
+static void
+one_parse(c4m_parser_t *parser, char *s)
+{
+    c4m_utf8_t *input = c4m_new_utf8(s);
+    c4m_utf8_t *ctext = c4m_cstr_format("'{}'", input);
+
+    c4m_print(c4m_callout(ctext));
+
+    c4m_parse_string(parser, input, NULL);
+
+    c4m_list_t *l = c4m_parse_get_parses(parser);
+    int         n = c4m_list_len(l);
+
+    c4m_print(c4m_forest_format(l));
+}
+
 void
 test_parsing(void)
 {
-    c4m_grammar_t *grammar = c4m_new(c4m_type_grammar());
+    c4m_grammar_t *grammar = c4m_new(c4m_type_grammar(),
+                                     c4m_kw("detect_errors",
+                                            c4m_ka(true)));
     c4m_pitem_t   *add     = c4m_pitem_nonterm_raw(grammar,
                                              c4m_new_utf8("Add"));
     c4m_pitem_t   *mul     = c4m_pitem_nonterm_raw(grammar,
@@ -109,31 +127,38 @@ test_parsing(void)
     c4m_list_append(lgrp, digit);
     c4m_list_append(rule3b, c4m_group_items(grammar, lgrp, 1, 0));
 
-    c4m_ruleset_add_rule(grammar, nt_a, rule1a);
-    c4m_ruleset_add_rule(grammar, nt_a, rule1b);
-    c4m_ruleset_add_rule(grammar, nt_m, rule2a);
-    c4m_ruleset_add_rule(grammar, nt_m, rule2b);
-    c4m_ruleset_add_rule(grammar, nt_p, rule3a);
-    c4m_ruleset_add_rule(grammar, nt_p, rule3b);
-    c4m_print(c4m_grammar_format(grammar));
+    c4m_ruleset_add_rule(grammar, nt_a, rule1a, 0);
+    c4m_ruleset_add_rule(grammar, nt_a, rule1b, 0);
+    c4m_ruleset_add_rule(grammar, nt_m, rule2a, 0);
+    c4m_ruleset_add_rule(grammar, nt_m, rule2b, 0);
+    c4m_ruleset_add_rule(grammar, nt_p, rule3a, 0);
+    c4m_ruleset_add_rule(grammar, nt_p, rule3b, 0);
 
-    c4m_parser_t *parser = c4m_new(c4m_type_parser(), grammar);
+    c4m_grid_t   *unmunged_grammar = c4m_grammar_format(grammar);
+    c4m_parser_t *parser           = c4m_new(c4m_type_parser(), grammar);
 
-    // c4m_parse_string(parser, c4m_new_utf8(" 1"), NULL);
-    // c4m_parse_string(parser, c4m_new_utf8("1+2"), NULL);
-    // c4m_parse_string(parser, c4m_new_utf8("21"), NULL);
-    //    c4m_parse_string(parser, c4m_new_utf8("(1+2)"), NULL);
-    //    c4m_parse_string(parser, c4m_new_utf8("1+(2+3)"), NULL);
-    //    c4m_parse_string(parser, c4m_new_utf8("1+(2*3+4567)"), NULL);
-    c4m_parse_string(parser, c4m_new_utf8(" (1)"), NULL);
-    // c4m_print(c4m_parse_to_grid(parser, true));
-    c4m_grid_t *to_print = c4m_forest_format(parser);
+    one_parse(parser, "21");
+    one_parse(parser, "1+2");
+    one_parse(parser, "(1)");
+    one_parse(parser, "(1+2)");
+    one_parse(parser, "1+(2+3)");
+    one_parse(parser, "1+(2*3+4567)");
+    one_parse(parser, " (1)");
+    one_parse(parser, " 1");
+    one_parse(parser, "1)");
+    one_parse(parser, " 1)");
 
-    //    c4m_print(to_print);
+    c4m_grid_t *munged_grammar = c4m_grammar_format(grammar);
+
+    // OOPS, seem to have an off-by-1; lower->upper, upper->title, title->lower
+    c4m_print(c4m_callout(c4m_rich_lit(
+        "[lower white]Grammar used for above parses")));
+    c4m_print(unmunged_grammar);
+    c4m_print(munged_grammar);
 }
 
 static void
-show_gopt_results(c4m_list_t *all_parses)
+show_gopt_results(c4m_gopt_ctx *gopt, c4m_list_t *all_parses)
 {
     int num_parses = c4m_list_len(all_parses);
     c4m_printf("[em]{}[/] successful parses.", num_parses);
@@ -187,9 +212,9 @@ _gopt_test(c4m_gopt_ctx *gopt, c4m_list_t *args)
 {
     c4m_list_t *res;
 
-    c4m_printf("[h1]Run command: chalk {}", args);
     res = c4m_gopt_parse(gopt, c4m_new_utf8("chalk"), args);
-    show_gopt_results(res);
+    show_gopt_results(gopt, res);
+    c4m_printf("[h1]Run command was: chalk {}", args);
 }
 
 #define gopt_test(g, ...)                       \
@@ -205,6 +230,8 @@ setup_gopt_test(void)
                                  C4M_TOPLEVEL_IS_ARGV0);
     c4m_gopt_cspec *chalk = c4m_new(c4m_type_gopt_command(),
                                     c4m_kw("context", c4m_ka(gopt)));
+
+    // gopt->show_debug = true;
 
     c4m_new(c4m_type_gopt_option(),
             c4m_kw("name",
@@ -249,8 +276,8 @@ setup_gopt_test(void)
                                              c4m_ka(c4m_new_utf8("extract")),
                                              "parent",
                                              c4m_ka(chalk)));
-    c4m_gopt_add_subcommand(extract, c4m_new_utf8("(str str)*"));
-    // c4m_gopt_add_subcommand(extract, c4m_new_utf8("(STR)*"));
+    // c4m_gopt_add_subcommand(extract, c4m_new_utf8("(str str)*"));
+    c4m_gopt_add_subcommand(extract, c4m_new_utf8("(STR)*"));
 
     c4m_gopt_cspec *images     = c4m_new(c4m_type_gopt_command(),
                                      c4m_kw("context",
@@ -412,11 +439,26 @@ test_getopt(void)
 
     gopt_test(gopt, "--color", "False", "version");
     gopt_test(gopt, "--color", "f", "--color", "False", "version");
-    gopt_test(gopt, "extract", "foo", "--color=", "true", "bar", "bleep", "74");
     gopt_test(gopt, "extract", "foo", "--color", "true");
     gopt_test(gopt, "load", "foo", "--color", "true");
     gopt_test(gopt, "--color", "load", "foo");
     gopt_test(gopt, "--color", "num", "1209238", "37");
+    gopt_test(gopt,
+              "extract",
+              "--color=",
+              "true",
+              "foo",
+              "bar",
+              "bleep",
+              "74");
+
+    gopt_test(gopt,
+              "--color",
+              "extract",
+              "--no-color",
+              "containers",
+              "--color=",
+              "true");
     gopt_test(gopt,
               "--color",
               "extract",
@@ -424,6 +466,10 @@ test_getopt(void)
               "containers",
               "--testflag=x,y ",
               ",z");
+
+    c4m_print(c4m_callout(c4m_rich_lit(
+        "[lower white]Grammar used for above parses")));
+
     c4m_print(c4m_grammar_format(gopt->grammar));
 }
 
@@ -444,7 +490,7 @@ main(int argc, char **argv, char **envp)
     c4m_run_other_test_files();
 
     test_parsing();
-    //    test_getopt();
+    test_getopt();
 
     c4m_report_results_and_exit();
     c4m_unreachable();

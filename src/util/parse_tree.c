@@ -16,18 +16,15 @@ typedef struct nb_info_t {
     bool               visiting;
 } nb_info_t;
 
+static nb_info_t *
+populate_subtree(c4m_parser_t *p, c4m_earley_item_t *end);
+
+#define C4M_EARLEY_DEBUG
+#ifdef C4M_EARLEY_DEBUG
 static inline void
 ptree(void *v, char *txt)
 {
     if (c4m_type_is_list(c4m_get_my_type(v))) {
-        c4m_list_t *l = (c4m_list_t *)v;
-        int         n = c4m_list_len(l);
-
-        for (int i = 0; i < n; i++) {
-            c4m_printf("[h2]{} #{}", c4m_new_utf8(txt), i);
-            c4m_print(c4m_grid_tree_new(c4m_list_get(l, i, NULL),
-                                        c4m_kw("callback", c4m_ka(c4m_repr_parse_node))));
-        }
         return;
     }
 
@@ -35,25 +32,22 @@ ptree(void *v, char *txt)
     c4m_printf("[h2]{}", c4m_new_utf8(txt));
 
     c4m_print(c4m_grid_tree_new(t,
-                                c4m_kw("callback", c4m_ka(c4m_repr_parse_node))));
+                                c4m_kw("callback",
+                                       c4m_ka(c4m_repr_parse_node))));
 }
 
 static inline c4m_utf8_t *
 dei_base(c4m_parser_t *p, c4m_earley_item_t *ei)
 {
-    if (!ei) {
-        return c4m_new_utf8(" NULL eitem :(");
-    }
-    else {
-        c4m_list_t *repr = c4m_repr_earley_item(p, ei, 0);
+    assert(ei);
+    c4m_list_t *repr = c4m_repr_earley_item(p, ei, 0);
 
-        return c4m_cstr_format(" [em]{}:{}[/] {} ({})  [reverse]{}[/]",
-                               ei->estate_id,
-                               ei->eitem_index,
-                               c4m_list_get(repr, 1, NULL),
-                               c4m_list_get(repr, 4, NULL),
-                               c4m_list_get(repr, 5, NULL));
-    }
+    return c4m_cstr_format(" [em]{}:{}[/] {} ({})  [reverse]{}[/]",
+                           ei->estate_id,
+                           ei->eitem_index,
+                           c4m_list_get(repr, 1, NULL),
+                           c4m_list_get(repr, 4, NULL),
+                           c4m_list_get(repr, 5, NULL));
 }
 
 static void
@@ -79,9 +73,13 @@ _dei(c4m_parser_t *p, c4m_earley_item_t *start, c4m_earley_item_t *end, char *s)
     c4m_print(to_print);
 }
 
-#define dei2(x, y)   _dei(p, x, NULL, y)
 #define dei(x, y, z) _dei(p, x, y, z)
 #define dni(x, y)    _dei(p, x->top_item, x->bottom_item, y)
+#else
+#define dei(x, y, z)
+#define dni(x, y)
+#define ptree(x, y)
+#endif
 
 uint64_t
 c4m_parse_node_hash(c4m_tree_node_t *t)
@@ -133,6 +131,7 @@ c4m_parse_node_hash(c4m_tree_node_t *t)
     }
     else {
         c4m_sha_int_update(sha, t->num_kids);
+        c4m_sha_string_update(sha, pn->info.name);
 
         for (int i = 0; i < t->num_kids; i++) {
             c4m_sha_int_update(sha, c4m_parse_node_hash(t->children[i]));
@@ -145,21 +144,60 @@ c4m_parse_node_hash(c4m_tree_node_t *t)
     return pn->hv;
 }
 
-static c4m_list_t *
-clean_trees(c4m_list_t *l)
+static void
+add_penalty_info(c4m_grammar_t    *g,
+                 c4m_parse_node_t *pn,
+                 c4m_parse_rule_t *bad_rule)
+{
+    c4m_pitem_t *pi = c4m_list_get(bad_rule->contents,
+                                   pn->penalty_location,
+                                   NULL);
+
+    if (pi->kind == C4M_P_NULL) {
+        pn->missing = true;
+    }
+    else {
+        pn->bad_prefix = true;
+    }
+
+    if (bad_rule->penalty_rule) {
+        pn->info.name = c4m_repr_rule(g, bad_rule->link->contents, -1);
+    }
+}
+
+static void
+add_penalty_annotation(c4m_parse_node_t *pn)
+{
+    c4m_utf8_t *s;
+
+    if (pn->missing) {
+        s = c4m_cstr_format(" [em i](Missing token before position {})",
+                            (uint64_t)pn->penalty_location);
+    }
+    else {
+        s = c4m_cstr_format(" [em i](Unexpected token at position {})",
+                            (uint64_t)pn->penalty_location);
+    }
+
+    pn->info.name = c4m_str_concat(pn->info.name, s);
+}
+
+c4m_list_t *
+c4m_clean_trees(c4m_parser_t *p, c4m_list_t *l)
 {
     c4m_set_t  *hashes = c4m_set(c4m_type_int());
     c4m_list_t *result = c4m_list(c4m_type_ref());
 
     int n = c4m_list_len(l);
 
-    if (n <= 1) {
+    if (n < 1) {
         return l;
     }
 
     for (int i = 0; i < n; i++) {
         c4m_tree_node_t *t  = c4m_list_get(l, i, NULL);
         uint64_t         hv = c4m_parse_node_hash(t);
+
         if (hatrack_set_contains(hashes, (void *)hv)) {
             continue;
         }
@@ -182,25 +220,21 @@ add_option(nb_info_t *parent, int i, nb_info_t *kid)
     c4m_list_append(options, kid);
 }
 
-#define compat_bounds(t, b)                 \
-    assert(t->subtree_info != C4M_SI_NONE); \
-    assert(b->subtree_info != C4M_SI_NONE); \
-    assert(((int)t->subtree_info) % 2);     \
-    assert(((int)b->subtree_info) == ((int)t->subtree_info) + 1);
-
 static nb_info_t *
 get_node(c4m_parser_t *p, c4m_earley_item_t *b)
 {
+    c4m_earley_item_t *top = b->start_item;
+
     // When we pass non-terminals to get their node, the top (t)
     // should be the first prediction involving the subtree, and the
     // bottom (b) should be the state that completes the non-terminal.
-    c4m_dict_t *cache = b->start_item->cache;
+    c4m_dict_t *cache = top->cache;
 
     if (!cache) {
         // We're going to map a cache of any token to null, so use int
         // not ref so we don't try to cache the hash value and crash.
-        cache                = c4m_dict(c4m_type_int(), c4m_type_ref());
-        b->start_item->cache = cache;
+        cache      = c4m_dict(c4m_type_int(), c4m_type_ref());
+        top->cache = cache;
     }
 
     nb_info_t *result = hatrack_dict_get(cache, b, NULL);
@@ -215,16 +249,18 @@ get_node(c4m_parser_t *p, c4m_earley_item_t *b)
     result              = c4m_gc_alloc_mapped(nb_info_t, C4M_GC_SCAN_ALL);
     result->pnode       = pn;
     result->bottom_item = b;
-    result->top_item    = b->start_item;
+    result->top_item    = top;
     result->slots       = c4m_list(c4m_type_ref());
 
-    pn->id      = b->ruleset_id;
-    pn->start   = b->start_item->estate_id;
+    pn->id      = top->ruleset_id;
+    pn->start   = top->estate_id;
     pn->end     = b->estate_id;
     // Will add in kid penalties too, later.
-    pn->penalty = b->start_item->penalty;
+    pn->penalty = b->penalty;
 
     hatrack_dict_put(cache, b, result);
+
+    c4m_parse_rule_t *rule = top->rule;
 
     // For group nodes in the tree, the number of kids is determined
     // by the match count. Everything else that might get down here is
@@ -233,17 +269,19 @@ get_node(c4m_parser_t *p, c4m_earley_item_t *b)
     c4m_utf8_t *s1;
 
     if (b->subtree_info == C4M_SI_GROUP_END) {
-        s1               = c4m_repr_nonterm(p->grammar,
+        s1            = c4m_repr_nonterm(p->grammar,
                               C4M_GID_SHOW_GROUP_LHS,
                               false);
-        result->num_kids = b->match_ct;
-        pn->group_top    = true;
+        pn->group_top = true;
     }
     else {
-        result->num_kids = c4m_list_len(b->rule);
-        s1               = c4m_repr_nonterm(p->grammar, b->ruleset_id, false);
-        if (b->subtree_info == C4M_SI_GROUP_ITEM_END) {
+        result->num_kids = c4m_list_len(rule->contents);
+        if (top->group_top) {
+            s1             = c4m_repr_group(p->grammar, top->group_top->group);
             pn->group_item = true;
+        }
+        else {
+            s1 = c4m_repr_nonterm(p->grammar, top->ruleset_id, false);
         }
     }
 
@@ -251,9 +289,21 @@ get_node(c4m_parser_t *p, c4m_earley_item_t *b)
         c4m_list_append(result->slots, NULL);
     }
 
-    c4m_utf8_t *s2 = c4m_repr_rule(p->grammar, b->rule, -1);
+    c4m_utf8_t *s2;
+
+    if (top->group) {
+        s2 = c4m_repr_group(p->grammar, top->group);
+    }
+    else {
+        s2 = c4m_repr_rule(p->grammar, rule->contents, -1);
+    }
 
     pn->info.name = c4m_cstr_format("{}  [yellow]⟶  [/]{}", s1, s2);
+
+    if (rule->penalty_rule) {
+        add_penalty_info(p->grammar, pn, rule);
+        add_penalty_annotation(pn); // Expect to make this an option.
+    }
 
     return result;
 }
@@ -275,14 +325,44 @@ process_slot(c4m_parser_t *p, c4m_list_t *ni_options)
     return result;
 }
 
-static inline c4m_parse_node_t *
-copy_pnode(c4m_parse_node_t *pn)
+static inline c4m_list_t *
+score_filter(c4m_list_t *opts)
 {
-    c4m_parse_node_t *result = c4m_gc_alloc_mapped(c4m_parse_node_t,
-                                                   C4M_GC_SCAN_ALL);
-    memcpy(result, pn, sizeof(c4m_parse_node_t));
+    uint32_t    penalty = ~0;
+    int         n       = c4m_list_len(opts);
+    c4m_list_t *results = c4m_list(c4m_type_ref());
 
-    return result;
+    // First, calculate the lowest penalty we see.
+
+    for (int i = 0; i < n; i++) {
+        c4m_tree_node_t  *t = c4m_list_get(opts, i, NULL);
+        c4m_parse_node_t *p = c4m_tree_get_contents(t);
+        if (p->penalty < penalty) {
+            penalty = p->penalty;
+        }
+    }
+
+    for (int i = 0; i < n; i++) {
+        c4m_tree_node_t  *t = c4m_list_get(opts, i, NULL);
+        c4m_parse_node_t *p = c4m_tree_get_contents(t);
+
+        if (p->penalty == penalty) {
+            c4m_list_append(results, t);
+        }
+    }
+
+    return results;
+}
+
+static inline c4m_parse_node_t *
+copy_parse_node(c4m_parse_node_t *in)
+{
+    c4m_parse_node_t *out = c4m_gc_alloc_mapped(c4m_parse_node_t,
+                                                C4M_GC_SCAN_ALL);
+
+    memcpy(out, in, sizeof(c4m_parse_node_t));
+
+    return out;
 }
 
 static inline c4m_list_t *
@@ -293,25 +373,23 @@ package_single_slot_options(nb_info_t *ni, c4m_list_t *t_opts)
     c4m_parse_node_t *pn;
 
     for (int i = 0; i < n; i++) {
-        c4m_tree_node_t  *kid_t  = c4m_list_get(t_opts, i, NULL);
+        c4m_tree_node_t *kid_t = c4m_list_get(t_opts, i, NULL);
+
+        pn                       = copy_parse_node(ni->pnode);
         c4m_parse_node_t *kid_pn = c4m_tree_get_contents(kid_t);
+        c4m_tree_node_t  *t      = c4m_new_tree_node(c4m_type_ref(), pn);
 
-        if (kid_pn->penalty) {
-            pn = copy_pnode(ni->pnode);
-            pn->penalty += kid_pn->penalty;
+        if (kid_pn->penalty > pn->penalty) {
+            pn->penalty = kid_pn->penalty;
         }
-        else {
-            pn = ni->pnode;
-        }
-
-        c4m_tree_node_t *t = c4m_new_tree_node(c4m_type_ref(), pn);
 
         c4m_tree_adopt_node(t, kid_t);
         c4m_list_append(output_opts, t);
     }
 
     ni->opts = output_opts;
-    return clean_trees(output_opts);
+
+    return score_filter(c4m_clean_trees(NULL, output_opts));
 }
 
 static inline c4m_list_t *
@@ -359,7 +437,6 @@ parse_node_zipper(c4m_list_t *kid_sets, c4m_list_t *options)
         }
     }
 
-    printf("Len of zipper so far: %d\n", c4m_list_len(results));
     return results;
 }
 
@@ -381,48 +458,42 @@ package_kid_sets(nb_info_t *ni, c4m_list_t *kid_sets)
     ni->opts   = c4m_list(c4m_type_ref());
 
     for (int i = 0; i < n_sets; i++) {
-        c4m_list_t      *one_set = c4m_list_get(kid_sets, i, NULL);
-        int              penalty = 0;
-        c4m_tree_node_t *t       = c4m_new_tree_node(c4m_type_ref(), ni->pnode);
+        c4m_list_t       *a_set       = c4m_list_get(kid_sets, i, NULL);
+        c4m_parse_node_t *copy        = copy_parse_node(ni->pnode);
+        c4m_tree_node_t  *t           = c4m_new_tree_node(c4m_type_ref(), copy);
+        c4m_parse_node_t *kpn         = NULL;
+        int               old_penalty = copy->penalty;
 
-        c4m_printf("Kid set #{} / {}", i, n_sets);
+        copy->penalty = 0;
 
         for (int j = 0; j < ni->num_kids; j++) {
-            c4m_tree_node_t *kid_t = c4m_list_get(one_set, j, NULL);
-            ptree(kid_t, "One option");
-            c4m_print(c4m_get_my_type(kid_t));
-        }
-        for (int j = 0; j < ni->num_kids; j++) {
-            c4m_tree_node_t *kid_t = c4m_list_get(one_set, j, NULL);
+            c4m_tree_node_t *kid_t = c4m_list_get(a_set, j, NULL);
 
             if (!kid_t) {
                 continue;
             }
 
-            c4m_parse_node_t *kid_pn = c4m_tree_get_contents(kid_t);
+            kpn = c4m_tree_get_contents(kid_t);
 
-            if (kid_pn) {
-                penalty += kid_pn->penalty;
+            if (!kpn) {
+                kpn = new_epsilon_node();
+                c4m_tree_replace_contents(kid_t, kpn);
             }
             else {
-                kid_pn = new_epsilon_node();
-                c4m_tree_replace_contents(kid_t, kid_pn);
+                copy->penalty += kpn->penalty;
             }
 
             c4m_tree_adopt_node(t, kid_t);
         }
 
-        if (penalty) {
-            c4m_parse_node_t *pn_copy = copy_pnode(ni->pnode);
-            pn_copy->penalty += penalty;
-
-            c4m_tree_replace_contents(t, pn_copy);
-        }
-
         c4m_list_append(ni->opts, t);
+
+        if (copy->penalty < old_penalty) {
+            copy->penalty = old_penalty;
+        }
     }
 
-    ptree(ni->opts, "Zippered");
+    ni->opts = score_filter(c4m_clean_trees(NULL, ni->opts));
 }
 
 static c4m_list_t *
@@ -442,18 +513,13 @@ postprocess_subtree(c4m_parser_t *p, nb_info_t *ni)
 
     ni->visiting = true;
 
-    dni(ni, "[h4]Postprocess Subtree");
-
     // Leaf nodes just need to be wrapped.
     if (!ni->num_kids) {
         ni->opts = c4m_list(c4m_type_ref());
         t        = c4m_new_tree_node(c4m_type_ref(), ni->pnode);
 
-        ptree(t, "Leaf node");
-
         c4m_list_append(ni->opts, t);
 
-        dni(ni, "[h6]Finished subtree");
         return ni->opts;
     }
 
@@ -464,9 +530,7 @@ postprocess_subtree(c4m_parser_t *p, nb_info_t *ni)
     // If it's the ONLY slot, score and wrap. No need to zipper.
     if (ni->num_kids == 1) {
         c4m_list_t *result = package_single_slot_options(ni, slot_options);
-        ptree(result, "No zipper");
-        dni(ni, "[h6]Finished subtree");
-        ni->visiting = false;
+        ni->visiting       = false;
         return result;
     }
 
@@ -496,7 +560,7 @@ postprocess_subtree(c4m_parser_t *p, nb_info_t *ni)
     }
 
     package_kid_sets(ni, kid_sets); // sets ni-opts.
-    dni(ni, "[h6]Finished subtree");
+
     ni->visiting = false;
     return ni->opts;
 }
@@ -520,13 +584,18 @@ search_for_end_items(c4m_parser_t *p)
     }
 
     while (--n) {
-        c4m_earley_item_t *ei = c4m_list_get(items, n, NULL);
+        c4m_earley_item_t *ei  = c4m_list_get(items, n, NULL);
+        c4m_earley_item_t *top = ei->start_item;
 
-        if (ei->cursor != c4m_len(ei->rule)) {
+        if (top->subtree_info != C4M_SI_NT_RULE_START) {
             continue;
         }
 
-        if (ei->ruleset_id != p->start) {
+        if (top->ruleset_id != p->start) {
+            continue;
+        }
+
+        if (ei->cursor != c4m_len(top->rule->contents)) {
             continue;
         }
 
@@ -537,62 +606,47 @@ search_for_end_items(c4m_parser_t *p)
 }
 
 static void
-create_all_subtrees(c4m_parser_t *p)
-{
-    // This doesn't try to parent anything; it just goes ahead and
-    // pre-creates nodes of possible subtrees, so that we can KISS.
-
-    int n = p->position + 1;
-
-    while (n--) {
-        c4m_earley_state_t *s       = c4m_list_get(p->states, n, NULL);
-        int                 num_eis = c4m_list_len(s->items);
-
-        for (int i = 0; i < num_eis; i++) {
-            c4m_earley_item_t *ei = c4m_list_get(s->items, i, NULL);
-            switch (ei->subtree_info) {
-            case C4M_SI_NT_RULE_END:
-            case C4M_SI_GROUP_END:
-            case C4M_SI_GROUP_ITEM_END:;
-                nb_info_t *info = get_node(p, ei);
-                continue;
-            default:
-                continue;
-            }
-        }
-    }
-}
-
-static nb_info_t *populate_subtree(c4m_parser_t *, c4m_earley_item_t *);
-
-static void
 scan_group_items(c4m_parser_t *p, nb_info_t *group_ni, c4m_earley_item_t *end)
 {
     // We could have multiple group items ending the group with the same
     // number of matches, if we have specific enough ambiguity.
     //
     // So follow each path back seprately.
-    int ix = group_ni->num_kids;
 
     uint64_t            n;
-    c4m_earley_item_t **clist = hatrack_set_items_sort(end->completors, &n);
+    c4m_earley_item_t **clist  = hatrack_set_items_sort(end->completors, &n);
+    uint32_t            minp   = ~0;
+    uint32_t            nitems = ~0;
 
-    dni(group_ni, "Scanning this group");
+    for (uint64_t i = 0; i < n; i++) {
+        c4m_earley_item_t *cur = clist[i];
+        if (cur->penalty < minp) {
+            minp   = cur->penalty;
+            nitems = cur->match_ct;
+        }
+        if (cur->penalty == minp && cur->match_ct < nitems) {
+            nitems = cur->match_ct;
+        }
+    }
 
     for (uint64_t i = 0; i < n; i++) {
         c4m_earley_item_t *cur = clist[i];
 
-        dei(cur, cur->start_item, NULL);
+        if (cur->penalty != minp || cur->match_ct != nitems) {
+            continue;
+        }
 
-        while (cur) {
+        int ix             = cur->match_ct;
+        group_ni->num_kids = cur->match_ct;
+
+        while (cur && ix-- > 0) {
             nb_info_t         *possible_node = populate_subtree(p, cur);
             c4m_earley_item_t *start         = cur->start_item;
-
-            dei(start, cur, "One EI");
-            dni(possible_node, "How did we do?");
-            add_option(group_ni, --ix, possible_node);
+            add_option(group_ni, ix, possible_node);
             cur = start->previous_scan;
         }
+
+        break;
     }
 }
 
@@ -638,38 +692,27 @@ add_epsilon_node(nb_info_t *node, c4m_earley_item_t *ei)
 static void
 scan_rule_items(c4m_parser_t *p, nb_info_t *parent_ni, c4m_earley_item_t *end)
 {
-    // Unlike with a group, we are already where we need to start our
-    // scan chain. But each link of the chain, we have to do some
-    // logic :( Thinking is hard.
-
     c4m_earley_item_t *start = end->start_item;
     c4m_earley_item_t *cur   = end;
     c4m_earley_item_t *prev  = end;
 
-    // dei(start, end, "Scan start location");
-
-    assert(end->cursor == c4m_list_len(end->rule));
-
-    for (int i = 0; i < c4m_list_len(end->rule); i++) {
+    for (int i = 0; i < c4m_list_len(start->rule->contents); i++) {
         cur        = cur->previous_scan;
         int cursor = cur->cursor;
 
         assert(prev->cursor == cur->cursor + 1);
-        // dei(cur, prev, "Scan item start");
 
-        if (cur->estate_id == prev->estate_id) {
-            add_epsilon_node(parent_ni, cur);
-            prev = cur;
-            continue;
-        }
-
-        c4m_pitem_t        *pi = c4m_list_get(cur->rule, cur->cursor, NULL);
+        c4m_pitem_t        *pi = c4m_list_get(start->rule->contents,
+                                       cur->cursor,
+                                       NULL);
         uint64_t            n_bottoms;
         c4m_earley_item_t **bottoms;
 
         switch (pi->kind) {
         case C4M_P_NULL:
-            c4m_unreachable();
+            add_epsilon_node(parent_ni, cur);
+            prev = cur;
+            break;
         case C4M_P_TERMINAL:
         case C4M_P_ANY:
         case C4M_P_BI_CLASS:
@@ -690,29 +733,14 @@ scan_rule_items(c4m_parser_t *p, nb_info_t *parent_ni, c4m_earley_item_t *end)
 
             for (uint64_t i = 0; i < n_bottoms; i++) {
                 c4m_earley_item_t *subtree_end = bottoms[i];
-                c4m_earley_item_t *subtree_top = subtree_end->start_item;
-
-                // There's a bug in copying predictors. Need to fix it
-                // properly, but this is the practical consequence, so
-                // not a huge hurry.
-                if (subtree_top == start) {
-                    continue;
-                }
 
                 // The tops of the subtrees should have been predicted
                 // by the LEFT ei.
-                dei(cur, prev, "Scan state.");
-                dei(subtree_top, subtree_end, "Subtree.");
-                //                assert(hatrack_set_contains(cur->predictions, subtree_top));
-                assert(subtree_end != subtree_top);
-
-                //  dei(subtree_top, subtree_end, "Scan subtree");
-
                 nb_info_t *subnode = populate_subtree(p, subtree_end);
 
+                // Add the option to *any* possible parent, not just the one
+                // that called us.
                 add_option(parent_ni, cursor, subnode);
-
-                // dni(subnode, "Done scanning subtree");
             }
         }
         prev = cur;
@@ -736,7 +764,6 @@ populate_subtree(c4m_parser_t *p, c4m_earley_item_t *end)
     // We handle populating subnodes in a group differently from
     // populating group items and other non-terminals.
     if (end->subtree_info == C4M_SI_GROUP_END) {
-        printf("IN A GROUP\n");
         scan_group_items(p, ni, end);
     }
     else {
@@ -745,18 +772,19 @@ populate_subtree(c4m_parser_t *p, c4m_earley_item_t *end)
 
     ni->cached   = true;
     ni->visiting = false;
+
     return ni;
 }
 
 c4m_list_t *
-c4m_find_all_trees(c4m_parser_t *p)
+c4m_build_forest(c4m_parser_t *p)
 {
     c4m_list_t *results = NULL;
     c4m_list_t *roots   = c4m_list(c4m_type_ref());
     c4m_list_t *ends    = search_for_end_items(p);
     int         n       = c4m_list_len(ends);
 
-    create_all_subtrees(p);
+    p->grammar->suspend_penalty_hiding++;
 
     for (int i = 0; i < n; i++) {
         c4m_earley_item_t *end = c4m_list_get(ends, i, NULL);
@@ -786,12 +814,17 @@ c4m_find_all_trees(c4m_parser_t *p)
         results = c4m_list_plus(results, possibles);
     }
 
-    printf("Collected %d results pre-cleaning.\n", c4m_list_len(results));
-    results = clean_trees(results);
-    c4m_printf("[h2]Exiting with [em]{}[/] results.", c4m_list_len(results));
-    for (int i = 0; i < c4m_list_len(results); i++) {
-        ptree(c4m_list_get(results, i, NULL), "Here's one.");
-    }
+    p->grammar->suspend_penalty_hiding--;
+    return results;
+}
+
+c4m_list_t *
+c4m_parse_get_parses(c4m_parser_t *p)
+{
+    // This one provides ambiguous trees, but stops at the maximum penalty.
+    c4m_list_t *results = score_filter(c4m_build_forest(p));
+
+    results = c4m_clean_trees(p, results);
 
     return results;
 }

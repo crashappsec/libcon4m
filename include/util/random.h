@@ -24,6 +24,16 @@ c4m_rand32()
     return res;
 }
 
+static inline uint16_t
+c4m_rand16()
+{
+    uint16_t res;
+
+    arc4random_buf(&res, 2);
+
+    return res;
+}
+
 #elif defined(__linux__)
 
 static inline uint64_t
@@ -40,9 +50,21 @@ c4m_rand64()
 static inline uint32_t
 c4m_rand32()
 {
-    uint64_t res;
+    uint32_t res;
 
     while (getrandom(&res, 4, GRND_NONBLOCK) != 4)
+        // retry on interrupt.
+        ;
+
+    return res;
+}
+
+static inline uint16_t
+c4m_rand16()
+{
+    uint16_t res;
+
+    while (getrandom(&res, 2, GRND_NONBLOCK) != 2)
         // retry on interrupt.
         ;
 
